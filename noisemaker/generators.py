@@ -39,8 +39,16 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
         tensor = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, displacement=displacement)
 
         if channels > 2:
-            tensor = tf.image.adjust_saturation(tensor, .75)
+            tensor = tf.image.adjust_saturation(tensor, .9)
 
         combined = tf.add(combined, tf.divide(tensor, 2**octave))
+
+    if channels > 2:
+        combined = tf.image.adjust_saturation(combined, .5)
+
+    # combined = effects.convolve(effects.ConvKernel.shadow.value, combined)
+    # combined = effects.convolve(effects.ConvKernel.edges.value, combined)
+    # combined = effects.convolve(effects.ConvKernel.unsharp_mask.value, combined)
+    combined = effects.convolve(effects.ConvKernel.sharpen.value, combined)
 
     return combined

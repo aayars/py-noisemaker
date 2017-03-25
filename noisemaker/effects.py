@@ -80,9 +80,11 @@ def conform_kernel_to_tensor(kernel, tensor):
 
     l = len(kernel)
 
-    channels = tf.size(tensor)[2]
+    channels = tf.shape(tensor).eval()[2]
 
-    temp = tf.reshape(np.repeat(kernel, channels), (l, l, channels))
+    temp = np.repeat(kernel, channels)
+
+    temp = tf.reshape(temp, (l, l, channels, 1))
 
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
