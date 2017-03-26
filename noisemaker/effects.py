@@ -11,10 +11,16 @@ class ConvKernel(Enum):
         [   0,  0,  0   ],
     ]
 
-    shadow = [
+    emboss = [
         [   0,   2,   4   ],
         [  -2,   1,   2   ],
         [  -4,  -2,   0   ],
+    ]
+
+    shadow = [
+        [   1,   2,   1   ],
+        [   0,   4,   0   ],
+        [  -1,  -2,  -1   ],
     ]
 
     edges = [
@@ -36,6 +42,71 @@ class ConvKernel(Enum):
         [ 4,  16,   24,  16, 4 ],
         [ 1,  4,     6,   4, 1 ],
     ]
+
+
+def _conform_kernel_to_tensor(kernel, tensor):
+    """
+    """
+
+    l = len(kernel)
+
+    channels = tf.shape(tensor).eval()[2]
+
+    temp = np.repeat(kernel, channels)
+
+    temp = tf.reshape(temp, (l, l, channels, 1))
+
+    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+
+    return temp
+
+
+def _convolve(kernel, tensor):
+    """
+    """
+
+    kernel = _conform_kernel_to_tensor(kernel.value, tensor)
+
+    tensor = tf.nn.depthwise_conv2d([tensor], kernel, [1,1,1,1], "VALID")[0]
+
+    tensor = normalize(tensor)
+
+    return tensor
+
+
+def emboss(tensor):
+    """
+    """
+
+    return _convolve(ConvKernel.emboss, tensor)
+
+
+def shadow(tensor):
+    """
+    """
+
+    return _convolve(ConvKernel.shadow, tensor)
+
+
+def edges(tensor):
+    """
+    """
+
+    return _convolve(ConvKernel.edges, tensor)
+
+
+def sharpen(tensor):
+    """
+    """
+
+    return _convolve(ConvKernel.sharpen, tensor)
+
+
+def unsharp_mask(tensor):
+    """
+    """
+
+    return _convolve(ConvKernel.unsharp_mask, tensor)
 
 
 def normalize(tensor):
@@ -74,30 +145,6 @@ def crease(tensor):
     return temp
 
 
-def conform_kernel_to_tensor(kernel, tensor):
-    """
-    """
-
-    l = len(kernel)
-
-    channels = tf.shape(tensor).eval()[2]
-
-    temp = np.repeat(kernel, channels)
-
-    temp = tf.reshape(temp, (l, l, channels, 1))
-
-    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
-
-    return temp
-
-
-def convolve(kernel, tensor):
-    """
-    """
-
-    return tf.nn.depthwise_conv2d([tensor], conform_kernel_to_tensor(kernel, tensor), [1,1,1,1], "VALID")[0]
-
-
 def displace(tensor, displacement=1.0):
     """
     """
@@ -108,6 +155,9 @@ def displace(tensor, displacement=1.0):
 
     reference = tf.image.rgb_to_grayscale(tensor) if channels > 1 else tensor
 
+    reference = tf.subtract(reference, .5)
+    reference = tf.multiply(reference, 2 * displacement)
+
     reference = reference.eval()
     tensor = tensor.eval()
 
@@ -115,7 +165,7 @@ def displace(tensor, displacement=1.0):
 
     for x in range(width):
         for y in range(height):
-            value = reference[y][x] * displacement
+            value = reference[y][x]
 
             x_offset = (x + int(value * width)) % width
             y_offset = (y + int(value * height)) % height
