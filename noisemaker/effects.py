@@ -18,9 +18,9 @@ class ConvKernel(Enum):
     ]
 
     shadow = [
-        [   1,   2,   1   ],
-        [   0,   4,   0   ],
-        [  -1,  -2,  -1   ],
+        [   0,   2,   3   ],
+        [  -2,   1,   2   ],
+        [  -3,  -2,   0   ],
     ]
 
     edges = [
@@ -165,10 +165,10 @@ def displace(tensor, displacement=1.0):
 
     for x in range(width):
         for y in range(height):
-            value = reference[y][x]
+            x_offset = (x + int(reference[y][x] * width)) % width
+            y_offset = (y + int(reference[y][x_offset] * height)) % height
 
-            x_offset = (x + int(value * width)) % width
-            y_offset = (y + int(value * height)) % height
+            # x_offset = (x + int(reference[y_offset][x] * width)) % width
 
             temp[y][x] = tensor[x_offset][y_offset]
 
