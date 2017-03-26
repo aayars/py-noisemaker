@@ -19,6 +19,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+The above `pip` command installs scikit-image, which takes a while. Let it happen.
+
 Install [TensorFlow](https://www.tensorflow.org/install/) in the virtualenv, using pip.
 
 ```

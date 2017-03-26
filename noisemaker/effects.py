@@ -3,6 +3,8 @@ from enum import Enum
 import numpy as np
 import tensorflow as tf
 
+from skimage.transform import resize
+
 
 class ConvKernel(Enum):
     identity = [
@@ -110,11 +112,22 @@ def resample(tensor, width, height):
     Resize the given image Tensor to the given dimensions.
     """
 
-    temp = tf.image.resize_images(tensor, [height, width], align_corners=True, method=tf.image.ResizeMethod.BICUBIC)
+    _height, _width, channels = tf.shape(tensor).eval()
 
-    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+    if isinstance(tensor, tf.Tensor):  # Sometimes you feel like a Tensor
+        downcast = tensor.eval()
 
-    return temp
+    else:  # Sometimes you feel a little more numpy
+        downcast = tensor
+
+    downcast = resize(downcast, (height, width, channels), mode="wrap", order=3, preserve_range=True)
+
+    return tf.image.convert_image_dtype(downcast, tf.float32, saturate=True)
+
+    ### TensorFlow doesn't handily let us wrap around edges when resampling.
+    # temp = tf.image.resize_images(tensor, [height, width], align_corners=True, method=tf.image.ResizeMethod.BICUBIC)
+    # temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+    # return temp
 
 
 def crease(tensor):
