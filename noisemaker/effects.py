@@ -18,9 +18,14 @@ class ConvKernel(Enum):
     ]
 
     shadow = [
-        [   0,   2,   3   ],
-        [  -2,   1,   2   ],
-        [  -3,  -2,   0   ],
+        [  0,  1,  2,  1, 0 ],
+        [ -1, -2,  4,  2, 1 ],
+        [ -2, -4,  1,  4, 2 ],
+        [ -1, -2, -4,  2, 1 ],
+        [  0, -1, -2, -1, 0 ]
+        # [   0,   2,   4   ],
+        # [  -2,   1,   2   ],
+        # [  -4,  -2,   0   ],
     ]
 
     edges = [
@@ -56,8 +61,6 @@ def _conform_kernel_to_tensor(kernel, tensor):
 
     temp = tf.reshape(temp, (l, l, channels, 1))
 
-    temp = normalize(temp)
-
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
     return temp
@@ -70,6 +73,8 @@ def _convolve(kernel, tensor):
     kernel = _conform_kernel_to_tensor(kernel.value, tensor)
 
     tensor = tf.nn.depthwise_conv2d([tensor], kernel, [1,1,1,1], "VALID")[0]
+
+    tensor = normalize(tensor)
 
     return tensor
 
