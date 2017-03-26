@@ -33,10 +33,20 @@ python setup.py develop
 python setup.py install_scripts
 ```
 
+## Usage
+
 Start making some noise.
 
 ```
 noisemaker --shadow --sharpen multires --width 1024 --height 512
+```
+
+...do it in Python:
+
+```
+from noisemaker.generators import multires
+
+tensor = multires()  # Image tensor with shape (height, width, channels)
 ```
 
 See the help screens for usage. TODO: Make these better!
@@ -48,3 +58,10 @@ noisemaker gaussian --help
 
 noisemaker multires --help
 ```
+
+## See also
+
+- [Wikipedia: Value Noise](https://en.wikipedia.org/wiki/Value_noise)
+- [Wikipedia: Perlin Noise](https://en.wikipedia.org/wiki/Perlin_noise)
+- [Wikipedia: Tensor](https://en.wikipedia.org/wiki/Tensor)
+
