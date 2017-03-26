@@ -23,7 +23,7 @@ class ConvKernel(Enum):
         [  0,   1,   1,   1,   1,   1,   1  ],
         [ -1,   0,   2,   2,   1,   1,   1  ],
         [ -1,  -2,   0,   4,   2,   1,   1  ],
-        [ -1,  -2,  -4,   4,   4,   2,   1  ],
+        [ -1,  -2,  -4,   8,   4,   2,   1  ],
         [ -1,  -1,  -2,  -4,   0,   2,   1  ],
         [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
         [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
@@ -164,7 +164,7 @@ def displace(tensor, displacement=1.0):
     for x in range(width):
         for y in range(height):
             x_offset = (x + int(reference[y][x] * width)) % width
-            y_offset = (y + int(reference[y][x_offset] * height)) % height
+            y_offset = (y + int(reference[y][int(x + width * .5) % width] * height)) % height
 
             # x_offset = (x + int(reference[y_offset][x] * width)) % width
 
