@@ -5,7 +5,7 @@
 ## External Requirements
 
 - Python 3.6+
-- Tensorflow 1.0.1+
+- TensorFlow 1.0.1+
 
 ## Developer Installation
 
@@ -19,7 +19,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Install [Tensorflow](https://www.tensorflow.org/install/) in the virtualenv, using pip.
+Install [TensorFlow](https://www.tensorflow.org/install/) in the virtualenv, using pip.
 
 ```
 # For now, Mac users can just use the included requirements file.
