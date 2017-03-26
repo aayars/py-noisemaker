@@ -40,9 +40,6 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
-        if channels > 2:
-            tensor = tf.image.adjust_saturation(tensor, .9)
-
     if displacement != 0:
         tensor = effects.displace(tensor, displacement=displacement)
 

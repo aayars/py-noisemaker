@@ -21,20 +21,9 @@ def _post_process(tensor, args):
     """
     """
 
-    if args["emboss"]:
-        tensor = effects.emboss(tensor)
-
-    if args["shadow"]:
-        tensor = effects.shadow(tensor)
-
-    if args["edges"]:
-        tensor = effects.edges(tensor)
-
-    if args["sharpen"]:
-        tensor = effects.sharpen(tensor)
-
-    if args["unsharp-mask"]:
-        tensor = effects.unsharp_mask(tensor)
+    for kernel in effects.ConvKernel:
+        if args.get(kernel.name):
+            tensor =  effects.convolve(kernel, tensor)
 
     return tensor
 
@@ -46,14 +35,11 @@ def _post_process(tensor, args):
 @click.option("--sharpen", is_flag=True, default=False)
 @click.option("--unsharp-mask", is_flag=True, default=False)
 @click.pass_context
-def main(ctx, emboss, shadow, edges, sharpen, unsharp_mask):
-    ctx.obj = {}
+def main(ctx, **kwargs):
+    """
+    """
 
-    ctx.obj["emboss"] = emboss
-    ctx.obj["shadow"] = shadow
-    ctx.obj["edges"] = edges
-    ctx.obj["sharpen"] = sharpen
-    ctx.obj["unsharp-mask"] = unsharp_mask
+    ctx.obj = kwargs
 
 
 @main.command()

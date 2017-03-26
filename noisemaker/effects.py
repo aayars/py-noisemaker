@@ -8,36 +8,47 @@ class ConvKernel(Enum):
     identity = [
         [   0,  0,  0   ],
         [   0,  1,  0   ],
-        [   0,  0,  0   ],
+        [   0,  0,  0   ]
     ]
 
     emboss = [
         [   0,   2,   4   ],
         [  -2,   1,   2   ],
-        [  -4,  -2,   0   ],
+        [  -4,  -2,   0   ]
     ]
 
     shadow = [
-        [  0,  1,  2,  1, 0 ],
-        [ -1, -2,  4,  2, 1 ],
-        [ -2, -4,  1,  4, 2 ],
-        [ -1, -2, -4,  2, 1 ],
-        [  0, -1, -2, -1, 0 ]
-        # [   0,   2,   4   ],
-        # [  -2,   1,   2   ],
-        # [  -4,  -2,   0   ],
+        [  0,   1,   1,   1,   1,   1,   1  ],
+        [ -1,   0,   2,   2,   1,   1,   1  ],
+        [ -1,  -2,   0,   4,   2,   1,   1  ],
+        [ -1,  -2,  -4,   4,   4,   2,   1  ],
+        [ -1,  -1,  -2,  -4,   0,   2,   1  ],
+        [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
+        [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
+
+        # [  0,  1,  1,  1, 0 ],
+        # [ -1, -2,  4,  2, 1 ],
+        # [ -1, -4,  2,  4, 1 ],
+        # [ -1, -2, -4,  2, 1 ],
+        # [  0, -1, -1, -1, 0 ]
+
+        # [  0,  1,  1,  1, 0 ],
+        # [ -1, -2,  4,  2, 1 ],
+        # [ -1, -4,  2,  4, 1 ],
+        # [ -1, -2, -4,  2, 1 ],
+        # [  0, -1, -1, -1, 0 ]
     ]
 
     edges = [
         [   1,   2,  1   ],
         [   2, -12,  2   ],
-        [   1,   2,  1   ],
+        [   1,   2,  1   ]
     ]
 
     sharpen = [
         [   0, -1,  0 ],
         [  -1,  5, -1 ],
-        [   0, -1,  0 ],
+        [   0, -1,  0 ]
     ]
 
     unsharp_mask = [
@@ -45,7 +56,7 @@ class ConvKernel(Enum):
         [ 4,  16,   24,  16, 4 ],
         [ 6,  24, -476,  24, 6 ],
         [ 4,  16,   24,  16, 4 ],
-        [ 1,  4,     6,   4, 1 ],
+        [ 1,  4,     6,   4, 1 ]
     ]
 
 
@@ -66,52 +77,21 @@ def _conform_kernel_to_tensor(kernel, tensor):
     return temp
 
 
-def _convolve(kernel, tensor):
+def convolve(kernel, tensor):
     """
     """
+
+    height, width, channels = tf.shape(tensor).eval()
 
     kernel = _conform_kernel_to_tensor(kernel.value, tensor)
 
     tensor = tf.nn.depthwise_conv2d([tensor], kernel, [1,1,1,1], "VALID")[0]
 
+    tensor = resample(tensor, width, height)
+
     tensor = normalize(tensor)
 
     return tensor
-
-
-def emboss(tensor):
-    """
-    """
-
-    return _convolve(ConvKernel.emboss, tensor)
-
-
-def shadow(tensor):
-    """
-    """
-
-    return _convolve(ConvKernel.shadow, tensor)
-
-
-def edges(tensor):
-    """
-    """
-
-    return _convolve(ConvKernel.edges, tensor)
-
-
-def sharpen(tensor):
-    """
-    """
-
-    return _convolve(ConvKernel.sharpen, tensor)
-
-
-def unsharp_mask(tensor):
-    """
-    """
-
-    return _convolve(ConvKernel.unsharp_mask, tensor)
 
 
 def normalize(tensor):
@@ -158,7 +138,7 @@ def displace(tensor, displacement=1.0):
 
     width, height, channels = shape
 
-    reference = tf.image.rgb_to_grayscale(tensor) if channels > 1 else tensor
+    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
     reference = tf.subtract(reference, .5)
     reference = tf.multiply(reference, 2 * displacement)
