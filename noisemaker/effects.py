@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from skimage.transform import resize
+from skimage.util import crop, pad
 
 
 class ConvKernel(Enum):
@@ -87,9 +88,19 @@ def convolve(kernel, tensor):
 
     kernel = _conform_kernel_to_tensor(kernel.value, tensor)
 
+    # Give the conv kernel some room to play on the edges
+    pad_height = int(height * .25)
+    pad_width = int(width * .25)
+    padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
+    tensor = tf.stack(pad(tensor.eval(), padding, "wrap"))
+
     tensor = tf.nn.depthwise_conv2d([tensor], kernel, [1,1,1,1], "VALID")[0]
 
-    tensor = resample(tensor, width, height)
+    # Playtime... is... over!
+    post_height, post_width, channels = tf.shape(tensor).eval()
+    crop_height = int((post_height - height) * .5)
+    crop_width = int((post_width - width) * .5)
+    tensor = crop(tensor.eval(), ((crop_height, crop_height), (crop_width, crop_width), (0, 0)))
 
     tensor = normalize(tensor)
 
