@@ -1,5 +1,7 @@
 from enum import Enum
 
+import random
+
 import numpy as np
 import tensorflow as tf
 
@@ -8,11 +10,7 @@ from skimage.util import crop, pad
 
 
 class ConvKernel(Enum):
-    identity = [
-        [   0,  0,  0   ],
-        [   0,  1,  0   ],
-        [   0,  0,  0   ]
-    ]
+    """ A collection of convolution kernels for image post-processing, based on well-known recipes. """
 
     emboss = [
         [   0,   2,   4   ],
@@ -21,6 +19,7 @@ class ConvKernel(Enum):
     ]
 
     shadow = [
+        # yeah, one of the really big fuckers
         [  0,   1,   1,   1,   1,   1,   1  ],
         [ -1,   0,   2,   2,   1,   1,   1  ],
         [ -1,  -2,   0,   4,   2,   1,   1  ],
@@ -64,8 +63,7 @@ class ConvKernel(Enum):
 
 
 def _conform_kernel_to_tensor(kernel, tensor):
-    """
-    """
+    """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
 
     l = len(kernel)
 
@@ -82,6 +80,11 @@ def _conform_kernel_to_tensor(kernel, tensor):
 
 def convolve(kernel, tensor):
     """
+    Apply a convolution kernel to an image tensor.
+
+    :param ConvKernel kernel: See ConvKernel enum
+    :param Tensor tensor: An image tensor.
+    :return: Tensor
     """
 
     height, width, channels = tf.shape(tensor).eval()
@@ -110,6 +113,9 @@ def convolve(kernel, tensor):
 def normalize(tensor):
     """
     Squeeze the given Tensor into a range between 0 and 1.
+
+    :param Tensor tensor: An image tensor.
+    :return: Tensor
     """
 
     return tf.divide(
@@ -118,9 +124,15 @@ def normalize(tensor):
     )
 
 
-def resample(tensor, width, height):
+def resample(tensor, width, height, spline_order=3):
     """
     Resize the given image Tensor to the given dimensions.
+
+    :param Tensor tensor: An image tensor.
+    :param int width: Output width.
+    :param int height: Output height.
+    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
+    :return: Tensor
     """
 
     _height, _width, channels = tf.shape(tensor).eval()
@@ -131,7 +143,7 @@ def resample(tensor, width, height):
     else:  # Sometimes you feel a little more numpy
         downcast = tensor
 
-    downcast = resize(downcast, (height, width, channels), mode="wrap", order=3, preserve_range=True)
+    downcast = resize(downcast, (height, width, channels), mode="wrap", order=spline_order, preserve_range=True)
 
     return tf.image.convert_image_dtype(downcast, tf.float32, saturate=True)
 
@@ -143,6 +155,10 @@ def resample(tensor, width, height):
 
 def crease(tensor):
     """
+    Create a "crease" (ridge) at midpoint values. (1 - unsigned((n-.5)*2))
+
+    :param Tensor tensor: An image tensor.
+    :return: Tensor
     """
 
     temp = tf.subtract(tensor, .5)
@@ -156,11 +172,18 @@ def crease(tensor):
 
 def displace(tensor, displacement=1.0):
     """
+    Apply self-displacement along X and Y axes, based on each pixel value.
+
+    Current implementation is slow.
+
+    :param Tensor tensor: An image tensor.
+    :param float displacement:
+    :return: Tensor
     """
 
     shape = tf.shape(tensor).eval()
 
-    width, height, channels = shape
+    height, width, channels = shape
 
     reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
@@ -172,14 +195,16 @@ def displace(tensor, displacement=1.0):
 
     temp = np.zeros(shape)
 
+    base_x_offset = int(random.random() * width)
+    base_y_offset = int(random.random() * height)
+
+    # I know this can be done much faster with Tensor indexing. Working on it.
     for x in range(width):
         for y in range(height):
-            x_offset = (x + int(reference[y][x] * width)) % width
-            y_offset = (y + int(reference[y][int(x + width * .5) % width] * height)) % height
+            x_offset = (x + int(reference[(y + base_y_offset) % height][x] * width)) % width
+            y_offset = (y + int(reference[y][(x + base_x_offset) % width] * height)) % height
 
-            # x_offset = (x + int(reference[y_offset][x] * width)) % width
-
-            temp[y][x] = tensor[x_offset][y_offset]
+            temp[y][x] = tensor[y_offset][x_offset]
 
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
@@ -188,6 +213,12 @@ def displace(tensor, displacement=1.0):
 
 def wavelet(tensor):
     """
+    Convert regular noise into 2-D wavelet noise.
+
+    Completely useless. Maybe useful if Noisemaker supports higher dimensions later.
+
+    :param Tensor tensor: An image tensor.
+    :return: Tensor
     """
 
     shape = tf.shape(tensor).eval()
