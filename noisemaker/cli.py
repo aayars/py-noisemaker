@@ -63,7 +63,7 @@ def main(ctx, **kwargs):
 
 
 @main.command(help="Scaled random values with a normal distribution")
-@click.option("--freq", type=int, default=4, help="Noise frequency per image height")
+@click.option("--freq", type=int, default=4, help="Heightwise noise frequency")
 @click.option("--width", type=int, default=1024, help="Image output width")
 @click.option("--height", type=int, default=1024, help="Image output height")
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
@@ -73,7 +73,7 @@ def main(ctx, **kwargs):
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, name):
+def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, spline_order, name):
     with tf.Session().as_default():
         tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, displacement=displacement,
                                      spline_order=spline_order)
@@ -84,7 +84,7 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, 
 
 
 @main.command(help="Multiple gaussian layers (octaves). For each octave: freq increases, amplitude decreases.")
-@click.option("--freq", type=int, default=4, help="Bottom layer frequency per image height")
+@click.option("--freq", type=int, default=4, help="Heightwise bottom layer frequency")
 @click.option("--width", type=int, default=1024, help="Image output width")
 @click.option("--height", type=int, default=1024, help="Image output height")
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")

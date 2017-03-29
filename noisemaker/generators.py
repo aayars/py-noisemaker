@@ -8,11 +8,16 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     """
     Generate scaled noise with a normal distribution.
 
-    :param int freq: Noise frequency per image height
+    .. image:: images/gaussian.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param int freq: Heightwise noise frequency
     :param int width: Image output width
     :param int height: Image output height
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
-    :param bool ridged: "Crease" in the middle. (1 - unsigned((n-.5)*2))
+    :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
     :param float displacement: Self-displacement gradient. Current implementation is slow.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
@@ -39,12 +44,17 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
 
-    :param int freq: Noise frequency per image height
+    .. image:: images/multires.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param int freq: Heightwise bottom layer frequency
     :param int width: Image output width
     :param int height: Image output height
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
-    :param bool ridged: "Crease" in the middle. (1 - unsigned((n-.5)*2))
+    :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
     :param float displacement: Self-displacement gradient. Current implementation is slow.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.

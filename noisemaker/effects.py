@@ -10,7 +10,16 @@ from skimage.util import crop, pad
 
 
 class ConvKernel(Enum):
-    """ A collection of convolution kernels for image post-processing, based on well-known recipes. """
+    """
+    A collection of convolution kernels for image post-processing, based on well-known recipes.
+
+    Pass the desired kernel as an argument to :py:func:`convolve`.
+
+    .. code-block:: python
+
+       # Make it pop
+       image = convolve(ConvKernel.shadow, image)
+    """
 
     emboss = [
         [   0,   2,   4   ],
@@ -157,6 +166,11 @@ def crease(tensor):
     """
     Create a "crease" (ridge) at midpoint values. (1 - unsigned((n-.5)*2))
 
+    .. image:: images/crease.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor: An image tensor.
     :return: Tensor
     """
@@ -175,6 +189,11 @@ def displace(tensor, displacement=1.0):
     Apply self-displacement along X and Y axes, based on each pixel value.
 
     Current implementation is slow.
+
+    .. image:: images/displacement.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor: An image tensor.
     :param float displacement:
@@ -216,6 +235,11 @@ def wavelet(tensor):
     Convert regular noise into 2-D wavelet noise.
 
     Completely useless. Maybe useful if Noisemaker supports higher dimensions later.
+
+    .. image:: images/wavelet.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor: An image tensor.
     :return: Tensor

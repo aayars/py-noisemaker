@@ -31,7 +31,11 @@ sys.path.insert(0, os.path.abspath('..'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinxcontrib.programoutput',
+    ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -69,7 +73,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'venv', 'docs-venv']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -154,4 +158,13 @@ texinfo_documents = [
 ]
 
 
+import sys
+from unittest.mock import MagicMock
 
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return MagicMock()
+
+MOCK_MODULES = ['numpy', 'tensorflow', 'skimage.transform', 'skimage.util']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
