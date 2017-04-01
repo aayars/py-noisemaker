@@ -232,7 +232,7 @@ def distort(tensor, displacement=1.0):
     # Create two channels for X and Y
     reference = tf.reshape(reference, [width * height])
     reference = np.repeat((reference.eval() - .5) * 2 * displacement * min(width, height), 2)
-    reference = tf.reshape(reference, [width, height, 2]).eval()
+    reference = tf.reshape(reference, [height, width, 2]).eval()
 
     # Offset X and Y to eliminate diagonal artifacts
     reference[:,:,0] = np.roll(reference[:,:,0], int(random.random() * height * .5 + height * .5))
