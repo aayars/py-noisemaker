@@ -232,21 +232,18 @@ def distort(tensor, displacement=1.0):
     height, width, channels = shape
 
     # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
-    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+    index = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
     # Create two channels for X and Y
-    reference = tf.reshape(reference, [width * height])
-    reference = np.repeat((reference.eval() - .5) * 2 * displacement * min(width, height), 2)
-    reference = tf.reshape(reference, [height, width, 2]).eval()
+    index = tf.reshape(index, [width * height])
+    index = np.repeat((index.eval() - .5) * 2 * displacement * min(width, height), 2)
+    index = tf.reshape(index, [height, width, 2])
+    index = tf.cast(tf.mod(index, min(width, height)), tf.int32).eval()
 
-    # Offset X and Y to eliminate diagonal artifacts
-    reference[:,:,0] = np.roll(reference[:,:,0], int(random.random() * height * .5 + height * .5))
-    reference[:,:,1] = np.roll(reference[:,:,1], int(random.random() * width * .5 + width * .5))
-
-    # Create an "identify" index [ 0 .. width-1 ] * height, apply reference offsets
-    row = tf.cumsum(tf.ones((width * 2), dtype=tf.int32), exclusive=True)
-    index = tf.reshape(tf.tile(row, [height]), (height, width, 2))
-    index = tf.cast(tf.mod(reference + index, min(width, height)), tf.int32)
+    # Offset X and Y to eliminate diagonal banding
+    index[:,:,0] = np.roll(index[:,:,0], int(random.random() * height * .5 + height * .5))
+    index[:,:,1] = np.roll(index[:,:,1], int(random.random() * width * .5 + width * .5))
+    index[:,:,1] = np.rot90(index[:,:,1])
 
     return tf.gather_nd(tensor, index)
 
