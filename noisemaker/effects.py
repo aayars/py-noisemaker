@@ -243,7 +243,9 @@ def distort(tensor, displacement=1.0):
     # Offset X and Y to eliminate diagonal banding
     index[:,:,0] = np.roll(index[:,:,0], int(random.random() * height * .5 + height * .5))
     index[:,:,1] = np.roll(index[:,:,1], int(random.random() * width * .5 + width * .5))
-    index[:,:,1] = np.rot90(index[:,:,1])
+
+    if height == width:
+        index[:,:,1] = np.rot90(index[:,:,1])
 
     return tf.gather_nd(tensor, index)
 
