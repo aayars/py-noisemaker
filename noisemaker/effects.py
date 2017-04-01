@@ -210,7 +210,7 @@ def displace(tensor, displacement=1.0):
     y = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * height), y_offset), height), tf.int32).eval()
     x = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * width), x_offset), width), tf.int32).eval()
 
-    temp = tf.squeeze(tensor.eval()[y, x])
+    temp = tf.reshape(tensor.eval()[y, x], shape)
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
     return temp
