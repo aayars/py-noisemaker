@@ -207,8 +207,8 @@ def displace(tensor, displacement=1.0):
     x_offset = int(random.random() * width)
     y_offset = int(random.random() * height)
 
-    y = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * height), y_offset), height), tf.int32).eval()
-    x = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * width), x_offset), width), tf.int32).eval()
+    x = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * width), tf.add(reference, x_offset)), width), tf.int32).eval()
+    y = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * height), tf.add(reference, y_offset)), height), tf.int32).eval()
 
     temp = tf.reshape(tensor.eval()[y, x], shape)
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
