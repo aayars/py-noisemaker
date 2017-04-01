@@ -1,5 +1,6 @@
 from enum import Enum
 
+import math
 import random
 
 import numpy as np
@@ -184,7 +185,31 @@ def crease(tensor):
     return temp
 
 
-def displace(tensor, displacement=1.0):
+def reindex(tensor, displacement=1.0):
+    """
+    Apply self-displacement along Z (pixel value) axes, based on each pixel value.
+
+    :param Tensor tensor: An image tensor.
+    :param float displacement:
+    :return: Tensor
+    """
+
+    shape = tf.shape(tensor).eval()
+    height, width, channels = shape
+
+    # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
+    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+
+    mod = min(width, height)
+    offset = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * mod), reference), mod), tf.int32)
+
+    temp = tf.reshape(tensor.eval()[offset.eval(), 0], shape)
+    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+
+    return temp
+
+
+def distort(tensor, displacement=1.0):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -199,21 +224,26 @@ def displace(tensor, displacement=1.0):
     """
 
     shape = tf.shape(tensor).eval()
-
     height, width, channels = shape
 
+    # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
     reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
-    x_offset = int(random.random() * width)
-    y_offset = int(random.random() * height)
+    # Create two channels for X and Y
+    reference = tf.reshape(reference, [width * height])
+    reference = np.repeat((reference.eval() - .5) * 2 * displacement * min(width, height), 2)
+    reference = tf.reshape(reference, [width, height, 2]).eval()
 
-    x = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * width), tf.add(reference, x_offset)), width), tf.int32).eval()
-    y = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * height), tf.add(reference, y_offset)), height), tf.int32).eval()
+    # Offset X and Y to eliminate diagonal artifacts
+    reference[:,:,0] = np.roll(reference[:,:,0], int(random.random() * height * .5 + height * .5))
+    reference[:,:,1] = np.roll(reference[:,:,1], int(random.random() * width * .5 + width * .5))
 
-    temp = tf.reshape(tensor.eval()[y, x], shape)
-    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+    # Create an "identify" index [ 0 .. width-1 ] * height, apply reference offsets
+    row = tf.cumsum(tf.ones((width * 2), dtype=tf.int32), exclusive=True)
+    index = tf.reshape(tf.tile(row, [height]), (height, width, 2))
+    index = tf.cast(tf.mod(reference + index, min(width, height)), tf.int32)
 
-    return temp
+    return tf.gather_nd(tensor, index)
 
 
 def wavelet(tensor):

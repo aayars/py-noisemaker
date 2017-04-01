@@ -4,7 +4,7 @@ import tensorflow as tf
 import noisemaker.effects as effects
 
 
-def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displacement=0.0, spline_order=3, seed=None):
+def gaussian(freq, width, height, channels, ridged=False, wavelet=False, distort=0.0, reindex=0.0, spline_order=3, seed=None):
     """
     Generate scaled noise with a normal distribution.
 
@@ -19,7 +19,8 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float displacement: Self-displacement gradient.
+    :param float distort: Self-distortion gradient.
+    :param float reindex: Self-reindexing gradient.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -32,8 +33,11 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
 
     tensor = effects.resample(tensor, width, height, spline_order=spline_order)
 
-    if displacement != 0:
-        tensor = effects.displace(tensor, displacement=displacement)
+    if distort != 0:
+        tensor = effects.distort(tensor, displacement=distort)
+
+    if reindex != 0:
+        tensor = effects.reindex(tensor, displacement=reindex)
 
     if ridged:
         tensor = effects.crease(tensor)
@@ -41,7 +45,8 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     return effects.normalize(tensor)
 
 
-def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, displacement=0.0, layer_displacement=0.0,
+def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
+             distort=0.0, layer_distort=0.0, reindex=0.0, layer_reindex=0.0,
              spline_order=3, seed=None):
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
@@ -58,8 +63,10 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float displacement: Self-displacement gradient.
-    :param float layer_displacement: Per-octave self-displacement gradient.
+    :param float distort: Self-distortion gradient.
+    :param float layer_distort: Per-octave self-distort gradient.
+    :param float reindex: Self-reindexing gradient.
+    :param float layer_reindex: Per-octave self-reindexing gradient.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -74,12 +81,15 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
             break
 
         layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                         displacement=layer_displacement)
+                         distort=layer_distort, reindex=layer_reindex)
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
-    if displacement != 0:
-        tensor = effects.displace(tensor, displacement=displacement)
+    if distort != 0:
+        tensor = effects.distort(tensor, displacement=distort)
+
+    if reindex != 0:
+        tensor = effects.reindex(tensor, displacement=reindex)
 
     if channels > 2:
         tensor = tf.image.adjust_saturation(tensor, .5)

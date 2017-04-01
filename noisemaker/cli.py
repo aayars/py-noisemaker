@@ -69,14 +69,15 @@ def main(ctx, **kwargs):
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
 @click.option("--ridged/--no-ridged", is_flag=True, default=False, help="\"Crease\" in the middle. (1 - unsigned((n-.5)*2))")
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
-@click.option("--displacement", type=float, default=0.0, help="Self-displacement gradient.")
+@click.option("--distort", type=float, default=0.0, help="Self-distortion gradient.")
+@click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, spline_order, seed, name):
+def gaussian(ctx, freq, width, height, channels, ridged, wavelet, distort, reindex, spline_order, seed, name):
     with tf.Session().as_default():
-        tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, displacement=displacement,
+        tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, distort=distort, reindex=reindex,
                                      spline_order=spline_order, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
@@ -91,17 +92,24 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, 
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
 @click.option("--ridged/--no-ridged", is_flag=True, default=True, help="\"Crease\" in the middle. (1 - unsigned((n-.5)*2))")
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
-@click.option("--displacement", type=float, default=0.0, help="Self-displacement gradient.")
-@click.option("--layer-displacement", type=float, default=0.0, help="Per-octave self-displacement gradient.")
+@click.option("--distort", type=float, default=0.0, help="Self-distortion gradient.")
+@click.option("--layer-distort", type=float, default=0.0, help="Per-octave self-distortion gradient.")
+@click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
+@click.option("--layer-reindex", type=float, default=0.0, help="Per-octave self-reindexing gradient.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, displacement, layer_displacement, spline_order, seed, name):
+def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, distort, layer_distort, reindex, layer_reindex,
+             spline_order, seed, name):
+
     with tf.Session().as_default():
-        tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet, displacement=displacement,
-                                     spline_order=spline_order, seed=seed, layer_displacement=layer_displacement)
+        tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
+                                     distort=distort, layer_distort=layer_distort,
+                                     reindex=reindex, layer_reindex=layer_reindex,
+                                     spline_order=spline_order, seed=seed,
+                                     )
 
         tensor = _post_process(tensor, ctx.obj)
 
