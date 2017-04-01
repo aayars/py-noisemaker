@@ -188,8 +188,6 @@ def displace(tensor, displacement=1.0):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
-    Current implementation is slow.
-
     .. image:: images/displacement.jpg
        :width: 1024
        :height: 256
@@ -206,25 +204,13 @@ def displace(tensor, displacement=1.0):
 
     reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
-    reference = tf.subtract(reference, .5)
-    reference = tf.multiply(reference, 2 * displacement)
+    x_offset = int(random.random() * width)
+    y_offset = int(random.random() * height)
 
-    reference = reference.eval()
-    tensor = tensor.eval()
+    y = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * height), y_offset), height), tf.int32).eval()
+    x = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * width), x_offset), width), tf.int32).eval()
 
-    temp = np.zeros(shape)
-
-    base_x_offset = int(random.random() * width)
-    base_y_offset = int(random.random() * height)
-
-    # I know this can be done much faster with Tensor indexing. Working on it.
-    for x in range(width):
-        for y in range(height):
-            x_offset = (x + int(reference[(y + base_y_offset) % height][x] * width)) % width
-            y_offset = (y + int(reference[y][(x + base_x_offset) % width] * height)) % height
-
-            temp[y][x] = tensor[y_offset][x_offset]
-
+    temp = tf.squeeze(tensor.eval()[y, x])
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
     return temp
