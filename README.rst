@@ -5,4 +5,4 @@ Noisemaker
 
 Read the docs at `readthedocs`_.
 
-.. _`readthedocs` http://noisemaker.readthedocs.io/
+.. _`readthedocs`: http://noisemaker.readthedocs.io/
