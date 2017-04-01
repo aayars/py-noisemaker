@@ -19,7 +19,7 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float displacement: Self-displacement gradient. Current implementation is slow.
+    :param float displacement: Self-displacement gradient.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -41,7 +41,8 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     return effects.normalize(tensor)
 
 
-def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, displacement=0.0, spline_order=3, seed=None):
+def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, displacement=0.0, layer_displacement=0.0,
+             spline_order=3, seed=None):
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
 
@@ -57,7 +58,8 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float displacement: Self-displacement gradient. Current implementation is slow.
+    :param float displacement: Self-displacement gradient.
+    :param float layer_displacement: Per-octave self-displacement gradient.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -71,7 +73,8 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
         if base_freq * 2 >= width or base_freq * 2 >= height:
             break
 
-        layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed)
+        layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
+                         displacement=layer_displacement)
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
