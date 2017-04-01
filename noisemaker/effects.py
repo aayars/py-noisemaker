@@ -189,6 +189,11 @@ def reindex(tensor, displacement=1.0):
     """
     Apply self-displacement along Z (pixel value) axes, based on each pixel value.
 
+    .. image:: images/reindex.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor: An image tensor.
     :param float displacement:
     :return: Tensor
@@ -213,7 +218,7 @@ def distort(tensor, displacement=1.0):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
-    .. image:: images/displacement.jpg
+    .. image:: images/distort.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
