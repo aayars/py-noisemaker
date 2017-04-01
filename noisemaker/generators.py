@@ -4,7 +4,7 @@ import tensorflow as tf
 import noisemaker.effects as effects
 
 
-def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displacement=0.0, spline_order=3):
+def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displacement=0.0, spline_order=3, seed=None):
     """
     Generate scaled noise with a normal distribution.
 
@@ -21,10 +21,11 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     :param bool wavelet: Maybe not wavelets this time?
     :param float displacement: Self-displacement gradient. Current implementation is slow.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
+    :param int seed: Random seed for reproducible output.
     :return: Tensor
     """
 
-    tensor = tf.random_normal([freq, int(freq * width / height), channels])
+    tensor = tf.random_normal([freq, int(freq * width / height), channels], seed=seed)
 
     if wavelet:
         tensor = effects.wavelet(tensor)
@@ -40,7 +41,7 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, displac
     return effects.normalize(tensor)
 
 
-def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, displacement=0.0, spline_order=3):
+def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, displacement=0.0, spline_order=3, seed=None):
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
 
@@ -58,6 +59,7 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param bool wavelet: Maybe not wavelets this time?
     :param float displacement: Self-displacement gradient. Current implementation is slow.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
+    :param int seed: Random seed for reproducible output.
     :return: Tensor
     """
 
@@ -69,7 +71,7 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
         if base_freq * 2 >= width or base_freq * 2 >= height:
             break
 
-        layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order)
+        layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed)
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 

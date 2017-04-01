@@ -71,12 +71,13 @@ def main(ctx, **kwargs):
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
 @click.option("--displacement", type=float, default=0.0, help="Self-displacement gradient. Current implementation is slow :(")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
+@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, spline_order, name):
+def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, spline_order, seed, name):
     with tf.Session().as_default():
         tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, displacement=displacement,
-                                     spline_order=spline_order)
+                                     spline_order=spline_order, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 
@@ -92,13 +93,14 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, displacement, 
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
 @click.option("--displacement", type=float, default=0.0, help="Self-displacement gradient. Current implementation is slow :(")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
+@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, displacement, spline_order, name):
+def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, displacement, spline_order, seed, name):
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet, displacement=displacement,
-                                     spline_order=spline_order)
+                                     spline_order=spline_order, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 

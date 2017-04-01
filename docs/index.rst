@@ -39,7 +39,7 @@ Install `Noisemaker`_ in a new virtualenv:
 Usage
 -----
 
-See documentation for :doc:`api` or :doc:`cli`.
+See documentation for :doc:`api` or :doc:`cli`: ``noisemaker -h``
 
 See also
 --------
