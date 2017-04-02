@@ -33,14 +33,14 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, distort
 
     tensor = effects.resample(tensor, width, height, spline_order=spline_order)
 
+    if ridged:
+        tensor = effects.crease(tensor)
+
     if distort != 0:
         tensor = effects.distort(tensor, displacement=distort)
 
     if reindex != 0:
         tensor = effects.reindex(tensor, displacement=reindex)
-
-    if ridged:
-        tensor = effects.crease(tensor)
 
     return effects.normalize(tensor)
 
@@ -90,8 +90,5 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
 
     if reindex != 0:
         tensor = effects.reindex(tensor, displacement=reindex)
-
-    if channels > 2:
-        tensor = tf.image.adjust_saturation(tensor, .5)
 
     return effects.normalize(tensor)
