@@ -1,8 +1,9 @@
 import click
 import tensorflow as tf
 
-import noisemaker.generators as generators
 import noisemaker.effects as effects
+import noisemaker.generators as generators
+import noisemaker.recipes as recipes
 
 
 def _save(tensor, name="out"):
@@ -52,11 +53,12 @@ def _post_process(tensor, args):
 
         --help is available for each command.
         """)
-@click.option("--emboss", is_flag=True, default=False, help="Emboss effect (convolution kernel)")
-@click.option("--shadow", is_flag=True, default=False, help="Shadow effect (convolution kernel)")
-@click.option("--edges", is_flag=True, default=False, help="Edges effect (convolution kernel)")
-@click.option("--sharpen", is_flag=True, default=False, help="Sharpen effect (convolution kernel)")
-@click.option("--unsharp-mask", is_flag=True, default=False, help="Unsharp Mask effect (convolution kernel)")
+@click.option("--emboss", is_flag=True, default=False, help="Emboss")
+@click.option("--shadow", is_flag=True, default=False, help="Shadow")
+@click.option("--edges", is_flag=True, default=False, help="Edges")
+@click.option("--sharpen", is_flag=True, default=False, help="Sharpen")
+@click.option("--unsharp-mask", is_flag=True, default=False, help="Unsharp Mask")
+@click.option("--invert", is_flag=True, default=False, help="Invert")
 @click.pass_context
 def main(ctx, **kwargs):
     ctx.obj = kwargs
@@ -69,16 +71,18 @@ def main(ctx, **kwargs):
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
 @click.option("--ridged/--no-ridged", is_flag=True, default=False, help="\"Crease\" in the middle. (1 - unsigned((n-.5)*2))")
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
-@click.option("--distort", type=float, default=0.0, help="Self-distortion gradient.")
+@click.option("--refract", type=float, default=0.0, help="Self-distortion gradient.")
 @click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
+@click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
+@click.option("--horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, distort, reindex, spline_order, seed, name):
+def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, horizontal, spline_order, seed, name):
     with tf.Session().as_default():
-        tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, distort=distort, reindex=reindex,
-                                     spline_order=spline_order, seed=seed)
+        tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, refract=refract, reindex=reindex,
+                                     clut=clut, horizontal=horizontal, spline_order=spline_order, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 
@@ -92,24 +96,42 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, distort, reind
 @click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
 @click.option("--ridged/--no-ridged", is_flag=True, default=True, help="\"Crease\" in the middle. (1 - unsigned((n-.5)*2))")
 @click.option("--wavelet/--no-wavelet", is_flag=True, default=False, help="Maybe not wavelets this time?")
-@click.option("--distort", type=float, default=0.0, help="Self-distortion gradient.")
-@click.option("--layer-distort", type=float, default=0.0, help="Per-octave self-distortion gradient.")
+@click.option("--refract", type=float, default=0.0, help="Self-distortion gradient.")
+@click.option("--layer-refract", type=float, default=0.0, help="Per-octave self-distortion gradient.")
 @click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
 @click.option("--layer-reindex", type=float, default=0.0, help="Per-octave self-reindexing gradient.")
+@click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
+@click.option("--horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, distort, layer_distort, reindex, layer_reindex,
-             spline_order, seed, name):
+def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
+             clut, horizontal, spline_order, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
-                                     distort=distort, layer_distort=layer_distort,
-                                     reindex=reindex, layer_reindex=layer_reindex,
+                                     refract=refract, layer_refract=layer_refract,
+                                     reindex=reindex, layer_reindex=layer_reindex, clut=clut, horizontal=horizontal,
                                      spline_order=spline_order, seed=seed,
                                      )
+
+        tensor = _post_process(tensor, ctx.obj)
+
+        _save(tensor, name)
+
+
+@main.command()
+@click.option("--width", type=int, default=1024, help="Image output width")
+@click.option("--height", type=int, default=1024, help="Image output height")
+@click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
+@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
+@click.option("--name", default="blended", help="Base filename for image output")
+@click.pass_context
+def blended(ctx, width, height, channels, seed, name):
+    with tf.Session().as_default():
+        tensor = recipes.blended(width, height, channels, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 
