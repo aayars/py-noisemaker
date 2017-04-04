@@ -3,7 +3,6 @@ import tensorflow as tf
 
 import noisemaker.effects as effects
 import noisemaker.generators as generators
-import noisemaker.recipes as recipes
 
 
 def _save(tensor, name="out"):
@@ -116,22 +115,6 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      reindex=reindex, layer_reindex=layer_reindex, clut=clut, horizontal=horizontal,
                                      spline_order=spline_order, seed=seed,
                                      )
-
-        tensor = _post_process(tensor, ctx.obj)
-
-        _save(tensor, name)
-
-
-@main.command()
-@click.option("--width", type=int, default=1024, help="Image output width")
-@click.option("--height", type=int, default=1024, help="Image output height")
-@click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
-@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
-@click.option("--name", default="blended", help="Base filename for image output")
-@click.pass_context
-def blended(ctx, width, height, channels, seed, name):
-    with tf.Session().as_default():
-        tensor = recipes.blended(width, height, channels, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 
