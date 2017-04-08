@@ -339,7 +339,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
                 clut = tf.image.decode_png(fh.read(), channels=3)
 
             elif clut.endswith(".jpg"):
-                clut = tf.image.decode_jpg(fh.read(), channels=3)
+                clut = tf.image.decode_jpeg(fh.read(), channels=3)
 
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
