@@ -10,8 +10,8 @@ from skimage.transform import resize, rotate
 from skimage.util import crop, pad
 
 
-def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, horizontal=False, clut_range=0.5,
-                 with_worms=False, worm_behavior=None, worm_stride=1.0, worm_stride_deviation=.05):
+def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
+                 with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05):
     """
     Apply post-processing filters.
 
@@ -23,8 +23,10 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, horizo
     :param float clut_range: Gather range for clut.
     :param bool with_worms: Do worms.
     :param WormBehavior worm_behavior:
-    :param float worm_stride:
-    :param float worm_stride_deviation:
+    :param float worm_density: Worm density multiplier (larger == slower)
+    :param float worm_duration: Iteration multiplier (larger == slower)
+    :param float worm_stride: Mean travel distance per iteration
+    :param float worm_stride_deviation: Per-worm travel distance deviation
     :return: Tensor
     """
 
@@ -41,7 +43,8 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, horizo
         tensor = normalize(tensor)
 
     if with_worms:
-        tensor = worms(tensor, worm_behavior=worm_behavior, worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation)
+        tensor = worms(tensor, behavior=worm_behavior, density=worm_density, duration=worm_duration,
+                       stride=worm_stride, stride_deviation=worm_stride_deviation)
 
     return tensor
 
@@ -373,14 +376,16 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, worm_behavior=0, worm_stride=1.0, worm_stride_deviation=.05):
+def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05):
     """
     Make a furry patch of worms which follow field flow rules.
 
     :param Tensor tensor:
-    :param int|WormBehavior worm_behavior:
-    :param float worm_stride:
-    :param float worm_stride_deviation:
+    :param int|WormBehavior behavior:
+    :param float density: Worm density multiplier (larger == slower)
+    :param float duration: Iteration multiplier (larger == slower)
+    :param float stride: Mean travel distance per iteration
+    :param float stride_deviation: Per-worm travel distance deviation
     :return: Tensor
     """
 
@@ -389,49 +394,49 @@ def worms(tensor, worm_behavior=0, worm_stride=1.0, worm_stride_deviation=.05):
 
     reference = tensor.eval()
 
-    worm_count = max(width, height) * 4
-    worms = np.random.uniform(size=[worm_count, 4])  # Worm: [ y, x, rotation bias, stride ]
+    count = int(max(width, height) * density)
+    worms = np.random.uniform(size=[count, 4])  # Worm: [ y, x, rotation bias, stride ]
     worms[:, 0] *= height
     worms[:, 1] *= width
-    worms[:, 3] = np.random.normal(loc=worm_stride, scale=worm_stride_deviation, size=[worm_count]) * worm_stride
+    worms[:, 3] = np.random.normal(loc=stride, scale=stride_deviation, size=[count]) * stride
 
-    if isinstance(worm_behavior, int):
-        worm_behavior = WormBehavior(worm_behavior)
+    if isinstance(behavior, int):
+        behavior = WormBehavior(behavior)
 
-    if worm_behavior == WormBehavior.obedient:
+    if behavior == WormBehavior.obedient:
         worms[:, 2] = 0
 
-    elif worm_behavior == WormBehavior.crosshatch:
+    elif behavior == WormBehavior.crosshatch:
         worms[:, 2] = np.mod(np.floor(worms[:, 2] * 100), 2) * 90
 
-    elif worm_behavior == WormBehavior.chaotic:
+    elif behavior == WormBehavior.chaotic:
         worms[:, 2] *= 360.0
 
-    worm_colors = tf.zeros((worm_count, channels)).eval()
+    colors = tf.zeros((count, channels)).eval()
     for i, worm in enumerate(worms):
-        worm_colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
+        colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
 
     index = tf.image.rgb_to_grayscale(reference) if channels > 2 else reference
     index = tf.reshape(index, (height, width))
     index = normalize(index) * 360.0 * math.radians(1)
     index = index.eval()
 
-    thread_len = int(math.sqrt(min(width, height))) * 4
+    iterations = int(math.sqrt(min(width, height)) * duration)
 
     out = reference * .5
 
     # Make worms!
-    for i in range(thread_len):
+    for i in range(iterations):
         coords = worms.astype(int)
 
         coords[:, 0] = np.mod(coords[:, 0], height)
         coords[:, 1] = np.mod(coords[:, 1], width)
 
-        value = 1 + (1 - abs(1 - i / (thread_len - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
+        value = 1 + (1 - abs(1 - i / (iterations - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
 
         # Stretch goal: Get this out of a loop and do straight up math
         for j, coord in enumerate(coords):
-            out[coord[0], coord[1]] = value * worm_colors[j]
+            out[coord[0], coord[1]] = value * colors[j]
 
         worms[:, 0] += np.cos(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]
         worms[:, 1] += np.sin(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]

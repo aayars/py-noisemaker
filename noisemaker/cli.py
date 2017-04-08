@@ -77,6 +77,8 @@ def main(ctx, **kwargs):
 @click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
 @click.option("--worms", is_flag=True, default=False, help="Do worms.")
 @click.option("--worm-behavior", type=int, default=0, help="0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
+@click.option("--worm-density", type=float, default=4.0, help="Worm density multiplier (larger is slower)")
+@click.option("--worm-duration", type=float, default=4.0, help="Worm iteration multiplier (larger is slower)")
 @click.option("--worm-stride", type=float, default=1.0, help="Mean travel distance per iteration")
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
@@ -84,12 +86,13 @@ def main(ctx, **kwargs):
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
 def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
-             worms, worm_behavior, worm_stride, worm_stride_deviation, spline_order, seed, name):
+             worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, spline_order, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet,
-                                     refract_range=refract, reindex_range=reindex, clut=clut, horizontal=clut_horizontal, clut_range=clut_range,
-                                     with_worms=worms, worm_behavior=worm_behavior, worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation,
+                                     refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
+                                     with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
+                                     worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation,
                                      spline_order=spline_order, seed=seed,
                                      )
 
@@ -114,6 +117,8 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reind
 @click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
 @click.option("--worms", is_flag=True, default=False, help="Do worms.")
 @click.option("--worm-behavior", type=int, default=0, help="0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
+@click.option("--worm-density", type=float, default=4.0, help="Worm density multiplier (larger is slower)")
+@click.option("--worm-duration", type=float, default=4.0, help="Worm iteration multiplier (larger is slower)")
 @click.option("--worm-stride", type=float, default=1.0, help="Mean travel distance per iteration")
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
@@ -122,14 +127,16 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reind
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
-             clut, clut_horizontal, clut_range, worms, worm_behavior, worm_stride, worm_stride_deviation, spline_order, seed, name):
+             clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
+             spline_order, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
                                      refract_range=refract, layer_refract_range=layer_refract,
                                      reindex_range=reindex, layer_reindex_range=layer_reindex,
-                                     clut=clut, horizontal=clut_horizontal, clut_range=clut_range,
-                                     with_worms=worms, worm_behavior=worm_behavior, worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation,
+                                     clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
+                                     with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
+                                     worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation,
                                      spline_order=spline_order, seed=seed,
                                      )
 
