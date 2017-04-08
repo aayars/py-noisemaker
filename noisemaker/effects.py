@@ -10,36 +10,54 @@ from skimage.transform import resize, rotate
 from skimage.util import crop, pad
 
 
-def post_process(tensor, refract_amount, reindex_amount, clut, horizontal, clut_range, with_worms):
+def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, horizontal=False, clut_range=0.5,
+                 with_worms=False, worm_behavior=None, worm_stride=1.0, worm_stride_deviation=.05):
     """
     Apply post-processing filters.
 
     :param Tensor tensor:
-    :param float refract_amount:
-    :param float reindex_amount:
-    :param str clut:
-    :param bool horizontal:
-    :param float clut_range:
-    :param bool with_worms:
+    :param float refract_range: Self-distortion gradient.
+    :param float reindex_range: Self-reindexing gradient.
+    :param str clut: PNG or JPG color lookup table filename.
+    :param float clut_horizontal: Preserve clut Y axis.
+    :param float clut_range: Gather range for clut.
+    :param bool with_worms: Do worms.
+    :param WormBehavior worm_behavior:
+    :param float worm_stride:
+    :param float worm_stride_deviation:
     :return: Tensor
     """
 
-    if refract_amount != 0:
-        tensor = refract(tensor, displacement=refract_amount)
+    if refract_range != 0:
+        tensor = refract(tensor, displacement=refract_range)
 
-    if reindex_amount != 0:
-        tensor = reindex(tensor, displacement=reindex_amount)
+    if reindex_range != 0:
+        tensor = reindex(tensor, displacement=reindex_range)
 
     if clut:
-        tensor = color_map(tensor, clut, horizontal=horizontal, displacement=clut_range)
+        tensor = color_map(tensor, clut, horizontal=clut_horizontal, displacement=clut_range)
 
     else:
         tensor = normalize(tensor)
 
     if with_worms:
-        tensor = worms(tensor)
+        tensor = worms(tensor, worm_behavior=worm_behavior, worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation)
 
     return tensor
+
+
+class WormBehavior(Enum):
+    """
+    Specify the type of heading bias for worms to follow.
+    """
+
+    obedient = 0
+
+    crosshatch = 1
+
+    unruly = 2
+
+    chaotic = 3
 
 
 class ConvKernel(Enum):
@@ -355,11 +373,14 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor):
+def worms(tensor, worm_behavior=0, worm_stride=1.0, worm_stride_deviation=.05):
     """
     Make a furry patch of worms which follow field flow rules.
 
     :param Tensor tensor:
+    :param int|WormBehavior worm_behavior:
+    :param float worm_stride:
+    :param float worm_stride_deviation:
     :return: Tensor
     """
 
@@ -368,12 +389,23 @@ def worms(tensor):
 
     reference = tensor.eval()
 
-    mod = min(width, height)
-
-    worm_count = mod * 4
-    worms = normalize(tf.random_uniform((worm_count, 2))).eval()
+    worm_count = max(width, height) * 4
+    worms = np.random.uniform(size=[worm_count, 4])  # Worm: [ y, x, rotation bias, stride ]
     worms[:, 0] *= height
     worms[:, 1] *= width
+    worms[:, 3] = np.random.normal(loc=worm_stride, scale=worm_stride_deviation, size=[worm_count]) * worm_stride
+
+    if isinstance(worm_behavior, int):
+        worm_behavior = WormBehavior(worm_behavior)
+
+    if worm_behavior == WormBehavior.obedient:
+        worms[:, 2] = 0
+
+    elif worm_behavior == WormBehavior.crosshatch:
+        worms[:, 2] = np.mod(np.floor(worms[:, 2] * 100), 2) * 90
+
+    elif worm_behavior == WormBehavior.chaotic:
+        worms[:, 2] *= 360.0
 
     worm_colors = tf.zeros((worm_count, channels)).eval()
     for i, worm in enumerate(worms):
@@ -384,23 +416,25 @@ def worms(tensor):
     index = normalize(index) * 360.0 * math.radians(1)
     index = index.eval()
 
-    thread_len = int(mod / 16)
+    thread_len = int(math.sqrt(min(width, height))) * 4
 
     out = reference * .5
 
+    # Make worms!
     for i in range(thread_len):
         coords = worms.astype(int)
 
         coords[:, 0] = np.mod(coords[:, 0], height)
         coords[:, 1] = np.mod(coords[:, 1], width)
 
-        value = 1 - abs(1 - i / (thread_len - 1) * 2)
+        value = 1 + (1 - abs(1 - i / (thread_len - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
 
+        # Stretch goal: Get this out of a loop and do straight up math
         for j, coord in enumerate(coords):
-            out[coord[0], coord[1]] = ( 1 + value ) * worm_colors[j]
+            out[coord[0], coord[1]] = value * worm_colors[j]
 
-        worms[:, 0] += np.cos(index[coords[:, 0], coords[:, 1]])
-        worms[:, 1] += np.sin(index[coords[:, 0], coords[:, 1]])
+        worms[:, 0] += np.cos(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]
+        worms[:, 1] += np.sin(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]
 
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 

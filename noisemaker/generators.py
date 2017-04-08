@@ -4,8 +4,7 @@ import tensorflow as tf
 import noisemaker.effects as effects
 
 
-def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract=0.0, reindex=0.0,
-             clut=None, clut_range=.5, horizontal=False, worms=False, spline_order=3, seed=None):
+def gaussian(freq, width, height, channels, ridged=False, wavelet=False, spline_order=3, seed=None, **post_process_args):
     """
     Generate scaled noise with a normal distribution.
 
@@ -20,15 +19,11 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float refract: Self-distortion gradient.
-    :param float reindex: Self-reindexing gradient.
-    :param str clut: PNG or JPG color lookup table filename.
-    :param float horizontal: Preserve clut Y axis.
-    :param float clut_range: Gather range for clut.
-    :param bool worms: Do worms.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
+
+    Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
     tensor = tf.random_normal([freq, int(freq * width / height), channels], seed=seed)
@@ -41,12 +36,11 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract
     if ridged:
         tensor = effects.crease(tensor)
 
-    return effects.post_process(tensor, refract, reindex, clut, horizontal, clut_range, worms)
+    return effects.post_process(tensor, **post_process_args)
 
 
-def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
-             refract=0.0, layer_refract=0.0, reindex=0.0, layer_reindex=0.0, clut=None,
-             clut_range=.5, horizontal=False, worms=False, spline_order=3, seed=None):
+def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, spline_order=3, seed=None,
+             layer_refract_range=0.0, layer_reindex_range=0.0, **post_process_args):
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
 
@@ -62,17 +56,13 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
-    :param float refract: Self-distortion gradient.
-    :param float layer_refract: Per-octave self-distort gradient.
-    :param float reindex: Self-reindexing gradient.
-    :param float layer_reindex: Per-octave self-reindexing gradient.
-    :param str clut: PNG or JPG color lookup table filename.
-    :param float horizontal: Preserve clut Y axis.
-    :param float clut_range: Gather range for clut.
-    :param bool worms: Do worms.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
+    :param float layer_refract_range: Per-octave self-distort gradient.
+    :param float layer_reindex_range: Per-octave self-reindexing gradient.
     :return: Tensor
+
+    Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
     tensor = tf.zeros([height, width, channels])
@@ -84,10 +74,10 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
             break
 
         layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                         refract=layer_refract, reindex=layer_reindex)
+                         refract_range=layer_refract_range, reindex_range=layer_reindex_range)
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
     tensor = effects.normalize(tensor)
 
-    return effects.post_process(tensor, refract, reindex, clut, horizontal, clut_range, worms)
+    return effects.post_process(tensor, **post_process_args)
