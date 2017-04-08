@@ -52,6 +52,10 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
 class WormBehavior(Enum):
     """
     Specify the type of heading bias for worms to follow.
+
+    .. code-block:: python
+
+       image = worms(image, behavior=WormBehavior.unruly)
     """
 
     obedient = 0
@@ -71,7 +75,6 @@ class ConvKernel(Enum):
 
     .. code-block:: python
 
-       # Make it pop
        image = convolve(ConvKernel.shadow, image)
     """
 
@@ -380,6 +383,11 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     """
     Make a furry patch of worms which follow field flow rules.
 
+    .. image:: images/worms.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param int|WormBehavior behavior:
     :param float density: Worm density multiplier (larger == slower)
@@ -398,7 +406,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     worms = np.random.uniform(size=[count, 4])  # Worm: [ y, x, rotation bias, stride ]
     worms[:, 0] *= height
     worms[:, 1] *= width
-    worms[:, 3] = np.random.normal(loc=stride, scale=stride_deviation, size=[count]) * stride
+    worms[:, 3] = np.random.normal(loc=stride, scale=stride_deviation, size=[count])
 
     if isinstance(behavior, int):
         behavior = WormBehavior(behavior)
