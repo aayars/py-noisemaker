@@ -6,8 +6,40 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from skimage.transform import resize
+from skimage.transform import resize, rotate
 from skimage.util import crop, pad
+
+
+def post_process(tensor, refract_amount, reindex_amount, clut, horizontal, clut_range, with_worms):
+    """
+    Apply post-processing filters.
+
+    :param Tensor tensor:
+    :param float refract_amount:
+    :param float reindex_amount:
+    :param str clut:
+    :param bool horizontal:
+    :param float clut_range:
+    :param bool with_worms:
+    :return: Tensor
+    """
+
+    if refract_amount != 0:
+        tensor = refract(tensor, displacement=refract_amount)
+
+    if reindex_amount != 0:
+        tensor = reindex(tensor, displacement=reindex_amount)
+
+    if clut:
+        tensor = color_map(tensor, clut, horizontal=horizontal, displacement=clut_range)
+
+    else:
+        tensor = normalize(tensor)
+
+    if with_worms:
+        tensor = worms(tensor)
+
+    return tensor
 
 
 class ConvKernel(Enum):
@@ -27,6 +59,8 @@ class ConvKernel(Enum):
         [  -2,   1,   2   ],
         [  -4,  -2,   0   ]
     ]
+
+    rand = np.random.normal(.5, .5, (5, 5)).tolist()
 
     shadow = [
         # yeah, one of the really big fuckers
@@ -193,7 +227,7 @@ def crease(tensor):
     return temp
 
 
-def reindex(tensor, displacement=1.0):
+def reindex(tensor, displacement=.5):
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
 
@@ -223,7 +257,7 @@ def reindex(tensor, displacement=1.0):
     return temp
 
 
-def refract(tensor, displacement=1.0):
+def refract(tensor, displacement=.5):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -261,7 +295,7 @@ def refract(tensor, displacement=1.0):
     return tf.gather_nd(tensor, index)
 
 
-def color_map(tensor, clut, horizontal=False):
+def color_map(tensor, clut, horizontal=False, displacement=.5):
     """
     Apply a color map to an image tensor.
 
@@ -273,8 +307,9 @@ def color_map(tensor, clut, horizontal=False):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
-    :param Tensor|str clut: An image tensor or filename (png/jpg only) to use as a color palette.
-    :param bool horizontal: Scan horizontally.
+    :param Tensor|str clut: An image tensor or filename (png/jpg only) to use as a color palette
+    :param bool horizontal: Scan horizontally
+    :param float displacement: Gather distance for clut
     """
 
     if isinstance(clut, str):
@@ -292,6 +327,7 @@ def color_map(tensor, clut, horizontal=False):
     orig_index = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
 
     index = tf.reshape(orig_index, [width * height])
+    index *= displacement
     index = np.repeat(index.eval(), 2)
     index = tf.reshape(index, [height, width, 2]).eval()
 
@@ -317,6 +353,58 @@ def color_map(tensor, clut, horizontal=False):
     output = tf.image.convert_image_dtype(output, tf.float32, saturate=True)
 
     return output
+
+
+def worms(tensor):
+    """
+    Make a furry patch of worms which follow field flow rules.
+
+    :param Tensor tensor:
+    :return: Tensor
+    """
+
+    shape = tf.shape(tensor).eval()
+    height, width, channels = shape
+
+    reference = tensor.eval()
+
+    mod = min(width, height)
+
+    worm_count = mod * 4
+    worms = normalize(tf.random_uniform((worm_count, 2))).eval()
+    worms[:, 0] *= height
+    worms[:, 1] *= width
+
+    worm_colors = tf.zeros((worm_count, channels)).eval()
+    for i, worm in enumerate(worms):
+        worm_colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
+
+    index = tf.image.rgb_to_grayscale(reference) if channels > 2 else reference
+    index = tf.reshape(index, (height, width))
+    index = normalize(index) * 360.0 * math.radians(1)
+    index = index.eval()
+
+    thread_len = int(mod / 16)
+
+    out = reference * .5
+
+    for i in range(thread_len):
+        coords = worms.astype(int)
+
+        coords[:, 0] = np.mod(coords[:, 0], height)
+        coords[:, 1] = np.mod(coords[:, 1], width)
+
+        value = 1 - abs(1 - i / (thread_len - 1) * 2)
+
+        for j, coord in enumerate(coords):
+            out[coord[0], coord[1]] = ( 1 + value ) * worm_colors[j]
+
+        worms[:, 0] += np.cos(index[coords[:, 0], coords[:, 1]])
+        worms[:, 1] += np.sin(index[coords[:, 0], coords[:, 1]])
+
+    out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
+
+    return out
 
 
 def wavelet(tensor):

@@ -74,14 +74,16 @@ def main(ctx, **kwargs):
 @click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
 @click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
 @click.option("--horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
+@click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
+@click.option("--worms", is_flag=True, default=False, help="Do worms.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--name", default="gaussian", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, horizontal, spline_order, seed, name):
+def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, horizontal, clut_range, worms, spline_order, seed, name):
     with tf.Session().as_default():
         tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet, refract=refract, reindex=reindex,
-                                     clut=clut, horizontal=horizontal, spline_order=spline_order, seed=seed)
+                                     clut=clut, horizontal=horizontal, clut_range=clut_range, worms=worms, spline_order=spline_order, seed=seed)
 
         tensor = _post_process(tensor, ctx.obj)
 
@@ -101,19 +103,21 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reind
 @click.option("--layer-reindex", type=float, default=0.0, help="Per-octave self-reindexing gradient.")
 @click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
 @click.option("--horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
+@click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
+@click.option("--worms", is_flag=True, default=False, help="Do worms.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
-             clut, horizontal, spline_order, seed, name):
+             clut, horizontal, clut_range, worms, spline_order, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
                                      refract=refract, layer_refract=layer_refract,
                                      reindex=reindex, layer_reindex=layer_reindex, clut=clut, horizontal=horizontal,
-                                     spline_order=spline_order, seed=seed,
+                                     clut_range=clut_range, worms=worms, spline_order=spline_order, seed=seed,
                                      )
 
         tensor = _post_process(tensor, ctx.obj)

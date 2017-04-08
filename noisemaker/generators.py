@@ -5,7 +5,7 @@ import noisemaker.effects as effects
 
 
 def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract=0.0, reindex=0.0,
-             clut=None, horizontal=False, spline_order=3, seed=None):
+             clut=None, clut_range=.5, horizontal=False, worms=False, spline_order=3, seed=None):
     """
     Generate scaled noise with a normal distribution.
 
@@ -22,8 +22,10 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract
     :param bool wavelet: Maybe not wavelets this time?
     :param float refract: Self-distortion gradient.
     :param float reindex: Self-reindexing gradient.
-    :param float clut: PNG or JPG color lookup table filename.
+    :param str clut: PNG or JPG color lookup table filename.
     :param float horizontal: Preserve clut Y axis.
+    :param float clut_range: Gather range for clut.
+    :param bool worms: Do worms.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -39,21 +41,12 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, refract
     if ridged:
         tensor = effects.crease(tensor)
 
-    if refract != 0:
-        tensor = effects.refract(tensor, displacement=refract)
-
-    if reindex != 0:
-        tensor = effects.reindex(tensor, displacement=reindex)
-
-    if clut:
-        tensor = effects.color_map(tensor, clut, horizontal=horizontal)
-
-    return effects.normalize(tensor)
+    return effects.post_process(tensor, refract, reindex, clut, horizontal, clut_range, worms)
 
 
 def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
              refract=0.0, layer_refract=0.0, reindex=0.0, layer_reindex=0.0, clut=None,
-             horizontal=False, spline_order=3, seed=None):
+             clut_range=.5, horizontal=False, worms=False, spline_order=3, seed=None):
     """
     Generate multi-resolution value noise from a gaussian basis. For each octave: freq increases, amplitude decreases.
 
@@ -73,8 +66,10 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
     :param float layer_refract: Per-octave self-distort gradient.
     :param float reindex: Self-reindexing gradient.
     :param float layer_reindex: Per-octave self-reindexing gradient.
-    :param float clut: PNG or JPG color lookup table filename.
+    :param str clut: PNG or JPG color lookup table filename.
     :param float horizontal: Preserve clut Y axis.
+    :param float clut_range: Gather range for clut.
+    :param bool worms: Do worms.
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output.
     :return: Tensor
@@ -93,13 +88,6 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True,
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
-    if refract != 0:
-        tensor = effects.refract(tensor, displacement=refract)
+    tensor = effects.normalize(tensor)
 
-    if reindex != 0:
-        tensor = effects.reindex(tensor, displacement=reindex)
-
-    if clut:
-        tensor = effects.color_map(tensor, clut, horizontal=horizontal)
-
-    return effects.normalize(tensor)
+    return effects.post_process(tensor, refract, reindex, clut, horizontal, clut_range, worms)
