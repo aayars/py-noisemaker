@@ -11,7 +11,8 @@ from skimage.util import crop, pad
 
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
-                 with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05):
+                 with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
+                 worm_background=.5):
     """
     Apply post-processing filters.
 
@@ -27,6 +28,7 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param float worm_duration: Iteration multiplier (larger == slower)
     :param float worm_stride: Mean travel distance per iteration
     :param float worm_stride_deviation: Per-worm travel distance deviation
+    :param float worm_background: Background color brightness for worms
     :return: Tensor
     """
 
@@ -44,7 +46,7 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
 
     if with_worms:
         tensor = worms(tensor, behavior=worm_behavior, density=worm_density, duration=worm_duration,
-                       stride=worm_stride, stride_deviation=worm_stride_deviation)
+                       stride=worm_stride, stride_deviation=worm_stride_deviation, background=worm_background)
 
     return tensor
 
@@ -373,7 +375,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05):
+def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, background=.5):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -388,6 +390,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     :param float duration: Iteration multiplier (larger == slower)
     :param float stride: Mean travel distance per iteration
     :param float stride_deviation: Per-worm travel distance deviation
+    :param float background: Background color intensity.
     :return: Tensor
     """
 
@@ -425,7 +428,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = reference * .5
+    out = reference * background
 
     # Make worms!
     for i in range(iterations):
