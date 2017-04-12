@@ -231,7 +231,7 @@ def resample(tensor, width, height, spline_order=3):
 
 def crease(tensor):
     """
-    Create a "crease" (ridge) at midpoint values. (1 - unsigned((n-.5)*2))
+    Create a "crease" (ridge) at midpoint values. (1 - abs((n-.5)*2))
 
     .. image:: images/crease.jpg
        :width: 1024
@@ -242,13 +242,7 @@ def crease(tensor):
     :return: Tensor
     """
 
-    temp = tf.subtract(tensor, .5)
-    temp = tf.multiply(temp, 2)
-    temp = tf.maximum(temp, temp*-1)
-
-    temp = tf.subtract(tf.ones(tf.shape(temp)), temp)
-
-    return temp
+    return 1 - tf.abs((tensor - .5) * 2)
 
 
 def reindex(tensor, displacement=.5):

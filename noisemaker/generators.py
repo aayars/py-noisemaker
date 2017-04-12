@@ -51,8 +51,7 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, spline_
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
-    tensor = np.random.exponential(size=[freq, int(freq * width / height), channels])
-    # tensor = tf.random_normal([freq, int(freq * width / height), channels], seed=seed)
+    tensor = tf.random_normal([freq, int(freq * width / height), channels], seed=seed)
 
     if wavelet:
         tensor = effects.wavelet(tensor)
@@ -101,11 +100,11 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
             break
 
         if exp:
-          layer = exponential(base_freq, width, height, channels, ridged=ridged, spline_order=spline_order,
+            layer = exponential(base_freq, width, height, channels, ridged=ridged, spline_order=spline_order,
                               refract_range=layer_refract_range, reindex_range=layer_reindex_range)
         else:
-          layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                           refract_range=layer_refract_range, reindex_range=layer_reindex_range)
+            layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
+                             refract_range=layer_refract_range, reindex_range=layer_reindex_range)
 
         tensor = tf.add(tensor, tf.divide(layer, 2**octave))
 
