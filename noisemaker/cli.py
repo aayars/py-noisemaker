@@ -63,45 +63,7 @@ def main(ctx, **kwargs):
     ctx.obj = kwargs
 
 
-@main.command(help="Scaled random values with an exponential distribution")
-@click.option("--freq", type=int, default=4, help="Heightwise noise frequency")
-@click.option("--width", type=int, default=1024, help="Image output width")
-@click.option("--height", type=int, default=1024, help="Image output height")
-@click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
-@click.option("--ridged/--no-ridged", is_flag=True, default=False, help="\"Crease\" in the middle. (1 - abs((n-.5)*2))")
-@click.option("--refract", type=float, default=0.0, help="Self-distortion gradient.")
-@click.option("--reindex", type=float, default=0.0, help="Self-reindexing gradient.")
-@click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
-@click.option("--clut-horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
-@click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
-@click.option("--worms", is_flag=True, default=False, help="Do worms.")
-@click.option("--worm-behavior", type=int, default=0, help="0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
-@click.option("--worm-density", type=float, default=4.0, help="Worm density multiplier (larger is slower)")
-@click.option("--worm-duration", type=float, default=4.0, help="Worm iteration multiplier (larger is slower)")
-@click.option("--worm-stride", type=float, default=1.0, help="Mean travel distance per iteration")
-@click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
-@click.option("--worm-background", type=float, default=.5, help="Worms background color brightness")
-@click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
-@click.option("--name", default="exponential", help="Base filename for image output")
-@click.pass_context
-def exponential(ctx, freq, width, height, channels, ridged, refract, reindex, clut, clut_horizontal, clut_range,
-                worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_background,
-                spline_order, name):
-
-    with tf.Session().as_default():
-        tensor = generators.exponential(freq, width, height, channels, ridged=ridged,
-                                        refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal,
-                                        clut_range=clut_range, with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density,
-                                        worm_duration=worm_duration, worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation,
-                                        worm_background=worm_background, spline_order=spline_order,
-                                        )
-
-        tensor = _apply_conv_kernels(tensor, ctx.obj)
-
-        _save(tensor, name)
-
-
-@main.command(help="Scaled random values with a normal distribution")
+@main.command(help="Scaled random values.")
 @click.option("--freq", type=int, default=4, help="Heightwise noise frequency")
 @click.option("--width", type=int, default=1024, help="Image output width")
 @click.option("--height", type=int, default=1024, help="Image output height")
@@ -121,26 +83,27 @@ def exponential(ctx, freq, width, height, channels, ridged, refract, reindex, cl
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-background", type=float, default=.5, help="Worms background color brightness")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
-@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
-@click.option("--name", default="gaussian", help="Base filename for image output")
+@click.option("--dist", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
+@click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
+@click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
-def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
-             worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_background, spline_order, seed, name):
+def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
+          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_background, spline_order, dist, seed, name):
 
     with tf.Session().as_default():
-        tensor = generators.gaussian(freq, width, height, channels, ridged=ridged, wavelet=wavelet,
-                                     refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                     with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
-                                     worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_background=worm_background,
-                                     spline_order=spline_order, seed=seed,
-                                     )
+        tensor = generators.basic(freq, width, height, channels, ridged=ridged, wavelet=wavelet,
+                                  refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
+                                  with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
+                                  worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_background=worm_background,
+                                  spline_order=spline_order, dist=dist, seed=seed,
+                                  )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)
 
         _save(tensor, name)
 
 
-@main.command(help="Multiple gaussian layers (octaves). For each octave: freq increases, amplitude decreases.")
+@main.command(help="Multiple layers (octaves). For each octave: freq increases, amplitude decreases.")
 @click.option("--freq", type=int, default=4, help="Heightwise bottom layer frequency")
 @click.option("--width", type=int, default=1024, help="Image output width")
 @click.option("--height", type=int, default=1024, help="Image output height")
@@ -162,14 +125,14 @@ def gaussian(ctx, freq, width, height, channels, ridged, wavelet, refract, reind
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-background", type=float, default=.5, help="Worms background color brightness")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
-@click.option("--seed", type=int, required=False, help="Random seed for reproducible output.")
+@click.option("--dist", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
+@click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
-@click.option("--exp", is_flag=True, default=False, help="Use an exponential noise distribution. --seed will be ineffective.")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_background, spline_order, seed, exp, name):
+             worm_background, spline_order, dist, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
@@ -178,7 +141,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                      worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_background=worm_background,
-                                     spline_order=spline_order, seed=seed, exp=exp,
+                                     spline_order=spline_order, dist=dist, seed=seed,
                                      )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)

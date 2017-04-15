@@ -469,7 +469,7 @@ def wavelet(tensor):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    return tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height)
+    return normalize(tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height))
 
 
 def _row_index(tensor):
