@@ -22,6 +22,16 @@ def exponential(freq, width, height, channels, ridged=False, spline_order=3, **p
     tensor = np.random.exponential(size=[freq, int(freq * width / height), channels])
 
     tensor = effects.resample(tensor, width, height, spline_order=spline_order)
+ 
+    tensor = effects.normalize(tensor)
+    # tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
+    # y, x = np.gradient(tensor.eval(), axis=(0, 1))
+    # tensor = np.sqrt(y*y + x*x)
+    # tensor = x
+
+    # tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+    tensor = effects.normalize(tensor)
 
     if ridged:
         tensor = effects.crease(tensor)
@@ -51,15 +61,23 @@ def gaussian(freq, width, height, channels, ridged=False, wavelet=False, spline_
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
-    tensor = tf.random_normal([freq, int(freq * width / height), channels], seed=seed)
+    # tensor = tf.random_uniform([freq, int(freq * width / height), channels], seed=seed, dtype=tf.float64)
+    tensor = np.random.normal(size=[freq, int(freq * width / height), channels])
 
     if wavelet:
         tensor = effects.wavelet(tensor)
 
     tensor = effects.resample(tensor, width, height, spline_order=spline_order)
 
+    # tensor = effects.normalize(tensor)
+    # tensor = tensor * 1000
+
     if ridged:
         tensor = effects.crease(tensor)
+
+    # y, x = np.gradient(tensor.eval(), axis=(0, 1))
+    # tensor = 1 - effects.normalize(np.sqrt(y*y + x*x))
+    # tensor = y
 
     return effects.post_process(tensor, **post_process_args)
 
@@ -106,7 +124,9 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
             layer = gaussian(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
                              refract_range=layer_refract_range, reindex_range=layer_reindex_range)
 
-        tensor = tf.add(tensor, tf.divide(layer, 2**octave))
+        tensor += layer / 2**octave
+
+        # tensor += gaussian(width, width, height, channels) * .001
 
     tensor = effects.normalize(tensor)
 

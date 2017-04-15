@@ -12,7 +12,7 @@ from skimage.util import crop, pad
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_background=.5):
+                 worm_background=.5, with_sobel=False):
     """
     Apply post-processing filters.
 
@@ -29,6 +29,7 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param float worm_stride: Mean travel distance per iteration
     :param float worm_stride_deviation: Per-worm travel distance deviation
     :param float worm_background: Background color brightness for worms
+    :param bool with_sobel: Sobel operator
     :return: Tensor
     """
 
@@ -47,6 +48,9 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     if with_worms:
         tensor = worms(tensor, behavior=worm_behavior, density=worm_density, duration=worm_duration,
                        stride=worm_stride, stride_deviation=worm_stride_deviation, background=worm_background)
+
+    if with_sobel:
+        tensor = sobel(tensor)
 
     return tensor
 
@@ -137,6 +141,18 @@ class ConvKernel(Enum):
         [ 0,  0,  0 ]
     ]
 
+    sobel_x = [
+        [ 1, 0, -1 ],
+        [ 2, 0, -2 ],
+        [ 1, 0, -1 ]
+    ]
+
+    sobel_y = [
+        [  1,  2,  1 ],
+        [  0,  0,  0 ],
+        [ -1, -2, -1 ],
+    ]
+
 
 def _conform_kernel_to_tensor(kernel, tensor):
     """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
@@ -199,7 +215,7 @@ def normalize(tensor):
         tf.subtract(tf.reduce_max(tensor), tf.reduce_min(tensor))
     )
 
-    return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+    return tf.image.convert_image_dtype(tensor, tf.float32)
 
 
 def resample(tensor, width, height, spline_order=3):
@@ -223,7 +239,7 @@ def resample(tensor, width, height, spline_order=3):
 
     downcast = resize(downcast, (height, width, channels), mode="wrap", order=spline_order, preserve_range=True)
 
-    return tf.image.convert_image_dtype(downcast, tf.float32, saturate=True)
+    return tf.image.convert_image_dtype(downcast, tf.float32)
 
     ### TensorFlow doesn't handily let us wrap around edges when resampling.
     # temp = tf.image.resize_images(tensor, [height, width], align_corners=True, method=tf.image.ResizeMethod.BICUBIC)
@@ -470,6 +486,21 @@ def wavelet(tensor):
     height, width, channels = shape
 
     return tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height)
+
+
+def sobel(tensor):
+    """
+    Apply a sobel operator.
+
+    :param Tensor tensor:
+    :return: Tensor
+    """
+
+    x = convolve(ConvKernel.sobel_x, tensor)
+    y = convolve(ConvKernel.sobel_y, tensor)
+
+    return tf.sqrt(x*x + y*y)
+    # return tf.abs(normalize(tf.sqrt(x * x + y * y)) - .5)
 
 
 def _row_index(tensor):
