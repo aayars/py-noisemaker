@@ -165,7 +165,7 @@ def _conform_kernel_to_tensor(kernel, tensor):
 
     temp = tf.reshape(temp, (l, l, channels, 1))
 
-    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
+    temp = tf.image.convert_image_dtype(temp, tf.float32)
 
     return temp
 
@@ -184,8 +184,8 @@ def convolve(kernel, tensor):
     kernel = _conform_kernel_to_tensor(kernel.value, tensor)
 
     # Give the conv kernel some room to play on the edges
-    pad_height = int(height * .25)
-    pad_width = int(width * .25)
+    pad_height = int(height * .1)
+    pad_width = int(width * .1)
     padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
     tensor = tf.stack(pad(tensor.eval(), padding, "wrap"))
 
@@ -193,9 +193,14 @@ def convolve(kernel, tensor):
 
     # Playtime... is... over!
     post_height, post_width, channels = tf.shape(tensor).eval()
-    crop_height = int((post_height - height) * .5)
-    crop_width = int((post_width - width) * .5)
-    tensor = crop(tensor.eval(), ((crop_height, crop_height), (crop_width, crop_width), (0, 0)))
+
+    crop_height0 = int((post_height - height) * .5)
+    crop_height1 = post_height - crop_height0 - height
+
+    crop_width0 = int((post_width - width) * .5)
+    crop_width1 = post_width - crop_width0 - width
+
+    tensor = crop(tensor.eval(), ((crop_height0, crop_height1), (crop_width0, crop_width1), (0, 0)))
 
     tensor = normalize(tensor)
 
@@ -210,12 +215,7 @@ def normalize(tensor):
     :return: Tensor
     """
 
-    tensor = tf.divide(
-        tf.subtract(tensor, tf.reduce_min(tensor)),
-        tf.subtract(tf.reduce_max(tensor), tf.reduce_min(tensor))
-    )
-
-    return tf.image.convert_image_dtype(tensor, tf.float32)
+    return (tensor - tf.reduce_min(tensor)) / (tf.reduce_max(tensor) - tf.reduce_min(tensor))
 
 
 def resample(tensor, width, height, spline_order=3):
@@ -237,7 +237,7 @@ def resample(tensor, width, height, spline_order=3):
     else:  # Sometimes you feel a little more numpy
         downcast = tensor
 
-    downcast = resize(downcast, (height, width, channels), mode="wrap", order=spline_order, preserve_range=True)
+    downcast = resize(downcast, (height, width, channels), mode="wrap", order=spline_order, preserve_range=True, clip=False)
 
     return tf.image.convert_image_dtype(downcast, tf.float32)
 
@@ -485,7 +485,7 @@ def wavelet(tensor):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    return tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height)
+    return normalize(tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height))
 
 
 def sobel(tensor):
@@ -499,11 +499,10 @@ def sobel(tensor):
     x = convolve(ConvKernel.sobel_x, tensor)
     y = convolve(ConvKernel.sobel_y, tensor)
 
-    return tf.sqrt(x*x + y*y)
-    # return tf.abs(normalize(tf.sqrt(x * x + y * y)) - .5)
+    return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
 
 
-def _row_index(tensor):
+def _row_index(tensor)
     """
     Generate an X index for the given tensor.
 
