@@ -271,13 +271,18 @@ def derivative(tensor):
     """
     Extract a derivative from the given noise.
 
+    .. image:: images/derived.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :return: Tensor
     """
 
     y, x = np.gradient(tensor.eval(), axis=(0, 1), edge_order=2)
 
-    return normalize(np.sqrt(y*y + x*x))
+    return tf.maximum(tensor, normalize(np.sqrt(y*y + x*x)))
 
 
 def reindex(tensor, displacement=.5):
