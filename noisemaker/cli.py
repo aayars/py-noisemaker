@@ -16,7 +16,7 @@ def _save(tensor, name="out"):
     :return: None
     """
 
-    tensor = effects.normalize(tensor)
+    # tensor = effects.normalize(tensor)
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
 
     png = tf.image.encode_png(tensor).eval()
@@ -83,6 +83,7 @@ def main(ctx, **kwargs):
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
+@click.option("--normals", is_flag=True, default=False, help="Generate a tangent-space normal map.")
 @click.option("--deriv", is_flag=True, default=False, help="Derivative noise.")
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
@@ -90,7 +91,7 @@ def main(ctx, **kwargs):
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
-          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, sobel, deriv,
+          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, sobel, normals, deriv,
           spline_order, distrib, seed, name):
 
     with tf.Session().as_default():
@@ -98,7 +99,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
-                                  with_sobel=sobel, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
+                                  with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                   )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)
@@ -128,6 +129,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
+@click.option("--normals", is_flag=True, default=False, help="Generate a tangent-space normal map.")
 @click.option("--deriv", is_flag=True, default=False, help="Derivative noise.")
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
@@ -137,7 +139,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, sobel, deriv, spline_order, distrib, seed, name):
+             worm_bg, sobel, normals, deriv, spline_order, distrib, seed, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
@@ -146,7 +148,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                      worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
-                                     with_sobel=sobel, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
+                                     with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                      )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)

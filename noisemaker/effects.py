@@ -12,7 +12,7 @@ from skimage.util import crop, pad
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, with_sobel=False, deriv=False):
+                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False):
     """
     Apply post-processing filters.
 
@@ -30,6 +30,7 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param float worm_stride_deviation: Per-worm travel distance deviation
     :param float worm_bg: Background color brightness for worms
     :param bool with_sobel: Sobel operator
+    :param bool with_normal_map: Create a tangent-space normal map
     :param bool deriv: Derivative operator
     :return: Tensor
     """
@@ -55,6 +56,9 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
 
     if with_sobel:
         tensor = sobel(tensor)
+
+    if with_normal_map:
+        tensor = normal_map(tensor)
 
     return tensor
 
@@ -154,7 +158,7 @@ class ConvKernel(Enum):
     sobel_y = [
         [  1,  2,  1 ],
         [  0,  0,  0 ],
-        [ -1, -2, -1 ],
+        [ -1, -2, -1 ]
     ]
 
 
@@ -524,6 +528,51 @@ def sobel(tensor):
     return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
 
 
+def normal_map(tensor):
+    """
+    Generate a tangent-space normal map.
+
+    :param Tensor tensor:
+    :return: Tensor
+    """
+
+    shape = tf.shape(tensor).eval()
+    height, width, channels = shape
+
+    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+
+    x = normalize(1 - convolve(ConvKernel.sobel_x, reference))
+    y = normalize(convolve(ConvKernel.sobel_y, reference))
+    z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
+
+    output = np.zeros([height, width, 3])
+    output[:,:,0] = x.eval()[:,:,0]
+    output[:,:,1] = y.eval()[:,:,0]
+    output[:,:,2] = z.eval()[:,:,0]
+
+    return output
+
+
+def wave(tensor, x_freq, y_freq):
+    """
+    """
+
+    shape = tf.shape(tensor).eval()
+    height, width, channels = shape
+
+    m = tf.random_uniform([int(math.sqrt(y_freq)), int(math.sqrt(x_freq)), 1])
+    m = resample(m, width, height)
+    m = m.eval()
+
+    for y in range(height):
+        tensor[y] = np.roll(tensor[y], int(m[y,0,0] * height * .5), axis=0)
+
+    for x in range(width):
+        tensor[:,x] = np.roll(tensor[:,x], int(m[0,x,0] * width * .5), axis=0)
+
+    return tensor
+
+
 def _row_index(tensor):
     """
     Generate an X index for the given tensor.
@@ -582,13 +631,30 @@ def _offset_index(tensor):
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
-    height, width, channels = shape
-
-    tensor[:,:,0] = np.roll(tensor[:,:,0], int(random.random() * height * .5 + height * .5))
-
-    temp = np.rot90(tensor[:,:,1])
-    temp = np.roll(temp, int(random.random() * width * .5 + width * .5))
-    tensor[:,:,1] = np.rot90(temp, 3)
+    tensor[:,:,0] = _offset_y(tensor[:,:,0])
+    tensor[:,:,1] = _offset_x(tensor[:,:,1])
 
     return tensor
+
+
+def _offset_x(tensor):
+    """
+    """
+
+    shape = tf.shape(tensor).eval()
+    width = shape[1]
+
+    tensor = np.rot90(tensor)
+    tensor = np.roll(tensor, int(random.random() * width * .5 + width * .5))
+
+    return np.rot90(tensor, 3)
+
+
+def _offset_y(tensor):
+    """
+    """
+
+    shape = tf.shape(tensor).eval()
+    height = shape[0]
+
+    return np.roll(tensor, int(random.random() * height * .5 + height * .5))
