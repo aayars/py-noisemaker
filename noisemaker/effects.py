@@ -253,7 +253,7 @@ def resample(tensor, width, height, spline_order=3):
 
 def crease(tensor):
     """
-    Create a "crease" (ridge) at midpoint values. (1 - abs((n-.5)*2))
+    Create a "crease" (ridge) at midpoint values. 1 - abs(n * 2 - 1)
 
     .. image:: images/crease.jpg
        :width: 1024
@@ -264,7 +264,7 @@ def crease(tensor):
     :return: Tensor
     """
 
-    return 1 - tf.abs((tensor - .5) * 2)
+    return 1 - tf.abs(tensor * 2 - 1)
 
 
 def derivative(tensor):
@@ -277,7 +277,7 @@ def derivative(tensor):
 
     y, x = np.gradient(tensor.eval(), axis=(0, 1), edge_order=2)
 
-    return tensor + normalize(np.sqrt(y*y + x*x))
+    return normalize(np.sqrt(y*y + x*x))
 
 
 def reindex(tensor, displacement=.5):

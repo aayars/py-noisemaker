@@ -36,7 +36,7 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     :param int width: Image output width
     :param int height: Image output height
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
-    :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
+    :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int|Distribution distrib: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
@@ -91,7 +91,7 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param int height: Image output height
     :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
-    :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
+    :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
