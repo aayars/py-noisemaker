@@ -12,7 +12,7 @@ class Distribution(Enum):
 
     .. code-block:: python
 
-       image = basic(freq, width, height, channels, dist=Distribution.uniform)
+       image = basic(freq, width, height, channels, distrib=Distribution.uniform)
     """
 
     normal = 0
@@ -23,7 +23,7 @@ class Distribution(Enum):
 
 
 def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_order=3, seed=None,
-          dist=Distribution.normal, **post_process_args):
+          distrib=Distribution.normal, **post_process_args):
     """
     Generate a single layer of scaled noise.
 
@@ -39,41 +39,25 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     :param bool ridged: "Crease" at midpoint values: (1 - unsigned((n-.5)*2))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
-    :param int|Distribution dist: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
+    :param int|Distribution distrib: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
-    if isinstance(dist, int):
-        dist = Distribution(dist)
+    if isinstance(distrib, int):
+        distrib = Distribution(distrib)
 
     initial_shape = [freq, int(freq * width / height), channels]
 
-    if dist == Distribution.normal:
-        """
-        from opensimplex import OpenSimplex
-        s = OpenSimplex(seed=seed or 0)
-
-        i = 0
-        tensor = np.zeros(shape=[height, width, channels])
-
-        for x in range(width):
-            for y in range(height):
-                for z in range(channels):
-                    v = s.noise3d(x=x*freq/width, y=y*freq/height, z=z/channels)
-                    tensor[y,x,z] = v
-
-        tensor = effects.normalize(tensor)
-        """
-
+    if distrib == Distribution.normal:
         tensor = tf.random_normal(initial_shape, seed=seed)
 
-    elif dist == Distribution.uniform:
+    elif distrib == Distribution.uniform:
         tensor = tf.random_uniform(initial_shape, seed=seed)
 
-    elif dist == Distribution.exponential:
+    elif distrib == Distribution.exponential:
         tensor = np.random.exponential(size=initial_shape)
 
     if wavelet:
@@ -81,13 +65,9 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
 
     tensor = effects.resample(tensor, width, height, spline_order=spline_order)
 
-    # tensor = effects.normalize(tensor)
-
     tensor = effects.post_process(tensor, **post_process_args)
 
-    y, x = np.gradient(tensor.eval(), axis=(0, 1))
-    tensor = 1 - effects.normalize(np.sqrt(y*y + x*x))
-    # tensor = y
+    tensor = effects.normalize(tensor)
 
     if ridged:
         tensor = effects.crease(tensor)
@@ -96,7 +76,8 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
 
 
 def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, spline_order=3, seed=None,
-             layer_refract_range=0.0, layer_reindex_range=0.0, dist=0, **post_process_args):
+             layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
+             **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -116,7 +97,8 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :param float layer_refract_range: Per-octave self-distort gradient.
     :param float layer_reindex_range: Per-octave self-reindexing gradient.
-    :param int|Distribution dist: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
+    :param int|Distribution distrib: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
+    :param bool deriv: Derivative noise.
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -131,7 +113,7 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
             break
 
         layer = basic(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                      refract_range=layer_refract_range, reindex_range=layer_reindex_range, dist=dist)
+                      refract_range=layer_refract_range, reindex_range=layer_reindex_range, distrib=distrib, deriv=deriv)
 
         tensor += layer / 2**octave
 

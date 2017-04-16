@@ -12,7 +12,7 @@ from skimage.util import crop, pad
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_background=.5, with_sobel=False):
+                 worm_bg=.5, with_sobel=False, deriv=False):
     """
     Apply post-processing filters.
 
@@ -28,8 +28,9 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param float worm_duration: Iteration multiplier (larger == slower)
     :param float worm_stride: Mean travel distance per iteration
     :param float worm_stride_deviation: Per-worm travel distance deviation
-    :param float worm_background: Background color brightness for worms
+    :param float worm_bg: Background color brightness for worms
     :param bool with_sobel: Sobel operator
+    :param bool deriv: Derivative operator
     :return: Tensor
     """
 
@@ -47,7 +48,10 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
 
     if with_worms:
         tensor = worms(tensor, behavior=worm_behavior, density=worm_density, duration=worm_duration,
-                       stride=worm_stride, stride_deviation=worm_stride_deviation, background=worm_background)
+                       stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg)
+
+    if deriv:
+        tensor = derivative(tensor)
 
     if with_sobel:
         tensor = sobel(tensor)
@@ -263,6 +267,19 @@ def crease(tensor):
     return 1 - tf.abs((tensor - .5) * 2)
 
 
+def derivative(tensor):
+    """
+    Extract a derivative from the given noise.
+
+    :param Tensor tensor:
+    :return: Tensor
+    """
+
+    y, x = np.gradient(tensor.eval(), axis=(0, 1), edge_order=2)
+
+    return tensor + normalize(np.sqrt(y*y + x*x))
+
+
 def reindex(tensor, displacement=.5):
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
@@ -391,7 +408,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, background=.5):
+def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -406,7 +423,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     :param float duration: Iteration multiplier (larger == slower)
     :param float stride: Mean travel distance per iteration
     :param float stride_deviation: Per-worm travel distance deviation
-    :param float background: Background color intensity.
+    :param float bg: Background color intensity.
     :return: Tensor
     """
 
@@ -444,7 +461,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = reference * background
+    out = reference * bg
 
     # Make worms!
     for i in range(iterations):
@@ -502,7 +519,7 @@ def sobel(tensor):
     return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
 
 
-def _row_index(tensor)
+def _row_index(tensor):
     """
     Generate an X index for the given tensor.
 
