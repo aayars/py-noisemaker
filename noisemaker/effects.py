@@ -12,7 +12,7 @@ from skimage.util import crop, pad
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False, sort_axis=None):
+                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False, with_glitch=False):
     """
     Apply post-processing filters.
 
@@ -32,6 +32,7 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param bool with_sobel: Sobel operator
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool deriv: Derivative operator
+    :param bool with_glitch: Bit shit
     :return: Tensor
     """
 
@@ -57,39 +58,11 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     if with_sobel:
         tensor = sobel(tensor)
 
+    if with_glitch:
+        tensor = glitch(tensor)
+
     if with_normal_map:
         tensor = normal_map(tensor)
-
-    if sort_axis is not None:
-        tensor = normalize(tensor).eval()
-        _sorted = np.flip(np.sort(tensor, axis=sort_axis), axis=sort_axis)
-
-        offset = int((random.random() * 2 - 1) * len(tensor[:,:,0]))
-        hue_offset = random.random() * 2 - 1
-
-        colored = tf.image.adjust_hue(_sorted, hue_offset).eval()
-        colored[:,:,0] = np.roll(colored[:,:,0], offset)
-
-        # temp = np.rot90(colored[:,:,0])
-        # temp = np.roll(temp, int(random.random() * offset))
-        # colored[:,:,0] = np.rot90(temp, 3)
-
-        colored = tf.image.adjust_hue(colored, -hue_offset)
-
-        colored = tf.image.convert_image_dtype(normalize(colored), tf.uint8, saturate=True)
-        data = tf.image.encode_jpeg(colored, quality=25)
-        colored = tf.image.decode_jpeg(data)
-        data = tf.image.encode_jpeg(colored, quality=5)
-        colored = tf.image.decode_jpeg(data)
-        colored = tf.image.convert_image_dtype(colored, tf.float32, saturate=True)
-        colored = convolve(ConvKernel.sharpen, normalize(colored))
-
-        colored = tf.image.adjust_saturation(colored, 2.5)
-
-        tensor = tf.minimum(_sorted, tensor)
-        tensor = normalize(tf.minimum(colored, tensor))
-
-        # tensor = normalize(tensor + temp)
 
     return tensor
 

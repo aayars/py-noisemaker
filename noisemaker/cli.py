@@ -3,6 +3,7 @@ import tensorflow as tf
 
 import noisemaker.effects as effects
 import noisemaker.generators as generators
+import noisemaker.recipes as recipes
 
 
 def _save(tensor, name="out"):
@@ -88,12 +89,12 @@ def main(ctx, **kwargs):
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
-@click.option("--sort", type=int, required=False, help="Specify an optional pixel sorting axis (0=Y, 1=X, 2=RGB)")
+@click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, sobel, normals, deriv,
-          spline_order, distrib, seed, name):
+          spline_order, distrib, seed, glitch, name):
 
     with tf.Session().as_default():
         tensor = generators.basic(freq, width, height, channels, ridged=ridged, wavelet=wavelet,
@@ -101,10 +102,12 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
                                   with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
-                                  sort_axis=sort,
                                   )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)
+
+        if glitch:
+            tensor = recipes.glitch(tensor)
 
         _save(tensor, name)
 
@@ -136,13 +139,13 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
-@click.option("--sort", type=int, required=False, help="Specify an optional pixel sorting axis (0=Y, 1=X, 2=RGB)")
+@click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, sobel, normals, deriv, spline_order, distrib, seed, sort, name):
+             worm_bg, sobel, normals, deriv, spline_order, distrib, seed, glitch, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
@@ -152,28 +155,11 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                      worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
                                      with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
-                                     sort_axis=sort,
                                      )
 
         tensor = _apply_conv_kernels(tensor, ctx.obj)
 
-        _save(tensor, name)
-
-
-@main.command()
-@click.option("--freq", type=int, default=2, help="Heightwise bottom layer frequency")
-@click.option("--width", type=int, default=1024, help="Image output width")
-@click.option("--height", type=int, default=1024, help="Image output height")
-@click.option("--channels", type=int, default=3, help="Channel count. 1=Gray, 3=RGB, others may not work.")
-@click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
-@click.option("--name", default="glitch", help="Base filename for image output")
-@click.pass_context
-def glitch(ctx, freq, width, height, channels, clut, name):
-    from noisemaker.recipes import glitch
-
-    with tf.Session().as_default():
-        tensor = glitch(freq, width, height, channels, clut)
-
-        tensor = _apply_conv_kernels(tensor, ctx.obj)
+        if glitch:
+            tensor = recipes.glitch(tensor)
 
         _save(tensor, name)
