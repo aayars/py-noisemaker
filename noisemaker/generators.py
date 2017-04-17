@@ -84,8 +84,8 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     if ridged:
         tensor = effects.crease(tensor)
 
-    if channels > 2:
-        tensor = tf.image.random_hue(tensor, .5)
+    # if channels > 2:
+        # tensor = tf.image.random_hue(tensor, .5)
 
     return tensor
 
