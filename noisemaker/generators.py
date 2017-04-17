@@ -8,7 +8,9 @@ import noisemaker.effects as effects
 
 class Distribution(Enum):
     """
-    Specify the type of random distribution for basic noise.
+    Specify the random distribution function for basic noise.
+
+    See also: https://docs.scipy.org/doc/numpy/reference/routines.random.html
 
     .. code-block:: python
 
@@ -20,6 +22,10 @@ class Distribution(Enum):
     uniform = 1
 
     exponential = 2
+
+    laplace = 3
+
+    lognormal = 4
 
 
 def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_order=3, seed=None,
@@ -39,7 +45,7 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
-    :param int|Distribution distrib: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
+    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :return: Tensor
 
@@ -60,6 +66,12 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     elif distrib == Distribution.exponential:
         tensor = np.random.exponential(size=initial_shape)
 
+    elif distrib == Distribution.laplace:
+        tensor = np.random.laplace(size=initial_shape)
+
+    elif distrib == Distribution.lognormal:
+        tensor = np.random.lognormal(size=initial_shape)
+
     if wavelet:
         tensor = effects.wavelet(tensor)
 
@@ -71,6 +83,9 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
 
     if ridged:
         tensor = effects.crease(tensor)
+
+    if channels > 2:
+        tensor = tf.image.random_hue(tensor, .5)
 
     return tensor
 
@@ -97,7 +112,7 @@ def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, 
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :param float layer_refract_range: Per-octave self-distort gradient.
     :param float layer_reindex_range: Per-octave self-reindexing gradient.
-    :param int|Distribution distrib: Type of noise distribution. 0=Normal, 1=Uniform, 2=Exponential
+    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param bool deriv: Derivative noise.
     :return: Tensor
 

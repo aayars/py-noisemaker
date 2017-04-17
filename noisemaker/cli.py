@@ -16,7 +16,7 @@ def _save(tensor, name="out"):
     :return: None
     """
 
-    # tensor = effects.normalize(tensor)
+    tensor = effects.normalize(tensor)
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
 
     png = tf.image.encode_png(tensor).eval()
