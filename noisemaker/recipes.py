@@ -16,13 +16,16 @@ def glitch(tensor):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    base = multires(2, width, height, channels, octaves=int(random.random() * 3) + 1, spline_order=0, refract_range=random.random())
-
+    base = multires(int(random.random() * 2 + 2), width, height, channels, octaves=int(random.random() * 1) + 1, spline_order=0, refract_range=random.random())
     stylized = effects.normalize(effects.color_map(base, tensor, horizontal=True, displacement=5)).eval()
-    jpegged = tf.image.convert_image_dtype(stylized, tf.uint8, saturate=True)
+
+    base2 = multires(int(random.random() * 4 + 2), width, height, channels, octaves=int(random.random() * 3) + 2, spline_order=0, refract_range=random.random())
+    jpegged = effects.normalize(effects.color_map(base2, stylized, horizontal=True, displacement=5)).eval()
+    jpegged = tf.image.convert_image_dtype(jpegged, tf.uint8, saturate=True)
 
     x_offset = int(random.random() * width * 2)
-    stylized[:,:,0] = np.roll(stylized[:,:,0], x_offset, axis=1)
+    channel = int(random.random() * channels)
+    stylized[:,:,channel] = np.roll(stylized[:,:,channel], x_offset)
 
     data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5 + 10)
     jpegged = tf.image.decode_jpeg(data)
@@ -32,10 +35,6 @@ def glitch(tensor):
 
     jpegged = effects.normalize(effects.convolve(effects.ConvKernel.sharpen, effects.normalize(jpegged)))
 
-    return tf.maximum(jpegged * base * 2, stylized)
+    combined = tf.maximum(jpegged, base)
 
-
-    tensor = tensor.eval()
-    tensor = np.roll(tensor, shift=int(width * .1), axis=1)
-
-    return tensor
+    return tf.minimum(combined, stylized)
