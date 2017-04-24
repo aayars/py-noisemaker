@@ -28,7 +28,7 @@ class Distribution(Enum):
     lognormal = 4
 
 
-def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_order=3, seed=None,
+def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_order=3, seed=None,
           distrib=Distribution.normal, **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -90,7 +90,7 @@ def basic(freq, width, height, channels, ridged=False, wavelet=False, spline_ord
     return tensor
 
 
-def multires(freq, width, height, channels, octaves, ridged=True, wavelet=True, spline_order=3, seed=None,
+def multires(freq, width, height, channels=3, octaves=4, ridged=True, wavelet=True, spline_order=3, seed=None,
              layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
              **post_process_args):
     """

@@ -193,7 +193,7 @@ def convolve(kernel, tensor):
 
     height, width, channels = tf.shape(tensor).eval()
 
-    kernel = _conform_kernel_to_tensor(kernel.value, tensor)
+    kernel_values = _conform_kernel_to_tensor(kernel.value, tensor)
 
     # Give the conv kernel some room to play on the edges
     pad_height = int(height * .1)
@@ -201,7 +201,7 @@ def convolve(kernel, tensor):
     padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
     tensor = tf.stack(pad(tensor.eval(), padding, "wrap"))
 
-    tensor = tf.nn.depthwise_conv2d([tensor], kernel, [1,1,1,1], "VALID")[0]
+    tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
 
     # Playtime... is... over!
     post_height, post_width, channels = tf.shape(tensor).eval()
@@ -215,6 +215,9 @@ def convolve(kernel, tensor):
     tensor = crop(tensor.eval(), ((crop_height0, crop_height1), (crop_width0, crop_width1), (0, 0)))
 
     tensor = normalize(tensor)
+
+    if kernel == ConvKernel.edges:
+        tensor = tf.abs(tensor - .5) * 2
 
     return tensor
 
@@ -288,9 +291,9 @@ def derivative(tensor):
     :return: Tensor
     """
 
-    y, x = np.gradient(tensor.eval(), axis=(0, 1), edge_order=2)
+    y, x = np.gradient(tensor.eval(), axis=(0, 1))
 
-    return tf.maximum(tensor, normalize(np.sqrt(y*y + x*x)))
+    return normalize(tf.sqrt(y*y + x*x))
 
 
 def reindex(tensor, displacement=.5):
@@ -557,26 +560,6 @@ def normal_map(tensor):
     return output
 
 
-def wave(tensor, x_freq, y_freq):
-    """
-    """
-
-    shape = tf.shape(tensor).eval()
-    height, width, channels = shape
-
-    m = tf.random_uniform([int(math.sqrt(y_freq)), int(math.sqrt(x_freq)), 1])
-    m = resample(m, width, height)
-    m = m.eval()
-
-    for y in range(height):
-        tensor[y] = np.roll(tensor[y], int(m[y,0,0] * height * .5), axis=0)
-
-    for x in range(width):
-        tensor[:,x] = np.roll(tensor[:,x], int(m[0,x,0] * width * .5), axis=0)
-
-    return tensor
-
-
 def _row_index(tensor):
     """
     Generate an X index for the given tensor.
@@ -627,6 +610,16 @@ def _column_index(tensor):
     return column_identity
 
 
+def blend(a, b, g):
+    """
+    """
+
+    a *= g
+    b *= 1 - g
+
+    return a + b
+
+
 def _offset_index(tensor):
     """
     Offset X and Y displacement channels from each other, to help with diagonal banding.
@@ -635,30 +628,30 @@ def _offset_index(tensor):
     :return: Tensor
     """
 
-    tensor[:,:,0] = _offset_y(tensor[:,:,0])
-    tensor[:,:,1] = _offset_x(tensor[:,:,1])
+    tensor[:,:,0] = offset_y(tensor[:,:,0])
+    tensor[:,:,1] = offset_x(tensor[:,:,1])
 
     return tensor
 
 
-def _offset_x(tensor):
+def offset_x(tensor):
     """
     """
 
     shape = tf.shape(tensor).eval()
     width = shape[1]
 
-    tensor = np.rot90(tensor)
-    tensor = np.roll(tensor, int(random.random() * width * .5 + width * .5))
+    # tensor = np.rot90(tensor)
+    return np.roll(tensor, int(random.random() * width * .5 + width * .5), axis=1)
 
-    return np.rot90(tensor, 3)
+    # return np.rot90(tensor, 3)
 
 
-def _offset_y(tensor):
+def offset_y(tensor):
     """
     """
 
     shape = tf.shape(tensor).eval()
     height = shape[0]
 
-    return np.roll(tensor, int(random.random() * height * .5 + height * .5))
+    return np.roll(tensor, int(random.random() * height * .5 + height * .5), axis=0)
