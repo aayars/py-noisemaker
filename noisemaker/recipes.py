@@ -51,7 +51,7 @@ def glitch(tensor):
 
     combined = combined.eval()
 
-    noise = basic(int(height * .25), width, height, 1).eval()
+    noise = basic(int(height * .75), width, height, 1).eval()
 
     for y in range(height):
         amount = m[0,y,0]  # this is wrong
@@ -66,6 +66,6 @@ def glitch(tensor):
 
         combined[y] = np.roll(noise_row + row, int(amount * width * .5), axis=0)
 
-    combined = np.roll(combined, int(width * .25), axis=1)
+    # combined = np.roll(combined, int(width * .25), axis=1)
 
     return combined
