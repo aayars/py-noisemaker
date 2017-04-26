@@ -16,13 +16,8 @@ setup(name='noisemaker',
         noisemaker=noisemaker.cli:main
         ''',
 
-      setup_requires=[
-        "numpy==1.12.1",  # Need this to build scikit
-        ],
-
       install_requires=[
         "click==6.7",
         "numpy==1.12.1",
-        "scikit-image==0.12.3",
         ]
       )

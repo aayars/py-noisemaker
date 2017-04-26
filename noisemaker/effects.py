@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from enum import Enum
 
 import math
@@ -5,9 +6,6 @@ import random
 
 import numpy as np
 import tensorflow as tf
-
-from skimage.transform import resize, rotate
-from skimage.util import crop, pad
 
 
 def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
@@ -199,21 +197,17 @@ def convolve(kernel, tensor):
     pad_height = int(height * .1)
     pad_width = int(width * .1)
     padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
-    tensor = tf.stack(pad(tensor.eval(), padding, "wrap"))
+    tensor = tf.stack(np.pad(tensor.eval(), padding, "wrap"))
 
     tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
 
     # Playtime... is... over!
     post_height, post_width, channels = tf.shape(tensor).eval()
 
-    crop_height0 = int((post_height - height) * .5)
-    crop_height1 = post_height - crop_height0 - height
+    crop_height = int((post_height - height) * .5)
+    crop_width = int((post_width - width) * .5)
 
-    crop_width0 = int((post_width - width) * .5)
-    crop_width1 = post_width - crop_width0 - width
-
-    tensor = crop(tensor.eval(), ((crop_height0, crop_height1), (crop_width0, crop_width1), (0, 0)))
-
+    tensor = tensor.eval()[crop_height:crop_height+height,crop_width:crop_width+width]
     tensor = normalize(tensor)
 
     if kernel == ConvKernel.edges:
@@ -244,22 +238,38 @@ def resample(tensor, width, height, spline_order=3):
     :return: Tensor
     """
 
-    _height, _width, channels = tf.shape(tensor).eval()
+    pre_height, pre_width, channels = tf.shape(tensor).eval()
 
-    if isinstance(tensor, tf.Tensor):  # Sometimes you feel like a Tensor
-        downcast = tensor.eval()
+    # Since our tools don't have a good way to wrap edges when resizing, cheese it ourselves.
+    pad_height = int(pre_height * .5)  # .5 because we might be dealing with very small images, eg 2x2. optimize later?
+    pad_width = int(pre_width * .5)
+    padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
 
-    else:  # Sometimes you feel a little more numpy
-        downcast = tensor
+    if isinstance(tensor, tf.Tensor):
+        tensor = tensor.eval()  # XXX
 
-    downcast = resize(downcast, (height, width, channels), mode="wrap", order=spline_order, preserve_range=True, clip=False)
+    tensor = tf.stack(np.pad(tensor, padding, "wrap"))  # XXX Do this with TF
 
-    return tf.image.convert_image_dtype(downcast, tf.float32)
+    post_height = height * 2
+    post_width = width * 2
 
-    ### TensorFlow doesn't handily let us wrap around edges when resampling.
-    # temp = tf.image.resize_images(tensor, [height, width], align_corners=True, method=tf.image.ResizeMethod.BICUBIC)
-    # temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
-    # return temp
+    if spline_order == 0:
+        resize_method = tf.image.ResizeMethod.NEAREST_NEIGHBOR
+    elif spline_order == 1:
+        resize_method = tf.image.ResizeMethod.BILINEAR
+    else:
+        resize_method = tf.image.ResizeMethod.BICUBIC
+
+    tensor = tf.image.resize_images(tensor, [post_height, post_width], align_corners=False, method=resize_method)
+
+    crop_height = int(height * .5)
+    crop_width = int(width * .5)
+
+    tensor = tensor.eval()[crop_height:crop_height+height,crop_width:crop_width+width]  # XXX Do this with TF
+
+    tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
+    return tensor
 
 
 def crease(tensor):
