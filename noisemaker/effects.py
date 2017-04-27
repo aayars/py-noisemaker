@@ -552,6 +552,20 @@ def normal_map(tensor):
     return output
 
 
+def _xy_index(tensor):
+    """
+    """
+
+    shape = tf.shape(tensor).eval()
+
+    index = np.zeros([*shape[0:-1], 2])
+
+    index[:,:,0] = _column_index(tensor)
+    index[:,:,1] = _row_index(tensor)
+
+    return tf.cast(index, tf.int32)
+
+
 def _row_index(tensor):
     """
     Generate an X index for the given tensor.
@@ -606,8 +620,8 @@ def blend(a, b, g):
     """
     """
 
-    a *= g
-    b *= 1 - g
+    a *= 1 - g
+    b *= g
 
     return a + b
 

@@ -39,32 +39,18 @@ def glitch(tensor):
     combined = effects.blend(jpegged, tf.multiply(stylized, 1.0), tf.maximum(base2 * 2 - 1, 0))
     combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
 
-    m = basic([12, 1], [height, width, 1])
-    index = m
-    index -= .5
-    index = tf.maximum(index, 0)
-    index *= index
-    index = tf.image.convert_image_dtype(index, tf.float32, saturate=True)
-    m *= index
-    m = effects.normalize(m)
-    m = m.eval()
+    # Shitty VHS Tracking
+    grad = tf.maximum(basic([int(random.random() * 10) + 5, 1], [height, width, 1]) - .5, 0)
+    grad *= grad
+    grad = tf.image.convert_image_dtype(grad, tf.float32, saturate=True)
+    grad = effects.normalize(grad).eval()
 
-    combined = combined.eval()
+    identity = effects._xy_index(tensor).eval()
+    identity[:,:,1] = identity[:,:,1] - grad[:,:,0] * width * .25
 
-    noise = basic(int(height * .75), [height, width, 1]).eval()
+    combined = effects.blend(combined, basic(int(height * .75), [height, width, 1]), grad)
 
-    # XXX Change this to gather_nd
-    for y in range(height):
-        amount = m[y,0,0]
-
-        if not amount:
-            continue
-
-        fract = min(amount * 3, 1.0)
-
-        row = combined[y] * (1 - fract)
-        noise_row = noise[y] * fract
-
-        combined[y] = np.roll(noise_row + row, int(amount * width * .5), axis=0)
+    combined = tf.gather_nd(combined, identity % width)
+    combined = tf.image.convert_image_dtype(combined, tf.float32, saturate=True)
 
     return combined
