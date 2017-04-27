@@ -39,7 +39,7 @@ def glitch(tensor):
     combined = effects.blend(jpegged, tf.multiply(stylized, 1.0), tf.maximum(base2 * 2 - 1, 0))
     combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
 
-    m = basic(12, [height, width, 1])
+    m = basic([12, 1], [height, width, 1])
     index = m
     index -= .5
     index = tf.maximum(index, 0)
@@ -53,6 +53,7 @@ def glitch(tensor):
 
     noise = basic(int(height * .75), [height, width, 1]).eval()
 
+    # XXX Change this to gather_nd
     for y in range(height):
         amount = m[y,0,0]
 
