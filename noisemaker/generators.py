@@ -14,7 +14,7 @@ class Distribution(Enum):
 
     .. code-block:: python
 
-       image = basic(freq, width, height, channels, distrib=Distribution.uniform)
+       image = basic(freq, [height, width, channels], distrib=Distribution.uniform)
     """
 
     normal = 0
@@ -28,7 +28,7 @@ class Distribution(Enum):
     lognormal = 4
 
 
-def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_order=3, seed=None,
+def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
           distrib=Distribution.normal, **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -38,10 +38,8 @@ def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_o
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param int freq: Heightwise noise frequency
-    :param int width: Image output width
-    :param int height: Image output height
-    :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
+    :param int|list[int] freq: Base noise frequency. Int, or list of ints for each spatial dimension.
+    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
     :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
@@ -52,10 +50,13 @@ def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_o
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
+    if isinstance(freq, int):
+        freq = _freq_for_shape(freq, shape)
+
+    initial_shape = [*freq, shape[-1]]
+
     if isinstance(distrib, int):
         distrib = Distribution(distrib)
-
-    initial_shape = [freq, int(freq * width / height), channels]
 
     if distrib == Distribution.normal:
         tensor = tf.random_normal(initial_shape, seed=seed)
@@ -64,18 +65,18 @@ def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_o
         tensor = tf.random_uniform(initial_shape, seed=seed)
 
     elif distrib == Distribution.exponential:
-        tensor = np.random.exponential(size=initial_shape)
+        tensor = tf.stack(np.random.exponential(size=initial_shape))
 
     elif distrib == Distribution.laplace:
-        tensor = np.random.laplace(size=initial_shape)
+        tensor = tf.stack(np.random.laplace(size=initial_shape))
 
     elif distrib == Distribution.lognormal:
-        tensor = np.random.lognormal(size=initial_shape)
+        tensor = tf.stack(np.random.lognormal(size=initial_shape))
 
     if wavelet:
         tensor = effects.wavelet(tensor)
 
-    tensor = effects.resample(tensor, width, height, spline_order=spline_order)
+    tensor = effects.resample(tensor, shape[0:-1], spline_order=spline_order)
 
     tensor = effects.post_process(tensor, **post_process_args)
 
@@ -84,13 +85,10 @@ def basic(freq, width, height, channels=3, ridged=False, wavelet=False, spline_o
     if ridged:
         tensor = effects.crease(tensor)
 
-    # if channels > 2:
-        # tensor = tf.image.random_hue(tensor, .5)
-
     return tensor
 
 
-def multires(freq, width, height, channels=3, octaves=4, ridged=True, wavelet=True, spline_order=3, seed=None,
+def multires(freq, shape, octaves=4, ridged=True, wavelet=True, spline_order=3, seed=None,
              layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
              **post_process_args):
     """
@@ -101,10 +99,8 @@ def multires(freq, width, height, channels=3, octaves=4, ridged=True, wavelet=Tr
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param int freq: Heightwise bottom layer frequency
-    :param int width: Image output width
-    :param int height: Image output height
-    :param int channels: Channel count. 1=Gray, 3=RGB, others may not work.
+    :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension.
+    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
     :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
@@ -119,15 +115,18 @@ def multires(freq, width, height, channels=3, octaves=4, ridged=True, wavelet=Tr
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
-    tensor = tf.zeros([height, width, channels])
+    tensor = tf.zeros(shape)
+
+    if isinstance(freq, int):
+        freq = _freq_for_shape(freq, shape)
 
     for octave in range(1, octaves + 1):
-        base_freq = int(freq * .5 * 2**octave)
+        base_freq = [int(f * .5 * 2**octave) for f in freq]
 
-        if base_freq > width and base_freq > height:
+        if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = basic(base_freq, width, height, channels, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
+        layer = basic(base_freq, shape, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       refract_range=layer_refract_range, reindex_range=layer_reindex_range, distrib=distrib, deriv=deriv)
 
         tensor += layer / 2**octave
@@ -135,3 +134,14 @@ def multires(freq, width, height, channels=3, octaves=4, ridged=True, wavelet=Tr
     tensor = effects.normalize(tensor)
 
     return effects.post_process(tensor, **post_process_args)
+
+
+def _freq_for_shape(freq, shape):
+    """
+    Given a base frequency as int, generate noise frequencies for each spatial dimension.
+
+    :param int freq: Base frequency
+    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
+    """
+
+    return [int(freq * shape[i] / shape[0]) for i in range(len(shape) - 1)]

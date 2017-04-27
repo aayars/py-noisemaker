@@ -8,7 +8,7 @@ setup(name='noisemaker',
       description='Noise making thinger for python3',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
-      # url='',
+      url='http://noisemaker.io/',
       packages=['noisemaker'],
 
       entry_points='''

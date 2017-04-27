@@ -97,7 +97,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
           spline_order, distrib, seed, glitch, name):
 
     with tf.Session().as_default():
-        tensor = generators.basic(freq, width, height, channels, ridged=ridged, wavelet=wavelet,
+        tensor = generators.basic(freq, [height, width, channels], ridged=ridged, wavelet=wavelet,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
@@ -148,7 +148,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
              worm_bg, sobel, normals, deriv, spline_order, distrib, seed, glitch, name):
 
     with tf.Session().as_default():
-        tensor = generators.multires(freq, width, height, channels, octaves, ridged=ridged, wavelet=wavelet,
+        tensor = generators.multires(freq, [height, width, channels], octaves, ridged=ridged, wavelet=wavelet,
                                      refract_range=refract, layer_refract_range=layer_refract,
                                      reindex_range=reindex, layer_reindex_range=layer_reindex,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,

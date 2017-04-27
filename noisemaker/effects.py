@@ -168,7 +168,7 @@ def _conform_kernel_to_tensor(kernel, tensor):
 
     l = len(kernel)
 
-    channels = tf.shape(tensor).eval()[2]
+    channels = tf.shape(tensor).eval()[-1]
 
     temp = np.repeat(kernel, channels)
 
@@ -193,20 +193,12 @@ def convolve(kernel, tensor):
     kernel_values = _conform_kernel_to_tensor(kernel.value, tensor)
 
     # Give the conv kernel some room to play on the edges
-    pad_height = int(height * .1)
-    pad_width = int(width * .1)
-    padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
-    tensor = tf.stack(np.pad(tensor.eval(), padding, "wrap"))
+    tensor = tf.tile(tensor, [3, 3, 1])
 
     tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
 
-    # Playtime... is... over!
-    post_height, post_width, channels = tf.shape(tensor).eval()
+    tensor = tensor[height:height+height,width:width+width]
 
-    crop_height = int((post_height - height) * .5)
-    crop_width = int((post_width - width) * .5)
-
-    tensor = tensor.eval()[crop_height:crop_height+height,crop_width:crop_width+width]
     tensor = normalize(tensor)
 
     if kernel == ConvKernel.edges:
@@ -226,31 +218,15 @@ def normalize(tensor):
     return (tensor - tf.reduce_min(tensor)) / (tf.reduce_max(tensor) - tf.reduce_min(tensor))
 
 
-def resample(tensor, width, height, spline_order=3):
+def resample(tensor, shape, spline_order=3):
     """
-    Resize the given image Tensor to the given dimensions.
+    Resize the given image Tensor to the given dimensions, wrapping around edges.
 
     :param Tensor tensor: An image tensor.
-    :param int width: Output width.
-    :param int height: Output height.
+    :param list[int] shape: The desired shape, specify spatial dimensions only. e.g. [height, width]
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
     :return: Tensor
     """
-
-    pre_height, pre_width, channels = tf.shape(tensor).eval()
-
-    # Since our tools don't have a good way to wrap edges when resizing, cheese it ourselves.
-    pad_height = int(pre_height * .5)  # .5 because we might be dealing with very small images, eg 2x2. optimize later?
-    pad_width = int(pre_width * .5)
-    padding = ((pad_height, pad_height), (pad_width, pad_width), (0, 0))
-
-    if isinstance(tensor, tf.Tensor):
-        tensor = tensor.eval()  # XXX
-
-    tensor = tf.stack(np.pad(tensor, padding, "wrap"))  # XXX Do this with TF
-
-    post_height = height * 2
-    post_width = width * 2
 
     if spline_order == 0:
         resize_method = tf.image.ResizeMethod.NEAREST_NEIGHBOR
@@ -259,12 +235,19 @@ def resample(tensor, width, height, spline_order=3):
     else:
         resize_method = tf.image.ResizeMethod.BICUBIC
 
-    tensor = tf.image.resize_images(tensor, [post_height, post_width], align_corners=False, method=resize_method)
+    dimensions = len(shape)
 
-    crop_height = int(height * .5)
-    crop_width = int(width * .5)
+    tensor = tf.tile(tensor, [3 for d in range(dimensions)] + [1])
 
-    tensor = tensor.eval()[crop_height:crop_height+height,crop_width:crop_width+width]  # XXX Do this with TF
+    tensor = tf.image.resize_images(tensor, [d * 3 for d in shape], method=resize_method)
+
+    if dimensions == 2:
+        height, width = shape
+
+        tensor = tensor[height:height+height,width:width+width]
+
+    else:
+        raise NotImplemented
 
     tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
@@ -300,7 +283,7 @@ def derivative(tensor):
     :return: Tensor
     """
 
-    y, x = np.gradient(tensor.eval(), axis=(0, 1))
+    y, x = np.gradient(tensor.eval(), axis=(0, 1))  # Do this in TF with conv2D?
 
     return normalize(tf.sqrt(y*y + x*x))
 
@@ -328,7 +311,7 @@ def reindex(tensor, displacement=.5):
     mod = min(height, width)
     offset = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * mod), reference), mod), tf.int32)
 
-    temp = tf.reshape(tensor.eval()[offset.eval(), 0], shape)
+    temp = tf.reshape(tensor.eval()[offset.eval(), 0], shape)  # XXX Do this with TF
 
     temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
 
@@ -365,7 +348,7 @@ def refract(tensor, displacement=.5):
     row_identity = _row_index(tensor)
     column_identity = _column_index(tensor)
 
-    index[:,:,0] = (index[:,:,0] + column_identity) % height
+    index[:,:,0] = (index[:,:,0] + column_identity) % height   # XXX Assemble a new Tensor here instead of using nump
     index[:,:,1] = (index[:,:,1] + row_identity) % width
 
     index = tf.cast(index, tf.int32)
@@ -423,7 +406,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
 
     index = tf.cast(index, tf.int32)
 
-    clut = resample(clut, width, height, 3)
+    clut = resample(clut, [height, width], 3)
 
     clut = tf.image.convert_image_dtype(clut, tf.float32, saturate=True)
 
@@ -527,7 +510,7 @@ def wavelet(tensor):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    return normalize(tensor - resample(resample(tensor, int(width * .5), int(height * .5)), width, height))
+    return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5)]), [height, width]))
 
 
 def sobel(tensor):
