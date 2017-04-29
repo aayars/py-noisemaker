@@ -65,13 +65,13 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
         tensor = tf.random_uniform(initial_shape, seed=seed)
 
     elif distrib == Distribution.exponential:
-        tensor = tf.stack(np.random.exponential(size=initial_shape))
+        tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
 
     elif distrib == Distribution.laplace:
-        tensor = tf.stack(np.random.laplace(size=initial_shape))
+        tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
 
     elif distrib == Distribution.lognormal:
-        tensor = tf.stack(np.random.lognormal(size=initial_shape))
+        tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
