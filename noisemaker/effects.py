@@ -103,13 +103,13 @@ class ConvKernel(Enum):
 
     shadow = [
         # yeah, one of the really big fuckers
-        [  0,   1,   1,   1,   1,   1,   1  ],
-        [ -1,   0,   2,   2,   1,   1,   1  ],
-        [ -1,  -2,   0,   4,   2,   1,   1  ],
-        [ -1,  -2,  -4,   12,   4,   2,   1  ],
-        [ -1,  -1,  -2,  -4,   0,   2,   1  ],
-        [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
-        [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
+        # [  0,   1,   1,   1,   1,   1,   1  ],
+        # [ -1,   0,   2,   2,   1,   1,   1  ],
+        # [ -1,  -2,   0,   4,   2,   1,   1  ],
+        # [ -1,  -2,  -4,   12,   4,   2,   1  ],
+        # [ -1,  -1,  -2,  -4,   0,   2,   1  ],
+        # [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
+        # [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
 
         # [  0,  1,  1,  1, 0 ],
         # [ -1, -2,  4,  2, 1 ],
@@ -117,11 +117,11 @@ class ConvKernel(Enum):
         # [ -1, -2, -4,  2, 1 ],
         # [  0, -1, -1, -1, 0 ]
 
-        # [  0,  1,  1,  1, 0 ],
-        # [ -1, -2,  4,  2, 1 ],
-        # [ -1, -4,  2,  4, 1 ],
-        # [ -1, -2, -4,  2, 1 ],
-        # [  0, -1, -1, -1, 0 ]
+        [  0,  1,  1,  1, 0 ],
+        [ -1, -2,  4,  2, 1 ],
+        [ -1, -4,  2,  4, 1 ],
+        [ -1, -2, -4,  2, 1 ],
+        [  0, -1, -1, -1, 0 ]
     ]
 
     edges = [
@@ -188,17 +188,19 @@ def convolve(kernel, tensor):
     :return: Tensor
     """
 
-    height, width, channels = tf.shape(tensor).eval()
+    shape = tf.shape(tensor)
+    height, width, channels = shape.eval()
 
     kernel_values = _conform_kernel_to_tensor(kernel.value, tensor)
 
     # Give the conv kernel some room to play on the edges
-    tensor = tf.tile(tensor, [3, 3, 1])
+    half_height = tf.cast(shape[0] / 2, tf.int32)
+    half_width = tf.cast(shape[1] / 2, tf.int32)
 
+    tensor = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
+    tensor = tensor[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
     tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
-
-    tensor = tensor[height:height+height,width:width+width]
-
+    tensor = tensor[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
     tensor = normalize(tensor)
 
     if kernel == ConvKernel.edges:
@@ -235,20 +237,17 @@ def resample(tensor, shape, spline_order=3):
     else:
         resize_method = tf.image.ResizeMethod.BICUBIC
 
-    dimensions = len(shape)
+    input_shape = tf.shape(tensor)
+    half_input_height = tf.cast(input_shape[0] / 2, tf.int32)
+    half_input_width = tf.cast(input_shape[1] / 2, tf.int32)
 
-    tensor = tf.tile(tensor, [3 for d in range(dimensions)] + [1])
+    half_height = tf.cast(shape[0] / 2, tf.int32)
+    half_width = tf.cast(shape[1] / 2, tf.int32)
 
-    tensor = tf.image.resize_images(tensor, [d * 3 for d in shape], method=resize_method)
-
-    if dimensions == 2:
-        height, width = shape
-
-        tensor = tensor[height:height+height,width:width+width]
-
-    else:
-        raise NotImplemented
-
+    tensor = tf.tile(tensor, [3 for d in range(len(shape))] + [1])  # Tile 3x3
+    tensor = tensor[half_input_height:input_shape[0] * 2 + half_input_height, half_input_width:input_shape[1] * 2 + half_input_width]  # Center Crop 2x2
+    tensor = tf.image.resize_images(tensor, [d * 2 for d in shape], method=resize_method)  # Upsample
+    tensor = tensor[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
     tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
     return tensor

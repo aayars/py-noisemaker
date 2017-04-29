@@ -90,11 +90,12 @@ def main(ctx, **kwargs):
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
+@click.option("--vhs", is_flag=True, default=False, help="VHS effect")
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, sobel, normals, deriv,
-          spline_order, distrib, seed, glitch, name):
+          spline_order, distrib, seed, glitch, vhs, name):
 
     with tf.Session().as_default():
         tensor = generators.basic(freq, [height, width, channels], ridged=ridged, wavelet=wavelet,
@@ -108,6 +109,9 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 
         if glitch:
             tensor = recipes.glitch(tensor)
+
+        if vhs:
+            tensor = recipes.vhs(tensor)
 
         _save(tensor, name)
 
@@ -140,12 +144,13 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
+@click.option("--vhs", is_flag=True, default=False, help="VHS effect")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, sobel, normals, deriv, spline_order, distrib, seed, glitch, name):
+             worm_bg, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, name):
 
     with tf.Session().as_default():
         tensor = generators.multires(freq, [height, width, channels], octaves, ridged=ridged, wavelet=wavelet,
@@ -161,5 +166,8 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
 
         if glitch:
             tensor = recipes.glitch(tensor)
+
+        if vhs:
+            tensor = recipes.vhs(tensor)
 
         _save(tensor, name)

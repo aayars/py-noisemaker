@@ -121,15 +121,18 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=True, spline_order=3, 
         freq = _freq_for_shape(freq, shape)
 
     for octave in range(1, octaves + 1):
-        base_freq = [int(f * .5 * 2**octave) for f in freq]
+        multiplier = 2 ** octave
+
+        base_freq = [int(f * .5 * multiplier) for f in freq]
 
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
         layer = basic(base_freq, shape, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                      refract_range=layer_refract_range, reindex_range=layer_reindex_range, distrib=distrib, deriv=deriv)
+                      refract_range=layer_refract_range / multiplier, reindex_range=layer_reindex_range / multiplier,
+                      distrib=distrib, deriv=deriv)
 
-        tensor += layer / 2**octave
+        tensor += layer / multiplier
 
     tensor = effects.normalize(tensor)
 
