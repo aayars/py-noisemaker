@@ -109,11 +109,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        if glitch:
-            tensor = recipes.glitch(tensor, shape)
-
-        if vhs:
-            tensor = recipes.vhs(tensor, shape)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs)
 
         _save(tensor, name)
 
@@ -168,10 +164,6 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        if glitch:
-            tensor = recipes.glitch(tensor, shape)
-
-        if vhs:
-            tensor = recipes.vhs(tensor, shape)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs)
 
         _save(tensor, name)

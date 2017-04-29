@@ -8,8 +8,33 @@ from noisemaker.generators import basic, multires
 import noisemaker.effects as effects
 
 
+def post_process(tensor, shape, with_glitch, with_vhs):
+    """
+    Apply complex post-processing recipes.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param bool with_glitch: Glitch effect (Bit shit)
+    :param bool with_vhs: VHS effect (Shitty tracking)
+    :return: Tensor
+    """
+
+    if with_glitch:
+        tensor = glitch(tensor, shape)
+
+    if with_vhs:
+        tensor = vhs(tensor, shape)
+
+    return tensor
+
+
 def glitch(tensor, shape):
     """
+    Apply a glitch effect.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :return: Tensor
     """
 
     height, width, channels = shape
@@ -40,6 +65,11 @@ def glitch(tensor, shape):
 
 def vhs(tensor, shape):
     """
+    Apply a bad VHS tracking effect.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :return: Tensor
     """
 
     height, width, channels = shape

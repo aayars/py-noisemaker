@@ -11,7 +11,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
                  worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False):
     """
-    Apply post-processing filters.
+    Apply post-processing effects.
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -408,57 +408,52 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
 
     height, width, channels = shape
 
-    reference = tensor.eval()
-
     count = int(max(width, height) * density)
-    worms = np.random.uniform(size=[count, 4])  # Worm: [ y, x, rotation bias, stride ]
-    worms[:, 0] *= height
-    worms[:, 1] *= width
-    worms[:, 3] = np.random.normal(loc=stride, scale=stride_deviation, size=[count])
+
+    worms_y = tf.random_uniform([count]) * height
+    worms_x = tf.random_uniform([count]) * width
+    worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation)
+
+    colors = tf.gather_nd(tensor, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
 
     if isinstance(behavior, int):
         behavior = WormBehavior(behavior)
 
     if behavior == WormBehavior.obedient:
-        worms[:, 2] = 0
+        worms_rot = tf.zeros([count])
 
     elif behavior == WormBehavior.crosshatch:
-        worms[:, 2] = np.mod(np.floor(worms[:, 2] * 100), 2) * 90
+        worms_rot = (tf.floor(tf.random_normal([count]) * 100) % 2) * 90
 
     elif behavior == WormBehavior.chaotic:
-        worms[:, 2] *= 360.0
+        worms_rot = tf.random_normal([count]) * 360.0
 
-    colors = tf.zeros((count, channels)).eval()
-    for i, worm in enumerate(worms):
-        colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
+    else:
+        worms_rot = tf.random_normal([count])
 
-    index = value_map(reference, shape)
+    index = value_map(tensor, shape)
     index = normalize(index) * 360.0 * math.radians(1)
-    index = index.eval()
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = reference * bg
+    out = tensor * bg
 
     # Make worms!
     for i in range(iterations):
-        coords = worms.astype(int)
-
-        coords[:, 0] = np.mod(coords[:, 0], height)
-        coords[:, 1] = np.mod(coords[:, 1], width)
+        worm_positions = tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32)
 
         value = 1 + (1 - abs(1 - i / (iterations - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
 
-        # Stretch goal: Get this out of a loop and do straight up math
-        for j, coord in enumerate(coords):
-            out[coord[0], coord[1]] = value * colors[j]
+        out += tf.scatter_nd(worm_positions, colors * value, shape)
 
-        worms[:, 0] += np.cos(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]
-        worms[:, 1] += np.sin(index[coords[:, 0], coords[:, 1]] + worms[:, 2]) * worms[:, 3]
+        next_position = tf.gather_nd(index, worm_positions) + worms_rot
+
+        worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
+        worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
 
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 
-    return out
+    return normalize(out)
 
 
 def wavelet(tensor, shape):
@@ -518,6 +513,43 @@ def normal_map(tensor, shape):
     return tf.stack([x[:,:,0], y[:,:,0], z[:,:,0]], 2)
 
 
+def value_map(tensor, shape, keep_dims=False):
+    """
+    """
+
+    channels = shape[-1]
+
+    return tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)
+
+
+def jpeg_decimate(tensor):
+    """
+    """
+
+    jpegged = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
+
+    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5 + 10)
+    jpegged = tf.image.decode_jpeg(data)
+
+    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5)
+    jpegged = tf.image.decode_jpeg(data)
+
+    return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
+
+
+def blend(a, b, g):
+    """
+    Blend a and b values, using g as a multiplier.
+
+    :param Tensor a:
+    :param Tensor b:
+    :param Tensor g:
+    :return Tensor:
+    """
+
+    return (a * (1 - g) + b * g)
+
+
 def _row_index(tensor, shape):
     """
     Generate an X index for the given tensor.
@@ -568,16 +600,6 @@ def _column_index(tensor, shape):
     return column_identity
 
 
-def blend(a, b, g):
-    """
-    """
-
-    a *= 1 - g
-    b *= g
-
-    return a + b
-
-
 def _offset_index(y_index, height, x_index, width):
     """
     Offset X and Y displacement channels from each other, to help with diagonal banding.
@@ -597,27 +619,3 @@ def _offset_index(y_index, height, x_index, width):
         ], 2)
 
     return tf.cast(index, tf.int32)
-
-
-def value_map(tensor, shape, keep_dims=False):
-    """
-    """
-
-    channels = shape[-1]
-
-    return tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)
-
-
-def jpeg_decimate(tensor):
-    """
-    """
-
-    jpegged = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
-
-    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5 + 10)
-    jpegged = tf.image.decode_jpeg(data)
-
-    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5)
-    jpegged = tf.image.decode_jpeg(data)
-
-    return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
