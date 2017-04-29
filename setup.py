@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(name='noisemaker',
       version='0.0.1',
-      description='Noise making thinger for python3',
+      description='Visual noise generator for Python 3',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
       url='http://noisemaker.io/',
@@ -18,6 +18,5 @@ setup(name='noisemaker',
 
       install_requires=[
         "click==6.7",
-        "numpy==1.12.1",
         ]
       )
