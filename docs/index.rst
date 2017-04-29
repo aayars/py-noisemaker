@@ -15,7 +15,7 @@ Noisemaker
 Installation
 ------------
 
-Noisemaker is intended for Python 3.6+. 3.5 `might` work.
+Noisemaker is intended for Python 3.5+.
 
 Install `Noisemaker`_ in a new virtualenv:
 
@@ -31,8 +31,10 @@ Install `Noisemaker`_ in a new virtualenv:
 
 .. code-block:: bash
 
-    pip install $TF_BINARY_URL
+    # Try to see if there is a wheel available for your platform.
+    pip install tensorflow  # or tensorflow-gpu, if you're all set up with cuda/cudnn
 
+    # pip install $TF_BINARY_URL
     # e.g. Mac OS X CPU:
     # https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py3-none-any.whl
 
