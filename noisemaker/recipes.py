@@ -50,11 +50,11 @@ def glitch(tensor, shape):
 
     # Offset a single color channel
     separated = [stylized[:,:,i] for i in range(channels)]
-    x_index = (effects._row_index(tensor, shape) + int(random.random() * width)) % width
-    offset_index = tf.cast(tf.stack([effects._column_index(tensor, shape), x_index], 2), tf.int32)
+    x_index = (effects.row_index(tensor, shape) + int(random.random() * width)) % width
+    index = tf.cast(tf.stack([effects.column_index(tensor, shape), x_index], 2), tf.int32)
 
     channel = int(random.random() * channels)
-    separated[channel] = effects.normalize(tf.gather_nd(separated[channel], offset_index) % random.random())
+    separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
     stylized = tf.stack(separated, 2)
 
     combined = effects.blend(tf.multiply(stylized, 1.0), jpegged, tf.maximum(base2 * 2 - 1, 0))
@@ -86,8 +86,8 @@ def vhs(tensor, shape):
 
     tensor = effects.blend(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
 
-    x_index = effects._row_index(tensor, shape) - tf.cast(grad * width * .25 + (scan_noise * width * .5 * grad * grad), tf.int32)
-    identity = tf.stack([effects._column_index(tensor, shape), x_index], 2) % width
+    x_index = effects.row_index(tensor, shape) - tf.cast(grad * width * .25 + (scan_noise * width * .5 * grad * grad), tf.int32)
+    identity = tf.stack([effects.column_index(tensor, shape), x_index], 2) % width
 
     tensor = tf.gather_nd(tensor, identity)
     tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)

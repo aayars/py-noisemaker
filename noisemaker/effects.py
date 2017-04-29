@@ -329,13 +329,13 @@ def refract(tensor, shape, displacement=.5):
 
     reference_x = value_map(tensor, shape)
 
-    x_index = _row_index(tensor, shape)
-    y_index = _column_index(tensor, shape)
+    x_index = row_index(tensor, shape)
+    y_index = column_index(tensor, shape)
 
     # Create an offset Y channel, to get rid of diagonal banding.
-    reference_y = tf.gather_nd(reference_x, _offset_index(y_index, height, x_index, width))
+    reference_y = tf.gather_nd(reference_x, offset_index(y_index, height, x_index, width))
 
-    return tf.gather_nd(tensor, _offset_index(y_index + tf.cast(reference_y * height, tf.int32), height, x_index + tf.cast(reference_x * width, tf.int32), width))
+    return tf.gather_nd(tensor, offset_index(y_index + tf.cast(reference_y * height, tf.int32), height, x_index + tf.cast(reference_x * width, tf.int32), width))
 
 
 def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
@@ -368,13 +368,13 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
 
     reference = value_map(tensor, shape) * displacement
 
-    x_index = (_row_index(tensor, shape) + tf.cast(reference * (width - 1), tf.int32)) % width
+    x_index = (row_index(tensor, shape) + tf.cast(reference * (width - 1), tf.int32)) % width
 
     if horizontal:
-        y_index = _column_index(tensor, shape)
+        y_index = column_index(tensor, shape)
 
     else:
-        y_index = (_column_index(tensor, shape) + tf.cast(reference * (height - 1), tf.int32)) % height
+        y_index = (column_index(tensor, shape) + tf.cast(reference * (height - 1), tf.int32)) % height
 
     index = tf.stack([y_index, x_index], 2)
 
@@ -431,8 +431,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     else:
         worms_rot = tf.random_normal([count])
 
-    index = value_map(tensor, shape)
-    index = normalize(index) * 360.0 * math.radians(1)
+    index = value_map(tensor, shape) * 360.0 * math.radians(1)
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
@@ -442,9 +441,9 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     for i in range(iterations):
         worm_positions = tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32)
 
-        value = 1 + (1 - abs(1 - i / (iterations - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
+        exposure = 1 + (1 - abs(1 - i / (iterations - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
 
-        out += tf.scatter_nd(worm_positions, colors * value, shape)
+        out += tf.scatter_nd(worm_positions, colors * exposure, shape)
 
         next_position = tf.gather_nd(index, worm_positions) + worms_rot
 
@@ -519,11 +518,15 @@ def value_map(tensor, shape, keep_dims=False):
 
     channels = shape[-1]
 
-    return tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)
+    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
 
 
 def jpeg_decimate(tensor):
     """
+    Needs more JPEG? Never again.
+
+    :param Tensor tensor:
+    :return: Tensor
     """
 
     jpegged = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
@@ -550,15 +553,17 @@ def blend(a, b, g):
     return (a * (1 - g) + b * g)
 
 
-def _row_index(tensor, shape):
+def row_index(tensor, shape):
     """
     Generate an X index for the given tensor.
 
-    [
-      [ 0, 1, 2, ... width-1 ],
-      [ 0, 1, 2, ... width-1 ],
-      ... (x height)
-    ]
+    .. code-block:: python
+
+      [
+        [ 0, 1, 2, ... width-1 ],
+        [ 0, 1, 2, ... width-1 ],
+        ... (x height)
+      ]
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -573,17 +578,19 @@ def _row_index(tensor, shape):
     return row_identity
 
 
-def _column_index(tensor, shape):
+def column_index(tensor, shape):
     """
     Generate a Y index for the given tensor.
 
-    [
-      [ 0, 0, 0, ... ],
-      [ 1, 1, 1, ... ],
-      [ n, n, n, ... ],
-      ...
-      [ height-1, height-1, height-1, ... ]
-    ]
+    .. code-block:: python
+
+      [
+        [ 0, 0, 0, ... ],
+        [ 1, 1, 1, ... ],
+        [ n, n, n, ... ],
+        ...
+        [ height-1, height-1, height-1, ... ]
+      ]
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -600,7 +607,7 @@ def _column_index(tensor, shape):
     return column_identity
 
 
-def _offset_index(y_index, height, x_index, width):
+def offset_index(y_index, height, x_index, width):
     """
     Offset X and Y displacement channels from each other, to help with diagonal banding.
 
