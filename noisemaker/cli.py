@@ -28,7 +28,7 @@ def _save(tensor, name="out"):
     print("Saved noise to {0}.png".format(name))
 
 
-def _apply_conv_kernels(tensor, args):
+def _apply_conv_kernels(tensor, shape, args):
     """
     Apply convolution kernels from given CLI options.
 
@@ -39,7 +39,7 @@ def _apply_conv_kernels(tensor, args):
 
     for kernel in effects.ConvKernel:
         if args.get(kernel.name):
-            tensor =  effects.convolve(kernel, tensor)
+            tensor =  effects.convolve(kernel, tensor, shape)
 
     return tensor
 
@@ -98,20 +98,22 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
           spline_order, distrib, seed, glitch, vhs, name):
 
     with tf.Session().as_default():
-        tensor = generators.basic(freq, [height, width, channels], ridged=ridged, wavelet=wavelet,
+        shape = [height, width, channels]
+
+        tensor = generators.basic(freq, shape, ridged=ridged, wavelet=wavelet,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
                                   with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                   )
 
-        tensor = _apply_conv_kernels(tensor, ctx.obj)
+        tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
         if glitch:
-            tensor = recipes.glitch(tensor)
+            tensor = recipes.glitch(tensor, shape)
 
         if vhs:
-            tensor = recipes.vhs(tensor)
+            tensor = recipes.vhs(tensor, shape)
 
         _save(tensor, name)
 
@@ -153,7 +155,9 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
              worm_bg, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, name):
 
     with tf.Session().as_default():
-        tensor = generators.multires(freq, [height, width, channels], octaves, ridged=ridged, wavelet=wavelet,
+        shape = [height, width, channels]
+
+        tensor = generators.multires(freq, shape, octaves, ridged=ridged, wavelet=wavelet,
                                      refract_range=refract, layer_refract_range=layer_refract,
                                      reindex_range=reindex, layer_reindex_range=layer_reindex,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
@@ -162,12 +166,12 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                      )
 
-        tensor = _apply_conv_kernels(tensor, ctx.obj)
+        tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
         if glitch:
-            tensor = recipes.glitch(tensor)
+            tensor = recipes.glitch(tensor, shape)
 
         if vhs:
-            tensor = recipes.vhs(tensor)
+            tensor = recipes.vhs(tensor, shape)
 
         _save(tensor, name)

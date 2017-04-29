@@ -7,13 +7,14 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
+def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False, with_glitch=False):
+                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False):
     """
     Apply post-processing filters.
 
     :param Tensor tensor:
+    :param list[int] shape:
     :param float refract_range: Self-distortion gradient.
     :param float reindex_range: Self-reindexing gradient.
     :param str clut: PNG or JPG color lookup table filename.
@@ -29,37 +30,33 @@ def post_process(tensor, refract_range=0.0, reindex_range=0.0, clut=None, clut_h
     :param bool with_sobel: Sobel operator
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool deriv: Derivative operator
-    :param bool with_glitch: Bit shit
     :return: Tensor
     """
 
     if refract_range != 0:
-        tensor = refract(tensor, displacement=refract_range)
+        tensor = refract(tensor, shape, displacement=refract_range)
 
     if reindex_range != 0:
-        tensor = reindex(tensor, displacement=reindex_range)
+        tensor = reindex(tensor, shape, displacement=reindex_range)
 
     if clut:
-        tensor = color_map(tensor, clut, horizontal=clut_horizontal, displacement=clut_range)
+        tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     else:
         tensor = normalize(tensor)
 
     if with_worms:
-        tensor = worms(tensor, behavior=worm_behavior, density=worm_density, duration=worm_duration,
+        tensor = worms(tensor, shape, behavior=worm_behavior, density=worm_density, duration=worm_duration,
                        stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg)
 
     if deriv:
         tensor = derivative(tensor)
 
     if with_sobel:
-        tensor = sobel(tensor)
-
-    if with_glitch:
-        tensor = glitch(tensor)
+        tensor = sobel(tensor, shape)
 
     if with_normal_map:
-        tensor = normal_map(tensor)
+        tensor = normal_map(tensor, shape)
 
     return tensor
 
@@ -163,12 +160,12 @@ class ConvKernel(Enum):
     ]
 
 
-def _conform_kernel_to_tensor(kernel, tensor):
+def _conform_kernel_to_tensor(kernel, tensor, shape):
     """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
 
     l = len(kernel)
 
-    channels = tf.shape(tensor).eval()[-1]
+    channels = shape[-1]
 
     temp = np.repeat(kernel, channels)
 
@@ -179,7 +176,7 @@ def _conform_kernel_to_tensor(kernel, tensor):
     return temp
 
 
-def convolve(kernel, tensor):
+def convolve(kernel, tensor, shape):
     """
     Apply a convolution kernel to an image tensor.
 
@@ -188,10 +185,9 @@ def convolve(kernel, tensor):
     :return: Tensor
     """
 
-    shape = tf.shape(tensor)
-    height, width, channels = shape.eval()
+    height, width, channels = shape
 
-    kernel_values = _conform_kernel_to_tensor(kernel.value, tensor)
+    kernel_values = _conform_kernel_to_tensor(kernel.value, tensor, shape)
 
     # Give the conv kernel some room to play on the edges
     half_height = tf.cast(shape[0] / 2, tf.int32)
@@ -287,7 +283,7 @@ def derivative(tensor):
     return normalize(tf.sqrt(y*y + x*x))
 
 
-def reindex(tensor, displacement=.5):
+def reindex(tensor, shape, displacement=.5):
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
 
@@ -297,14 +293,14 @@ def reindex(tensor, displacement=.5):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor: An image tensor.
+    :param list[int] shape:
     :param float displacement:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    reference = value_map(tensor)
+    reference = value_map(tensor, shape)
 
     mod = min(height, width)
     offset = tf.cast((reference * displacement * mod + reference) % mod, tf.int32)
@@ -314,7 +310,7 @@ def reindex(tensor, displacement=.5):
     return tensor
 
 
-def refract(tensor, displacement=.5):
+def refract(tensor, shape, displacement=.5):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -324,25 +320,25 @@ def refract(tensor, displacement=.5):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor: An image tensor.
+    :param list[int] shape:
     :param float displacement:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    reference_x = value_map(tensor)
+    reference_x = value_map(tensor, shape)
 
-    x_index = _row_index(tensor)
-    y_index = _column_index(tensor)
+    x_index = _row_index(tensor, shape)
+    y_index = _column_index(tensor, shape)
 
     # Create an offset Y channel, to get rid of diagonal banding.
     reference_y = tf.gather_nd(reference_x, _offset_index(y_index, height, x_index, width))
 
-    return tf.gather_nd(tensor, _offset_index(y_index + reference_y * height, height, x_index + reference_x * width, width))
+    return tf.gather_nd(tensor, _offset_index(y_index + tf.cast(reference_y * height, tf.int32), height, x_index + tf.cast(reference_x * width, tf.int32), width))
 
 
-def color_map(tensor, clut, horizontal=False, displacement=.5):
+def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     """
     Apply a color map to an image tensor.
 
@@ -355,6 +351,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
 
     :param Tensor tensor:
     :param Tensor|str clut: An image tensor or filename (png/jpg only) to use as a color palette
+    :param list[int] shape:
     :param bool horizontal: Scan horizontally
     :param float displacement: Gather distance for clut
     """
@@ -367,15 +364,19 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
             elif clut.endswith(".jpg"):
                 clut = tf.image.decode_jpeg(fh.read(), channels=3)
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    reference = value_map(tensor) * displacement
+    reference = value_map(tensor, shape) * displacement
 
-    x_index = (_row_index(tensor) + reference * (width - 1)) % width
-    y_index = _column_index(tensor) if horizontal else (_column_index(tensor) + reference * (height - 1)) % height
+    x_index = (_row_index(tensor, shape) + tf.cast(reference * (width - 1), tf.int32)) % width
 
-    index = tf.cast(tf.stack([y_index, x_index], 2), tf.int32)
+    if horizontal:
+        y_index = _column_index(tensor, shape)
+
+    else:
+        y_index = (_column_index(tensor, shape) + tf.cast(reference * (height - 1), tf.int32)) % height
+
+    index = tf.stack([y_index, x_index], 2)
 
     clut = resample(clut, [height, width], 3)
 
@@ -385,7 +386,7 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5):
+def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -395,6 +396,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
+    :param list[int] shape:
     :param int|WormBehavior behavior:
     :param float density: Worm density multiplier (larger == slower)
     :param float duration: Iteration multiplier (larger == slower)
@@ -404,7 +406,6 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
     reference = tensor.eval()
@@ -431,7 +432,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     for i, worm in enumerate(worms):
         colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
 
-    index = value_map(reference)
+    index = value_map(reference, shape)
     index = normalize(index) * 360.0 * math.radians(1)
     index = index.eval()
 
@@ -460,7 +461,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     return out
 
 
-def wavelet(tensor):
+def wavelet(tensor, shape):
     """
     Convert regular noise into 2-D wavelet noise.
 
@@ -472,50 +473,52 @@ def wavelet(tensor):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor: An image tensor.
+    :param list[int] shape:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
     return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5)]), [height, width]))
 
 
-def sobel(tensor):
+def sobel(tensor, shape):
     """
     Apply a sobel operator.
 
     :param Tensor tensor:
+    :param list[int] shape:
     :return: Tensor
     """
 
-    x = convolve(ConvKernel.sobel_x, tensor)
-    y = convolve(ConvKernel.sobel_y, tensor)
+    x = convolve(ConvKernel.sobel_x, tensor, shape)
+    y = convolve(ConvKernel.sobel_y, tensor, shape)
 
     return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
 
 
-def normal_map(tensor):
+def normal_map(tensor, shape):
     """
     Generate a tangent-space normal map.
 
     :param Tensor tensor:
+    :param list[int] shape:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    reference = value_map(tensor, keep_dims=True)
+    reference = value_map(tensor, shape, keep_dims=True)
 
-    x = normalize(1 - convolve(ConvKernel.sobel_x, reference))
-    y = normalize(convolve(ConvKernel.sobel_y, reference))
+    x = normalize(1 - convolve(ConvKernel.sobel_x, reference, [height, width, 1]))
+    y = normalize(convolve(ConvKernel.sobel_y, reference, [height, width, 1]))
+
     z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
     return tf.stack([x[:,:,0], y[:,:,0], z[:,:,0]], 2)
 
 
-def _row_index(tensor):
+def _row_index(tensor, shape):
     """
     Generate an X index for the given tensor.
 
@@ -526,19 +529,19 @@ def _row_index(tensor):
     ]
 
     :param Tensor tensor:
+    :param list[int] shape:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
     row_identity = tf.cumsum(tf.ones(width, dtype=tf.int32), exclusive=True)
-    row_identity = tf.reshape(tf.tile(row_identity, [height]), [height, width]).eval()
+    row_identity = tf.reshape(tf.tile(row_identity, [height]), [height, width])
 
     return row_identity
 
 
-def _column_index(tensor):
+def _column_index(tensor, shape):
     """
     Generate a Y index for the given tensor.
 
@@ -551,16 +554,16 @@ def _column_index(tensor):
     ]
 
     :param Tensor tensor:
+    :param list[int] shape:
     :return: Tensor
     """
 
-    shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
     column_identity = tf.ones(width, dtype=tf.int32)
     column_identity = tf.tile(column_identity, [height])
     column_identity = tf.reshape(column_identity, [height, width])
-    column_identity = tf.cumsum(column_identity, exclusive=True).eval()
+    column_identity = tf.cumsum(column_identity, exclusive=True)
 
     return column_identity
 
@@ -596,11 +599,25 @@ def _offset_index(y_index, height, x_index, width):
     return tf.cast(index, tf.int32)
 
 
-def value_map(tensor, keep_dims=False):
+def value_map(tensor, shape, keep_dims=False):
     """
     """
 
-    shape = tf.shape(tensor).eval()
     channels = shape[-1]
 
     return tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)
+
+
+def jpeg_decimate(tensor):
+    """
+    """
+
+    jpegged = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
+
+    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5 + 10)
+    jpegged = tf.image.decode_jpeg(data)
+
+    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5)
+    jpegged = tf.image.decode_jpeg(data)
+
+    return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)

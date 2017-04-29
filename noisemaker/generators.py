@@ -74,11 +74,11 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
         tensor = tf.stack(np.random.lognormal(size=initial_shape))
 
     if wavelet:
-        tensor = effects.wavelet(tensor)
+        tensor = effects.wavelet(tensor, initial_shape)
 
     tensor = effects.resample(tensor, shape[0:-1], spline_order=spline_order)
 
-    tensor = effects.post_process(tensor, **post_process_args)
+    tensor = effects.post_process(tensor, shape, **post_process_args)
 
     tensor = effects.normalize(tensor)
 
@@ -88,7 +88,7 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
     return tensor
 
 
-def multires(freq, shape, octaves=4, ridged=True, wavelet=True, spline_order=3, seed=None,
+def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3, seed=None,
              layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
              **post_process_args):
     """
@@ -136,7 +136,7 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=True, spline_order=3, 
 
     tensor = effects.normalize(tensor)
 
-    return effects.post_process(tensor, **post_process_args)
+    return effects.post_process(tensor, shape, **post_process_args)
 
 
 def _freq_for_shape(freq, shape):
