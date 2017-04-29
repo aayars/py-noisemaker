@@ -56,8 +56,8 @@ def vhs(tensor, shape):
 
     tensor = effects.blend(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
 
-    x_index = effects._row_index(tensor, shape) - grad * width * .25 + (scan_noise * width * .5 * grad * grad)
-    identity = tf.cast(tf.stack([effects._column_index(tensor, shape), x_index], 2), tf.int32) % width
+    x_index = effects._row_index(tensor, shape) - tf.cast(grad * width * .25 + (scan_noise * width * .5 * grad * grad), tf.int32)
+    identity = tf.stack([effects._column_index(tensor, shape), x_index], 2) % width
 
     tensor = tf.gather_nd(tensor, identity)
     tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
