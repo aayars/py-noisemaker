@@ -304,17 +304,14 @@ def reindex(tensor, displacement=.5):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
-    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+    reference = value_map(tensor)
 
     mod = min(height, width)
-    offset = tf.cast(tf.mod(tf.add(tf.multiply(reference, displacement * mod), reference), mod), tf.int32)
+    offset = tf.cast((reference * displacement * mod + reference) % mod, tf.int32)
 
-    temp = tf.reshape(tensor.eval()[offset.eval(), 0], shape)  # XXX Do this with TF
+    tensor = tf.gather_nd(tensor, tf.stack([offset, offset], 2))
 
-    temp = tf.image.convert_image_dtype(temp, tf.float32, saturate=True)
-
-    return temp
+    return tensor
 
 
 def refract(tensor, displacement=.5):
@@ -334,25 +331,15 @@ def refract(tensor, displacement=.5):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
-    index = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+    reference_x = value_map(tensor)
 
-    # Create two channels for X and Y
-    index = tf.reshape(index, [width * height])
-    index = np.repeat((index.eval() - .5) * 2 * displacement * min(width, height), 2)
-    index = tf.reshape(index, [height, width, 2]).eval()
+    x_index = _row_index(tensor)
+    y_index = _column_index(tensor)
 
-    index = _offset_index(index)
+    # Create an offset Y channel, to get rid of diagonal banding.
+    reference_y = tf.gather_nd(reference_x, _offset_index(y_index, height, x_index, width))
 
-    row_identity = _row_index(tensor)
-    column_identity = _column_index(tensor)
-
-    index[:,:,0] = (index[:,:,0] + column_identity) % height   # XXX Assemble a new Tensor here instead of using nump
-    index[:,:,1] = (index[:,:,1] + row_identity) % width
-
-    index = tf.cast(index, tf.int32)
-
-    return tf.gather_nd(tensor, index)
+    return tf.gather_nd(tensor, _offset_index(y_index + reference_y * height, height, x_index + reference_x * width, width))
 
 
 def color_map(tensor, clut, horizontal=False, displacement=.5):
@@ -383,31 +370,14 @@ def color_map(tensor, clut, horizontal=False, displacement=.5):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    # TODO: Reduce tensor to single channel more reliably (use a reduce function?)
-    orig_index = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+    reference = value_map(tensor) * displacement
 
-    index = tf.reshape(orig_index, [width * height])
-    index *= displacement
-    index = np.repeat(index.eval(), 2)
-    index = tf.reshape(index, [height, width, 2]).eval()
+    x_index = (_row_index(tensor) + reference * (width - 1)) % width
+    y_index = _column_index(tensor) if horizontal else (_column_index(tensor) + reference * (height - 1)) % height
 
-    row_identity = _row_index(tensor)
-    index[:,:,1] = (index[:,:,1] * (width - 1) + row_identity) % width
-
-    column_identity = _column_index(tensor)
-
-    if horizontal:
-        index[:,:,0] = column_identity
-
-    else:
-        index[:,:,0] = (index[:,:,0] * (height - 1) + column_identity) % height
-        index = _offset_index(index)
-
-    index = tf.cast(index, tf.int32)
+    index = tf.cast(tf.stack([y_index, x_index], 2), tf.int32)
 
     clut = resample(clut, [height, width], 3)
-
-    clut = tf.image.convert_image_dtype(clut, tf.float32, saturate=True)
 
     output = tf.gather_nd(clut, index)
     output = tf.image.convert_image_dtype(output, tf.float32, saturate=True)
@@ -461,8 +431,7 @@ def worms(tensor, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_devi
     for i, worm in enumerate(worms):
         colors[i] = reference[int(worm[0]) % height, int(worm[1]) % width]
 
-    index = tf.image.rgb_to_grayscale(reference) if channels > 2 else reference
-    index = tf.reshape(index, (height, width))
+    index = value_map(reference)
     index = normalize(index) * 360.0 * math.radians(1)
     index = index.eval()
 
@@ -537,32 +506,13 @@ def normal_map(tensor):
     shape = tf.shape(tensor).eval()
     height, width, channels = shape
 
-    reference = tf.image.rgb_to_grayscale(tensor) if channels > 2 else tensor
+    reference = value_map(tensor, keep_dims=True)
 
     x = normalize(1 - convolve(ConvKernel.sobel_x, reference))
     y = normalize(convolve(ConvKernel.sobel_y, reference))
     z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
-    output = np.zeros([height, width, 3])
-    output[:,:,0] = x.eval()[:,:,0]
-    output[:,:,1] = y.eval()[:,:,0]
-    output[:,:,2] = z.eval()[:,:,0]
-
-    return output
-
-
-def _xy_index(tensor):
-    """
-    """
-
-    shape = tf.shape(tensor).eval()
-
-    index = np.zeros([*shape[0:-1], 2])
-
-    index[:,:,0] = _column_index(tensor)
-    index[:,:,1] = _row_index(tensor)
-
-    return tf.cast(index, tf.int32)
+    return tf.stack([x[:,:,0], y[:,:,0], z[:,:,0]], 2)
 
 
 def _row_index(tensor):
@@ -625,38 +575,32 @@ def blend(a, b, g):
     return a + b
 
 
-def _offset_index(tensor):
+def _offset_index(y_index, height, x_index, width):
     """
     Offset X and Y displacement channels from each other, to help with diagonal banding.
 
-    :param Tensor tensor: Tensor of shape (height, width, 2)
+    Returns a combined Tensor with shape [height, width, 2]
+
+    :param Tensor y_index: Tensor with shape [height, width, 1], containing Y indices
+    :param int height:
+    :param Tensor x_index: Tensor with shape [height, width, 1], containing X indices
+    :param int width:
     :return: Tensor
     """
 
-    tensor[:,:,0] = offset_y(tensor[:,:,0])
-    tensor[:,:,1] = offset_x(tensor[:,:,1])
+    index = tf.stack([
+        (y_index + int(height * .5 + random.random() * height * .5)) % height,
+        (x_index + int(random.random() * width * .5)) % width,
+        ], 2)
 
-    return tensor
+    return tf.cast(index, tf.int32)
 
 
-def offset_x(tensor):
+def value_map(tensor, keep_dims=False):
     """
     """
 
     shape = tf.shape(tensor).eval()
-    width = shape[1]
+    channels = shape[-1]
 
-    # tensor = np.rot90(tensor)
-    return np.roll(tensor, int(random.random() * width * .5 + width * .5), axis=1)
-
-    # return np.rot90(tensor, 3)
-
-
-def offset_y(tensor):
-    """
-    """
-
-    shape = tf.shape(tensor).eval()
-    height = shape[0]
-
-    return np.roll(tensor, int(random.random() * height * .5 + height * .5), axis=0)
+    return tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)

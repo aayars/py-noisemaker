@@ -24,11 +24,12 @@ def glitch(tensor):
     jpegged = effects.normalize(effects.color_map(base2, stylized, horizontal=True, displacement=2.5))
     jpegged = tf.image.convert_image_dtype(jpegged, tf.uint8, saturate=True)
 
-    x_index = (effects._row_index(tensor) + int(random.random() * width * 2)) % width
     separated = [stylized[:,:,i] for i in range(channels)]
 
+    x_index = (effects._row_index(tensor) + int(random.random() * width * 2)) % width
+    identity = tf.cast(tf.stack([effects._column_index(tensor), x_index], 2), tf.int32)
+
     channel = int(random.random() * channels)
-    identity = tf.cast(tf.stack([effects._column_index(tensor), x_index], 2), tf.int32) % width
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], identity) % random.random() * .5)
 
     stylized = tf.stack(separated, 2)
