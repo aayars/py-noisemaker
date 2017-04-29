@@ -327,7 +327,7 @@ def refract(tensor, shape, displacement=.5):
 
     height, width, channels = shape
 
-    reference_x = value_map(tensor, shape)
+    reference_x = value_map(tensor, shape) * displacement
 
     x_index = row_index(tensor, shape)
     y_index = column_index(tensor, shape)
