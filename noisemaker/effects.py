@@ -310,7 +310,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5):
+def refract(tensor, shape, displacement=.5, reference=None):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -322,12 +322,16 @@ def refract(tensor, shape, displacement=.5):
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
     :param float displacement:
+    :param Tensor reference: An optional displacement map.
     :return: Tensor
     """
 
     height, width, channels = shape
 
-    reference_x = value_map(tensor, shape) * displacement
+    if reference is None:
+        reference = tensor
+
+    reference_x = value_map(reference, shape) * displacement
 
     x_index = row_index(tensor, shape)
     y_index = column_index(tensor, shape)
@@ -553,6 +557,33 @@ def blend(a, b, g):
     """
 
     return (a * (1 - g) + b * g)
+
+
+def center_mask(center, edges, shape):
+    """
+    Blend two image tensors from the center to the edges. Not perfect.
+
+    :param Tensor center:
+    :param Tensor edges:
+    :param list[int] shape:
+    :return: Tensor
+    """
+
+    height, width, channels = shape
+
+    m = tf.cast(tf.reshape([
+        [ 1, 1, 1, 1, 1, 1, 1 ],
+        [ 1, .75, .5, .5, .5, .75, 1 ],
+        [ 1, .5, 0, 0, 0, .5, 1 ],
+        [ 1, .5, 0, 0, 0, .5, 1 ],
+        [ 1, .5, 0, 0, 0, .5, 1 ],
+        [ 1, .75, .5, .5, .5, .75, 1 ],
+        [ 1, 1, 1, 1, 1, 1, 1 ],
+        ], [7, 7, 1]), tf.float32)
+
+    m = resample(m, [height, width])
+
+    return blend(center, edges, m)
 
 
 def row_index(tensor, shape):
