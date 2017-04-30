@@ -437,13 +437,15 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
 
     out = tensor * bg
 
+    scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
+
     # Make worms!
     for i in range(iterations):
         worm_positions = tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32)
 
         exposure = 1 + (1 - abs(1 - i / (iterations - 1) * 2))  # Makes linear gradient [ 1 .. 2 .. 1 ]
 
-        out += tf.scatter_nd(worm_positions, colors * exposure, shape)
+        out += tf.scatter_nd(worm_positions, colors * exposure, scatter_shape)
 
         next_position = tf.gather_nd(index, worm_positions) + worms_rot
 
