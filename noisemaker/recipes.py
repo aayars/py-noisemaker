@@ -90,7 +90,7 @@ def vhs(tensor, shape):
 
     tensor = effects.blend(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
 
-    x_index = effects.row_index(tensor, shape) - tf.cast(grad * width * .25 + (scan_noise * width * .5 * grad * grad), tf.int32)
+    x_index = effects.row_index(tensor, shape) - tf.cast(grad * width * .125 + (scan_noise * width * .25 * grad * grad), tf.int32)
     identity = tf.stack([effects.column_index(tensor, shape), x_index], 2) % width
 
     tensor = tf.gather_nd(tensor, identity)

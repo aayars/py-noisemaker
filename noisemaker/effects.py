@@ -9,7 +9,7 @@ import tensorflow as tf
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False):
+                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1):
     """
     Apply post-processing effects.
 
@@ -29,7 +29,11 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param float worm_bg: Background color brightness for worms
     :param bool with_sobel: Sobel operator
     :param bool with_normal_map: Create a tangent-space normal map
+    :param bool with_wormhole: Wormhole effect. What is this?
+    :param float wormhole_kink: Wormhole kinkiness, if you're into that.
+    :param float wormhole_stride: Wormhole thickness range
     :param bool deriv: Derivative operator
+
     :return: Tensor
     """
 
@@ -57,6 +61,9 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
+
+    if with_wormhole:
+        tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     return tensor
 
@@ -414,8 +421,8 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
 
     count = int(max(width, height) * density)
 
-    worms_y = tf.random_uniform([count]) * height
-    worms_x = tf.random_uniform([count]) * width
+    worms_y = tf.random_uniform([count]) * (height - 1)
+    worms_x = tf.random_uniform([count]) * (width - 1)
     worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation)
 
     colors = tf.gather_nd(tensor, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
@@ -459,6 +466,31 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 
     return normalize(out)
+
+
+def wormhole(tensor, shape, kink, input_stride):
+    """
+    """
+
+    height, width, channels = shape
+
+    values = value_map(tensor, shape)
+    degrees = values * 360.0 * math.radians(1) * kink
+
+    stride = values * width * input_stride
+
+    x_index = tf.cast(row_index(tensor, shape), tf.float32)
+    y_index = tf.cast(column_index(tensor, shape), tf.float32)
+
+    x_offset = (tf.cos(degrees) + 1) * stride
+    y_offset = (tf.sin(degrees) + 1) * stride
+
+    x = tf.cast(x_index + x_offset, tf.int32) % width
+    y = tf.cast(y_index + y_offset, tf.int32) % height
+
+    out = tf.scatter_nd(offset_index(y, height, x, width), tensor, shape)
+
+    return tf.sqrt(out)
 
 
 def wavelet(tensor, shape):
