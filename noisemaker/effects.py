@@ -49,21 +49,21 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     else:
         tensor = normalize(tensor)
 
+    if deriv:
+        tensor = derivative(tensor)
+
     if with_worms:
         tensor = worms(tensor, shape, behavior=worm_behavior, density=worm_density, duration=worm_duration,
                        stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg)
 
-    if deriv:
-        tensor = derivative(tensor)
+    if with_wormhole:
+        tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     if with_sobel:
         tensor = sobel(tensor, shape)
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
-
-    if with_wormhole:
-        tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     return tensor
 
@@ -476,8 +476,7 @@ def wormhole(tensor, shape, kink, input_stride):
 
     values = value_map(tensor, shape)
     degrees = values * 360.0 * math.radians(1) * kink
-
-    stride = values * width * input_stride
+    stride = values * height * input_stride
 
     x_index = tf.cast(row_index(tensor, shape), tf.float32)
     y_index = tf.cast(column_index(tensor, shape), tf.float32)
