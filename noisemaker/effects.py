@@ -713,7 +713,7 @@ def center_mask(center, edges, shape):
 
     m = resample(m, shape)
 
-    return blend(center, edges, m)
+    return blend_cosine(center, edges, m)
 
 
 def row_index(shape):

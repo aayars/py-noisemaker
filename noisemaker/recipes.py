@@ -61,8 +61,8 @@ def glitch(tensor, shape):
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
     stylized = tf.stack(separated, 2)
 
-    combined = effects.blend(tf.multiply(stylized, 1.0), jpegged, tf.maximum(base2 * 2 - 1, 0))
-    combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
+    combined = effects.blend_cosine(tf.multiply(stylized, 1.0), jpegged, tf.maximum(base2 * 2 - 1, 0))
+    combined = effects.blend_cosine(tensor, combined, tf.maximum(base * 2 - 1, 0))
 
     return combined
 
@@ -88,7 +88,7 @@ def vhs(tensor, shape):
     grad = effects.normalize(grad)
     grad = tf.reshape(grad, [height, width])
 
-    tensor = effects.blend(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
+    tensor = effects.blend_cosine(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
 
     x_index = effects.row_index(shape) - tf.cast(grad * width * .125 + (scan_noise * width * .25 * grad * grad), tf.int32)
     identity = tf.stack([effects.column_index(shape), x_index], 2) % width
@@ -118,12 +118,12 @@ def crt(tensor, shape):
     white_noise2 = basic([int(height * .5), int(width * .25)], [height, width, 1], spline_order=3)
     white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, shape, distortion_amount, reference=distortion), shape)
 
-    tensor = effects.blend(tensor, white_noise, white_noise2 * .25)
+    tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .25)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, shape)
     scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, shape, distortion_amount, reference=distortion), shape)
-    tensor = effects.blend(tensor, scan_noise, 0.25)
+    tensor = effects.blend_cosine(tensor, scan_noise, 0.25)
 
     if channels <= 2:
         return tensor
