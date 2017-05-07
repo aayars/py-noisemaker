@@ -267,7 +267,7 @@ def resample(tensor, shape, spline_order=3):
             if x == 1 and y == 1:
                 continue
 
-            resized[y][x] = tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_y[y], input_x[x]], 2)), resized_index_trunc)
+            resized[y][x] = _gather_scaled_offset(tensor, input_y[y], input_x[x], resized_index_trunc)
 
     if spline_order == 1:
         y1 = blend(resized[1][1], resized[1][2], resized_row_index_fract)
@@ -293,11 +293,17 @@ def resample(tensor, shape, spline_order=3):
                 if x not in input_x:
                     input_x[x] = (input_x[1] + (x - 1)) % input_shape[1]
 
-                resized[y][x] = tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_y[y], input_x[x]], 2)), resized_index_trunc)
+                resized[y][x] = _gather_scaled_offset(tensor, input_y[y], input_x[x], resized_index_trunc)
 
             points.append(blend_cubic(resized[y][0], resized[y][1], resized[y][2], resized[y][3], resized_row_index_fract))
 
         return blend_cubic(*points, resized_col_index_fract)
+
+
+def _gather_scaled_offset(tensor, input_column_index, input_row_index, output_index):
+    """ Helper function for resample(). Apply index offset to input tensor, return output_index values gathered post-offset. """
+
+    return tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_column_index, input_row_index], 2)), output_index)
 
 
 def crease(tensor):
