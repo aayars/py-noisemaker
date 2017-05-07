@@ -1,3 +1,4 @@
+from collections import defaultdict
 from enum import Enum
 
 import math
@@ -240,94 +241,63 @@ def resample(tensor, shape, spline_order=3):
     resized_index_trunc = tf.cast(tf.stack([resized_col_index_trunc, resized_row_index_trunc], 2), tf.int32)
 
     # Resized original
-    resized_x1_y1 = tf.gather_nd(tensor, resized_index_trunc)
+    resized = defaultdict(dict)
+    resized[1][1] = tf.gather_nd(tensor, resized_index_trunc)
 
     if spline_order == 0:
-        return resized_x1_y1
+        return resized[1][1]
 
     # Resized neighbors
-    input_x1_index = row_index(input_shape)
-    input_y1_index = column_index(input_shape)
+    input_x = defaultdict(dict)
+    input_y = defaultdict(dict)
 
-    input_x2_index = (input_x1_index + 1) % input_shape[1]
-    input_y2_index = (input_y1_index + 1) % input_shape[0]
+    input_x[1] = row_index(input_shape)
+    input_y[1] = column_index(input_shape)
+
+    input_x[2] = (input_x[1] + 1) % input_shape[1]
+    input_y[2] = (input_y[1] + 1) % input_shape[0]
 
     # Create fractional diffs (how much to blend with each neighbor)
     value_shape = [shape[0], shape[1], 1]
     resized_row_index_fract = tf.reshape(resized_row_index - resized_row_index_trunc, value_shape)  # 0, 0.5, 1, 1.5 -> 0, .5, 0, .5
     resized_col_index_fract = tf.reshape(resized_col_index - resized_col_index_trunc, value_shape)
 
-    tensor_x2_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x2_index], 2))
-    resized_x2_y1 = tf.gather_nd(tensor_x2_y1, resized_index_trunc)
+    for x in range(1, 3):
+        for y in range(1, 3):
+            if x == 1 and y == 1:
+                continue
 
-    tensor_x1_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x1_index], 2))
-    resized_x1_y2 = tf.gather_nd(tensor_x1_y2, resized_index_trunc)
-
-    tensor_x2_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x2_index], 2))
-    resized_x2_y2 = tf.gather_nd(tensor_x2_y2, resized_index_trunc)
+            resized[y][x] = tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_y[y], input_x[x]], 2)), resized_index_trunc)
 
     if spline_order == 1:
-        y1 = blend(resized_x1_y1, resized_x2_y1, resized_row_index_fract)
-        y2 = blend(resized_x1_y2, resized_x2_y2, resized_row_index_fract)
+        y1 = blend(resized[1][1], resized[1][2], resized_row_index_fract)
+        y2 = blend(resized[2][1], resized[2][2], resized_row_index_fract)
 
         return blend(y1, y2, resized_col_index_fract)
 
     if spline_order == 2:
-        y1 = blend_cosine(resized_x1_y1, resized_x2_y1, resized_row_index_fract)
-        y2 = blend_cosine(resized_x1_y2, resized_x2_y2, resized_row_index_fract)
+        y1 = blend_cosine(resized[1][1], resized[1][2], resized_row_index_fract)
+        y2 = blend_cosine(resized[2][1], resized[2][2], resized_row_index_fract)
 
         return blend_cosine(y1, y2, resized_col_index_fract)
 
     if spline_order == 3:
         # Extended neighborhood for bicubic
-        input_x0_index = (input_x1_index - 1) % input_shape[1]
-        input_y0_index = (input_y1_index - 1) % input_shape[0]
+        points = []
 
-        input_x3_index = (input_x1_index + 2) % input_shape[1]
-        input_y3_index = (input_y1_index + 2) % input_shape[0]
+        for y in range(0, 4):
+            if y not in input_y:
+                input_y[y] = (input_y[1] + (y - 1)) % input_shape[0]
 
-        tensor_x0_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x0_index], 2))
-        resized_x0_y0 = tf.gather_nd(tensor_x0_y0, resized_index_trunc)
+            for x in range(0, 4):
+                if x not in input_x:
+                    input_x[x] = (input_x[1] + (x - 1)) % input_shape[1]
 
-        tensor_x1_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x1_index], 2))
-        resized_x1_y0 = tf.gather_nd(tensor_x1_y0, resized_index_trunc)
+                resized[y][x] = tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_y[y], input_x[x]], 2)), resized_index_trunc)
 
-        tensor_x2_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x2_index], 2))
-        resized_x2_y0 = tf.gather_nd(tensor_x2_y0, resized_index_trunc)
+            points.append(blend_cubic(resized[y][0], resized[y][1], resized[y][2], resized[y][3], resized_row_index_fract))
 
-        tensor_x3_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x3_index], 2))
-        resized_x3_y0 = tf.gather_nd(tensor_x3_y0, resized_index_trunc)
-
-        tensor_x0_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x0_index], 2))
-        resized_x0_y1 = tf.gather_nd(tensor_x0_y1, resized_index_trunc)
-
-        tensor_x3_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x3_index], 2))
-        resized_x3_y1 = tf.gather_nd(tensor_x3_y1, resized_index_trunc)
-
-        tensor_x0_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x0_index], 2))
-        resized_x0_y2 = tf.gather_nd(tensor_x0_y2, resized_index_trunc)
-
-        tensor_x3_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x3_index], 2))
-        resized_x3_y2 = tf.gather_nd(tensor_x3_y2, resized_index_trunc)
-
-        tensor_x0_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x0_index], 2))
-        resized_x0_y3 = tf.gather_nd(tensor_x0_y3, resized_index_trunc)
-
-        tensor_x1_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x1_index], 2))
-        resized_x1_y3 = tf.gather_nd(tensor_x1_y3, resized_index_trunc)
-
-        tensor_x2_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x2_index], 2))
-        resized_x2_y3 = tf.gather_nd(tensor_x2_y3, resized_index_trunc)
-
-        tensor_x3_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x3_index], 2))
-        resized_x3_y3 = tf.gather_nd(tensor_x3_y3, resized_index_trunc)
-
-        y0 = blend_cubic(resized_x0_y0, resized_x1_y0, resized_x2_y0, resized_x3_y0, resized_row_index_fract)
-        y1 = blend_cubic(resized_x0_y1, resized_x1_y1, resized_x2_y1, resized_x3_y1, resized_row_index_fract)
-        y2 = blend_cubic(resized_x0_y2, resized_x1_y2, resized_x2_y2, resized_x3_y2, resized_row_index_fract)
-        y3 = blend_cubic(resized_x0_y3, resized_x1_y3, resized_x2_y3, resized_x3_y3, resized_row_index_fract)
-
-        return blend_cubic(y0, y1, y2, y3, resized_col_index_fract)
+        return blend_cubic(*points, resized_col_index_fract)
 
 
 def crease(tensor):
