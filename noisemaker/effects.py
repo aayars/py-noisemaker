@@ -248,14 +248,14 @@ def resample(tensor, shape, spline_order=3):
         return resized[1][1]
 
     # Resized neighbors
-    input_x = defaultdict(dict)
-    input_y = defaultdict(dict)
+    input_rows = defaultdict(dict)
+    input_columns = defaultdict(dict)
 
-    input_x[1] = row_index(input_shape)
-    input_y[1] = column_index(input_shape)
+    input_rows[1] = row_index(input_shape)
+    input_columns[1] = column_index(input_shape)
 
-    input_x[2] = (input_x[1] + 1) % input_shape[1]
-    input_y[2] = (input_y[1] + 1) % input_shape[0]
+    input_rows[2] = (input_rows[1] + 1) % input_shape[1]
+    input_columns[2] = (input_columns[1] + 1) % input_shape[0]
 
     # Create fractional diffs (how much to blend with each neighbor)
     value_shape = [shape[0], shape[1], 1]
@@ -267,7 +267,7 @@ def resample(tensor, shape, spline_order=3):
             if x == 1 and y == 1:
                 continue
 
-            resized[y][x] = _gather_scaled_offset(tensor, input_y[y], input_x[x], resized_index_trunc)
+            resized[y][x] = _gather_scaled_offset(tensor, input_columns[y], input_rows[x], resized_index_trunc)
 
     if spline_order == 1:
         y1 = blend(resized[1][1], resized[1][2], resized_row_index_fract)
@@ -286,14 +286,14 @@ def resample(tensor, shape, spline_order=3):
         points = []
 
         for y in range(0, 4):
-            if y not in input_y:
-                input_y[y] = (input_y[1] + (y - 1)) % input_shape[0]
+            if y not in input_columns:
+                input_columns[y] = (input_columns[1] + (y - 1)) % input_shape[0]
 
             for x in range(0, 4):
-                if x not in input_x:
-                    input_x[x] = (input_x[1] + (x - 1)) % input_shape[1]
+                if x not in input_rows:
+                    input_rows[x] = (input_rows[1] + (x - 1)) % input_shape[1]
 
-                resized[y][x] = _gather_scaled_offset(tensor, input_y[y], input_x[x], resized_index_trunc)
+                resized[y][x] = _gather_scaled_offset(tensor, input_columns[y], input_rows[x], resized_index_trunc)
 
             points.append(blend_cubic(resized[y][0], resized[y][1], resized[y][2], resized[y][3], resized_row_index_fract))
 
@@ -439,10 +439,9 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
 
     index = tf.stack([y_index, x_index], 2)
 
-    clut = resample(clut, shape)
+    clut = resample(tf.image.convert_image_dtype(clut, tf.float32, saturate=True), shape)
 
     output = tf.gather_nd(clut, index)
-    output = tf.image.convert_image_dtype(output, tf.float32, saturate=True)
 
     return output
 
