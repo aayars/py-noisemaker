@@ -84,7 +84,7 @@ def main(ctx, **kwargs):
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
 @click.option("--worm-kink", type=float, default=1.0, help="Worms twistiness")
-@click.option("--with-wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
+@click.option("--wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
@@ -99,7 +99,7 @@ def main(ctx, **kwargs):
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
-          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, worm_kink, with_wormhole, wormhole_kink, wormhole_stride,
+          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride,
           sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
@@ -109,7 +109,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
-                                  with_wormhole=with_wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                   with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                   )
 
@@ -142,7 +142,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
 @click.option("--worm-kink", type=float, default=1.0, help="Worms twistiness")
-@click.option("--with-wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
+@click.option("--wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
@@ -159,7 +159,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, worm_kink, with_wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
+             worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -170,7 +170,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                      worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
-                                     with_wormhole=with_wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                     with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                      with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                      )
 

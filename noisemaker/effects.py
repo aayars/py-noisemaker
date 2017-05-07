@@ -537,7 +537,7 @@ def wormhole(tensor, shape, kink, input_stride):
     x = tf.cast(x_index + x_offset, tf.int32) % width
     y = tf.cast(y_index + y_offset, tf.int32) % height
 
-    out = tf.scatter_nd(offset_index(y, height, x, width), tensor, shape)
+    out = tf.scatter_nd(offset_index(y, height, x, width), tensor, tf.shape(tensor))
 
     return tf.sqrt(tf.maximum(out, tensor))
     return tf.sqrt(out)
