@@ -266,7 +266,6 @@ def resample(tensor, shape, spline_order=3):
     tensor_x2_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x2_index], 2))
     resized_x2_y2 = tf.gather_nd(tensor_x2_y2, resized_index_trunc)
 
-    # Extended neighborhood for bicubic
     if spline_order == 1:
         y1 = blend(resized_x1_y1, resized_x2_y1, resized_row_index_fract)
         y2 = blend(resized_x1_y2, resized_x2_y2, resized_row_index_fract)
@@ -280,6 +279,7 @@ def resample(tensor, shape, spline_order=3):
         return blend_cosine(y1, y2, resized_col_index_fract)
 
     if spline_order == 3:
+        # Extended neighborhood for bicubic
         input_x0_index = (input_x1_index - 1) % input_shape[1]
         input_y0_index = (input_y1_index - 1) % input_shape[0]
 
