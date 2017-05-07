@@ -10,7 +10,8 @@ import tensorflow as tf
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1):
+                 worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
+                 with_voronoi=False, voronoi_density=.1):
     """
     Apply post-processing effects.
 
@@ -34,6 +35,8 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
     :param float wormhole_stride: Wormhole thickness range
+    :param bool with_voronoi: Voronoi cells
+    :param float voronoi_density: Voronoi cell count multiplier
     :param bool deriv: Derivative operator
 
     :return: Tensor
@@ -50,6 +53,9 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     else:
         tensor = normalize(tensor)
+
+    if with_voronoi:
+        tensor = voronoi(tensor, shape, voronoi_density)
 
     if deriv:
         tensor = derivative(tensor)
@@ -539,8 +545,8 @@ def wormhole(tensor, shape, kink, input_stride):
 
     out = tf.scatter_nd(offset_index(y, height, x, width), tensor, tf.shape(tensor))
 
-    return tf.sqrt(tf.maximum(out, tensor))
     return tf.sqrt(out)
+    return tf.sqrt(tf.maximum(out, tensor))
 
 
 def wavelet(tensor, shape):
@@ -689,6 +695,52 @@ def center_mask(center, edges, shape):
     m = resample(m, shape)
 
     return blend_cosine(center, edges, m)
+
+
+def voronoi(tensor, shape, density):
+    """
+    """
+
+    original_shape = shape
+
+    shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]  # Gotta upsample later, this one devours memory.
+    height = shape[0]
+    width = shape[1]
+
+    point_count = int(min(width, height) * density)
+
+    points_x = tf.random_uniform([point_count]) * (width - 1)
+    points_y = tf.random_uniform([point_count]) * (height - 1)
+    colors = tf.gather_nd(tensor, tf.cast(tf.stack([points_y * 2, points_x * 2], 1), tf.int32))
+
+    value_shape = [height, width, 1]
+    x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
+    y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
+
+    half_width = width * .5
+    half_height = height * .5
+
+    out = tf.ones(shape)
+
+    for i in range(point_count):  # Stretch goal: Do flow control in TensorFlow.
+        x = points_x[i]
+        y = points_y[i]
+
+        x0_diff = (x_index - x - half_width) / width
+        y0_diff = (y_index - y - half_height) / height
+        x1_diff = (x_index - x + half_width) / width
+        y1_diff = (y_index - y + half_height) / height
+
+        x_diff = tf.minimum(x0_diff * x0_diff, x1_diff * x1_diff)
+        y_diff = tf.minimum(y0_diff * y0_diff, y1_diff * y1_diff)
+
+        dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)  # Limit cell influence to 25% of image size
+
+        out = tf.minimum(out, blend_cosine(dist * colors[i % point_count], dist, dist))
+
+    out = convolve(ConvKernel.sharpen, resample(out, original_shape), original_shape)
+
+    return out
 
 
 def row_index(shape):

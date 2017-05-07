@@ -42,7 +42,7 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
     :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
+    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :return: Tensor
@@ -104,7 +104,7 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3,
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
     :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
+    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :param float layer_refract_range: Per-octave self-distort gradient.
     :param float layer_reindex_range: Per-octave self-reindexing gradient.

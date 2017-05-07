@@ -87,11 +87,13 @@ def main(ctx, **kwargs):
 @click.option("--wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
+@click.option("--voronoi", is_flag=True, default=False, help="Voronoi cells")
+@click.option("--voronoi-density", type=float, default=.1, help="Voronoi cell count multiplier")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
 @click.option("--normals", is_flag=True, default=False, help="Generate a tangent-space normal map.")
 @click.option("--deriv", is_flag=True, default=False, help="Derivative noise.")
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
-@click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
+@click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--vhs", is_flag=True, default=False, help="VHS effect")
@@ -100,7 +102,7 @@ def main(ctx, **kwargs):
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride,
-          sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
+          voronoi, voronoi_density, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -110,6 +112,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                   worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                  with_voronoi=voronoi, voronoi_density=voronoi_density,
                                   with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                   )
 
@@ -145,11 +148,13 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
+@click.option("--voronoi", is_flag=True, default=False, help="Voronoi cells")
+@click.option("--voronoi-density", type=float, default=.1, help="Voronoi cell count multiplier")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
 @click.option("--normals", is_flag=True, default=False, help="Generate a tangent-space normal map.")
 @click.option("--deriv", is_flag=True, default=False, help="Derivative noise.")
 @click.option("--distrib", type=int, default=0, help="Random distribution type. 0=Normal, 1=Uniform, 2=Exponential.")
-@click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.")
+@click.option("--spline-order", type=int, default=3, help="Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic")
 @click.option("--seed", type=int, required=False, help="Random seed for reproducible output. Ineffective with exponential.")
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--vhs", is_flag=True, default=False, help="VHS effect")
@@ -159,7 +164,8 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
+             worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed,
+             voronoi, voronoi_density, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -171,6 +177,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
                                      worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                     with_voronoi=voronoi, voronoi_density=voronoi_density,
                                      with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                      )
 
