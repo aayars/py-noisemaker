@@ -54,8 +54,8 @@ def glitch(tensor, shape):
 
     # Offset a single color channel
     separated = [stylized[:,:,i] for i in range(channels)]
-    x_index = (effects.row_index(tensor, shape) + int(random.random() * width)) % width
-    index = tf.cast(tf.stack([effects.column_index(tensor, shape), x_index], 2), tf.int32)
+    x_index = (effects.row_index(shape) + int(random.random() * width)) % width
+    index = tf.cast(tf.stack([effects.column_index(shape), x_index], 2), tf.int32)
 
     channel = int(random.random() * channels)
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
@@ -90,8 +90,8 @@ def vhs(tensor, shape):
 
     tensor = effects.blend(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
 
-    x_index = effects.row_index(tensor, shape) - tf.cast(grad * width * .125 + (scan_noise * width * .25 * grad * grad), tf.int32)
-    identity = tf.stack([effects.column_index(tensor, shape), x_index], 2) % width
+    x_index = effects.row_index(shape) - tf.cast(grad * width * .125 + (scan_noise * width * .25 * grad * grad), tf.int32)
+    identity = tf.stack([effects.column_index(shape), x_index], 2) % width
 
     tensor = tf.gather_nd(tensor, identity)
     tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
@@ -121,7 +121,7 @@ def crt(tensor, shape):
     tensor = effects.blend(tensor, white_noise, white_noise2 * .25)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
-    scan_noise = effects.resample(scan_noise, [height, width])
+    scan_noise = effects.resample(scan_noise, shape)
     scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, shape, distortion_amount, reference=distortion), shape)
     tensor = effects.blend(tensor, scan_noise, 0.25)
 
@@ -132,8 +132,8 @@ def crt(tensor, shape):
     tensor = tf.image.adjust_saturation(tensor, 1.25)
     # tensor = tf.image.adjust_contrast(tensor, 1.5)
 
-    y_index = effects.column_index(tensor, shape)
-    x_index = effects.row_index(tensor, shape)
+    y_index = effects.column_index(shape)
+    x_index = effects.row_index(shape)
 
     separated = []
 

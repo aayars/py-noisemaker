@@ -76,7 +76,7 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
 
-    tensor = effects.resample(tensor, shape[0:-1], spline_order=spline_order)
+    tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
     tensor = effects.post_process(tensor, shape, **post_process_args)
 

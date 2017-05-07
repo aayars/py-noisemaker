@@ -9,7 +9,7 @@ import tensorflow as tf
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1):
+                 worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1):
     """
     Apply post-processing effects.
 
@@ -27,6 +27,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param float worm_stride: Mean travel distance per iteration
     :param float worm_stride_deviation: Per-worm travel distance deviation
     :param float worm_bg: Background color brightness for worms
+    :param float worm_kink: Worm twistiness
     :param bool with_sobel: Sobel operator
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool with_wormhole: Wormhole effect. What is this?
@@ -54,7 +55,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     if with_worms:
         tensor = worms(tensor, shape, behavior=worm_behavior, density=worm_density, duration=worm_duration,
-                       stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg)
+                       stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg, kink=worm_kink)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
@@ -225,35 +226,108 @@ def normalize(tensor):
 
 def resample(tensor, shape, spline_order=3):
     """
-    Resize the given image Tensor to the given dimensions, wrapping around edges.
-
-    :param Tensor tensor: An image tensor.
-    :param list[int] shape: The desired shape, specify spatial dimensions only. e.g. [height, width]
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 3=Bicubic, others may not work.
-    :return: Tensor
     """
 
-    if spline_order == 0:
-        resize_method = tf.image.ResizeMethod.NEAREST_NEIGHBOR
-    elif spline_order == 1:
-        resize_method = tf.image.ResizeMethod.BILINEAR
-    else:
-        resize_method = tf.image.ResizeMethod.BICUBIC
-
     input_shape = tf.shape(tensor)
-    half_input_height = tf.cast(input_shape[0] / 2, tf.int32)
-    half_input_width = tf.cast(input_shape[1] / 2, tf.int32)
 
-    half_height = tf.cast(shape[0] / 2, tf.int32)
-    half_width = tf.cast(shape[1] / 2, tf.int32)
+    # Blown up row and column indices. These map into input tensor, producing a big blocky version.
+    resized_row_index = tf.cast(row_index(shape), tf.float32) * (tf.cast(input_shape[1], tf.float32) / shape[1])   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
+    resized_col_index = tf.cast(column_index(shape), tf.float32) * (tf.cast(input_shape[0], tf.float32) / shape[0])
 
-    tensor = tf.tile(tensor, [3 for d in range(len(shape))] + [1])  # Tile 3x3
-    tensor = tensor[half_input_height:input_shape[0] * 2 + half_input_height, half_input_width:input_shape[1] * 2 + half_input_width]  # Center Crop 2x2
-    tensor = tf.image.resize_images(tensor, [d * 2 for d in shape], method=resize_method)  # Upsample
-    tensor = tensor[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
-    tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+    # Map to input indices as int
+    resized_row_index_trunc = tf.floor(resized_row_index)
+    resized_col_index_trunc = tf.floor(resized_col_index)
+    resized_index_trunc = tf.cast(tf.stack([resized_col_index_trunc, resized_row_index_trunc], 2), tf.int32)
 
-    return tensor
+    # Resized original
+    resized_x1_y1 = tf.gather_nd(tensor, resized_index_trunc)
+
+    if spline_order == 0:
+        return resized_x1_y1
+
+    # Resized neighbors
+    input_x1_index = row_index(input_shape)
+    input_y1_index = column_index(input_shape)
+
+    input_x2_index = (input_x1_index + 1) % input_shape[1]
+    input_y2_index = (input_y1_index + 1) % input_shape[0]
+
+    # Create fractional diffs (how much to blend with each neighbor)
+    value_shape = [shape[0], shape[1], 1]
+    resized_row_index_fract = tf.reshape(resized_row_index - resized_row_index_trunc, value_shape)  # 0, 0.5, 1, 1.5 -> 0, .5, 0, .5
+    resized_col_index_fract = tf.reshape(resized_col_index - resized_col_index_trunc, value_shape)
+
+    tensor_x2_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x2_index], 2))
+    resized_x2_y1 = tf.gather_nd(tensor_x2_y1, resized_index_trunc)
+
+    tensor_x1_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x1_index], 2))
+    resized_x1_y2 = tf.gather_nd(tensor_x1_y2, resized_index_trunc)
+
+    tensor_x2_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x2_index], 2))
+    resized_x2_y2 = tf.gather_nd(tensor_x2_y2, resized_index_trunc)
+
+    # Extended neighborhood for bicubic
+    if spline_order == 1:
+        y1 = blend(resized_x1_y1, resized_x2_y1, resized_row_index_fract)
+        y2 = blend(resized_x1_y2, resized_x2_y2, resized_row_index_fract)
+
+        return blend(y1, y2, resized_col_index_fract)
+
+    if spline_order == 2:
+        y1 = blend_cosine(resized_x1_y1, resized_x2_y1, resized_row_index_fract)
+        y2 = blend_cosine(resized_x1_y2, resized_x2_y2, resized_row_index_fract)
+
+        return blend_cosine(y1, y2, resized_col_index_fract)
+
+    if spline_order == 3:
+        input_x0_index = (input_x1_index - 1) % input_shape[1]
+        input_y0_index = (input_y1_index - 1) % input_shape[0]
+
+        input_x3_index = (input_x1_index + 2) % input_shape[1]
+        input_y3_index = (input_y1_index + 2) % input_shape[0]
+
+        tensor_x0_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x0_index], 2))
+        resized_x0_y0 = tf.gather_nd(tensor_x0_y0, resized_index_trunc)
+
+        tensor_x1_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x1_index], 2))
+        resized_x1_y0 = tf.gather_nd(tensor_x1_y0, resized_index_trunc)
+
+        tensor_x2_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x2_index], 2))
+        resized_x2_y0 = tf.gather_nd(tensor_x2_y0, resized_index_trunc)
+
+        tensor_x3_y0 = tf.gather_nd(tensor, tf.stack([input_y0_index, input_x3_index], 2))
+        resized_x3_y0 = tf.gather_nd(tensor_x3_y0, resized_index_trunc)
+
+        tensor_x0_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x0_index], 2))
+        resized_x0_y1 = tf.gather_nd(tensor_x0_y1, resized_index_trunc)
+
+        tensor_x3_y1 = tf.gather_nd(tensor, tf.stack([input_y1_index, input_x3_index], 2))
+        resized_x3_y1 = tf.gather_nd(tensor_x3_y1, resized_index_trunc)
+
+        tensor_x0_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x0_index], 2))
+        resized_x0_y2 = tf.gather_nd(tensor_x0_y2, resized_index_trunc)
+
+        tensor_x3_y2 = tf.gather_nd(tensor, tf.stack([input_y2_index, input_x3_index], 2))
+        resized_x3_y2 = tf.gather_nd(tensor_x3_y2, resized_index_trunc)
+
+        tensor_x0_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x0_index], 2))
+        resized_x0_y3 = tf.gather_nd(tensor_x0_y3, resized_index_trunc)
+
+        tensor_x1_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x1_index], 2))
+        resized_x1_y3 = tf.gather_nd(tensor_x1_y3, resized_index_trunc)
+
+        tensor_x2_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x2_index], 2))
+        resized_x2_y3 = tf.gather_nd(tensor_x2_y3, resized_index_trunc)
+
+        tensor_x3_y3 = tf.gather_nd(tensor, tf.stack([input_y3_index, input_x3_index], 2))
+        resized_x3_y3 = tf.gather_nd(tensor_x3_y3, resized_index_trunc)
+
+        y0 = blend_cubic(resized_x0_y0, resized_x1_y0, resized_x2_y0, resized_x3_y0, resized_row_index_fract)
+        y1 = blend_cubic(resized_x0_y1, resized_x1_y1, resized_x2_y1, resized_x3_y1, resized_row_index_fract)
+        y2 = blend_cubic(resized_x0_y2, resized_x1_y2, resized_x2_y2, resized_x3_y2, resized_row_index_fract)
+        y3 = blend_cubic(resized_x0_y3, resized_x1_y3, resized_x2_y3, resized_x3_y3, resized_row_index_fract)
+
+        return blend_cubic(y0, y1, y2, y3, resized_col_index_fract)
 
 
 def crease(tensor):
@@ -340,8 +414,8 @@ def refract(tensor, shape, displacement=.5, reference=None):
 
     reference_x = value_map(reference, shape) * displacement
 
-    x_index = row_index(tensor, shape)
-    y_index = column_index(tensor, shape)
+    x_index = row_index(shape)
+    y_index = column_index(shape)
 
     # Create an offset Y channel, to get rid of diagonal banding.
     reference_y = tf.gather_nd(reference_x, offset_index(y_index, height, x_index, width))
@@ -379,17 +453,17 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
 
     reference = value_map(tensor, shape) * displacement
 
-    x_index = (row_index(tensor, shape) + tf.cast(reference * (width - 1), tf.int32)) % width
+    x_index = (row_index(shape) + tf.cast(reference * (width - 1), tf.int32)) % width
 
     if horizontal:
-        y_index = column_index(tensor, shape)
+        y_index = column_index(shape)
 
     else:
-        y_index = (column_index(tensor, shape) + tf.cast(reference * (height - 1), tf.int32)) % height
+        y_index = (column_index(shape) + tf.cast(reference * (height - 1), tf.int32)) % height
 
     index = tf.stack([y_index, x_index], 2)
 
-    clut = resample(clut, [height, width], 3)
+    clut = resample(clut, shape)
 
     output = tf.gather_nd(clut, index)
     output = tf.image.convert_image_dtype(output, tf.float32, saturate=True)
@@ -397,7 +471,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5):
+def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -414,6 +488,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     :param float stride: Mean travel distance per iteration
     :param float stride_deviation: Per-worm travel distance deviation
     :param float bg: Background color intensity.
+    :param float kink: Make your worms twist.
     :return: Tensor
     """
 
@@ -442,7 +517,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     else:
         worms_rot = tf.random_normal([count])
 
-    index = value_map(tensor, shape) * 360.0 * math.radians(1)
+    index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
@@ -465,7 +540,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
 
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 
-    return normalize(out)
+    return tf.sqrt(normalize(out))
 
 
 def wormhole(tensor, shape, kink, input_stride):
@@ -478,8 +553,8 @@ def wormhole(tensor, shape, kink, input_stride):
     degrees = values * 360.0 * math.radians(1) * kink
     stride = values * height * input_stride
 
-    x_index = tf.cast(row_index(tensor, shape), tf.float32)
-    y_index = tf.cast(column_index(tensor, shape), tf.float32)
+    x_index = tf.cast(row_index(shape), tf.float32)
+    y_index = tf.cast(column_index(shape), tf.float32)
 
     x_offset = (tf.cos(degrees) + 1) * stride
     y_offset = (tf.sin(degrees) + 1) * stride
@@ -489,6 +564,7 @@ def wormhole(tensor, shape, kink, input_stride):
 
     out = tf.scatter_nd(offset_index(y, height, x, width), tensor, shape)
 
+    return tf.sqrt(tf.maximum(out, tensor))
     return tf.sqrt(out)
 
 
@@ -510,7 +586,7 @@ def wavelet(tensor, shape):
 
     height, width, channels = shape
 
-    return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5)]), [height, width]))
+    return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
 
 
 def sobel(tensor, shape):
@@ -590,6 +666,31 @@ def blend(a, b, g):
     return (a * (1 - g) + b * g)
 
 
+def blend_cosine(a, b, g):
+    """
+    """
+
+    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
+    g2 = (1 - tf.cos(g * math.pi)) / 2
+
+    return a * (1 - g2) + b * g2
+
+
+def blend_cubic(a, b, c, d, g):
+    """
+    """
+
+    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
+    g2 = g * g
+
+    a0 = d - c - a + b
+    a1 = a - b - a0
+    a2 = c - a
+    a3 = b
+
+    return a0 * g * g2 + a1 * g2 + a2 * g + a3
+
+
 def center_mask(center, edges, shape):
     """
     Blend two image tensors from the center to the edges. Not perfect.
@@ -599,8 +700,6 @@ def center_mask(center, edges, shape):
     :param list[int] shape:
     :return: Tensor
     """
-
-    height, width, channels = shape
 
     m = tf.cast(tf.reshape([
         [ 1, 1, 1, 1, 1, 1, 1 ],
@@ -612,12 +711,12 @@ def center_mask(center, edges, shape):
         [ 1, 1, 1, 1, 1, 1, 1 ],
         ], [7, 7, 1]), tf.float32)
 
-    m = resample(m, [height, width])
+    m = resample(m, shape)
 
     return blend(center, edges, m)
 
 
-def row_index(tensor, shape):
+def row_index(shape):
     """
     Generate an X index for the given tensor.
 
@@ -629,20 +728,20 @@ def row_index(tensor, shape):
         ... (x height)
       ]
 
-    :param Tensor tensor:
     :param list[int] shape:
     :return: Tensor
     """
 
-    height, width, channels = shape
+    height = shape[0]
+    width = shape[1]
 
-    row_identity = tf.cumsum(tf.ones(width, dtype=tf.int32), exclusive=True)
+    row_identity = tf.cumsum(tf.ones([width], dtype=tf.int32), exclusive=True)
     row_identity = tf.reshape(tf.tile(row_identity, [height]), [height, width])
 
     return row_identity
 
 
-def column_index(tensor, shape):
+def column_index(shape):
     """
     Generate a Y index for the given tensor.
 
@@ -656,14 +755,14 @@ def column_index(tensor, shape):
         [ height-1, height-1, height-1, ... ]
       ]
 
-    :param Tensor tensor:
     :param list[int] shape:
     :return: Tensor
     """
 
-    height, width, channels = shape
+    height = shape[0]
+    width = shape[1]
 
-    column_identity = tf.ones(width, dtype=tf.int32)
+    column_identity = tf.ones([width], dtype=tf.int32)
     column_identity = tf.tile(column_identity, [height])
     column_identity = tf.reshape(column_identity, [height, width])
     column_identity = tf.cumsum(column_identity, exclusive=True)

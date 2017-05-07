@@ -76,14 +76,15 @@ def main(ctx, **kwargs):
 @click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
 @click.option("--clut-horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
 @click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
-@click.option("--worms", is_flag=True, default=False, help="Do worms.")
+@click.option("--worms", is_flag=True, default=False, help="Plot field flow path of \"worms\" through noise.")
 @click.option("--worm-behavior", type=int, default=0, help="0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
 @click.option("--worm-density", type=float, default=4.0, help="Worm density multiplier (larger is slower)")
 @click.option("--worm-duration", type=float, default=4.0, help="Worm iteration multiplier (larger is slower)")
 @click.option("--worm-stride", type=float, default=1.0, help="Mean travel distance per iteration")
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
-@click.option("--with-wormhole", is_flag=True, default=False, help="Wormhole effect")
+@click.option("--worm-kink", type=float, default=1.0, help="Worms twistiness")
+@click.option("--with-wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
@@ -98,7 +99,7 @@ def main(ctx, **kwargs):
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
-          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, with_wormhole, wormhole_kink, wormhole_stride,
+          worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, worm_kink, with_wormhole, wormhole_kink, wormhole_stride,
           sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
@@ -107,7 +108,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
         tensor = generators.basic(freq, shape, ridged=ridged, wavelet=wavelet,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
-                                  worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
+                                  worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
                                   with_wormhole=with_wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                   with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                   )
@@ -133,14 +134,15 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--clut", type=str, default=0.0, help="Color lookup table (PNG or JPG)")
 @click.option("--clut-horizontal", is_flag=True, default=False, help="Preserve clut Y axis")
 @click.option("--clut-range", type=float, default=.5, help="Gather distance for clut.")
-@click.option("--worms", is_flag=True, default=False, help="Do worms.")
+@click.option("--worms", is_flag=True, default=False, help="Plot field flow path of \"worms\" through noise.")
 @click.option("--worm-behavior", type=int, default=0, help="0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
 @click.option("--worm-density", type=float, default=4.0, help="Worm density multiplier (larger is slower)")
 @click.option("--worm-duration", type=float, default=4.0, help="Worm iteration multiplier (larger is slower)")
 @click.option("--worm-stride", type=float, default=1.0, help="Mean travel distance per iteration")
 @click.option("--worm-stride-deviation", type=float, default=.05, help="Travel distance deviation per worm")
 @click.option("--worm-bg", type=float, default=.5, help="Worms background color brightness")
-@click.option("--with-wormhole", is_flag=True, default=False, help="Wormhole effect")
+@click.option("--worm-kink", type=float, default=1.0, help="Worms twistiness")
+@click.option("--with-wormhole", is_flag=True, default=False, help="\"Scattered\" values. Not worms. Non-iterative (fast)")
 @click.option("--wormhole-kink", type=float, default=2.5, help="Wormhole kinkiness")
 @click.option("--wormhole-stride", type=float, default=.1, help="Wormhole thickness range")
 @click.option("--sobel", is_flag=True, default=False, help="Apply Sobel operator.")
@@ -157,7 +159,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
-             worm_bg, with_wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
+             worm_bg, worm_kink, with_wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, glitch, vhs, crt, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -167,7 +169,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
                                      reindex_range=reindex, layer_reindex_range=layer_reindex,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worm_behavior=worm_behavior, worm_density=worm_density, worm_duration=worm_duration,
-                                     worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg,
+                                     worm_stride=worm_stride, worm_stride_deviation=worm_stride_deviation, worm_bg=worm_bg, worm_kink=worm_kink,
                                      with_wormhole=with_wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                      with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=spline_order, distrib=distrib, seed=seed,
                                      )
