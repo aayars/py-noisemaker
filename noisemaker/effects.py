@@ -42,6 +42,9 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :return: Tensor
     """
 
+    if with_voronoi:
+        tensor = voronoi(tensor, shape, voronoi_density)
+
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
 
@@ -53,9 +56,6 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     else:
         tensor = normalize(tensor)
-
-    if with_voronoi:
-        tensor = voronoi(tensor, shape, voronoi_density)
 
     if deriv:
         tensor = derivative(tensor)
@@ -738,7 +738,9 @@ def voronoi(tensor, shape, density):
 
         out = tf.minimum(out, blend_cosine(dist * colors[i % point_count], dist, dist))
 
-    out = convolve(ConvKernel.sharpen, resample(out, original_shape), original_shape)
+    out = resample(out, original_shape)
+
+    out = convolve(ConvKernel.sharpen, out, original_shape)
 
     return out
 
