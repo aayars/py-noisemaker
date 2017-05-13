@@ -747,7 +747,6 @@ def voronoi(tensor, shape, density, nth=0):
     dist, _ = tf.nn.top_k(dist, k=point_count)
 
     index = int((nth + 1) * -1)
-    print(index)
 
     out = dist[:,:,:,index]
 
