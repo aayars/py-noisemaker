@@ -11,7 +11,7 @@ import tensorflow as tf
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
                  worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, posterize_levels=0):
+                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0):
     """
     Apply post-processing effects.
 
@@ -38,6 +38,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param bool with_voronoi: Voronoi cells
     :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
+    :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param bool deriv: Derivative operator
     :param float posterize_levels: Posterize levels
 
@@ -45,7 +46,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth)
+        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -79,6 +80,18 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
         tensor = normal_map(tensor, shape)
 
     return tensor
+
+
+class DistanceFunction(Enum):
+    """
+    Specify the distance function used for Voronoi cells.
+    """
+
+    euclidean = 0
+
+    manhattan = 1
+
+    chebychev = 2
 
 
 class WormBehavior(Enum):
@@ -702,7 +715,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, density, nth=0):
+def voronoi(tensor, shape, density, nth=0, dist_func=0):
     """
     """
 
@@ -716,8 +729,8 @@ def voronoi(tensor, shape, density, nth=0):
 
     x = tf.random_uniform([point_count]) * (width - 1)
     y = tf.random_uniform([point_count]) * (height - 1)
-    colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
-    colors = tf.reshape(colors, [1, 1, shape[2], point_count])
+    # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
+    # colors = tf.reshape(colors, [1, 1, shape[2], point_count])
 
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
@@ -739,10 +752,23 @@ def voronoi(tensor, shape, density, nth=0):
     # x_diff = tf.square((x_index - x) / width)
     # y_diff = tf.square((y_index - y) / height)
 
-    dist = blend(tf.sqrt(x_diff + y_diff), 1, .75)
-    # dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)
+    if isinstance(dist_func, DistanceFunction):
+        dist_func = dist_func.value
 
-    dist = blend_cosine(colors * dist, dist, dist)
+    if dist_func == DistanceFunction.euclidean.value:
+        dist = tf.sqrt(x_diff + y_diff)
+
+    elif dist_func == DistanceFunction.manhattan.value:
+        dist = tf.sqrt(x_diff) + tf.sqrt(y_diff)
+
+    elif dist_func == DistanceFunction.chebychev.value:
+        dist = tf.maximum(tf.sqrt(x_diff), tf.sqrt(y_diff))
+
+    dist = blend_cosine(dist, 1, .925)  # Tighten up the range.
+    # dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)  # Limit cell influence to 25% of image
+
+    # Pre-blend colors. Hmm.
+    # dist = blend_cosine(colors * dist, dist, dist)
 
     dist, _ = tf.nn.top_k(dist, k=point_count)
 
@@ -751,7 +777,10 @@ def voronoi(tensor, shape, density, nth=0):
     out = dist[:,:,:,index]
 
     out = resample(out, original_shape)
-    # out = blend(out, tensor, out)
+
+    # out = normalize(out)
+
+    out = blend_cosine(tensor * out, 1 - out, out)
 
     return out
 
