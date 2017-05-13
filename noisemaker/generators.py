@@ -51,7 +51,7 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
     """
 
     if isinstance(freq, int):
-        freq = _freq_for_shape(freq, shape)
+        freq = effects.freq_for_shape(freq, shape)
 
     initial_shape = [*freq, shape[-1]]
 
@@ -118,7 +118,7 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3,
     tensor = tf.zeros(shape)
 
     if isinstance(freq, int):
-        freq = _freq_for_shape(freq, shape)
+        freq = effects.freq_for_shape(freq, shape)
 
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
@@ -137,14 +137,3 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3,
     tensor = effects.normalize(tensor)
 
     return effects.post_process(tensor, shape, **post_process_args)
-
-
-def _freq_for_shape(freq, shape):
-    """
-    Given a base frequency as int, generate noise frequencies for each spatial dimension.
-
-    :param int freq: Base frequency
-    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
-    """
-
-    return [int(freq * shape[i] / shape[0]) for i in range(len(shape) - 1)]

@@ -11,7 +11,7 @@ import tensorflow as tf
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
                  worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1):
+                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, posterize_levels=0):
     """
     Apply post-processing effects.
 
@@ -37,13 +37,15 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param float wormhole_stride: Wormhole thickness range
     :param bool with_voronoi: Voronoi cells
     :param float voronoi_density: Voronoi cell count multiplier
+    :param int voronoi_nth: Voronoi Nth nearest
     :param bool deriv: Derivative operator
+    :param float posterize_levels: Posterize levels
 
     :return: Tensor
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, voronoi_density)
+        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -59,6 +61,9 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     if deriv:
         tensor = derivative(tensor)
+
+    if posterize_levels:
+        tensor = posterize(tensor, posterize_levels)
 
     if with_worms:
         tensor = worms(tensor, shape, behavior=worm_behavior, density=worm_density, duration=worm_duration,
@@ -697,7 +702,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, density):
+def voronoi(tensor, shape, density, nth=0):
     """
     """
 
@@ -709,40 +714,79 @@ def voronoi(tensor, shape, density):
 
     point_count = int(min(width, height) * density)
 
-    points_x = tf.random_uniform([point_count]) * (width - 1)
-    points_y = tf.random_uniform([point_count]) * (height - 1)
-    colors = tf.gather_nd(tensor, tf.cast(tf.stack([points_y * 2, points_x * 2], 1), tf.int32))
+    x = tf.random_uniform([point_count]) * (width - 1)
+    y = tf.random_uniform([point_count]) * (height - 1)
+    colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
+    colors = tf.reshape(colors, [1, 1, shape[2], point_count])
 
-    value_shape = [height, width, 1]
+    value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
 
     half_width = width * .5
     half_height = height * .5
 
-    out = tf.ones(shape)
+    # Wrapping edges!
+    x0_diff = (x_index - x - half_width) / width
+    x1_diff = (x_index - x + half_width) / width
+    y0_diff = (y_index - y - half_height) / height
+    y1_diff = (y_index - y + half_height) / height
 
-    for i in range(point_count):  # Stretch goal: Do flow control in TensorFlow.
-        x = points_x[i]
-        y = points_y[i]
+    x_diff = tf.minimum(x0_diff * x0_diff, x1_diff * x1_diff)
+    y_diff = tf.minimum(y0_diff * y0_diff, y1_diff * y1_diff)
 
-        x0_diff = (x_index - x - half_width) / width
-        y0_diff = (y_index - y - half_height) / height
-        x1_diff = (x_index - x + half_width) / width
-        y1_diff = (y_index - y + half_height) / height
+    # Not-wrapping edges!
+    # x_diff = tf.square((x_index - x) / width)
+    # y_diff = tf.square((y_index - y) / height)
 
-        x_diff = tf.minimum(x0_diff * x0_diff, x1_diff * x1_diff)
-        y_diff = tf.minimum(y0_diff * y0_diff, y1_diff * y1_diff)
+    dist = blend(tf.sqrt(x_diff + y_diff), 1, .75)
+    # dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)
 
-        dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)  # Limit cell influence to 25% of image size
+    dist = blend_cosine(colors * dist, dist, dist)
 
-        out = tf.minimum(out, blend_cosine(dist * colors[i % point_count], dist, dist))
+    dist, _ = tf.nn.top_k(dist, k=point_count)
+
+    index = int((nth + 1) * -1)
+    print(index)
+
+    out = dist[:,:,:,index]
 
     out = resample(out, original_shape)
-
-    out = convolve(ConvKernel.sharpen, out, original_shape)
+    # out = blend(out, tensor, out)
 
     return out
+
+
+def posterize(tensor, levels):
+    """
+    """
+
+    tensor *= levels
+
+    tensor = tf.floor(tensor)
+
+    tensor /= levels
+
+    return tensor
+
+
+def inner_tile(tensor, shape, freq):
+    """
+    """
+
+    if isinstance(freq, int):
+        freq = freq_for_shape(freq, shape)
+
+    small_shape = [int(shape[0] / freq[0]), int(shape[1] / freq[1]), shape[2]]
+
+    y_index = tf.tile(column_index(small_shape) * freq[0], [freq[0], freq[0]])
+    x_index = tf.tile(row_index(small_shape) * freq[1], [freq[0], freq[0]])
+
+    tiled = tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
+
+    tiled = resample(tiled, shape, spline_order=1)
+
+    return tiled
 
 
 def row_index(shape):
@@ -818,3 +862,14 @@ def offset_index(y_index, height, x_index, width):
         ], 2)
 
     return tf.cast(index, tf.int32)
+
+
+def freq_for_shape(freq, shape):
+    """
+    Given a base frequency as int, generate noise frequencies for each spatial dimension.
+
+    :param int freq: Base frequency
+    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
+    """
+
+    return [int(freq * shape[i] / shape[0]) for i in range(len(shape) - 1)]

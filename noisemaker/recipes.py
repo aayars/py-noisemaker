@@ -29,6 +29,8 @@ def post_process(tensor, shape, with_glitch, with_vhs, with_crt):
     if with_crt:
         tensor = crt(tensor, shape)
 
+    # tensor = pop(tensor, shape)
+
     return tensor
 
 
@@ -143,5 +145,23 @@ def crt(tensor, shape):
         separated.append(tf.gather_nd(tensor[:,:,i], tf.cast(tf.stack([y_index, _x_index], 2), tf.int32)))
 
     tensor = tf.stack(separated, 2)
+
+    return tensor
+
+
+def pop(tensor, shape):
+    freq = 2
+
+    tensor = tf.image.random_hue(tensor, .5)
+
+    tensor = effects.inner_tile(tensor, shape, freq)
+
+    tensor = effects.posterize(tensor, 3)
+
+    tensor = tensor % basic([freq, freq], shape, spline_order=0)
+
+    # tensor = effects.normalize(tensor)
+
+    # tensor = tf.image.adjust_brightness(tensor, 1.125)
 
     return tensor
