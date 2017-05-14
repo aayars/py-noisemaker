@@ -48,7 +48,7 @@ def height_option(**attrs):
 
 
 def channels_option(**attrs):
-    attrs.setdefault("help", "Color channel count (1=Gray, 2=Gray+alpha, 3=RGB, 4=RGB+alpha)")
+    attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=RGB, 4=RGB+alpha)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 3)
 
@@ -88,7 +88,7 @@ def reindex_option(**attrs):
 
 
 def clut_option(**attrs):
-    attrs.setdefault("help", "Color lookup table (Path to PNG or JPEG image)")
+    attrs.setdefault("help", "Color lookup table (path to PNG or JPEG image)")
     attrs.setdefault("type", str)
 
     return option("--clut", **attrs)
@@ -310,12 +310,12 @@ def scan_error_option(**attrs):
     return option("--scan-error", **attrs)
 
 
-def glitch_option(**attrs):
-    attrs.setdefault("help", "Glitch effect")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+def snow_option(**attrs):
+    attrs.setdefault("help", "Analog broadcast snow (0.0=off, 1.0=saturated)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
 
-    return option("--glitch", **attrs)
+    return option("--snow", **attrs)
 
 
 def name_option(**attrs):
@@ -420,12 +420,13 @@ def main(ctx, **kwargs):
 @vhs_option()
 @crt_option()
 @scan_error_option()
+@snow_option()
 @wavelet_option()
 @name_option()
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, interp, distrib, posterize, glitch, vhs, crt, scan_error, name):
+          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -442,7 +443,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow)
 
         _save(tensor, name)
 
@@ -486,13 +487,14 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @vhs_option()
 @crt_option()
 @scan_error_option()
+@snow_option()
 @wavelet_option()
 @name_option()
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, interp, distrib, posterize,
-             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, name):
+             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -511,6 +513,6 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refra
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow)
 
         _save(tensor, name)

@@ -8,7 +8,7 @@ from noisemaker.generators import Distribution, basic, multires
 import noisemaker.effects as effects
 
 
-def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error):
+def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error, with_snow):
     """
     Apply complex post-processing recipes.
 
@@ -18,11 +18,15 @@ def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error
     :param bool with_vhs: VHS effect (Shitty tracking)
     :param bool with_crt: Vintage TV effect
     :param bool with_scan_error: Horizontal scan error
+    :param float with_snow: Analog broadcast snow
     :return: Tensor
     """
 
     if with_glitch:
         tensor = glitch(tensor, shape)
+
+    if with_snow:
+        tensor = snow(tensor, shape, with_snow)
 
     if with_scan_error:
         tensor = scanline_error(tensor, shape)
@@ -182,6 +186,18 @@ def scanline_error(tensor, shape):
     x_index = (effects.row_index(shape) - tf.cast(effects.value_map(error, value_shape) * width * .025, tf.int32)) % width
 
     return tf.minimum(tf.gather_nd(tensor, tf.stack([y_index, x_index], 2)) + error_line * white_noise * 4, 1)
+
+
+def snow(tensor, shape, amount):
+    """
+    """
+
+    height, width, channels = shape
+
+    white_noise_1 = basic([height, width], [height, width, 1], wavelet=True, refract_range=10)
+    white_noise_2 = tf.maximum(basic([int(height * .75), int(width * .75)], [height, width, 1]) - (1 - amount), 0) * 2
+
+    return effects.blend(tensor, white_noise_1, white_noise_2)
 
 
 def pop(tensor, shape):
