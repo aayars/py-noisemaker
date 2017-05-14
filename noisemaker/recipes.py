@@ -61,6 +61,10 @@ def glitch(tensor, shape):
 
     channel = int(random.random() * channels)
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
+
+    channel = int(random.random() * channels)
+    separated[channel], _ = tf.nn.top_k(effects.value_map(tensor, shape), k=width)
+
     stylized = tf.stack(separated, 2)
 
     combined = effects.blend_cosine(tf.multiply(stylized, 1.0), jpegged, tf.maximum(base2 * 2 - 1, 0))
