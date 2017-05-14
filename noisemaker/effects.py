@@ -778,8 +778,6 @@ def voronoi(tensor, shape, density, nth=0, dist_func=0):
 
     out = resample(out, original_shape)
 
-    # out = normalize(out)
-
     out = blend_cosine(tensor * out, out, out)
 
     return out

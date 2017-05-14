@@ -102,11 +102,12 @@ def main(ctx, **kwargs):
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--vhs", is_flag=True, default=False, help="VHS effect")
 @click.option("--crt", is_flag=True, default=False, help="CRT effect")
+@click.option("--scan-error", is_flag=True, default=False, help="Horizontal scan error effect")
 @click.option("--name", default="basic", help="Base filename for image output")
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation, worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, spline_order, distrib, seed, posterize, glitch, vhs, crt, name):
+          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, spline_order, distrib, seed, posterize, glitch, vhs, crt, scan_error, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -123,7 +124,7 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error)
 
         _save(tensor, name)
 
@@ -167,13 +168,14 @@ def basic(ctx, freq, width, height, channels, ridged, wavelet, refract, reindex,
 @click.option("--glitch", is_flag=True, default=False, help="Glitch effect")
 @click.option("--vhs", is_flag=True, default=False, help="VHS effect")
 @click.option("--crt", is_flag=True, default=False, help="CRT effect")
+@click.option("--scan-error", is_flag=True, default=False, help="Horizontal scan error effect")
 @click.option("--octaves", type=int, default=3, help="Octave count. Number of multi-res layers. Typically 1-8")
 @click.option("--name", default="multires", help="Base filename for image output")
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worm_behavior, worm_density, worm_duration, worm_stride, worm_stride_deviation,
              worm_bg, worm_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, spline_order, distrib, seed, posterize,
-             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, name):
+             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -192,6 +194,6 @@ def multires(ctx, freq, width, height, channels, octaves, ridged, wavelet, refra
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error)
 
         _save(tensor, name)

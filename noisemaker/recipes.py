@@ -3,12 +3,12 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.generators import basic, multires
+from noisemaker.generators import Distribution, basic, multires
 
 import noisemaker.effects as effects
 
 
-def post_process(tensor, shape, with_glitch, with_vhs, with_crt):
+def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error):
     """
     Apply complex post-processing recipes.
 
@@ -17,11 +17,15 @@ def post_process(tensor, shape, with_glitch, with_vhs, with_crt):
     :param bool with_glitch: Glitch effect (Bit shit)
     :param bool with_vhs: VHS effect (Shitty tracking)
     :param bool with_crt: Vintage TV effect
+    :param bool with_scan_error: Horizontal scan error
     :return: Tensor
     """
 
     if with_glitch:
         tensor = glitch(tensor, shape)
+
+    if with_scan_error:
+        tensor = scanline_error(tensor, shape)
 
     if with_vhs:
         tensor = vhs(tensor, shape)
@@ -115,13 +119,15 @@ def crt(tensor, shape):
 
     height, width, channels = shape
 
-    distortion = basic(2, [height, width, 1])
+    value_shape = [height, width, 1]
+
+    distortion = basic(3, value_shape)
     distortion_amount = .25
 
-    white_noise = basic(int(height * .75), [height, width, 1], spline_order=0) - .5
+    white_noise = basic(int(height * .75), value_shape, spline_order=0) - .5
     white_noise = effects.center_mask(white_noise, effects.refract(white_noise, shape, distortion_amount, reference=distortion), shape)
 
-    white_noise2 = basic([int(height * .5), int(width * .25)], [height, width, 1], spline_order=3)
+    white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
     white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, shape, distortion_amount, reference=distortion), shape)
 
     tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .25)
@@ -146,11 +152,36 @@ def crt(tensor, shape):
     for i in range(channels):
         _x_index = (x_index + int(random.random() * 16 - 8)) % width
 
-        separated.append(tf.gather_nd(tensor[:,:,i], tf.cast(tf.stack([y_index, _x_index], 2), tf.int32)))
+        separated.append(tf.gather_nd(tensor[:,:,i], tf.stack([y_index, _x_index], 2)))
 
     tensor = tf.stack(separated, 2)
 
     return tensor
+
+
+def scanline_error(tensor, shape):
+    """
+    """
+
+    height, width, channels = shape
+
+    value_shape = [height, width, 1]
+    error_line = tf.maximum(basic([int(height * .75), 1], value_shape, distrib=Distribution.exponential) - .5, 0)
+    error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, distrib=Distribution.exponential) - .5, 0)
+
+    error_line *= error_swerve
+
+    error_swerve *= 2
+
+    white_noise = basic([int(height * .75), 1], value_shape)
+    white_noise = effects.blend(0, white_noise, error_swerve)
+
+    error = error_line + white_noise
+
+    y_index = effects.column_index(shape)
+    x_index = (effects.row_index(shape) - tf.cast(effects.value_map(error, value_shape) * width * .025, tf.int32)) % width
+
+    return tf.minimum(tf.gather_nd(tensor, tf.stack([y_index, x_index], 2)) + error_line * white_noise * 4, 1)
 
 
 def pop(tensor, shape):
