@@ -217,7 +217,7 @@ def voronoi_density_option(**attrs):
 def voronoi_func_option(**attrs):
     attrs.setdefault("help", "Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 2)
+    attrs.setdefault("default", 0)
 
     return option("--voronoi-func", **attrs)
 
