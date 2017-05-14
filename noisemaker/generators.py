@@ -28,7 +28,7 @@ class Distribution(Enum):
     lognormal = 4
 
 
-def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
+def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
           distrib=Distribution.normal, **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -40,7 +40,7 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
 
     :param int|list[int] freq: Base noise frequency. Int, or list of ints for each spatial dimension.
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
-    :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
+    :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
@@ -82,13 +82,13 @@ def basic(freq, shape, ridged=False, wavelet=False, spline_order=3, seed=None,
 
     tensor = effects.normalize(tensor)
 
-    if ridged:
+    if ridges:
         tensor = effects.crease(tensor)
 
     return tensor
 
 
-def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3, seed=None,
+def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3, seed=None,
              layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
              **post_process_args):
     """
@@ -102,7 +102,7 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3,
     :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension.
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
-    :param bool ridged: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
+    :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
@@ -128,7 +128,7 @@ def multires(freq, shape, octaves=4, ridged=True, wavelet=False, spline_order=3,
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = basic(base_freq, shape, ridged=ridged, wavelet=wavelet, spline_order=spline_order, seed=seed,
+        layer = basic(base_freq, shape, ridges=ridges, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       refract_range=layer_refract_range / multiplier, reindex_range=layer_reindex_range / multiplier,
                       distrib=distrib, deriv=deriv)
 

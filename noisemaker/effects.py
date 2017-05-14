@@ -9,8 +9,8 @@ import tensorflow as tf
 
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
-                 with_worms=False, worm_behavior=None, worm_density=4.0, worm_duration=4.0, worm_stride=1.0, worm_stride_deviation=.05,
-                 worm_bg=.5, worm_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
+                 with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0):
     """
     Apply post-processing effects.
@@ -23,13 +23,13 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param float clut_horizontal: Preserve clut Y axis.
     :param float clut_range: Gather range for clut.
     :param bool with_worms: Do worms.
-    :param WormBehavior worm_behavior:
-    :param float worm_density: Worm density multiplier (larger == slower)
-    :param float worm_duration: Iteration multiplier (larger == slower)
-    :param float worm_stride: Mean travel distance per iteration
-    :param float worm_stride_deviation: Per-worm travel distance deviation
-    :param float worm_bg: Background color brightness for worms
-    :param float worm_kink: Worm twistiness
+    :param WormBehavior worms_behavior:
+    :param float worms_density: Worm density multiplier (larger == slower)
+    :param float worms_duration: Iteration multiplier (larger == slower)
+    :param float worms_stride: Mean travel distance per iteration
+    :param float worms_stride_deviation: Per-worm travel distance deviation
+    :param float worms_bg: Background color brightness for worms
+    :param float worms_kink: Worm twistiness
     :param bool with_sobel: Sobel operator
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool with_wormhole: Wormhole effect. What is this?
@@ -67,8 +67,8 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
         tensor = posterize(tensor, posterize_levels)
 
     if with_worms:
-        tensor = worms(tensor, shape, behavior=worm_behavior, density=worm_density, duration=worm_duration,
-                       stride=worm_stride, stride_deviation=worm_stride_deviation, bg=worm_bg, kink=worm_kink)
+        tensor = worms(tensor, shape, behavior=worms_behavior, density=worms_density, duration=worms_duration,
+                       stride=worms_stride, stride_deviation=worms_stride_deviation, bg=worms_bg, kink=worms_kink)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
