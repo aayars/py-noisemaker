@@ -8,7 +8,7 @@ from noisemaker.generators import Distribution, basic, multires
 import noisemaker.effects as effects
 
 
-def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error, with_snow):
+def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error, with_snow, with_dither):
     """
     Apply complex post-processing recipes.
 
@@ -19,11 +19,15 @@ def post_process(tensor, shape, with_glitch, with_vhs, with_crt, with_scan_error
     :param bool with_crt: Vintage TV effect
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
+    :param float with_dither: Per-pixel brightness jitter
     :return: Tensor
     """
 
     if with_glitch:
         tensor = glitch(tensor, shape)
+
+    if with_dither:
+        tensor = dither(tensor, shape, with_dither)
 
     if with_snow:
         tensor = snow(tensor, shape, with_snow)
@@ -71,7 +75,8 @@ def glitch(tensor, shape):
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
 
     channel = int(random.random() * channels)
-    separated[channel], _ = tf.nn.top_k(effects.value_map(tensor, shape), k=width)
+    top, _ = tf.nn.top_k(effects.value_map(tensor, shape), k=width)
+    separated[channel] += top
 
     stylized = tf.stack(separated, 2)
 
@@ -198,6 +203,17 @@ def snow(tensor, shape, amount):
     white_noise_2 = tf.maximum(basic([int(height * .75), int(width * .75)], [height, width, 1]) - (1 - amount), 0) * 2
 
     return effects.blend(tensor, white_noise_1, white_noise_2)
+
+
+def dither(tensor, shape, amount):
+    """
+    """
+
+    height, width, channels = shape
+
+    white_noise = basic([height, width], [height, width, 1])
+
+    return effects.blend(tensor, white_noise, amount)
 
 
 def pop(tensor, shape):

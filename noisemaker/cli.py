@@ -1,6 +1,8 @@
 import click
 import tensorflow as tf
 
+from noisemaker.util import save
+
 import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.recipes as recipes
@@ -24,7 +26,7 @@ def option(*param_decls, **attrs):
 def freq_option(**attrs):
     attrs.setdefault("help", "Heightwise noise frequency")
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 2)
+    attrs.setdefault("default", 3)
 
     return option("--freq", **attrs)
 
@@ -254,6 +256,14 @@ def deriv_option(**attrs):
     return option("--deriv", **attrs)
 
 
+def deriv_func_option(**attrs):
+    attrs.setdefault("help", "Derivative distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 0)
+
+    return option("--deriv-func", **attrs)
+
+
 def distrib_option(**attrs):
     attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal)")
     attrs.setdefault("type", int)
@@ -271,7 +281,7 @@ def interp_option(**attrs):
 
 
 def posterize_option(**attrs):
-    attrs.setdefault("help", "Posterize levels")
+    attrs.setdefault("help", "Posterize levels (per channel)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
@@ -318,34 +328,20 @@ def snow_option(**attrs):
     return option("--snow", **attrs)
 
 
+def dither_option(**attrs):
+    attrs.setdefault("help", "Per-pixel brightness jitter")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--dither", **attrs)
+
+
 def name_option(**attrs):
     attrs.setdefault("help", "Base filename for image output")
     attrs.setdefault("type", str)
-    attrs.setdefault("default", "noise")
+    attrs.setdefault("default", "noise.png")
 
     return option("--name", **attrs)
-
-
-def _save(tensor, name="out"):
-    """
-    Save as PNG. Prints a message to stdout.
-
-    TODO: Probably put this in a real library somewhere. Support other image formats.
-
-    :param Tensor tensor:
-    :param str name:
-    :return: None
-    """
-
-    tensor = effects.normalize(tensor)
-    tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
-
-    png = tf.image.encode_png(tensor).eval()
-
-    with open("{0}.png".format(name), "wb") as fh:
-        fh.write(png)
-
-    print("Saved noise to {0}.png".format(name))
 
 
 def _apply_conv_kernels(tensor, shape, args):
@@ -415,18 +411,20 @@ def main(ctx, **kwargs):
 @sobel_option()
 @normals_option()
 @deriv_option()
+@deriv_func_option()
 @posterize_option()
 @glitch_option()
 @vhs_option()
 @crt_option()
 @scan_error_option()
 @snow_option()
+@dither_option()
 @wavelet_option()
 @name_option()
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, name):
+          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, deriv_func, interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -437,15 +435,15 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                  with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=interp, distrib=distrib,
+                                  with_sobel=sobel, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
                                   posterize_levels=posterize
                                   )
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
-        _save(tensor, name)
+        save(tensor, name)
 
 
 @main.command(help="Multiple layers (octaves). For each octave: freq increases, amplitude decreases.")
@@ -482,19 +480,21 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @sobel_option()
 @normals_option()
 @deriv_option()
+@deriv_func_option()
 @posterize_option()
 @glitch_option()
 @vhs_option()
 @crt_option()
 @scan_error_option()
 @snow_option()
+@dither_option()
 @wavelet_option()
 @name_option()
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, interp, distrib, posterize,
-             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, name):
+             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, deriv_func, interp, distrib, posterize,
+             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -507,12 +507,12 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refra
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                     with_sobel=sobel, with_normal_map=normals, deriv=deriv, spline_order=interp, distrib=distrib,
+                                     with_sobel=sobel, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
                                      posterize_levels=posterize,
                                      )
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow)
+        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
-        _save(tensor, name)
+        save(tensor, name)

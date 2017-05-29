@@ -10,7 +10,8 @@ import tensorflow as tf
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, deriv_func=0,
+                 with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0):
     """
     Apply post-processing effects.
@@ -40,6 +41,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param bool deriv: Derivative operator
+    :param DistanceFunction|int deriv_func: Derivative distance function
     :param float posterize_levels: Posterize levels
 
     :return: Tensor
@@ -61,7 +63,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
         tensor = normalize(tensor)
 
     if deriv:
-        tensor = derivative(tensor)
+        tensor = derivative(tensor, deriv_func)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)
@@ -346,7 +348,7 @@ def crease(tensor):
     return 1 - tf.abs(tensor * 2 - 1)
 
 
-def derivative(tensor):
+def derivative(tensor, dist_func=0):
     """
     Extract a derivative from the given noise.
 
@@ -356,12 +358,61 @@ def derivative(tensor):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
+    :param DistanceFunction|int dist_func: Derivative distance function
     :return: Tensor
     """
 
     y, x = np.gradient(tensor.eval(), axis=(0, 1))  # Do this in TF with conv2D?
 
-    return normalize(tf.sqrt(y*y + x*x))
+    return normalize(distance(x, y, dist_func))
+
+
+def _erode(tensor, shape):
+    # WIP, not done yet, stop judging me
+
+    height, width, channels = shape
+
+    values = value_map(tensor, shape)
+
+    values = tf.reshape(values, shape)
+
+    scale = .75
+    small = [int(height * scale), int(width * scale), 1]
+
+    values = resample(values, small)
+    values = tf.squeeze(values)
+
+    x_index = row_index(small)
+    y_index = column_index(small)
+
+    x1_index = (x_index + 1) % width
+    y1_index = (y_index + 1) % height
+
+    a = values  # -45 degrees
+    b = tf.gather_nd(values, tf.stack([y_index, x1_index], 2))  # 45
+    c = tf.gather_nd(values, tf.stack([y1_index, x1_index], 2))  # 135
+    d = tf.gather_nd(values, tf.stack([y1_index, x_index], 2))  # -135
+
+    top, indices = tf.nn.top_k(tf.stack([a, b, c, d], 2), k=4)
+
+    lowest = tf.cast(indices[:,:,-1], tf.float32) / 4.0
+    next_lowest = tf.cast(indices[:,:,-2], tf.float32) / 4.0
+
+    scaled = values * 4.0
+    # scaled = (top[:,:,-2] - top[:,:,-1]) * 4.0
+    ceil = tf.floor(scaled)
+    fract = scaled - ceil
+
+    blended = 1.0 - blend(lowest, next_lowest, fract)
+    blended = tf.reshape(blended, small)
+    blended = resample(blended, shape)
+
+    paths = worms(blended, shape, density=250.0, duration=2.0, bg=0.0, behavior=WormBehavior.obedient,
+                  colors=tensor, stride=.5, stride_deviation=.25)
+
+    out = tf.minimum(tf.maximum(tensor * (1.0 - paths), 0.0), 1.0)
+
+    return blend(out, tensor, tf.abs(tensor * 2.0 - 1.0))
 
 
 def reindex(tensor, shape, displacement=.5):
@@ -470,7 +521,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0):
+def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0, colors=None):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -488,6 +539,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     :param float stride_deviation: Per-worm travel distance deviation
     :param float bg: Background color intensity.
     :param float kink: Make your worms twist.
+    :param Tensor colors: Optional starting colors, if not from `tensor`.
     :return: Tensor
     """
 
@@ -499,7 +551,9 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
     worms_x = tf.random_uniform([count]) * (width - 1)
     worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation)
 
-    colors = tf.gather_nd(tensor, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
+    color_source = colors if colors is not None else tensor
+
+    colors = tf.gather_nd(color_source, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
 
     if isinstance(behavior, int):
         behavior = WormBehavior(behavior)
@@ -514,13 +568,13 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
         worms_rot = tf.random_normal([count]) * 360.0
 
     else:
-        worms_rot = tf.random_normal([count])
+        worms_rot = tf.random_normal([count]) * 2.0 - 1.0
 
     index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = tensor * bg
+    out = color_source * bg
 
     scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
 
@@ -531,8 +585,9 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
         exposure = 1 - abs(1 - i / (iterations - 1) * 2)  # Makes linear gradient [ 0 .. 1 .. 0 ]
 
         out += tf.scatter_nd(worm_positions, colors * exposure, scatter_shape)
+        # out = tf.maximum(tf.scatter_nd(worm_positions, colors * exposure, scatter_shape), out)
 
-        next_position = tf.gather_nd(index, worm_positions) + worms_rot
+        next_position = tf.gather_nd(index, worm_positions) + ( worms_rot - 45.0 )
 
         worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
         worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
@@ -550,7 +605,8 @@ def wormhole(tensor, shape, kink, input_stride):
 
     values = value_map(tensor, shape)
     degrees = values * 360.0 * math.radians(1) * kink
-    stride = values * height * input_stride
+    # stride = values * height * input_stride
+    stride = height * input_stride
 
     x_index = tf.cast(row_index(shape), tf.float32)
     y_index = tf.cast(column_index(shape), tf.float32)
@@ -561,10 +617,11 @@ def wormhole(tensor, shape, kink, input_stride):
     x = tf.cast(x_index + x_offset, tf.int32) % width
     y = tf.cast(y_index + y_offset, tf.int32) % height
 
-    out = tf.scatter_nd(offset_index(y, height, x, width), tensor, tf.shape(tensor))
+    luminosity = tf.square(tf.reshape(values, [height, width, 1]))
+
+    out = tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor))
 
     return tf.sqrt(out)
-    return tf.sqrt(tf.maximum(out, tensor))
 
 
 def wavelet(tensor, shape):
@@ -745,27 +802,16 @@ def voronoi(tensor, shape, density, nth=0, dist_func=0):
     y0_diff = (y_index - y - half_height) / height
     y1_diff = (y_index - y + half_height) / height
 
-    x_diff = tf.minimum(x0_diff * x0_diff, x1_diff * x1_diff)
-    y_diff = tf.minimum(y0_diff * y0_diff, y1_diff * y1_diff)
+    x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff))
+    y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff))
 
     # Not-wrapping edges!
     # x_diff = tf.square((x_index - x) / width)
     # y_diff = tf.square((y_index - y) / height)
 
-    if isinstance(dist_func, DistanceFunction):
-        dist_func = dist_func.value
-
-    if dist_func == DistanceFunction.euclidean.value:
-        dist = tf.sqrt(x_diff + y_diff)
-
-    elif dist_func == DistanceFunction.manhattan.value:
-        dist = tf.sqrt(x_diff) + tf.sqrt(y_diff)
-
-    elif dist_func == DistanceFunction.chebychev.value:
-        dist = tf.maximum(tf.sqrt(x_diff), tf.sqrt(y_diff))
+    dist = distance(x_diff, y_diff, dist_func)
 
     dist = blend_cosine(dist, 1, .925)  # Tighten up the range.
-    # dist = tf.minimum(tf.sqrt(x_diff + y_diff) + .75, 1)  # Limit cell influence to 25% of image
 
     # Pre-blend colors. Hmm.
     # dist = blend_cosine(colors * dist, dist, dist)
@@ -781,6 +827,25 @@ def voronoi(tensor, shape, density, nth=0, dist_func=0):
     out = blend_cosine(tensor * out, out, out)
 
     return out
+
+
+def distance(a, b, func):
+    if isinstance(func, DistanceFunction):
+       func = func.value
+
+    if func == DistanceFunction.euclidean.value:
+        dist = tf.sqrt(a * a + b * b)
+
+    elif func == DistanceFunction.manhattan.value:
+        dist = tf.abs(a) + tf.abs(b)
+
+    elif func == DistanceFunction.chebychev.value:
+        dist = tf.maximum(tf.abs(a), tf.abs(b))
+
+    else:
+        raise ValueError("{0} isn't a distance function.".format(func))
+
+    return dist
 
 
 def posterize(tensor, levels):
