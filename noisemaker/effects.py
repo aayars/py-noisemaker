@@ -194,6 +194,18 @@ class ConvKernel(Enum):
         [ -1, -2, -1 ]
     ]
 
+    deriv_x = [
+        [ 0, 0, 0 ],
+        [ 0, -1, 1 ],
+        [ 0, 0, 0 ]
+    ]
+
+    deriv_y = [
+        [ 0, 0, 0 ],
+        [ 0, -1, 0 ],
+        [ 0, 1, 0 ]
+    ]
+
     blur = [
         [ 1, 4, 6, 4, 1 ],
         [ 4, 16, 24, 16, 4 ],
@@ -219,12 +231,14 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
     return temp
 
 
-def convolve(kernel, tensor, shape):
+def convolve(kernel, tensor, shape, with_normalize=True):
     """
     Apply a convolution kernel to an image tensor.
 
     :param ConvKernel kernel: See ConvKernel enum
     :param Tensor tensor: An image tensor.
+    :param list[int] shape:
+    :param bool with_normalize: Normalize output (True)
     :return: Tensor
     """
 
@@ -240,7 +254,9 @@ def convolve(kernel, tensor, shape):
     tensor = tensor[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
     tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
     tensor = tensor[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
-    tensor = normalize(tensor)
+
+    if with_normalize:
+        tensor = normalize(tensor)
 
     if kernel == ConvKernel.edges:
         tensor = tf.abs(tensor - .5) * 2
@@ -354,35 +370,6 @@ def crease(tensor):
     """
 
     return 1 - tf.abs(tensor * 2 - 1)
-
-
-def derivative(tensor, shape, dist_func=0):
-    """
-    Extract a derivative from the given noise.
-
-    .. image:: images/derived.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param DistanceFunction|int dist_func: Derivative distance function
-    :return: Tensor
-    """
-
-    height, width, channels = shape
-
-    x_index = row_index(shape)
-    y_index = column_index(shape)
-
-    x1_index = (x_index + 1) % width
-    y1_index = (y_index + 1) % height
-
-    x = tf.gather_nd(tensor, tf.stack([y_index, x1_index], -1)) - tensor
-    y = tf.gather_nd(tensor, tf.stack([y1_index, x_index], -1)) - tensor
-
-    return normalize(distance(x, y, dist_func))
 
 
 def erode(tensor, shape):
@@ -724,6 +711,27 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
 
 
+def derivative(tensor, shape, dist_func=0):
+    """
+    Extract a derivative from the given noise.
+
+    .. image:: images/derived.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param DistanceFunction|int dist_func: Derivative distance function
+    :return: Tensor
+    """
+
+    x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
+    y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
+
+    return normalize(distance(x, y, dist_func))
+
+
 def sobel(tensor, shape):
     """
     Apply a sobel operator.
@@ -733,8 +741,8 @@ def sobel(tensor, shape):
     :return: Tensor
     """
 
-    x = convolve(ConvKernel.sobel_x, tensor, shape)
-    y = convolve(ConvKernel.sobel_y, tensor, shape)
+    x = convolve(ConvKernel.sobel_x, tensor, shape, with_normalize=False)
+    y = convolve(ConvKernel.sobel_y, tensor, shape, with_normalize=False)
 
     return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
 
