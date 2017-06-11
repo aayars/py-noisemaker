@@ -10,7 +10,7 @@ import tensorflow as tf
 
 def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=False, with_normal_map=False, deriv=False, deriv_func=0,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0):
     """
@@ -32,6 +32,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     :param float worms_bg: Background color brightness for worms
     :param float worms_kink: Worm twistiness
     :param bool with_sobel: Sobel operator
+    :param DistanceFunction|int sobel_func: Sobel distance function
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
@@ -76,7 +77,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     if with_sobel:
-        tensor = sobel(tensor, shape)
+        tensor = sobel(tensor, shape, sobel_func)
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
@@ -732,19 +733,20 @@ def derivative(tensor, shape, dist_func=0):
     return normalize(distance(x, y, dist_func))
 
 
-def sobel(tensor, shape):
+def sobel(tensor, shape, dist_func=0):
     """
     Apply a sobel operator.
 
     :param Tensor tensor:
     :param list[int] shape:
+    :param DistanceFunction|int dist_func: Derivative distance function
     :return: Tensor
     """
 
     x = convolve(ConvKernel.sobel_x, tensor, shape, with_normalize=False)
     y = convolve(ConvKernel.sobel_y, tensor, shape, with_normalize=False)
 
-    return tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1)
+    return tf.abs(normalize(distance(x, y, dist_func)) * 2 - 1)
 
 
 def normal_map(tensor, shape):

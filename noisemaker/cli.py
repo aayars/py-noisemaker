@@ -240,6 +240,14 @@ def sobel_option(**attrs):
     return option("--sobel", **attrs)
 
 
+def sobel_func_option(**attrs):
+    attrs.setdefault("help", "Sobel distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 0)
+
+    return option("--sobel-func", **attrs)
+
+
 def normals_option(**attrs):
     attrs.setdefault("help", "Generate a tangent-space normal map")
     attrs.setdefault("is_flag", True)
@@ -409,6 +417,7 @@ def main(ctx, **kwargs):
 @worms_kink_option()
 @worms_bg_option()
 @sobel_option()
+@sobel_func_option()
 @normals_option()
 @deriv_option()
 @deriv_func_option()
@@ -424,7 +433,8 @@ def main(ctx, **kwargs):
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, normals, deriv, deriv_func, interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, name):
+          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_Func, normals, deriv, deriv_func, interp, distrib, posterize,
+          glitch, vhs, crt, scan_error, snow, dither, name):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -435,7 +445,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                  with_sobel=sobel, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
+                                  with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
                                   posterize_levels=posterize
                                   )
 
@@ -478,6 +488,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @worms_kink_option()
 @worms_bg_option()
 @sobel_option()
+@sobel_func_option()
 @normals_option()
 @deriv_option()
 @deriv_func_option()
@@ -493,7 +504,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, normals, deriv, deriv_func, interp, distrib, posterize,
+             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name):
 
     with tf.Session().as_default():
@@ -507,8 +518,8 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refra
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                     with_sobel=sobel, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
-                                     posterize_levels=posterize,
+                                     with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp,
+                                     distrib=distrib, posterize_levels=posterize,
                                      )
 
         tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
