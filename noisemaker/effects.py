@@ -63,7 +63,7 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
         tensor = normalize(tensor)
 
     if deriv:
-        tensor = derivative(tensor, deriv_func)
+        tensor = derivative(tensor, shape, deriv_func)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)
@@ -356,7 +356,7 @@ def crease(tensor):
     return 1 - tf.abs(tensor * 2 - 1)
 
 
-def derivative(tensor, dist_func=0):
+def derivative(tensor, shape, dist_func=0):
     """
     Extract a derivative from the given noise.
 
@@ -366,11 +366,21 @@ def derivative(tensor, dist_func=0):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
+    :param list[int] shape:
     :param DistanceFunction|int dist_func: Derivative distance function
     :return: Tensor
     """
 
-    y, x = np.gradient(tensor.eval(), axis=(0, 1))  # Do this in TF with conv2D?
+    height, width, channels = shape
+
+    x_index = row_index(shape)
+    y_index = column_index(shape)
+
+    x1_index = (x_index + 1) % width
+    y1_index = (y_index + 1) % height
+
+    x = tf.gather_nd(tensor, tf.stack([y_index, x1_index], -1)) - tensor
+    y = tf.gather_nd(tensor, tf.stack([y1_index, x_index], -1)) - tensor
 
     return normalize(distance(x, y, dist_func))
 
