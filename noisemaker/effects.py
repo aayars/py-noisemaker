@@ -194,6 +194,14 @@ class ConvKernel(Enum):
         [ -1, -2, -1 ]
     ]
 
+    blur = [
+        [ 1, 4, 6, 4, 1 ],
+        [ 4, 16, 24, 16, 4 ],
+        [ 6, 24, 36, 24, 6 ],
+        [ 4, 16, 24, 16, 4 ],
+        [ 1, 4, 6, 4, 1 ]
+    ]
+
 
 def _conform_kernel_to_tensor(kernel, tensor, shape):
     """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
@@ -367,52 +375,113 @@ def derivative(tensor, dist_func=0):
     return normalize(distance(x, y, dist_func))
 
 
-def _erode(tensor, shape):
-    # WIP, not done yet, stop judging me
+def erode(tensor, shape):
+    """
+    """
+
+    # https://www.dropbox.com/s/kqv8b3w7o8ucbyi/Beyer%20-%20implementation%20of%20a%20methode%20for%20hydraulic%20erosion.pdf?dl=0
 
     height, width, channels = shape
 
-    values = value_map(tensor, shape)
+    count = int(math.sqrt(height * width) * 500)
+    # count = height * width
+    iterations = 100
 
-    values = tf.reshape(values, shape)
+    x = tf.random_uniform([count]) * (width - 1)
+    y = tf.random_uniform([count]) * (height - 1)
 
-    scale = .75
-    small = [int(height * scale), int(width * scale), 1]
+    x_dir = tf.random_normal([count])
+    y_dir = tf.random_normal([count])
 
-    values = resample(values, small)
-    values = tf.squeeze(values)
+    length = tf.sqrt(x_dir * x_dir + y_dir * y_dir)
+    x_dir /= length
+    y_dir /= length
 
-    x_index = row_index(small)
-    y_index = column_index(small)
+    inertia = tf.random_normal([count], mean=0.5, stddev=0.5)
 
-    x1_index = (x_index + 1) % width
-    y1_index = (y_index + 1) % height
+    sediment = tf.zeros([count])
+    water = tf.ones([count])
 
-    a = values  # -45 degrees
-    b = tf.gather_nd(values, tf.stack([y_index, x1_index], 2))  # 45
-    c = tf.gather_nd(values, tf.stack([y1_index, x1_index], 2))  # 135
-    d = tf.gather_nd(values, tf.stack([y1_index, x_index], 2))  # -135
+    # out = tensor
+    out = tf.zeros(shape)
 
-    top, indices = tf.nn.top_k(tf.stack([a, b, c, d], 2), k=4)
+    colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
+    # colors = tf.ones([count, channels])
 
-    lowest = tf.cast(indices[:,:,-1], tf.float32) / 4.0
-    next_lowest = tf.cast(indices[:,:,-2], tf.float32) / 4.0
+    # values = value_map(convolve(ConvKernel.blur, tensor, shape), shape, keep_dims=True)
+    values = value_map(tensor, shape, keep_dims=True)
 
-    scaled = values * 4.0
-    # scaled = (top[:,:,-2] - top[:,:,-1]) * 4.0
-    ceil = tf.floor(scaled)
-    fract = scaled - ceil
+    for i in range(iterations):
+        x_index = tf.cast(x, tf.int32)
+        y_index = tf.cast(y, tf.int32)
+        index = tf.stack([y_index, x_index], 1)
 
-    blended = 1.0 - blend(lowest, next_lowest, fract)
-    blended = tf.reshape(blended, small)
-    blended = resample(blended, shape)
+        # current_colors = tf.gather_nd(tensor, index)
+        # out -= tf.scatter_nd(index, current_colors, shape)
+        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
+        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
+        out += tf.scatter_nd(index, colors, shape)
 
-    paths = worms(blended, shape, density=250.0, duration=2.0, bg=0.0, behavior=WormBehavior.obedient,
-                  colors=tensor, stride=.5, stride_deviation=.25)
+        # updates = tf.scatter_nd(index, blend(colors, current_colors, i/iterations), [count, channels])
+        # updates = tf.maximum(updates, tf.maximum(colors, current_colors))
+        # out += tf.scatter_nd(index, updates, shape)
 
-    out = tf.minimum(tf.maximum(tensor * (1.0 - paths), 0.0), 1.0)
+        # out = tf.minimum(tf.maximum(out, 1.0), 0.0)
 
-    return blend(out, tensor, tf.abs(tensor * 2.0 - 1.0))
+        sparse_values = tf.squeeze(tf.gather_nd(values, index))
+
+        x1_index = (x_index + 1) % width
+        y1_index = (y_index + 1) % height
+        x1_values = tf.squeeze(tf.gather_nd(values, tf.stack([y_index, x1_index], 1)))
+        y1_values = tf.squeeze(tf.gather_nd(values, tf.stack([y1_index, x_index], 1)))
+        x1_y1_values = tf.squeeze(tf.gather_nd(values, tf.stack([y1_index, x1_index], 1)))
+
+        u = x - tf.floor(x)
+        v = y - tf.floor(y)
+
+        g_x = blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
+        g_y = blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
+
+        length = distance(g_x, g_y, 1)
+
+        x_dir = blend(x_dir, g_x / length, inertia)
+        y_dir = blend(y_dir, g_y / length, inertia)
+
+        # old_x1 = blend(sparse_values, x1_values, u)
+        # old_x2 = blend(y1_values, x1_y1_values, u)
+        # old = blend(old_x1, old_x2, v)
+
+        # step
+        x = (x + x_dir) % width
+        y = (y + y_dir) % height
+
+        # u = x - tf.floor(x)
+        # v = y - tf.floor(y)
+        # current_x1 = blend(sparse_values, x1_values, u)
+        # current_x2 = blend(y1_values, x1_y1_values, u)
+        # current = blend(current_x1, current_x2, v)
+        # delta = tf.reshape(old - current, [count, 1])
+
+        # out -= tf.scatter_nd(index, delta, shape)
+        # out += tf.scatter_nd(index, tf.reshape((old - current), [count, 1]), shape)
+        # out += tf.scatter_nd(index, colors, shape) * (i/iterations)
+        # out = tf.minimum(out, tf.scatter_nd(index, colors, shape) * (i/iterations))
+
+        # new_x = x + new_x_dir
+        # new_y = y + new_y_dir
+
+    out = tf.sqrt(tf.sqrt(normalize(out)))
+
+    blurred = convolve(ConvKernel.blur, out, shape)
+    out = normalize(out + blurred * .5)
+
+    return blend_cosine(tensor - out, tensor, tensor)
+
+    return out
+
+    return distance(tensor - out, tensor, 1)
+    return distance(out, tensor, 0)
+    return out
 
 
 def reindex(tensor, shape, displacement=.5):
