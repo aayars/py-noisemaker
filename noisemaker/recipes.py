@@ -134,16 +134,16 @@ def crt(tensor, shape):
     distortion_amount = .25
 
     white_noise = basic(int(height * .75), value_shape, spline_order=0) - .5
-    white_noise = effects.center_mask(white_noise, effects.refract(white_noise, shape, distortion_amount, reference=distortion), shape)
+    white_noise = effects.center_mask(white_noise, effects.refract(white_noise, shape, distortion_amount, reference_x=distortion), shape)
 
     white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
-    white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, shape, distortion_amount, reference=distortion), shape)
+    white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, shape, distortion_amount, reference_x=distortion), shape)
 
     tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .25)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, shape)
-    scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, shape, distortion_amount, reference=distortion), shape)
+    scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, shape, distortion_amount, reference_x=distortion), shape)
     tensor = effects.blend_cosine(tensor, scan_noise, 0.25)
 
     if channels <= 2:

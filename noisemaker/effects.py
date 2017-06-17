@@ -510,7 +510,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference=None):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -522,25 +522,32 @@ def refract(tensor, shape, displacement=.5, reference=None):
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
     :param float displacement:
-    :param Tensor reference: An optional displacement map.
+    :param Tensor reference_x: An optional horizontal displacement map.
+    :param Tensor reference_y: An optional vertical displacement map.
     :return: Tensor
     """
 
     height, width, channels = shape
 
-    if reference is None:
-        reference = tensor
+    if reference_x is None:
+        reference_x = tensor
 
-    reference_x = (value_map(reference, shape) - .5) * displacement
+    reference_x = value_map(reference_x, shape)
 
     x0_index = row_index(shape)
 
     # Create the Y channel with an offset, to mitigate diagonal banding.
-    y0_index = (column_index(shape) + int(height * .5)) % height
-    reference_y = tf.gather_nd(reference_x, tf.stack([x0_index, y0_index], 2))
 
-    reference_x = (reference_x * width) % width
-    reference_y = (reference_y * height) % height
+    if reference_y is None:
+        y0_index = (column_index(shape) + int(height * .5)) % height
+        reference_y = tf.gather_nd(reference_x, tf.stack([x0_index, y0_index], 2))
+
+    else:
+        y0_index = column_index(shape)
+        reference_y = value_map(reference_y, shape)
+
+    reference_x = (reference_x * displacement * width) % width
+    reference_y = (reference_y * displacement * height) % height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width

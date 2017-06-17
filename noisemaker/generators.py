@@ -81,7 +81,8 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
     if lattice_drift:
         tensor = effects.refract(tensor, shape, displacement=lattice_drift / min(freq[0], freq[1]),
-                                 reference=effects.resample(tf.random_uniform(initial_shape), shape))
+                                 reference_x=effects.resample(tf.random_uniform(initial_shape), shape),
+                                 reference_y=effects.resample(tf.random_uniform(initial_shape), shape))
 
     tensor = effects.post_process(tensor, shape, **post_process_args)
 
