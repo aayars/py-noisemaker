@@ -533,13 +533,33 @@ def refract(tensor, shape, displacement=.5, reference=None):
 
     reference_x = value_map(reference, shape) * displacement
 
-    x_index = row_index(shape)
-    y_index = column_index(shape)
+    x0_index = row_index(shape)
 
-    # Create an offset Y channel, to get rid of diagonal banding.
-    reference_y = tf.gather_nd(reference_x, offset_index(y_index, height, x_index, width))
+    # Create the Y channel with an offset, to mitigate diagonal banding.
+    y0_index = (column_index(shape) + int(height * .5)) % height
+    reference_y = tf.gather_nd(reference_x, tf.stack([x0_index, y0_index], 2))
 
-    return tf.gather_nd(tensor, offset_index(y_index + tf.cast(reference_y * height, tf.int32), height, x_index + tf.cast(reference_x * width, tf.int32), width))
+    reference_x *= width
+    reference_y *= height
+
+    # Bilinear interpolation of corners
+    x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
+    x1_offsets = (x0_offsets + 1) % width
+    y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
+    y1_offsets = (y0_offsets + 1) % height
+
+    x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
+    x1_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x1_offsets], 2))
+    x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
+    x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
+
+    x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
+    y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
+
+    x_y0 = blend_cosine(x0_y0, x1_y0, x_fract)
+    x_y1 = blend_cosine(x0_y1, x1_y1, x_fract)
+
+    return blend_cosine(x_y0, x_y1, y_fract)
 
 
 def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
