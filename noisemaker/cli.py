@@ -433,7 +433,7 @@ def main(ctx, **kwargs):
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_Func, normals, deriv, deriv_func, interp, distrib, posterize,
+          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
           glitch, vhs, crt, scan_error, snow, dither, name):
 
     with tf.Session().as_default():

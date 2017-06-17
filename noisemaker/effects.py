@@ -502,9 +502,10 @@ def reindex(tensor, shape, displacement=.5):
     reference = value_map(tensor, shape)
 
     mod = min(height, width)
-    offset = tf.cast((reference * displacement * mod + reference) % mod, tf.int32)
+    x_offset = tf.cast((reference * displacement * mod + reference) % width, tf.int32)
+    y_offset = tf.cast((reference * displacement * mod + reference) % height, tf.int32)
 
-    tensor = tf.gather_nd(tensor, tf.stack([offset, offset], 2))
+    tensor = tf.gather_nd(tensor, tf.stack([y_offset, x_offset], 2))
 
     return tensor
 
