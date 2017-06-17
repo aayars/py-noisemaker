@@ -73,6 +73,14 @@ def wavelet_option(**attrs):
     return option("--wavelet", **attrs)
 
 
+def lattice_drift_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Deform underlying lattice")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--lattice-drift", **attrs)
+
+
 def refract_option(**attrs):
     attrs.setdefault("help", "Domain warping: Self-displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
@@ -396,6 +404,7 @@ def main(ctx, **kwargs):
 @ridges_option()
 @interp_option()
 @distrib_option()
+@lattice_drift_option()
 @refract_option()
 @reindex_option()
 @clut_option()
@@ -431,7 +440,7 @@ def main(ctx, **kwargs):
 @wavelet_option()
 @name_option()
 @click.pass_context
-def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex, clut, clut_horizontal, clut_range,
+def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
           voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
           glitch, vhs, crt, scan_error, snow, dither, name):
@@ -439,7 +448,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet,
+        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
                                   refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
@@ -467,6 +476,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @click.option("--layer-reindex", type=float, default=0.0, help="Per-octave self-reindexing gradient")
 @interp_option()
 @distrib_option()
+@lattice_drift_option()
 @refract_option()
 @reindex_option()
 @clut_option()
@@ -502,7 +512,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, refract, reindex,
 @wavelet_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refract, layer_refract, reindex, layer_reindex,
+def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, refract, layer_refract, reindex, layer_reindex,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name):
@@ -510,7 +520,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, refra
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet,
+        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
                                      refract_range=refract, layer_refract_range=layer_refract,
                                      reindex_range=reindex, layer_reindex_range=layer_reindex,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,

@@ -531,7 +531,7 @@ def refract(tensor, shape, displacement=.5, reference=None):
     if reference is None:
         reference = tensor
 
-    reference_x = value_map(reference, shape) * displacement
+    reference_x = (value_map(reference, shape) - .5) * displacement
 
     x0_index = row_index(shape)
 
@@ -539,8 +539,8 @@ def refract(tensor, shape, displacement=.5, reference=None):
     y0_index = (column_index(shape) + int(height * .5)) % height
     reference_y = tf.gather_nd(reference_x, tf.stack([x0_index, y0_index], 2))
 
-    reference_x *= width
-    reference_y *= height
+    reference_x = (reference_x * width) % width
+    reference_y = (reference_y * height) % height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
@@ -556,10 +556,10 @@ def refract(tensor, shape, displacement=.5, reference=None):
     x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
     y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
 
-    x_y0 = blend_cosine(x0_y0, x1_y0, x_fract)
-    x_y1 = blend_cosine(x0_y1, x1_y1, x_fract)
+    x_y0 = blend(x0_y0, x1_y0, x_fract)
+    x_y1 = blend(x0_y1, x1_y1, x_fract)
 
-    return blend_cosine(x_y0, x_y1, y_fract)
+    return blend(x_y0, x_y1, y_fract)
 
 
 def color_map(tensor, clut, shape, horizontal=False, displacement=.5):

@@ -29,7 +29,7 @@ class Distribution(Enum):
 
 
 def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
-          distrib=Distribution.normal, **post_process_args):
+          distrib=Distribution.normal, lattice_drift=0.0, **post_process_args):
     """
     Generate a single layer of scaled noise.
 
@@ -44,6 +44,7 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
+    :param float lattice_drift: Push away from underlying lattice.
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
     :return: Tensor
 
@@ -78,6 +79,11 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
     tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
+    if lattice_drift:
+        tensor = effects.refract(tensor, shape, displacement=lattice_drift / freq[0],
+                                 reference=effects.resample(tf.random_uniform(initial_shape), shape)
+                                 )
+
     tensor = effects.post_process(tensor, shape, **post_process_args)
 
     tensor = effects.normalize(tensor)
@@ -89,8 +95,8 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
 
 def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3, seed=None,
-             layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal, deriv=False,
-             **post_process_args):
+             layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal,
+             deriv=False, deriv_func=0, lattice_drift=0.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -110,6 +116,8 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
     :param float layer_reindex_range: Per-octave self-reindexing gradient.
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param bool deriv: Derivative noise.
+    :param DistanceFunction|int deriv_func: Derivative distance function
+    :param float lattice_drift: Push away from underlying lattice.
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -130,7 +138,7 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
 
         layer = basic(base_freq, shape, ridges=ridges, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       refract_range=layer_refract_range / multiplier, reindex_range=layer_reindex_range / multiplier,
-                      distrib=distrib, deriv=deriv)
+                      distrib=distrib, deriv=deriv, deriv_func=deriv_func, lattice_drift=lattice_drift)
 
         tensor += layer / multiplier
 
