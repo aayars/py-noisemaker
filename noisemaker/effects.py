@@ -135,14 +135,13 @@ class ConvKernel(Enum):
     rand = np.random.normal(.5, .5, (5, 5)).tolist()
 
     shadow = [
-        # yeah, one of the really big fuckers
-        # [  0,   1,   1,   1,   1,   1,   1  ],
-        # [ -1,   0,   2,   2,   1,   1,   1  ],
-        # [ -1,  -2,   0,   4,   2,   1,   1  ],
-        # [ -1,  -2,  -4,   12,   4,   2,   1  ],
-        # [ -1,  -1,  -2,  -4,   0,   2,   1  ],
-        # [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
-        # [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
+        [  0,   1,   1,   1,   1,   1,   1  ],
+        [ -1,   0,   2,   2,   1,   1,   1  ],
+        [ -1,  -2,   0,   2,   2,   1,   1  ],
+        [ -1,  -2,  -4,   12,   2,   2,   1  ],
+        [ -1,  -1,  -2,  -4,   0,   2,   1  ],
+        [ -1,  -1,  -1,  -2,  -2,   0,   1  ],
+        [ -1,  -1,  -1,  -1,  -1,  -1,   0  ]
 
         # [  0,  1,  1,  1, 0 ],
         # [ -1, -2,  4,  2, 1 ],
@@ -150,11 +149,11 @@ class ConvKernel(Enum):
         # [ -1, -2, -4,  2, 1 ],
         # [  0, -1, -1, -1, 0 ]
 
-        [  0,  1,  1,  1, 0 ],
-        [ -1, -2,  4,  2, 1 ],
-        [ -1, -4,  2,  4, 1 ],
-        [ -1, -2, -4,  2, 1 ],
-        [  0, -1, -1, -1, 0 ]
+        # [  0,  1,  1,  1, 0 ],
+        # [ -1, -2,  4,  2, 1 ],
+        # [ -1, -4,  2,  4, 1 ],
+        # [ -1, -2, -4,  2, 1 ],
+        # [  0, -1, -1, -1, 0 ]
     ]
 
     edges = [
@@ -414,11 +413,10 @@ def erode(tensor, shape):
         y_index = tf.cast(y, tf.int32)
         index = tf.stack([y_index, x_index], 1)
 
-        # current_colors = tf.gather_nd(tensor, index)
-        # out -= tf.scatter_nd(index, current_colors, shape)
-        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
-        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
+        current_colors = tf.gather_nd(out, index)
         out += tf.scatter_nd(index, colors, shape)
+        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
+        # out += tf.scatter_nd(index, colors, shape)
 
         # updates = tf.scatter_nd(index, blend(colors, current_colors, i/iterations), [count, channels])
         # updates = tf.maximum(updates, tf.maximum(colors, current_colors))

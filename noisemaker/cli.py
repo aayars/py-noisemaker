@@ -74,7 +74,7 @@ def wavelet_option(**attrs):
 
 
 def lattice_drift_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Deform underlying lattice")
+    attrs.setdefault("help", "Domain warping: Lattice deform range (1.0 = nearest neighbor)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
