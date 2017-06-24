@@ -17,16 +17,16 @@ See the help screens for usage.
 
 .. program-output:: noisemaker --help
 
-Gaussian Noise
-^^^^^^^^^^^^^^
+Basic Noise
+^^^^^^^^^^^
 
 .. image:: images/gaussian.jpg
    :width: 1024
    :height: 256
 
-.. program-output:: noisemaker gaussian --help
+.. program-output:: noisemaker basic --help
 
-See Also: :py:func:`noisemaker.generators.gaussian`
+See Also: :py:func:`noisemaker.generators.basic`
 
 Multi-Res Noise
 ^^^^^^^^^^^^^^^
