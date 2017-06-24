@@ -10,7 +10,7 @@ Noisemaker
    :height: 256
    :alt: Noisemaker example output (CC0)
 
-**Noisemaker** is a visual noise generator for `Python 3`_.
+**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3` and `TensorFlow`.
 
 Installation
 ------------
@@ -41,7 +41,7 @@ Install `Noisemaker`_ in a new virtualenv:
 Usage
 -----
 
-See documentation for :doc:`api` or :doc:`cli`: ``noisemaker --help``
+See documentation for :doc:`api`, or run ``noisemaker --help``
 
 See also
 --------
