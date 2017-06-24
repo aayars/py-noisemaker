@@ -34,3 +34,11 @@ noisemaker.effects
     :members:
     :undoc-members:
     :show-inheritance:
+
+noisemaker.recipes
+------------------
+
+.. automodule:: noisemaker.recipes
+    :members:
+    :undoc-members:
+    :show-inheritance:

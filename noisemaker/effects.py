@@ -277,6 +277,12 @@ def normalize(tensor):
 
 def resample(tensor, shape, spline_order=3):
     """
+    Resize an image tensor to the specified shape.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :return: Tensor
     """
 
     input_shape = tf.shape(tensor)
@@ -372,8 +378,9 @@ def crease(tensor):
     return 1 - tf.abs(tensor * 2 - 1)
 
 
-def erode(tensor, shape):
+def _erode(tensor, shape):
     """
+    WIP hydraulic erosion effect.
     """
 
     # https://www.dropbox.com/s/kqv8b3w7o8ucbyi/Beyer%20-%20implementation%20of%20a%20methode%20for%20hydraulic%20erosion.pdf?dl=0
@@ -692,6 +699,13 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
 
 def wormhole(tensor, shape, kink, input_stride):
     """
+    Apply per-pixel field flow. Non-iterative.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float kink: Path twistiness
+    :param float input_stride: Maximum pixel offset
+    :return: Tensor
     """
 
     height, width, channels = shape
@@ -798,6 +812,11 @@ def normal_map(tensor, shape):
 
 def value_map(tensor, shape, keep_dims=False):
     """
+    Create a grayscale value map from the given image Tensor by reducing the sum across channels.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param bool keep_dims: If True, don't collapse the channel dimension.
     """
 
     channels = shape[-1]
@@ -826,11 +845,11 @@ def jpeg_decimate(tensor):
 
 def blend(a, b, g):
     """
-    Blend a and b values, using g as a multiplier.
+    Blend a and b values with linear interpolation.
 
     :param Tensor a:
     :param Tensor b:
-    :param Tensor g:
+    :param Tensor g: Blending gradient a to b (0..1)
     :return Tensor:
     """
 
@@ -839,6 +858,12 @@ def blend(a, b, g):
 
 def blend_cosine(a, b, g):
     """
+    Blend a and b values with cosine interpolation.
+
+    :param Tensor a:
+    :param Tensor b:
+    :param Tensor g: Blending gradient a to b (0..1)
+    :return Tensor:
     """
 
     # This guy is great http://paulbourke.net/miscellaneous/interpolation/
@@ -849,6 +874,14 @@ def blend_cosine(a, b, g):
 
 def blend_cubic(a, b, c, d, g):
     """
+    Blend b and c values with bi-cubic interpolation.
+
+    :param Tensor a:
+    :param Tensor b:
+    :param Tensor c:
+    :param Tensor d:
+    :param Tensor g: Blending gradient b to c (0..1)
+    :return Tensor:
     """
 
     # This guy is great http://paulbourke.net/miscellaneous/interpolation/
@@ -887,8 +920,16 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, density, nth=0, dist_func=0):
+def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
     """
+    Create a voronoi diagram, blending with input image Tensor color values.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
+    :param float nth: Plot Nth nearest neighbor, or -Nth farthest
+    :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)
+    :return: Tensor
     """
 
     original_shape = shape
@@ -945,6 +986,15 @@ def voronoi(tensor, shape, density, nth=0, dist_func=0):
 
 
 def distance(a, b, func):
+    """
+    Compute the distance from a to b using the specified function.
+
+    :param Tensor a:
+    :param Tensor b:
+    :param DistanceFunction|int dist_func: Distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)
+    :return: Tensor
+    """
+
     if isinstance(func, DistanceFunction):
        func = func.value
 
@@ -965,6 +1015,11 @@ def distance(a, b, func):
 
 def posterize(tensor, levels):
     """
+    Reduce the number of color levels per channel.
+
+    :param Tensor tensor:
+    :param int levels:
+    :return: Tensor
     """
 
     tensor *= levels
@@ -976,8 +1031,9 @@ def posterize(tensor, levels):
     return tensor
 
 
-def inner_tile(tensor, shape, freq):
+def _inner_tile(tensor, shape, freq):
     """
+    WIP for pop art filter.
     """
 
     if isinstance(freq, int):
