@@ -42,3 +42,11 @@ noisemaker.recipes
     :members:
     :undoc-members:
     :show-inheritance:
+
+noisemaker.util
+------------------
+
+.. automodule:: noisemaker.util
+    :members:
+    :undoc-members:
+    :show-inheritance:

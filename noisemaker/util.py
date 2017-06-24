@@ -1,20 +1,14 @@
 import tensorflow as tf
 
-# import noisemaker.effects as effects
-
 
 def save(tensor, name="noise.png"):
     """
-    Save as PNG. Prints a message to stdout.
-
-    TODO: Support other image formats.
+    Save an image Tensor to a file.
 
     :param Tensor tensor: Image tensor
     :param str name: Filename, ending with .png or .jpg
     :return: None
     """
-
-    # tensor = effects.normalize(tensor)
 
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
 
