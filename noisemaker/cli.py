@@ -225,7 +225,7 @@ def voronoi_density_option(**attrs):
 
 
 def voronoi_func_option(**attrs):
-    attrs.setdefault("help", "Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
+    attrs.setdefault("help", "Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
@@ -249,7 +249,7 @@ def sobel_option(**attrs):
 
 
 def sobel_func_option(**attrs):
-    attrs.setdefault("help", "Sobel distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
+    attrs.setdefault("help", "Sobel distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
@@ -273,7 +273,7 @@ def deriv_option(**attrs):
 
 
 def deriv_func_option(**attrs):
-    attrs.setdefault("help", "Derivative distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)")
+    attrs.setdefault("help", "Derivative distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 

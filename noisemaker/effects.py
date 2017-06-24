@@ -94,7 +94,7 @@ class DistanceFunction(Enum):
 
     manhattan = 1
 
-    chebychev = 2
+    chebyshev = 2
 
 
 class WormBehavior(Enum):
@@ -928,7 +928,7 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
     :param list[int] shape:
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
-    :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)
+    :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
     :return: Tensor
     """
 
@@ -991,7 +991,7 @@ def distance(a, b, func):
 
     :param Tensor a:
     :param Tensor b:
-    :param DistanceFunction|int dist_func: Distance function (0=Euclidean, 1=Manhattan, 2=Chebychev)
+    :param DistanceFunction|int dist_func: Distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
     :return: Tensor
     """
 
@@ -1004,7 +1004,7 @@ def distance(a, b, func):
     elif func == DistanceFunction.manhattan.value:
         dist = tf.abs(a) + tf.abs(b)
 
-    elif func == DistanceFunction.chebychev.value:
+    elif func == DistanceFunction.chebyshev.value:
         dist = tf.maximum(tf.abs(a), tf.abs(b))
 
     else:
