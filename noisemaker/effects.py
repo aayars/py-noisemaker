@@ -1141,7 +1141,7 @@ def freq_for_shape(freq, shape):
         return [freq, freq]
 
     elif height < width:
-        return [freq, freq * width / height]
+        return [freq, int(freq * width / height)]
 
     else:
-        return [freq * height / width, freq]
+        return [int(freq * height / width), freq]
