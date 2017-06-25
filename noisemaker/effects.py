@@ -1134,4 +1134,14 @@ def freq_for_shape(freq, shape):
     :param list[int] shape: List of spatial dimensions, e.g. [height, width]
     """
 
-    return [int(freq * shape[i] / shape[0]) for i in range(len(shape) - 1)]
+    height = shape[0]
+    width = shape[1]
+
+    if height == width:
+        return [freq, freq]
+
+    elif height < width:
+        return [freq, freq * width / height]
+
+    else:
+        return [freq * height / width, freq]
