@@ -544,15 +544,15 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
     # Create the Y channel with an offset, to mitigate diagonal banding.
 
     if reference_y is None:
-        y0_index = (column_index(shape) + int(height * .5)) % height
-        reference_y = tf.gather_nd(reference_x, tf.stack([x0_index, y0_index], 2))
+        y0_index = column_index(shape) + int(height * .5)
+        reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index], 2))
 
     else:
         y0_index = column_index(shape)
         reference_y = value_map(reference_y, shape)
 
-    reference_x = (reference_x * displacement * width) % width
-    reference_y = (reference_y * displacement * height) % height
+    reference_x = reference_x * displacement * width
+    reference_y = reference_y * displacement * height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
