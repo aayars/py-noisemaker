@@ -24,7 +24,7 @@ def option(*param_decls, **attrs):
 
 
 def freq_option(**attrs):
-    attrs.setdefault("help", "Heightwise noise frequency")
+    attrs.setdefault("help", "Minimum noise frequency")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 3)
 

@@ -779,7 +779,7 @@ def sobel(tensor, shape, dist_func=0):
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int dist_func: Derivative distance function
+    :param DistanceFunction|int dist_func: Sobel distance function
     :return: Tensor
     """
 
