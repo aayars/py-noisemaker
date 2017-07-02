@@ -668,7 +668,7 @@ def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stri
         worms_rot = tf.random_normal([count]) * 360.0
 
     else:
-        worms_rot = tf.random_normal([count]) * 2.0 - 1.0
+        worms_rot = tf.random_normal([count]) * .25 - .125
 
     index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
 
