@@ -554,8 +554,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
         y0_index = column_index(shape)
         reference_y = value_map(reference_y, shape)
 
-    reference_x = (reference_x - .5) * displacement * width
-    reference_y = (reference_y - .5) * displacement * height
+    reference_x = reference_x * displacement * width
+    reference_y = reference_y * displacement * height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
