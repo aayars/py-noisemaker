@@ -272,7 +272,10 @@ def normalize(tensor):
     :return: Tensor
     """
 
-    return (tensor - tf.reduce_min(tensor)) / (tf.reduce_max(tensor) - tf.reduce_min(tensor))
+    floor = tf.reduce_min(tensor)
+    ceil = tf.reduce_max(tensor)
+
+    return (tensor - floor) / (ceil - floor)
 
 
 def resample(tensor, shape, spline_order=3):
@@ -551,8 +554,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
         y0_index = column_index(shape)
         reference_y = value_map(reference_y, shape)
 
-    reference_x = reference_x * displacement * width
-    reference_y = reference_y * displacement * height
+    reference_x = (reference_x - .5) * displacement * width
+    reference_y = (reference_y - .5) * displacement * height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
@@ -942,6 +945,7 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
 
     x = tf.random_uniform([point_count]) * (width - 1)
     y = tf.random_uniform([point_count]) * (height - 1)
+
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
     # colors = tf.reshape(colors, [1, 1, shape[2], point_count])
 
