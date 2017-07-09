@@ -82,17 +82,9 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
 
-        reference_x = effects.resample(tf.random_normal(initial_shape), shape, spline_order=spline_order)
-        # reference_x = effects.refract(reference_x, shape, displacement=displacement)
+        tensor = effects.refract(tensor, shape, displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-        # reference_y = effects.resample(tf.random_normal(initial_shape), shape, spline_order=spline_order)
-        # reference_y = effects.refract(reference_y, shape, displacement=displacement)
-
-        tensor = effects.refract(tensor, shape, displacement=displacement,
-                                 # reference_x=reference_x, reference_y=reference_y)
-                                 reference_x=reference_x)
-
-    tensor = effects.post_process(tensor, shape, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
 
     tensor = effects.normalize(tensor)
 
@@ -103,7 +95,7 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
 
 def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3, seed=None,
-             layer_refract_range=0.0, layer_reindex_range=0.0, distrib=Distribution.normal,
+             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=Distribution.normal,
              deriv=False, deriv_func=0, lattice_drift=0.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
@@ -120,8 +112,9 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
-    :param float layer_refract_range: Per-octave self-distort gradient.
-    :param float layer_reindex_range: Per-octave self-reindexing gradient.
+    :param float reflect_range: Derivative-based distort gradient.
+    :param float refract_range: Per-octave self-distort gradient.
+    :param float reindex_range: Per-octave self-reindexing gradient.
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param bool deriv: Derivative noise.
     :param DistanceFunction|int deriv_func: Derivative distance function
@@ -145,11 +138,13 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
             break
 
         layer = basic(base_freq, shape, ridges=ridges, wavelet=wavelet, spline_order=spline_order, seed=seed,
-                      refract_range=layer_refract_range / multiplier, reindex_range=layer_reindex_range / multiplier,
+                      reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       distrib=distrib, deriv=deriv, deriv_func=deriv_func, lattice_drift=lattice_drift)
 
         tensor += layer / multiplier
 
     tensor = effects.normalize(tensor)
 
-    return effects.post_process(tensor, shape, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
+
+    return tensor

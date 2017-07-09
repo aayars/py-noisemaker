@@ -81,6 +81,22 @@ def lattice_drift_option(**attrs):
     return option("--lattice-drift", **attrs)
 
 
+def warp_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Orthogonal displacement range (1.0 = entire image)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--warp", **attrs)
+
+
+def reflect_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Derivative-based displacement range (1.0 = entire image)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--reflect", **attrs)
+
+
 def refract_option(**attrs):
     attrs.setdefault("help", "Domain warping: Self-displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
@@ -305,7 +321,7 @@ def posterize_option(**attrs):
 
 
 def glitch_option(**attrs):
-    attrs.setdefault("help", "Glitch effect")
+    attrs.setdefault("help", "Glitch effect: Bit-shit")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -313,7 +329,7 @@ def glitch_option(**attrs):
 
 
 def vhs_option(**attrs):
-    attrs.setdefault("help", "VHS tracking effect")
+    attrs.setdefault("help", "Glitch effect: VHS tracking")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -321,7 +337,7 @@ def vhs_option(**attrs):
 
 
 def crt_option(**attrs):
-    attrs.setdefault("help", "CRT scanline effect")
+    attrs.setdefault("help", "Glitch effect: CRT scanline")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -329,7 +345,7 @@ def crt_option(**attrs):
 
 
 def scan_error_option(**attrs):
-    attrs.setdefault("help", "Analog scanline error effect")
+    attrs.setdefault("help", "Glitch effect: Analog scanline error")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -337,7 +353,7 @@ def scan_error_option(**attrs):
 
 
 def snow_option(**attrs):
-    attrs.setdefault("help", "Analog broadcast snow (0.0=off, 1.0=saturated)")
+    attrs.setdefault("help", "Glitch effect: Analog broadcast snow (0.0=off, 1.0=saturated)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -345,11 +361,59 @@ def snow_option(**attrs):
 
 
 def dither_option(**attrs):
-    attrs.setdefault("help", "Per-pixel brightness jitter")
+    attrs.setdefault("help", "Glitch effect: Per-pixel brightness jitter")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
     return option("--dither", **attrs)
+
+
+def emboss_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Emboss")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--emboss", **attrs)
+
+
+def shadow_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Shadow")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--shadow", **attrs)
+
+
+def edges_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Edges")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--edges", **attrs)
+
+
+def sharpen_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Sharpen")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--sharpen", **attrs)
+
+
+def unsharp_mask_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Unsharp mask")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--unsharp-mask", **attrs)
+
+
+def invert_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Invert")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--invert", **attrs)
 
 
 def name_option(**attrs):
@@ -358,22 +422,6 @@ def name_option(**attrs):
     attrs.setdefault("default", "noise.png")
 
     return option("--name", **attrs)
-
-
-def _apply_conv_kernels(tensor, shape, args):
-    """
-    Apply convolution kernels from given CLI options.
-
-    :param Tensor tensor:
-    :param dict args:
-    :return: Tensor
-    """
-
-    for kernel in effects.ConvKernel:
-        if args.get(kernel.name):
-            tensor =  effects.convolve(kernel, tensor, shape)
-
-    return tensor
 
 
 @click.group(help="""
@@ -385,12 +433,6 @@ def _apply_conv_kernels(tensor, shape, args):
 
         --help is available for each command.
         """, context_settings=CLICK_CONTEXT_SETTINGS)
-@click.option("--emboss", is_flag=True, default=False, help="Emboss")
-@click.option("--shadow", is_flag=True, default=False, help="Shadow")
-@click.option("--edges", is_flag=True, default=False, help="Edges")
-@click.option("--sharpen", is_flag=True, default=False, help="Sharpen")
-@click.option("--unsharp-mask", is_flag=True, default=False, help="Unsharp Mask")
-@click.option("--invert", is_flag=True, default=False, help="Invert")
 @click.pass_context
 def main(ctx, **kwargs):
     ctx.obj = kwargs
@@ -405,6 +447,8 @@ def main(ctx, **kwargs):
 @interp_option()
 @distrib_option()
 @lattice_drift_option()
+@warp_option()
+@reflect_option()
 @refract_option()
 @reindex_option()
 @clut_option()
@@ -438,27 +482,32 @@ def main(ctx, **kwargs):
 @snow_option()
 @dither_option()
 @wavelet_option()
+@emboss_option()
+@shadow_option()
+@edges_option()
+@sharpen_option()
+@unsharp_mask_option()
+@invert_option()
 @name_option()
 @click.pass_context
-def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, refract, reindex, clut, clut_horizontal, clut_range,
+def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
           voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
-          glitch, vhs, crt, scan_error, snow, dither, name):
+          glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
-                                  refract_range=refract, reindex_range=reindex, clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
+        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift, warp_range=warp,
+                                  reflect_range=reflect, refract_range=refract, reindex_range=reindex,
+                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                   with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
-                                  posterize_levels=posterize
+                                  posterize_levels=posterize, **convolve_kwargs
                                   )
-
-        tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
         tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
@@ -472,11 +521,11 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, re
 @channels_option()
 @ridges_option()
 @click.option("--octaves", type=int, default=3, help="Octave count: Number of multi-res layers")
-@click.option("--layer-refract", type=float, default=0.0, help="Per-octave self-distortion gradient")
-@click.option("--layer-reindex", type=float, default=0.0, help="Per-octave self-reindexing gradient")
 @interp_option()
 @distrib_option()
 @lattice_drift_option()
+@warp_option()
+@reflect_option()
 @refract_option()
 @reindex_option()
 @clut_option()
@@ -510,29 +559,32 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, re
 @snow_option()
 @dither_option()
 @wavelet_option()
+@emboss_option()
+@shadow_option()
+@edges_option()
+@sharpen_option()
+@unsharp_mask_option()
+@invert_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, refract, layer_refract, reindex, layer_reindex,
+def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
-             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name):
+             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
-                                     refract_range=refract, layer_refract_range=layer_refract,
-                                     reindex_range=reindex, layer_reindex_range=layer_reindex,
+        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift, warp_range=warp,
+                                     reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp,
-                                     distrib=distrib, posterize_levels=posterize,
+                                     distrib=distrib, posterize_levels=posterize, **convolve_kwargs
                                      )
-
-        tensor = _apply_conv_kernels(tensor, shape, ctx.obj)
 
         tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 

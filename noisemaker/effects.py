@@ -8,16 +8,21 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None, clut_horizontal=False, clut_range=0.5,
+def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+                 clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0):
+                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0, **convolve_kwargs):
     """
     Apply post-processing effects.
 
     :param Tensor tensor:
     :param list[int] shape:
+    :param list[int] freq:
+    :param float warp_range: Orthogonal distortion gradient.
+    :param int spline_order: Ortho spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :param float reflect_range: Derivative distortion gradient.
     :param float refract_range: Self-distortion gradient.
     :param float reindex_range: Self-reindexing gradient.
     :param str clut: PNG or JPG color lookup table filename.
@@ -54,8 +59,14 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
 
+    if reflect_range != 0:
+        tensor = refract(tensor, shape, displacement=reflect_range, from_derivative=True)
+
     if reindex_range != 0:
         tensor = reindex(tensor, shape, displacement=reindex_range)
+
+    if warp_range != 0:
+        tensor = refract(tensor, shape, displacement=warp_range, warp_freq=freq, spline_order=spline_order)
 
     if clut:
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
@@ -81,6 +92,10 @@ def post_process(tensor, shape, refract_range=0.0, reindex_range=0.0, clut=None,
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
+
+    for kernel in ConvKernel:
+        if convolve_kwargs.get(kernel.name):
+            tensor =  convolve(kernel, tensor, shape)
 
     return tensor
 
@@ -518,7 +533,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=1, from_derivative=False):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -532,27 +547,45 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None):
     :param float displacement:
     :param Tensor reference_x: An optional horizontal displacement map.
     :param Tensor reference_y: An optional vertical displacement map.
+    :param list[int] warp_freq: If given, generate new reference_x and reference_y noise with this base frequency.
+    :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
     :return: Tensor
     """
 
     height, width, channels = shape
 
-    if reference_x is None:
-        reference_x = tensor
-
-    reference_x = value_map(reference_x, shape)
-
     x0_index = row_index(shape)
+    y0_index = column_index(shape)
 
-    # Create the Y channel with an offset, to mitigate diagonal banding.
+    warp_shape = None
+
+    if warp_freq:
+        warp_shape = [warp_freq[0], warp_freq[1], channels]
+
+    if reference_x is None:
+        if from_derivative:
+            reference_x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
+
+        elif warp_freq:
+            reference_x = resample(tf.random_normal(warp_shape), shape, spline_order=spline_order)
+
+        else:
+            reference_x = tensor
 
     if reference_y is None:
-        y0_index = column_index(shape) + int(height * .5)
-        reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index], 2))
+        if from_derivative:
+            reference_y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
 
-    else:
-        y0_index = column_index(shape)
-        reference_y = value_map(reference_y, shape)
+        elif warp_freq:
+            reference_y = resample(tf.random_normal(warp_shape), shape, spline_order=spline_order)
+
+        else:
+            y0_index += int(height * .5)
+            reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index], 2))
+
+    reference_x = value_map(reference_x, shape)
+    reference_y = value_map(reference_y, shape)
 
     reference_x = reference_x * displacement * width
     reference_y = reference_y * displacement * height
@@ -966,12 +999,12 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
     y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff))
 
     # Not-wrapping edges!
-    # x_diff = tf.square((x_index - x) / width)
-    # y_diff = tf.square((y_index - y) / height)
+    # x_diff = (x_index - x) / width
+    # y_diff = (y_index - y) / height
 
     dist = distance(x_diff, y_diff, dist_func)
 
-    dist = blend_cosine(dist, 1, .925)  # Tighten up the range.
+    # dist = blend_cosine(dist, 1, .925)  # Tighten up the range.
 
     # Pre-blend colors. Hmm.
     # dist = blend_cosine(colors * dist, dist, dist)
@@ -981,6 +1014,9 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
     index = int((nth + 1) * -1)
 
     out = dist[:,:,:,index]
+
+    out = normalize(out)
+    out = blend(out, 1, .925)  # Tighten up the range
 
     out = resample(out, original_shape)
 
