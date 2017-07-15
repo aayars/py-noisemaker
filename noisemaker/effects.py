@@ -13,7 +13,9 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, posterize_levels=0, **convolve_kwargs):
+                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0,
+                 posterize_levels=0, with_erosion_worms=False,
+                **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -49,6 +51,7 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
     :param bool deriv: Derivative operator
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float posterize_levels: Posterize levels
+    :param bool with_erosion_worms: Erosion worms
 
     :return: Tensor
     """
@@ -86,6 +89,9 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
+
+    if with_erosion_worms:
+        tensor = erode(tensor, shape)
 
     if with_sobel:
         tensor = sobel(tensor, shape, sobel_func)
@@ -396,18 +402,18 @@ def crease(tensor):
     return 1 - tf.abs(tensor * 2 - 1)
 
 
-def _erode(tensor, shape):
+def erode(tensor, shape):
     """
     WIP hydraulic erosion effect.
     """
 
+    # This will never be as good as
     # https://www.dropbox.com/s/kqv8b3w7o8ucbyi/Beyer%20-%20implementation%20of%20a%20methode%20for%20hydraulic%20erosion.pdf?dl=0
 
     height, width, channels = shape
 
-    count = int(math.sqrt(height * width) * 500)
-    # count = height * width
-    iterations = 100
+    count = int(math.sqrt(height * width) * 25)
+    iterations = 50
 
     x = tf.random_uniform([count]) * (width - 1)
     y = tf.random_uniform([count]) * (height - 1)
@@ -419,37 +425,27 @@ def _erode(tensor, shape):
     x_dir /= length
     y_dir /= length
 
-    inertia = tf.random_normal([count], mean=0.5, stddev=0.5)
+    inertia = tf.random_normal([count], mean=0.75, stddev=0.25)
+    # inertia = tf.ones([count])
 
-    sediment = tf.zeros([count])
-    water = tf.ones([count])
-
-    # out = tensor
     out = tf.zeros(shape)
 
     colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
-    # colors = tf.ones([count, channels])
 
-    # values = value_map(convolve(ConvKernel.blur, tensor, shape), shape, keep_dims=True)
     values = value_map(tensor, shape, keep_dims=True)
+
+    x_index = tf.cast(x, tf.int32)
+    y_index = tf.cast(y, tf.int32)
+    index = tf.stack([y_index, x_index], 1)
+    starting_colors = tf.gather_nd(tensor, index)
 
     for i in range(iterations):
         x_index = tf.cast(x, tf.int32)
         y_index = tf.cast(y, tf.int32)
         index = tf.stack([y_index, x_index], 1)
 
-        current_colors = tf.gather_nd(out, index)
-        out += tf.scatter_nd(index, colors, shape)
-        # out += tf.scatter_nd(index, blend(colors, current_colors, i/iterations), shape)
-        # out += tf.scatter_nd(index, colors, shape)
-
-        # updates = tf.scatter_nd(index, blend(colors, current_colors, i/iterations), [count, channels])
-        # updates = tf.maximum(updates, tf.maximum(colors, current_colors))
-        # out += tf.scatter_nd(index, updates, shape)
-
-        # out = tf.minimum(tf.maximum(out, 1.0), 0.0)
-
-        sparse_values = tf.squeeze(tf.gather_nd(values, index))
+        exposure = 1 - abs(1 - i / (iterations - 1) * 2)  # Makes linear gradient [ 0 .. 1 .. 0 ]
+        out += tf.scatter_nd(index, starting_colors * exposure, shape)
 
         x1_index = (x_index + 1) % width
         y1_index = (y_index + 1) % height
@@ -460,6 +456,7 @@ def _erode(tensor, shape):
         u = x - tf.floor(x)
         v = y - tf.floor(y)
 
+        sparse_values = tf.squeeze(tf.gather_nd(values, index))
         g_x = blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
@@ -468,41 +465,11 @@ def _erode(tensor, shape):
         x_dir = blend(x_dir, g_x / length, inertia)
         y_dir = blend(y_dir, g_y / length, inertia)
 
-        # old_x1 = blend(sparse_values, x1_values, u)
-        # old_x2 = blend(y1_values, x1_y1_values, u)
-        # old = blend(old_x1, old_x2, v)
-
         # step
         x = (x + x_dir) % width
         y = (y + y_dir) % height
 
-        # u = x - tf.floor(x)
-        # v = y - tf.floor(y)
-        # current_x1 = blend(sparse_values, x1_values, u)
-        # current_x2 = blend(y1_values, x1_y1_values, u)
-        # current = blend(current_x1, current_x2, v)
-        # delta = tf.reshape(old - current, [count, 1])
-
-        # out -= tf.scatter_nd(index, delta, shape)
-        # out += tf.scatter_nd(index, tf.reshape((old - current), [count, 1]), shape)
-        # out += tf.scatter_nd(index, colors, shape) * (i/iterations)
-        # out = tf.minimum(out, tf.scatter_nd(index, colors, shape) * (i/iterations))
-
-        # new_x = x + new_x_dir
-        # new_y = y + new_y_dir
-
-    out = tf.sqrt(tf.sqrt(normalize(out)))
-
-    blurred = convolve(ConvKernel.blur, out, shape)
-    out = normalize(out + blurred * .5)
-
-    return blend_cosine(tensor - out, tensor, tensor)
-
-    return out
-
-    return distance(tensor - out, tensor, 1)
-    return distance(out, tensor, 0)
-    return out
+    return tf.maximum(tf.minimum(out, 1.0), 0.0)
 
 
 def reindex(tensor, shape, displacement=.5):

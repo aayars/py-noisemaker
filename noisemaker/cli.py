@@ -240,6 +240,14 @@ def wormhole_kink_option(**attrs):
     return option("--wormhole-kink", **attrs)
 
 
+def erosion_worms_option(**attrs):
+    attrs.setdefault("help", "Experimental erosion worms")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--erosion-worms", **attrs)
+
+
 def voronoi_option(**attrs):
     attrs.setdefault("help", "Voronoi cells (Worley noise)")
     attrs.setdefault("is_flag", True)
@@ -485,6 +493,7 @@ def main(ctx, **kwargs):
 @worms_stride_deviation_option()
 @worms_kink_option()
 @worms_bg_option()
+@erosion_worms_option()
 @sobel_option()
 @sobel_func_option()
 @normals_option()
@@ -508,7 +517,7 @@ def main(ctx, **kwargs):
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
+          erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
           glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -519,7 +528,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
                                   clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
-                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                   with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
                                   posterize_levels=posterize, **convolve_kwargs
@@ -564,6 +573,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @worms_stride_deviation_option()
 @worms_kink_option()
 @worms_bg_option()
+@erosion_worms_option()
 @sobel_option()
 @sobel_func_option()
 @normals_option()
@@ -588,7 +598,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
-             voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
+             erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -599,7 +609,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
-                                     with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride,
+                                     with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp,
                                      distrib=distrib, posterize_levels=posterize, **convolve_kwargs
