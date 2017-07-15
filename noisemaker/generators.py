@@ -96,7 +96,8 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
 def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=Distribution.normal,
-             deriv=False, deriv_func=0, lattice_drift=0.0, **post_process_args):
+             deriv=False, deriv_func=0, lattice_drift=0.0,
+             post_reflect_range=0.0, post_refract_range=0.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -112,13 +113,15 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int seed: Random seed for reproducible output. Ineffective with exponential.
-    :param float reflect_range: Derivative-based distort gradient.
+    :param float reflect_range: Per-octave derivative-based distort gradient.
     :param float refract_range: Per-octave self-distort gradient.
     :param float reindex_range: Per-octave self-reindexing gradient.
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
     :param bool deriv: Derivative noise.
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float lattice_drift: Push away from underlying lattice.
+    :param float post_reflect_range: Derivative-based distort gradient.
+    :param float post_refract_range: Self-distort gradient.
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -145,6 +148,7 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
 
     tensor = effects.normalize(tensor)
 
-    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order,
+                                  reflect_range=post_reflect_range, refract_range=post_refract_range, **post_process_args)
 
     return tensor

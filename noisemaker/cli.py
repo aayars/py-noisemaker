@@ -89,8 +89,24 @@ def warp_option(**attrs):
     return option("--warp", **attrs)
 
 
-def reflect_option(**attrs):
+def post_reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Derivative-based displacement range (1.0 = entire image)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--post-reflect", **attrs)
+
+
+def post_refract_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Self-displacement range (1.0 = entire image)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--post-refract", **attrs)
+
+
+def reflect_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Per-octave derivative-based displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -98,7 +114,7 @@ def reflect_option(**attrs):
 
 
 def refract_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Self-displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Per-octave self-displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -525,6 +541,8 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @distrib_option()
 @lattice_drift_option()
 @warp_option()
+@post_reflect_option()
+@post_refract_option()
 @reflect_option()
 @refract_option()
 @reindex_option()
@@ -567,7 +585,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @invert_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex,
+def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
@@ -577,6 +595,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
 
         tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift, warp_range=warp,
                                      reflect_range=reflect, refract_range=refract, reindex_range=reindex,
+                                     post_reflect_range=post_reflect, post_refract_range=post_refract,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                      with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
