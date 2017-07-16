@@ -73,7 +73,7 @@ def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if warp_range:
-        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves)
+        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves, spline_order=spline_order)
 
     else:
         tensor = normalize(tensor)
