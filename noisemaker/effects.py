@@ -1156,8 +1156,6 @@ def freq_for_shape(freq, shape):
 
 
 def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
-    value_shape = [shape[0], shape[1], 1]
-
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
 
