@@ -547,6 +547,8 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 
         save(tensor, name)
 
+        print(name)
+
 
 @main.command(help="Multiple layers (octaves). For each octave: freq increases, amplitude decreases.")
 @freq_option()
@@ -628,3 +630,5 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
         save(tensor, name)
+
+        print(name)
