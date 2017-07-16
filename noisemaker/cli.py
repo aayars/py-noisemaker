@@ -89,6 +89,14 @@ def warp_option(**attrs):
     return option("--warp", **attrs)
 
 
+def warp_octaves_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Octave count for --warp")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 3)
+
+    return option("--warp-octaves", **attrs)
+
+
 def post_reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Derivative-based displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
@@ -472,6 +480,7 @@ def main(ctx, **kwargs):
 @distrib_option()
 @lattice_drift_option()
 @warp_option()
+@warp_octaves_option()
 @reflect_option()
 @refract_option()
 @reindex_option()
@@ -515,7 +524,7 @@ def main(ctx, **kwargs):
 @invert_option()
 @name_option()
 @click.pass_context
-def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, clut, clut_horizontal, clut_range,
+def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
           erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
           glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
@@ -523,7 +532,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift, warp_range=warp,
+        tensor = generators.basic(freq, shape, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
                                   reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                   clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                   with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
@@ -531,10 +540,10 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                   with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp, distrib=distrib,
-                                  posterize_levels=posterize, **convolve_kwargs
+                                  warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize, **convolve_kwargs
                                   )
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
         save(tensor, name)
 
@@ -550,6 +559,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @distrib_option()
 @lattice_drift_option()
 @warp_option()
+@warp_octaves_option()
 @post_reflect_option()
 @post_refract_option()
 @reflect_option()
@@ -595,7 +605,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @invert_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, reflect, refract, reindex, post_reflect, post_refract,
+def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
@@ -603,7 +613,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
     with tf.Session().as_default():
         shape = [height, width, channels]
 
-        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift, warp_range=warp,
+        tensor = generators.multires(freq, shape, octaves, ridges=ridges, wavelet=wavelet, lattice_drift=lattice_drift,
                                      reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                      post_reflect_range=post_reflect, post_refract_range=post_refract,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
@@ -612,9 +622,9 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func, spline_order=interp,
-                                     distrib=distrib, posterize_levels=posterize, **convolve_kwargs
+                                     distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize, **convolve_kwargs
                                      )
 
-        tensor = recipes.post_process(tensor, shape, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
         save(tensor, name)

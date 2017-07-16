@@ -8,13 +8,13 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0,
-                 posterize_levels=0, with_erosion_worms=False,
+                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3,
                 **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -22,7 +22,6 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
     :param Tensor tensor:
     :param list[int] shape:
     :param list[int] freq:
-    :param float warp_range: Orthogonal distortion gradient.
     :param int spline_order: Ortho spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param float reflect_range: Derivative distortion gradient.
     :param float refract_range: Self-distortion gradient.
@@ -52,6 +51,8 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
+    :param float warp_range: Orthogonal distortion gradient.
+    :param int warp_octaves: Multi-res iteration count for warp
 
     :return: Tensor
     """
@@ -68,11 +69,11 @@ def post_process(tensor, shape, freq, warp_range=0.0, spline_order=1, reflect_ra
     if reindex_range != 0:
         tensor = reindex(tensor, shape, displacement=reindex_range)
 
-    if warp_range != 0:
-        tensor = refract(tensor, shape, displacement=warp_range, warp_freq=freq, spline_order=spline_order)
-
     if clut:
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
+
+    if warp_range:
+        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves)
 
     else:
         tensor = normalize(tensor)
@@ -528,14 +529,14 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     warp_shape = None
 
     if warp_freq:
-        warp_shape = [warp_freq[0], warp_freq[1], channels]
+        warp_shape = [warp_freq[0], warp_freq[1], 1]
 
     if reference_x is None:
         if from_derivative:
             reference_x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(tf.random_normal(warp_shape), shape, spline_order=spline_order)
+            reference_x = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -545,7 +546,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(tf.random_normal(warp_shape), shape, spline_order=spline_order)
+            reference_y = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
 
         else:
             y0_index += int(height * .5)
@@ -1152,3 +1153,19 @@ def freq_for_shape(freq, shape):
 
     else:
         return [int(freq * height / width), freq]
+
+
+def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
+    value_shape = [shape[0], shape[1], 1]
+
+    for octave in range(1, octaves + 1):
+        multiplier = 2 ** octave
+
+        base_freq = [int(f * .5 * multiplier) for f in freq]
+
+        if base_freq[0] >= shape[0] or base_freq[1] >= shape[1]:
+            break
+
+        tensor = refract(tensor, shape, displacement=displacement / multiplier, warp_freq=base_freq, spline_order=spline_order)
+
+    return tensor
