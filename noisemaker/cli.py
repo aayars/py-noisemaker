@@ -235,7 +235,7 @@ def wormhole_option(**attrs):
 def wormhole_stride_option(**attrs):
     attrs.setdefault("help", "Max per-pixel displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
+    attrs.setdefault("default", .1)
 
     return option("--wormhole-stride", **attrs)
 
