@@ -84,9 +84,9 @@ def basic(freq, shape, ridges=False, wavelet=False, spline_order=3, seed=None,
 
         tensor = effects.refract(tensor, shape, displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
-
     tensor = effects.normalize(tensor)
+
+    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
 
     if ridges:
         tensor = effects.crease(tensor)

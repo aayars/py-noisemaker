@@ -8,12 +8,12 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0,
+                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_regions=False, voronoi_fade=1.0,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3,
                 **convolve_kwargs):
     """
@@ -47,8 +47,11 @@ def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract
     :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
+    :param boolean voronoi_regions: Assign colors to voronoi control points
+    :param float voronoi_fade: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param bool deriv: Derivative operator
     :param DistanceFunction|int deriv_func: Derivative distance function
+    :param bool with_outline: Multiply tensor vs. sobel operator. Can supply sobel_func.
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
     :param float warp_range: Orthogonal distortion gradient.
@@ -58,7 +61,7 @@ def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func)
+        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, regions=voronoi_regions, fade=voronoi_fade)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -103,6 +106,9 @@ def post_process(tensor, shape, freq, spline_order=1, reflect_range=0.0, refract
     for kernel in ConvKernel:
         if convolve_kwargs.get(kernel.name):
             tensor =  convolve(kernel, tensor, shape)
+
+    if with_outline:
+        tensor = outline(tensor, shape, sobel_func=sobel_func)
 
     return tensor
 
@@ -501,7 +507,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=1, from_derivative=False):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False):
     """
     Apply self-displacement along X and Y axes, based on each pixel value.
 
@@ -714,7 +720,8 @@ def wormhole(tensor, shape, kink, input_stride):
 
     height, width, channels = shape
 
-    values = value_map(tensor, shape)
+    values = value_map(derivative(tensor, shape), shape)
+
     degrees = values * 360.0 * math.radians(1) * kink
     # stride = values * height * input_stride
     stride = height * input_stride
@@ -924,7 +931,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
+def voronoi(tensor, shape, density=.1, nth=0, dist_func=0, regions=False, fade=1.0):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -933,22 +940,21 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
+    :param boolean regions: Assign colors to control points (memory intensive)
+    :param float fade: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :return: Tensor
     """
 
     original_shape = shape
 
     shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]  # Gotta upsample later, this one devours memory.
-    height = shape[0]
-    width = shape[1]
+
+    height, width, channels = shape
 
     point_count = int(min(width, height) * density)
 
     x = tf.random_uniform([point_count]) * (width - 1)
     y = tf.random_uniform([point_count]) * (height - 1)
-
-    # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
-    # colors = tf.reshape(colors, [1, 1, shape[2], point_count])
 
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
@@ -972,23 +978,22 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0):
 
     dist = distance(x_diff, y_diff, dist_func)
 
-    # dist = blend_cosine(dist, 1, .925)  # Tighten up the range.
-
-    # Pre-blend colors. Hmm.
-    # dist = blend_cosine(colors * dist, dist, dist)
-
-    dist, _ = tf.nn.top_k(dist, k=point_count)
+    dist, indices = tf.nn.top_k(dist, k=point_count)
 
     index = int((nth + 1) * -1)
 
-    out = dist[:,:,:,index]
+    if regions:
+        colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
+        out = resample(tf.squeeze(tf.gather(colors, indices[:,:,:,index])), original_shape)
 
-    out = normalize(out)
-    out = blend(out, 1, .925)  # Tighten up the range
+    else:
+        slice = tf.sqrt(normalize(dist[:,:,:,index]))
+        slice = resample(slice, original_shape)
 
-    out = resample(out, original_shape)
+        out = blend(tensor * slice, slice, slice)
 
-    out = blend_cosine(tensor * out, out, out)
+    if fade != 1.0:
+        out = blend(tensor, out, fade)
 
     return out
 
@@ -1167,3 +1172,23 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
         tensor = refract(tensor, shape, displacement=displacement / multiplier, warp_freq=base_freq, spline_order=spline_order)
 
     return tensor
+
+
+def outline(tensor, shape, sobel_func=0):
+    """
+    Superimpose sobel operator results (cartoon edges)
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param DistanceFunction|int sobel_func: Sobel distance function
+    """
+
+    height, width, channels = shape
+
+    value_shape = [height, width, 1]
+
+    values = value_map(tensor, shape, keep_dims=True)
+
+    edges = sobel(values, value_shape, dist_func=sobel_func)
+
+    return edges * tensor
