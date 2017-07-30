@@ -984,7 +984,7 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0, regions=False, fade=1
 
     if regions:
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
-        out = resample(tf.squeeze(tf.gather(colors, indices[:,:,:,index])), original_shape)
+        out = resample(tf.reshape(tf.gather(colors, indices[:,:,:,index]), shape), original_shape)
 
     else:
         slice = tf.sqrt(normalize(dist[:,:,:,index]))
