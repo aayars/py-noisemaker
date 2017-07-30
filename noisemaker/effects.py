@@ -1270,11 +1270,7 @@ def vortex(tensor, shape, displacement=64.0):
 
     height, width, channels = shape
 
-    x = tf.stack([0.0])
-    y = tf.stack([0.0])
-    point_count = 1
-
-    displacement_map = singularity(shape, 0)
+    displacement_map = singularity(shape)
 
     displacement_x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
     displacement_y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
