@@ -13,7 +13,7 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=False, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_regions=False, voronoi_fade=1.0,
+                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_fade=1.0,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3,
                 **convolve_kwargs):
     """
@@ -22,7 +22,7 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
     :param Tensor tensor:
     :param list[int] shape:
     :param list[int] freq:
-    :param int spline_order: Ortho spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :param int spline_order: Ortho spline point count (0=Constant, 1=Linear, 2=Cosine, 3=Bicubic)
     :param float reflect_range: Derivative distortion gradient.
     :param float refract_range: Self-distortion gradient.
     :param float reindex_range: Self-reindexing gradient.
@@ -43,11 +43,10 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
     :param float wormhole_stride: Wormhole thickness range
-    :param bool with_voronoi: Voronoi cells
+    :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended)
     :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
-    :param boolean voronoi_regions: Assign colors to voronoi control points
     :param float voronoi_fade: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param bool deriv: Derivative operator
     :param DistanceFunction|int deriv_func: Derivative distance function
@@ -61,7 +60,7 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, regions=voronoi_regions, fade=voronoi_fade)
+        tensor = voronoi(tensor, shape, with_voronoi, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, fade=voronoi_fade)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -113,9 +112,33 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
     return tensor
 
 
+class VoronoiDiagramType(Enum):
+    """
+    Specify the artistic rendering function used for Voronoi diagrams.
+    """
+
+    #: No Voronoi
+    none = 0
+
+    #: Normalized neighbor distances
+    range = 1
+
+    #: Normalized neighbor distances blended with original Tensor image
+    color_range = 2
+
+    #: Indexed regions
+    regions = 3
+
+    #: Color-mapped regions
+    color_regions = 4
+
+    #: Colorized neighbor distances blended with color-mapped regions
+    range_regions = 5
+
+
 class DistanceFunction(Enum):
     """
-    Specify the distance function used for Voronoi cells.
+    Specify the distance function used in various operations, such as Voronoi cells, derivatives, and sobel operators.
     """
 
     euclidean = 0
@@ -931,12 +954,13 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, density=.1, nth=0, dist_func=0, regions=False, fade=1.0):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=1.0):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
     :param Tensor tensor:
     :param list[int] shape:
+    :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended)
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
@@ -982,16 +1006,41 @@ def voronoi(tensor, shape, density=.1, nth=0, dist_func=0, regions=False, fade=1
 
     index = int((nth + 1) * -1)
 
-    if regions:
+    if isinstance(diagram_type, VoronoiDiagramType):
+       diagram_type = diagram_type.value
+
+    ###
+    if diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
+        range_slice = resample(tf.sqrt(normalize(dist[:,:,:,index])), original_shape)
+
+    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
+        regions_slice = indices[:,:,:,index]
+
+    ###
+    if diagram_type == VoronoiDiagramType.range.value:
+        range_out = range_slice
+
+    if diagram_type in (VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
+        range_out = blend(tensor * range_slice, range_slice, range_slice)
+
+    if diagram_type == VoronoiDiagramType.regions.value:
+        regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape)
+
+    if diagram_type in (VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
-        out = resample(tf.reshape(tf.gather(colors, indices[:,:,:,index]), shape), original_shape)
+        regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape)
 
-    else:
-        slice = tf.sqrt(normalize(dist[:,:,:,index]))
-        slice = resample(slice, original_shape)
+    ###
+    if diagram_type == VoronoiDiagramType.range_regions.value:
+        out = blend(regions_out, range_out, tf.square(range_out))
 
-        out = blend(tensor * slice, slice, slice)
+    elif diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value):
+        out = range_out
 
+    elif diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value):
+        out = regions_out
+
+    ###
     if fade != 1.0:
         out = blend(tensor, out, fade)
 
