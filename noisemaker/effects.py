@@ -8,13 +8,13 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_fade=1.0,
-                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3,
+                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0,
+                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0,
                 **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -47,20 +47,22 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
     :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
-    :param float voronoi_fade: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param bool ridges: Ridged multifractal hint for Voronoi
     :param bool deriv: Derivative operator
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param bool with_outline: Multiply tensor vs. sobel operator. Can supply sobel_func.
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
     :param float warp_range: Orthogonal distortion gradient.
+    :param float vortex_range: Vortex tiling amount
     :param int warp_octaves: Multi-res iteration count for warp
 
     :return: Tensor
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, with_voronoi, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, fade=voronoi_fade)
+        tensor = voronoi(tensor, shape, with_voronoi, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, alpha=voronoi_alpha, ridges=ridges)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -79,6 +81,9 @@ def post_process(tensor, shape, freq, spline_order=3, reflect_range=0.0, refract
 
     else:
         tensor = normalize(tensor)
+
+    if vortex_range:
+        tensor = vortex(tensor, shape, displacement=vortex_range)
 
     if deriv:
         tensor = derivative(tensor, shape, deriv_func)
@@ -954,7 +959,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, m)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=1.0):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha=1.0, xy=None, ridges=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -965,7 +970,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
     :param boolean regions: Assign colors to control points (memory intensive)
-    :param float fade: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
+    :param float ridges: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :return: Tensor
     """
 
@@ -975,10 +982,14 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=
 
     height, width, channels = shape
 
-    point_count = int(min(width, height) * density)
+    if xy is None:
+        point_count = int(min(width, height) * density)
 
-    x = tf.random_uniform([point_count]) * (width - 1)
-    y = tf.random_uniform([point_count]) * (height - 1)
+        x = tf.random_uniform([point_count]) * (width - 1)
+        y = tf.random_uniform([point_count]) * (height - 1)
+
+    else:
+        x, y, point_count = xy
 
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
@@ -1028,6 +1039,10 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=
 
     if diagram_type in (VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
+
+        if ridges:
+            colors = tf.abs(colors * 2 - 1)
+
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape)
 
     ###
@@ -1041,8 +1056,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, fade=
         out = regions_out
 
     ###
-    if fade != 1.0:
-        out = blend(tensor, out, fade)
+    if alpha != 1.0:
+        out = blend(tensor, out, alpha)
 
     return out
 
@@ -1241,3 +1256,26 @@ def outline(tensor, shape, sobel_func=0):
     edges = sobel(values, value_shape, dist_func=sobel_func)
 
     return edges * tensor
+
+
+def vortex(tensor, shape, displacement=64.0):
+    """
+    """
+
+    height, width, channels = shape
+
+    x = tf.stack([0.0])
+    y = tf.stack([0.0])
+    point_count = 1
+
+    displacement_map = convolve(ConvKernel.blur, voronoi(None, shape, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
+
+    displacement_x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
+    displacement_y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
+
+    warped = refract(tensor, shape, displacement=displacement, reference_x=displacement_x, reference_y=displacement_y)
+    warped_outer = refract(tensor, shape, displacement=math.sqrt(displacement) * 2, from_derivative=True) * .25
+
+    mask = convolve(ConvKernel.blur, voronoi(None, shape, dist_func=2, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
+
+    return blend(warped, warped_outer, tf.square(mask))

@@ -81,6 +81,14 @@ def lattice_drift_option(**attrs):
     return option("--lattice-drift", **attrs)
 
 
+def vortex_option(**attrs):
+    attrs.setdefault("help", "Vortex tiling amount")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--vortex", **attrs)
+
+
 def warp_option(**attrs):
     attrs.setdefault("help", "Domain warping: Orthogonal displacement range (1.0 = entire image)")
     attrs.setdefault("type", float)
@@ -288,12 +296,12 @@ def voronoi_nth_option(**attrs):
     return option("--voronoi-nth", **attrs)
 
 
-def voronoi_fade_option(**attrs):
+def voronoi_alpha_option(**attrs):
     attrs.setdefault("help", "Blend with original tensor (0.0 = Original, 1.0 = Voronoi)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
-    return option("--voronoi-fade", **attrs)
+    return option("--voronoi-alpha", **attrs)
 
 
 def sobel_option(**attrs):
@@ -495,6 +503,7 @@ def main(ctx, **kwargs):
 @interp_option()
 @distrib_option()
 @lattice_drift_option()
+@vortex_option()
 @warp_option()
 @warp_octaves_option()
 @reflect_option()
@@ -507,7 +516,7 @@ def main(ctx, **kwargs):
 @voronoi_density_option()
 @voronoi_func_option()
 @voronoi_nth_option()
-@voronoi_fade_option()
+@voronoi_alpha_option()
 @wormhole_option()
 @wormhole_stride_option()
 @wormhole_kink_option()
@@ -542,9 +551,9 @@ def main(ctx, **kwargs):
 @invert_option()
 @name_option()
 @click.pass_context
-def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
+def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_fade, sobel, outline, sobel_func, normals, deriv, deriv_func,
+          erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, sobel, outline, sobel_func, normals, deriv, deriv_func,
           interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -557,9 +566,9 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                  voronoi_fade=voronoi_fade, with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
+                                  voronoi_alpha=voronoi_alpha, with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
                                   spline_order=interp, distrib=distrib, with_outline=outline, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
-                                  **convolve_kwargs)
+                                  vortex_range=vortex, **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
@@ -578,6 +587,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @interp_option()
 @distrib_option()
 @lattice_drift_option()
+@vortex_option()
 @warp_option()
 @warp_octaves_option()
 @post_reflect_option()
@@ -592,7 +602,7 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @voronoi_density_option()
 @voronoi_func_option()
 @voronoi_nth_option()
-@voronoi_fade_option()
+@voronoi_alpha_option()
 @wormhole_option()
 @wormhole_stride_option()
 @wormhole_kink_option()
@@ -627,10 +637,10 @@ def basic(ctx, freq, width, height, channels, ridges, wavelet, lattice_drift, wa
 @invert_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
+def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
-             erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_fade, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
+             erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, glitch, vhs, crt, scan_error, snow, dither, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -643,9 +653,9 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, wavelet, latti
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                     voronoi_fade=voronoi_fade, with_outline=outline, with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
+                                     voronoi_alpha=voronoi_alpha, with_outline=outline, with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
-                                     **convolve_kwargs)
+                                     vortex_range=vortex, **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 

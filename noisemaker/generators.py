@@ -148,7 +148,7 @@ def multires(freq, shape, octaves=4, ridges=True, wavelet=False, spline_order=3,
 
     tensor = effects.normalize(tensor)
 
-    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order,
+    tensor = effects.post_process(tensor, shape, freq, ridges=ridges, spline_order=spline_order,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range, **post_process_args)
 
     return tensor
