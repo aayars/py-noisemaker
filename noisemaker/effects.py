@@ -936,7 +936,7 @@ def blend_cubic(a, b, c, d, g):
 
 def center_mask(center, edges, shape):
     """
-    Blend two image tensors from the center to the edges. Not perfect.
+    Blend two image tensors from the center to the edges.
 
     :param Tensor center:
     :param Tensor edges:
@@ -944,19 +944,9 @@ def center_mask(center, edges, shape):
     :return: Tensor
     """
 
-    m = tf.cast(tf.reshape([
-        [ 1, 1, 1, 1, 1, 1, 1 ],
-        [ 1, .75, .5, .5, .5, .75, 1 ],
-        [ 1, .5, 0, 0, 0, .5, 1 ],
-        [ 1, .5, 0, 0, 0, .5, 1 ],
-        [ 1, .5, 0, 0, 0, .5, 1 ],
-        [ 1, .75, .5, .5, .5, .75, 1 ],
-        [ 1, 1, 1, 1, 1, 1, 1 ],
-        ], [7, 7, 1]), tf.float32)
+    mask = singularity(shape, dist_func=DistanceFunction.chebyshev)
 
-    m = resample(m, shape)
-
-    return blend_cosine(center, edges, m)
+    return blend_cosine(center, edges, mask)
 
 
 def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha=1.0, xy=None, ridges=False):
@@ -1258,6 +1248,22 @@ def outline(tensor, shape, sobel_func=0):
     return edges * tensor
 
 
+def singularity(shape, dist_func=0):
+    """
+    Return the range diagram for a single voronoi point, approximately centered.
+
+    :param list[int] shape:
+    :param DistanceFunction|int dist_func:
+    """
+
+    x = tf.stack([0.0])
+    y = tf.stack([0.0])
+
+    point_count = 1
+
+    return convolve(ConvKernel.blur, voronoi(None, shape, dist_func=dist_func, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
+
+
 def vortex(tensor, shape, displacement=64.0):
     """
     """
@@ -1268,14 +1274,11 @@ def vortex(tensor, shape, displacement=64.0):
     y = tf.stack([0.0])
     point_count = 1
 
-    displacement_map = convolve(ConvKernel.blur, voronoi(None, shape, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
+    displacement_map = singularity(shape, 0)
 
     displacement_x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
     displacement_y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
 
     warped = refract(tensor, shape, displacement=displacement, reference_x=displacement_x, reference_y=displacement_y)
-    warped_outer = refract(tensor, shape, displacement=math.sqrt(displacement) * 2, from_derivative=True) * .25
 
-    mask = convolve(ConvKernel.blur, voronoi(None, shape, dist_func=2, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
-
-    return blend(warped, warped_outer, tf.square(mask))
+    return center_mask(warped, convolve(ConvKernel.blur, tensor, shape) * .25, shape)
