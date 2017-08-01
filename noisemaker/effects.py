@@ -1266,15 +1266,18 @@ def singularity(shape, dist_func=0):
 
 def vortex(tensor, shape, displacement=64.0):
     """
-    """
+    Vortex tiling effect
 
-    height, width, channels = shape
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float displacement:
+    """
 
     displacement_map = singularity(shape)
 
-    displacement_x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
-    displacement_y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
+    x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
+    y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
 
-    warped = refract(tensor, shape, displacement=displacement, reference_x=displacement_x, reference_y=displacement_y)
+    warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
 
     return center_mask(warped, convolve(ConvKernel.blur, tensor, shape) * .25, shape)
