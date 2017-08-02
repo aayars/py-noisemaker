@@ -62,7 +62,10 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     """
 
     if with_voronoi:
-        tensor = voronoi(tensor, shape, with_voronoi, voronoi_density, nth=voronoi_nth, dist_func=voronoi_func, alpha=voronoi_alpha, ridges=ridges)
+        _voronoi = singularity if voronoi_density == 0 else voronoi
+
+        tensor = _voronoi(tensor, shape, diagram_type=with_voronoi, density=voronoi_density, nth=voronoi_nth, dist_func=voronoi_func,
+                          alpha=voronoi_alpha, ridges=ridges)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -944,7 +947,7 @@ def center_mask(center, edges, shape):
     :return: Tensor
     """
 
-    mask = singularity(shape, dist_func=DistanceFunction.chebyshev)
+    mask = singularity(None, shape, dist_func=DistanceFunction.chebyshev)
 
     return blend_cosine(center, edges, mask)
 
@@ -1248,12 +1251,15 @@ def outline(tensor, shape, sobel_func=0):
     return edges * tensor
 
 
-def singularity(shape, dist_func=0):
+def singularity(tensor, shape, diagram_type=1, **kwargs):
     """
     Return the range diagram for a single voronoi point, approximately centered.
 
     :param list[int] shape:
     :param DistanceFunction|int dist_func:
+    :param VoronoiDiagramType|int diagram_type:
+
+    Additional kwargs will be sent to the `voronoi` function.
     """
 
     x = tf.stack([0.0])
@@ -1261,7 +1267,7 @@ def singularity(shape, dist_func=0):
 
     point_count = 1
 
-    return convolve(ConvKernel.blur, voronoi(None, shape, dist_func=dist_func, diagram_type=1, xy=(x, y, point_count)) * tf.ones(shape), shape)
+    return convolve(ConvKernel.blur, voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, point_count), **kwargs) * tf.ones(shape), shape)
 
 
 def vortex(tensor, shape, displacement=64.0):
@@ -1273,7 +1279,7 @@ def vortex(tensor, shape, displacement=64.0):
     :param float displacement:
     """
 
-    displacement_map = singularity(shape)
+    displacement_map = singularity(None, shape)
 
     x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
     y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
