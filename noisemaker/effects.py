@@ -43,7 +43,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
     :param float wormhole_stride: Wormhole thickness range
-    :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended)
+    :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
@@ -962,7 +962,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended)
+    :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)

@@ -265,7 +265,7 @@ def erosion_worms_option(**attrs):
 
 
 def voronoi_option(**attrs):
-    attrs.setdefault("help", "Voronoi (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended)")
+    attrs.setdefault("help", "Voronoi (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
