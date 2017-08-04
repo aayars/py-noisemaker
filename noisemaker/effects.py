@@ -13,7 +13,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
                  with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0,
+                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0, voronoi_refract=0.0,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0,
                 **convolve_kwargs):
     """
@@ -48,6 +48,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param float voronoi_refract: Domain warp input tensor against Voronoi
     :param bool ridges: Ridged multifractal hint for Voronoi
     :param bool deriv: Derivative operator
     :param DistanceFunction|int deriv_func: Derivative distance function
@@ -65,7 +66,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
         _voronoi = singularity if voronoi_density == 0 else voronoi
 
         tensor = _voronoi(tensor, shape, diagram_type=with_voronoi, density=voronoi_density, nth=voronoi_nth, dist_func=voronoi_func,
-                          alpha=voronoi_alpha, ridges=ridges)
+                          alpha=voronoi_alpha, with_refract=voronoi_refract, ridges=ridges)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -131,7 +132,7 @@ class VoronoiDiagramType(Enum):
     #: Normalized neighbor distances
     range = 1
 
-    #: Normalized neighbor distances blended with original Tensor image
+    #: Normalized neighbor distances blended with input Tensor
     color_range = 2
 
     #: Indexed regions
@@ -142,6 +143,9 @@ class VoronoiDiagramType(Enum):
 
     #: Colorized neighbor distances blended with color-mapped regions
     range_regions = 5
+
+    #: Edgeless voronoi. Natural logarithm of reduced distance sums.
+    flow = 6
 
 
 class DistanceFunction(Enum):
@@ -952,7 +956,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha=1.0, xy=None, ridges=False):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha=1.0, with_refract=0.0, xy=None, ridges=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -962,8 +966,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
-    :param boolean regions: Assign colors to control points (memory intensive)
+    :param bool regions: Assign colors to control points (memory intensive)
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
+    :param float with_refract: Domain warp input tensor against resulting voronoi
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :return: Tensor
@@ -1005,7 +1010,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     # y_diff = (y_index - y) / height
 
     dist = distance(x_diff, y_diff, dist_func)
-
     dist, indices = tf.nn.top_k(dist, k=point_count)
 
     index = int((nth + 1) * -1)
@@ -1023,6 +1027,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     ###
     if diagram_type == VoronoiDiagramType.range.value:
         range_out = range_slice
+
+    if diagram_type in (VoronoiDiagramType.flow.value, ):
+        range_out = resample(normalize(tf.reduce_sum(tf.log(dist), 3)), original_shape)
 
     if diagram_type in (VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
         range_out = blend(tensor * range_slice, range_slice, range_slice)
@@ -1042,15 +1049,16 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     if diagram_type == VoronoiDiagramType.range_regions.value:
         out = blend(regions_out, range_out, tf.square(range_out))
 
-    elif diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value):
+    elif diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.flow.value):
         out = range_out
 
     elif diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value):
         out = regions_out
 
-    ###
-    if alpha != 1.0:
-        out = blend(tensor, out, alpha)
+    if with_refract != 0.0:
+        out = refract(tensor, original_shape, displacement=4.0, reference_x=out)
+
+    out = blend(tensor, out, alpha)
 
     return out
 
