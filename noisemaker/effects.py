@@ -441,7 +441,7 @@ def crease(tensor):
     :return: Tensor
     """
 
-    return 1 - tf.abs(tensor * 2 - 1)
+    return 1.0 - tf.abs(tensor * 2 - 1)
 
 
 def erode(tensor, shape):
@@ -1010,7 +1010,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     # y_diff = (y_index - y) / height
 
     dist = distance(x_diff, y_diff, dist_func)
-    dist, indices = tf.nn.top_k(dist, k=point_count)
+
+    if diagram_type not in (VoronoiDiagramType.flow, ):
+        dist, indices = tf.nn.top_k(dist, k=point_count)
 
     index = int((nth + 1) * -1)
 
@@ -1056,9 +1058,19 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
         out = regions_out
 
     if with_refract != 0.0:
-        out = refract(tensor, original_shape, displacement=4.0, reference_x=out)
+        # ref_shape = [original_shape[0], original_shape[1], 1]
+        # out = tf.square(out)
+        # ref_x = convolve(ConvKernel.sobel_x, out, ref_shape)
+        # ref_y = convolve(ConvKernel.sobel_y, out, ref_shape)
 
-    out = blend(tensor, out, alpha)
+        # out = distance(ref_x, ref_y, 0)
+        # out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
+        # out = refract(tensor, original_shape, displacement=with_refract, reference_x=ref_x, reference_y=ref_y)
+
+        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
+
+    if tensor is not None:
+        out = blend(tensor, out, alpha)
 
     return out
 
