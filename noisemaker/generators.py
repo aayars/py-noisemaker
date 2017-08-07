@@ -91,8 +91,6 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
         tensor = effects.refract(tensor, shape, displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-    tensor = effects.normalize(tensor)
-
     tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
 
     if shape[-1] == 3 and hsv:
@@ -100,11 +98,13 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
             hsv_rotation = tf.random_normal([])
 
         hue = (tensor[:,:,0] * hsv_range + hsv_rotation) % 1.0
-        saturation = tensor[:,:,1] * hsv_saturation
+
+        saturation = effects.normalize(tensor[:,:,1]) * hsv_saturation
+
         value = effects.crease(tensor[:,:,2]) if ridges else tensor[:,:,2]
 
         if sin:
-            value = tf.sin(sin * value)
+            value = effects.normalize(tf.sin(sin * value))
 
         tensor = tf.image.hsv_to_rgb([tf.stack([hue, saturation, value], 2)])[0]
 
@@ -177,8 +177,6 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
                       )
 
         tensor += layer / multiplier
-
-    tensor = effects.normalize(tensor)
 
     tensor = effects.post_process(tensor, shape, freq, ridges=ridges, spline_order=spline_order,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range, **post_process_args)

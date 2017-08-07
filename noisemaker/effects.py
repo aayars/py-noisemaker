@@ -62,6 +62,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :return: Tensor
     """
 
+    tensor = normalize(tensor)
+
     if with_voronoi:
         _voronoi = singularity if voronoi_density == 0 else voronoi
 
@@ -83,8 +85,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     if warp_range:
         tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves, spline_order=spline_order)
 
-    else:
-        tensor = normalize(tensor)
+    # else:
+        # tensor = normalize(tensor)
 
     if vortex_range:
         tensor = vortex(tensor, shape, displacement=vortex_range)
@@ -117,6 +119,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=sobel_func)
+
+    tensor = normalize(tensor)
 
     return tensor
 
@@ -755,7 +759,7 @@ def wormhole(tensor, shape, kink, input_stride):
 
     height, width, channels = shape
 
-    values = value_map(derivative(tensor, shape), shape)
+    values = value_map(tensor, shape)
 
     degrees = values * 360.0 * math.radians(1) * kink
     # stride = values * height * input_stride
@@ -983,8 +987,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     if xy is None:
         point_count = int(min(width, height) * density)
 
-        x = tf.random_uniform([point_count]) * (width - 1)
-        y = tf.random_uniform([point_count]) * (height - 1)
+        x = tf.random_uniform([point_count]) * width
+        y = tf.random_uniform([point_count]) * height
 
     else:
         x, y, point_count = xy
@@ -1011,13 +1015,13 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
 
     dist = distance(x_diff, y_diff, dist_func)
 
-    if diagram_type not in (VoronoiDiagramType.flow, ):
-        dist, indices = tf.nn.top_k(dist, k=point_count)
-
-    index = int((nth + 1) * -1)
-
     if isinstance(diagram_type, VoronoiDiagramType):
        diagram_type = diagram_type.value
+
+    ###
+    if diagram_type not in (VoronoiDiagramType.flow.value, ):
+        dist, indices = tf.nn.top_k(dist, k=point_count)
+        index = int((nth + 1) * -1)
 
     ###
     if diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):

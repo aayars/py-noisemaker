@@ -488,16 +488,16 @@ def invert_option(**attrs):
     return option("--invert", **attrs)
 
 
-def hsv_option(**attrs):
-    attrs.setdefault("help", "Enable or disable HSV")
+def rgb_option(**attrs):
+    attrs.setdefault("help", "Use RGB noise basis instead of HSV")
     attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", True)
+    attrs.setdefault("default", False)
 
-    return option("--hsv/--no-hsv", **attrs)
+    return option("--rgb", **attrs)
 
 
 def hsv_range_option(**attrs):
-    attrs.setdefault("help", "HSV: Hue range")
+    attrs.setdefault("help", "HSV: Hue range (0..1+")
     attrs.setdefault("type", float)
     attrs.setdefault("default", .25)
 
@@ -505,7 +505,7 @@ def hsv_range_option(**attrs):
 
 
 def hsv_rotation_option(**attrs):
-    attrs.setdefault("help", "HSV: Hue rotation")
+    attrs.setdefault("help", "HSV: Hue rotation (0..1)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", None)
 
@@ -513,7 +513,7 @@ def hsv_rotation_option(**attrs):
 
 
 def hsv_saturation_option(**attrs):
-    attrs.setdefault("help", "HSV: Saturation")
+    attrs.setdefault("help", "HSV: Saturation (0..1+)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -599,7 +599,7 @@ def main(ctx, **kwargs):
 @sharpen_option()
 @unsharp_mask_option()
 @invert_option()
-@hsv_option()
+@rgb_option()
 @hsv_range_option()
 @hsv_rotation_option()
 @hsv_saturation_option()
@@ -608,7 +608,7 @@ def main(ctx, **kwargs):
 def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
           worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
           erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, sobel, outline, sobel_func, normals, deriv, deriv_func,
-          interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, hsv, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
+          interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -624,7 +624,7 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
                                   with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
                                   spline_order=interp, distrib=distrib, with_outline=outline,
                                   warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
-                                  vortex_range=vortex, hsv=hsv, hsv_range=hsv_range, hsv_saturation=hsv_saturation, **convolve_kwargs)
+                                  vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_saturation=hsv_saturation, **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
@@ -693,7 +693,7 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
 @sharpen_option()
 @unsharp_mask_option()
 @invert_option()
-@hsv_option()
+@rgb_option()
 @hsv_range_option()
 @hsv_rotation_option()
 @hsv_saturation_option()
@@ -703,7 +703,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, 
              clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, glitch, vhs, crt, scan_error, snow, dither,
-             hsv, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
+             rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -719,7 +719,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, 
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, with_outline=outline,
                                      with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
-                                     vortex_range=vortex, hsv=hsv, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
+                                     vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
