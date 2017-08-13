@@ -40,15 +40,15 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param int|list[int] freq: Base noise frequency. Int, or list of ints for each spatial dimension.
-    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
+    :param int|list[int] freq: Base noise frequency. Int, or list of ints for each spatial dimension
+    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
     :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param float sin: Apply sin function to noise basis
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
-    :param float lattice_drift: Push away from underlying lattice.
-    :param int seed: Random seed for reproducible output. Ineffective with exponential.
+    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum
+    :param float lattice_drift: Push away from underlying lattice
+    :param int seed: Random seed for reproducible output. Ineffective with exponential
     :param bool hsv: Set to False for RGB noise
     :param float hsv_range: HSV hue range
     :param float|None hsv_rotation: HSV hue bias
@@ -120,7 +120,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=Distribution.normal,
              deriv=False, deriv_func=0, lattice_drift=0.0,
-             post_reflect_range=0.0, post_refract_range=0.0,
+             post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
              **post_process_args):
     """
@@ -131,23 +131,24 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension.
-    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels].
-    :param int octaves: Octave count. Number of multi-res layers. Typically 1-8.
+    :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
+    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
+    :param int octaves: Octave count. Number of multi-res layers. Typically 1-8
     :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param float sin: Apply sin function to noise basis
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int seed: Random seed for reproducible output. Ineffective with exponential.
-    :param float reflect_range: Per-octave derivative-based distort gradient.
-    :param float refract_range: Per-octave self-distort gradient.
-    :param float reindex_range: Per-octave self-reindexing gradient.
-    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum.
-    :param bool deriv: Derivative noise.
+    :param int seed: Random seed for reproducible output. Ineffective with exponential
+    :param float reflect_range: Per-octave derivative-based distort gradient
+    :param float refract_range: Per-octave self-distort gradient
+    :param float reindex_range: Per-octave self-reindexing gradient
+    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum
+    :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
-    :param float lattice_drift: Push away from underlying lattice.
-    :param float post_reflect_range: Derivative-based distort gradient.
-    :param float post_refract_range: Self-distort gradient.
+    :param float lattice_drift: Push away from underlying lattice
+    :param float post_reflect_range: Reduced derivative-based distort gradient
+    :param float post_refract_range: Reduced self-distort gradient
+    :param bool post_deriv: Reduced derivatives
     :param bool hsv: Set to False for RGB noise
     :param float hsv_range: HSV hue range
     :param float|None hsv_rotation: HSV hue bias
@@ -179,6 +180,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
         tensor += layer / multiplier
 
     tensor = effects.post_process(tensor, shape, freq, ridges=ridges, spline_order=spline_order,
-                                  reflect_range=post_reflect_range, refract_range=post_refract_range, **post_process_args)
+                                  reflect_range=post_reflect_range, refract_range=post_refract_range,
+                                  deriv=post_deriv, deriv_func=deriv_func, **post_process_args)
 
     return tensor

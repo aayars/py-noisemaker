@@ -11,9 +11,9 @@ import tensorflow as tf
 def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0, voronoi_refract=0.0,
+                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0, with_aberration=None,
                  with_bloom=None, **convolve_kwargs):
     """
@@ -36,8 +36,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param float worms_stride_deviation: Per-worm travel distance deviation
     :param float worms_bg: Background color brightness for worms
     :param float worms_kink: Worm twistiness
-    :param bool with_sobel: Sobel operator
-    :param DistanceFunction|int sobel_func: Sobel distance function
+    :param DistanceFunction|int sobel: Sobel operator distance function
+    :param DistanceFunction|int outline: Outlines distance function (multiply)
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
@@ -49,9 +49,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float voronoi_refract: Domain warp input tensor against Voronoi
     :param bool ridges: Ridged multifractal hint for Voronoi
-    :param bool deriv: Derivative operator
-    :param DistanceFunction|int deriv_func: Derivative distance function
-    :param bool with_outline: Multiply tensor vs. sobel operator. Can supply sobel_func.
+    :param DistanceFunction|int deriv: Derivative distance function
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
     :param float warp_range: Orthogonal distortion gradient.
@@ -93,7 +91,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
         tensor = vortex(tensor, shape, displacement=vortex_range)
 
     if deriv:
-        tensor = derivative(tensor, shape, deriv_func)
+        tensor = derivative(tensor, shape, deriv)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)
@@ -109,7 +107,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
         tensor = erode(tensor, shape)
 
     if with_sobel:
-        tensor = sobel(tensor, shape, sobel_func)
+        tensor = sobel(tensor, shape, with_sobel)
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
@@ -119,7 +117,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
             tensor =  convolve(kernel, tensor, shape)
 
     if with_outline:
-        tensor = outline(tensor, shape, sobel_func=sobel_func)
+        tensor = outline(tensor, shape, sobel_func=with_outline)
 
     if with_aberration:
         tensor = aberration(tensor, shape, displacement=with_aberration)
@@ -164,11 +162,13 @@ class DistanceFunction(Enum):
     Specify the distance function used in various operations, such as Voronoi cells, derivatives, and sobel operators.
     """
 
-    euclidean = 0
+    none = 0
 
-    manhattan = 1
+    euclidean = 1
 
-    chebyshev = 2
+    manhattan = 2
+
+    chebyshev = 3
 
 
 class WormBehavior(Enum):
@@ -679,7 +679,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=0, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0, colors=None):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0, colors=None):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -811,7 +811,7 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
 
 
-def derivative(tensor, shape, dist_func=0, with_normalize=True):
+def derivative(tensor, shape, dist_func=1, with_normalize=True):
     """
     Extract a derivative from the given noise.
 
@@ -838,7 +838,7 @@ def derivative(tensor, shape, dist_func=0, with_normalize=True):
     return out
 
 
-def sobel(tensor, shape, dist_func=0):
+def sobel(tensor, shape, dist_func=1):
     """
     Apply a sobel operator.
 
@@ -975,7 +975,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha=1.0, with_refract=0.0, xy=None, ridges=False):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, xy=None, ridges=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -984,7 +984,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
-    :param DistanceFunction|int dist_func: Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
+    :param DistanceFunction|int dist_func: Voronoi distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
     :param bool regions: Assign colors to control points (memory intensive)
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float with_refract: Domain warp input tensor against resulting voronoi
@@ -1103,7 +1103,7 @@ def distance(a, b, func):
 
     :param Tensor a:
     :param Tensor b:
-    :param DistanceFunction|int dist_func: Distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)
+    :param DistanceFunction|int dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
     :return: Tensor
     """
 
@@ -1273,7 +1273,7 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
     return tensor
 
 
-def outline(tensor, shape, sobel_func=0):
+def outline(tensor, shape, sobel_func=1):
     """
     Superimpose sobel operator results (cartoon edges)
 

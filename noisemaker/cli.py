@@ -10,6 +10,10 @@ import noisemaker.recipes as recipes
 
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 
+# Boilerplate help strings
+ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
+DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
+
 
 def option(*param_decls, **attrs):
     """ Add a Click option. """
@@ -57,6 +61,14 @@ def channels_option(**attrs):
     return option("--channels", **attrs)
 
 
+def octaves_option(**attrs):
+    attrs.setdefault("help", "Octave count: Number of multi-res layers")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 1)
+
+    return option("--octaves", **attrs)
+
+
 def ridges_option(**attrs):
     attrs.setdefault("help", "\"Crease\" at midpoint values: abs(noise * 2 - 1)")
     attrs.setdefault("is_flag", True)
@@ -98,7 +110,7 @@ def vortex_option(**attrs):
 
 
 def warp_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Orthogonal displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Orthogonal displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -114,7 +126,7 @@ def warp_octaves_option(**attrs):
 
 
 def post_reflect_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Derivative-based displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Reduced derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -122,7 +134,7 @@ def post_reflect_option(**attrs):
 
 
 def post_refract_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Self-displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Reduced self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -130,7 +142,7 @@ def post_refract_option(**attrs):
 
 
 def reflect_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Per-octave derivative-based displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Per-octave derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -138,7 +150,7 @@ def reflect_option(**attrs):
 
 
 def refract_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Per-octave self-displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Domain warping: Per-octave self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -146,7 +158,7 @@ def refract_option(**attrs):
 
 
 def reindex_option(**attrs):
-    attrs.setdefault("help", "Color re-indexing range (1.0 = entire image)")
+    attrs.setdefault("help", "Color re-indexing range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -161,7 +173,7 @@ def clut_option(**attrs):
 
 
 def clut_range_option(**attrs):
-    attrs.setdefault("help", "CLUT maximum pixel gather distance (1.0 = entire image)")
+    attrs.setdefault("help", "CLUT maximum pixel gather distance {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.5)
 
@@ -241,7 +253,7 @@ def wormhole_option(**attrs):
 
 
 def wormhole_stride_option(**attrs):
-    attrs.setdefault("help", "Max per-pixel displacement range (1.0 = entire image)")
+    attrs.setdefault("help", "Max per-pixel displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", .1)
 
@@ -265,7 +277,7 @@ def erosion_worms_option(**attrs):
 
 
 def voronoi_option(**attrs):
-    attrs.setdefault("help", "Voronoi (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)")
+    attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
@@ -273,7 +285,7 @@ def voronoi_option(**attrs):
 
 
 def voronoi_density_option(**attrs):
-    attrs.setdefault("help", "Cell count multiplier (1.0 = min(height, width); larger is more costly)")
+    attrs.setdefault("help", "Voronoi: Cell count multiplier (1.0 = min(height, width); larger is more costly)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", .1)
 
@@ -281,15 +293,15 @@ def voronoi_density_option(**attrs):
 
 
 def voronoi_func_option(**attrs):
-    attrs.setdefault("help", "Voronoi distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
+    attrs.setdefault("help", "Voronoi: Distance function {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
+    attrs.setdefault("default", 1)
 
     return option("--voronoi-func", **attrs)
 
 
 def voronoi_nth_option(**attrs):
-    attrs.setdefault("help", "Plot Nth nearest, or -Nth farthest")
+    attrs.setdefault("help", "Voronoi: Plot Nth nearest, or -Nth farthest")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
@@ -297,7 +309,7 @@ def voronoi_nth_option(**attrs):
 
 
 def voronoi_alpha_option(**attrs):
-    attrs.setdefault("help", "Blend with original tensor (0.0 = Original, 1.0 = Voronoi)")
+    attrs.setdefault("help", "Voronoi: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -305,7 +317,7 @@ def voronoi_alpha_option(**attrs):
 
 
 def voronoi_refract_option(**attrs):
-    attrs.setdefault("help", "Domain warp input tensor vs. voronoi")
+    attrs.setdefault("help", "Voronoi: Domain warp input tensor {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -313,27 +325,19 @@ def voronoi_refract_option(**attrs):
 
 
 def sobel_option(**attrs):
-    attrs.setdefault("help", "Apply Sobel operator")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Apply Sobel operator {0}".format(DISTANCE_HINT))
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 1)
 
     return option("--sobel", **attrs)
 
 
 def outline_option(**attrs):
-    attrs.setdefault("help", "Apply Sobel operator, and multiply. Works w/--sobel-func.")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 1)
 
     return option("--outline", **attrs)
-
-
-def sobel_func_option(**attrs):
-    attrs.setdefault("help", "Sobel distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
-
-    return option("--sobel-func", **attrs)
 
 
 def normals_option(**attrs):
@@ -344,20 +348,20 @@ def normals_option(**attrs):
     return option("--normals", **attrs)
 
 
+def post_deriv_option(**attrs):
+    attrs.setdefault("help", "Derivatives: Extract reduced rate of change {0}".format(DISTANCE_HINT))
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", None)
+
+    return option("--post-deriv", **attrs)
+
+
 def deriv_option(**attrs):
-    attrs.setdefault("help", "Calculate derivative (rate of change)")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Derivatives: Extract per-octave rate of change {0}".format(DISTANCE_HINT))
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", None)
 
     return option("--deriv", **attrs)
-
-
-def deriv_func_option(**attrs):
-    attrs.setdefault("help", "Derivative distance function (0=Euclidean, 1=Manhattan, 2=Chebyshev)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
-
-    return option("--deriv-func", **attrs)
 
 
 def distrib_option(**attrs):
@@ -433,7 +437,7 @@ def dither_option(**attrs):
 
 
 def aberration_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Chromatic aberration distance (1.0 = entire image)")
+    attrs.setdefault("help", "Glitch effect: Chromatic aberration distance (e.g. .0075)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", None)
 
@@ -536,129 +540,29 @@ def name_option(**attrs):
     return option("--name", **attrs)
 
 
-@click.group(help="""
+@click.command(help="""
         Noisemaker - Visual noise generator
 
         https://github.com/aayars/py-noisemaker
-
-        Effect options should be specified before the command name.
-
-        --help is available for each command.
         """, context_settings=CLICK_CONTEXT_SETTINGS)
-@click.pass_context
-def main(ctx, **kwargs):
-    ctx.obj = kwargs
-
-
-@main.command(help="Scaled random values.")
 @freq_option()
 @width_option()
 @height_option()
 @channels_option()
+@octaves_option()
 @ridges_option()
-@sin_option()
-@interp_option()
-@distrib_option()
-@lattice_drift_option()
-@vortex_option()
-@warp_option()
-@warp_octaves_option()
-@reflect_option()
-@refract_option()
-@reindex_option()
-@clut_option()
-@clut_range_option()
-@clut_horizontal_option()
-@voronoi_option()
-@voronoi_density_option()
-@voronoi_func_option()
-@voronoi_nth_option()
-@voronoi_alpha_option()
-@voronoi_refract_option()
-@wormhole_option()
-@wormhole_stride_option()
-@wormhole_kink_option()
-@worms_option()
-@worms_density_option()
-@worms_duration_option()
-@worms_stride_option()
-@worms_stride_deviation_option()
-@worms_kink_option()
-@worms_bg_option()
-@erosion_worms_option()
-@sobel_option()
-@outline_option()
-@sobel_func_option()
-@normals_option()
 @deriv_option()
-@deriv_func_option()
-@posterize_option()
-@glitch_option()
-@vhs_option()
-@crt_option()
-@scan_error_option()
-@snow_option()
-@dither_option()
-@aberration_option()
-@bloom_option()
-@wavelet_option()
-@emboss_option()
-@shadow_option()
-@edges_option()
-@sharpen_option()
-@unsharp_mask_option()
-@invert_option()
-@rgb_option()
-@hsv_range_option()
-@hsv_rotation_option()
-@hsv_saturation_option()
-@name_option()
-@click.pass_context
-def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
-          worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
-          erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, sobel, outline, sobel_func, normals, deriv, deriv_func,
-          interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
-
-    with tf.Session().as_default():
-        shape = [height, width, channels]
-
-        tensor = generators.basic(freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
-                                  reflect_range=reflect, refract_range=refract, reindex_range=reindex,
-                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
-                                  worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
-                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
-                                  with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                  voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract,
-                                  with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
-                                  spline_order=interp, distrib=distrib, with_outline=outline,
-                                  warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize, with_aberration=aberration, with_bloom=bloom,
-                                  vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_saturation=hsv_saturation, **convolve_kwargs)
-
-        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
-
-        save(tensor, name)
-
-        print(name)
-
-
-@main.command(help="Multiple layers (octaves). For each octave: freq increases, amplitude decreases.")
-@freq_option()
-@width_option()
-@height_option()
-@channels_option()
-@ridges_option()
-@sin_option()
-@click.option("--octaves", type=int, default=3, help="Octave count: Number of multi-res layers")
+@post_deriv_option()
 @interp_option()
+@sin_option()
 @distrib_option()
 @lattice_drift_option()
 @vortex_option()
 @warp_option()
 @warp_octaves_option()
 @post_reflect_option()
-@post_refract_option()
 @reflect_option()
+@post_refract_option()
 @refract_option()
 @reindex_option()
 @clut_option()
@@ -683,10 +587,7 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
 @erosion_worms_option()
 @sobel_option()
 @outline_option()
-@sobel_func_option()
 @normals_option()
-@deriv_option()
-@deriv_func_option()
 @posterize_option()
 @glitch_option()
 @vhs_option()
@@ -709,9 +610,9 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
 @hsv_saturation_option()
 @name_option()
 @click.pass_context
-def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
+def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
+             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
              erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom,
              rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
 
@@ -727,7 +628,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, 
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, with_outline=outline,
-                                     with_sobel=sobel, sobel_func=sobel_func, with_normal_map=normals, deriv=deriv, deriv_func=deriv_func,
+                                     with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
                                      vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
