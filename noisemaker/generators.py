@@ -179,7 +179,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
 
         tensor += layer / multiplier
 
-    tensor = effects.post_process(tensor, shape, freq, ridges=ridges, spline_order=spline_order,
+    tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and not hsv, spline_order=spline_order,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   deriv=post_deriv, deriv_func=deriv_func, **post_process_args)
 

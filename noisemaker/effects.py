@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
@@ -48,7 +48,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float voronoi_refract: Domain warp input tensor against Voronoi
-    :param bool ridges: Ridged multifractal hint for Voronoi
+    :param bool ridges_hint: Ridged multifractal hint for Voronoi
     :param DistanceFunction|int deriv: Derivative distance function
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
@@ -67,7 +67,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
         _voronoi = singularity if voronoi_density == 0 else voronoi
 
         tensor = _voronoi(tensor, shape, diagram_type=with_voronoi, density=voronoi_density, nth=voronoi_nth, dist_func=voronoi_func,
-                          alpha=voronoi_alpha, with_refract=voronoi_refract, ridges=ridges)
+                          alpha=voronoi_alpha, with_refract=voronoi_refract, ridges_hint=ridges_hint)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -975,7 +975,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, xy=None, ridges=False):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, xy=None, ridges_hint=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -989,7 +989,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float with_refract: Domain warp input tensor against resulting voronoi
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
-    :param float ridges: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
+    :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :return: Tensor
     """
 
@@ -1064,7 +1064,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type in (VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
 
-        if ridges:
+        if ridges_hint:
             colors = tf.abs(colors * 2 - 1)
 
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape)
