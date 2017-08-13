@@ -77,6 +77,22 @@ def ridges_option(**attrs):
     return option("--ridges", **attrs)
 
 
+def distrib_option(**attrs):
+    attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 0)
+
+    return option("--distrib", **attrs)
+
+
+def interp_option(**attrs):
+    attrs.setdefault("help", "Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 3)
+
+    return option("--interp", **attrs)
+
+
 def sin_option(**attrs):
     attrs.setdefault("help", "Apply sin function to noise basis")
     attrs.setdefault("type", float)
@@ -173,7 +189,7 @@ def clut_option(**attrs):
 
 
 def clut_range_option(**attrs):
-    attrs.setdefault("help", "CLUT maximum pixel gather distance {0}".format(ENTIRE_IMAGE_HINT))
+    attrs.setdefault("help", "CLUT: Maximum pixel gather distance {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.5)
 
@@ -181,7 +197,7 @@ def clut_range_option(**attrs):
 
 
 def clut_horizontal_option(**attrs):
-    attrs.setdefault("help", "Preserve CLUT vertical axis")
+    attrs.setdefault("help", "CLUT: Preserve vertical axis")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -197,7 +213,7 @@ def worms_option(**attrs):
 
 
 def worms_density_option(**attrs):
-    attrs.setdefault("help", "Worm density multiplier (larger is more costly)")
+    attrs.setdefault("help", "Worms: Density multiplier (larger is more costly)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 4.0)
 
@@ -205,7 +221,7 @@ def worms_density_option(**attrs):
 
 
 def worms_duration_option(**attrs):
-    attrs.setdefault("help", "Worm iteration multiplier (larger is more costly)")
+    attrs.setdefault("help", "Worms: Iteration multiplier (larger is more costly)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 4.0)
 
@@ -213,7 +229,7 @@ def worms_duration_option(**attrs):
 
 
 def worms_stride_option(**attrs):
-    attrs.setdefault("help", "Mean worm pixel displacement per iteration")
+    attrs.setdefault("help", "Worms: Mean pixel displacement per iteration")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -221,7 +237,7 @@ def worms_stride_option(**attrs):
 
 
 def worms_stride_deviation_option(**attrs):
-    attrs.setdefault("help", "Per-worm random stride variance")
+    attrs.setdefault("help", "Worms: Per-worm random stride variance")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -229,7 +245,7 @@ def worms_stride_deviation_option(**attrs):
 
 
 def worms_bg_option(**attrs):
-    attrs.setdefault("help", "Worms background color brightness")
+    attrs.setdefault("help", "Worms: Background color brightness")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.5)
 
@@ -237,7 +253,7 @@ def worms_bg_option(**attrs):
 
 
 def worms_kink_option(**attrs):
-    attrs.setdefault("help", "Worm rotation range (1.0 = 360 degrees)")
+    attrs.setdefault("help", "Worms: Rotation range (1.0 = 360 degrees)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -245,7 +261,7 @@ def worms_kink_option(**attrs):
 
 
 def wormhole_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Non-iterative per-pixel field flow")
+    attrs.setdefault("help", "Non-iterative per-pixel field flow")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -253,7 +269,7 @@ def wormhole_option(**attrs):
 
 
 def wormhole_stride_option(**attrs):
-    attrs.setdefault("help", "Max per-pixel displacement range {0}".format(ENTIRE_IMAGE_HINT))
+    attrs.setdefault("help", "Wormhole: Max per-pixel displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", .1)
 
@@ -261,7 +277,7 @@ def wormhole_stride_option(**attrs):
 
 
 def wormhole_kink_option(**attrs):
-    attrs.setdefault("help", "Per-pixel rotation range (1.0 = 360 degrees)")
+    attrs.setdefault("help", "Wormhole: Per-pixel rotation range (1.0 = 360 degrees)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -269,7 +285,7 @@ def wormhole_kink_option(**attrs):
 
 
 def erosion_worms_option(**attrs):
-    attrs.setdefault("help", "Experimental erosion worms")
+    attrs.setdefault("help", "Experimental erosion worms (Does not use worms settings)")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -325,7 +341,7 @@ def voronoi_refract_option(**attrs):
 
 
 def sobel_option(**attrs):
-    attrs.setdefault("help", "Apply Sobel operator {0}".format(DISTANCE_HINT))
+    attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 
@@ -333,7 +349,7 @@ def sobel_option(**attrs):
 
 
 def outline_option(**attrs):
-    attrs.setdefault("help", "Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
+    attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 
@@ -341,7 +357,7 @@ def outline_option(**attrs):
 
 
 def normals_option(**attrs):
-    attrs.setdefault("help", "Generate a tangent-space normal map")
+    attrs.setdefault("help", "Post-processing: Generate a tangent-space normal map")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -364,32 +380,24 @@ def deriv_option(**attrs):
     return option("--deriv", **attrs)
 
 
-def distrib_option(**attrs):
-    attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
-
-    return option("--distrib", **attrs)
-
-
-def interp_option(**attrs):
-    attrs.setdefault("help", "Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 3)
-
-    return option("--interp", **attrs)
-
-
 def posterize_option(**attrs):
-    attrs.setdefault("help", "Posterize levels (per channel)")
+    attrs.setdefault("help", "Post-processing: Posterize levels (per channel)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
     return option("--posterize", **attrs)
 
 
+def bloom_option(**attrs):
+    attrs.setdefault("help", "Post-processing: Bloom alpha")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
+
+    return option("--bloom", **attrs)
+
+
 def glitch_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Bit-shit")
+    attrs.setdefault("help", "Glitch effects: Bit-shit")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -397,7 +405,7 @@ def glitch_option(**attrs):
 
 
 def vhs_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: VHS tracking")
+    attrs.setdefault("help", "Glitch effects: VHS tracking")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -405,7 +413,7 @@ def vhs_option(**attrs):
 
 
 def crt_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: CRT scanline")
+    attrs.setdefault("help", "Glitch effects: CRT scanline")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -413,7 +421,7 @@ def crt_option(**attrs):
 
 
 def scan_error_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Analog scanline error")
+    attrs.setdefault("help", "Glitch effects: Analog scanline error")
     attrs.setdefault("is_flag", True)
     attrs.setdefault("default", False)
 
@@ -421,7 +429,7 @@ def scan_error_option(**attrs):
 
 
 def snow_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Analog broadcast snow (0.0=off, 1.0=saturated)")
+    attrs.setdefault("help", "Glitch effects: Analog broadcast snow (0.0=off, 1.0=saturated)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -429,7 +437,7 @@ def snow_option(**attrs):
 
 
 def dither_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Per-pixel brightness jitter")
+    attrs.setdefault("help", "Glitch effects: Per-pixel brightness jitter")
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -437,19 +445,11 @@ def dither_option(**attrs):
 
 
 def aberration_option(**attrs):
-    attrs.setdefault("help", "Glitch effect: Chromatic aberration distance (e.g. .0075)")
+    attrs.setdefault("help", "Glitch effects: Chromatic aberration distance (e.g. .0075)")
     attrs.setdefault("type", float)
     attrs.setdefault("default", None)
 
     return option("--aberration", **attrs)
-
-
-def bloom_option(**attrs):
-    attrs.setdefault("help", "Bloom alpha")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
-
-    return option("--bloom", **attrs)
 
 
 def emboss_option(**attrs):
@@ -589,6 +589,7 @@ def name_option(**attrs):
 @outline_option()
 @normals_option()
 @posterize_option()
+@bloom_option()
 @glitch_option()
 @vhs_option()
 @crt_option()
@@ -596,8 +597,6 @@ def name_option(**attrs):
 @snow_option()
 @dither_option()
 @aberration_option()
-@bloom_option()
-@wavelet_option()
 @emboss_option()
 @shadow_option()
 @edges_option()
@@ -608,6 +607,7 @@ def name_option(**attrs):
 @hsv_range_option()
 @hsv_rotation_option()
 @hsv_saturation_option()
+@wavelet_option()
 @name_option()
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
