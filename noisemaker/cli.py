@@ -343,7 +343,7 @@ def voronoi_refract_option(**attrs):
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 1)
+    attrs.setdefault("default", None)
 
     return option("--sobel", **attrs)
 
@@ -351,7 +351,7 @@ def sobel_option(**attrs):
 def outline_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 1)
+    attrs.setdefault("default", None)
 
     return option("--outline", **attrs)
 
