@@ -14,8 +14,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0, voronoi_refract=0.0,
-                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0,
-                **convolve_kwargs):
+                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0, with_aberration=None,
+                 with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -58,6 +58,8 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param float warp_range: Orthogonal distortion gradient.
     :param float vortex_range: Vortex tiling amount
     :param int warp_octaves: Multi-res iteration count for warp
+    :param float|None with_aberration: Chromatic aberration distance
+    :param float|None with_bloom: Bloom alpha
 
     :return: Tensor
     """
@@ -119,6 +121,12 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=sobel_func)
+
+    if with_aberration:
+        tensor = aberration(tensor, shape, displacement=with_aberration)
+
+    if with_bloom:
+        tensor = bloom(tensor, shape, alpha=with_bloom)
 
     tensor = normalize(tensor)
 
@@ -802,7 +810,7 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
 
 
-def derivative(tensor, shape, dist_func=0):
+def derivative(tensor, shape, dist_func=0, with_normalize=True):
     """
     Extract a derivative from the given noise.
 
@@ -814,13 +822,19 @@ def derivative(tensor, shape, dist_func=0):
     :param Tensor tensor:
     :param list[int] shape:
     :param DistanceFunction|int dist_func: Derivative distance function
+    :param bool with_normalize:
     :return: Tensor
     """
 
     x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
     y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
 
-    return normalize(distance(x, y, dist_func))
+    out = distance(x, y, dist_func)
+
+    if with_normalize:
+        out = normalize(out)
+
+    return out
 
 
 def sobel(tensor, shape, dist_func=0):
@@ -955,7 +969,7 @@ def center_mask(center, edges, shape):
     :return: Tensor
     """
 
-    mask = singularity(None, shape, dist_func=DistanceFunction.chebyshev)
+    mask = tf.square(singularity(None, shape, dist_func=DistanceFunction.chebyshev))
 
     return blend_cosine(center, edges, mask)
 
@@ -993,6 +1007,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     else:
         x, y, point_count = xy
 
+        x = tf.cast(x / 2, tf.float32)
+        y = tf.cast(y / 2, tf.float32)
+
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
@@ -1001,13 +1018,13 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=0, alpha
     half_height = height * .5
 
     # Wrapping edges!
-    x0_diff = (x_index - x - half_width) / width
-    x1_diff = (x_index - x + half_width) / width
-    y0_diff = (y_index - y - half_height) / height
-    y1_diff = (y_index - y + half_height) / height
+    x0_diff = (x_index - x - half_width)
+    x1_diff = (x_index - x + half_width)
+    y0_diff = (y_index - y - half_height)
+    y1_diff = (y_index - y + half_height)
 
-    x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff))
-    y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff))
+    x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff)) / width
+    y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff)) / height
 
     # Not-wrapping edges!
     # x_diff = (x_index - x) / width
@@ -1311,3 +1328,80 @@ def vortex(tensor, shape, displacement=64.0):
     warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
 
     return center_mask(warped, convolve(ConvKernel.blur, tensor, shape) * .25, shape)
+
+
+def aberration(tensor, shape, displacement=.005):
+    """
+    Chromatic aberration
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float displacement:
+    """
+
+    height, width, channels = shape
+
+    if channels != 3:
+        return tensor
+
+    x_index = row_index(shape)
+    y_index = column_index(shape)
+
+    x_index_float = tf.cast(x_index, tf.float32)
+    gradient = normalize(x_index_float)
+
+    separated = []
+
+    displacement_pixels = width * displacement
+
+    shift = random.random() - .5
+    color_shifted = tf.image.adjust_hue(tensor, shift)
+
+    for i in range(channels):
+        # Left and right neighbor pixels
+        if i == 1:
+            # Center (green)
+            _x_index = x_index
+
+        else:
+            _x_index = (x_index + int(-displacement_pixels * (i - 1))) % width
+            _x_index = tf.cast(_x_index, tf.float32)
+
+        # Left and right image sides
+        if i == 0:
+            # Left (red)
+            _x_index = tf.cast(blend_cosine(_x_index, x_index_float, gradient), tf.int32)
+
+        elif i == 2:
+            # Right (blue)
+            _x_index = tf.cast(blend_cosine(x_index_float, _x_index, gradient), tf.int32)
+
+        separated.append(tf.gather_nd(color_shifted[:,:,i], tf.stack([y_index, _x_index], 2)))
+
+    separated = tf.image.adjust_hue(tf.stack(separated, 2), -shift)
+
+    return center_mask(tensor, separated, shape)
+
+
+def bloom(tensor, shape, alpha=.5):
+    """
+    Bloom effect
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float alpha:
+    """
+
+    height, width, channels = shape
+
+    shape_0 = [int(height * .005), int(width * .005), channels]
+    shape_1 = [int(height * .01), int(width * .01), channels]
+    shape_2 = [int(height * .02), int(width * .02), channels]
+
+    bright_spots = blend_cosine(tensor, tf.maximum(tensor * 2 - 1, 0.0), .25)
+
+    blurred = (resample(resample(bright_spots, shape_0), shape)
+               + resample(resample(bright_spots, shape_1), shape)
+               + resample(resample(bright_spots, shape_2), shape)) / 3.0
+
+    return blend_cosine(tensor, tensor + blurred, alpha)

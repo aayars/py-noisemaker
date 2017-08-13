@@ -152,19 +152,6 @@ def crt(tensor, shape):
 
     tensor = tf.image.random_hue(tensor, .125)
     tensor = tf.image.adjust_saturation(tensor, 1.25)
-    # tensor = tf.image.adjust_contrast(tensor, 1.5)
-
-    y_index = effects.column_index(shape)
-    x_index = effects.row_index(shape)
-
-    separated = []
-
-    for i in range(channels):
-        _x_index = (x_index + int(random.random() * 16 - 8)) % width
-
-        separated.append(tf.gather_nd(tensor[:,:,i], tf.stack([y_index, _x_index], 2)))
-
-    tensor = tf.stack(separated, 2)
 
     return tensor
 
