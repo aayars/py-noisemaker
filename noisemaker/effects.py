@@ -10,7 +10,7 @@ import tensorflow as tf
 
 def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
-                 with_worms=False, worms_behavior=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
+                 with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=False, sobel_func=0, with_normal_map=False, deriv=False, deriv_func=0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=0, voronoi_alpha=1.0, voronoi_refract=0.0,
@@ -29,8 +29,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
     :param str clut: PNG or JPG color lookup table filename.
     :param float clut_horizontal: Preserve clut Y axis.
     :param float clut_range: Gather range for clut.
-    :param bool with_worms: Do worms.
-    :param WormBehavior worms_behavior:
+    :param WormBehavior|None with_worms: Do worms.
     :param float worms_density: Worm density multiplier (larger == slower)
     :param float worms_duration: Iteration multiplier (larger == slower)
     :param float worms_stride: Mean travel distance per iteration
@@ -100,7 +99,7 @@ def post_process(tensor, shape, freq, ridges=False, spline_order=3, reflect_rang
         tensor = posterize(tensor, posterize_levels)
 
     if with_worms:
-        tensor = worms(tensor, shape, behavior=worms_behavior, density=worms_density, duration=worms_duration,
+        tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
                        stride=worms_stride, stride_deviation=worms_stride_deviation, bg=worms_bg, kink=worms_kink)
 
     if with_wormhole:
@@ -181,13 +180,15 @@ class WormBehavior(Enum):
        image = worms(image, behavior=WormBehavior.unruly)
     """
 
-    obedient = 0
+    none = 0
 
-    crosshatch = 1
+    obedient = 1
 
-    unruly = 2
+    crosshatch = 2
 
-    chaotic = 3
+    unruly = 3
+
+    chaotic = 4
 
 
 class ConvKernel(Enum):

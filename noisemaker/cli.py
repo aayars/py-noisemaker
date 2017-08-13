@@ -177,19 +177,11 @@ def clut_horizontal_option(**attrs):
 
 
 def worms_option(**attrs):
-    attrs.setdefault("help", "Iterative \"worm\" field flow paths")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
-
-    return option("--worms", **attrs)
-
-
-def worms_behavior_option(**attrs):
-    attrs.setdefault("help", "0=Obedient, 1=Crosshatch, 2=Unruly, 3=Chaotic")
+    attrs.setdefault("help", "Iterative \"worm\" field flow (1=Obedient, 2=Crosshatch, 3=Unruly, 4=Chaotic)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
-    return option("--worms-behavior", **attrs)
+    return option("--worms", **attrs)
 
 
 def worms_density_option(**attrs):
@@ -587,7 +579,6 @@ def main(ctx, **kwargs):
 @wormhole_stride_option()
 @wormhole_kink_option()
 @worms_option()
-@worms_behavior_option()
 @worms_density_option()
 @worms_duration_option()
 @worms_stride_option()
@@ -624,7 +615,7 @@ def main(ctx, **kwargs):
 @name_option()
 @click.pass_context
 def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, clut, clut_horizontal, clut_range,
-          worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
+          worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride,
           erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, sobel, outline, sobel_func, normals, deriv, deriv_func,
           interp, distrib, posterize, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
 
@@ -634,7 +625,7 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
         tensor = generators.basic(freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
                                   reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                   clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                  with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
+                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
                                   worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                   with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                   with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
@@ -683,7 +674,6 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
 @wormhole_stride_option()
 @wormhole_kink_option()
 @worms_option()
-@worms_behavior_option()
 @worms_density_option()
 @worms_duration_option()
 @worms_stride_option()
@@ -720,7 +710,7 @@ def basic(ctx, freq, width, height, channels, ridges, sin, wavelet, lattice_drif
 @name_option()
 @click.pass_context
 def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
-             clut, clut_horizontal, clut_range, worms, worms_behavior, worms_density, worms_duration, worms_stride, worms_stride_deviation,
+             clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, sobel_func, normals, deriv, deriv_func, interp, distrib, posterize,
              erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom,
              rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
@@ -732,7 +722,7 @@ def multires(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, 
                                      reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                      post_reflect_range=post_reflect, post_refract_range=post_refract,
                                      clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                     with_worms=worms, worms_behavior=worms_behavior, worms_density=worms_density, worms_duration=worms_duration,
+                                     with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
