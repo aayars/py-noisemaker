@@ -1406,3 +1406,100 @@ def bloom(tensor, shape, alpha=.5):
                + resample(resample(bright_spots, shape_2), shape)) / 3.0
 
     return blend_cosine(tensor, tensor + blurred, alpha)
+
+
+def dla(tensor, shape, density=.1):
+    """
+    """
+
+    height, width, channels = shape
+
+    # Expanded neighborhoods for affixed nodes, lets us miss with one lookup instead of eight
+    neighborhoods = set()
+
+    # Actual affixed nodes
+    clustered = []
+
+    # Not-affixed nodes
+    walkers = []
+
+    half_width = int(width * .75)
+    half_height = int(height * .75)
+
+    seed_count = 100
+    walkers_per_seed = 1000
+
+    walker_cutoff = seed_count * walkers_per_seed * .01
+
+    offsets = [-1, 0, 1]
+
+    for i in range(seed_count):
+        node = (random.randint(0, half_height - 1), random.randint(0, half_width - 1))
+
+        for x_offset in offsets:
+            for y_offset in offsets:
+                neighborhoods.add(((node[0] + y_offset) % half_height, (node[1] + x_offset) % half_width))
+
+        clustered.append(node)
+
+        for i in range(walkers_per_seed):
+            walkers.append(((node[0] + random.randint(-100, 100)) % half_height, (node[1] + random.randint(-100, 100)) % half_width))
+
+    iterations = 10000
+
+    popcorn_counter = 0
+
+    for i in range(iterations):
+        remove_walkers = []
+
+        for walker in walkers:
+            # print("Comparing {0}".format(walker))
+            neighbors = []
+
+            if walker in neighborhoods:
+                for x_offset in offsets:
+                    for y_offset in offsets:
+                        neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
+
+                remove_walkers.append(walker)
+
+        print("done comparing")
+
+        if remove_walkers:
+            popcorn_counter = 0
+
+        else:
+            popcorn_counter += 1
+
+        for walker in remove_walkers:
+            # print("removing {0}, size {1}".format(walker, len(walkers)))
+            clustered.append(walker)
+            walkers.remove(walker)
+
+        print("done removing, size {0}".format(len(walkers)))
+
+        if len(walkers) < walker_cutoff or popcorn_counter > 50:
+            break
+
+        for w in range(len(walkers)):
+            # print("Walking {0}".format(walker))
+            walker = walkers[w]
+            walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height, (walker[1] + offsets[random.randint(0, len(offsets)- 1)]) % half_width)
+
+        print("done walking")
+        # random walk remaining walkers.
+        # at end, plot seed positions.
+
+    print("here")
+
+    count = len(clustered)
+
+    # hot = tf.ones([count, channels])
+    hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
+
+    return normalize(resample(tf.scatter_nd(tf.stack(clustered), hot, [half_height, half_height, channels]), shape))
+
+    x = tf.stack([c[1] for c in clustered])
+    y = tf.stack([c[0] for c in clustered])
+
+    return 1.0 - voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_range, xy=(x, y, len(clustered)))
