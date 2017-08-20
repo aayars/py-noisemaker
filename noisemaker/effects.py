@@ -14,8 +14,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
-                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0, with_aberration=None,
-                 with_dla=0.0, point_count=25, point_distrib=1, point_center=True,
+                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None,
+                 vortex_range=0.0, with_aberration=None, with_dla=0.0, point_count=25, point_distrib=1, point_center=True,
                  with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -53,9 +53,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param DistanceFunction|int deriv: Derivative distance function
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
-    :param float warp_range: Orthogonal distortion gradient.
     :param float vortex_range: Vortex tiling amount
+    :param float warp_range: Orthogonal distortion gradient.
     :param int warp_octaves: Multi-res iteration count for warp
+    :param int|None warp_interp: Override spline order for warp (None = use spline_order)
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
@@ -93,7 +94,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if warp_range:
-        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves, spline_order=spline_order)
+        if warp_interp is None:
+            warp_interp = spline_order
+
+        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
 
     # else:
         # tensor = normalize(tensor)

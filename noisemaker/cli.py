@@ -126,7 +126,7 @@ def vortex_option(**attrs):
 
 
 def warp_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Orthogonal displacement range {0}".format(ENTIRE_IMAGE_HINT))
+    attrs.setdefault("help", "Octave Warp: Orthogonal displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -134,11 +134,19 @@ def warp_option(**attrs):
 
 
 def warp_octaves_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Octave count for --warp")
+    attrs.setdefault("help", "Octave Warp: Octave count for --warp")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 3)
 
     return option("--warp-octaves", **attrs)
+
+
+def warp_interp_option(**attrs):
+    attrs.setdefault("help", "Octave Warp: Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", None)
+
+    return option("--warp-interp", **attrs)
 
 
 def post_reflect_option(**attrs):
@@ -592,6 +600,7 @@ def name_option(**attrs):
 @vortex_option()
 @warp_option()
 @warp_octaves_option()
+@warp_interp_option()
 @post_reflect_option()
 @reflect_option()
 @post_refract_option()
@@ -646,11 +655,13 @@ def name_option(**attrs):
 @wavelet_option()
 @name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
-             clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-             worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
-             erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom,
-             rgb, hsv_range, hsv_rotation, hsv_saturation, name, dla, point_count, point_distrib, point_center, **convolve_kwargs):
+def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, reflect, refract, reindex,
+         post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
+         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
+         erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
+         glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
+         dla, point_count, point_distrib, point_center,
+         name, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -666,8 +677,9 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
                                      with_dla=dla, point_count=point_count, point_distrib=point_distrib, point_center=point_center,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
-                                     spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
-                                     vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
+                                     spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp,
+                                     posterize_levels=posterize, vortex_range=vortex,
+                                     hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
