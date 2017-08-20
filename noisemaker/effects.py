@@ -15,7 +15,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None,
-                 vortex_range=0.0, with_aberration=None, with_dla=0.0, point_count=25, point_distrib=1, point_center=True,
+                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_count=25, point_distrib=1, point_center=True,
                  with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -60,6 +60,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
+    :param int dla_padding: DLA pixel padding
     :param int point_count: Voronoi and DLA point count
     :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
     :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
@@ -79,7 +80,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                          nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
 
     if with_dla:
-        tensor = blend(tensor, dla(tensor, shape, xy=xy), with_dla)
+        tensor = blend(tensor, dla(tensor, shape, padding=dla_padding, xy=xy), with_dla)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -1448,7 +1449,7 @@ def bloom(tensor, shape, alpha=.5):
     return blend_cosine(tensor, tensor + blurred, alpha)
 
 
-def dla(tensor, shape, seed_density=.01, density=.125, xy=None):
+def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     """
     """
 
@@ -1467,7 +1468,7 @@ def dla(tensor, shape, seed_density=.01, density=.125, xy=None):
     # Not-affixed nodes
     walkers = []
 
-    scale = .5
+    scale = 1 / padding
 
     half_width = int(width * scale)
     half_height = int(height * scale)
