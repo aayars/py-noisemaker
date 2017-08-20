@@ -1408,98 +1408,157 @@ def bloom(tensor, shape, alpha=.5):
     return blend_cosine(tensor, tensor + blurred, alpha)
 
 
-def dla(tensor, shape, density=.1):
+def dla(tensor, shape, density=.125):
     """
     """
 
     height, width, channels = shape
 
-    # Expanded neighborhoods for affixed nodes, lets us miss with one lookup instead of eight
+    # Nearest-neighbor map for affixed nodes, lets us miss with one lookup instead of eight
     neighborhoods = set()
+
+    # Nearest-neighbor map of neighbor map, lets us skip nodes which are too far away to matter
+    expanded_neighborhoods = set()
 
     # Actual affixed nodes
     clustered = []
+    colors = []
 
     # Not-affixed nodes
     walkers = []
 
-    half_width = int(width * .75)
-    half_height = int(height * .75)
+    scale = .5
 
-    seed_count = 100
-    walkers_per_seed = 1000
+    half_width = int(width * scale)
+    half_height = int(height * scale)
 
-    walker_cutoff = seed_count * walkers_per_seed * .01
+    seed_count = 10
+
+    walkers_count = half_height * half_width * density
+
+    walkers_per_seed = int(walkers_count / seed_count)
 
     offsets = [-1, 0, 1]
+
+    expanded_range = 8
+
+    expanded_offsets = range(-expanded_range, expanded_range + 1)
+
+    x = []
+    y = []
+
+    # for node in point_cloud(seed_count):
+        # node = (int(node[0] * half_height), int(node[1] * half_width))
 
     for i in range(seed_count):
         node = (random.randint(0, half_height - 1), random.randint(0, half_width - 1))
 
-        for x_offset in offsets:
-            for y_offset in offsets:
-                neighborhoods.add(((node[0] + y_offset) % half_height, (node[1] + x_offset) % half_width))
+        y.append(node[0])
+        x.append(node[1])
 
         clustered.append(node)
 
+        for x_offset in offsets:
+            for y_offset in offsets:
+                neighborhoods.add((node[0] + y_offset, node[1] + x_offset))
+
+        for x_offset in expanded_offsets:
+            for y_offset in expanded_offsets:
+                expanded_neighborhoods.add((node[0] + y_offset, node[1] + x_offset))
+
         for i in range(walkers_per_seed):
-            walkers.append(((node[0] + random.randint(-100, 100)) % half_height, (node[1] + random.randint(-100, 100)) % half_width))
+            # degrees = 360.0 * math.radians(1) * random.random()
+            # dist = random.random() * height / math.sqrt(seed_count) * 2.5
 
-    iterations = 10000
+            # walkers.append((node[0] + int(math.cos(degrees) * dist), node[1] + int(math.sin(degrees) * dist)))
 
-    popcorn_counter = 0
+            walkers.append((int(random.random() * height), int(random.random() * width)))
+
+    iterations = 1000
 
     for i in range(iterations):
-        remove_walkers = []
+        remove_walkers = set()
 
         for walker in walkers:
-            # print("Comparing {0}".format(walker))
             neighbors = []
 
             if walker in neighborhoods:
-                for x_offset in offsets:
-                    for y_offset in offsets:
-                        neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
+                remove_walkers.add(walker)
 
-                remove_walkers.append(walker)
-
-        print("done comparing")
-
-        if remove_walkers:
-            popcorn_counter = 0
-
-        else:
-            popcorn_counter += 1
+        # Remove all occurrences
+        walkers = [walker for walker in walkers if walker not in remove_walkers]
 
         for walker in remove_walkers:
-            # print("removing {0}, size {1}".format(walker, len(walkers)))
+            for x_offset in offsets:
+                for y_offset in offsets:
+                    # tensorflowification - use a conv2d here
+                    neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
+
+            for x_offset in expanded_offsets:
+                for y_offset in expanded_offsets:
+                    expanded_neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
+
             clustered.append(walker)
-            walkers.remove(walker)
 
-        print("done removing, size {0}".format(len(walkers)))
+        print(len(walkers))
 
-        if len(walkers) < walker_cutoff or popcorn_counter > 50:
+        if not walkers:
             break
 
         for w in range(len(walkers)):
-            # print("Walking {0}".format(walker))
             walker = walkers[w]
-            walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height, (walker[1] + offsets[random.randint(0, len(offsets)- 1)]) % half_width)
 
-        print("done walking")
-        # random walk remaining walkers.
-        # at end, plot seed positions.
+            if walker in expanded_neighborhoods:
+                walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height, (walker[1] + offsets[random.randint(0, len(offsets)- 1)]) % half_width)
 
-    print("here")
+            else:
+                walkers[w] = ((walker[0] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_height, (walker[1] + expanded_offsets[random.randint(0, len(expanded_offsets)- 1)]) % half_width)
 
-    count = len(clustered)
+    seen = set()
+    unique = []
+
+    for c in clustered:
+        if c in seen:
+            continue
+
+        seen.add(c)
+
+        unique.append(c)
+
+    count = len(unique)
 
     # hot = tf.ones([count, channels])
     hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
 
-    return normalize(resample(tf.scatter_nd(tf.stack(clustered), hot, [half_height, half_height, channels]), shape))
+    out = convolve(ConvKernel.blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
+    # return resample(normalize(tf.scatter_nd(tf.stack(unique), hot, [half_height, half_width, channels])), shape)
+    # out = resample(normalize(tf.scatter_nd(tf.stack(unique), hot, [half_height, half_width, channels])), shape)
 
-    x = tf.stack([c[1] for c in clustered])
-    y = tf.stack([c[0] for c in clustered])
+    # x = tf.stack([c[1] for c in clustered])
+    # y = tf.stack([c[0] for c in clustered])
 
-    return 1.0 - voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_range, xy=(x, y, len(clustered)))
+    x_count = len(x)
+    x = ( tf.cast(tf.stack(x), tf.float32) * int(1/scale) + width / 2 ) % width
+    y = ( tf.cast(tf.stack(y), tf.float32) * int(1/scale) + height / 2 ) % height
+
+    v = normalize(voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_range, xy=(x, y, x_count), alpha=.5))
+
+    return blend(out * tensor, v, .75)
+
+
+def point_cloud(count):
+    if not count:
+        return
+
+    points = set()
+
+    sqrt = int(math.sqrt(count))
+
+    # Don't start feature points at 0,0, due to voronoi function half-length offset
+    fudge = .5 / sqrt
+
+    for x in range(sqrt):
+        for y in range(sqrt):
+            points.add((fudge + y/sqrt, fudge + x/sqrt))
+
+    return points
