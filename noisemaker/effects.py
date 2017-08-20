@@ -13,8 +13,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
-                 with_voronoi=0, voronoi_density=.1, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0,
+                 with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, vortex_range=0.0, with_aberration=None,
+                 with_dla=0.0, point_count=25, point_distrib=1, point_center=True,
                  with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -43,11 +44,11 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
     :param float wormhole_stride: Wormhole thickness range
     :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
-    :param float voronoi_density: Voronoi cell count multiplier
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float voronoi_refract: Domain warp input tensor against Voronoi
+    :param bool voronoi_inverse: Inverse values for Voronoi 'range' types
     :param bool ridges_hint: Ridged multifractal hint for Voronoi
     :param DistanceFunction|int deriv: Derivative distance function
     :param float posterize_levels: Posterize levels
@@ -57,17 +58,27 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int warp_octaves: Multi-res iteration count for warp
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
+    :param bool with_dla: Diffusion-limited aggregation alpha
+    :param int point_count: Voronoi and DLA point count
+    :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
+    :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
 
     :return: Tensor
     """
 
+    if with_voronoi or with_dla:
+        x, y = point_cloud(point_count, distrib=point_distrib, shape=shape, center=point_center)
+
+        xy = (x, y, len(x))
+
     tensor = normalize(tensor)
 
     if with_voronoi:
-        _voronoi = singularity if voronoi_density == 0 else voronoi
+        tensor = voronoi(tensor, shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
+                         nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
 
-        tensor = _voronoi(tensor, shape, diagram_type=with_voronoi, density=voronoi_density, nth=voronoi_nth, dist_func=voronoi_func,
-                          alpha=voronoi_alpha, with_refract=voronoi_refract, ridges_hint=ridges_hint)
+    if with_dla:
+        tensor = blend(tensor, dla(tensor, shape, xy=xy), with_dla)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -128,6 +139,18 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     tensor = normalize(tensor)
 
     return tensor
+
+
+class PointDistribution(Enum):
+    """
+    Point cloud distribution, used by Voronoi and DLA
+    """
+
+    none = 0
+
+    random = 1
+
+    square_grid = 2
 
 
 class VoronoiDiagramType(Enum):
@@ -975,19 +998,20 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, xy=None, ridges_hint=False):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
     :param Tensor tensor:
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
-    :param float density: Cell count multiplier (1.0 = min(height, width); larger is more costly)    `
+    :param int point_count:
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
     :param bool regions: Assign colors to control points (memory intensive)
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float with_refract: Domain warp input tensor against resulting voronoi
+    :param bool inverse: Invert range brightness values (does not affect hue)
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :return: Tensor
@@ -1008,15 +1032,15 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     else:
         x, y, point_count = xy
 
-        x = tf.cast(x / 2, tf.float32)
-        y = tf.cast(y / 2, tf.float32)
+        x = tf.cast(tf.stack(x) / 2, tf.float32)
+        y = tf.cast(tf.stack(y) / 2, tf.float32)
 
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
 
-    half_width = width * .5
-    half_height = height * .5
+    half_width = int(width * .5)
+    half_height = int(height * .5)
 
     # Wrapping edges!
     x0_diff = (x_index - x - half_width)
@@ -1042,11 +1066,21 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         index = int((nth + 1) * -1)
 
     ###
+
+    # Seamless alg offset pixels by half image size. Move results slice back to starting points with `offset`:
+    offset_kwargs = {
+        'x': half_width,
+        'y': half_height,
+    }
+
     if diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
-        range_slice = resample(tf.sqrt(normalize(dist[:,:,:,index])), original_shape)
+        range_slice = resample(offset(tf.sqrt(normalize(dist[:,:,:,index])), shape, **offset_kwargs), original_shape)
+
+        if inverse:
+            range_slice = 1.0 - range_slice
 
     if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
-        regions_slice = indices[:,:,:,index]
+        regions_slice = offset(indices[:,:,:,index], shape, **offset_kwargs)
 
     ###
     if diagram_type == VoronoiDiagramType.range.value:
@@ -1304,12 +1338,9 @@ def singularity(tensor, shape, diagram_type=1, **kwargs):
     Additional kwargs will be sent to the `voronoi` function.
     """
 
-    x = tf.stack([0.0])
-    y = tf.stack([0.0])
+    x, y = point_cloud(1, PointDistribution.square_grid, shape)
 
-    point_count = 1
-
-    return convolve(ConvKernel.blur, voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, point_count), **kwargs) * tf.ones(shape), shape)
+    return convolve(ConvKernel.blur, voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs) * tf.ones(shape), shape)
 
 
 def vortex(tensor, shape, displacement=64.0):
@@ -1408,7 +1439,7 @@ def bloom(tensor, shape, alpha=.5):
     return blend_cosine(tensor, tensor + blurred, alpha)
 
 
-def dla(tensor, shape, density=.125):
+def dla(tensor, shape, seed_density=.01, density=.125, xy=None):
     """
     """
 
@@ -1432,7 +1463,12 @@ def dla(tensor, shape, density=.125):
     half_width = int(width * scale)
     half_height = int(height * scale)
 
-    seed_count = 10
+    if xy is None:
+        seed_count = int(half_height * seed_density) or 1
+        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape)
+
+    else:
+        x, y, seed_count = xy
 
     walkers_count = half_height * half_width * density
 
@@ -1444,17 +1480,8 @@ def dla(tensor, shape, density=.125):
 
     expanded_offsets = range(-expanded_range, expanded_range + 1)
 
-    x = []
-    y = []
-
-    # for node in point_cloud(seed_count):
-        # node = (int(node[0] * half_height), int(node[1] * half_width))
-
     for i in range(seed_count):
-        node = (random.randint(0, half_height - 1), random.randint(0, half_width - 1))
-
-        y.append(node[0])
-        x.append(node[1])
+        node = (int(y[i] * scale), int(x[i] * scale))
 
         clustered.append(node)
 
@@ -1469,10 +1496,9 @@ def dla(tensor, shape, density=.125):
         for i in range(walkers_per_seed):
             # degrees = 360.0 * math.radians(1) * random.random()
             # dist = random.random() * height / math.sqrt(seed_count) * 2.5
-
             # walkers.append((node[0] + int(math.cos(degrees) * dist), node[1] + int(math.sin(degrees) * dist)))
 
-            walkers.append((int(random.random() * height), int(random.random() * width)))
+            walkers.append((int(random.random() * half_height), int(random.random() * half_width)))
 
     iterations = 1000
 
@@ -1531,34 +1557,67 @@ def dla(tensor, shape, density=.125):
     hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
 
     out = convolve(ConvKernel.blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
-    # return resample(normalize(tf.scatter_nd(tf.stack(unique), hot, [half_height, half_width, channels])), shape)
-    # out = resample(normalize(tf.scatter_nd(tf.stack(unique), hot, [half_height, half_width, channels])), shape)
 
-    # x = tf.stack([c[1] for c in clustered])
-    # y = tf.stack([c[0] for c in clustered])
-
-    x_count = len(x)
-    x = ( tf.cast(tf.stack(x), tf.float32) * int(1/scale) + width / 2 ) % width
-    y = ( tf.cast(tf.stack(y), tf.float32) * int(1/scale) + height / 2 ) % height
-
-    v = normalize(voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_range, xy=(x, y, x_count), alpha=.5))
-
-    return blend(out * tensor, v, .75)
+    return out * tensor
 
 
-def point_cloud(count):
+def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True):
     if not count:
         return
 
-    points = set()
+    x = []
+    y = []
 
-    sqrt = int(math.sqrt(count))
+    if shape is None:
+        x_len = 1.0
+        y_len = 1.0
 
-    # Don't start feature points at 0,0, due to voronoi function half-length offset
-    fudge = .5 / sqrt
+    else:
+        x_len = shape[1]
+        y_len = shape[0]
 
-    for x in range(sqrt):
-        for y in range(sqrt):
-            points.add((fudge + y/sqrt, fudge + x/sqrt))
+    if isinstance(distrib, PointDistribution):
+        distrib = distrib.value
 
-    return points
+    if distrib == PointDistribution.random.value:
+        for i in range(count):
+            x.append(random.random() * x_len)
+            y.append(random.random() * y_len)
+
+    elif distrib == PointDistribution.square_grid.value:
+        side_length = int(math.sqrt(count))
+
+        drift_amount = .5 / side_length
+
+        if (count % 2) == 0:
+            drift = 0.0 if center else drift_amount
+
+        else:
+            drift = drift_amount if center else 0.0
+
+        for a in range(side_length):
+            _x = (((a / side_length) + drift) * x_len) % x_len
+
+            if shape is not None:
+                _x = int(_x)
+
+            for b in range(side_length):
+                _y = (((b / side_length) + drift) * y_len) % y_len
+
+                if shape is not None:
+                    _y = int(_y)
+
+                x.append(_x)
+                y.append(_y)
+
+    return (x, y)
+
+
+def offset(tensor, shape, x=0, y=0):
+    """
+    """
+
+    x_index = row_index(shape)
+    y_index = column_index(shape)
+
+    return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))

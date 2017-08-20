@@ -292,20 +292,20 @@ def erosion_worms_option(**attrs):
     return option("--erosion-worms", **attrs)
 
 
+def dla_option(**attrs):
+    attrs.setdefault("help", "Diffusion-limited aggregation (DLA) alpha")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
+
+    return option("--dla", **attrs)
+
+
 def voronoi_option(**attrs):
     attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
     return option("--voronoi", **attrs)
-
-
-def voronoi_density_option(**attrs):
-    attrs.setdefault("help", "Voronoi: Cell count multiplier (1.0 = min(height, width); larger is more costly)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", .1)
-
-    return option("--voronoi-density", **attrs)
 
 
 def voronoi_func_option(**attrs):
@@ -338,6 +338,38 @@ def voronoi_refract_option(**attrs):
     attrs.setdefault("default", 0.0)
 
     return option("--voronoi-refract", **attrs)
+
+
+def voronoi_inverse_option(**attrs):
+    attrs.setdefault("help", "Voronoi: Inverse range")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--voronoi-inverse", **attrs)
+
+
+def point_count_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Point cloud count")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 25)
+
+    return option("--point-count", **attrs)
+
+
+def point_distrib_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution (1=Random, 2=Square Grid)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 1)
+
+    return option("--point-distrib", **attrs)
+
+
+def point_center_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Pin diagram to center (False = pin to edges)")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", True)
+
+    return option("--point-center/--no-point-center", **attrs)
 
 
 def sobel_option(**attrs):
@@ -569,11 +601,15 @@ def name_option(**attrs):
 @clut_range_option()
 @clut_horizontal_option()
 @voronoi_option()
-@voronoi_density_option()
 @voronoi_func_option()
 @voronoi_nth_option()
 @voronoi_alpha_option()
 @voronoi_refract_option()
+@voronoi_inverse_option()
+@dla_option()
+@point_count_option()
+@point_distrib_option()
+@point_center_option()
 @wormhole_option()
 @wormhole_stride_option()
 @wormhole_kink_option()
@@ -613,8 +649,8 @@ def name_option(**attrs):
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, reflect, refract, reindex, post_reflect, post_refract,
              clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
              worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
-             erosion_worms, voronoi, voronoi_density, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom,
-             rgb, hsv_range, hsv_rotation, hsv_saturation, name, **convolve_kwargs):
+             erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom,
+             rgb, hsv_range, hsv_rotation, hsv_saturation, name, dla, point_count, point_distrib, point_center, **convolve_kwargs):
 
     with tf.Session().as_default():
         shape = [height, width, channels]
@@ -626,9 +662,10 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
                                      worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
-                                     with_voronoi=voronoi, voronoi_density=voronoi_density, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                     voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, with_outline=outline,
-                                     with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
+                                     with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
+                                     voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
+                                     with_dla=dla, point_count=point_count, point_distrib=point_distrib, point_center=point_center,
+                                     with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, posterize_levels=posterize,
                                      vortex_range=vortex, hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
