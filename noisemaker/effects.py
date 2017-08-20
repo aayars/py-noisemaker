@@ -1629,7 +1629,7 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
                     x_drift = 0
 
                 if distrib == PointDistribution.vertical_hex.value:
-                    y_drift = drift_amount if (a % 2) == 1 else 0
+                    y_drift = 0 if (a % 2) == 1 else drift_amount
 
                 else:
                     y_drift = 0
