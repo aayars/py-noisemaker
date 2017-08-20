@@ -155,7 +155,18 @@ class PointDistribution(Enum):
 
     random = 1
 
-    square_grid = 2
+    square = 2
+
+    horizontal_hex = 3
+
+    vertical_hex = 4
+
+    @staticmethod
+    def is_grid(member):
+        if isinstance(member, PointDistribution):
+            member = member.value
+
+        return member in (2, 3, 4)
 
 
 class VoronoiDiagramType(Enum):
@@ -1348,7 +1359,7 @@ def singularity(tensor, shape, diagram_type=1, **kwargs):
     Additional kwargs will be sent to the `voronoi` function.
     """
 
-    x, y = point_cloud(1, PointDistribution.square_grid, shape)
+    x, y = point_cloud(1, PointDistribution.square, shape)
 
     return convolve(ConvKernel.blur, voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs) * tf.ones(shape), shape)
 
@@ -1597,7 +1608,7 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
             x.append(_x)
             y.append(_y)
 
-    elif distrib == PointDistribution.square_grid.value:
+    elif PointDistribution.is_grid(distrib):
         # Keep a node in the center of the image, or pin to corner:
         side_length = int(math.sqrt(count))
         drift_amount = .5 / side_length
@@ -1610,10 +1621,21 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
 
         #
         for a in range(side_length):
-            _x = (((a / side_length) + drift) * width) % width * 1.0
-
             for b in range(side_length):
-                _y = (((b / side_length) + drift) * height) % height * 1.0
+                if distrib == PointDistribution.horizontal_hex.value:
+                    x_drift = drift_amount if (b % 2) == 1 else 0
+
+                else:
+                    x_drift = 0
+
+                if distrib == PointDistribution.vertical_hex.value:
+                    y_drift = drift_amount if (a % 2) == 1 else 0
+
+                else:
+                    y_drift = 0
+
+                _x = (((a / side_length) + drift + x_drift) * width) % width * 1.0
+                _y = (((b / side_length) + drift + y_drift) * height) % height * 1.0
 
                 x.append(_x)
                 y.append(_y)

@@ -373,7 +373,7 @@ def point_count_option(**attrs):
 
 
 def point_distrib_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution (1=Random, 2=Square Grid)")
+    attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution (1=random, 2=square, 3=xhex, 4=yhex)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 
