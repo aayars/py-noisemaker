@@ -1055,10 +1055,15 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     # x_diff = (x_index - x) / width
     # y_diff = (y_index - y) / height
 
-    dist = distance(x_diff, y_diff, dist_func)
-
     if isinstance(diagram_type, VoronoiDiagramType):
        diagram_type = diagram_type.value
+
+    if diagram_type == VoronoiDiagramType.flow.value:
+        # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
+        x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
+
+    dist = distance(x_diff, y_diff, dist_func)
 
     ###
     if diagram_type not in (VoronoiDiagramType.flow.value, ):
@@ -1087,7 +1092,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = range_slice
 
     if diagram_type in (VoronoiDiagramType.flow.value, ):
-        range_out = resample(normalize(tf.reduce_sum(tf.log(dist), 3)), original_shape)
+        range_out = resample(offset(normalize(tf.reduce_sum(tf.log(dist), 3)), shape, **offset_kwargs), original_shape)
 
     if diagram_type in (VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
         range_out = blend(tensor * range_slice, range_slice, range_slice)
@@ -1569,24 +1574,27 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
     y = []
 
     if shape is None:
-        x_len = 1.0
-        y_len = 1.0
+        width = 1.0
+        height = 1.0
 
     else:
-        x_len = shape[1]
-        y_len = shape[0]
+        width = shape[1]
+        height = shape[0]
 
     if isinstance(distrib, PointDistribution):
         distrib = distrib.value
 
     if distrib == PointDistribution.random.value:
         for i in range(count):
-            x.append(random.random() * x_len)
-            y.append(random.random() * y_len)
+            _x = random.random() * width
+            _y = random.random() * height
+
+            x.append(_x)
+            y.append(_y)
 
     elif distrib == PointDistribution.square_grid.value:
+        # Keep a node in the center of the image, or pin to corner:
         side_length = int(math.sqrt(count))
-
         drift_amount = .5 / side_length
 
         if (count % 2) == 0:
@@ -1595,17 +1603,12 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
         else:
             drift = drift_amount if center else 0.0
 
+        #
         for a in range(side_length):
-            _x = (((a / side_length) + drift) * x_len) % x_len
-
-            if shape is not None:
-                _x = int(_x)
+            _x = (((a / side_length) + drift) * width) % width * 1.0
 
             for b in range(side_length):
-                _y = (((b / side_length) + drift) * y_len) % y_len
-
-                if shape is not None:
-                    _y = int(_y)
+                _y = (((b / side_length) + drift) * height) % height * 1.0
 
                 x.append(_x)
                 y.append(_y)
