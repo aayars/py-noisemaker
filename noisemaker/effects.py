@@ -161,7 +161,7 @@ class PointDistribution(Enum):
 
     vertical_hex = 4
 
-    spiral = 4
+    spiral = 5
 
     @staticmethod
     def is_grid(member):
