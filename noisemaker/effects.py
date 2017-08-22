@@ -161,6 +161,8 @@ class PointDistribution(Enum):
 
     vertical_hex = 4
 
+    spiral = 4
+
     @staticmethod
     def is_grid(member):
         if isinstance(member, PointDistribution):
@@ -1640,7 +1642,22 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
                 x.append(_x)
                 y.append(_y)
 
+    elif distrib == PointDistribution.spiral.value:
+        half_width = width * .5
+        half_height = width * .5
+
+        kink = random.random() * 12.5 - 25
+
+        for i in range(count):
+            fract = i / count
+
+            degrees = fract * 360.0 * math.radians(1) * kink
+
+            x.append((half_width + math.sin(degrees) * fract * half_width) % width)
+            y.append((half_height + math.cos(degrees) * fract * half_height) % height)
+
     return (x, y)
+
 
 
 def offset(tensor, shape, x=0, y=0):
