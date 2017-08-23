@@ -163,6 +163,8 @@ class PointDistribution(Enum):
 
     spiral = 5
 
+    circular = 6
+
     @staticmethod
     def is_grid(member):
         if isinstance(member, PointDistribution):
@@ -1655,6 +1657,26 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
 
             x.append((half_width + math.sin(degrees) * fract * half_width) % width)
             y.append((half_height + math.cos(degrees) * fract * half_height) % height)
+
+    elif distrib == PointDistribution.circular.value:
+        half_width = width * .5
+        half_height = width * .5
+
+        ring_count = int(math.sqrt(count))
+        dot_count = int(math.sqrt(count))
+
+        for i in range(1, ring_count + 1):
+            dist_fract = i / ring_count
+
+            dots = dot_count * i
+
+            for j in range(1, dots + 1):
+                dots_fract = j / dots
+
+                degrees = dots_fract * 360.0 * math.radians(1)
+
+                x.append((half_width + math.sin(degrees) * dist_fract * half_width) % width)
+                y.append((half_height + math.cos(degrees) * dist_fract * half_height) % height)
 
     return (x, y)
 
