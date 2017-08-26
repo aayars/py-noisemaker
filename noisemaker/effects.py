@@ -165,6 +165,8 @@ class PointDistribution(Enum):
 
     circular = 6
 
+    concentric = 7
+
     @staticmethod
     def is_grid(member):
         if isinstance(member, PointDistribution):
@@ -1601,6 +1603,9 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
         width = shape[1]
         height = shape[0]
 
+    half_width = width * .5
+    half_height = height * .5
+
     if isinstance(distrib, PointDistribution):
         distrib = distrib.value
 
@@ -1645,9 +1650,6 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
                 y.append(_y)
 
     elif distrib == PointDistribution.spiral.value:
-        half_width = width * .5
-        half_height = width * .5
-
         kink = random.random() * 12.5 - 25
 
         for i in range(count):
@@ -1658,25 +1660,27 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
             x.append((half_width + math.sin(degrees) * fract * half_width) % width)
             y.append((half_height + math.cos(degrees) * fract * half_height) % height)
 
-    elif distrib == PointDistribution.circular.value:
-        half_width = width * .5
-        half_height = width * .5
-
+    elif distrib in (PointDistribution.circular.value, PointDistribution.concentric.value):
         ring_count = int(math.sqrt(count))
         dot_count = int(math.sqrt(count))
+
+        x.append(half_width)
+        y.append(half_height)
+
+        rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
         for i in range(1, ring_count + 1):
             dist_fract = i / ring_count
 
-            dots = dot_count * i
+            for j in range(1, dot_count + 1):
+                degrees = j * rotation
 
-            for j in range(1, dots + 1):
-                dots_fract = j / dots
-
-                degrees = dots_fract * 360.0 * math.radians(1)
+                if distrib == PointDistribution.circular.value and (i % 2) == 0:
+                    degrees += rotation * .5
 
                 x.append((half_width + math.sin(degrees) * dist_fract * half_width) % width)
                 y.append((half_height + math.cos(degrees) * dist_fract * half_height) % height)
+
 
     return (x, y)
 
