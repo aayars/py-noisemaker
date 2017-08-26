@@ -7,6 +7,8 @@ import random
 import numpy as np
 import tensorflow as tf
 
+from noisemaker.points import PointDistribution, point_cloud
+
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
@@ -144,35 +146,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     tensor = normalize(tensor)
 
     return tensor
-
-
-class PointDistribution(Enum):
-    """
-    Point cloud distribution, used by Voronoi and DLA
-    """
-
-    none = 0
-
-    random = 1
-
-    square = 2
-
-    horizontal_hex = 3
-
-    vertical_hex = 4
-
-    spiral = 5
-
-    circular = 6
-
-    concentric = 7
-
-    @staticmethod
-    def is_grid(member):
-        if isinstance(member, PointDistribution):
-            member = member.value
-
-        return member in (2, 3, 4)
 
 
 class VoronoiDiagramType(Enum):
@@ -1585,105 +1558,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     out = convolve(ConvKernel.blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
 
     return out * tensor
-
-
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True):
-    if not freq:
-        return
-
-    x = []
-    y = []
-
-    if shape is None:
-        width = 1.0
-        height = 1.0
-
-    else:
-        width = shape[1]
-        height = shape[0]
-
-    half_width = width * .5
-    half_height = height * .5
-
-    if isinstance(distrib, PointDistribution):
-        distrib = distrib.value
-
-    count = freq * freq
-
-    if distrib == PointDistribution.random.value:
-        for i in range(count):
-            _x = random.random() * width
-            _y = random.random() * height
-
-            x.append(_x)
-            y.append(_y)
-
-    elif PointDistribution.is_grid(distrib):
-        # Keep a node in the center of the image, or pin to corner:
-        drift_amount = .5 / freq
-
-        if (count % 2) == 0:
-            drift = 0.0 if center else drift_amount
-
-        else:
-            drift = drift_amount if center else 0.0
-
-        #
-        for a in range(freq):
-            for b in range(freq):
-                if distrib == PointDistribution.horizontal_hex.value:
-                    x_drift = drift_amount if (b % 2) == 1 else 0
-
-                else:
-                    x_drift = 0
-
-                if distrib == PointDistribution.vertical_hex.value:
-                    y_drift = 0 if (a % 2) == 1 else drift_amount
-
-                else:
-                    y_drift = 0
-
-                _x = (((a / freq) + drift + x_drift) * width) % width * 1.0
-                _y = (((b / freq) + drift + y_drift) * height) % height * 1.0
-
-                x.append(_x)
-                y.append(_y)
-
-    elif distrib == PointDistribution.spiral.value:
-        kink = random.random() * 12.5 - 25
-
-        for i in range(count):
-            fract = i / count
-
-            degrees = fract * 360.0 * math.radians(1) * kink
-
-            x.append((half_width + math.sin(degrees) * fract * half_width) % width)
-            y.append((half_height + math.cos(degrees) * fract * half_height) % height)
-
-    elif distrib in (PointDistribution.circular.value, PointDistribution.concentric.value):
-        ring_count = freq
-        dot_count = freq
-
-        x.append(half_width)
-        y.append(half_height)
-
-        rotation = (1 / dot_count) * 360.0 * math.radians(1)
-
-        for i in range(1, ring_count + 1):
-            dist_fract = i / ring_count
-
-            for j in range(1, dot_count + 1):
-                degrees = j * rotation
-
-                if distrib == PointDistribution.circular.value and (i % 2) == 0:
-                    degrees += rotation * .5
-
-                x.append((half_width + math.sin(degrees) * dist_fract * half_width) % width)
-                y.append((half_height + math.cos(degrees) * dist_fract * half_height) % height)
-
-
-    return (x, y)
-
 
 
 def offset(tensor, shape, x=0, y=0):

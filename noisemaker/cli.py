@@ -367,7 +367,7 @@ def voronoi_inverse_option(**attrs):
 def point_freq_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 25)
+    attrs.setdefault("default", 3)
 
     return option("--point-freq", **attrs)
 
