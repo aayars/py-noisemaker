@@ -389,7 +389,7 @@ def point_center_option(**attrs):
 
 
 def point_generations_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Penrose generations. When using, keep this and freq below ~4 or you will run OOM easily.")
+    attrs.setdefault("help", "Voronoi/DLA: Penrose generations. When using, keep this and freq below ~3 or you will run OOM easily.")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 

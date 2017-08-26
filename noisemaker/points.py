@@ -157,7 +157,7 @@ def square_grid(freq, distrib, center, center_x, center_y, half_width, half_heig
 
 
 def spiral(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
-    kink = random.random() * 12.5 - 25
+    kink = random.random() * 25 - 12.5
 
     x = []
     y = []

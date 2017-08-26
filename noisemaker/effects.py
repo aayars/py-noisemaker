@@ -71,19 +71,31 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :return: Tensor
     """
 
+    tensor = normalize(tensor)
+
     if with_voronoi or with_dla:
-        x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, center=point_center, generations=point_generations)
+        multiplier = max(2 * (point_generations - 1), 1)
+
+        tiled_shape = [int(shape[0] / multiplier), int(shape[1] / multiplier), shape[2]]
+
+        x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, center=point_center, generations=point_generations)
 
         xy = (x, y, len(x))
 
-    tensor = normalize(tensor)
+        input_tensor = resample(tensor, tiled_shape)
 
-    if with_voronoi:
-        tensor = voronoi(tensor, shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
-                         nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
+        if with_voronoi:
+            input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
+                             nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
 
-    if with_dla:
-        tensor = blend(tensor, dla(tensor, shape, padding=dla_padding, xy=xy), with_dla)
+        if with_dla:
+            input_tensor = blend(input_tensor, dla(tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
+
+        if point_generations == 1:
+            tensor = input_tensor
+
+        else:
+            tensor = expand_tile(input_tensor, tiled_shape, shape)
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range)
@@ -1195,6 +1207,22 @@ def _inner_tile(tensor, shape, freq):
     tiled = resample(tiled, shape, spline_order=1)
 
     return tiled
+
+
+def expand_tile(tensor, input_shape, output_shape):
+    """
+    """
+
+    input_width = input_shape[1]
+    input_height = input_shape[0]
+
+    x_offset = tf.cast(input_shape[1] / 2, tf.int32)
+    y_offset = tf.cast(input_shape[0] / 2, tf.int32)
+
+    x_index = (x_offset + row_index(output_shape)) % input_width
+    y_index = (y_offset + column_index(output_shape)) % input_height
+
+    return tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
 
 
 def row_index(shape):
