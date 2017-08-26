@@ -388,6 +388,14 @@ def point_center_option(**attrs):
     return option("--point-center/--no-point-center", **attrs)
 
 
+def point_generations_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Penrose generations. When using, keep this and freq below ~4 or you will run OOM easily.")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 1)
+
+    return option("--point-generations", **attrs)
+
+
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
     attrs.setdefault("type", int)
@@ -628,6 +636,7 @@ def name_option(**attrs):
 @point_freq_option()
 @point_distrib_option()
 @point_center_option()
+@point_generations_option()
 @wormhole_option()
 @wormhole_stride_option()
 @wormhole_kink_option()
@@ -669,7 +678,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
-         dla, dla_padding, point_freq, point_distrib, point_center,
+         dla, dla_padding, point_freq, point_distrib, point_center, point_generations,
          name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -685,6 +694,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=point_center,
+                                     point_generations=point_generations,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp,
                                      posterize_levels=posterize, vortex_range=vortex,

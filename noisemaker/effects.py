@@ -17,7 +17,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None,
-                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_freq=5, point_distrib=1, point_center=True,
+                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_freq=5, point_distrib=1, point_center=True, point_generations=1,
                  with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -66,12 +66,13 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int point_freq: Voronoi and DLA point frequency (freq * freq = count)
     :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
     :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
+    :param int point_generations: Penrose generations. Keep it low, and keep freq low, or you will run OOM easily.
 
     :return: Tensor
     """
 
     if with_voronoi or with_dla:
-        x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, center=point_center)
+        x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, center=point_center, generations=point_generations)
 
         xy = (x, y, len(x))
 

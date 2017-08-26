@@ -1,3 +1,4 @@
+from collections import deque
 from enum import Enum
 
 import math
@@ -40,7 +41,7 @@ class PointDistribution(Enum):
         return member in (6, 7)
 
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True):
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1):
     """
     """
 
@@ -69,7 +70,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True)
     point_func = rand
 
     if PointDistribution.is_grid(distrib):
-        point_func = hex
+        point_func = square_grid
 
     elif distrib == PointDistribution.spiral.value:
         point_func = spiral
@@ -77,34 +78,55 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True)
     elif PointDistribution.is_circular(distrib):
         point_func = circular
 
-    _x, _y = point_func(freq, distrib, half_width, half_height, half_width, half_height)
+    stack = deque()
+    stack.append((half_width, half_height, 1))
 
-    x += _x
-    y += _y
+    while stack:
+        x_point, y_point, generation = stack.popleft()
+
+        if generation <= generations:
+            _x, _y = point_func(freq, distrib, center, x_point, y_point, half_width / generation, half_height / generation, width, height)
+
+            for i in range(len(_x)):
+                x_point = _x[i]
+                y_point = _y[i]
+
+                stack.append((x_point, y_point, generation + 1))
+
+                x.append(x_point)
+                y.append(y_point)
 
     return (x, y)
 
 
-def rand(freq, distrib, center_x, center_y, half_width, half_height):
+def rand(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
     """
     """
 
-    for i in range(count):
-        _x = random.random() * half_width * 2.0
-        _y = random.random() * half_height * 2.0
+    x = []
+    y = []
+
+    for i in range(freq * freq):
+        _x = (center_x + (random.random() * (half_width * 2.0) - half_width)) % width
+        _y = (center_y + (random.random() * (half_height * 2.0) - half_height)) % height
 
         x.append(_x)
         y.append(_y)
 
+    return x, y
 
-def hex(freq, distrib, center_x, center_y, half_width, half_height):
+
+def square_grid(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
     """
     """
+
+    x = []
+    y = []
 
     # Keep a node in the center of the image, or pin to corner:
     drift_amount = .5 / freq
 
-    if (count % 2) == 0:
+    if ((freq * freq) % 2) == 0:
         drift = 0.0 if center else drift_amount
 
     else:
@@ -125,31 +147,35 @@ def hex(freq, distrib, center_x, center_y, half_width, half_height):
             else:
                 y_drift = 0
 
-            _x = (((a / freq) + drift + x_drift) * half_width * 2) % (half_width * 2.0)
-            _y = (((b / freq) + drift + y_drift) * half_height * 2) % (half_height * 2.0)
+            _x = (center_x + (((a / freq) + drift + x_drift) * half_width * 2)) % width
+            _y = (center_y + (((b / freq) + drift + y_drift) * half_height * 2)) % height
 
             x.append(_x)
             y.append(_y)
 
+    return x, y
 
-def spiral(freq, distrib, center_x, center_y, half_width, half_height):
+
+def spiral(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
     kink = random.random() * 12.5 - 25
 
     x = []
     y = []
+
+    count = freq * freq
 
     for i in range(count):
         fract = i / count
 
         degrees = fract * 360.0 * math.radians(1) * kink
 
-        x.append((half_width + math.sin(degrees) * fract * half_width) % (half_width * 2.0))
-        y.append((half_height + math.cos(degrees) * fract * half_height) % (half_height * 2.0))
+        x.append((center_x + math.sin(degrees) * fract * half_width) % width)
+        y.append((center_y + math.cos(degrees) * fract * half_height) % height)
 
     return x, y
 
 
-def circular(freq, distrib, center_x, center_y, half_width, half_height):
+def circular(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
     """
     """
 
@@ -173,7 +199,7 @@ def circular(freq, distrib, center_x, center_y, half_width, half_height):
             if distrib == PointDistribution.circular.value and (i % 2) == 0:
                 degrees += rotation * .5
 
-            x.append((center_x + math.sin(degrees) * dist_fract * center_x) % (half_width * 2.0))
-            y.append((center_y + math.cos(degrees) * dist_fract * center_y) % (half_height * 2.0))
+            x.append((center_x + math.sin(degrees) * dist_fract * half_width) % width)
+            y.append((center_y + math.cos(degrees) * dist_fract * half_height) % height)
 
     return x, y
