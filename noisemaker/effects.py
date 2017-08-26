@@ -15,7 +15,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None,
-                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_count=25, point_distrib=1, point_center=True,
+                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_freq=5, point_distrib=1, point_center=True,
                  with_bloom=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -61,7 +61,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
     :param int dla_padding: DLA pixel padding
-    :param int point_count: Voronoi and DLA point count
+    :param int point_freq: Voronoi and DLA point frequency (freq * freq = count)
     :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
     :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
 
@@ -69,7 +69,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     """
 
     if with_voronoi or with_dla:
-        x, y = point_cloud(point_count, distrib=point_distrib, shape=shape, center=point_center)
+        x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, center=point_center)
 
         xy = (x, y, len(x))
 
@@ -1027,7 +1027,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param Tensor tensor:
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
-    :param int point_count:
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
     :param DistanceFunction|int dist_func: Voronoi distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
     :param bool regions: Assign colors to control points (memory intensive)
@@ -1492,7 +1491,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
 
     if xy is None:
         seed_count = int(half_height * seed_density) or 1
-        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape)
+        x, y = point_cloud(int(math.sqrt(seed_count)), distrib=PointDistribution.random, shape=shape)
 
     else:
         x, y, seed_count = xy
@@ -1588,8 +1587,8 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     return out * tensor
 
 
-def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True):
-    if not count:
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True):
+    if not freq:
         return
 
     x = []
@@ -1609,6 +1608,8 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
     if isinstance(distrib, PointDistribution):
         distrib = distrib.value
 
+    count = freq * freq
+
     if distrib == PointDistribution.random.value:
         for i in range(count):
             _x = random.random() * width
@@ -1619,8 +1620,7 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
 
     elif PointDistribution.is_grid(distrib):
         # Keep a node in the center of the image, or pin to corner:
-        side_length = int(math.sqrt(count))
-        drift_amount = .5 / side_length
+        drift_amount = .5 / freq
 
         if (count % 2) == 0:
             drift = 0.0 if center else drift_amount
@@ -1629,8 +1629,8 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
             drift = drift_amount if center else 0.0
 
         #
-        for a in range(side_length):
-            for b in range(side_length):
+        for a in range(freq):
+            for b in range(freq):
                 if distrib == PointDistribution.horizontal_hex.value:
                     x_drift = drift_amount if (b % 2) == 1 else 0
 
@@ -1643,8 +1643,8 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
                 else:
                     y_drift = 0
 
-                _x = (((a / side_length) + drift + x_drift) * width) % width * 1.0
-                _y = (((b / side_length) + drift + y_drift) * height) % height * 1.0
+                _x = (((a / freq) + drift + x_drift) * width) % width * 1.0
+                _y = (((b / freq) + drift + y_drift) * height) % height * 1.0
 
                 x.append(_x)
                 y.append(_y)
@@ -1661,8 +1661,8 @@ def point_cloud(count, distrib=PointDistribution.random, shape=None, center=True
             y.append((half_height + math.cos(degrees) * fract * half_height) % height)
 
     elif distrib in (PointDistribution.circular.value, PointDistribution.concentric.value):
-        ring_count = int(math.sqrt(count))
-        dot_count = int(math.sqrt(count))
+        ring_count = freq
+        dot_count = freq
 
         x.append(half_width)
         y.append(half_height)

@@ -364,12 +364,12 @@ def voronoi_inverse_option(**attrs):
     return option("--voronoi-inverse", **attrs)
 
 
-def point_count_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Point cloud count")
+def point_freq_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 25)
 
-    return option("--point-count", **attrs)
+    return option("--point-freq", **attrs)
 
 
 def point_distrib_option(**attrs):
@@ -625,7 +625,7 @@ def name_option(**attrs):
 @voronoi_inverse_option()
 @dla_option()
 @dla_padding_option()
-@point_count_option()
+@point_freq_option()
 @point_distrib_option()
 @point_center_option()
 @wormhole_option()
@@ -669,7 +669,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
-         dla, dla_padding, point_count, point_distrib, point_center,
+         dla, dla_padding, point_freq, point_distrib, point_center,
          name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -684,7 +684,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
-                                     with_dla=dla, dla_padding=dla_padding, point_count=point_count, point_distrib=point_distrib, point_center=point_center,
+                                     with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=point_center,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp,
                                      posterize_levels=posterize, vortex_range=vortex,
