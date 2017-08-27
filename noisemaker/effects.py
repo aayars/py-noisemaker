@@ -16,7 +16,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
-                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None,
+                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2, point_freq=5, point_distrib=1, point_center=True, point_generations=1,
                  with_bloom=None, **convolve_kwargs):
     """
@@ -59,6 +59,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float warp_range: Orthogonal distortion gradient.
     :param int warp_octaves: Multi-res iteration count for warp
     :param int|None warp_interp: Override spline order for warp (None = use spline_order)
+    :param int|None warp_freq: Override frequency for warp (None = use freq)
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
@@ -86,10 +87,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         if with_voronoi:
             input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
-                             nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
+                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
 
         if with_dla:
-            input_tensor = blend(input_tensor, dla(tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
+            input_tensor = blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
 
         if point_generations == 1:
             tensor = input_tensor
@@ -113,7 +114,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         if warp_interp is None:
             warp_interp = spline_order
 
-        tensor = warp(tensor, shape, freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
+        warp_freq = freq if warp_freq is None else freq_for_shape(warp_freq, shape)
+
+        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
 
     # else:
         # tensor = normalize(tensor)
@@ -1105,7 +1108,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = blend(tensor * range_slice, range_slice, range_slice)
 
     if diagram_type == VoronoiDiagramType.regions.value:
-        regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape)
+        regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape, spline_order=0)
 
     if diagram_type in (VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
@@ -1113,7 +1116,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         if ridges_hint:
             colors = tf.abs(colors * 2 - 1)
 
-        regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape)
+        spline_order = 0 if diagram_type == VoronoiDiagramType.color_regions.value else 3
+
+        regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
 
     ###
     if diagram_type == VoronoiDiagramType.range_regions.value:

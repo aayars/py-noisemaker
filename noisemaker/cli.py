@@ -149,6 +149,14 @@ def warp_interp_option(**attrs):
     return option("--warp-interp", **attrs)
 
 
+def warp_freq_option(**attrs):
+    attrs.setdefault("help", "Octave Warp: Frequency (Default: Use --freq if not given)")
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", None)
+
+    return option("--warp-freq", **attrs)
+
+
 def post_reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Reduced derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
@@ -366,26 +374,26 @@ def voronoi_inverse_option(**attrs):
 
 def point_freq_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
-    attrs.setdefault("type", int)
+    attrs.setdefault("type", click.IntRange(1, 10))
     attrs.setdefault("default", 3)
 
     return option("--point-freq", **attrs)
 
 
 def point_distrib_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution (1=random, 2=square, 3=xhex, 4=yhex, 5=spiral, 6=circular, 7=concentric)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 1)
+    attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
+    attrs.setdefault("type", click.Choice([m.name for m in effects.PointDistribution]))
+    attrs.setdefault("default", "random")
 
     return option("--point-distrib", **attrs)
 
 
-def point_center_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Pin diagram to center (False = pin to edges)")
+def point_corners_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Pin diagram to corners, instead of image center.")
     attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", True)
+    attrs.setdefault("default", False)
 
-    return option("--point-center/--no-point-center", **attrs)
+    return option("--point-corners", **attrs)
 
 
 def point_generations_option(**attrs):
@@ -617,6 +625,7 @@ def name_option(**attrs):
 @warp_option()
 @warp_octaves_option()
 @warp_interp_option()
+@warp_freq_option()
 @post_reflect_option()
 @reflect_option()
 @post_refract_option()
@@ -635,7 +644,7 @@ def name_option(**attrs):
 @dla_padding_option()
 @point_freq_option()
 @point_distrib_option()
-@point_center_option()
+@point_corners_option()
 @point_generations_option()
 @wormhole_option()
 @wormhole_stride_option()
@@ -673,12 +682,12 @@ def name_option(**attrs):
 @wavelet_option()
 @name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, reflect, refract, reindex,
+def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq, reflect, refract, reindex,
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
-         dla, dla_padding, point_freq, point_distrib, point_center, point_generations,
+         dla, dla_padding, point_freq, point_distrib, point_corners, point_generations,
          name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -693,10 +702,10 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
-                                     with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=point_center,
+                                     with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
                                      point_generations=point_generations,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
-                                     spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp,
+                                     spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                      posterize_levels=posterize, vortex_range=vortex,
                                      hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)

@@ -10,15 +10,16 @@ class PointDistribution(Enum):
     Point cloud distribution, used by Voronoi and DLA
     """
 
-    none = 0
 
-    random = 1
+    random = 0
 
-    square = 2
+    square = 1
 
-    horizontal_hex = 3
+    waffle = 2
 
-    vertical_hex = 4
+    h_hex = 3
+
+    v_hex = 4
 
     spiral = 5
 
@@ -26,19 +27,13 @@ class PointDistribution(Enum):
 
     concentric = 7
 
-    @staticmethod
-    def is_grid(member):
-        if isinstance(member, PointDistribution):
-            member = member.value
+    @classmethod
+    def is_grid(cls, member):
+        return member in (cls.square, cls.waffle, cls.h_hex, cls.v_hex)
 
-        return member in (2, 3, 4)
-
-    @staticmethod
-    def is_circular(member):
-        if isinstance(member, PointDistribution):
-            member = member.value
-
-        return member in (6, 7)
+    @classmethod
+    def is_circular(cls, member):
+        return member in (cls.circular, cls.concentric)
 
 
 def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1):
@@ -59,11 +54,14 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True,
         width = shape[1]
         height = shape[0]
 
-    half_width = width * .5
-    half_height = height * .5
+    range_x = width * .5
+    range_y = height * .5
 
-    if isinstance(distrib, PointDistribution):
-        distrib = distrib.value
+    if isinstance(distrib, int):
+        distrib = PointDistribution(distrib)
+
+    elif isinstance(distrib, str):
+        distrib = PointDistribution[distrib]
 
     count = freq * freq
 
@@ -72,26 +70,50 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True,
     if PointDistribution.is_grid(distrib):
         point_func = square_grid
 
-    elif distrib == PointDistribution.spiral.value:
+    elif distrib == PointDistribution.spiral:
         point_func = spiral
 
     elif PointDistribution.is_circular(distrib):
         point_func = circular
 
-    stack = deque()
-    stack.append((half_width, half_height, 1))
+    #
+    seen = set()
+    active_set = set()
 
-    while stack:
-        x_point, y_point, generation = stack.popleft()
+    if PointDistribution.is_grid(distrib):
+        active_set.add((0.0, 0.0, 1))
+
+    else:
+        active_set.add((range_x, range_y, 1))
+
+    seen.update(active_set)
+
+    while active_set:
+        x_point, y_point, generation = active_set.pop()
 
         if generation <= generations:
-            _x, _y = point_func(freq, distrib, center, x_point, y_point, half_width / generation, half_height / generation, width, height)
+            multiplier = max(2 * (generation - 1), 1)
+
+            next = point_func(freq=freq, distrib=distrib, center=center,
+                              center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
+                              width=width, height=height, generation=generation)
+
+            _x, _y = next
 
             for i in range(len(_x)):
                 x_point = _x[i]
                 y_point = _y[i]
 
-                stack.append((x_point, y_point, generation + 1))
+                if shape is not None:
+                    x_point = int(x_point)
+                    y_point = int(y_point)
+
+                    if (x_point, y_point) in seen:
+                        continue
+
+                    seen.add((x_point, y_point))
+
+                active_set.add((x_point, y_point, generation + 1))
 
                 x.append(x_point)
                 y.append(y_point)
@@ -99,7 +121,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True,
     return (x, y)
 
 
-def rand(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
+def rand(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
     """
     """
 
@@ -107,8 +129,8 @@ def rand(freq, distrib, center, center_x, center_y, half_width, half_height, wid
     y = []
 
     for i in range(freq * freq):
-        _x = (center_x + (random.random() * (half_width * 2.0) - half_width)) % width
-        _y = (center_y + (random.random() * (half_height * 2.0) - half_height)) % height
+        _x = (center_x + (random.random() * (range_x * 2.0) - range_x)) % width
+        _y = (center_y + (random.random() * (range_y * 2.0) - range_y)) % height
 
         x.append(_x)
         y.append(_y)
@@ -116,7 +138,7 @@ def rand(freq, distrib, center, center_x, center_y, half_width, half_height, wid
     return x, y
 
 
-def square_grid(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
+def square_grid(freq=1.0, distrib=None, center=True, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
     """
     """
 
@@ -135,20 +157,23 @@ def square_grid(freq, distrib, center, center_x, center_y, half_width, half_heig
     #
     for a in range(freq):
         for b in range(freq):
-            if distrib == PointDistribution.horizontal_hex.value:
+            if distrib == PointDistribution.waffle and (b % 2) == 0 and (a % 2) == 0:
+                continue
+
+            if distrib == PointDistribution.h_hex:
                 x_drift = drift_amount if (b % 2) == 1 else 0
 
             else:
                 x_drift = 0
 
-            if distrib == PointDistribution.vertical_hex.value:
+            if distrib == PointDistribution.v_hex:
                 y_drift = 0 if (a % 2) == 1 else drift_amount
 
             else:
                 y_drift = 0
 
-            _x = (center_x + (((a / freq) + drift + x_drift) * half_width * 2)) % width
-            _y = (center_y + (((b / freq) + drift + y_drift) * half_height * 2)) % height
+            _x = (center_x + (((a / freq) + drift + x_drift) * range_x * 2)) % width
+            _y = (center_y + (((b / freq) + drift + y_drift) * range_y * 2)) % height
 
             x.append(_x)
             y.append(_y)
@@ -156,8 +181,11 @@ def square_grid(freq, distrib, center, center_x, center_y, half_width, half_heig
     return x, y
 
 
-def spiral(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
-    kink = random.random() * 25 - 12.5
+def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
+    """
+    """
+
+    kink = random.random() * 100 - 50
 
     x = []
     y = []
@@ -169,13 +197,13 @@ def spiral(freq, distrib, center, center_x, center_y, half_width, half_height, w
 
         degrees = fract * 360.0 * math.radians(1) * kink
 
-        x.append((center_x + math.sin(degrees) * fract * half_width) % width)
-        y.append((center_y + math.cos(degrees) * fract * half_height) % height)
+        x.append((center_x + math.sin(degrees) * fract * range_x) % width)
+        y.append((center_y + math.cos(degrees) * fract * range_y) % height)
 
     return x, y
 
 
-def circular(freq, distrib, center, center_x, center_y, half_width, half_height, width, height):
+def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, **kwargs):
     """
     """
 
@@ -192,14 +220,17 @@ def circular(freq, distrib, center, center_x, center_y, half_width, half_height,
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count
-
+        
         for j in range(1, dot_count + 1):
-            degrees = j * rotation
+            rads = j * rotation
 
-            if distrib == PointDistribution.circular.value and (i % 2) == 0:
-                degrees += rotation * .5
+            if distrib == PointDistribution.circular:
+                rads += rotation * .5 * i
 
-            x.append((center_x + math.sin(degrees) * dist_fract * half_width) % width)
-            y.append((center_y + math.cos(degrees) * dist_fract * half_height) % height)
+            x_point = (center_x + math.sin(rads) * dist_fract * range_x)
+            y_point = (center_y + math.cos(rads) * dist_fract * range_y)
+
+            x.append(x_point % width)
+            y.append(y_point % height)
 
     return x, y
