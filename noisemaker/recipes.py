@@ -220,3 +220,25 @@ def pop(tensor, shape):
     # tensor = tf.image.adjust_brightness(tensor, 1.125)
 
     return tensor
+
+
+def light_leak(tensor, shape, alpha=.25):
+    """
+    """
+
+    x, y = effects.point_cloud(6, distrib=effects.PointDistribution.v_hex, shape=shape)
+
+    leak = effects.voronoi(tensor, shape, diagram_type=effects.VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
+    leak = effects.wormhole(leak, shape, kink=1.0, input_stride=.25)
+
+    leak = effects.bloom(leak, shape, 1.0)
+    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
+    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
+    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
+
+    leak = 1 - ((1 - tensor) * (1 - leak))
+
+    leak = effects.center_mask(tensor, leak, shape)
+    leak = effects.center_mask(tensor, leak, shape)
+
+    return effects.blend(tensor, leak, alpha)
