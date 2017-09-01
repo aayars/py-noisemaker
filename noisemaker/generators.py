@@ -25,7 +25,9 @@ class ValueDistribution(Enum):
 
     lognormal = 4
 
-    chess = 5
+    waffle = 10
+
+    chess = 11
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
@@ -62,6 +64,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         freq = effects.freq_for_shape(freq, shape)
 
     initial_shape = [*freq, shape[-1]]
+    channel_shape = [*freq, 1]
 
     if isinstance(distrib, int):
         distrib = ValueDistribution(distrib)
@@ -85,9 +88,11 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     elif distrib == ValueDistribution.chess:
-        channel_shape = [*freq, 1]
 
         tensor = tf.cast(tf.reshape(effects.row_index(channel_shape) + effects.column_index(channel_shape), channel_shape) % 2, tf.float32) * tf.ones(initial_shape)
+
+    elif distrib == ValueDistribution.waffle:
+        tensor = effects.expand_tile(tf.stack([[[0.0], [1.0]], [[1.0], [1.0]]]), [2, 2, 1], channel_shape) * tf.ones(initial_shape)
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
