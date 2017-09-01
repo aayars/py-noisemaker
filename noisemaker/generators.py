@@ -3,9 +3,29 @@ from enum import Enum
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.effects import ValueDistribution
-
 import noisemaker.effects as effects
+
+
+class ValueDistribution(Enum):
+    """
+    Specify the value distribution function for basic noise.
+
+    .. code-block:: python
+
+       image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
+    """
+
+    normal = 0
+
+    uniform = 1
+
+    exponential = 2
+
+    laplace = 3
+
+    lognormal = 4
+
+    chess = 5
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,

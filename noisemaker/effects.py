@@ -167,28 +167,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     return tensor
 
 
-class ValueDistribution(Enum):
-    """
-    Specify the value distribution function for basic noise.
-
-    .. code-block:: python
-
-       image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
-    """
-
-    normal = 0
-
-    uniform = 1
-
-    exponential = 2
-
-    laplace = 3
-
-    lognormal = 4
-
-    chess = 5
-
-
 class VoronoiDiagramType(Enum):
     """
     Specify the artistic rendering function used for Voronoi diagrams.
