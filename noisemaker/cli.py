@@ -79,8 +79,8 @@ def ridges_option(**attrs):
 
 
 def distrib_option(**attrs):
-    attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal, 5=checkers)")
-    attrs.setdefault("type", int)
+    attrs.setdefault("help", "Value distribution")
+    attrs.setdefault("type", click.Choice([m.name for m in effects.ValueDistribution]))
     attrs.setdefault("default", 0)
 
     return option("--distrib", **attrs)

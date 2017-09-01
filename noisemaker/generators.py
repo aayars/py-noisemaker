@@ -3,35 +3,13 @@ from enum import Enum
 import numpy as np
 import tensorflow as tf
 
+from noisemaker.effects import ValueDistribution
+
 import noisemaker.effects as effects
 
 
-class Distribution(Enum):
-    """
-    Specify the random distribution function for basic noise.
-
-    See also: https://docs.scipy.org/doc/numpy/reference/routines.random.html
-
-    .. code-block:: python
-
-       image = basic(freq, [height, width, channels], distrib=Distribution.uniform)
-    """
-
-    normal = 0
-
-    uniform = 1
-
-    exponential = 2
-
-    laplace = 3
-
-    lognormal = 4
-
-    checkers = 5
-
-
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
-          distrib=Distribution.normal, lattice_drift=0.0,
+          distrib=ValueDistribution.normal, lattice_drift=0.0,
           hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
           **post_process_args):
     """
@@ -48,7 +26,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param float sin: Apply sin function to noise basis
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum
+    :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param float lattice_drift: Push away from underlying lattice
     :param int seed: Random seed for reproducible output. Ineffective with exponential
     :param bool hsv: Set to False for RGB noise
@@ -66,24 +44,27 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     initial_shape = [*freq, shape[-1]]
 
     if isinstance(distrib, int):
-        distrib = Distribution(distrib)
+        distrib = ValueDistribution(distrib)
 
-    if distrib == Distribution.normal:
+    elif isinstance(distrib, str):
+        distrib = ValueDistribution[distrib]
+
+    if distrib == ValueDistribution.normal:
         tensor = tf.random_normal(initial_shape, seed=seed)
 
-    elif distrib == Distribution.uniform:
+    elif distrib == ValueDistribution.uniform:
         tensor = tf.random_uniform(initial_shape, seed=seed)
 
-    elif distrib == Distribution.exponential:
+    elif distrib == ValueDistribution.exponential:
         tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
 
-    elif distrib == Distribution.laplace:
+    elif distrib == ValueDistribution.laplace:
         tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
 
-    elif distrib == Distribution.lognormal:
+    elif distrib == ValueDistribution.lognormal:
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
-    elif distrib == Distribution.checkers:
+    elif distrib == ValueDistribution.chess:
         channel_shape = [*freq, 1]
 
         tensor = tf.cast(tf.reshape(effects.row_index(channel_shape) + effects.column_index(channel_shape), channel_shape) % 2, tf.float32) * tf.ones(initial_shape)
@@ -125,7 +106,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
 
 def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
-             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=Distribution.normal,
+             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
@@ -149,7 +130,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
     :param float reflect_range: Per-octave derivative-based distort gradient
     :param float refract_range: Per-octave self-distort gradient
     :param float reindex_range: Per-octave self-reindexing gradient
-    :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum
+    :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
