@@ -124,8 +124,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         elif mask == ValueMask.v_tri:
             mask_values = [
-                [[0.0], [1.0], [0.0], [0.0]],
-                [[0.0], [0.0], [0.0], [1.0]]
+                [[1.0], [0.0], [0.0], [0.0]],
+                [[0.0], [0.0], [1.0], [0.0]]
             ]
             mask_shape = [2, 4, 1]
 
