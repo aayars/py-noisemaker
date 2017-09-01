@@ -31,7 +31,7 @@ class PointDistribution(Enum):
 
     @classmethod
     def is_grid(cls, member):
-        return member in (cls.square, cls.waffle, cls.chess, cls.h_hex, cls.v_hex)
+        return member.value >= cls.square.value and member.value < cls.spiral.value
 
     @classmethod
     def is_circular(cls, member):
@@ -165,12 +165,14 @@ def square_grid(freq=1.0, distrib=None, center=True, center_x=0.0, center_y=0.0,
             if distrib == PointDistribution.chess and (a % 2) == (b % 2):
                 continue
 
+            #
             if distrib == PointDistribution.h_hex:
                 x_drift = drift_amount if (b % 2) == 1 else 0
 
             else:
                 x_drift = 0
 
+            #
             if distrib == PointDistribution.v_hex:
                 y_drift = 0 if (a % 2) == 1 else drift_amount
 

@@ -33,6 +33,10 @@ class ValueDistribution(Enum):
 
     v_hex = 13
 
+    h_tri = 14
+
+    v_tri = 15
+
     @classmethod
     def is_grid(cls, member):
         return member.value >= cls.waffle.value
@@ -94,6 +98,22 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_
                 [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0]]
             ]
             values_shape = [4, 6, 1]
+
+        elif distrib == ValueDistribution.h_tri:
+            values = [
+                [[0.0], [1.0]],
+                [[0.0], [0.0]],
+                [[1.0], [0.0]],
+                [[0.0], [0.0]]
+            ]
+            values_shape = [4, 2, 1]
+
+        elif distrib == ValueDistribution.v_tri:
+            values = [
+                [[0.0], [1.0], [0.0], [0.0]],
+                [[0.0], [0.0], [0.0], [1.0]],
+            ]
+            values_shape = [2, 4, 1]
 
         tensor = effects.expand_tile(tf.stack(values), values_shape, channel_shape) * tf.ones(initial_shape)
 
