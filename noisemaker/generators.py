@@ -25,24 +25,27 @@ class ValueDistribution(Enum):
 
     lognormal = 4
 
-    waffle = 10
-
-    chess = 11
-
-    h_hex = 12
-
-    v_hex = 13
-
-    h_tri = 14
-
-    v_tri = 15
-
-    @classmethod
-    def is_grid(cls, member):
-        return member.value >= cls.waffle.value
+    ones = 5
 
 
-def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_order=3, seed=None, wavelet=False):
+class ValueMask(Enum):
+    """
+    """
+
+    waffle = 1
+
+    chess = 2
+
+    h_hex = 3
+
+    v_hex = 4
+
+    h_tri = 5
+
+    v_tri = 6
+
+
+def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
     """
     """
 
@@ -54,6 +57,15 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_
 
     elif isinstance(distrib, str):
         distrib = ValueDistribution[distrib]
+
+    if isinstance(mask, int):
+        mask = ValueMask(mask)
+
+    elif isinstance(mask, str):
+        mask = ValueMask[mask]
+
+    if distrib == ValueDistribution.ones:
+        tensor = tf.ones(initial_shape)
 
     if distrib == ValueDistribution.normal:
         tensor = tf.random_normal(initial_shape, seed=seed)
@@ -70,17 +82,17 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_
     elif distrib == ValueDistribution.lognormal:
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
-    elif ValueDistribution.is_grid(distrib):
-        if distrib == ValueDistribution.chess:
-            values = [[[0.0], [1.0]], [[1.0], [0.0]]]
-            values_shape = [2, 2, 1]
+    if mask:
+        if mask == ValueMask.chess:
+            mask_values = [[[0.0], [1.0]], [[1.0], [0.0]]]
+            mask_shape = [2, 2, 1]
 
-        elif distrib == ValueDistribution.waffle:
-            values = [[[0.0], [1.0]], [[1.0], [1.0]]]
-            values_shape = [2, 2, 1]
+        elif mask == ValueMask.waffle:
+            mask_values = [[[0.0], [1.0]], [[1.0], [1.0]]]
+            mask_shape = [2, 2, 1]
 
-        elif distrib == ValueDistribution.h_hex:
-            values = [
+        elif mask == ValueMask.h_hex:
+            mask_values = [
                 [[0.0], [1.0], [0.0], [0.0]],
                 [[0.0], [0.0], [0.0], [1.0]],
                 [[0.0], [0.0], [0.0], [0.0]],
@@ -88,34 +100,34 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_
                 [[0.0], [1.0], [0.0], [0.0]],
                 [[0.0], [0.0], [0.0], [0.0]],
             ]
-            values_shape = [6, 4, 1]
+            mask_shape = [6, 4, 1]
 
-        elif distrib == ValueDistribution.v_hex:
-            values = [
+        elif mask == ValueMask.v_hex:
+            mask_values = [
                 [[0.0], [1.0], [0.0], [1.0], [0.0], [0.0]],
                 [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0]],
                 [[1.0], [0.0], [0.0], [0.0], [1.0], [0.0]],
                 [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0]]
             ]
-            values_shape = [4, 6, 1]
+            mask_shape = [4, 6, 1]
 
-        elif distrib == ValueDistribution.h_tri:
-            values = [
+        elif mask == ValueMask.h_tri:
+            mask_values = [
                 [[0.0], [1.0]],
                 [[0.0], [0.0]],
                 [[1.0], [0.0]],
                 [[0.0], [0.0]]
             ]
-            values_shape = [4, 2, 1]
+            mask_shape = [4, 2, 1]
 
-        elif distrib == ValueDistribution.v_tri:
-            values = [
+        elif mask == ValueMask.v_tri:
+            mask_values = [
                 [[0.0], [1.0], [0.0], [0.0]],
                 [[0.0], [0.0], [0.0], [1.0]],
             ]
-            values_shape = [2, 4, 1]
+            mask_shape = [2, 4, 1]
 
-        tensor = effects.expand_tile(tf.stack(values), values_shape, channel_shape) * tf.ones(initial_shape)
+        tensor *= effects.expand_tile(tf.stack(mask_values), mask_shape, channel_shape)
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
@@ -129,7 +141,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
-          distrib=ValueDistribution.normal, corners=False, lattice_drift=0.0,
+          distrib=ValueDistribution.normal, corners=False, mask=None, lattice_drift=0.0,
           hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
           **post_process_args):
     """
@@ -148,6 +160,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
+    :param None|ValueMask mask:
     :param float lattice_drift: Push away from underlying lattice
     :param int seed: Random seed for reproducible output. Ineffective with exp
     :param bool hsv: Set to False for RGB noise
@@ -162,7 +175,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    tensor = values(freq, shape, distrib=distrib, corners=corners, spline_order=spline_order, seed=seed, wavelet=wavelet)
+    tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, spline_order=spline_order, seed=seed, wavelet=wavelet)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -196,7 +209,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
 
 def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
-             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
+             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
@@ -222,6 +235,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
     :param float reindex_range: Per-octave self-reindexing gradient
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
+    :param None|ValueMask mask:
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
@@ -253,7 +267,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
 
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
-                      distrib=distrib, corners=corners, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
+                      distrib=distrib, corners=corners, mask=mask, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
                       hsv=hsv, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                       )
 

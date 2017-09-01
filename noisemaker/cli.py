@@ -94,6 +94,14 @@ def corners_option(**attrs):
     return option("--corners", **attrs)
 
 
+def mask_option(**attrs):
+    attrs.setdefault("help", "Value distribution: Hot pixel mask")
+    attrs.setdefault("type", click.Choice([m.name for m in generators.ValueMask]))
+    attrs.setdefault("default", None)
+
+    return option("--mask", **attrs)
+
+
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
     attrs.setdefault("type", int)
@@ -639,6 +647,7 @@ def name_option(**attrs):
 @sin_option()
 @distrib_option()
 @corners_option()
+@mask_option()
 @lattice_drift_option()
 @vortex_option()
 @warp_option()
@@ -703,7 +712,7 @@ def name_option(**attrs):
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq, reflect, refract, reindex,
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, posterize,
+         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations,
@@ -724,7 +733,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
                                      point_generations=point_generations,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
-                                     spline_order=interp, distrib=distrib, corners=corners,
+                                     spline_order=interp, distrib=distrib, corners=corners, mask=mask,
                                      warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                      posterize_levels=posterize, vortex_range=vortex,
                                      hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
