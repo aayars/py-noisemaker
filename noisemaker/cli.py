@@ -86,6 +86,14 @@ def distrib_option(**attrs):
     return option("--distrib", **attrs)
 
 
+def corners_option(**attrs):
+    attrs.setdefault("help", "Value distribution: Pin pixels to corners, instead of image center.")
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option("--corners", **attrs)
+
+
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
     attrs.setdefault("type", int)
@@ -630,6 +638,7 @@ def name_option(**attrs):
 @interp_option()
 @sin_option()
 @distrib_option()
+@corners_option()
 @lattice_drift_option()
 @vortex_option()
 @warp_option()
@@ -694,7 +703,7 @@ def name_option(**attrs):
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq, reflect, refract, reindex,
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, posterize,
+         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations,
@@ -715,7 +724,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
                                      point_generations=point_generations,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
-                                     spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
+                                     spline_order=interp, distrib=distrib, corners=corners,
+                                     warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                      posterize_levels=posterize, vortex_range=vortex,
                                      hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)

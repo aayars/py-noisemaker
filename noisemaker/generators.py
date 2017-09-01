@@ -38,7 +38,7 @@ class ValueDistribution(Enum):
         return member.value >= cls.waffle.value
 
 
-def values(freq, shape, distrib=ValueDistribution.normal, spline_order=3, wavelet=False):
+def values(freq, shape, distrib=ValueDistribution.normal, corners=False, spline_order=3, seed=None, wavelet=False):
     """
     """
 
@@ -102,11 +102,14 @@ def values(freq, shape, distrib=ValueDistribution.normal, spline_order=3, wavele
 
     tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
+    if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
+        tensor = effects.offset(tensor, shape, int(shape[1] / freq[1] * .5), int(shape[0] / freq[0] * .5))
+
     return tensor
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
-          distrib=ValueDistribution.normal, lattice_drift=0.0,
+          distrib=ValueDistribution.normal, corners=False, lattice_drift=0.0,
           hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
           **post_process_args):
     """
@@ -124,6 +127,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
+    :param bool corners: If True, pin values to corners instead of image center
     :param float lattice_drift: Push away from underlying lattice
     :param int seed: Random seed for reproducible output. Ineffective with exp
     :param bool hsv: Set to False for RGB noise
@@ -138,7 +142,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    tensor = values(freq, shape, distrib=distrib, spline_order=spline_order, wavelet=wavelet)
+    tensor = values(freq, shape, distrib=distrib, corners=corners, spline_order=spline_order, seed=seed, wavelet=wavelet)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -172,7 +176,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
 
 def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
-             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal,
+             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
@@ -197,6 +201,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
     :param float refract_range: Per-octave self-distort gradient
     :param float reindex_range: Per-octave self-reindexing gradient
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
+    :param bool corners: If True, pin values to corners instead of image center
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
@@ -228,7 +233,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
 
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
-                      distrib=distrib, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
+                      distrib=distrib, corners=corners, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
                       hsv=hsv, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                       )
 
