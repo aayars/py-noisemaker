@@ -29,6 +29,81 @@ class ValueDistribution(Enum):
 
     chess = 11
 
+    h_hex = 12
+
+    v_hex = 13
+
+    @classmethod
+    def is_grid(cls, member):
+        return member.value >= cls.waffle.value
+
+
+def values(freq, shape, distrib=ValueDistribution.normal, spline_order=3, wavelet=False):
+    """
+    """
+
+    initial_shape = [*freq, shape[-1]]
+    channel_shape = [*freq, 1]
+
+    if isinstance(distrib, int):
+        distrib = ValueDistribution(distrib)
+
+    elif isinstance(distrib, str):
+        distrib = ValueDistribution[distrib]
+
+    if distrib == ValueDistribution.normal:
+        tensor = tf.random_normal(initial_shape, seed=seed)
+
+    elif distrib == ValueDistribution.uniform:
+        tensor = tf.random_uniform(initial_shape, seed=seed)
+
+    elif distrib == ValueDistribution.exp:
+        tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
+
+    elif distrib == ValueDistribution.laplace:
+        tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
+
+    elif distrib == ValueDistribution.lognormal:
+        tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
+
+    elif ValueDistribution.is_grid(distrib):
+        if distrib == ValueDistribution.chess:
+            values = [[[0.0], [1.0]], [[1.0], [0.0]]]
+            values_shape = [2, 2, 1]
+
+        elif distrib == ValueDistribution.waffle:
+            values = [[[0.0], [1.0]], [[1.0], [1.0]]]
+            values_shape = [2, 2, 1]
+
+        elif distrib == ValueDistribution.h_hex:
+            values = [
+                [[0.0], [1.0], [0.0], [0.0]],
+                [[0.0], [0.0], [0.0], [1.0]],
+                [[0.0], [0.0], [0.0], [0.0]],
+                [[0.0], [0.0], [0.0], [1.0]],
+                [[0.0], [1.0], [0.0], [0.0]],
+                [[0.0], [0.0], [0.0], [0.0]],
+            ]
+            values_shape = [6, 4, 1]
+
+        elif distrib == ValueDistribution.v_hex:
+            values = [
+                [[0.0], [1.0], [0.0], [1.0], [0.0], [0.0]],
+                [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0]],
+                [[1.0], [0.0], [0.0], [0.0], [1.0], [0.0]],
+                [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0]]
+            ]
+            values_shape = [4, 6, 1]
+
+        tensor = effects.expand_tile(tf.stack(values), values_shape, channel_shape) * tf.ones(initial_shape)
+
+    if wavelet:
+        tensor = effects.wavelet(tensor, initial_shape)
+
+    tensor = effects.resample(tensor, shape, spline_order=spline_order)
+
+    return tensor
+
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
           distrib=ValueDistribution.normal, lattice_drift=0.0,
@@ -63,41 +138,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    initial_shape = [*freq, shape[-1]]
-    channel_shape = [*freq, 1]
-
-    if isinstance(distrib, int):
-        distrib = ValueDistribution(distrib)
-
-    elif isinstance(distrib, str):
-        distrib = ValueDistribution[distrib]
-
-    if distrib == ValueDistribution.normal:
-        tensor = tf.random_normal(initial_shape, seed=seed)
-
-    elif distrib == ValueDistribution.uniform:
-        tensor = tf.random_uniform(initial_shape, seed=seed)
-
-    elif distrib == ValueDistribution.exp:
-        tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.laplace:
-        tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.lognormal:
-        tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.chess:
-
-        tensor = tf.cast(tf.reshape(effects.row_index(channel_shape) + effects.column_index(channel_shape), channel_shape) % 2, tf.float32) * tf.ones(initial_shape)
-
-    elif distrib == ValueDistribution.waffle:
-        tensor = effects.expand_tile(tf.stack([[[0.0], [1.0]], [[1.0], [1.0]]]), [2, 2, 1], channel_shape) * tf.ones(initial_shape)
-
-    if wavelet:
-        tensor = effects.wavelet(tensor, initial_shape)
-
-    tensor = effects.resample(tensor, shape, spline_order=spline_order)
+    tensor = values(freq, shape, distrib=distrib, spline_order=spline_order, wavelet=wavelet)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
