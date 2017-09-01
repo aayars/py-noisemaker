@@ -19,7 +19,7 @@ class ValueDistribution(Enum):
 
     uniform = 1
 
-    exponential = 2
+    exp = 2
 
     laplace = 3
 
@@ -48,7 +48,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param float lattice_drift: Push away from underlying lattice
-    :param int seed: Random seed for reproducible output. Ineffective with exponential
+    :param int seed: Random seed for reproducible output. Ineffective with exp
     :param bool hsv: Set to False for RGB noise
     :param float hsv_range: HSV hue range
     :param float|None hsv_rotation: HSV hue bias
@@ -75,7 +75,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     elif distrib == ValueDistribution.uniform:
         tensor = tf.random_uniform(initial_shape, seed=seed)
 
-    elif distrib == ValueDistribution.exponential:
+    elif distrib == ValueDistribution.exp:
         tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
 
     elif distrib == ValueDistribution.laplace:
