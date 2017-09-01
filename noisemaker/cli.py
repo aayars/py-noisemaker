@@ -81,7 +81,7 @@ def ridges_option(**attrs):
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
     attrs.setdefault("type", click.Choice([m.name for m in generators.ValueDistribution]))
-    attrs.setdefault("default", 0)
+    attrs.setdefault("default", "normal")
 
     return option("--distrib", **attrs)
 
