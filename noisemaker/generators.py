@@ -32,17 +32,19 @@ class ValueMask(Enum):
     """
     """
 
-    waffle = 1
+    square = 1
 
-    chess = 2
+    waffle = 2
 
-    h_hex = 3
+    chess = 3
 
-    v_hex = 4
+    h_hex = 10
 
-    h_tri = 5
+    v_hex = 11
 
-    v_tri = 6
+    h_tri = 12
+
+    v_tri = 13
 
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
@@ -123,9 +125,18 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         elif mask == ValueMask.v_tri:
             mask_values = [
                 [[0.0], [1.0], [0.0], [0.0]],
-                [[0.0], [0.0], [0.0], [1.0]],
+                [[0.0], [0.0], [0.0], [1.0]]
             ]
             mask_shape = [2, 4, 1]
+
+        elif mask == ValueMask.square:
+            mask_values = [
+                [[0.0], [0.0], [0.0], [0.0]],
+                [[0.0], [1.0], [1.0], [0.0]],
+                [[0.0], [1.0], [1.0], [0.0]],
+                [[0.0], [0.0], [0.0], [0.0]]
+            ]
+            mask_shape = [4, 4, 1]
 
         tensor *= effects.expand_tile(tf.stack(mask_values), mask_shape, channel_shape)
 
@@ -135,7 +146,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
     if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-        tensor = effects.offset(tensor, shape, int(shape[1] / freq[1] * .5), int(shape[0] / freq[0] * .5))
+        tensor = effects.offset(tensor, shape, x=int(shape[1] / (freq[1] * .5)), y=int(shape[0] / (freq[0] * .5)))
 
     return tensor
 
