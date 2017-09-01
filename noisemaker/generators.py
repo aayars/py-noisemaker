@@ -119,7 +119,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
 def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=Distribution.normal,
-             deriv=False, deriv_func=0, lattice_drift=0.0,
+             deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
              **post_process_args):
@@ -145,6 +145,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
     :param int|Distribution distrib: Type of noise distribution. See :class:`Distribution` enum
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
+    :param float deriv_alpha: Derivative alpha blending amount
     :param float lattice_drift: Push away from underlying lattice
     :param float post_reflect_range: Reduced derivative-based distort gradient
     :param float post_refract_range: Reduced self-distort gradient
@@ -173,7 +174,7 @@ def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline
 
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
-                      distrib=distrib, deriv=deriv, deriv_func=deriv_func, lattice_drift=lattice_drift,
+                      distrib=distrib, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
                       hsv=hsv, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
                       )
 

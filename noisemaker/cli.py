@@ -13,6 +13,7 @@ CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_wi
 # Boilerplate help strings
 ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
 DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
+ALPHA_BLENDING_HINT = "alpha blending amount (0.0 - 1.0)"
 
 
 def option(*param_decls, **attrs):
@@ -444,6 +445,14 @@ def deriv_option(**attrs):
     return option("--deriv", **attrs)
 
 
+def deriv_alpha_option(**attrs):
+    attrs.setdefault("help", "Derivatives: Per-octave alpha")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 1.0)
+
+    return option("--deriv-alpha", **attrs)
+
+
 def posterize_option(**attrs):
     attrs.setdefault("help", "Post-processing: Posterize levels (per channel)")
     attrs.setdefault("type", int)
@@ -517,49 +526,49 @@ def aberration_option(**attrs):
 
 
 def emboss_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Emboss")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Emboss {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--emboss", **attrs)
 
 
 def shadow_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Shadow")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Shadow {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--shadow", **attrs)
 
 
 def edges_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Edges")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Edges {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--edges", **attrs)
 
 
 def sharpen_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Sharpen")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Sharpen {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--sharpen", **attrs)
 
 
 def unsharp_mask_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Unsharp mask")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Unsharp mask {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--unsharp-mask", **attrs)
 
 
 def invert_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Invert")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("help", "Convolution kernel: Invert {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", None)
 
     return option("--invert", **attrs)
 
@@ -616,6 +625,7 @@ def name_option(**attrs):
 @octaves_option()
 @ridges_option()
 @deriv_option()
+@deriv_alpha_option()
 @post_deriv_option()
 @interp_option()
 @sin_option()
@@ -684,7 +694,7 @@ def name_option(**attrs):
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq, reflect, refract, reindex,
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
-         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, interp, distrib, posterize,
+         worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations,
@@ -704,7 +714,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
                                      point_generations=point_generations,
-                                     with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv,
+                                     with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
                                      spline_order=interp, distrib=distrib, warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                      posterize_levels=posterize, vortex_range=vortex,
                                      hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,

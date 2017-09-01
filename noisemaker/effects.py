@@ -13,7 +13,7 @@ from noisemaker.points import PointDistribution, point_cloud
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, with_outline=False,
+                 worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
@@ -53,6 +53,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool voronoi_inverse: Inverse values for Voronoi 'range' types
     :param bool ridges_hint: Ridged multifractal hint for Voronoi
     :param DistanceFunction|int deriv: Derivative distance function
+    :param float deriv_alpha: Derivative distance function alpha blending amount
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
     :param float vortex_range: Vortex tiling amount
@@ -125,7 +126,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = vortex(tensor, shape, displacement=vortex_range)
 
     if deriv:
-        tensor = derivative(tensor, shape, deriv)
+        tensor = derivative(tensor, shape, deriv, alpha=deriv_alpha)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)
@@ -147,8 +148,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = normal_map(tensor, shape)
 
     for kernel in ConvKernel:
-        if convolve_kwargs.get(kernel.name):
-            tensor =  convolve(kernel, tensor, shape)
+        alpha = convolve_kwargs.get(kernel.name)
+
+        if alpha:
+            tensor =  convolve(kernel, tensor, shape, alpha=alpha)
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
@@ -236,6 +239,12 @@ class ConvKernel(Enum):
        image = convolve(ConvKernel.shadow, image)
     """
 
+    invert = [
+        [ 0,  0,  0 ],
+        [ 0, -1,  0 ],
+        [ 0,  0,  0 ]
+    ]
+
     emboss = [
         [   0,   2,   4   ],
         [  -2,   1,   2   ],
@@ -245,11 +254,9 @@ class ConvKernel(Enum):
     rand = np.random.normal(.5, .5, (5, 5)).tolist()
 
     shadow = [
-        [  0,  1,  1,  1, 0 ],
-        [ -1, -2,  4,  2, 1 ],
-        [ -1, -4,  2,  4, 1 ],
-        [ -1, -2, -4,  2, 1 ],
-        [  0, -1, -1, -1, 0 ]
+        [ 0, 1, 2 ],
+        [ -1, 0, 1 ],
+        [ -2, -1, 0 ]
     ]
 
     edges = [
@@ -270,12 +277,6 @@ class ConvKernel(Enum):
         [ 6,  24, -476,  24, 6 ],
         [ 4,  16,   24,  16, 4 ],
         [ 1,  4,     6,   4, 1 ]
-    ]
-
-    invert = [
-        [ 0,  0,  0 ],
-        [ 0, -1,  0 ],
-        [ 0,  0,  0 ]
     ]
 
     sobel_x = [
@@ -327,7 +328,7 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
     return temp
 
 
-def convolve(kernel, tensor, shape, with_normalize=True):
+def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     """
     Apply a convolution kernel to an image tensor.
 
@@ -335,6 +336,7 @@ def convolve(kernel, tensor, shape, with_normalize=True):
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
     :param bool with_normalize: Normalize output (True)
+    :paral float alpha: Alpha blending amount
     :return: Tensor
     """
 
@@ -346,18 +348,28 @@ def convolve(kernel, tensor, shape, with_normalize=True):
     half_height = tf.cast(shape[0] / 2, tf.int32)
     half_width = tf.cast(shape[1] / 2, tf.int32)
 
-    tensor = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
-    tensor = tensor[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
-    tensor = tf.nn.depthwise_conv2d([tensor], kernel_values, [1,1,1,1], "VALID")[0]
-    tensor = tensor[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
+    out = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
+    out = out[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
+    out = tf.nn.depthwise_conv2d([out], kernel_values, [1,1,1,1], "VALID")[0]
+    out = out[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
 
     if with_normalize:
-        tensor = normalize(tensor)
+        out = normalize(out)
 
     if kernel == ConvKernel.edges:
-        tensor = tf.abs(tensor - .5) * 2
+        out = tf.abs(out - .5) * 2
 
-    return tensor
+    if kernel == ConvKernel.shadow:
+        down = tf.minimum((out + .5) * 2.0, 1.0)
+        up = tf.maximum((out - .5) * 2.0, 0.0)
+
+        out = tensor * down
+        out = 1.0 - (1.0 - out * out) * (1.0 - up * up)
+
+    if alpha == 1.0:
+        return out
+
+    return blend(tensor, out, alpha)
 
 
 def normalize(tensor):
@@ -624,7 +636,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
         else:
             y0_index += int(height * .5)
-            reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index], 2))
+            x0_index += int(width * .5)
+            reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
 
     reference_x = value_map(reference_x, shape)
     reference_y = value_map(reference_y, shape)
@@ -831,7 +844,7 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
 
 
-def derivative(tensor, shape, dist_func=1, with_normalize=True):
+def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
     """
     Extract a derivative from the given noise.
 
@@ -855,7 +868,10 @@ def derivative(tensor, shape, dist_func=1, with_normalize=True):
     if with_normalize:
         out = normalize(out)
 
-    return out
+    if alpha == 1.0:
+        return out
+
+    return blend(tensor, out, alpha)
 
 
 def sobel(tensor, shape, dist_func=1):
