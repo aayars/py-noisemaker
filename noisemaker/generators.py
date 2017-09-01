@@ -27,6 +27,8 @@ class Distribution(Enum):
 
     lognormal = 4
 
+    checkers = 5
+
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
           distrib=Distribution.normal, lattice_drift=0.0,
@@ -80,6 +82,11 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
     elif distrib == Distribution.lognormal:
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
+
+    elif distrib == Distribution.checkers:
+        channel_shape = [*freq, 1]
+
+        tensor = tf.cast(tf.reshape(effects.row_index(channel_shape) + effects.column_index(channel_shape), channel_shape) % 2, tf.float32) * tf.ones(initial_shape)
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)

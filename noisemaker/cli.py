@@ -79,7 +79,7 @@ def ridges_option(**attrs):
 
 
 def distrib_option(**attrs):
-    attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal)")
+    attrs.setdefault("help", "Random distribution (0=normal, 1=uniform, 2=exponential, 3=laplace, 4=lognormal, 5=checkers)")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 0)
 
