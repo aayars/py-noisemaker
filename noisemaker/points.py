@@ -17,19 +17,21 @@ class PointDistribution(Enum):
 
     waffle = 2
 
-    h_hex = 3
+    chess = 3
 
-    v_hex = 4
+    h_hex = 10
 
-    spiral = 5
+    v_hex = 11
 
-    circular = 6
+    spiral = 50
 
-    concentric = 7
+    circular = 100
+
+    concentric = 101
 
     @classmethod
     def is_grid(cls, member):
-        return member in (cls.square, cls.waffle, cls.h_hex, cls.v_hex)
+        return member in (cls.square, cls.waffle, cls.chess, cls.h_hex, cls.v_hex)
 
     @classmethod
     def is_circular(cls, member):
@@ -158,6 +160,9 @@ def square_grid(freq=1.0, distrib=None, center=True, center_x=0.0, center_y=0.0,
     for a in range(freq):
         for b in range(freq):
             if distrib == PointDistribution.waffle and (b % 2) == 0 and (a % 2) == 0:
+                continue
+
+            if distrib == PointDistribution.chess and (a % 2) == (b % 2):
                 continue
 
             if distrib == PointDistribution.h_hex:
