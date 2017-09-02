@@ -2,12 +2,15 @@ from collections import defaultdict
 from enum import Enum
 
 import math
+import os
 import random
 
 import numpy as np
 import tensorflow as tf
 
 from noisemaker.points import PointDistribution, point_cloud
+
+import noisemaker.util as util
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
@@ -19,7 +22,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=1, point_center=True, point_generations=1, point_drift=0.0,
-                 with_bloom=None, **convolve_kwargs):
+                 with_bloom=None,
+                 input_dir=None, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -71,6 +75,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
+    :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
 
     :return: Tensor
     """
@@ -90,7 +95,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         if with_voronoi:
             input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
-                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy)
+                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy, input_dir=input_dir)
 
         if with_dla:
             input_tensor = blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
@@ -195,8 +200,8 @@ class VoronoiDiagramType(Enum):
     #: Edgeless voronoi. Natural logarithm of reduced distance sums.
     flow = 6
 
-    #: Stitched mosaic based on indexed regions
-    mosaic = 7
+    #: Stitched collage based on indexed regions
+    collage = 7
 
 
 class DistanceFunction(Enum):
@@ -689,12 +694,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     """
 
     if isinstance(clut, str):
-        with open(clut, "rb") as fh:
-            if clut.endswith(".png"):
-                clut = tf.image.decode_png(fh.read(), channels=3)
-
-            elif clut.endswith(".jpg"):
-                clut = tf.image.decode_jpeg(fh.read(), channels=3)
+        clut = util.load(clut)
 
     height, width, channels = shape
 
@@ -1016,7 +1016,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False, input_dir=None):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1031,6 +1031,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param bool inverse: Invert range brightness values (does not affect hue)
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
+    :param str input_dir: Input directory containing .jpg and/or .png images, if using collage mode
     :return: Tensor
     """
 
@@ -1101,7 +1102,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         if inverse:
             range_slice = 1.0 - range_slice
 
-    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value, VoronoiDiagramType.mosaic.value):
+    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value, VoronoiDiagramType.collage.value):
         regions_slice = offset(indices[:,:,:,index], shape, **offset_kwargs)
 
     ###
@@ -1127,18 +1128,19 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
 
-    if diagram_type == VoronoiDiagramType.mosaic.value:
+    if diagram_type == VoronoiDiagramType.collage.value:
         collage_images = []
 
+        filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
+
+        collage_len = 512
+        collage_shape = [collage_len, collage_len, shape[2]]
+
         for i in range(16):
-            if random.random() < .5:
-                collage_images.append(tf.ones([128, 128, 3]) * i)
-            else:
-                collage_images.append(tf.random_uniform([128, 128, 3]) * i)
+            collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[random.randint(0, len(filenames) - 1)])), dtype=tf.float32)
+            collage_images.append(resample(collage_input, collage_shape))
 
-        collage_images = tf.stack(collage_images)
-
-        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % 16, column_index(shape) % 128, row_index(shape) % 128], 2))
+        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % 16, column_index(shape) % collage_len, row_index(shape) % collage_len], 2))
 
         out = resample(out, original_shape)
 

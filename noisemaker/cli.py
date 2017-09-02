@@ -629,6 +629,14 @@ def hsv_saturation_option(**attrs):
     return option("--hsv-saturation", **attrs)
 
 
+def input_dir_option(**attrs):
+    attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
+    attrs.setdefault("type", str)
+    attrs.setdefault("default", None)
+
+    return option("--input-dir", **attrs)
+
+
 def name_option(**attrs):
     attrs.setdefault("help", "Base filename for image output")
     attrs.setdefault("type", str)
@@ -716,6 +724,7 @@ def name_option(**attrs):
 @hsv_range_option()
 @hsv_rotation_option()
 @hsv_saturation_option()
+@input_dir_option()
 @wavelet_option()
 @name_option()
 @click.pass_context
@@ -723,7 +732,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
-         glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
+         glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
          name, **convolve_kwargs):
 
@@ -745,7 +754,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      spline_order=interp, distrib=distrib, corners=corners, mask=mask,
                                      warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                      posterize_levels=posterize, vortex_range=vortex,
-                                     hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
+                                     hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
                                      with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
 
         tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
