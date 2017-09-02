@@ -195,6 +195,9 @@ class VoronoiDiagramType(Enum):
     #: Edgeless voronoi. Natural logarithm of reduced distance sums.
     flow = 6
 
+    #: Stitched mosaic based on indexed regions
+    mosaic = 7
+
 
 class DistanceFunction(Enum):
     """
@@ -1098,7 +1101,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         if inverse:
             range_slice = 1.0 - range_slice
 
-    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
+    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value, VoronoiDiagramType.mosaic.value):
         regions_slice = offset(indices[:,:,:,index], shape, **offset_kwargs)
 
     ###
@@ -1124,6 +1127,21 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
 
+    if diagram_type == VoronoiDiagramType.mosaic.value:
+        collage_images = []
+
+        for i in range(16):
+            if random.random() < .5:
+                collage_images.append(tf.ones([128, 128, 3]) * i)
+            else:
+                collage_images.append(tf.random_uniform([128, 128, 3]) * i)
+
+        collage_images = tf.stack(collage_images)
+
+        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % 16, column_index(shape) % 128, row_index(shape) % 128], 2))
+
+        out = resample(out, original_shape)
+
     ###
     if diagram_type == VoronoiDiagramType.range_regions.value:
         out = blend(regions_out, range_out, tf.square(range_out))
@@ -1135,15 +1153,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         out = regions_out
 
     if with_refract != 0.0:
-        # ref_shape = [original_shape[0], original_shape[1], 1]
-        # out = tf.square(out)
-        # ref_x = convolve(ConvKernel.sobel_x, out, ref_shape)
-        # ref_y = convolve(ConvKernel.sobel_y, out, ref_shape)
-
-        # out = distance(ref_x, ref_y, 0)
-        # out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
-        # out = refract(tensor, original_shape, displacement=with_refract, reference_x=ref_x, reference_y=ref_y)
-
         out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
 
     if tensor is not None:
