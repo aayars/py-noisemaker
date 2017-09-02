@@ -38,7 +38,7 @@ class PointDistribution(Enum):
         return member in (cls.circular, cls.concentric)
 
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1):
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1, drift=0.0):
     """
     """
 
@@ -106,9 +106,21 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True,
                 x_point = _x[i]
                 y_point = _y[i]
 
-                if shape is not None:
-                    x_point = int(x_point)
-                    y_point = int(y_point)
+                if drift:
+                    x_drift = random.random() * drift - drift * .5
+                    y_drift = random.random() * drift - drift * .5
+
+                else:
+                    x_drift = 0
+                    y_drift = 0
+
+                if shape is None:
+                    x_point = (x_point + x_drift / freq) % 1.0
+                    y_point = (y_point + y_drift / freq) % 1.0
+
+                else:
+                    x_point = int(x_point + (x_drift / freq * shape[1])) % shape[1]
+                    y_point = int(y_point + (y_drift / freq * shape[0])) % shape[0]
 
                     if (x_point, y_point) in seen:
                         continue

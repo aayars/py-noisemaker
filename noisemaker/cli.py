@@ -414,11 +414,19 @@ def point_corners_option(**attrs):
 
 
 def point_generations_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Penrose generations. When using, keep this and freq below ~3 or you will run OOM easily.")
+    attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep this and freq below ~3 or you will run OOM easily.")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 
     return option("--point-generations", **attrs)
+
+
+def point_drift_option(**attrs):
+    attrs.setdefault("help", "Voronoi/DLA: Point drift range (1.0 = nearest neighbor)")
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option("--point-drift", **attrs)
 
 
 def sobel_option(**attrs):
@@ -674,6 +682,7 @@ def name_option(**attrs):
 @point_distrib_option()
 @point_corners_option()
 @point_generations_option()
+@point_drift_option()
 @wormhole_option()
 @wormhole_stride_option()
 @wormhole_kink_option()
@@ -715,7 +724,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation,
-         dla, dla_padding, point_freq, point_distrib, point_corners, point_generations,
+         dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
          name, **convolve_kwargs):
 
     with tf.Session().as_default():
@@ -731,7 +740,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                      with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
-                                     point_generations=point_generations,
+                                     point_generations=point_generations, point_drift=point_drift,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
                                      spline_order=interp, distrib=distrib, corners=corners, mask=mask,
                                      warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
