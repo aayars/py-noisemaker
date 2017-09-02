@@ -163,8 +163,8 @@ def scanline_error(tensor, shape):
     height, width, channels = shape
 
     value_shape = [height, width, 1]
-    error_line = tf.maximum(basic([int(height * .75), 1], value_shape, distrib=ValueDistribution.exponential) - .5, 0)
-    error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, distrib=ValueDistribution.exponential) - .5, 0)
+    error_line = tf.maximum(basic([int(height * .75), 1], value_shape, distrib=ValueDistribution.exp) - .5, 0)
+    error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, distrib=ValueDistribution.exp) - .5, 0)
 
     error_line *= error_swerve
 
