@@ -1073,10 +1073,13 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     # x_diff = (x_index - x) / width
     # y_diff = (y_index - y) / height
 
-    if isinstance(diagram_type, VoronoiDiagramType):
-       diagram_type = diagram_type.value
+    if isinstance(diagram_type, int):
+       diagram_type = VoronoiDiagramType(diagram_type)
 
-    if diagram_type == VoronoiDiagramType.flow.value:
+    elif isinstance(diagram_type, str):
+       diagram_type = VoronoiDiagramType[diagram_type]
+
+    if diagram_type == VoronoiDiagramType.flow:
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
         x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
         y_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
@@ -1084,7 +1087,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     dist = distance(x_diff, y_diff, dist_func)
 
     ###
-    if diagram_type not in (VoronoiDiagramType.flow.value, ):
+    if diagram_type not in (VoronoiDiagramType.flow, ):
         dist, indices = tf.nn.top_k(dist, k=point_count)
         index = int((nth + 1) * -1)
 
@@ -1096,63 +1099,64 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         'y': half_height,
     }
 
-    if diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
+    if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
         range_slice = resample(offset(tf.sqrt(normalize(dist[:,:,:,index])), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
 
-    if diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value, VoronoiDiagramType.collage.value):
+    if diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions, VoronoiDiagramType.collage):
         regions_slice = offset(indices[:,:,:,index], shape, **offset_kwargs)
 
     ###
-    if diagram_type == VoronoiDiagramType.range.value:
+    if diagram_type == VoronoiDiagramType.range:
         range_out = range_slice
 
-    if diagram_type in (VoronoiDiagramType.flow.value, ):
+    if diagram_type in (VoronoiDiagramType.flow, ):
         range_out = resample(offset(normalize(tf.reduce_sum(tf.log(dist), 3)), shape, **offset_kwargs), original_shape)
 
-    if diagram_type in (VoronoiDiagramType.color_range.value, VoronoiDiagramType.range_regions.value):
+    if diagram_type in (VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
         range_out = blend(tensor * range_slice, range_slice, range_slice)
 
-    if diagram_type == VoronoiDiagramType.regions.value:
+    if diagram_type == VoronoiDiagramType.regions:
         regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape, spline_order=0)
 
-    if diagram_type in (VoronoiDiagramType.color_regions.value, VoronoiDiagramType.range_regions.value):
+    if diagram_type in (VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
 
         if ridges_hint:
             colors = tf.abs(colors * 2 - 1)
 
-        spline_order = 0 if diagram_type == VoronoiDiagramType.color_regions.value else 3
+        spline_order = 0 if diagram_type == VoronoiDiagramType.color_regions else 3
 
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
 
-    if diagram_type == VoronoiDiagramType.collage.value:
-        collage_images = []
-
+    if diagram_type == VoronoiDiagramType.collage:
         filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
         collage_count = 8
-        collage_len = 512
-        collage_shape = [collage_len, collage_len, shape[2]]
+        collage_height = max(int(shape[0] / 4), 1)
+        collage_width = max(int(shape[1] / 4), 1)
+        collage_shape = [collage_height, collage_width, shape[2]]
+
+        collage_images = []
 
         for i in range(collage_count):
             collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[random.randint(0, len(filenames) - 1)])), dtype=tf.float32)
             collage_images.append(resample(collage_input, collage_shape))
 
-        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_len, row_index(shape) % collage_len], 2))
+        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
 
         out = resample(out, original_shape)
 
     ###
-    if diagram_type == VoronoiDiagramType.range_regions.value:
+    if diagram_type == VoronoiDiagramType.range_regions:
         out = blend(regions_out, range_out, tf.square(range_out))
 
-    elif diagram_type in (VoronoiDiagramType.range.value, VoronoiDiagramType.color_range.value, VoronoiDiagramType.flow.value):
+    elif diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.flow):
         out = range_out
 
-    elif diagram_type in (VoronoiDiagramType.regions.value, VoronoiDiagramType.color_regions.value):
+    elif diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions):
         out = regions_out
 
     if with_refract != 0.0:
@@ -1170,20 +1174,23 @@ def distance(a, b, func):
 
     :param Tensor a:
     :param Tensor b:
-    :param DistanceFunction|int dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :param DistanceFunction|int|str dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
     :return: Tensor
     """
 
-    if isinstance(func, DistanceFunction):
-       func = func.value
+    if isinstance(func, int):
+       func = DistanceFunction(func)
 
-    if func == DistanceFunction.euclidean.value:
+    elif isinstance(func, str):
+       func = DistanceFunction[func]
+
+    if func == DistanceFunction.euclidean:
         dist = tf.sqrt(a * a + b * b)
 
-    elif func == DistanceFunction.manhattan.value:
+    elif func == DistanceFunction.manhattan:
         dist = tf.abs(a) + tf.abs(b)
 
-    elif func == DistanceFunction.chebyshev.value:
+    elif func == DistanceFunction.chebyshev:
         dist = tf.maximum(tf.abs(a), tf.abs(b))
 
     else:
