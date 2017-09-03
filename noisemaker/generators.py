@@ -146,7 +146,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
     if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-        tensor = effects.offset(tensor, shape, x=int(shape[1] / (freq[1] * .5)), y=int(shape[0] / (freq[0] * .5)))
+        tensor = effects.offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
 
     return tensor
 

@@ -1133,14 +1133,15 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
         filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
+        collage_count = 8
         collage_len = 512
         collage_shape = [collage_len, collage_len, shape[2]]
 
-        for i in range(16):
+        for i in range(collage_count):
             collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[random.randint(0, len(filenames) - 1)])), dtype=tf.float32)
             collage_images.append(resample(collage_input, collage_shape))
 
-        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % 16, column_index(shape) % collage_len, row_index(shape) % collage_len], 2))
+        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_len, row_index(shape) % collage_len], 2))
 
         out = resample(out, original_shape)
 
