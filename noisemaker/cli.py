@@ -33,8 +33,18 @@ def validate_at_least_one(allow_none=False):
     """
 
     def validate(ctx, param, value):
-        if value <= 1 or (value is None and not allow_none):
+        is_valid = False
+
+        if value is None:
+            is_valid = allow_none
+
+        elif value > 1:
+            is_valid = True
+
+        if not is_valid:
             raise click.BadParameter("invalid choice: {0}. (choose a value greater than 1)".format(value))
+
+        return value
 
     return validate
 
@@ -46,6 +56,8 @@ def validate_enum(cls):
     def validate(ctx, param, value):
         if value is not None and value not in [m.value for m in cls]:
             raise click.BadParameter("invalid choice: {0}. (choose from {1})".format(value, ", ".join(["{0} ({1})".format(m.value, m.name) for m in cls])))
+
+        return value
 
     return validate
 
@@ -82,7 +94,7 @@ def option(*param_decls, **attrs):
     """ Add a Click option. """
 
     def decorator(f):
-        if attrs.get("default") not in (None, False):
+        if attrs.get("default") not in (None, False, 0):
             attrs["help"] += "  [default: {0}]".format(attrs["default"])
 
         return click.option(*param_decls, **attrs)(f)
@@ -195,7 +207,7 @@ def warp_interp_option(**attrs):
 def warp_freq_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Override --freq for warp frequency {0}".format(FREQ_HINT))
 
-    return int_option("--warp-freq", callback=validate_at_least_one(allow_none=True), **attrs)
+    return int_option("--warp-freq", callback=validate_at_least_one(allow_none=True), default=None, **attrs)
 
 
 def post_reflect_option(**attrs):
