@@ -29,8 +29,8 @@ def main(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, nam
 
     freq = [3, 3]
 
-    max_height = 1000
-    max_width = 1000
+    max_height = 1024
+    max_width = 1024
 
     with tf.Session().as_default():
         height, width, channels = tf.shape(tensor).eval()
