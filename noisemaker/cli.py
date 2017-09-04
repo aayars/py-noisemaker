@@ -44,7 +44,6 @@ def validate_enum(cls):
     """
 
     def validate(ctx, param, value):
-        print(param.name)
         if value is not None and value not in [m.value for m in cls]:
             raise click.BadParameter("invalid choice: {0}. (choose from {1})".format(value, ", ".join(["{0} ({1})".format(m.value, m.name) for m in cls])))
 
