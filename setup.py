@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(name='noisemaker',
       version='0.0.1',
-      description='Visual noise generator for Python 3',
+      description='Classic procedural noise for Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
       url='http://noisemaker.io/',
@@ -13,7 +13,7 @@ setup(name='noisemaker',
 
       entry_points='''
         [console_scripts]
-        noisemaker=noisemaker.cli:main
+        noisemaker=noisemaker.scripts.noisemaker:main
         ''',
 
       install_requires=[
