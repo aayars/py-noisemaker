@@ -123,13 +123,13 @@ def height_option(**attrs):
 def channels_option(**attrs):
     attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=HSV/RGB, 4=RGB+alpha)")
 
-    return option("--channels", type=click.IntRange(1, 4), default=3, **attrs)
+    return int_option("--channels", type=click.IntRange(1, 4), default=3, **attrs)
 
 
 def octaves_option(**attrs):
     attrs.setdefault("help", "Octave count: Number of multi-res layers")
 
-    return option("--octaves", type=click.IntRange(1, 10), default=1, **attrs)
+    return int_option("--octaves", type=click.IntRange(1, 10), default=1, **attrs)
 
 
 def ridges_option(**attrs):
@@ -141,7 +141,7 @@ def ridges_option(**attrs):
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
 
-    return option("--distrib", type=click.Choice([m.name for m in generators.ValueDistribution]), default="normal", **attrs)
+    return str_option("--distrib", type=click.Choice([m.name for m in generators.ValueDistribution]), default="normal", **attrs)
 
 
 def corners_option(**attrs):
@@ -153,7 +153,7 @@ def corners_option(**attrs):
 def mask_option(**attrs):
     attrs.setdefault("help", "Value distribution: Hot pixel mask")
 
-    return option("--mask", type=click.Choice([m.name for m in generators.ValueMask]), **attrs)
+    return str_option("--mask", type=click.Choice([m.name for m in generators.ValueMask]), **attrs)
 
 
 def interp_option(**attrs):
@@ -195,7 +195,7 @@ def warp_option(**attrs):
 def warp_octaves_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Octave count for --warp")
 
-    return option("--warp-octaves", type=click.IntRange(1, 10), default=3, **attrs)
+    return int_option("--warp-octaves", type=click.IntRange(1, 10), default=3, **attrs)
 
 
 def warp_interp_option(**attrs):
@@ -243,7 +243,7 @@ def reindex_option(**attrs):
 def clut_option(**attrs):
     attrs.setdefault("help", "Color lookup table (path to PNG or JPEG image)")
 
-    return str_option("--clut", **attrs)
+    return str_option("--clut", type=click.Path(exists=True, dir_okay=False, resolve_path=True), **attrs)
 
 
 def clut_range_option(**attrs):
@@ -375,13 +375,13 @@ def voronoi_inverse_option(**attrs):
 def point_freq_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
 
-    return option("--point-freq", type=click.IntRange(1, 10), default=3, **attrs)
+    return int_option("--point-freq", type=click.IntRange(1, 10), default=3, **attrs)
 
 
 def point_distrib_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
 
-    return option("--point-distrib", type=click.Choice([m.name for m in effects.PointDistribution]), default="random", **attrs)
+    return str_option("--point-distrib", type=click.Choice([m.name for m in effects.PointDistribution]), default="random", **attrs)
 
 
 def point_corners_option(**attrs):
@@ -393,7 +393,7 @@ def point_corners_option(**attrs):
 def point_generations_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep this and freq below ~3 or you will run OOM easily.")
 
-    return option("--point-generations", type=click.IntRange(1, 3), default=1, **attrs)
+    return int_option("--point-generations", type=click.IntRange(1, 3), default=1, **attrs)
 
 
 def point_drift_option(**attrs):
@@ -555,13 +555,13 @@ def hsv_saturation_option(**attrs):
 def input_dir_option(**attrs):
     attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
 
-    return str_option("--input-dir", **attrs)
+    return str_option("--input-dir", type=click.Path(exists=True, file_okay=False, resolve_path=True), **attrs)
 
 
 def name_option(**attrs):
     attrs.setdefault("help", "Base filename for image output")
 
-    return str_option("--name", default="noise.png", **attrs)
+    return str_option("--name", type=click.Path(dir_okay=False), default="noise.png", **attrs)
 
 
 @click.command(help="""

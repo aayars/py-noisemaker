@@ -1053,6 +1053,15 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :return: Tensor
     """
 
+    if isinstance(diagram_type, int):
+       diagram_type = VoronoiDiagramType(diagram_type)
+
+    elif isinstance(diagram_type, str):
+       diagram_type = VoronoiDiagramType[diagram_type]
+
+    if diagram_type == VoronoiDiagramType.collage and not input_dir:
+        raise ValueError("--input-dir containing .jpg/.png images must be specified, when using collage mode.")
+
     original_shape = shape
 
     shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]  # Gotta upsample later, this one devours memory.
@@ -1090,12 +1099,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     # Not-wrapping edges!
     # x_diff = (x_index - x) / width
     # y_diff = (y_index - y) / height
-
-    if isinstance(diagram_type, int):
-       diagram_type = VoronoiDiagramType(diagram_type)
-
-    elif isinstance(diagram_type, str):
-       diagram_type = VoronoiDiagramType[diagram_type]
 
     if diagram_type == VoronoiDiagramType.flow:
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
