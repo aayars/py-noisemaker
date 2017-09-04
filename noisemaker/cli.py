@@ -28,12 +28,15 @@ INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
 NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
 
 
-def validate_at_least_one(ctx, param, value):
+def validate_at_least_one(allow_none=False):
     """
     """
 
-    if value <= 1:
-        raise click.BadParameter("invalid choice: {0}. (choose a value greater than 1)".format(value))
+    def validate(ctx, param, value):
+        if value <= 1 or (value is None and not allow_none):
+            raise click.BadParameter("invalid choice: {0}. (choose a value greater than 1)".format(value))
+
+    return validate
 
 
 def validate_enum(cls):
@@ -41,10 +44,39 @@ def validate_enum(cls):
     """
 
     def validate(ctx, param, value):
+        print(param.name)
         if value is not None and value not in [m.value for m in cls]:
             raise click.BadParameter("invalid choice: {0}. (choose from {1})".format(value, ", ".join(["{0} ({1})".format(m.value, m.name) for m in cls])))
 
     return validate
+
+
+def bool_option(attr, **attrs):
+    attrs.setdefault("is_flag", True)
+    attrs.setdefault("default", False)
+
+    return option(attr, **attrs)
+
+
+def float_option(attr, **attrs):
+    attrs.setdefault("type", float)
+    attrs.setdefault("default", 0.0)
+
+    return option(attr, **attrs)
+
+
+def int_option(attr, **attrs):
+    attrs.setdefault("type", int)
+    attrs.setdefault("default", 0)
+
+    return option(attr, **attrs)
+
+
+def str_option(attr, **attrs):
+    attrs.setdefault("type", str)
+    attrs.setdefault("default", "")
+
+    return option(attr, **attrs)
 
 
 def option(*param_decls, **attrs):
@@ -61,628 +93,464 @@ def option(*param_decls, **attrs):
 
 def freq_option(**attrs):
     attrs.setdefault("help", "Minimum noise frequency {0}".format(FREQ_HINT))
-    attrs.setdefault("callback", validate_at_least_one)
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 3)
 
-    return option("--freq", **attrs)
+    return int_option("--freq", default=3, callback=validate_at_least_one(), **attrs)
 
 
 def width_option(**attrs):
     attrs.setdefault("help", "Output width, in pixels")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 1024)
 
-    return option("--width", **attrs)
+    return int_option("--width", default=1024, **attrs)
 
 
 def height_option(**attrs):
     attrs.setdefault("help", "Output height, in pixels")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 1024)
 
-    return option("--height", **attrs)
+    return int_option("--height", default=1024, **attrs)
 
 
 def channels_option(**attrs):
     attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=HSV/RGB, 4=RGB+alpha)")
-    attrs.setdefault("type", click.IntRange(1, 4))
-    attrs.setdefault("default", '3')
 
-    return option("--channels", **attrs)
+    return option("--channels", type=click.IntRange(1, 4), default=3, **attrs)
 
 
 def octaves_option(**attrs):
     attrs.setdefault("help", "Octave count: Number of multi-res layers")
-    attrs.setdefault("type", click.IntRange(1, 10))
-    attrs.setdefault("default", 1)
 
-    return option("--octaves", **attrs)
+    return option("--octaves", type=click.IntRange(1, 10), default=1, **attrs)
 
 
 def ridges_option(**attrs):
     attrs.setdefault("help", "\"Crease\" at midpoint values: abs(noise * 2 - 1)")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--ridges", **attrs)
+    return bool_option("--ridges", **attrs)
 
 
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
-    attrs.setdefault("type", click.Choice([m.name for m in generators.ValueDistribution]))
-    attrs.setdefault("default", "normal")
 
-    return option("--distrib", **attrs)
+    return option("--distrib", type=click.Choice([m.name for m in generators.ValueDistribution]), default="normal", **attrs)
 
 
 def corners_option(**attrs):
     attrs.setdefault("help", "Value distribution: Pin pixels to corners, instead of image center.")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--corners", **attrs)
+    return bool_option("--corners", **attrs)
 
 
 def mask_option(**attrs):
     attrs.setdefault("help", "Value distribution: Hot pixel mask")
-    attrs.setdefault("type", click.Choice([m.name for m in generators.ValueMask]))
-    attrs.setdefault("default", None)
 
-    return option("--mask", **attrs)
+    return option("--mask", type=click.Choice([m.name for m in generators.ValueMask]), **attrs)
 
 
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
-    attrs.setdefault("callback", validate_enum(effects.InterpolationType))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 3)
 
-    return option("--interp", **attrs)
+    return int_option("--interp", callback=validate_enum(effects.InterpolationType), default=3, **attrs)
 
 
 def sin_option(**attrs):
     attrs.setdefault("help", "Apply sin function to noise basis")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--sin", **attrs)
+    return float_option("--sin", **attrs)
 
 
 def wavelet_option(**attrs):
     attrs.setdefault("help", "Wavelets: What are they even?")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--wavelet", **attrs)
+    return bool_option("--wavelet", **attrs)
 
 
 def lattice_drift_option(**attrs):
     attrs.setdefault("help", "Domain warping: Lattice deform range {0}".format(NEAREST_NEIGHBOR_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--lattice-drift", **attrs)
+    return float_option("--lattice-drift", **attrs)
 
 
 def vortex_option(**attrs):
     attrs.setdefault("help", "Vortex tiling amount")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--vortex", **attrs)
+    return float_option("--vortex", **attrs)
 
 
 def warp_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Orthogonal displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--warp", **attrs)
+    return float_option("--warp", **attrs)
 
 
 def warp_octaves_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Octave count for --warp")
-    attrs.setdefault("type", click.IntRange(1, 10))
-    attrs.setdefault("default", 3)
 
-    return option("--warp-octaves", **attrs)
+    return option("--warp-octaves", type=click.IntRange(1, 10), default=3, **attrs)
 
 
 def warp_interp_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Interpolation type {0}".format(INTERPOLATION_HINT))
-    attrs.setdefault("callback", validate_enum(effects.InterpolationType))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--warp-interp", **attrs)
+    return int_option("--warp-interp", callback=validate_enum(effects.InterpolationType), **attrs)
 
 
 def warp_freq_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Override --freq for warp frequency {0}".format(FREQ_HINT))
-    attrs.setdefault("callback", validate_at_least_one)
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--warp-freq", **attrs)
+    return int_option("--warp-freq", callback=validate_at_least_one(allow_none=True), **attrs)
 
 
 def post_reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Post-reduce derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--post-reflect", **attrs)
+    return float_option("--post-reflect", **attrs)
 
 
 def post_refract_option(**attrs):
     attrs.setdefault("help", "Domain warping: Post-reduce self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--post-refract", **attrs)
+    return float_option("--post-refract", **attrs)
 
 
 def reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Per-octave derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--reflect", **attrs)
+    return float_option("--reflect", **attrs)
 
 
 def refract_option(**attrs):
     attrs.setdefault("help", "Domain warping: Per-octave self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--refract", **attrs)
+    return float_option("--refract", **attrs)
 
 
 def reindex_option(**attrs):
     attrs.setdefault("help", "Color re-indexing range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--reindex", **attrs)
+    return float_option("--reindex", **attrs)
 
 
 def clut_option(**attrs):
     attrs.setdefault("help", "Color lookup table (path to PNG or JPEG image)")
-    attrs.setdefault("type", str)
 
-    return option("--clut", **attrs)
+    return str_option("--clut", **attrs)
 
 
 def clut_range_option(**attrs):
     attrs.setdefault("help", "CLUT: Maximum pixel gather distance {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.5)
 
-    return option("--clut-range", **attrs)
+    return float_option("--clut-range", default=0.5, **attrs)
 
 
 def clut_horizontal_option(**attrs):
     attrs.setdefault("help", "CLUT: Preserve vertical axis")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--clut-horizontal", **attrs)
+    return bool_option("--clut-horizontal", **attrs)
 
 
 def worms_option(**attrs):
     attrs.setdefault("help", "Iterative \"worm\" field flow (1=Obedient, 2=Crosshatch, 3=Unruly, 4=Chaotic)")
-    attrs.setdefault("callback", validate_enum(effects.WormBehavior))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--worms", **attrs)
+    return int_option("--worms", callback=validate_enum(effects.WormBehavior), **attrs)
 
 
 def worms_density_option(**attrs):
     attrs.setdefault("help", "Worms: Density multiplier (larger is more costly)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 4.0)
 
-    return option("--worms-density", **attrs)
+    return float_option("--worms-density", default=4.0, **attrs)
 
 
 def worms_duration_option(**attrs):
     attrs.setdefault("help", "Worms: Iteration multiplier (larger is more costly)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 4.0)
 
-    return option("--worms-duration", **attrs)
+    return float_option("--worms-duration", default=4.0, **attrs)
 
 
 def worms_stride_option(**attrs):
     attrs.setdefault("help", "Worms: Mean pixel displacement per iteration")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--worms-stride", **attrs)
+    return float_option("--worms-stride", default=1.0, **attrs)
 
 
 def worms_stride_deviation_option(**attrs):
     attrs.setdefault("help", "Worms: Per-worm random stride variance")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--worms-stride-deviation", **attrs)
+    return float_option("--worms-stride-deviation", **attrs)
 
 
 def worms_bg_option(**attrs):
     attrs.setdefault("help", "Worms: Background color brightness")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.5)
 
-    return option("--worms-bg", **attrs)
+    return float_option("--worms-bg", **attrs)
 
 
 def worms_kink_option(**attrs):
     attrs.setdefault("help", "Worms: Rotation range (1.0 = 360 degrees)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--worms-kink", **attrs)
+    return float_option("--worms-kink", default=1.0, **attrs)
 
 
 def wormhole_option(**attrs):
     attrs.setdefault("help", "Non-iterative per-pixel field flow")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--wormhole", **attrs)
+    return bool_option("--wormhole", **attrs)
 
 
 def wormhole_stride_option(**attrs):
     attrs.setdefault("help", "Wormhole: Max per-pixel displacement range {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", .1)
 
-    return option("--wormhole-stride", **attrs)
+    return float_option("--wormhole-stride", default=0.1, **attrs)
 
 
 def wormhole_kink_option(**attrs):
     attrs.setdefault("help", "Wormhole: Per-pixel rotation range (1.0 = 360 degrees)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--wormhole-kink", **attrs)
+    return float_option("--wormhole-kink", default=1.0, **attrs)
 
 
 def erosion_worms_option(**attrs):
     attrs.setdefault("help", "Experimental erosion worms (Does not use worms settings)")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--erosion-worms", **attrs)
+    return bool_option("--erosion-worms", **attrs)
 
 
 def dla_option(**attrs):
     attrs.setdefault("help", "Diffusion-limited aggregation (DLA) {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--dla", **attrs)
+    return float_option("--dla", **attrs)
 
 
 def dla_padding_option(**attrs):
     attrs.setdefault("help", "DLA: Pixel padding (smaller is slower)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 2)
 
-    return option("--dla-padding", **attrs)
+    return int_option("--dla-padding", default=2, **attrs)
 
 
 def voronoi_option(**attrs):
     attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow, 7=Collage)")
-    attrs.setdefault("callback", validate_enum(effects.VoronoiDiagramType))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--voronoi", **attrs)
+    return int_option("--voronoi", callback=validate_enum(effects.VoronoiDiagramType), **attrs)
 
 
 def voronoi_func_option(**attrs):
     attrs.setdefault("help", "Voronoi: Distance function {0}".format(DISTANCE_HINT))
-    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 1)
 
-    return option("--voronoi-func", **attrs)
+    return int_option("--voronoi-func", callback=validate_enum(effects.DistanceFunction), default=1, **attrs)
 
 
 def voronoi_nth_option(**attrs):
     attrs.setdefault("help", "Voronoi: Plot Nth nearest, or -Nth farthest")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
 
-    return option("--voronoi-nth", **attrs)
+    return int_option("--voronoi-nth", **attrs)
 
 
 def voronoi_alpha_option(**attrs):
     attrs.setdefault("help", "Voronoi: Basis {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--voronoi-alpha", **attrs)
+    return float_option("--voronoi-alpha", default=1.0, **attrs)
 
 
 def voronoi_refract_option(**attrs):
     attrs.setdefault("help", "Voronoi: Domain warp input tensor {0}".format(ENTIRE_IMAGE_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--voronoi-refract", **attrs)
+    return float_option("--voronoi-refract", **attrs)
 
 
 def voronoi_inverse_option(**attrs):
     attrs.setdefault("help", "Voronoi: Inverse range")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--voronoi-inverse", **attrs)
+    return bool_option("--voronoi-inverse", **attrs)
 
 
 def point_freq_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
-    attrs.setdefault("type", click.IntRange(1, 10))
-    attrs.setdefault("default", 3)
 
-    return option("--point-freq", **attrs)
+    return option("--point-freq", type=click.IntRange(1, 10), default=3, **attrs)
 
 
 def point_distrib_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
-    attrs.setdefault("type", click.Choice([m.name for m in effects.PointDistribution]))
-    attrs.setdefault("default", "random")
 
-    return option("--point-distrib", **attrs)
+    return option("--point-distrib", type=click.Choice([m.name for m in effects.PointDistribution]), default="random", **attrs)
 
 
 def point_corners_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Pin diagram to corners, instead of image center.")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--point-corners", **attrs)
+    return bool_option("--point-corners", **attrs)
 
 
 def point_generations_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep this and freq below ~3 or you will run OOM easily.")
-    attrs.setdefault("type", click.IntRange(1, 3))
-    attrs.setdefault("default", 1)
 
-    return option("--point-generations", **attrs)
+    return option("--point-generations", type=click.IntRange(1, 3), default=1, **attrs)
 
 
 def point_drift_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point drift range {0}".format(NEAREST_NEIGHBOR_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--point-drift", **attrs)
+    return float_option("--point-drift", **attrs)
 
 
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
-    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--sobel", **attrs)
+    return int_option("--sobel", callback=validate_enum(effects.DistanceFunction), **attrs)
 
 
 def outline_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
-    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--outline", **attrs)
+    return int_option("--outline", callback=validate_enum(effects.DistanceFunction), **attrs)
 
 
 def normals_option(**attrs):
     attrs.setdefault("help", "Post-processing: Generate a tangent-space normal map")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--normals", **attrs)
+    return bool_option("--normals", **attrs)
 
 
 def post_deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract post-reduce rate of change {0}".format(DISTANCE_HINT))
-    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--post-deriv", **attrs)
+    return int_option("--post-deriv", callback=validate_enum(effects.DistanceFunction), **attrs)
 
 
 def deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract per-octave rate of change {0}".format(DISTANCE_HINT))
-    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", None)
 
-    return option("--deriv", **attrs)
+    return int_option("--deriv", callback=validate_enum(effects.DistanceFunction), **attrs)
 
 
 def deriv_alpha_option(**attrs):
     attrs.setdefault("help", "Derivatives: Per-octave {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--deriv-alpha", **attrs)
+    return float_option("--deriv-alpha", default=1.0, **attrs)
 
 
 def posterize_option(**attrs):
     attrs.setdefault("help", "Post-processing: Posterize levels (per channel)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
 
-    return option("--posterize", **attrs)
+    return int_option("--posterize", **attrs)
 
 
 def bloom_option(**attrs):
     attrs.setdefault("help", "Post-processing: Bloom {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--bloom", **attrs)
+    return float_option("--bloom", **attrs)
 
 
 def glitch_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Bit-shit")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--glitch", **attrs)
+    return bool_option("--glitch", **attrs)
 
 
 def vhs_option(**attrs):
     attrs.setdefault("help", "Glitch effects: VHS tracking")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--vhs", **attrs)
+    return bool_option("--vhs", **attrs)
 
 
 def crt_option(**attrs):
     attrs.setdefault("help", "Glitch effects: CRT scanline")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--crt", **attrs)
+    return bool_option("--crt", **attrs)
 
 
 def scan_error_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Analog scanline error")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--scan-error", **attrs)
+    return bool_option("--scan-error", **attrs)
 
 
 def snow_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Analog broadcast snow (0.0=off, 1.0=saturated)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--snow", **attrs)
+    return float_option("--snow", **attrs)
 
 
 def dither_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Per-pixel brightness jitter")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 0.0)
 
-    return option("--dither", **attrs)
+    return float_option("--dither", **attrs)
 
 
 def aberration_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Chromatic aberration distance (e.g. .0075)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--aberration", **attrs)
+    return float_option("--aberration", **attrs)
 
 
 def emboss_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Emboss {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--emboss", **attrs)
+    return float_option("--emboss", **attrs)
 
 
 def shadow_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Shadow {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--shadow", **attrs)
+    return float_option("--shadow", **attrs)
 
 
 def edges_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Edges {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--edges", **attrs)
+    return float_option("--edges", **attrs)
 
 
 def sharpen_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Sharpen {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--sharpen", **attrs)
+    return float_option("--sharpen", **attrs)
 
 
 def unsharp_mask_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Unsharp mask {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--unsharp-mask", **attrs)
+    return float_option("--unsharp-mask", **attrs)
 
 
 def invert_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Invert {0}".format(ALPHA_BLENDING_HINT))
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--invert", **attrs)
+    return float_option("--invert", **attrs)
 
 
 def rgb_option(**attrs):
     attrs.setdefault("help", "Use RGB noise basis instead of HSV")
-    attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
 
-    return option("--rgb", **attrs)
+    return bool_option("--rgb", **attrs)
 
 
 def hsv_range_option(**attrs):
     attrs.setdefault("help", "HSV: Hue range (0..1+")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", .25)
 
-    return option("--hsv-range", **attrs)
+    return float_option("--hsv-range", default=0.25, **attrs)
 
 
 def hsv_rotation_option(**attrs):
     attrs.setdefault("help", "HSV: Hue rotation (0..1)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", None)
 
-    return option("--hsv-rotation", **attrs)
+    return float_option("--hsv-rotation", **attrs)
 
 
 def hsv_saturation_option(**attrs):
     attrs.setdefault("help", "HSV: Saturation (0..1+)")
-    attrs.setdefault("type", float)
-    attrs.setdefault("default", 1.0)
 
-    return option("--hsv-saturation", **attrs)
+    return float_option("--hsv-saturation", default=1.0, **attrs)
 
 
 def input_dir_option(**attrs):
     attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
-    attrs.setdefault("type", str)
-    attrs.setdefault("default", None)
 
-    return option("--input-dir", **attrs)
+    return str_option("--input-dir", **attrs)
 
 
 def name_option(**attrs):
     attrs.setdefault("help", "Base filename for image output")
-    attrs.setdefault("type", str)
-    attrs.setdefault("default", "noise.png")
 
-    return option("--name", **attrs)
+    return str_option("--name", default="noise.png", **attrs)
 
 
 @click.command(help="""
