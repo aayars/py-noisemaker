@@ -374,10 +374,10 @@ def voronoi_inverse_option(**attrs):
     return bool_option("--voronoi-inverse", **attrs)
 
 
-def point_freq_option(**attrs):
+def point_freq_option(default=3.0, **attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
 
-    return int_option("--point-freq", type=click.IntRange(1, 10), default=3, **attrs)
+    return int_option("--point-freq", type=click.IntRange(1, 10), default=default, **attrs)
 
 
 def point_distrib_option(**attrs):
