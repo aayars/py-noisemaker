@@ -29,13 +29,15 @@ class PointDistribution(Enum):
 
     concentric = 101
 
+    rotating = 102
+
     @classmethod
     def is_grid(cls, member):
         return member.value >= cls.square.value and member.value < cls.spiral.value
 
     @classmethod
     def is_circular(cls, member):
-        return member in (cls.circular, cls.concentric)
+        return member.value >= cls.circular.value
 
 
 def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1, drift=0.0):
@@ -237,6 +239,8 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
+    kink = random.random() * 5 - 2.5
+
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count
         
@@ -245,6 +249,9 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
             if distrib == PointDistribution.circular:
                 rads += rotation * .5 * i
+
+            if distrib == PointDistribution.rotating:
+                rads += rotation * dist_fract * kink
 
             x_point = (center_x + math.sin(rads) * dist_fract * range_x)
             y_point = (center_y + math.cos(rads) * dist_fract * range_y)

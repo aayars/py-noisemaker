@@ -1134,9 +1134,11 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type == VoronoiDiagramType.collage:
         filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
-        collage_count = 8
-        collage_height = max(int(shape[0] / 4), 1)
-        collage_width = max(int(shape[1] / 4), 1)
+        freq = int(max(math.sqrt(point_count), 1))
+
+        collage_count = freq
+        collage_height = int(max(shape[0] / freq, 1))
+        collage_width = int(max(shape[1] / freq, 1))
         collage_shape = [collage_height, collage_width, shape[2]]
 
         collage_images = []
@@ -1556,7 +1558,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
 
             walkers.append((int(random.random() * half_height), int(random.random() * half_width)))
 
-    iterations = 1000
+    iterations = 2000
 
     for i in range(iterations):
         remove_walkers = set()
@@ -1580,9 +1582,9 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
                 for y_offset in expanded_offsets:
                     expanded_neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
 
-            clustered.append(walker)
+            print(len(walkers))
 
-        print(len(walkers))
+            clustered.append(walker)
 
         if not walkers:
             break

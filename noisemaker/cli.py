@@ -1,3 +1,5 @@
+import os
+
 import click
 import tensorflow as tf
 
@@ -7,6 +9,7 @@ import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.recipes as recipes
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 
@@ -736,29 +739,29 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
          name, **convolve_kwargs):
 
+    shape = [height, width, channels]
+
+    tensor = generators.multires(freq, shape, octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
+                                 reflect_range=reflect, refract_range=refract, reindex_range=reindex,
+                                 post_reflect_range=post_reflect, post_refract_range=post_refract,
+                                 clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
+                                 with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
+                                 worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
+                                 with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
+                                 with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
+                                 voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
+                                 with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
+                                 point_generations=point_generations, point_drift=point_drift,
+                                 with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
+                                 spline_order=interp, distrib=distrib, corners=corners, mask=mask,
+                                 warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
+                                 posterize_levels=posterize, vortex_range=vortex,
+                                 hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
+                                 with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
+
+    tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+
     with tf.Session().as_default():
-        shape = [height, width, channels]
-
-        tensor = generators.multires(freq, shape, octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
-                                     reflect_range=reflect, refract_range=refract, reindex_range=reindex,
-                                     post_reflect_range=post_reflect, post_refract_range=post_refract,
-                                     clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                     with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
-                                     worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_bg=worms_bg, worms_kink=worms_kink,
-                                     with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
-                                     with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
-                                     voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
-                                     with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
-                                     point_generations=point_generations, point_drift=point_drift,
-                                     with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
-                                     spline_order=interp, distrib=distrib, corners=corners, mask=mask,
-                                     warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
-                                     posterize_levels=posterize, vortex_range=vortex,
-                                     hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
-                                     with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
-
-        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
-
         save(tensor, name)
 
-        print(name)
+    print(name)
