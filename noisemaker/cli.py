@@ -94,6 +94,11 @@ def option(*param_decls, **attrs):
     """ Add a Click option. """
 
     def decorator(f):
+        if isinstance(attrs.get("type"), click.IntRange):
+            r = attrs["type"]
+
+            attrs["help"] += "  [range: {0}-{1}]".format(r.min, r.max)
+
         if attrs.get("default") not in (None, False, 0):
             attrs["help"] += "  [default: {0}]".format(attrs["default"])
 
@@ -391,7 +396,7 @@ def point_corners_option(**attrs):
 
 
 def point_generations_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep this and freq below ~3 or you will run OOM easily.")
+    attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep --point-freq below ~3 to avoid OOM")
 
     return int_option("--point-generations", type=click.IntRange(1, 3), default=1, **attrs)
 
