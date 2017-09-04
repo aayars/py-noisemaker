@@ -38,16 +38,35 @@ Install `Noisemaker`_ in a new virtualenv:
     # e.g. Mac OS X CPU:
     # https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py3-none-any.whl
 
+Upgrading
+---------
+
+Activate the virtual environment, and run:
+
+    pip install --upgrade git+https://github.com/aayars/py-noisemaker
+
 Usage
 -----
 
-See documentation for :doc:`api`, or run ``noisemaker --help``
+API
+~~~
+
+See :doc:`api` documentation.
+
+CLI
+~~~
+
+Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or `--help`.
+
+-  `noisemaker`: Fully-featured noise generation pipeline
+-  `glitchmaker`: Simple glitch art tool
 
 See also
 --------
 
 -  `Wikipedia: Value Noise`_
 -  `Wikipedia: Perlin Noise`_
+-  `Wikipedia: Voronoi diagram`_
 
 Indices and tables
 ==================
@@ -61,3 +80,4 @@ Indices and tables
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
 .. _`Wikipedia: Value Noise`: https://en.wikipedia.org/wiki/Value_noise
 .. _`Wikipedia: Perlin Noise`: https://en.wikipedia.org/wiki/Perlin_noise
+.. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
