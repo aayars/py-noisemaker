@@ -535,7 +535,7 @@ def rgb_option(**attrs):
 
 
 def hsv_range_option(**attrs):
-    attrs.setdefault("help", "HSV: Hue range (0..1+")
+    attrs.setdefault("help", "HSV: Hue range (0..1+)")
 
     return float_option("--hsv-range", default=0.25, **attrs)
 
