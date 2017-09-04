@@ -666,7 +666,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                  with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                  voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
-                                 with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_center=not point_corners,
+                                 with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_corners=point_corners,
                                  point_generations=point_generations, point_drift=point_drift,
                                  with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask,

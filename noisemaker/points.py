@@ -40,7 +40,7 @@ class PointDistribution(Enum):
         return member.value >= cls.circular.value
 
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True, generations=1, drift=0.0):
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0):
     """
     """
 
@@ -98,7 +98,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, center=True,
         if generation <= generations:
             multiplier = max(2 * (generation - 1), 1)
 
-            next = point_func(freq=freq, distrib=distrib, center=center,
+            next = point_func(freq=freq, distrib=distrib, corners=corners,
                               center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
                               width=width, height=height, generation=generation)
 
@@ -154,7 +154,7 @@ def rand(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1
     return x, y
 
 
-def square_grid(freq=1.0, distrib=None, center=True, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
+def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
     """
     """
 
@@ -165,10 +165,10 @@ def square_grid(freq=1.0, distrib=None, center=True, center_x=0.0, center_y=0.0,
     drift_amount = .5 / freq
 
     if ((freq * freq) % 2) == 0:
-        drift = 0.0 if center else drift_amount
+        drift = 0.0 if not corners else drift_amount
 
     else:
-        drift = drift_amount if center else 0.0
+        drift = drift_amount if not corners else 0.0
 
     #
     for a in range(freq):

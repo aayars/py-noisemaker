@@ -21,7 +21,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2,
-                 point_freq=5, point_distrib=1, point_center=True, point_generations=1, point_drift=0.0,
+                 point_freq=5, point_distrib=1, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None,
                  input_dir=None, **convolve_kwargs):
     """
@@ -72,7 +72,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int dla_padding: DLA pixel padding
     :param int point_freq: Voronoi and DLA point frequency (freq * freq = count)
     :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
-    :param bool point_center: Pin Voronoi and DLA points to center (False = pin to edges)
+    :param bool point_corners: Pin Voronoi and DLA points to corners (False = pin to center)
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
@@ -87,7 +87,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         tiled_shape = [int(shape[0] / multiplier), int(shape[1] / multiplier), shape[2]]
 
-        x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, center=point_center, generations=point_generations, drift=point_drift)
+        x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift)
 
         xy = (x, y, len(x))
 
