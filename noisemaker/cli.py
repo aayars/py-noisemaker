@@ -85,7 +85,7 @@ def int_option(attr, **attrs):
 
 def str_option(attr, **attrs):
     attrs.setdefault("type", str)
-    attrs.setdefault("default", "")
+    attrs.setdefault("default", None)
 
     return option(attr, **attrs)
 
