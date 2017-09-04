@@ -21,9 +21,19 @@ DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
 
 ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
 
+FREQ_HINT = "(must be >= 2)"
+
 INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
 
 NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
+
+
+def validate_at_least_one(ctx, param, value):
+    """
+    """
+
+    if value <= 1:
+        raise click.BadParameter("invalid choice: {0}. (choose a value greater than 1)".format(value))
 
 
 def validate_enum(cls):
@@ -50,7 +60,8 @@ def option(*param_decls, **attrs):
 
 
 def freq_option(**attrs):
-    attrs.setdefault("help", "Minimum noise frequency")
+    attrs.setdefault("help", "Minimum noise frequency {0}".format(FREQ_HINT))
+    attrs.setdefault("callback", validate_at_least_one)
     attrs.setdefault("type", int)
     attrs.setdefault("default", 3)
 
@@ -188,7 +199,8 @@ def warp_interp_option(**attrs):
 
 
 def warp_freq_option(**attrs):
-    attrs.setdefault("help", "Octave Warp: Frequency (Default: Use --freq if not given)")
+    attrs.setdefault("help", "Octave Warp: Override --freq for warp frequency {0}".format(FREQ_HINT))
+    attrs.setdefault("callback", validate_at_least_one)
     attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 
@@ -439,7 +451,7 @@ def point_corners_option(**attrs):
 
 def point_generations_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Penrose-ish generations. When using, keep this and freq below ~3 or you will run OOM easily.")
-    attrs.setdefault("type", int)
+    attrs.setdefault("type", click.IntRange(1, 3))
     attrs.setdefault("default", 1)
 
     return option("--point-generations", **attrs)
