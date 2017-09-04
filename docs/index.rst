@@ -60,6 +60,7 @@ Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or
 
 -  `noisemaker`: Fully-featured noise generation pipeline
 -  `glitchmaker`: Simple glitch art tool
+-  `collagemaker`: Image collage tool
 
 See also
 --------
