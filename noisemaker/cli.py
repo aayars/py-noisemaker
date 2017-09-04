@@ -14,9 +14,27 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 
 # Boilerplate help strings
-ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
-DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
+
 ALPHA_BLENDING_HINT = "alpha blending amount (0.0 - 1.0)"
+
+DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
+
+ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
+
+INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
+
+NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
+
+
+def validate_enum(cls):
+    """
+    """
+
+    def validate(ctx, param, value):
+        if value is not None and value not in [m.value for m in cls]:
+            raise click.BadParameter("Try {0}".format(", ".join(["{0} ({1})".format(m.value, m.name) for m in cls])))
+
+    return validate
 
 
 def option(*param_decls, **attrs):
@@ -59,15 +77,15 @@ def height_option(**attrs):
 
 def channels_option(**attrs):
     attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=RGB, 4=RGB+alpha)")
-    attrs.setdefault("type", int)
-    attrs.setdefault("default", 3)
+    attrs.setdefault("type", click.IntRange(1, 4))
+    attrs.setdefault("default", '3')
 
     return option("--channels", **attrs)
 
 
 def octaves_option(**attrs):
     attrs.setdefault("help", "Octave count: Number of multi-res layers")
-    attrs.setdefault("type", int)
+    attrs.setdefault("type", click.IntRange(1, 10))
     attrs.setdefault("default", 1)
 
     return option("--octaves", **attrs)
@@ -106,8 +124,8 @@ def mask_option(**attrs):
 
 
 def interp_option(**attrs):
-    attrs.setdefault("help", "Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
-    attrs.setdefault("type", int)
+    attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
+    attrs.setdefault("type", click.IntRange(0, 3))
     attrs.setdefault("default", 3)
 
     return option("--interp", **attrs)
@@ -155,15 +173,15 @@ def warp_option(**attrs):
 
 def warp_octaves_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Octave count for --warp")
-    attrs.setdefault("type", int)
+    attrs.setdefault("type", click.IntRange(1, 10))
     attrs.setdefault("default", 3)
 
     return option("--warp-octaves", **attrs)
 
 
 def warp_interp_option(**attrs):
-    attrs.setdefault("help", "Octave Warp: Interpolation type (0=constant, 1=linear, 2=cosine, 3=bicubic)")
-    attrs.setdefault("type", int)
+    attrs.setdefault("help", "Octave Warp: Interpolation type {0}".format(INTERPOLATION_HINT))
+    attrs.setdefault("type", click.IntRange(0, 3))
     attrs.setdefault("default", None)
 
     return option("--warp-interp", **attrs)
@@ -178,7 +196,7 @@ def warp_freq_option(**attrs):
 
 
 def post_reflect_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Reduced derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
+    attrs.setdefault("help", "Domain warping: Post-reduce derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -186,7 +204,7 @@ def post_reflect_option(**attrs):
 
 
 def post_refract_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Reduced self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
+    attrs.setdefault("help", "Domain warping: Post-reduce self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -242,8 +260,9 @@ def clut_horizontal_option(**attrs):
 
 def worms_option(**attrs):
     attrs.setdefault("help", "Iterative \"worm\" field flow (1=Obedient, 2=Crosshatch, 3=Unruly, 4=Chaotic)")
+    attrs.setdefault("callback", validate_enum(effects.WormBehavior))
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
+    attrs.setdefault("default", None)
 
     return option("--worms", **attrs)
 
@@ -345,15 +364,17 @@ def dla_padding_option(**attrs):
 
 
 def voronoi_option(**attrs):
-    attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)")
+    attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow, 7=Collage)")
+    attrs.setdefault("callback", validate_enum(effects.VoronoiDiagramType))
     attrs.setdefault("type", int)
-    attrs.setdefault("default", 0)
+    attrs.setdefault("default", None)
 
     return option("--voronoi", **attrs)
 
 
 def voronoi_func_option(**attrs):
     attrs.setdefault("help", "Voronoi: Distance function {0}".format(DISTANCE_HINT))
+    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1)
 
@@ -434,6 +455,7 @@ def point_drift_option(**attrs):
 
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
+    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
     attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 
@@ -442,6 +464,7 @@ def sobel_option(**attrs):
 
 def outline_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
+    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
     attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 
@@ -457,7 +480,8 @@ def normals_option(**attrs):
 
 
 def post_deriv_option(**attrs):
-    attrs.setdefault("help", "Derivatives: Extract reduced rate of change {0}".format(DISTANCE_HINT))
+    attrs.setdefault("help", "Derivatives: Extract post-reduce rate of change {0}".format(DISTANCE_HINT))
+    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
     attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 
@@ -466,6 +490,7 @@ def post_deriv_option(**attrs):
 
 def deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract per-octave rate of change {0}".format(DISTANCE_HINT))
+    attrs.setdefault("callback", validate_enum(effects.DistanceFunction))
     attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 

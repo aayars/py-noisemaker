@@ -206,7 +206,7 @@ def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width
     """
     """
 
-    kink = random.random() * 100 - 50
+    kink = random.random() * 5.0 - 2.5
 
     x = []
     y = []
@@ -239,7 +239,7 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
-    kink = random.random() * 5 - 2.5
+    kink = random.random() * 100 - 50
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count
