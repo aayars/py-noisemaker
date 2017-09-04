@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(name='noisemaker',
@@ -9,7 +9,7 @@ setup(name='noisemaker',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
       url='http://noisemaker.io/',
-      packages=['noisemaker'],
+      packages=find_packages(),
 
       entry_points='''
         [console_scripts]
