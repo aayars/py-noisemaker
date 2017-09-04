@@ -174,6 +174,24 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     return tensor
 
 
+class InterpolationType(Enum):
+    """
+    Specify the spline point count for interpolation operations.
+    """
+
+    #:
+    constant = 0
+
+    #:
+    linear = 1
+
+    #:
+    cosine = 2
+
+    #:
+    bicubic = 3
+
+
 class VoronoiDiagramType(Enum):
     """
     Specify the artistic rendering function used for Voronoi diagrams.

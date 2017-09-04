@@ -15,7 +15,7 @@ CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_wi
 
 # Boilerplate help strings
 
-ALPHA_BLENDING_HINT = "alpha blending amount (0.0 - 1.0)"
+ALPHA_BLENDING_HINT = "alpha blending amount (0.0 = 0%, 1.0 = 100%)"
 
 DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
 
@@ -41,7 +41,7 @@ def option(*param_decls, **attrs):
     """ Add a Click option. """
 
     def decorator(f):
-        if "default" in attrs:
+        if attrs.get("default") is not None:
             attrs["help"] += "  [default: {0}]".format(attrs["default"])
 
         return click.option(*param_decls, **attrs)(f)
@@ -61,7 +61,6 @@ def width_option(**attrs):
     attrs.setdefault("help", "Output width, in pixels")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1024)
-    attrs.setdefault("required", True)
 
     return option("--width", **attrs)
 
@@ -70,13 +69,12 @@ def height_option(**attrs):
     attrs.setdefault("help", "Output height, in pixels")
     attrs.setdefault("type", int)
     attrs.setdefault("default", 1024)
-    attrs.setdefault("required", True)
 
     return option("--height", **attrs)
 
 
 def channels_option(**attrs):
-    attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=RGB, 4=RGB+alpha)")
+    attrs.setdefault("help", "Color channel count (1=gray, 2=gray+alpha, 3=HSV/RGB, 4=RGB+alpha)")
     attrs.setdefault("type", click.IntRange(1, 4))
     attrs.setdefault("default", '3')
 
@@ -125,7 +123,8 @@ def mask_option(**attrs):
 
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
-    attrs.setdefault("type", click.IntRange(0, 3))
+    attrs.setdefault("callback", validate_enum(effects.InterpolationType))
+    attrs.setdefault("type", int)
     attrs.setdefault("default", 3)
 
     return option("--interp", **attrs)
@@ -134,7 +133,7 @@ def interp_option(**attrs):
 def sin_option(**attrs):
     attrs.setdefault("help", "Apply sin function to noise basis")
     attrs.setdefault("type", float)
-    attrs.setdefault("default", False)
+    attrs.setdefault("default", None)
 
     return option("--sin", **attrs)
 
@@ -148,7 +147,7 @@ def wavelet_option(**attrs):
 
 
 def lattice_drift_option(**attrs):
-    attrs.setdefault("help", "Domain warping: Lattice deform range (1.0 = nearest neighbor)")
+    attrs.setdefault("help", "Domain warping: Lattice deform range {0}".format(NEAREST_NEIGHBOR_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -181,7 +180,8 @@ def warp_octaves_option(**attrs):
 
 def warp_interp_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Interpolation type {0}".format(INTERPOLATION_HINT))
-    attrs.setdefault("type", click.IntRange(0, 3))
+    attrs.setdefault("callback", validate_enum(effects.InterpolationType))
+    attrs.setdefault("type", int)
     attrs.setdefault("default", None)
 
     return option("--warp-interp", **attrs)
@@ -348,7 +348,7 @@ def erosion_worms_option(**attrs):
 
 
 def dla_option(**attrs):
-    attrs.setdefault("help", "Diffusion-limited aggregation (DLA) alpha")
+    attrs.setdefault("help", "Diffusion-limited aggregation (DLA) {0}".format(ALPHA_BLENDING_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", None)
 
@@ -390,7 +390,7 @@ def voronoi_nth_option(**attrs):
 
 
 def voronoi_alpha_option(**attrs):
-    attrs.setdefault("help", "Voronoi: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)")
+    attrs.setdefault("help", "Voronoi: Basis {0}".format(ALPHA_BLENDING_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -446,7 +446,7 @@ def point_generations_option(**attrs):
 
 
 def point_drift_option(**attrs):
-    attrs.setdefault("help", "Voronoi/DLA: Point drift range (1.0 = nearest neighbor)")
+    attrs.setdefault("help", "Voronoi/DLA: Point drift range {0}".format(NEAREST_NEIGHBOR_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 0.0)
 
@@ -498,7 +498,7 @@ def deriv_option(**attrs):
 
 
 def deriv_alpha_option(**attrs):
-    attrs.setdefault("help", "Derivatives: Per-octave alpha")
+    attrs.setdefault("help", "Derivatives: Per-octave {0}".format(ALPHA_BLENDING_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", 1.0)
 
@@ -514,7 +514,7 @@ def posterize_option(**attrs):
 
 
 def bloom_option(**attrs):
-    attrs.setdefault("help", "Post-processing: Bloom alpha")
+    attrs.setdefault("help", "Post-processing: Bloom {0}".format(ALPHA_BLENDING_HINT))
     attrs.setdefault("type", float)
     attrs.setdefault("default", None)
 
