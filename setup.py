@@ -13,6 +13,7 @@ setup(name='noisemaker',
 
       entry_points='''
         [console_scripts]
+        glitchmaker=noisemaker.scripts.glitchmaker:main
         noisemaker=noisemaker.scripts.noisemaker:main
         ''',
 

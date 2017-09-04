@@ -455,25 +455,25 @@ def bloom_option(**attrs):
 def glitch_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Bit-shit")
 
-    return bool_option("--glitch", **attrs)
+    return bool_option("--glitch/--no-glitch", **attrs)
 
 
 def vhs_option(**attrs):
     attrs.setdefault("help", "Glitch effects: VHS tracking")
 
-    return bool_option("--vhs", **attrs)
+    return bool_option("--vhs/--no-vhs", **attrs)
 
 
 def crt_option(**attrs):
     attrs.setdefault("help", "Glitch effects: CRT scanline")
 
-    return bool_option("--crt", **attrs)
+    return bool_option("--crt/--no-crt", **attrs)
 
 
 def scan_error_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Analog scanline error")
 
-    return bool_option("--scan-error", **attrs)
+    return bool_option("--scan-error/--no-scan-error", **attrs)
 
 
 def snow_option(**attrs):
@@ -560,7 +560,7 @@ def input_dir_option(**attrs):
     return str_option("--input-dir", type=click.Path(exists=True, file_okay=False, resolve_path=True), **attrs)
 
 
-def name_option(**attrs):
+def name_option(default=None, **attrs):
     attrs.setdefault("help", "Base filename for image output")
 
-    return str_option("--name", type=click.Path(dir_okay=False), default="noise.png", **attrs)
+    return str_option("--name", type=click.Path(dir_okay=False), default=default or "noise.png", **attrs)
