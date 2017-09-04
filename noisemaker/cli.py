@@ -41,7 +41,7 @@ def option(*param_decls, **attrs):
     """ Add a Click option. """
 
     def decorator(f):
-        if attrs.get("default") is not None:
+        if attrs.get("default") not in (None, False):
             attrs["help"] += "  [default: {0}]".format(attrs["default"])
 
         return click.option(*param_decls, **attrs)(f)
