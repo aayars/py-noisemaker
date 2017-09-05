@@ -28,7 +28,8 @@ def main(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq, p
 
     x, y = points.point_cloud(point_freq, distrib=point_distrib, shape=shape, drift=point_drift)
 
-    tensor = effects.voronoi(None, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), input_dir=input_dir)
+    tensor = effects.voronoi(None, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
+                             input_dir=input_dir)
 
     with tf.Session().as_default():
         save(tensor, name)
