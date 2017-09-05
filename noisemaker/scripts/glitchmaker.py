@@ -52,9 +52,10 @@ def main(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, nam
         if need_resample:
             tensor = effects.resample(tensor, shape)
 
-        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+        tensor = effects.post_process(tensor, shape, freq, with_bloom=bloom, with_aberration=aberration)
 
-        tensor = effects.post_process(tensor, shape, freq, with_bloom=bloom)
+        tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt,
+                                      with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
         save(tensor, name)
 
