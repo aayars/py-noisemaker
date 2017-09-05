@@ -561,6 +561,6 @@ def input_dir_option(**attrs):
 
 
 def name_option(default=None, **attrs):
-    attrs.setdefault("help", "Base filename for image output")
+    attrs.setdefault("help", "Filename for image output (should end with .png or .jpg)")
 
     return str_option("--name", type=click.Path(dir_okay=False), default=default or "noise.png", **attrs)
