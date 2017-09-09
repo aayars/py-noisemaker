@@ -55,7 +55,7 @@ PRESETS = {
             "worms_bg": 75,
             "worms_kink": 48,
             "worms_duration": 0.4,
-            "worms_density": 2048,
+            "worms_density": 500,
         }
     },
 
@@ -95,7 +95,7 @@ PRESETS = {
             "with_voronoi": 6,
             "with_worms": 4,
             "worms_bg": 125,
-            "worms_density": 2048,
+            "worms_density": 500,
             "worms_duration": 0.3333,
             "worms_kink": 64,
         }
@@ -199,7 +199,7 @@ PRESETS = {
             "voronoi_nth": 9,
             "with_voronoi": 2,
             "with_worms": 3,
-            "worms_density": 764.53,
+            "worms_density": 500,
             "worms_duration": 1.22,
             "worms_kink": 2.89,
             "worms_stride": 0.64,
@@ -239,7 +239,7 @@ PRESETS = {
             "voronoi_refract": 2,
             "with_voronoi": 6,
             "with_worms": 4,
-            "worms_density": 2048,
+            "worms_density": 500,
             "worms_duration": 0.5,
             "worms_kink": 96,
         }
@@ -453,7 +453,7 @@ PRESETS = {
             "mask": "v_tri",
             "octaves": 8,
             "with_worms": 1,
-            "worms_density": 1000,
+            "worms_density": 500,
             "worms_kink": 15,
         }
     },
@@ -484,8 +484,9 @@ PRESETS = {
             "with_voronoi": 5,
             "with_worms": 3,
             "worms_bg": 5,
-            "worms_density": 2000,
-            "worms_duration": 0.5,
+            "worms_density": 500,
+            "worms_duration": .5,
+            "worms_stride_deviation": .25,
         }
     },
      
