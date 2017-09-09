@@ -211,9 +211,8 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": 20,
-            "hsv_range": 0.79,
-            "hsv_rotation": 0.9,
+            "freq": random.randint(4, 12) * 2,
+            "hsv_range": 0,
             "hsv_saturation": 0.27,
             "mask": "chess",
             "posterize_levels": 12,
@@ -501,6 +500,25 @@ PRESETS = {
         }
     },
      
+    "warped-grid": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "ones",
+            "freq": random.randint(4, 12) * 2,
+            "hsv_range": 0,
+            "hsv_saturation": 0.27,
+            "invert": 1,
+            "mask": "chess",
+            "posterize_levels": 12,
+            "spline_order": 0,
+            "warp_interp": 3,
+            "warp_freq": random.randint(2, 4),
+            "warp_range": .25 + random.random() * .75,
+            "warp_octaves": 1,
+            "with_sobel": 2,
+        }
+    },
+
     "wireframe": {
         "kwargs": {
             "freq": 2,
@@ -571,18 +589,19 @@ PRESETS = {
             "hsv_range": 1,
             "point_corners": True,
             "point_distrib": "circular",
-            "point_freq": 2,
+            "point_freq": random.randint(1, 3),
             "point_generations": 2,
             "voronoi_func": 3,
             "voronoi_nth": 2,
+            "voronoi_alpha": .5 + random.random() * .5,
             "with_voronoi": 2,
             "with_worms": 4,
             "worms_bg": 0.78,
             "worms_density": 346.75,
             "worms_duration": 2.2,
             "worms_kink": 6.47,
-            "worms_stride": 0.6,
-            "worms_stride_deviation": 2.6,
+            "worms_stride": 2.5,
+            "worms_stride_deviation": 1.25,
         }
     }
 }
