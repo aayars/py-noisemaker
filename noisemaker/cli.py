@@ -6,7 +6,7 @@ import noisemaker.effects as effects
 import noisemaker.generators as generators
 
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 
@@ -545,7 +545,7 @@ def hsv_range_option(**attrs):
 def hsv_rotation_option(**attrs):
     attrs.setdefault("help", "HSV: Hue rotation (0..1)")
 
-    return float_option("--hsv-rotation", **attrs)
+    return float_option("--hsv-rotation", default=None, **attrs)
 
 
 def hsv_saturation_option(**attrs):
