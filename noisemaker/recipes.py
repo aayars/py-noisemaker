@@ -8,13 +8,13 @@ from noisemaker.generators import ValueDistribution, basic, multires
 import noisemaker.effects as effects
 
 
-def post_process(tensor, shape, freq, with_glitch, with_vhs, with_crt, with_scan_error, with_snow, with_dither):
+def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False):
     """
     Apply complex post-processing recipes.
 
     :param Tensor tensor:
-    :param list[int] shape:
     :param int freq:
+    :param list[int] shape:
     :param bool with_glitch: Glitch effect (Bit shit)
     :param bool with_vhs: VHS effect (Shitty tracking)
     :param bool with_crt: Vintage TV effect

@@ -219,7 +219,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     return tensor
 
 
-def multires(freq, shape, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
+def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,

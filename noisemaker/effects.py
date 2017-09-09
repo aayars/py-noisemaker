@@ -21,7 +21,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2,
-                 point_freq=5, point_distrib=1, point_corners=False, point_generations=1, point_drift=0.0,
+                 point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None,
                  input_dir=None, **convolve_kwargs):
     """
