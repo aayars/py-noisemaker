@@ -77,99 +77,99 @@ PRESETS = {
      
     "badlands": {
         "kwargs": {
-            "with_voronoi": 6,
-            "with_worms": 4,
-            "worms_kink": 64,
-            "worms_duration": 0.3333,
-            "worms_density": 2048,
-            "point_freq": 10,
-            "voronoi_refract": 0.333,
-            "point_distrib": "random",
-            "with_bloom": 0.333,
-            "worms_bg": 125,
-            "octaves": 3,
-            "shadow": 1,
-            "voronoi_alpha": 0.5,
-            "ridges": True,
             "deriv": 2,
+            "deriv_alpha": 0.5,
             "hsv_rotation": 0.95,
             "hsv_saturation": 0.25,
             "lattice_drift": 1,
-            "deriv_alpha": 0.5,
-            "sin": -0.5,
+            "octaves": 3,
+            "point_distrib": "random",
+            "point_freq": 10,
+            "ridges": True,
+            "shadow": 1,
             "sharpen": 1,
+            "sin": -0.5,
+            "voronoi_alpha": 0.5,
+            "voronoi_refract": 0.333,
+            "with_bloom": 0.333,
+            "with_voronoi": 6,
+            "with_worms": 4,
+            "worms_bg": 125,
+            "worms_density": 2048,
+            "worms_duration": 0.3333,
+            "worms_kink": 64,
         }
     },
      
     "bringing-hexy-back": {
         "kwargs": {
-            "with_voronoi": 5,
+            "lattice_drift": 1,
             "point_distrib": "v_hex",
             "point_freq": 10,
-            "lattice_drift": 1,
             "voronoi_alpha": 0.5,
             "with_bloom": 0.5,
+            "with_voronoi": 5,
         }
     },
      
     "circulent": {
         "kwargs": {
-            "with_voronoi": 2,
-            "point_distrib": "spiral",
             "freq": 2,
-            "with_wormhole": True,
+            "point_distrib": "spiral",
             "point_freq": 6,
-            "wormhole_stride": 0.005,
             "voronoi_nth": 2,
+            "with_voronoi": 2,
+            "with_wormhole": True,
             "wormhole_kink": 10,
+            "wormhole_stride": 0.005,
         }
     },
      
     "conjoined": {
         "kwargs": {
-            "with_voronoi": 2,
-            "point_distrib": "circular",
-            "voronoi_alpha": 0.5,
-            "with_bloom": 0.5,
-            "voronoi_refract": 11,
-            "point_freq": 5,
             "lattice_drift": 1,
+            "point_distrib": "circular",
+            "point_freq": 5,
+            "voronoi_alpha": 0.5,
             "voronoi_nth": 1,
+            "voronoi_refract": 11,
+            "with_bloom": 0.5,
+            "with_voronoi": 2,
         }
     },
      
     "cubic": {
         "kwargs": {
-            "with_voronoi": 2,
-            "point_freq": 4,
-            "voronoi_nth": random.randint(4, 12),
-            "point_distrib": "concentric",
-            "with_outline": 1,
             "freq": 2,
+            "point_distrib": "concentric",
+            "point_freq": 4,
             "voronoi_alpha": 0.5,
+            "voronoi_nth": random.randint(4, 12),
             "with_bloom": 0.5,
+            "with_outline": 1,
+            "with_voronoi": 2,
         }
     },
      
     "death-star-plans": {
         "kwargs": {
             "channels": 1,
+            "invert": 1,
             "octaves": 1,
-            "with_voronoi": 1,
             "point_freq": 10,
+            "posterize_levels": 4,
+            "voronoi_alpha": 1,
             "voronoi_func": 3,
             "voronoi_nth": 1,
-            "voronoi_alpha": 1,
             "with_sobel": 2,
-            "posterize_levels": 4,
-            "invert": 1,
+            "with_voronoi": 1,
         }
     },
      
     "defocus": {
         "kwargs": {
-            "mask": "h_tri",
             "freq": 12,
+            "mask": "h_tri",
             "octaves": 5,
             "sin": 10,
             "with_bloom": 0.5,
@@ -178,105 +178,105 @@ PRESETS = {
      
     "furry-swirls": {
         "kwargs": {
-            "with_voronoi": 6,
-            "point_freq": 10,
-            "spline_order": 1,
-            "with_worms": 1,
-            "worms_kink": 25,
-            "worms_density": 64,
-            "worms_duration": 1,
-            "voronoi_alpha": 0.75,
             "freq": 32,
             "hsv_range": 2,
+            "point_freq": 10,
+            "spline_order": 1,
+            "voronoi_alpha": 0.75,
+            "with_voronoi": 6,
+            "with_worms": 1,
+            "worms_density": 64,
+            "worms_duration": 1,
+            "worms_kink": 25,
         }
     },
      
     "furry-thorns": {
         "kwargs": {
+            "point_distrib": "waffle",
+            "point_generations": 2,
+            "voronoi_inverse": True,
+            "voronoi_nth": 9,
+            "with_voronoi": 2,
             "with_worms": 3,
             "worms_density": 764.53,
             "worms_duration": 1.22,
+            "worms_kink": 2.89,
             "worms_stride": 0.64,
             "worms_stride_deviation": 0.11,
-            "worms_kink": 2.89,
-            "with_voronoi": 2,
-            "voronoi_inverse": True,
-            "voronoi_nth": 9,
-            "point_distrib": "waffle",
-            "point_generations": 2,
         }
     },
      
     "graph-paper": {
         "kwargs": {
-            "freq": 20,
-            "spline_order": 0,
-            "distrib": "ones",
-            "mask": "chess",
             "corners": True,
+            "distrib": "ones",
+            "freq": 20,
             "hsv_range": 0.79,
             "hsv_rotation": 0.9,
             "hsv_saturation": 0.27,
+            "mask": "chess",
             "posterize_levels": 12,
+            "spline_order": 0,
             "with_sobel": 2,
         }
     },
      
     "hex-machine": {
         "kwargs": {
-            "freq": 4,
-            "octaves": random.randint(4, 8),
-            "mask": "h_tri",
-            "distrib": "ones",
-            "post_deriv": 3,
             "corners": True,
+            "distrib": "ones",
+            "freq": 4,
+            "mask": "h_tri",
+            "octaves": random.randint(4, 8),
+            "post_deriv": 3,
             "sin": 12.5,
         }
     },
      
     "hexception": {
         "kwargs": {
-            "with_voronoi": 2,
-            "point_freq": 6,
-            "point_distrib": "v_hex",
-            "voronoi_alpha": 0.875,
-            "mask": "v_hex",
-            "freq": 36,
             "distrib": "ones",
-            "octaves": 3,
             "edges": 0.25,
-            "sharpen": 0.5,
+            "freq": 36,
+            "mask": "v_hex",
+            "octaves": 3,
             "point_corners": True,
+            "point_distrib": "v_hex",
+            "point_freq": 6,
+            "sharpen": 0.5,
+            "voronoi_alpha": 0.875,
+            "with_voronoi": 2,
         }
     },
      
     "jovian-clouds": {
         "kwargs": {
-            "with_voronoi": 6,
-            "with_worms": 4,
-            "worms_kink": 96,
-            "worms_duration": 0.5,
-            "worms_density": 2048,
             "point_freq": 10,
             "voronoi_refract": 2,
+            "with_voronoi": 6,
+            "with_worms": 4,
+            "worms_density": 2048,
+            "worms_duration": 0.5,
+            "worms_kink": 96,
         }
     },
      
     "magic-squares": {
         "kwargs": {
-            "octaves": 3,
-            "freq": 12,
-            "spline_order": 0,
-            "distrib": "uniform",
             "channels": 3,
+            "distrib": "uniform",
             "edges": 0.81,
+            "freq": 12,
+            "octaves": 3,
+            "spline_order": 0,
         }
     },
      
     "misaligned": {
         "kwargs": {
-            "mask": "v_tri",
             "freq": 16,
+            "mask": "v_tri",
             "octaves": 8,
             "spline_order": 0,
             "with_outline": 1,
@@ -285,62 +285,62 @@ PRESETS = {
      
     "neon-cambrian": {
         "kwargs": {
-            "posterize_levels": 24,
-            "with_wormhole": True,
-            "wormhole_stride": 0.25,
-            "wormhole_kink": 1,
-            "with_sobel": 1,
-            "invert": 1,
-            "with_voronoi": 6,
             "hsv_range": 1,
+            "invert": 1,
+            "posterize_levels": 24,
             "with_aberration": 0.01,
             "with_bloom": 0.5,
+            "with_sobel": 1,
+            "with_voronoi": 6,
+            "with_wormhole": True,
+            "wormhole_kink": 1,
+            "wormhole_stride": 0.25,
         }
     },
      
     "neon-plasma": {
         "kwargs": {
-            "freq": 4,
             "channels": 3,
+            "freq": 4,
+            "octaves": 8,
             "ridges": True,
             "wavelet": True,
-            "octaves": 8,
         }
     },
      
     "now": {
         "kwargs": {
             "channels": 3,
-            "spline_order": 0,
-            "octaves": 3,
             "lattice_drift": 1,
-            "with_voronoi": 6,
+            "octaves": 3,
+            "spline_order": 0,
             "voronoi_refract": 2,
             "with_outline": 1,
+            "with_voronoi": 6,
         }
     },
      
     "plaid": {
         "kwargs": {
-            "mask": "chess",
-            "distrib": "ones",
-            "octaves": 3,
-            "freq": 8,
             "deriv": 3,
+            "distrib": "ones",
+            "freq": 8,
+            "mask": "chess",
+            "octaves": 3,
         }
     },
      
     "political-map": {
         "kwargs": {
-            "lattice_drift": 1,
-            "with_bloom": 1,
-            "warp_range": 1,
-            "warp_octaves": 8,
-            "octaves": 2,
-            "hsv_saturation": 0.35,
-            "posterize_levels": 4,
-            "with_outline": 1,
             "freq": 5,
+            "hsv_saturation": 0.35,
+            "lattice_drift": 1,
+            "octaves": 2,
+            "posterize_levels": 4,
+            "warp_octaves": 8,
+            "warp_range": 1,
+            "with_bloom": 1,
+            "with_outline": 1,
         },
 
         "post_kwargs": {
@@ -350,189 +350,189 @@ PRESETS = {
      
     "quilty": {
         "kwargs": {
-            "with_voronoi": 1,
+            "freq": 5,
             "point_distrib": "square",
             "point_freq": random.randint(3, 8),
-            "voronoi_func": 2,
             "spline_order": 0,
-            "freq": 5,
+            "voronoi_func": 2,
             "voronoi_refract": 2,
+            "with_voronoi": 1,
         }
     },
      
     "reef": {
         "kwargs": {
-            "with_voronoi": 6,
-            "point_distrib": "circular",
-            "voronoi_alpha": 0.5,
-            "with_bloom": 0.5,
-            "voronoi_refract": 17,
-            "point_freq": 5,
             "lattice_drift": 1,
+            "point_distrib": "circular",
+            "point_freq": 5,
+            "voronoi_alpha": 0.5,
+            "voronoi_refract": 17,
+            "with_bloom": 0.5,
+            "with_voronoi": 6,
         }
     },
      
     "refractal": {
         "kwargs": {
-            "with_voronoi": 6,
-            "lattice_drift": 1,
-            "post_reflect_range": 128,
             "channels": 1,
-            "point_freq": 10,
             "invert": 1,
+            "lattice_drift": 1,
+            "point_freq": 10,
+            "post_reflect_range": 128,
+            "with_voronoi": 6,
         }
     },
      
     "rings": {
         "kwargs": {
-            "octaves": random.randint(2, 5),
+            "corners": True,
+            "distrib": "ones",
             "freq": random.randint(4, 10),
             "hsv_range": random.random(),
             "hsv_saturation": 0.5,
-            "distrib": "ones",
             "mask": "waffle",
+            "octaves": random.randint(2, 5),
             "sin": random.random() * 5.0,
             "with_outline": 1,
-            "corners": True,
         }
     },
      
     "skeletal-lace": {
         "kwargs": {
-            "with_voronoi": 6,
-            "voronoi_refract": 25,
             "lattice_drift": 1,
+            "point_freq": 3,
             "voronoi_nth": 1,
+            "voronoi_refract": 25,
+            "with_voronoi": 6,
             "with_wormhole": True,
             "wormhole_stride": 0.01,
-            "point_freq": 3,
         }
     },
      
     "spiral-in-spiral": {
         "kwargs": {
-            "with_voronoi": 1,
             "point_distrib": "spiral",
             "point_freq": 10,
+            "with_voronoi": 1,
             "with_worms": 1,
-            "worms_kink": 10,
             "worms_density": 500,
             "worms_duration": 1,
+            "worms_kink": 10,
         }
     },
      
     "spiraltown": {
         "kwargs": {
             "freq": 2,
-            "spline_order": 2,
-            "reflect_range": 5,
-            "with_wormhole": True,
-            "wormhole_stride": 0.0025,
             "hsv_range": 1,
+            "reflect_range": 5,
+            "spline_order": 2,
+            "with_wormhole": True,
             "wormhole_kink": 10,
+            "wormhole_stride": 0.0025,
         }
     },
      
     "square-stripes": {
         "kwargs": {
-            "with_voronoi": 2,
-            "voronoi_inverse": True,
-            "voronoi_func": 3,
-            "voronoi_nth": 3,
-            "voronoi_alpha": 0.78,
-            "voronoi_refract": 1.46,
-            "point_freq": 2,
             "point_distrib": "v_hex",
+            "point_freq": 2,
             "point_generations": 2,
+            "voronoi_alpha": 0.78,
+            "voronoi_func": 3,
+            "voronoi_inverse": True,
+            "voronoi_nth": 3,
+            "voronoi_refract": 1.46,
+            "with_voronoi": 2,
         }
     },
      
     "star-cloud": {
         "kwargs": {
-            "freq": 2,
-            "spline_order": 2,
-            "reflect_range": 2,
             "deriv": 1,
-            "with_voronoi": 6,
-            "voronoi_refract": 2.5,
-            "with_sobel": 1,
+            "freq": 2,
             "invert": 1,
             "point_freq": 10,
+            "reflect_range": 2,
+            "spline_order": 2,
+            "voronoi_refract": 2.5,
+            "with_sobel": 1,
+            "with_voronoi": 6,
         }
     },
      
     "traceroute": {
         "kwargs": {
+            "corners": True,
+            "distrib": "ones",
+            "freq": 4,
             "mask": "v_tri",
+            "octaves": 8,
             "with_worms": 1,
             "worms_density": 1000,
-            "freq": 4,
-            "octaves": 8,
-            "distrib": "ones",
-            "corners": True,
             "worms_kink": 15,
         }
     },
      
     "triangular": {
         "kwargs": {
-            "mask": "h_tri",
-            "freq": random.randint(1, 4) * 2,
-            "distrib": "ones",
-            "octaves": random.randint(4, 10),
             "corners": True,
+            "distrib": "ones",
+            "freq": random.randint(1, 4) * 2,
+            "mask": "h_tri",
+            "octaves": random.randint(4, 10),
         }
     },
      
     "tribbles": {
         "kwargs": {
-            "point_freq": 6,
-            "with_voronoi": 5,
-            "point_distrib": "h_hex",
-            "voronoi_alpha": 0.5,
-            "with_bloom": 0.5,
+            "hsv_rotation": 0.4,
+            "hsv_saturation": 0.333,
             "invert": 1,
             "octaves": 3,
+            "point_distrib": "h_hex",
+            "point_freq": 6,
             "ridges": True,
-            "warp_range": 0.25,
+            "voronoi_alpha": 0.5,
             "warp_octaves": 7,
+            "warp_range": 0.25,
+            "with_bloom": 0.5,
+            "with_voronoi": 5,
             "with_worms": 3,
+            "worms_bg": 5,
             "worms_density": 2000,
             "worms_duration": 0.5,
-            "worms_bg": 5,
-            "hsv_saturation": 0.333,
-            "hsv_rotation": 0.4,
         }
     },
      
     "velcro": {
         "kwargs": {
             "freq": 2,
-            "spline_order": 2,
+            "hsv_range": 4,
             "reflect_range": 8,
+            "spline_order": 2,
             "with_wormhole": True,
             "wormhole_stride": 0.025,
-            "hsv_range": 4,
         }
     },
      
     "victorian-fractal": {
         "kwargs": {
-            "with_voronoi": 5,
-            "point_freq": 6,
-            "point_distrib": "h_hex",
-            "voronoi_alpha": 0.5,
-            "mask": "v_hex",
-            "freq": 36,
-            "octaves": 3,
-            "ridges": True,
-            "voronoi_func": 2,
-            "sharpen": 1,
-            "distrib": "ones",
-            "invert": 1,
-            "with_bloom": 0.5,
-            "voronoi_nth": 2,
             "corners": True,
+            "distrib": "ones",
+            "freq": 36,
+            "invert": 1,
+            "mask": "v_hex",
+            "octaves": 3,
+            "point_distrib": "h_hex",
+            "point_freq": 6,
+            "ridges": True,
+            "sharpen": 1,
+            "voronoi_alpha": 0.5,
+            "voronoi_func": 2,
+            "voronoi_nth": 2,
+            "with_bloom": 0.5,
+            "with_voronoi": 5,
         },
 
         "post_kwargs": {
@@ -542,86 +542,86 @@ PRESETS = {
      
     "wireframe": {
         "kwargs": {
-            "octaves": 2,
             "freq": 2,
             "hsv_range": 0.11,
             "hsv_rotation": 1,
             "hsv_saturation": 0.48,
-            "with_voronoi": 5,
-            "voronoi_nth": 1,
-            "voronoi_alpha": 0.5,
-            "point_freq": 10,
-            "point_distrib": "v_hex",
+            "invert": 1,
             "lattice_drift": 0.68,
+            "octaves": 2,
+            "point_distrib": "v_hex",
+            "point_freq": 10,
+            "voronoi_alpha": 0.5,
+            "voronoi_nth": 1,
             "with_bloom": 0.5,
             "with_sobel": 1,
-            "invert": 1,
+            "with_voronoi": 5,
         }
     },
      
     "wireframe-warped": {
         "kwargs": {
-            "octaves": 2,
             "freq": 2,
             "hsv_range": 0.11,
             "hsv_rotation": 1,
             "hsv_saturation": 0.48,
-            "with_voronoi": 5,
-            "voronoi_nth": 1,
-            "voronoi_alpha": 0.5,
-            "point_freq": 10,
-            "point_distrib": "v_hex",
+            "invert": 1,
             "lattice_drift": 0.68,
+            "octaves": 2,
+            "point_distrib": "v_hex",
+            "point_freq": 10,
+            "voronoi_alpha": 0.5,
+            "voronoi_nth": 1,
+            "warpInterp": 3,
+            "warp_octaves": 3,
+            "warp_range": 1.4,
             "with_bloom": 0.5,
             "with_sobel": 1,
-            "invert": 1,
-            "warp_range": 1.4,
-            "warp_octaves": 3,
-            "warpInterp": 3,
+            "with_voronoi": 5,
         }
     },
      
     "web-of-lies": {
         "kwargs": {
-            "with_voronoi": 1,
             "point_distrib": "spiral",
             "point_freq": 10,
-            "voronoi_refract": 2,
             "voronoi_alpha": 0.5,
+            "voronoi_refract": 2,
             "with_bloom": 0.5,
+            "with_voronoi": 1,
          }
      },
   
     "woahdude": {
         "kwargs": {
-            "with_voronoi": 1,
-            "voronoi_alpha": 0.875,
-            "point_freq": 8,
-            "sin": 100,
+            "freq": 4,
             "hsv_range": 2,
             "lattice_drift": 1,
+            "point_freq": 8,
+            "sin": 100,
+            "voronoi_alpha": 0.875,
             "voronoi_refract": 1,
-            "freq": 4,
+            "with_voronoi": 1,
         }
     },
      
     "wooly-bully": {
         "kwargs": {
             "hsv_range": 1,
-            "with_worms": 4,
-            "worms_density": 346.75,
-            "worms_duration": 2.2,
-            "worms_stride": 0.6,
-            "worms_stride_deviation": 2.6,
-            "worms_kink": 6.47,
-            "worms_bg": 0.78,
-            "with_voronoi": 2,
+            "point_corners": True,
+            "point_distrib": "circular",
+            "point_freq": 2,
+            "point_generations": 2,
             "voronoi_func": 3,
             "voronoi_nth": 2,
-            "point_freq": 2,
-            "point_distrib": "circular",
-            "point_generations": 2,
-            "point_corners": True,
+            "with_voronoi": 2,
+            "with_worms": 4,
+            "worms_bg": 0.78,
+            "worms_density": 346.75,
+            "worms_duration": 2.2,
+            "worms_kink": 6.47,
+            "worms_stride": 0.6,
+            "worms_stride_deviation": 2.6,
         }
     }
 }
