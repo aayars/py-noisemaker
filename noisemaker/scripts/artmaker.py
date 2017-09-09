@@ -18,7 +18,7 @@ import noisemaker.recipes as recipes
 @cli.height_option()
 @cli.channels_option()
 @cli.name_option(default="art.png")
-@click.argument('preset_name', type=click.Choice(sorted(presets.PRESETS)))
+@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, name, preset_name):
     kwargs, post_kwargs = presets.load(preset_name)

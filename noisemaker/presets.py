@@ -234,22 +234,6 @@ PRESETS = {
         }
     },
      
-    "hexception": {
-        "kwargs": {
-            "distrib": "ones",
-            "edges": 0.25,
-            "freq": 36,
-            "mask": "v_hex",
-            "octaves": 3,
-            "point_corners": True,
-            "point_distrib": "v_hex",
-            "point_freq": 6,
-            "sharpen": 0.5,
-            "voronoi_alpha": 0.875,
-            "with_voronoi": 2,
-        }
-    },
-     
     "jovian-clouds": {
         "kwargs": {
             "point_freq": 10,
@@ -364,9 +348,10 @@ PRESETS = {
         "kwargs": {
             "lattice_drift": 1,
             "point_distrib": "circular",
-            "point_freq": 5,
+            "freq": random.randint(2, 8),
+            "point_freq": random.randint(2, 8),
             "voronoi_alpha": 0.5,
-            "voronoi_refract": 17,
+            "voronoi_refract": random.randint(12, 24),
             "with_bloom": 0.5,
             "with_voronoi": 6,
         }
@@ -516,30 +501,6 @@ PRESETS = {
         }
     },
      
-    "victorian-fractal": {
-        "kwargs": {
-            "corners": True,
-            "distrib": "ones",
-            "freq": 36,
-            "invert": 1,
-            "mask": "v_hex",
-            "octaves": 3,
-            "point_distrib": "h_hex",
-            "point_freq": 6,
-            "ridges": True,
-            "sharpen": 1,
-            "voronoi_alpha": 0.5,
-            "voronoi_func": 2,
-            "voronoi_nth": 2,
-            "with_bloom": 0.5,
-            "with_voronoi": 5,
-        },
-
-        "post_kwargs": {
-            "with_dither": 0.25,
-        }
-    },
-     
     "wireframe": {
         "kwargs": {
             "freq": 2,
@@ -630,6 +591,10 @@ def load(preset_name):
     """
     """
 
-    preset = PRESETS.get(preset_name, {})
+    if preset_name == "random":
+        preset = PRESETS.get(list(PRESETS)[random.randint(0, len(PRESETS) - 1)])
+
+    else:
+        preset = PRESETS.get(preset_name, {})
 
     return preset.get("kwargs", {}), preset.get("post_kwargs", {})
