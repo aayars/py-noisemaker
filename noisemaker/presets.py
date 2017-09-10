@@ -1,3 +1,5 @@
+""" Presets library for noisemaker/artmaker """
+
 import random
 
 import noisemaker.generators as generators
@@ -6,14 +8,17 @@ import noisemaker.points as points
 PRESETS = {
     "2d-chess": {
         "kwargs": {
+            "corners": True,
             "distrib": "ones",
             "freq": 8,
             "mask": "chess",
+            "point_corners": True,
             "point_distrib": "square",
             "point_freq": 8,
             "spline_order": 0,
-            "voronoi_alpha": 0.5,
-            "with_voronoi": 2,
+            "voronoi_alpha": 0.5 + random.random() * .5,
+            "voronoi_nth": 0 if random.random() < .5 else random.randint(0,63),
+            "with_voronoi": 2 if random.random() < .5 else random.randint(1,5),
         }
     },
 
@@ -21,7 +26,7 @@ PRESETS = {
         "kwargs": {
             "invert": 1,
             "lattice_drift": 1,
-            "point_distrib": "circular",
+            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
             "point_freq": 4,
             "point_generations": 2,
             "voronoi_alpha": 0.5,
@@ -65,14 +70,14 @@ PRESETS = {
     "aztec-waffles": {
         "kwargs": {
             "freq": 7,
-            "point_freq": 4,
+            "point_freq": random.randint(2,4),
             "point_generations": 2,
             "point_distrib": "circular",
-            "posterize_levels": 12,
-            "reflect_range": 2.06,
+            "posterize_levels": random.randint(6,18),
+            "reflect_range": random.random() * 2,
             "spline_order": 0,
-            "voronoi_func": 2,
-            "voronoi_nth": 2,
+            "voronoi_func": random.randint(2,3),
+            "voronoi_nth": random.randint(2,4),
             "with_outline": 3,
             "with_voronoi": 1,
         }
@@ -107,9 +112,13 @@ PRESETS = {
     "bringing-hexy-back": {
         "kwargs": {
             "lattice_drift": 1,
-            "point_distrib": "v_hex",
+            "point_distrib": "v_hex" if random.random() < .5 else "v_hex",
             "point_freq": 10,
+            "post_deriv": 0 if random.random() < .5 else random.randint(1,3),
             "voronoi_alpha": 0.5,
+            "voronoi_refract": 0 if random.random() < .5 else random.random(),
+            "warp_octaves": 1,
+            "warp_range": random.random() * .5,
             "with_bloom": 0.5,
             "with_voronoi": 5,
         }
@@ -121,10 +130,10 @@ PRESETS = {
             "point_distrib": "spiral",
             "point_freq": 6,
             "voronoi_nth": 2,
-            "with_voronoi": 2,
+            "with_voronoi": random.randint(1,5),
             "with_wormhole": True,
-            "wormhole_kink": 10,
-            "wormhole_stride": 0.005,
+            "wormhole_kink": random.randint(8,12),
+            "wormhole_stride": random.random() * .01,
         }
     },
      
@@ -159,13 +168,20 @@ PRESETS = {
             "channels": 1,
             "invert": 1,
             "octaves": 1,
-            "point_freq": 10,
-            "posterize_levels": 4,
+            "point_freq": random.randint(2, 4),
+            "post_refract_range": random.randint(0,1),
+            "posterize_levels": random.randint(3,5),
             "voronoi_alpha": 1,
-            "voronoi_func": 3,
-            "voronoi_nth": 1,
+            "voronoi_func": random.randint(2,3),
+            "voronoi_nth": random.randint(1,3),
+            "with_aberration": random.random() * .01,
             "with_sobel": 2,
-            "with_voronoi": 1,
+            "with_voronoi": random.randint(1,4),
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
         }
     },
      
@@ -194,13 +210,13 @@ PRESETS = {
      
     "furry-swirls": {
         "kwargs": {
-            "freq": 32,
-            "hsv_range": 2,
-            "point_freq": 10,
-            "spline_order": 1,
-            "voronoi_alpha": 0.75,
+            "freq": random.randint(2,32),
+            "hsv_range": random.random() * 2,
+            "point_freq": random.randint(8,10),
+            "spline_order": random.randint(1,3),
+            "voronoi_alpha": 0.5 * random.random() * .5,
             "with_voronoi": 6,
-            "with_worms": 1,
+            "with_worms": random.randint(1,4),
             "worms_density": 64,
             "worms_duration": 1,
             "worms_kink": 25,
@@ -209,12 +225,13 @@ PRESETS = {
      
     "furry-thorns": {
         "kwargs": {
+            "point_freq": random.randint(2,4),
             "point_distrib": "waffle",
             "point_generations": 2,
             "voronoi_inverse": True,
-            "voronoi_nth": 9,
+            "voronoi_nth": random.randint(6,12),
             "with_voronoi": 2,
-            "with_worms": 3,
+            "with_worms": random.randint(1,4),
             "worms_density": 500,
             "worms_duration": 1.22,
             "worms_kink": 2.89,
@@ -229,11 +246,23 @@ PRESETS = {
             "distrib": "ones",
             "freq": random.randint(4, 12) * 2,
             "hsv_range": 0,
+            "hsv_rotation": random.random(),
             "hsv_saturation": 0.27,
+            "invert": random.randint(0, 1),
             "mask": "chess",
-            "posterize_levels": 12,
+            # "posterize_levels": 12,
             "spline_order": 0,
+            "voronoi_alpha": .25 + random.random() * .75,
+            "voronoi_refract": random.random() * 4,
+            "with_aberration": random.random() * .02,
+            "with_bloom": .5,
             "with_sobel": 2,
+            "with_voronoi": 6,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
         }
     },
 
@@ -259,11 +288,11 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": 4,
+            "freq": random.randint(1,3) * 2,
             "mask": "h_tri",
-            "octaves": random.randint(4, 8),
+            "octaves": random.randint(5, 8),
             "post_deriv": 3,
-            "sin": 12.5,
+            "sin": random.randint(-25, 25),
         }
     },
      
@@ -284,17 +313,17 @@ PRESETS = {
             "channels": 3,
             "distrib": "uniform",
             "edges": 0.81,
-            "freq": 12,
-            "octaves": 3,
+            "freq": random.randint(6,12),
+            "octaves": random.randint(3,5),
             "spline_order": 0,
         }
     },
      
     "misaligned": {
         "kwargs": {
-            "freq": 16,
-            "mask": "v_tri",
-            "octaves": 8,
+            "freq": random.randint(12,24),
+            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
+            "octaves": random.randint(4,8),
             "spline_order": 0,
             "with_outline": 1,
         }
@@ -368,12 +397,19 @@ PRESETS = {
     "quilty": {
         "kwargs": {
             "freq": 5,
-            "point_distrib": "square",
+            "hsv_saturation": random.random() * .5,
+            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
             "point_freq": random.randint(3, 8),
             "spline_order": 0,
             "voronoi_func": 2,
+            "voronoi_nth": random.randint(0, 4),
             "voronoi_refract": 2,
+            "with_bloom": random.random() * .5,
             "with_voronoi": 1,
+        },
+
+        "post_kwargs": {
+            "with_dither": random.random() * .5,
         }
     },
      
@@ -392,11 +428,10 @@ PRESETS = {
      
     "refractal": {
         "kwargs": {
-            "channels": 1,
             "invert": 1,
             "lattice_drift": 1,
-            "point_freq": 10,
-            "post_reflect_range": 128,
+            "point_freq": random.randint(8,10),
+            "post_reflect_range": random.randint(96, 192),
             "with_voronoi": 6,
         }
     },
@@ -439,13 +474,13 @@ PRESETS = {
      
     "spiral-in-spiral": {
         "kwargs": {
-            "point_distrib": "spiral",
+            "point_distrib": "spiral" if random.random() < .5 else "rotating",
             "point_freq": 10,
-            "with_voronoi": 1,
-            "with_worms": 1,
+            "with_voronoi": random.randint(1,2),
+            "with_worms": random.randint(1,4),
             "worms_density": 500,
             "worms_duration": 1,
-            "worms_kink": 10,
+            "worms_kink": random.randint(5, 25),
         }
     },
      
@@ -453,11 +488,11 @@ PRESETS = {
         "kwargs": {
             "freq": 2,
             "hsv_range": 1,
-            "reflect_range": 5,
-            "spline_order": 2,
+            "reflect_range": random.randint(3,6),
+            "spline_order": random.randint(1,3),
             "with_wormhole": True,
-            "wormhole_kink": 10,
-            "wormhole_stride": 0.0025,
+            "wormhole_kink": random.randint(5,20),
+            "wormhole_stride": random.random() * .05,
         }
     },
      
@@ -537,11 +572,12 @@ PRESETS = {
     "velcro": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": 4,
-            "reflect_range": 8,
-            "spline_order": 2,
+            "hsv_range": random.randint(0,3),
+            "octaves": random.randint(1,2),
+            "reflect_range": random.randint(6,8),
+            "spline_order": random.randint(2,3),
             "with_wormhole": True,
-            "wormhole_stride": 0.025,
+            "wormhole_stride": random.random() * .0125,
         }
     },
      
@@ -653,6 +689,14 @@ PRESETS = {
 
 def load(preset_name):
     """
+    Load a named preset.
+
+    Returns a tuple of (dict, dict), containing `generators.multires` and `recipes.post_process` keyword args.
+
+    See the `artmaker` script for an example of how these values are used.
+
+    :param str preset_name: Name of the preset. If "random" is given, a random preset is returned.
+    :return: Tuple(dict, dict)
     """
 
     if preset_name == "random":

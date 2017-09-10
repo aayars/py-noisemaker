@@ -32,6 +32,10 @@ class PointDistribution(Enum):
     rotating = 102
 
     @classmethod
+    def grid_members(cls):
+        return [m for m in cls if cls.is_grid(m)]
+
+    @classmethod
     def is_grid(cls, member):
         return member.value >= cls.square.value and member.value < cls.spiral.value
 
