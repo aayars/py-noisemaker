@@ -101,7 +101,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
 
     shape = [height, width, channels]
 
-    tensor = generators.multires(freq, shape, octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
+    tensor = generators.multires(freq=freq, shape=shape, octaves=octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
                                  reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                  post_reflect_range=post_reflect, post_refract_range=post_refract,
                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
@@ -119,7 +119,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                  hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
                                  with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
 
-    tensor = recipes.post_process(tensor, shape, freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+    tensor = recipes.post_process(tensor, shape=shape, freq=freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
     with tf.Session().as_default():
         save(tensor, name)
