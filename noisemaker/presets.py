@@ -1,5 +1,7 @@
 import random
 
+import noisemaker.generators as generators
+
 PRESETS = {
     "2d-chess": {
         "kwargs": {
@@ -169,7 +171,7 @@ PRESETS = {
     "defocus": {
         "kwargs": {
             "freq": 12,
-            "mask": "h_tri",
+            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
             "octaves": 5,
             "sin": 10,
             "with_bloom": 0.5,
