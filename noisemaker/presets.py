@@ -1,6 +1,7 @@
 import random
 
 import noisemaker.generators as generators
+import noisemaker.points as points
 
 PRESETS = {
     "2d-chess": {
@@ -175,6 +176,19 @@ PRESETS = {
             "octaves": 5,
             "sin": 10,
             "with_bloom": 0.5,
+        }
+    },
+
+    "dla": {
+        "kwargs": {
+            "dla_padding": random.randint(2, 8),
+            "hsv_range": 1.5,
+            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_freq": random.randint(2, 8),
+            "voronoi_alpha": random.random(),
+            "with_bloom": random.random(),
+            "with_dla": .5 + random.random() * .5,
+            "with_voronoi": 0 if random.random() < .5 else random.randint(1,5),
         }
     },
      
@@ -365,9 +379,9 @@ PRESETS = {
      
     "reef": {
         "kwargs": {
-            "lattice_drift": 1,
-            "point_distrib": "circular",
             "freq": random.randint(2, 8),
+            "lattice_drift": 1,
+            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
             "point_freq": random.randint(2, 8),
             "voronoi_alpha": 0.5,
             "voronoi_refract": random.randint(12, 24),
@@ -410,6 +424,16 @@ PRESETS = {
             "with_voronoi": 6,
             "with_wormhole": True,
             "wormhole_stride": 0.01,
+        }
+    },
+
+    "soft-cells": {
+        "kwargs": {
+            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_freq": random.randint(4,8),
+            "voronoi_alpha": .5 + random.random() * .5,
+            "with_bloom": .5 + random.random() * .5,
+            "with_voronoi": 5,
         }
     },
      
