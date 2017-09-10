@@ -1034,7 +1034,7 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False, input_dir=None):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False, input_dir=None, image_count=None):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1050,6 +1050,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :param str input_dir: Input directory containing .jpg and/or .png images, if using collage mode
+    :param None|int image_count: Give an explicit image count (Optional)
     :return: Tensor
     """
 
@@ -1157,7 +1158,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
         freq = int(max(math.sqrt(point_count), 1))
 
-        collage_count = freq
+        collage_count = image_count or freq
         collage_height = int(max(shape[0] / freq, 1))
         collage_width = int(max(shape[1] / freq, 1))
         collage_shape = [collage_height, collage_width, shape[2]]

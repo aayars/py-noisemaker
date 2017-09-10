@@ -70,7 +70,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
     x, y = points.point_cloud(point_freq, distrib=point_distrib, shape=shape, drift=point_drift)
 
     tensor = effects.voronoi(None, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
-                             input_dir=input_dir)
+                             input_dir=input_dir, image_count=point_freq * point_freq)
 
     with tf.Session().as_default():
         save(tensor, name)
