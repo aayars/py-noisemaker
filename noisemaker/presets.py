@@ -222,6 +222,24 @@ PRESETS = {
             "with_sobel": 2,
         }
     },
+
+    "halt-catch-fire": {
+        "kwargs": {
+            "freq": 2,
+            "hsv_range": .05,
+            "lattice_drift": 1,
+            "octaves": random.randint(3, 5),
+            "spline_order": 0,
+            "with_aberration": .01 + random.random() * .01,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_glitch": True,
+            "with_scan_error": True,
+            "with_snow": random.random() * .333,
+        }
+    },
      
     "hex-machine": {
         "kwargs": {
