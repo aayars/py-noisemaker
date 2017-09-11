@@ -7,6 +7,8 @@ import noisemaker.generators as generators
 
 
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 

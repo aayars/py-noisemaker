@@ -51,8 +51,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     """
     """
 
-    initial_shape = [*freq, shape[-1]]
-    channel_shape = [*freq, 1]
+    initial_shape = freq + [shape[-1]]
+    channel_shape = freq + [1]
 
     if isinstance(distrib, int):
         distrib = ValueDistribution(distrib)

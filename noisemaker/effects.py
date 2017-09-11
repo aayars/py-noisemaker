@@ -299,14 +299,6 @@ class ConvKernel(Enum):
         [   0, -1,  0 ]
     ]
 
-    unsharp_mask = [
-        [ 1,  4,     6,   4, 1 ],
-        [ 4,  16,   24,  16, 4 ],
-        [ 6,  24, -476,  24, 6 ],
-        [ 4,  16,   24,  16, 4 ],
-        [ 1,  4,     6,   4, 1 ]
-    ]
-
     sobel_x = [
         [ 1, 0, -1 ],
         [ 2, 0, -2 ],
@@ -351,7 +343,9 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
 
     temp = tf.reshape(temp, (l, l, channels, 1))
 
-    temp = tf.image.convert_image_dtype(temp, tf.float32)
+    temp = tf.cast(temp, tf.float32)
+
+    temp /= tf.maximum(tf.reduce_max(temp), tf.reduce_min(temp) * -1)
 
     return temp
 
@@ -492,7 +486,9 @@ def resample(tensor, shape, spline_order=3):
 
             points.append(blend_cubic(resized[y][0], resized[y][1], resized[y][2], resized[y][3], resized_row_index_fract))
 
-        return blend_cubic(*points, resized_col_index_fract)
+        args = points + [resized_col_index_fract]
+
+        return blend_cubic(*args)
 
 
 def _gather_scaled_offset(tensor, input_column_index, input_row_index, output_index):
