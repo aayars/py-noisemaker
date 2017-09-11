@@ -528,12 +528,12 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": 4,
-            "mask": "v_tri",
+            "freq": random.randint(2,6),
+            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
             "octaves": 8,
-            "with_worms": 1,
+            "with_worms": random.randint(1,3),
             "worms_density": 500,
-            "worms_kink": 15,
+            "worms_kink": random.randint(5,25),
         }
     },
      
