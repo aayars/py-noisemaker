@@ -67,6 +67,19 @@ PRESETS = {
         }
     },
 
+    "alien-terrain-2": {
+        "kwargs": {
+            "deriv": 1,
+            "deriv_alpha": .5,
+            "hsv_saturation": .5,
+            "invert": 1,
+            "lattice_drift": 1,
+            "octaves": 8,
+            "shadow": .75,
+            "with_bloom": .25,
+        }
+    },
+
     "aztec-waffles": {
         "kwargs": {
             "freq": 7,
