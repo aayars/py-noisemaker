@@ -175,6 +175,25 @@ PRESETS = {
             "with_voronoi": 2,
         }
     },
+
+    "deadlock": {
+        "kwargs": {
+           "hsv_range": random.random(),
+           "hsv_rotation": random.random(),
+           "hsv_saturation": random.random(),
+           "point_corners": (random.random() < .5),
+           "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+           "point_drift": 0 if random.random() < .5 else random.random(),
+           "point_freq": 4,
+           "point_generations": 2,
+           "voronoi_func": random.randint(2,3),
+           "voronoi_nth": random.randint(0, 15),
+           "voronoi_alpha": .5 + random.random() * .5,
+           "sin": random.random() * 2,
+           "with_outline": 3,
+           "with_voronoi": 1,
+        }
+    },
      
     "death-star-plans": {
         "kwargs": {
@@ -308,6 +327,18 @@ PRESETS = {
             "sin": random.randint(-25, 25),
         }
     },
+
+    "isoform": {
+        "kwargs": {
+            "invert": (random.random() < .5),
+            "post_refract_range": .25 + random.random() * .25,
+            "ridges": (random.random() < .5),
+            "voronoi_alpha": .75 + random.random() * .25,
+            "voronoi_func": 3,
+            "with_outline":  3,
+            "with_voronoi": random.randint(1,2),
+        }
+    },
      
     "jovian-clouds": {
         "kwargs": {
@@ -324,11 +355,21 @@ PRESETS = {
     "magic-squares": {
         "kwargs": {
             "channels": 3,
-            "distrib": "uniform",
-            "edges": 0.81,
-            "freq": random.randint(6,12),
+            "distrib": [m.value for m in generators.ValueDistribution if m.value != "ones"][random.randint(0, len(generators.ValueDistribution) - 2)],
+            "edges": .25 + random.random() * .5,
+            "freq": [9, 12, 15, 18][random.randint(0,3)],
+            "hsv_range": random.random() * .5,
             "octaves": random.randint(3,5),
+            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+            "point_freq": [3, 6, 9][random.randint(0,2)],
             "spline_order": 0,
+            "voronoi_alpha": .25,
+            "with_bloom": 0 if (random.random() < .5) else random.random(),
+            "with_voronoi": 0 if (random.random() < .5) else 4,
+        },
+
+        "post_kwargs": {
+            "with_dither": 0 if (random.random() < .5) else random.random() * .125,
         }
     },
      
