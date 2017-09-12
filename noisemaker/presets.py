@@ -676,6 +676,21 @@ PRESETS = {
         }
     },
 
+    "tensorflower": {
+        "kwargs": {
+            "corners": True,
+            "hsv_range": random.random(),
+            "freq": 2,
+            "point_corners": True,
+            "point_distrib": ["square", "h_hex", "v_hex"][random.randint(0,2)],
+            "point_freq": 2,
+            "spline_order": 0,
+            "vortex_range": random.randint(8,25),
+            "with_bloom": random.random(),
+            "with_voronoi": 5,
+        }
+    },
+
     "traceroute": {
         "kwargs": {
             "corners": True,
