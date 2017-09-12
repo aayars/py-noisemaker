@@ -419,6 +419,21 @@ PRESETS = {
             "with_voronoi": 6,
         }
     },
+
+    "oldschool": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "ones",
+            "freq": random.randint(2,5) * 2,
+            "mask": "chess",
+            "rgb": True,
+            "spline_order": 0,
+            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_freq": random.randint(4,8),
+            "voronoi_refract": random.randint(8,12),
+            "with_voronoi": 6,
+        }
+    },
      
     "plaid": {
         "kwargs": {
@@ -578,6 +593,20 @@ PRESETS = {
         }
     },
      
+    "stepper": {
+        "kwargs": {
+            "hsv_range": random.random(),
+            "hsv_saturation": random.random(),
+            "point_corners": (random.random() < .5),
+            "point_distrib": [m.value for m in points.PointDistribution.circular_members()][random.randint(0, len(points.PointDistribution.circular_members()) - 1)],
+            "point_freq": random.randint(7,10),
+            "voronoi_func": random.randint(2,3),
+            "voronoi_nth": random.randint(0, 48),
+            "with_outline": 3,
+            "with_voronoi": random.randint(1,5),
+        }
+    },
+
     "traceroute": {
         "kwargs": {
             "corners": True,

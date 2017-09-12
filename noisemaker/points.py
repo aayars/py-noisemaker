@@ -36,6 +36,10 @@ class PointDistribution(Enum):
         return [m for m in cls if cls.is_grid(m)]
 
     @classmethod
+    def circular_members(cls):
+        return [m for m in cls if cls.is_circular(m)]
+
+    @classmethod
     def is_grid(cls, member):
         return member.value >= cls.square.value and member.value < cls.spiral.value
 
