@@ -274,7 +274,24 @@ PRESETS = {
         }
     },
 
-    "furry-swirls": {
+    "fuzzy-squares": {
+        "kwargs": {
+            "corners": True,
+            "freq": 20,
+            "distrib": "uniform",
+            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "spline_order": 1,
+            "with_worms": 4,
+            "worms_bg": random.random(),
+            "worms_density": 400,
+            "worms_duration": 2.0,
+            "worms_stride": .5 + random.random(),
+            "worms_stride_deviation": 1.0 + random.random(),
+            "worms_kink": 1 + random.random() * 2.5,
+        }
+    },
+
+    "fuzzy-swirls": {
         "kwargs": {
             "freq": random.randint(2,32),
             "hsv_range": random.random() * 2,
@@ -289,7 +306,7 @@ PRESETS = {
         }
     },
      
-    "furry-thorns": {
+    "fuzzy-thorns": {
         "kwargs": {
             "point_freq": random.randint(2,4),
             "point_distrib": "waffle",
@@ -329,6 +346,24 @@ PRESETS = {
         "post_kwargs": {
             "with_crt": True,
             "with_scan_error": True,
+        }
+    },
+
+    "hairy-diamond": {
+        "kwargs": {
+            "freq": random.randint(2,6),
+            "hsv_range": random.random(),
+            "hsv_rotation": random.random(),
+            "hsv_saturation": random.random(),
+            "point_corners": True,
+            "point_distrib": "concentric",
+            "point_freq": random.randint(3,6),
+            "point_generations": 2,
+            "voronoi_func": 2,
+            "voronoi_inverse": True,
+            "voronoi_alpha": .25 + random.random() * .5,
+            "with_erosion_worms": True,
+            "with_voronoi": 6,
         }
     },
 
