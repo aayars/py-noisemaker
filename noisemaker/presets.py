@@ -240,6 +240,22 @@ PRESETS = {
         }
     },
      
+    "ears": {
+        "kwargs": {
+            "freq":22,
+            "distrib": "uniform",
+            "hsv_range": random.random() * 2.5,
+            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "with_worms": 3,
+            "worms_bg": 0.88,
+            "worms_density": 188.07,
+            "worms_duration": 3.20,
+            "worms_stride": 0.40,
+            "worms_stride_deviation": 0.31,
+            "worms_kink": 6.36,
+        }
+    },
+
     "eyes": {
         "kwargs": {
             "corners": True,
