@@ -240,6 +240,24 @@ PRESETS = {
         }
     },
      
+    "eyes": {
+        "kwargs": {
+            "corners": True,
+            "distrib": ["ones", "uniform"][random.randint(0,1)],
+            "freq": 12 * random.randint(1,2),
+            "hsv_range": random.random(),
+            "invert": 1,
+            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "ridges": True,
+            "shadow": 1,
+            "spline_order": random.randint(2,3),
+            "with_outline": 1,
+            "warp_freq": 2,
+            "warp_octaves": 1,
+            "warp_range": random.randint(1,4),
+        }
+    },
+
     "furry-swirls": {
         "kwargs": {
             "freq": random.randint(2,32),
@@ -355,7 +373,7 @@ PRESETS = {
     "magic-squares": {
         "kwargs": {
             "channels": 3,
-            "distrib": [m.value for m in generators.ValueDistribution if m.value != "ones"][random.randint(0, len(generators.ValueDistribution) - 2)],
+            "distrib": [m.value for m in generators.ValueDistribution if m.name != "ones"][random.randint(0, len(generators.ValueDistribution) - 2)],
             "edges": .25 + random.random() * .5,
             "freq": [9, 12, 15, 18][random.randint(0,3)],
             "hsv_range": random.random() * .5,
