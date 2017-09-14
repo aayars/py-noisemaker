@@ -657,11 +657,13 @@ PRESETS = {
         "kwargs": {
             "deriv": 1,
             "freq": 2,
+            "hsv_range": random.random() * 2.0,
             "invert": 1,
             "point_freq": 10,
-            "reflect_range": 2,
+            "reflect_range": random.random() + .5,
             "spline_order": 2,
-            "voronoi_refract": 2.5,
+            "voronoi_refract": random.randint(2,4),
+            "with_bloom": .25 + random.random() * .5,
             "with_sobel": 1,
             "with_voronoi": 6,
         }
