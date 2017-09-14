@@ -24,13 +24,13 @@ def main():
 @click.argument('input_filename')
 @click.pass_context
 def auto(ctx, name, input_filename):
-    glitch = (random.random() > .5)
-    vhs = (random.random() > .5)
-    crt = (random.random() > .5)
+    glitch = (random.random() > .333)
+    vhs = (random.random() > .666)
+    crt = (random.random() > .333)
     scan_error = (random.random() > .5)
     snow = random.random() * .5 if (random.random() > .5) else 0
     dither = random.random() * .25 if (random.random() > .5) else 0
-    aberration = random.random() * .02 if (random.random() > .5) else 0
+    aberration = random.random() * .02 if (random.random() > .333) else 0
     bloom = .5 + random.random() * .5 if (random.random() > .5) else 0
 
     render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, name, input_filename)

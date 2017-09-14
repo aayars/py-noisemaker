@@ -83,6 +83,7 @@ PRESETS = {
     "aztec-waffles": {
         "kwargs": {
             "freq": 7,
+            "invert": (random.random() < .5),
             "point_freq": random.randint(2,4),
             "point_generations": 2,
             "point_distrib": "circular",
@@ -92,7 +93,7 @@ PRESETS = {
             "voronoi_func": random.randint(2,3),
             "voronoi_nth": random.randint(2,4),
             "with_outline": 3,
-            "with_voronoi": 1,
+            "with_voronoi": random.randint(1, 5),
         }
     },
      
@@ -314,7 +315,7 @@ PRESETS = {
             "voronoi_inverse": True,
             "voronoi_nth": random.randint(6,12),
             "with_voronoi": 2,
-            "with_worms": random.randint(1,4),
+            "with_worms": random.randint(1,3),
             "worms_density": 500,
             "worms_duration": 1.22,
             "worms_kink": 2.89,
@@ -553,12 +554,16 @@ PRESETS = {
      
     "reef": {
         "kwargs": {
-            "freq": random.randint(2, 8),
+            "freq": random.randint(3, 8),
+            "hsv_range": random.random(),
             "lattice_drift": 1,
-            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_distrib": (["random"] + [m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()))],
             "point_freq": random.randint(2, 8),
-            "voronoi_alpha": 0.5,
-            "voronoi_refract": random.randint(12, 24),
+            "ridges": True,
+            "shadow": 1.0,
+            "sin": random.random() * 2.5,
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_refract": random.randint(8, 16),
             "with_bloom": 0.5,
             "with_voronoi": 6,
         }

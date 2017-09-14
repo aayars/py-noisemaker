@@ -408,6 +408,7 @@ def normalize(tensor):
     return (tensor - floor) / (ceil - floor)
 
 
+
 def resample(tensor, shape, spline_order=3):
     """
     Resize an image tensor to the specified shape.
@@ -489,6 +490,18 @@ def resample(tensor, shape, spline_order=3):
         args = points + [resized_col_index_fract]
 
         return blend_cubic(*args)
+
+
+def _downsample(tensor, shape, new_shape):
+    """ Proportional downsample """
+
+    kernel_shape = [int(shape[0] / new_shape[0]), int(shape[1] / new_shape[1]), shape[2], 1]
+
+    kernel = tf.ones(kernel_shape)
+
+    out = tf.nn.depthwise_conv2d([tensor], kernel, [1,kernel_shape[0],kernel_shape[1],1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
+
+    return resample(out, new_shape)
 
 
 def _gather_scaled_offset(tensor, input_column_index, input_row_index, output_index):
@@ -1165,7 +1178,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
             index = i if image_count else random.randint(0, len(filenames) - 1)
 
             collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
-            collage_images.append(resample(collage_input, collage_shape))
+
+            collage_images.append(_downsample(resample(collage_input, shape), shape, collage_shape))
 
         out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
 
