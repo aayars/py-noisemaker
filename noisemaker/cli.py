@@ -205,7 +205,7 @@ def warp_octaves_option(**attrs):
 def warp_interp_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Interpolation type {0}".format(INTERPOLATION_HINT))
 
-    return int_option("--warp-interp", callback=validate_enum(effects.InterpolationType), **attrs)
+    return int_option("--warp-interp", default=None, callback=validate_enum(effects.InterpolationType), **attrs)
 
 
 def warp_freq_option(**attrs):

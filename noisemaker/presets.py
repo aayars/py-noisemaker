@@ -840,7 +840,19 @@ PRESETS = {
             "with_voronoi": 1,
         }
     },
-     
+
+    "woahdude-2": {
+        "kwargs": {
+            "freq": random.randint(2,3),
+            "hsv_range": random.random() * 3.0,
+            "shadow": random.random(),
+            "sin": random.randint(5,15),
+            "warp_range": random.randint(3,5),
+            "warp_octaves": 3,
+            "with_bloom": random.random(),
+        }
+    },
+
     "wooly-bully": {
         "kwargs": {
             "hsv_range": 1,
