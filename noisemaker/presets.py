@@ -452,6 +452,18 @@ PRESETS = {
             "with_outline": 1,
         }
     },
+
+    "muppet-skin": {
+        "kwargs": {
+            "freq": random.randint(2,3),
+            "hsv_range": random.random() * .5,
+            "lattice_drift": 0 if random.random() < .5 else random.random(),
+            "with_bloom": .25 + random.random() * .5,
+            "with_worms": 3 if random.random() < .5 else 1,
+            "worms_bg": 0 if random.random() < .5 else random.random(),
+            "worms_density": 500,
+        }
+    },
      
     "neon-cambrian": {
         "kwargs": {
@@ -509,9 +521,18 @@ PRESETS = {
         "kwargs": {
             "deriv": 3,
             "distrib": "ones",
-            "freq": 8,
+            "hsv_range": random.random() * .5,
+            "freq": random.randint(3, 6) * 2,
             "mask": "chess",
-            "octaves": 3,
+            "octaves": random.randint(2, 5),
+            "spline_order": random.randint(1, 3),
+            "warp_freq": random.randint(2,3),
+            "warp_range": random.random() * .25,
+            "warp_octaves": 1,
+        },
+
+        "post_kwargs": {
+            "with_dither": random.random() * 0.25,
         }
     },
      
@@ -778,40 +799,19 @@ PRESETS = {
 
     "wireframe": {
         "kwargs": {
-            "freq": 2,
-            "hsv_range": 0.11,
-            "hsv_rotation": 1,
-            "hsv_saturation": 0.48,
+            "freq": random.randint(2, 5),
+            "hsv_range": random.random(),
+            "hsv_saturation": random.random(),
             "invert": 1,
-            "lattice_drift": 0.68,
+            "lattice_drift": random.random(),
             "octaves": 2,
-            "point_distrib": "v_hex",
-            "point_freq": 10,
-            "voronoi_alpha": 0.5,
-            "voronoi_nth": 1,
-            "with_bloom": 0.5,
-            "with_sobel": 1,
-            "with_voronoi": 5,
-        }
-    },
-     
-    "wireframe-warped": {
-        "kwargs": {
-            "freq": 2,
-            "hsv_range": 0.11,
-            "hsv_rotation": 1,
-            "hsv_saturation": 0.48,
-            "invert": 1,
-            "lattice_drift": 0.68,
-            "octaves": 2,
-            "point_distrib": "v_hex",
-            "point_freq": 10,
-            "voronoi_alpha": 0.5,
-            "voronoi_nth": 1,
-            "warpInterp": 3,
-            "warp_octaves": 3,
-            "warp_range": 1.4,
-            "with_bloom": 0.5,
+            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+            "point_freq": random.randint(7,10),
+            "voronoi_alpha": 0.25 + random.random() * .5,
+            "voronoi_nth": random.randint(1, 5),
+            "warp_octaves": random.randint(1, 3),
+            "warp_range": 0 if random.random() < .5 else random.random() * .5,
+            "with_bloom": 0.25 + random.random() * .5,
             "with_sobel": 1,
             "with_voronoi": 5,
         }
