@@ -326,6 +326,18 @@ PRESETS = {
         }
     },
      
+    "glom": {
+        "kwargs": {
+            "lattice_drift": 1,
+            "reflect_range": random.randint(2,4),
+            "refract_range": random.randint(2,4),
+            "ridges": True,
+            "warp_range": random.random() * .5,
+            "warp_octaves": 1,
+            "with_bloom": .25 + random.random() * .5,
+        }
+    },
+
     "graph-paper": {
         "kwargs": {
             "corners": True,
@@ -397,6 +409,23 @@ PRESETS = {
             "octaves": random.randint(5, 8),
             "post_deriv": 3,
             "sin": random.randint(-25, 25),
+        }
+    },
+
+    "hsv-gradient": {
+        "kwargs": {
+            "freq": random.randint(2, 3),
+            "hsv_range": .125 + random.random() * 2.0,
+            "lattice_drift": random.random(),
+        }
+    },
+
+    "inderpulate": {
+        "kwargs": {
+            "freq": random.randint(2,4),
+            "lattice_drift": 1,
+            "refract_range": random.randint(8,12),
+            "ridges": True,
         }
     },
 
@@ -635,6 +664,17 @@ PRESETS = {
             "voronoi_alpha": .5 + random.random() * .5,
             "with_bloom": .5 + random.random() * .5,
             "with_voronoi": 5,
+        }
+    },
+
+    "soften": {
+        "kwargs": {
+            "freq": 2,
+            "hsv_range": .25 + random.random() * .25,
+            "hsv_rotation": random.random(),
+            "lattice_drift": 1,
+            "octaves": random.randint(1,4),
+            "with_bloom": .25 + random.random() * .5,
         }
     },
      

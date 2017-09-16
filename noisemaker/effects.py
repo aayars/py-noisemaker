@@ -20,7 +20,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
-                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2,
+                 vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None,
                  input_dir=None, **convolve_kwargs):
@@ -66,6 +66,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int warp_octaves: Multi-res iteration count for warp
     :param int|None warp_interp: Override spline order for warp (None = use spline_order)
     :param int|None warp_freq: Override frequency for warp (None = use freq)
+    :param bool with_pop: Pop art filter
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
@@ -162,6 +163,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
+
+    if with_pop:
+        tensor = pop(tensor, shape)
 
     if with_aberration:
         tensor = aberration(tensor, shape, displacement=with_aberration)
@@ -495,7 +499,7 @@ def resample(tensor, shape, spline_order=3):
 def _downsample(tensor, shape, new_shape):
     """ Proportional downsample """
 
-    kernel_shape = [int(shape[0] / new_shape[0]), int(shape[1] / new_shape[1]), shape[2], 1]
+    kernel_shape = [int(max(shape[0] / new_shape[0], 1)), int(max(shape[1] / new_shape[1], 1)), shape[2], 1]
 
     kernel = tf.ones(kernel_shape)
 
@@ -1043,7 +1047,8 @@ def center_mask(center, edges, shape):
     return blend_cosine(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False, input_dir=None, image_count=None):
+def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False,
+            input_dir=None, image_count=None, collage_images=None):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1059,7 +1064,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
     :param str input_dir: Input directory containing .jpg and/or .png images, if using collage mode
-    :param None|int image_count: Give an explicit image count (Optional)
+    :param None|int image_count: Give an explicit image count for collages (Optional)
+    :param None|list[Tensor] collage_images: Give an explicit list of collage image tensors (Optional)
     :return: Tensor
     """
 
@@ -1069,7 +1075,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     elif isinstance(diagram_type, str):
        diagram_type = VoronoiDiagramType[diagram_type]
 
-    if diagram_type == VoronoiDiagramType.collage and not input_dir:
+    if diagram_type == VoronoiDiagramType.collage and not input_dir and not collage_images:
         raise ValueError("--input-dir containing .jpg/.png images must be specified, when using collage mode.")
 
     original_shape = shape
@@ -1172,14 +1178,14 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         collage_width = int(max(shape[1] / freq, 1))
         collage_shape = [collage_height, collage_width, shape[2]]
 
-        collage_images = []
+        if not collage_images:
+            collage_images = []
 
-        for i in range(collage_count):
-            index = i if image_count else random.randint(0, len(filenames) - 1)
+            for i in range(collage_count):
+                index = i if image_count else random.randint(0, len(filenames) - 1)
 
-            collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
-
-            collage_images.append(_downsample(resample(collage_input, shape), shape, collage_shape))
+                collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
+                collage_images.append(_downsample(resample(collage_input, shape), shape, collage_shape))
 
         out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
 
@@ -1253,7 +1259,7 @@ def posterize(tensor, levels):
     return tensor
 
 
-def _inner_tile(tensor, shape, freq):
+def inner_tile(tensor, shape, freq):
     """
     WIP for pop art filter.
     """
@@ -1651,6 +1657,28 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     out = convolve(ConvKernel.blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
 
     return out * tensor
+
+
+def pop(tensor, shape):
+    """
+    Pop art filter
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    """
+
+    images = []
+
+    ref = _downsample(resample(tensor, shape), shape, [int(shape[0] / 4), int(shape[1] / 4), shape[2]])
+
+    for i in range(4):
+        image = posterize(ref, random.randint(3,6))
+        image = image % tf.random_normal([3], mean=.5, stddev=.25)
+        images.append(image)
+
+    x, y = point_cloud(2, distrib=PointDistribution.square, shape=shape, corners=True)
+
+    return voronoi(None, shape, diagram_type=VoronoiDiagramType.collage, xy=(x, y, len(x)), collage_images=images, image_count=4)
 
 
 def offset(tensor, shape, x=0, y=0):

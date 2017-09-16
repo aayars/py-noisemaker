@@ -496,6 +496,18 @@ def aberration_option(**attrs):
     return float_option("--aberration", **attrs)
 
 
+def light_leak_option(**attrs):
+    attrs.setdefault("help", "Art effects: Light leak".format(ALPHA_BLENDING_HINT))
+
+    return float_option("--light-leak", **attrs)
+
+
+def pop_option(**attrs):
+    attrs.setdefault("help", "Art effects: Pop art".format(ALPHA_BLENDING_HINT))
+
+    return bool_option("--pop", **attrs)
+
+
 def emboss_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Emboss {0}".format(ALPHA_BLENDING_HINT))
 

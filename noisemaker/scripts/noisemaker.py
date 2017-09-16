@@ -77,6 +77,8 @@ import noisemaker.recipes as recipes
 @cli.snow_option()
 @cli.dither_option()
 @cli.aberration_option()
+@cli.light_leak_option()
+@cli.pop_option()
 @cli.emboss_option()
 @cli.shadow_option()
 @cli.edges_option()
@@ -95,7 +97,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
          post_reflect, post_refract, clut, clut_horizontal, clut_range, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation,
          worms_bg, worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
-         glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, input_dir,
+         glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, pop, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
          name, **convolve_kwargs):
 
@@ -117,9 +119,10 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
-                                 with_aberration=aberration, with_bloom=bloom, **convolve_kwargs)
+                                 with_aberration=aberration, with_bloom=bloom, with_pop=pop, **convolve_kwargs)
 
-    tensor = recipes.post_process(tensor, shape=shape, freq=freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+    tensor = recipes.post_process(tensor, shape=shape, freq=freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither,
+                                  with_light_leak=light_leak)
 
     with tf.Session().as_default():
         save(tensor, name)

@@ -6,9 +6,10 @@ import tensorflow as tf
 from noisemaker.generators import ValueDistribution, basic, multires
 
 import noisemaker.effects as effects
+import noisemaker.points as points
 
 
-def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False):
+def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False, with_light_leak=None):
     """
     Apply complex post-processing recipes.
 
@@ -21,6 +22,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
+    :param None|float with_light_leak: Light leak filter
     :return: Tensor
     """
 
@@ -42,7 +44,8 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     if with_crt:
         tensor = crt(tensor, shape)
 
-    # tensor = pop(tensor, shape)
+    if with_light_leak:
+        tensor = light_leak(tensor, shape, with_light_leak)
 
     return tensor
 
@@ -202,24 +205,6 @@ def dither(tensor, shape, amount):
     white_noise = basic([height, width], [height, width, 1])
 
     return effects.blend(tensor, white_noise, amount)
-
-
-def pop(tensor, shape):
-    freq = 2
-
-    tensor = tf.image.random_hue(tensor, .5)
-
-    tensor = effects.inner_tile(tensor, shape, freq)
-
-    tensor = effects.posterize(tensor, 3)
-
-    tensor = tensor % basic([freq, freq], shape, spline_order=0)
-
-    # tensor = effects.normalize(tensor)
-
-    # tensor = tf.image.adjust_brightness(tensor, 1.125)
-
-    return tensor
 
 
 def light_leak(tensor, shape, alpha=.25):
