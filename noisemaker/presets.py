@@ -153,13 +153,15 @@ PRESETS = {
      
     "conjoined": {
         "kwargs": {
+            "hsv_range": random.random(),
             "lattice_drift": 1,
-            "point_distrib": "circular",
-            "point_freq": 5,
-            "voronoi_alpha": 0.5,
-            "voronoi_nth": 1,
-            "voronoi_refract": 11,
-            "with_bloom": 0.5,
+            "point_distrib": ([m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()) - 1)],
+            "point_freq": random.randint(3,7),
+            "post_deriv": 1,
+            "voronoi_alpha": 0.25 + random.random() * .5,
+            "voronoi_nth": random.randint(0,4),
+            "voronoi_refract": random.randint(6,12),
+            "with_bloom": 0.25 + random.random() * .5,
             "with_voronoi": 2,
         }
     },
