@@ -704,13 +704,13 @@ PRESETS = {
      
     "square-stripes": {
         "kwargs": {
-            "point_distrib": "v_hex",
+            "hsv_range": random.random(),
+            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
             "point_freq": 2,
-            "point_generations": 2,
-            "voronoi_alpha": 0.78,
-            "voronoi_func": 3,
-            "voronoi_inverse": True,
-            "voronoi_nth": 3,
+            "point_generations": random.randint(2,3),
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_func": random.randint(2,3),
+            "voronoi_nth": random.randint(1,3),
             "voronoi_refract": 1.46,
             "with_voronoi": 2,
         }
