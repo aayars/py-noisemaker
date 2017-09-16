@@ -123,7 +123,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         if warp_interp is None:
             warp_interp = spline_order
 
-        warp_freq = freq if warp_freq is None else freq_for_shape(warp_freq, shape)
+        warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else freq_for_shape(warp_freq, shape)
 
         tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
 
@@ -554,13 +554,12 @@ def erode(tensor, shape):
     y_dir /= length
 
     inertia = tf.random_normal([count], mean=0.75, stddev=0.25)
-    # inertia = tf.ones([count])
 
     out = tf.zeros(shape)
 
     colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
-    values = value_map(tensor, shape, keep_dims=True)
+    values = value_map(convolve(ConvKernel.blur, tensor, shape), shape, keep_dims=True)
 
     x_index = tf.cast(x, tf.int32)
     y_index = tf.cast(y, tf.int32)
@@ -588,7 +587,7 @@ def erode(tensor, shape):
         g_x = blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
-        length = distance(g_x, g_y, 1)
+        length = distance(g_x, g_y, 2)
 
         x_dir = blend(x_dir, g_x / length, inertia)
         y_dir = blend(y_dir, g_y / length, inertia)
@@ -1261,7 +1260,6 @@ def posterize(tensor, levels):
 
 def inner_tile(tensor, shape, freq):
     """
-    WIP for pop art filter.
     """
 
     if isinstance(freq, int):
@@ -1669,16 +1667,21 @@ def pop(tensor, shape):
 
     images = []
 
-    ref = _downsample(resample(tensor, shape), shape, [int(shape[0] / 4), int(shape[1] / 4), shape[2]])
+    freq = random.randint(1,3) * 2
+    freq_squared = freq * freq
 
-    for i in range(4):
+    ref = _downsample(resample(tensor, shape), shape, [int(shape[0] / (freq * 2)), int(shape[1] / (freq * 2)), shape[2]])
+
+    for i in range(freq * freq):
         image = posterize(ref, random.randint(3,6))
         image = image % tf.random_normal([3], mean=.5, stddev=.25)
         images.append(image)
 
-    x, y = point_cloud(2, distrib=PointDistribution.square, shape=shape, corners=True)
+    x, y = point_cloud(freq, distrib=PointDistribution.square, shape=shape, corners=True, drift=0 if random.random() < .5 else random.random())
 
-    return voronoi(None, shape, diagram_type=VoronoiDiagramType.collage, xy=(x, y, len(x)), collage_images=images, image_count=4)
+    out = voronoi(None, shape, diagram_type=VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=random.randint(0, 3), collage_images=images, image_count=4)
+
+    return outline(out, shape, sobel_func=1)
 
 
 def offset(tensor, shape, x=0, y=0):

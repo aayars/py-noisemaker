@@ -172,7 +172,7 @@ def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.
     # Keep a node in the center of the image, or pin to corner:
     drift_amount = .5 / freq
 
-    if ((freq * freq) % 2) == 0:
+    if (freq % 2) == 0:
         drift = 0.0 if not corners else drift_amount
 
     else:

@@ -14,6 +14,7 @@ setup(name='noisemaker',
       entry_points='''
         [console_scripts]
         artmaker=noisemaker.scripts.artmaker:main
+        artmangler=noisemaker.scripts.artmangler:main
         collagemaker=noisemaker.scripts.collagemaker:main
         glitchmaker=noisemaker.scripts.glitchmaker:main
         noisemaker=noisemaker.scripts.noisemaker:main

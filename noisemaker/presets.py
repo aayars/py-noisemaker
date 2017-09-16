@@ -5,6 +5,108 @@ import random
 import noisemaker.generators as generators
 import noisemaker.points as points
 
+
+EFFECTS_PRESETS = {
+    "be-kind-rewind": {
+        "kwargs": {
+            "with_aberration": random.random() * .02,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+            "with_snow": .625 + random.random() * .125,
+            "with_vhs": True,
+        },
+    },
+
+    "erosion-worms": {
+        "kwargs": {
+            "with_erosion_worms": True
+        }
+    },
+
+    "funhouse": {
+        "kwargs": {
+            "warp_freq": [random.randint(2,4), random.randint(1,4)],
+            "warp_octaves": random.randint(1,4),
+            "warp_range": .25 + random.random() * .5,
+        },
+    },
+
+    "glitchin-out": {
+        "kwargs": {
+            "with_aberration": random.random() * .02 if (random.random() > .333) else 0,
+            "with_bloom": .5 + random.random() * .5 if (random.random() > .5) else 0,
+        },
+
+        "post_kwargs": {
+            "with_crt": random.random() > .25,
+            "with_dither": random.random() * .25 if random.random() > .5 else 0,
+            "with_glitch": random.random() > .25,
+            "with_scan_error": random.random() > .5,
+        },
+    },
+
+    "light-leak": {
+        "post_kwargs": {
+            "with_light_leak": .5 + random.random() * .5,
+        }
+    },
+
+    "pop-art": {
+        "kwargs": {
+            "with_pop": True
+        },
+    },
+
+    "mosaic": {
+        "kwargs": {
+            "point_freq": 10,
+            "voronoi_alpha": .75 + random.random() * .25,
+            "with_voronoi": 5,
+            "with_bloom": .25 + random.random() * .5,
+        }
+    },
+
+    "sobel-operator": {
+        "kwargs": {
+            "invert": random.random() > .5,
+            "with_sobel": random.randint(1, 3),
+        }
+    },
+
+    "voronoid": {
+        "kwargs": {
+            "point_freq": random.randint(4, 10),
+            "voronoi_refract": random.random(),
+            "voronoi_func": random.randint(1, 3),
+            "with_voronoi": [1, 3, 6][random.randint(0, 2)]
+        }
+    },
+
+    "wormhole-xtreme": {
+        "kwargs": {
+            "with_wormhole": True,
+            "wormhole_stride": .025 + random.random() * .05,
+            "wormhole_kink": .5 + random.random(),
+        }
+    },
+
+    "worms": {
+        "kwargs": {
+            "with_worms": random.randint(1,4),
+            "worms_density": 500,
+            "worms_duration": 1,
+            "worms_kink": 2.5,
+            "worms_stride": 2.5,
+            "worms_stride_deviation": 2.5,
+        }
+    },
+
+}
+
+
 PRESETS = {
     "2d-chess": {
         "kwargs": {
@@ -917,7 +1019,8 @@ PRESETS = {
     }
 }
 
-def load(preset_name):
+
+def load(preset_name, preset_set=None):
     """
     Load a named preset.
 
@@ -929,12 +1032,15 @@ def load(preset_name):
     :return: Tuple(dict, dict)
     """
 
-    if preset_name == "random":
-        preset_name = list(PRESETS)[random.randint(0, len(PRESETS) - 1)]
+    if preset_set is None:
+        preset_set = PRESETS
 
-        preset = PRESETS.get(preset_name)
+    if preset_name == "random":
+        preset_name = list(preset_set)[random.randint(0, len(preset_set) - 1)]
+
+        preset = preset_set.get(preset_name)
 
     else:
-        preset = PRESETS.get(preset_name, {})
+        preset = preset_set.get(preset_name, {})
 
     return preset.get("kwargs", {}), preset.get("post_kwargs", {}), preset_name
