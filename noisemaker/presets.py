@@ -888,9 +888,11 @@ def load(preset_name):
     """
 
     if preset_name == "random":
-        preset = PRESETS.get(list(PRESETS)[random.randint(0, len(PRESETS) - 1)])
+        preset_name = list(PRESETS)[random.randint(0, len(PRESETS) - 1)]
+
+        preset = PRESETS.get(preset_name)
 
     else:
         preset = PRESETS.get(preset_name, {})
 
-    return preset.get("kwargs", {}), preset.get("post_kwargs", {})
+    return preset.get("kwargs", {}), preset.get("post_kwargs", {}), preset_name

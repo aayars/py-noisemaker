@@ -21,11 +21,11 @@ import noisemaker.recipes as recipes
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, name, preset_name):
-    kwargs, post_kwargs = presets.load(preset_name)
+    kwargs, post_kwargs, preset_name = presets.load(preset_name)
 
     kwargs["shape"] = [height, width, channels]
 
-    print(kwargs)
+    # print(kwargs)
 
     if "freq" not in kwargs:
         kwargs["freq"] = 3
@@ -46,4 +46,4 @@ def main(ctx, width, height, channels, name, preset_name):
     with tf.Session().as_default():
         save(tensor, name)
 
-    print(name)
+    print(preset_name)
