@@ -533,13 +533,15 @@ PRESETS = {
 
     "isoform": {
         "kwargs": {
-            "invert": (random.random() < .5),
+            "hsv_range": random.random(),
+            "invert": random.random() < .5,
+            "post_deriv": 0 if random.random() < .5 else random.randint(1,3),
             "post_refract_range": .25 + random.random() * .25,
-            "ridges": (random.random() < .5),
+            "ridges": random.random() < .5,
             "voronoi_alpha": .75 + random.random() * .25,
-            "voronoi_func": 3,
-            "with_outline":  3,
-            "with_voronoi": random.randint(1,2),
+            "voronoi_func": random.randint(1, 3),
+            "with_outline":  random.randint(1, 3),
+            "with_voronoi": random.randint(1, 2),
         }
     },
      
