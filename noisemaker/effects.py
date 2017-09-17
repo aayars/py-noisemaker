@@ -679,11 +679,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             x0_index += int(width * .5)
             reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
 
-    reference_x = value_map(reference_x, shape)
-    reference_y = value_map(reference_y, shape)
-
-    reference_x = reference_x * displacement * width
-    reference_y = reference_y * displacement * height
+    reference_x = value_map(reference_x, shape) * displacement * width
+    reference_y = value_map(reference_y, shape) * displacement * height
 
     # Bilinear interpolation of corners
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
@@ -1103,10 +1100,10 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     half_height = int(height * .5)
 
     # Wrapping edges!
-    x0_diff = (x_index - x - half_width)
-    x1_diff = (x_index - x + half_width)
-    y0_diff = (y_index - y - half_height)
-    y1_diff = (y_index - y + half_height)
+    x0_diff = x_index - x - half_width
+    x1_diff = x_index - x + half_width
+    y0_diff = y_index - y - half_height
+    y1_diff = y_index - y + half_height
 
     x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff)) / width
     y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff)) / height
@@ -1118,7 +1115,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type == VoronoiDiagramType.flow:
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
         x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y_diff += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
 
     dist = distance(x_diff, y_diff, dist_func)
 
