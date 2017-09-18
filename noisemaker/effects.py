@@ -19,7 +19,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
-                 posterize_levels=0, with_erosion_worms=False, warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
+                 posterize_levels=0,
+                 with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0, erosion_worms_alpha=1.0,
+                 warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None,
@@ -61,6 +63,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float deriv_alpha: Derivative distance function alpha blending amount
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
+    :param float erosion_worms_density: Default: 50
+    :param float erosion_worms_iterations: Default: 50
+    :param float erosion_worms_contraction: Inverse of stride. Default: 1.0, smaller=longer steps
+    :param float erosion_worms_alpha:
     :param float vortex_range: Vortex tiling amount
     :param float warp_range: Orthogonal distortion gradient.
     :param int warp_octaves: Multi-res iteration count for warp
@@ -147,7 +153,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     if with_erosion_worms:
-        tensor = erode(tensor, shape)
+        tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations, contraction=erosion_worms_contraction, alpha=erosion_worms_alpha)
 
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel)
@@ -530,7 +536,7 @@ def crease(tensor):
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def erode(tensor, shape):
+def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25):
     """
     WIP hydraulic erosion effect.
     """
@@ -540,8 +546,7 @@ def erode(tensor, shape):
 
     height, width, channels = shape
 
-    count = int(math.sqrt(height * width) * 25)
-    iterations = 50
+    count = int(math.sqrt(height * width) * density)
 
     x = tf.random_uniform([count]) * (width - 1)
     y = tf.random_uniform([count]) * (height - 1)
@@ -587,7 +592,7 @@ def erode(tensor, shape):
         g_x = blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
-        length = distance(g_x, g_y, 2)
+        length = distance(g_x, g_y, 1) * contraction
 
         x_dir = blend(x_dir, g_x / length, inertia)
         y_dir = blend(y_dir, g_y / length, inertia)
@@ -596,7 +601,7 @@ def erode(tensor, shape):
         x = (x + x_dir) % width
         y = (y + y_dir) % height
 
-    return tf.maximum(tf.minimum(out, 1.0), 0.0)
+    return blend(tensor, tf.maximum(tf.minimum(out, 1.0), 0.0), alpha)
 
 
 def reindex(tensor, shape, displacement=.5):

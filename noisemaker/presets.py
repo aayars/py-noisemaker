@@ -22,7 +22,11 @@ EFFECTS_PRESETS = {
 
     "erosion-worms": {
         "kwargs": {
-            "with_erosion_worms": True
+            "with_erosion_worms": True,
+            "erosion_worms_alpha": .25 + random.random() * .75,
+            "erosion_worms_contraction": .5 + random.random() * .5,
+            "erosion_worms_density": random.randint(25,100),
+            "erosion_worms_iterations": random.randint(25,100),
         }
     },
 
