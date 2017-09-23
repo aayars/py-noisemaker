@@ -53,8 +53,12 @@ EFFECTS_PRESETS = {
     },
 
     "light-leak": {
+        "kwargs": {
+            "with_bloom": .25 + random.random() * .5,
+        },
+
         "post_kwargs": {
-            "with_light_leak": .333 + random.random() * .333,
+            "with_light_leak": .5 + random.random() * .5,
         }
     },
 
