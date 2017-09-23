@@ -16,7 +16,7 @@ import noisemaker.util as util
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_bg=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
+                 worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0,
@@ -44,7 +44,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float worms_duration: Iteration multiplier (larger == slower)
     :param float worms_stride: Mean travel distance per iteration
     :param float worms_stride_deviation: Per-worm travel distance deviation
-    :param float worms_bg: Background color brightness for worms
+    :param float worms_alpha: Fade worms (0..1)
     :param float worms_kink: Worm twistiness
     :param DistanceFunction|int sobel: Sobel operator distance function
     :param DistanceFunction|int outline: Outlines distance function (multiply)
@@ -147,7 +147,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_worms:
         tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
-                       stride=worms_stride, stride_deviation=worms_stride_deviation, bg=worms_bg, kink=worms_kink)
+                       stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
@@ -749,7 +749,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, bg=.5, kink=1.0, colors=None):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, colors=None):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -765,7 +765,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :param float duration: Iteration multiplier (larger == slower)
     :param float stride: Mean travel distance per iteration
     :param float stride_deviation: Per-worm travel distance deviation
-    :param float bg: Background color intensity.
+    :param float alpha: Fade worms (0..1)
     :param float kink: Make your worms twist.
     :param Tensor colors: Optional starting colors, if not from `tensor`.
     :return: Tensor
@@ -802,7 +802,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = color_source * bg
+    out = tf.zeros(shape)
 
     scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
 
@@ -822,7 +822,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 
-    return tf.sqrt(normalize(out))
+    return blend(tensor, tf.sqrt(normalize(out)), alpha)
 
 
 def wormhole(tensor, shape, kink, input_stride):

@@ -211,7 +211,7 @@ def light_leak(tensor, shape, alpha=.25):
     """
     """
 
-    x, y = effects.point_cloud(6, distrib=effects.PointDistribution.v_hex, shape=shape)
+    x, y = effects.point_cloud(6, distrib=effects.PointDistribution.grid_members()[random.randint(0, len(effects.PointDistribution.grid_members()) - 1)], shape=shape)
 
     leak = effects.voronoi(tensor, shape, diagram_type=effects.VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
     leak = effects.wormhole(leak, shape, kink=1.0, input_stride=.25)

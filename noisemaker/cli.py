@@ -292,10 +292,10 @@ def worms_stride_deviation_option(**attrs):
     return float_option("--worms-stride-deviation", **attrs)
 
 
-def worms_bg_option(**attrs):
-    attrs.setdefault("help", "Worms: Background color brightness")
+def worms_alpha_option(**attrs):
+    attrs.setdefault("help", "Worms: Output {0}".format(ALPHA_BLENDING_HINT))
 
-    return float_option("--worms-bg", **attrs)
+    return float_option("--worms-alpha", **attrs)
 
 
 def worms_kink_option(**attrs):
