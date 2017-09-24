@@ -267,6 +267,24 @@ PRESETS = {
         }
     },
 
+    "bubble-machine": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "uniform",
+            "freq": random.randint(3, 6) * 2,
+            "invert": random.randint(0, 1),
+            "mask": ["h_hex", "v_hex"][random.randint(0, 1)],
+            "posterize_levels": random.randint(8, 16),
+            "reverb_iterations": random.randint(1, 3),
+            "spline_order": random.randint(1, 3),
+            "with_reverb": random.randint(3, 5),
+            "with_outline": 1,
+            "with_wormhole": True,
+            "wormhole_kink": 1.0 + random.random() * 5,
+            "wormhole_stride": .25 + random.random() * .75,
+        }
+    },
+
     "circulent": {
         "kwargs": {
             "corners": True,
@@ -295,6 +313,28 @@ PRESETS = {
             "voronoi_refract": random.randint(6, 12),
             "with_bloom": 0.25 + random.random() * .5,
             "with_voronoi": 2,
+        }
+    },
+
+    "crop-spirals": {
+        "kwargs": {
+            "distrib": "laplace",
+            "corners": False,
+            "freq": 10,
+            "hsv_range": 1,
+            "hsv_rotation": .26,
+            "hsv_saturation": .72,
+            "mask": "v_hex",
+            "reindex_range": .17,
+            "spline_order": 2,
+            "with_reverb": 2,
+            "with_worms": 3,
+            "worms_alpha": .95,
+            "worms_density": 500,
+            "worms_duration": 1,
+            "worms_kink": 2.21,
+            "worms_stride": .55,
+            "worms_stride_deviation": .06,
         }
     },
 
@@ -677,6 +717,20 @@ PRESETS = {
         }
     },
 
+    "octave-rings": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "ones",
+            "freq": random.randint(4, 10),
+            "hsv_range": random.random(),
+            "hsv_saturation": 0.5,
+            "mask": "waffle",
+            "octaves": random.randint(2, 5),
+            "sin": random.random() * 5.0,
+            "with_outline": 1,
+        }
+    },
+
     "oldschool": {
         "kwargs": {
             "corners": True,
@@ -748,6 +802,35 @@ PRESETS = {
         }
     },
 
+    "redmond": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "uniform",
+            "freq": 8,
+            "hsv_range": random.random() * 4.0,
+            "invert": random.randint(0, 1),
+            "mask": "square",
+            "point_generations": 2,
+            "point_freq": 2,
+            "point_distrib": ["chess", "square"][random.randint(0, 1)],
+            "point_corners": True,
+            "reverb_iterations": random.randint(1, 3),
+            "spline_order": 0,
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_inverse": random.randint(0, 1),
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(0, 3),
+            "with_bloom": .25 + random.random() * .5,
+            "with_reverb": random.randint(3, 6),
+            "with_voronoi": random.randint(1, 6),
+        },
+
+        "post_kwargs": {
+            "with_dither": 0.13,
+            "with_snow": 0.25,
+        }
+    },
+
     "reef": {
         "kwargs": {
             "freq": random.randint(3, 8),
@@ -775,20 +858,6 @@ PRESETS = {
             "sin": random.random() * 10.0,
             "voronoi_alpha": .5 + random.random() * .5,
             "with_voronoi": 6,
-        }
-    },
-
-    "rings": {
-        "kwargs": {
-            "corners": True,
-            "distrib": "ones",
-            "freq": random.randint(4, 10),
-            "hsv_range": random.random(),
-            "hsv_saturation": 0.5,
-            "mask": "waffle",
-            "octaves": random.randint(2, 5),
-            "sin": random.random() * 5.0,
-            "with_outline": 1,
         }
     },
 
@@ -981,6 +1050,23 @@ PRESETS = {
             "spline_order": random.randint(2, 3),
             "with_wormhole": True,
             "wormhole_stride": random.random() * .0125,
+        }
+    },
+
+    "vortex-checkers": {
+        "kwargs": {
+            "freq": random.randint(4, 10) * 2,
+            "distrib": ["ones", "uniform", "laplace"][random.randint(0, 2)],
+            "mask": "chess",
+            "hsv_range": random.random(),
+            "hsv_saturation": random.random(),
+            "outline": 3,
+            "posterize": random.randint(10, 15),
+            "reverb_iterations": random.randint(2, 4),
+            "sin": .5 + random.random(),
+            "spline_order": 0,
+            "vortex_range": 2.5 + random.random() * 5,
+            "with_reverb": random.randint(3, 5),
         }
     },
 
