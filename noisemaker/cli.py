@@ -246,6 +246,12 @@ def reverb_option(**attrs):
     return int_option("--reverb", type=click.IntRange(1, 10), default=None, **attrs)
 
 
+def reverb_iterations_option(**attrs):
+    attrs.setdefault("help", "Reverb: Re-reverberate N times")
+
+    return int_option("--reverb-iterations", type=click.IntRange(1, 4), default=1, **attrs)
+
+
 def clut_option(**attrs):
     attrs.setdefault("help", "Color lookup table (path to PNG or JPEG image)")
 

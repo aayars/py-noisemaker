@@ -39,6 +39,7 @@ import noisemaker.recipes as recipes
 @cli.refract_option()
 @cli.reindex_option()
 @cli.reverb_option()
+@cli.reverb_iterations_option()
 @cli.clut_option()
 @cli.clut_range_option()
 @cli.clut_horizontal_option()
@@ -97,7 +98,7 @@ import noisemaker.recipes as recipes
 @cli.name_option()
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
-         reflect, refract, reindex, reverb, post_reflect, post_refract, clut, clut_horizontal, clut_range,
+         reflect, refract, reindex, reverb, reverb_iterations, post_reflect, post_refract, clut, clut_horizontal, clut_range,
          worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
          wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
@@ -109,7 +110,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
     shape = [height, width, channels]
 
     tensor = generators.multires(freq=freq, shape=shape, octaves=octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
-                                 reflect_range=reflect, refract_range=refract, reindex_range=reindex, with_reverb=reverb,
+                                 reflect_range=reflect, refract_range=refract, reindex_range=reindex, with_reverb=reverb, reverb_iterations=reverb_iterations,
                                  post_reflect_range=post_reflect, post_refract_range=post_refract,
                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,

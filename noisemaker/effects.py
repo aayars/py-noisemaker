@@ -24,7 +24,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
-                 with_bloom=None, with_reverb=None, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
+                 with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  input_dir=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -83,6 +83,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
     :param None|int with_reverb: Reverb octave count
+    :param int reverb_iterations: Re-reverberation N times
     :param None|float with_light_leak: Light leak effect alpha
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
@@ -176,7 +177,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = outline(tensor, shape, sobel_func=with_outline)
 
     if with_reverb:
-        tensor = reverb(tensor, shape, with_reverb)
+        tensor = reverb(tensor, shape, with_reverb, iterations=reverb_iterations)
 
     if with_pop:
         tensor = pop(tensor, shape)
@@ -1548,13 +1549,14 @@ def offset(tensor, shape, x=0, y=0):
     return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
 
 
-def reverb(tensor, shape, octaves):
+def reverb(tensor, shape, octaves, iterations=1):
     """
     Multi-octave "reverberation" of input image tensor
 
     :param Tensor tensor:
     :param float[int] shape:
     :param int octaves:
+    :param int iterations: Re-reverberate N times. Gratuitous!
     """
 
     height, width, channels = shape
@@ -1563,15 +1565,16 @@ def reverb(tensor, shape, octaves):
 
     out = reference
 
-    for octave in range(1, octaves + 1):
-        multiplier = 2 ** octave
+    for i in range(iterations):
+        for octave in range(1, octaves + 1):
+            multiplier = 2 ** octave
 
-        octave_shape = [int(width / multiplier), int(height / multiplier), channels]
+            octave_shape = [int(width / multiplier), int(height / multiplier), channels]
 
-        if not all(octave_shape):
-            break
+            if not all(octave_shape):
+                break
 
-        out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
+            out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
 
     return 1 - normalize(out)
 
