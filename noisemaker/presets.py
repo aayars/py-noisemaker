@@ -101,7 +101,8 @@ EFFECTS_PRESETS = {
 
     "reverb": {
         "kwargs": {
-            "with_reverb": random.randint(4, 10),
+            "reverb_iterations": random.randint(1, 4),
+            "with_reverb": random.randint(3, 6),
         },
     },
 
@@ -185,7 +186,20 @@ PRESETS = {
         }
     },
 
-    "alien-terrain": {
+    "alien-terrain-multires": {
+        "kwargs": {
+            "deriv": 1,
+            "deriv_alpha": .5,
+            "hsv_saturation": .5,
+            "invert": 1,
+            "lattice_drift": 1,
+            "octaves": 8,
+            "shadow": .75,
+            "with_bloom": .25,
+        }
+    },
+
+    "alien-terrain-worms": {
         "kwargs": {
             "deriv": 1,
             "deriv_alpha": 0.25 + random.random() * .25,
@@ -218,19 +232,6 @@ PRESETS = {
 
         "post_kwargs": {
             "with_dither": .1 + random.random() * .05,
-        }
-    },
-
-    "alien-terrain-2": {
-        "kwargs": {
-            "deriv": 1,
-            "deriv_alpha": .5,
-            "hsv_saturation": .5,
-            "invert": 1,
-            "lattice_drift": 1,
-            "octaves": 8,
-            "shadow": .75,
-            "with_bloom": .25,
         }
     },
 
@@ -361,16 +362,26 @@ PRESETS = {
         }
     },
 
-    "dla": {
+    "dla-cells": {
         "kwargs": {
             "dla_padding": random.randint(2, 8),
-            "hsv_range": 1.5,
+            "hsv_range": random.random() * 1.5,
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(2, 8),
             "voronoi_alpha": random.random(),
-            "with_bloom": random.random(),
+            "with_bloom": .25 + random.random() * .25,
             "with_dla": .5 + random.random() * .5,
             "with_voronoi": 0 if random.random() < .5 else random.randint(1, 5),
+        }
+    },
+
+    "dla-forest": {
+        "kwargs": {
+            "dla_padding": random.randint(2, 8),
+            "reverb_iterations": random.randint(2, 4),
+            "with_bloom": .25 + random.random() * .25,
+            "with_dla": 1,
+            "with_reverb": random.randint(3, 6),
         }
     },
 
@@ -1026,7 +1037,7 @@ PRESETS = {
          }
      },
 
-    "woahdude": {
+    "woahdude-voronoi-refract": {
         "kwargs": {
             "freq": 4,
             "hsv_range": 2,
@@ -1039,7 +1050,7 @@ PRESETS = {
         }
     },
 
-    "woahdude-2": {
+    "woahdude-octave-warp": {
         "kwargs": {
             "freq": random.randint(2, 3),
             "hsv_range": random.random() * 3.0,
