@@ -43,7 +43,7 @@ def main(ctx, width, height, channels, name, preset_name):
 
     tensor = recipes.post_process(tensor, **post_kwargs)
 
+    print(preset_name)
+
     with tf.Session().as_default():
         save(tensor, name)
-
-    print(preset_name)
