@@ -894,6 +894,22 @@ PRESETS = {
         }
     },
 
+    "the-data-must-flow": {
+        "kwargs": {
+            "freq": 2,
+            "hsv_range": random.random() * 2.5,
+            "invert": 1,
+            "with_bloom": .25 + random.random() * .5,
+            "with_sobel": 1,
+            "with_worms": 1,
+            "worms_alpha": .9 + random.random() * .1,
+            "worms_density": 1.5 + random.random(),
+            "worms_duration": 1,
+            "worms_stride": 8,
+            "worms_stride_deviation": 6,
+         }
+    },
+
     "traceroute": {
         "kwargs": {
             "corners": True,

@@ -301,7 +301,7 @@ def worms_stride_deviation_option(**attrs):
 def worms_alpha_option(**attrs):
     attrs.setdefault("help", "Worms: Output {0}".format(ALPHA_BLENDING_HINT))
 
-    return float_option("--worms-alpha", **attrs)
+    return float_option("--worms-alpha", default=.875, **attrs)
 
 
 def worms_kink_option(**attrs):
