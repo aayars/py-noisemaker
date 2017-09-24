@@ -1379,9 +1379,9 @@ def bloom(tensor, shape, alpha=.5):
 
     height, width, channels = shape
 
-    shape_0 = [int(height * .005), int(width * .005), channels]
-    shape_1 = [int(height * .01), int(width * .01), channels]
-    shape_2 = [int(height * .02), int(width * .02), channels]
+    shape_0 = [max(int(height * .005), 1), max(int(width * .005), 1), channels]
+    shape_1 = [max(int(height * .01), 1), max(int(width * .01), 1), channels]
+    shape_2 = [max(int(height * .02), 1), max(int(width * .02), 1), channels]
 
     bright_spots = tf.maximum(tensor * 2 - 1, 0.0)
 
