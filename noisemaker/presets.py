@@ -20,6 +20,20 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "corrupt": {
+        "kwargs": {
+            "warp_freq": [random.randint(4,7), random.randint(1,3)],
+            "warp_octaves": random.randint(3,5),
+            "warp_range": .05 + random.random() * .45,
+            "warp_interp": 0,
+            "with_bloom": .5 + random.random() * .5,
+        },
+
+        "post_kwargs": {
+            "with_glitch": random.random() > .125,
+        }
+    },
+
     "erosion-worms": {
         "kwargs": {
             "with_erosion_worms": True,
