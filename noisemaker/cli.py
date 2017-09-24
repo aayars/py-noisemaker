@@ -508,6 +508,18 @@ def light_leak_option(**attrs):
     return float_option("--light-leak", **attrs)
 
 
+def vignette_option(**attrs):
+    attrs.setdefault("help", "Art effects: Vignette {0}".format(ALPHA_BLENDING_HINT))
+
+    return float_option("--vignette", **attrs)
+
+
+def vignette_brightness_option(**attrs):
+    attrs.setdefault("help", "Art effects: Vignette edge brightness (0-1)")
+
+    return float_option("--vignette-brightness", **attrs)
+
+
 def pop_option(**attrs):
     attrs.setdefault("help", "Art effects: Pop art".format(ALPHA_BLENDING_HINT))
 

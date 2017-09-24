@@ -69,11 +69,10 @@ EFFECTS_PRESETS = {
     "light-leak": {
         "kwargs": {
             "with_bloom": .25 + random.random() * .5,
-        },
-
-        "post_kwargs": {
             "with_light_leak": .5 + random.random() * .5,
-        }
+            "with_vignette": .333 + random.random() * .333 if random.random() < .5 else None,
+            "vignette_brightness": random.randint(0, 1),
+        },
     },
 
     "mosaic": {
@@ -93,7 +92,7 @@ EFFECTS_PRESETS = {
 
     "reindex": {
         "kwargs": {
-            "reindex_range": .125 + random.random() * 2.375,
+            "reindex_range": .125 + random.random() * .125,
         },
     },
 

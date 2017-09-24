@@ -24,7 +24,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
-                 with_bloom=None, with_reverb=None,
+                 with_bloom=None, with_reverb=None, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  input_dir=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -83,6 +83,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
     :param None|int with_reverb: Reverb octave count
+    :param None|float with_light_leak: Light leak effect alpha
+    :param None|float with_vignette: Vignette effect alpha
+    :param None|float vignette_brightness: Vignette effect brightness
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
 
     :return: Tensor
@@ -182,6 +185,12 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_bloom:
         tensor = bloom(tensor, shape, alpha=with_bloom)
+
+    if with_light_leak:
+        tensor = light_leak(tensor, shape, with_light_leak)
+
+    if with_vignette:
+        tensor = vignette(tensor, shape, brightness=vignette_brightness, alpha=with_vignette)
 
     tensor = normalize(tensor)
 
@@ -1726,3 +1735,36 @@ def reverb(tensor, shape, octaves):
         out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
 
     return 1 - normalize(out)
+
+
+def light_leak(tensor, shape, alpha=.25):
+    """
+    """
+
+    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], shape=shape)
+
+    leak = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
+    leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
+
+    leak = bloom(leak, shape, 1.0)
+    leak = convolve(ConvKernel.blur, leak, shape)
+    leak = convolve(ConvKernel.blur, leak, shape)
+    leak = convolve(ConvKernel.blur, leak, shape)
+
+    leak = 1 - ((1 - tensor) * (1 - leak))
+
+    leak = center_mask(tensor, leak, shape)
+    leak = center_mask(tensor, leak, shape)
+
+    return blend(tensor, leak, alpha)
+
+
+def vignette(tensor, shape, brightness=0.0, alpha=1.0):
+    edges = convolve(ConvKernel.blur, tensor, shape)
+    edges = convolve(ConvKernel.blur, edges, shape)
+    edges = convolve(ConvKernel.blur, edges, shape)
+
+    edges = center_mask(edges, tf.ones(shape) * brightness, shape)
+    edges = center_mask(tensor, edges, shape)
+
+    return blend(tensor, edges, alpha)

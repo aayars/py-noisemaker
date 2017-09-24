@@ -9,7 +9,7 @@ import noisemaker.effects as effects
 import noisemaker.points as points
 
 
-def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False, with_light_leak=None):
+def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False):
     """
     Apply complex post-processing recipes.
 
@@ -22,7 +22,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
-    :param None|float with_light_leak: Light leak filter
     :return: Tensor
     """
 
@@ -43,9 +42,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_crt:
         tensor = crt(tensor, shape)
-
-    if with_light_leak:
-        tensor = light_leak(tensor, shape, with_light_leak)
 
     return tensor
 
@@ -205,25 +201,3 @@ def dither(tensor, shape, amount):
     white_noise = basic([height, width], [height, width, 1])
 
     return effects.blend(tensor, white_noise, amount)
-
-
-def light_leak(tensor, shape, alpha=.25):
-    """
-    """
-
-    x, y = effects.point_cloud(6, distrib=effects.PointDistribution.grid_members()[random.randint(0, len(effects.PointDistribution.grid_members()) - 1)], shape=shape)
-
-    leak = effects.voronoi(tensor, shape, diagram_type=effects.VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
-    leak = effects.wormhole(leak, shape, kink=1.0, input_stride=.25)
-
-    leak = effects.bloom(leak, shape, 1.0)
-    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
-    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
-    leak = effects.convolve(effects.ConvKernel.blur, leak, shape)
-
-    leak = 1 - ((1 - tensor) * (1 - leak))
-
-    leak = effects.center_mask(tensor, leak, shape)
-    leak = effects.center_mask(tensor, leak, shape)
-
-    return effects.blend(tensor, leak, alpha)
