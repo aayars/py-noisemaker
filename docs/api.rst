@@ -24,6 +24,14 @@ noisemaker.effects
     :undoc-members:
     :show-inheritance:
 
+noisemaker.presets
+------------------
+
+.. automodule:: noisemaker.presets
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 noisemaker.recipes
 ------------------
 
@@ -32,18 +40,18 @@ noisemaker.recipes
     :undoc-members:
     :show-inheritance:
 
-noisemaker.util
+noisemaker.constants
 ------------------
 
-.. automodule:: noisemaker.util
+.. automodule:: noisemaker.constants
     :members:
     :undoc-members:
     :show-inheritance:
 
-noisemaker.presets
+noisemaker.util
 ------------------
 
-.. automodule:: noisemaker.presets
+.. automodule:: noisemaker.util
     :members:
     :undoc-members:
     :show-inheritance:

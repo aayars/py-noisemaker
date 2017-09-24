@@ -542,7 +542,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     reference_x = value_map(reference_x, shape) * displacement * width
     reference_y = value_map(reference_y, shape) * displacement * height
 
-    # Bilinear interpolation of corners
+    # Bilinear interpolation of midpoints
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
     x1_offsets = (x0_offsets + 1) % width
     y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
@@ -1473,7 +1473,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
                 for y_offset in expanded_offsets:
                     expanded_neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
 
-            print(len(walkers))
+            # print(len(walkers))
 
             clustered.append(walker)
 
