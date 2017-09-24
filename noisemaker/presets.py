@@ -71,10 +71,10 @@ EFFECTS_PRESETS = {
 
     "light-leak": {
         "kwargs": {
+            "vignette_brightness": random.randint(0, 1),
             "with_bloom": .25 + random.random() * .5,
             "with_light_leak": .5 + random.random() * .5,
             "with_vignette": .333 + random.random() * .333 if random.random() < .5 else None,
-            "vignette_brightness": random.randint(0, 1),
         },
     },
 
@@ -646,7 +646,7 @@ PRESETS = {
             "invert": 1,
             "posterize_levels": 24,
             "with_aberration": 0.01,
-            "with_bloom": 0.5,
+            "with_bloom": .25 + random.random() * .5,
             "with_sobel": 1,
             "with_voronoi": 6,
             "with_wormhole": True,
@@ -720,7 +720,7 @@ PRESETS = {
             "posterize_levels": 4,
             "warp_octaves": 8,
             "warp_range": 1,
-            "with_bloom": 1,
+            "with_bloom": .5 + random.random() * .5,
             "with_outline": 1,
         },
 
@@ -739,7 +739,7 @@ PRESETS = {
             "voronoi_func": random.randint(2, 3),
             "voronoi_nth": random.randint(0, 4),
             "voronoi_refract": random.randint(1, 3),
-            "with_bloom": random.random() * .5,
+            "with_bloom": .25 + random.random() * .5,
             "with_voronoi": random.randint(1, 2),
         },
 
@@ -760,7 +760,7 @@ PRESETS = {
             "sin": random.random() * 2.5,
             "voronoi_alpha": .5 + random.random() * .5,
             "voronoi_refract": random.randint(8, 16),
-            "with_bloom": 0.5,
+            "with_bloom": .25 + random.random() * .5,
             "with_voronoi": 6,
         }
     },
@@ -903,7 +903,7 @@ PRESETS = {
             "point_freq": 2,
             "spline_order": 0,
             "vortex_range": random.randint(8, 25),
-            "with_bloom": random.random(),
+            "with_bloom": .25 + random.random() * .5,
             "with_voronoi": 5,
         }
     },
@@ -1058,7 +1058,7 @@ PRESETS = {
             "sin": random.randint(5, 15),
             "warp_range": random.randint(3, 5),
             "warp_octaves": 3,
-            "with_bloom": random.random(),
+            "with_bloom": .25 + random.random() * .5,
         }
     },
 
