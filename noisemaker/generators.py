@@ -222,7 +222,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
-             post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
+             post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False, with_reverb=None,
              hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
              **post_process_args):
     """
@@ -244,6 +244,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False,
     :param float reflect_range: Per-octave derivative-based distort gradient
     :param float refract_range: Per-octave self-distort gradient
     :param float reindex_range: Per-octave self-reindexing gradient
+    :param None|int with_reverb: Post-reduce tiled octave count
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
     :param None|ValueMask mask:
@@ -285,7 +286,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False,
         tensor += layer / multiplier
 
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and not hsv, spline_order=spline_order,
-                                  reflect_range=post_reflect_range, refract_range=post_refract_range,
+                                  reflect_range=post_reflect_range, refract_range=post_refract_range, with_reverb=with_reverb,
                                   deriv=post_deriv, deriv_func=deriv_func, **post_process_args)
 
     return tensor

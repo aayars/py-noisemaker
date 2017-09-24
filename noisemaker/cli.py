@@ -27,7 +27,7 @@ INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
 NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
 
 
-def validate_at_least_one(allow_none=False):
+def validate_more_than_one(allow_none=False):
     """
     """
 
@@ -109,7 +109,7 @@ def option(*param_decls, **attrs):
 def freq_option(**attrs):
     attrs.setdefault("help", "Minimum noise frequency {0}".format(FREQ_HINT))
 
-    return int_option("--freq", default=3, callback=validate_at_least_one(), **attrs)
+    return int_option("--freq", default=3, callback=validate_more_than_one(), **attrs)
 
 
 def width_option(**attrs):
@@ -211,7 +211,7 @@ def warp_interp_option(**attrs):
 def warp_freq_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Override --freq for warp frequency {0}".format(FREQ_HINT))
 
-    return int_option("--warp-freq", callback=validate_at_least_one(allow_none=True), default=None, **attrs)
+    return int_option("--warp-freq", callback=validate_more_than_one(allow_none=True), default=None, **attrs)
 
 
 def post_reflect_option(**attrs):
@@ -242,6 +242,12 @@ def reindex_option(**attrs):
     attrs.setdefault("help", "Color re-indexing range {0}".format(ENTIRE_IMAGE_HINT))
 
     return float_option("--reindex", **attrs)
+
+
+def reverb_option(**attrs):
+    attrs.setdefault("help", "Post-reduce tiled octave count")
+
+    return int_option("--reverb", type=click.IntRange(1, 10), default=None, **attrs)
 
 
 def clut_option(**attrs):

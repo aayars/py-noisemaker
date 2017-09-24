@@ -62,12 +62,6 @@ EFFECTS_PRESETS = {
         }
     },
 
-    "pop-art": {
-        "kwargs": {
-            "with_pop": True
-        },
-    },
-
     "mosaic": {
         "kwargs": {
             "point_freq": 10,
@@ -75,6 +69,24 @@ EFFECTS_PRESETS = {
             "with_voronoi": 5,
             "with_bloom": .25 + random.random() * .5,
         }
+    },
+
+    "pop-art": {
+        "kwargs": {
+            "with_pop": True
+        },
+    },
+
+    "reindex": {
+        "kwargs": {
+            "reindex_range": .125 + random.random() * 2.375,
+        },
+    },
+
+    "reverb": {
+        "kwargs": {
+            "with_reverb": random.randint(4, 10),
+        },
     },
 
     "sobel-operator": {
@@ -90,6 +102,12 @@ EFFECTS_PRESETS = {
             "voronoi_refract": random.random(),
             "voronoi_func": random.randint(1, 3),
             "with_voronoi": [1, 3, 6][random.randint(0, 2)]
+        }
+    },
+
+    "vortex": {
+        "kwargs": {
+            "vortex_range": random.randint(3,9),
         }
     },
 

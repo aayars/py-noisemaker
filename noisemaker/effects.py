@@ -24,7 +24,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
-                 with_bloom=None,
+                 with_bloom=None, with_reverb=None,
                  input_dir=None, **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -82,6 +82,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool point_corners: Pin Voronoi and DLA points to corners (False = pin to center)
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
+    :param None|int with_reverb: Reverb octave count
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
 
     :return: Tensor
@@ -169,6 +170,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
+
+    if with_reverb:
+        tensor = reverb(tensor, shape, with_reverb)
 
     if with_pop:
         tensor = pop(tensor, shape)
@@ -1694,3 +1698,31 @@ def offset(tensor, shape, x=0, y=0):
     y_index = column_index(shape)
 
     return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
+
+
+def reverb(tensor, shape, octaves):
+    """
+    Multi-octave "reverberation" of input image tensor
+
+    :param Tensor tensor:
+    :param float[int] shape:
+    :param int octaves:
+    """
+
+    height, width, channels = shape
+
+    reference = tf.abs(tensor * 2 - 1)
+
+    out = reference
+
+    for octave in range(1, octaves + 1):
+        multiplier = 2 ** octave
+
+        octave_shape = [int(width / multiplier), int(height / multiplier), channels]
+
+        if not all(octave_shape):
+            break
+
+        out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
+
+    return 1 - normalize(out)
