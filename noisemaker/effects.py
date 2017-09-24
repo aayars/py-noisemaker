@@ -1,5 +1,4 @@
 from collections import defaultdict
-from enum import Enum
 
 import math
 import os
@@ -8,7 +7,8 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.points import PointDistribution, point_cloud
+from noisemaker.constants import ConvKernel, DistanceFunction, PointDistribution, VoronoiDiagramType, WormBehavior
+from noisemaker.points import point_cloud
 
 import noisemaker.util as util
 
@@ -157,7 +157,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
 
     if with_erosion_worms:
-        tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations, contraction=erosion_worms_contraction, alpha=erosion_worms_alpha)
+        tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
+                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha)
 
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel)
@@ -169,7 +170,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         alpha = convolve_kwargs.get(kernel.name)
 
         if alpha:
-            tensor =  convolve(kernel, tensor, shape, alpha=alpha)
+            tensor = convolve(kernel, tensor, shape, alpha=alpha)
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
@@ -195,164 +196,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     tensor = normalize(tensor)
 
     return tensor
-
-
-class InterpolationType(Enum):
-    """
-    Specify the spline point count for interpolation operations.
-    """
-
-    #:
-    constant = 0
-
-    #:
-    linear = 1
-
-    #:
-    cosine = 2
-
-    #:
-    bicubic = 3
-
-
-class VoronoiDiagramType(Enum):
-    """
-    Specify the artistic rendering function used for Voronoi diagrams.
-    """
-
-    #: No Voronoi
-    none = 0
-
-    #: Normalized neighbor distances
-    range = 1
-
-    #: Normalized neighbor distances blended with input Tensor
-    color_range = 2
-
-    #: Indexed regions
-    regions = 3
-
-    #: Color-mapped regions
-    color_regions = 4
-
-    #: Colorized neighbor distances blended with color-mapped regions
-    range_regions = 5
-
-    #: Edgeless voronoi. Natural logarithm of reduced distance sums.
-    flow = 6
-
-    #: Stitched collage based on indexed regions
-    collage = 7
-
-
-class DistanceFunction(Enum):
-    """
-    Specify the distance function used in various operations, such as Voronoi cells, derivatives, and sobel operators.
-    """
-
-    none = 0
-
-    euclidean = 1
-
-    manhattan = 2
-
-    chebyshev = 3
-
-
-class WormBehavior(Enum):
-    """
-    Specify the type of heading bias for worms to follow.
-
-    .. code-block:: python
-
-       image = worms(image, behavior=WormBehavior.unruly)
-    """
-
-    none = 0
-
-    obedient = 1
-
-    crosshatch = 2
-
-    unruly = 3
-
-    chaotic = 4
-
-
-class ConvKernel(Enum):
-    """
-    A collection of convolution kernels for image post-processing, based on well-known recipes.
-
-    Pass the desired kernel as an argument to :py:func:`convolve`.
-
-    .. code-block:: python
-
-       image = convolve(ConvKernel.shadow, image)
-    """
-
-    invert = [
-        [ 0,  0,  0 ],
-        [ 0, -1,  0 ],
-        [ 0,  0,  0 ]
-    ]
-
-    emboss = [
-        [   0,   2,   4   ],
-        [  -2,   1,   2   ],
-        [  -4,  -2,   0   ]
-    ]
-
-    rand = np.random.normal(.5, .5, (5, 5)).tolist()
-
-    shadow = [
-        [ 0, 1, 2 ],
-        [ -1, 0, 1 ],
-        [ -2, -1, 0 ]
-    ]
-
-    edges = [
-        [   1,   2,  1   ],
-        [   2, -12,  2   ],
-        [   1,   2,  1   ]
-    ]
-
-    sharpen = [
-        [   0, -1,  0 ],
-        [  -1,  5, -1 ],
-        [   0, -1,  0 ]
-    ]
-
-    sobel_x = [
-        [ 1, 0, -1 ],
-        [ 2, 0, -2 ],
-        [ 1, 0, -1 ]
-    ]
-
-    sobel_y = [
-        [  1,  2,  1 ],
-        [  0,  0,  0 ],
-        [ -1, -2, -1 ]
-    ]
-
-    deriv_x = [
-        [ 0, 0, 0 ],
-        [ 0, -1, 1 ],
-        [ 0, 0, 0 ]
-    ]
-
-    deriv_y = [
-        [ 0, 0, 0 ],
-        [ 0, -1, 0 ],
-        [ 0, 1, 0 ]
-    ]
-
-    blur = [
-        [ 1, 4, 6, 4, 1 ],
-        [ 4, 16, 24, 16, 4 ],
-        [ 6, 24, 36, 24, 6 ],
-        [ 4, 16, 24, 16, 4 ],
-        [ 1, 4, 6, 4, 1 ]
-    ]
 
 
 def _conform_kernel_to_tensor(kernel, tensor, shape):
@@ -395,7 +238,7 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
 
     out = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
     out = out[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
-    out = tf.nn.depthwise_conv2d([out], kernel_values, [1,1,1,1], "VALID")[0]
+    out = tf.nn.depthwise_conv2d([out], kernel_values, [1, 1, 1, 1], "VALID")[0]
     out = out[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
 
     if with_normalize:
@@ -429,7 +272,6 @@ def normalize(tensor):
     ceil = tf.reduce_max(tensor)
 
     return (tensor - floor) / (ceil - floor)
-
 
 
 def resample(tensor, shape, spline_order=3):
@@ -522,7 +364,7 @@ def _downsample(tensor, shape, new_shape):
 
     kernel = tf.ones(kernel_shape)
 
-    out = tf.nn.depthwise_conv2d([tensor], kernel, [1,kernel_shape[0],kernel_shape[1],1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
+    out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
 
     return resample(out, new_shape)
 
@@ -575,7 +417,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25):
 
     out = tf.zeros(shape)
 
-    colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
+    # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
     values = value_map(convolve(ConvKernel.blur, tensor, shape), shape, keep_dims=True)
 
@@ -828,7 +670,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
         out += tf.scatter_nd(worm_positions, colors * exposure, scatter_shape)
         # out = tf.maximum(tf.scatter_nd(worm_positions, colors * exposure, scatter_shape), out)
 
-        next_position = tf.gather_nd(index, worm_positions) + ( worms_rot - 45.0 )
+        next_position = tf.gather_nd(index, worm_positions) + (worms_rot - 45.0)
 
         worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
         worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
@@ -958,7 +800,7 @@ def normal_map(tensor, shape):
 
     z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
-    return tf.stack([x[:,:,0], y[:,:,0], z[:,:,0]], 2)
+    return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
 
 def value_map(tensor, shape, keep_dims=False):
@@ -969,8 +811,6 @@ def value_map(tensor, shape, keep_dims=False):
     :param list[int] shape:
     :param bool keep_dims: If True, don't collapse the channel dimension.
     """
-
-    channels = shape[-1]
 
     return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
 
@@ -1084,10 +924,10 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     """
 
     if isinstance(diagram_type, int):
-       diagram_type = VoronoiDiagramType(diagram_type)
+        diagram_type = VoronoiDiagramType(diagram_type)
 
     elif isinstance(diagram_type, str):
-       diagram_type = VoronoiDiagramType[diagram_type]
+        diagram_type = VoronoiDiagramType[diagram_type]
 
     if diagram_type == VoronoiDiagramType.collage and not input_dir and not collage_images:
         raise ValueError("--input-dir containing .jpg/.png images must be specified, when using collage mode.")
@@ -1151,13 +991,13 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = resample(offset(tf.sqrt(normalize(dist[:,:,:,index])), shape, **offset_kwargs), original_shape)
+        range_slice = resample(offset(tf.sqrt(normalize(dist[:, :, :, index])), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
 
     if diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions, VoronoiDiagramType.collage):
-        regions_slice = offset(indices[:,:,:,index], shape, **offset_kwargs)
+        regions_slice = offset(indices[:, :, :, index], shape, **offset_kwargs)
 
     ###
     if diagram_type == VoronoiDiagramType.range:
@@ -1201,7 +1041,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
                 collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
                 collage_images.append(_downsample(resample(collage_input, shape), shape, collage_shape))
 
-        out = tf.gather_nd(collage_images, tf.stack([regions_slice[:,:,0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
+        out = tf.gather_nd(collage_images,
+                           tf.stack([regions_slice[:, :, 0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
 
         out = resample(out, original_shape)
 
@@ -1235,10 +1076,10 @@ def distance(a, b, func):
     """
 
     if isinstance(func, int):
-       func = DistanceFunction(func)
+        func = DistanceFunction(func)
 
     elif isinstance(func, str):
-       func = DistanceFunction[func]
+        func = DistanceFunction[func]
 
     if func == DistanceFunction.euclidean:
         dist = tf.sqrt(a * a + b * b)
@@ -1519,7 +1360,7 @@ def aberration(tensor, shape, displacement=.005):
             # Right (blue)
             _x_index = tf.cast(blend_cosine(x_index_float, _x_index, gradient), tf.int32)
 
-        separated.append(tf.gather_nd(color_shifted[:,:,i], tf.stack([y_index, _x_index], 2)))
+        separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
 
     separated = tf.image.adjust_hue(tf.stack(separated, 2), -shift)
 
@@ -1564,7 +1405,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
 
     # Actual affixed nodes
     clustered = []
-    colors = []
 
     # Not-affixed nodes
     walkers = []
@@ -1617,8 +1457,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
         remove_walkers = set()
 
         for walker in walkers:
-            neighbors = []
-
             if walker in neighborhoods:
                 remove_walkers.add(walker)
 
@@ -1646,10 +1484,12 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
             walker = walkers[w]
 
             if walker in expanded_neighborhoods:
-                walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height, (walker[1] + offsets[random.randint(0, len(offsets)- 1)]) % half_width)
+                walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height,
+                              (walker[1] + offsets[random.randint(0, len(offsets) - 1)]) % half_width)
 
             else:
-                walkers[w] = ((walker[0] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_height, (walker[1] + expanded_offsets[random.randint(0, len(expanded_offsets)- 1)]) % half_width)
+                walkers[w] = ((walker[0] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_height,
+                              (walker[1] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_width)
 
     seen = set()
     unique = []
@@ -1682,13 +1522,12 @@ def pop(tensor, shape):
 
     images = []
 
-    freq = random.randint(1,3) * 2
-    freq_squared = freq * freq
+    freq = random.randint(1, 3) * 2
 
     ref = _downsample(resample(tensor, shape), shape, [int(shape[0] / (freq * 2)), int(shape[1] / (freq * 2)), shape[2]])
 
     for i in range(freq * freq):
-        image = posterize(ref, random.randint(3,6))
+        image = posterize(ref, random.randint(3, 6))
         image = image % tf.random_normal([3], mean=.5, stddev=.25)
         images.append(image)
 

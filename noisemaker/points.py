@@ -1,51 +1,7 @@
-from collections import deque
-from enum import Enum
-
 import math
 import random
 
-
-class PointDistribution(Enum):
-    """
-    Point cloud distribution, used by Voronoi and DLA
-    """
-
-
-    random = 0
-
-    square = 1
-
-    waffle = 2
-
-    chess = 3
-
-    h_hex = 10
-
-    v_hex = 11
-
-    spiral = 50
-
-    circular = 100
-
-    concentric = 101
-
-    rotating = 102
-
-    @classmethod
-    def grid_members(cls):
-        return [m for m in cls if cls.is_grid(m)]
-
-    @classmethod
-    def circular_members(cls):
-        return [m for m in cls if cls.is_circular(m)]
-
-    @classmethod
-    def is_grid(cls, member):
-        return member.value >= cls.square.value and member.value < cls.spiral.value
-
-    @classmethod
-    def is_circular(cls, member):
-        return member.value >= cls.circular.value
+from noisemaker.constants import PointDistribution
 
 
 def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0):
@@ -74,8 +30,6 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
 
     elif isinstance(distrib, str):
         distrib = PointDistribution[distrib]
-
-    count = freq * freq
 
     point_func = rand
 
@@ -251,7 +205,7 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count
-        
+
         for j in range(1, dot_count + 1):
             rads = j * rotation
 

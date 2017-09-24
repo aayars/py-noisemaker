@@ -1,10 +1,6 @@
-import os
-
 import click
 
-import noisemaker.effects as effects
-import noisemaker.generators as generators
-
+from noisemaker.constants import DistanceFunction, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior
 
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -145,7 +141,7 @@ def ridges_option(**attrs):
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
 
-    return str_option("--distrib", type=click.Choice([m.name for m in generators.ValueDistribution]), default="normal", **attrs)
+    return str_option("--distrib", type=click.Choice([m.name for m in ValueDistribution]), default="normal", **attrs)
 
 
 def corners_option(**attrs):
@@ -157,13 +153,13 @@ def corners_option(**attrs):
 def mask_option(**attrs):
     attrs.setdefault("help", "Value distribution: Hot pixel mask")
 
-    return str_option("--mask", type=click.Choice([m.name for m in generators.ValueMask]), **attrs)
+    return str_option("--mask", type=click.Choice([m.name for m in ValueMask]), **attrs)
 
 
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
 
-    return int_option("--interp", callback=validate_enum(effects.InterpolationType), default=3, **attrs)
+    return int_option("--interp", callback=validate_enum(InterpolationType), default=3, **attrs)
 
 
 def sin_option(**attrs):
@@ -205,7 +201,7 @@ def warp_octaves_option(**attrs):
 def warp_interp_option(**attrs):
     attrs.setdefault("help", "Octave Warp: Interpolation type {0}".format(INTERPOLATION_HINT))
 
-    return int_option("--warp-interp", default=None, callback=validate_enum(effects.InterpolationType), **attrs)
+    return int_option("--warp-interp", default=None, callback=validate_enum(InterpolationType), **attrs)
 
 
 def warp_freq_option(**attrs):
@@ -271,7 +267,7 @@ def clut_horizontal_option(**attrs):
 def worms_option(**attrs):
     attrs.setdefault("help", "Iterative \"worm\" field flow (1=Obedient, 2=Crosshatch, 3=Unruly, 4=Chaotic)")
 
-    return int_option("--worms", callback=validate_enum(effects.WormBehavior), **attrs)
+    return int_option("--worms", callback=validate_enum(WormBehavior), **attrs)
 
 
 def worms_density_option(**attrs):
@@ -349,13 +345,13 @@ def dla_padding_option(**attrs):
 def voronoi_option(**attrs):
     attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow, 7=Collage)")
 
-    return int_option("--voronoi", callback=validate_enum(effects.VoronoiDiagramType), **attrs)
+    return int_option("--voronoi", callback=validate_enum(VoronoiDiagramType), **attrs)
 
 
 def voronoi_func_option(**attrs):
     attrs.setdefault("help", "Voronoi: Distance function {0}".format(DISTANCE_HINT))
 
-    return int_option("--voronoi-func", callback=validate_enum(effects.DistanceFunction), default=1, **attrs)
+    return int_option("--voronoi-func", callback=validate_enum(DistanceFunction), default=1, **attrs)
 
 
 def voronoi_nth_option(**attrs):
@@ -391,7 +387,7 @@ def point_freq_option(default=3.0, **attrs):
 def point_distrib_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
 
-    return str_option("--point-distrib", type=click.Choice([m.name for m in effects.PointDistribution]), default="random", **attrs)
+    return str_option("--point-distrib", type=click.Choice([m.name for m in PointDistribution]), default="random", **attrs)
 
 
 def point_corners_option(**attrs):
@@ -415,13 +411,13 @@ def point_drift_option(**attrs):
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
 
-    return int_option("--sobel", callback=validate_enum(effects.DistanceFunction), **attrs)
+    return int_option("--sobel", callback=validate_enum(DistanceFunction), **attrs)
 
 
 def outline_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
 
-    return int_option("--outline", callback=validate_enum(effects.DistanceFunction), **attrs)
+    return int_option("--outline", callback=validate_enum(DistanceFunction), **attrs)
 
 
 def normals_option(**attrs):
@@ -433,13 +429,13 @@ def normals_option(**attrs):
 def post_deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract post-reduce rate of change {0}".format(DISTANCE_HINT))
 
-    return int_option("--post-deriv", callback=validate_enum(effects.DistanceFunction), **attrs)
+    return int_option("--post-deriv", callback=validate_enum(DistanceFunction), **attrs)
 
 
 def deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract per-octave rate of change {0}".format(DISTANCE_HINT))
 
-    return int_option("--deriv", callback=validate_enum(effects.DistanceFunction), **attrs)
+    return int_option("--deriv", callback=validate_enum(DistanceFunction), **attrs)
 
 
 def deriv_alpha_option(**attrs):

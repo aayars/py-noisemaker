@@ -21,8 +21,6 @@ import noisemaker.recipes as recipes
 def main(ctx, name, preset_name, input_filename):
     tensor = tf.image.convert_image_dtype(load(input_filename), tf.float32)
 
-    freq = [3, 3]
-
     max_height = 1024
     max_width = 1024
 

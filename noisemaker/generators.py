@@ -1,50 +1,8 @@
-from enum import Enum
-
 import numpy as np
 import tensorflow as tf
 
+from noisemaker.constants import ValueDistribution, ValueMask
 import noisemaker.effects as effects
-
-
-class ValueDistribution(Enum):
-    """
-    Specify the value distribution function for basic noise.
-
-    .. code-block:: python
-
-       image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
-    """
-
-    normal = 0
-
-    uniform = 1
-
-    exp = 2
-
-    laplace = 3
-
-    lognormal = 4
-
-    ones = 5
-
-
-class ValueMask(Enum):
-    """
-    """
-
-    square = 1
-
-    waffle = 2
-
-    chess = 3
-
-    h_hex = 10
-
-    v_hex = 11
-
-    h_tri = 12
-
-    v_tri = 13
 
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
@@ -199,11 +157,11 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         if hsv_rotation is None:
             hsv_rotation = tf.random_normal([])
 
-        hue = (tensor[:,:,0] * hsv_range + hsv_rotation) % 1.0
+        hue = (tensor[:, :, 0] * hsv_range + hsv_rotation) % 1.0
 
-        saturation = effects.normalize(tensor[:,:,1]) * hsv_saturation
+        saturation = effects.normalize(tensor[:, :, 1]) * hsv_saturation
 
-        value = effects.crease(tensor[:,:,2]) if ridges else tensor[:,:,2]
+        value = effects.crease(tensor[:, :, 2]) if ridges else tensor[:, :, 2]
 
         if sin:
             value = effects.normalize(tf.sin(sin * value))

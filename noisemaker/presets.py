@@ -2,8 +2,11 @@
 
 import random
 
-import noisemaker.generators as generators
-import noisemaker.points as points
+from noisemaker.constants import PointDistribution, ValueDistribution, ValueMask
+
+circular_dists = PointDistribution.circular_members()
+
+grid_dists = PointDistribution.grid_members()
 
 
 EFFECTS_PRESETS = {
@@ -22,8 +25,8 @@ EFFECTS_PRESETS = {
 
     "corrupt": {
         "kwargs": {
-            "warp_freq": [random.randint(4,7), random.randint(1,3)],
-            "warp_octaves": random.randint(3,5),
+            "warp_freq": [random.randint(4, 7), random.randint(1, 3)],
+            "warp_octaves": random.randint(3, 5),
             "warp_range": .05 + random.random() * .45,
             "warp_interp": 0,
             "with_bloom": .5 + random.random() * .5,
@@ -39,15 +42,15 @@ EFFECTS_PRESETS = {
             "with_erosion_worms": True,
             "erosion_worms_alpha": .25 + random.random() * .75,
             "erosion_worms_contraction": .5 + random.random() * .5,
-            "erosion_worms_density": random.randint(25,100),
-            "erosion_worms_iterations": random.randint(25,100),
+            "erosion_worms_density": random.randint(25, 100),
+            "erosion_worms_iterations": random.randint(25, 100),
         }
     },
 
     "funhouse": {
         "kwargs": {
-            "warp_freq": [random.randint(2,4), random.randint(1,4)],
-            "warp_octaves": random.randint(1,4),
+            "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
+            "warp_octaves": random.randint(1, 4),
             "warp_range": .25 + random.random() * .5,
         },
     },
@@ -120,7 +123,7 @@ EFFECTS_PRESETS = {
 
     "vortex": {
         "kwargs": {
-            "vortex_range": random.randint(12,32),
+            "vortex_range": random.randint(12, 32),
         }
     },
 
@@ -134,7 +137,7 @@ EFFECTS_PRESETS = {
 
     "worms": {
         "kwargs": {
-            "with_worms": random.randint(1,4),
+            "with_worms": random.randint(1, 4),
             "worms_density": 500,
             "worms_duration": 1,
             "worms_kink": 2.5,
@@ -158,8 +161,8 @@ PRESETS = {
             "point_freq": 8,
             "spline_order": 0,
             "voronoi_alpha": 0.5 + random.random() * .5,
-            "voronoi_nth": 0 if random.random() < .5 else random.randint(0,63),
-            "with_voronoi": 2 if random.random() < .5 else random.randint(1,5),
+            "voronoi_nth": 0 if random.random() < .5 else random.randint(0, 63),
+            "with_voronoi": 2 if random.random() < .5 else random.randint(1, 5),
         }
     },
 
@@ -167,7 +170,7 @@ PRESETS = {
         "kwargs": {
             "invert": 1,
             "lattice_drift": 1,
-            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": 4,
             "point_generations": 2,
             "voronoi_alpha": 0.5,
@@ -235,25 +238,25 @@ PRESETS = {
         "kwargs": {
             "freq": 7,
             "invert": (random.random() < .5),
-            "point_freq": random.randint(2,4),
+            "point_freq": random.randint(2, 4),
             "point_generations": 2,
             "point_distrib": "circular",
-            "posterize_levels": random.randint(6,18),
+            "posterize_levels": random.randint(6, 18),
             "reflect_range": random.random() * 2,
             "spline_order": 0,
-            "voronoi_func": random.randint(2,3),
-            "voronoi_nth": random.randint(2,4),
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(2, 4),
             "with_outline": 3,
             "with_voronoi": random.randint(1, 5),
         }
     },
-     
+
     "bringing-hexy-back": {
         "kwargs": {
             "lattice_drift": 1,
             "point_distrib": "v_hex" if random.random() < .5 else "v_hex",
             "point_freq": 10,
-            "post_deriv": 0 if random.random() < .5 else random.randint(1,3),
+            "post_deriv": 0 if random.random() < .5 else random.randint(1, 3),
             "voronoi_alpha": 0.5,
             "voronoi_refract": 0 if random.random() < .5 else random.random(),
             "warp_octaves": 1,
@@ -262,12 +265,12 @@ PRESETS = {
             "with_voronoi": 5,
         }
     },
-     
+
     "circulent": {
         "kwargs": {
             "corners": True,
             "freq": 2,
-            "point_distrib": (["spiral"] + [m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()))],
+            "point_distrib": (["spiral"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_corners": True,
             "point_freq": random.randint(4, 8),
             "voronoi_alpha": .5 + random.random() * .5,
@@ -278,22 +281,22 @@ PRESETS = {
             "wormhole_stride": .05 + random.random() * .05,
         }
     },
-     
+
     "conjoined": {
         "kwargs": {
             "hsv_range": random.random(),
             "lattice_drift": 1,
-            "point_distrib": ([m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()) - 1)],
-            "point_freq": random.randint(3,7),
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(3, 7),
             "post_deriv": 1,
             "voronoi_alpha": 0.25 + random.random() * .5,
-            "voronoi_nth": random.randint(0,4),
-            "voronoi_refract": random.randint(6,12),
+            "voronoi_nth": random.randint(0, 4),
+            "voronoi_refract": random.randint(6, 12),
             "with_bloom": 0.25 + random.random() * .5,
             "with_voronoi": 2,
         }
     },
-     
+
     "cubic": {
         "kwargs": {
             "freq": random.randint(2, 5),
@@ -313,11 +316,11 @@ PRESETS = {
            "hsv_rotation": random.random(),
            "hsv_saturation": random.random(),
            "point_corners": (random.random() < .5),
-           "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+           "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
            "point_drift": 0 if random.random() < .5 else random.random(),
            "point_freq": 4,
            "point_generations": 2,
-           "voronoi_func": random.randint(2,3),
+           "voronoi_func": random.randint(2, 3),
            "voronoi_nth": random.randint(0, 15),
            "voronoi_alpha": .5 + random.random() * .5,
            "sin": random.random() * 2,
@@ -325,21 +328,21 @@ PRESETS = {
            "with_voronoi": 1,
         }
     },
-     
+
     "death-star-plans": {
         "kwargs": {
             "channels": 1,
             "invert": 1,
             "octaves": 1,
             "point_freq": random.randint(2, 4),
-            "post_refract_range": random.randint(0,1),
-            "posterize_levels": random.randint(3,5),
+            "post_refract_range": random.randint(0, 1),
+            "posterize_levels": random.randint(3, 5),
             "voronoi_alpha": 1,
-            "voronoi_func": random.randint(2,3),
-            "voronoi_nth": random.randint(1,3),
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(1, 3),
             "with_aberration": random.random() * .01,
             "with_sobel": 2,
-            "with_voronoi": random.randint(1,4),
+            "with_voronoi": random.randint(1, 4),
         },
 
         "post_kwargs": {
@@ -347,11 +350,11 @@ PRESETS = {
             "with_scan_error": True,
         }
     },
-     
+
     "defocus": {
         "kwargs": {
             "freq": 12,
-            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "octaves": 5,
             "sin": 10,
             "with_bloom": 0.5,
@@ -362,21 +365,21 @@ PRESETS = {
         "kwargs": {
             "dla_padding": random.randint(2, 8),
             "hsv_range": 1.5,
-            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
+            "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(2, 8),
             "voronoi_alpha": random.random(),
             "with_bloom": random.random(),
             "with_dla": .5 + random.random() * .5,
-            "with_voronoi": 0 if random.random() < .5 else random.randint(1,5),
+            "with_voronoi": 0 if random.random() < .5 else random.randint(1, 5),
         }
     },
-     
+
     "ears": {
         "kwargs": {
-            "freq":22,
+            "freq": 22,
             "distrib": "uniform",
             "hsv_range": random.random() * 2.5,
-            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "with_worms": 3,
             "worms_alpha": .875,
             "worms_density": 188.07,
@@ -390,18 +393,18 @@ PRESETS = {
     "eyes": {
         "kwargs": {
             "corners": True,
-            "distrib": ["ones", "uniform"][random.randint(0,1)],
-            "freq": 12 * random.randint(1,2),
+            "distrib": ["ones", "uniform"][random.randint(0, 1)],
+            "freq": 12 * random.randint(1, 2),
             "hsv_range": random.random(),
             "invert": 1,
-            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "ridges": True,
             "shadow": 1,
-            "spline_order": random.randint(2,3),
+            "spline_order": random.randint(2, 3),
             "with_outline": 1,
             "warp_freq": 2,
             "warp_octaves": 1,
-            "warp_range": random.randint(1,4),
+            "warp_range": random.randint(1, 4),
         }
     },
 
@@ -410,7 +413,7 @@ PRESETS = {
             "corners": True,
             "freq": 20,
             "distrib": "uniform",
-            "mask": [m.value for m in generators.ValueMask if m.name != "chess"][random.randint(0, len(generators.ValueMask) - 2)],
+            "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "spline_order": 1,
             "with_worms": 4,
             "worms_alpha": .5 + random.random() * .5,
@@ -424,28 +427,28 @@ PRESETS = {
 
     "fuzzy-swirls": {
         "kwargs": {
-            "freq": random.randint(2,32),
+            "freq": random.randint(2, 32),
             "hsv_range": random.random() * 2,
-            "point_freq": random.randint(8,10),
-            "spline_order": random.randint(1,3),
+            "point_freq": random.randint(8, 10),
+            "spline_order": random.randint(1, 3),
             "voronoi_alpha": 0.5 * random.random() * .5,
             "with_voronoi": 6,
-            "with_worms": random.randint(1,4),
+            "with_worms": random.randint(1, 4),
             "worms_density": 64,
             "worms_duration": 1,
             "worms_kink": 25,
         }
     },
-     
+
     "fuzzy-thorns": {
         "kwargs": {
-            "point_freq": random.randint(2,4),
+            "point_freq": random.randint(2, 4),
             "point_distrib": "waffle",
             "point_generations": 2,
             "voronoi_inverse": True,
-            "voronoi_nth": random.randint(6,12),
+            "voronoi_nth": random.randint(6, 12),
             "with_voronoi": 2,
-            "with_worms": random.randint(1,3),
+            "with_worms": random.randint(1, 3),
             "worms_density": 500,
             "worms_duration": 1.22,
             "worms_kink": 2.89,
@@ -453,12 +456,12 @@ PRESETS = {
             "worms_stride_deviation": 0.11,
         }
     },
-     
+
     "glom": {
         "kwargs": {
             "lattice_drift": 1,
-            "reflect_range": random.randint(2,4),
-            "refract_range": random.randint(2,4),
+            "reflect_range": random.randint(2, 4),
+            "refract_range": random.randint(2, 4),
             "ridges": True,
             "warp_range": random.random() * .5,
             "warp_octaves": 1,
@@ -494,13 +497,13 @@ PRESETS = {
 
     "hairy-diamond": {
         "kwargs": {
-            "freq": random.randint(2,6),
+            "freq": random.randint(2, 6),
             "hsv_range": random.random(),
             "hsv_rotation": random.random(),
             "hsv_saturation": random.random(),
             "point_corners": True,
             "point_distrib": "concentric",
-            "point_freq": random.randint(3,6),
+            "point_freq": random.randint(3, 6),
             "point_generations": 2,
             "voronoi_func": 2,
             "voronoi_inverse": True,
@@ -527,12 +530,12 @@ PRESETS = {
             "with_snow": random.random() * .333,
         }
     },
-     
+
     "hex-machine": {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": random.randint(1,3) * 2,
+            "freq": random.randint(1, 3) * 2,
             "mask": "h_tri",
             "octaves": random.randint(5, 8),
             "post_deriv": 3,
@@ -550,9 +553,9 @@ PRESETS = {
 
     "inderpulate": {
         "kwargs": {
-            "freq": random.randint(2,4),
+            "freq": random.randint(2, 4),
             "lattice_drift": 1,
-            "refract_range": random.randint(8,12),
+            "refract_range": random.randint(8, 12),
             "ridges": True,
         }
     },
@@ -561,7 +564,7 @@ PRESETS = {
         "kwargs": {
             "hsv_range": random.random(),
             "invert": random.random() < .5,
-            "post_deriv": 0 if random.random() < .5 else random.randint(1,3),
+            "post_deriv": 0 if random.random() < .5 else random.randint(1, 3),
             "post_refract_range": .25 + random.random() * .25,
             "ridges": random.random() < .5,
             "voronoi_alpha": .75 + random.random() * .25,
@@ -570,7 +573,7 @@ PRESETS = {
             "with_voronoi": random.randint(1, 2),
         }
     },
-     
+
     "jovian-clouds": {
         "kwargs": {
             "point_freq": 10,
@@ -582,17 +585,17 @@ PRESETS = {
             "worms_kink": 96,
         }
     },
-     
+
     "magic-squares": {
         "kwargs": {
             "channels": 3,
-            "distrib": [m.value for m in generators.ValueDistribution if m.name != "ones"][random.randint(0, len(generators.ValueDistribution) - 2)],
+            "distrib": [m.value for m in ValueDistribution if m.name != "ones"][random.randint(0, len(ValueDistribution) - 2)],
             "edges": .25 + random.random() * .5,
-            "freq": [9, 12, 15, 18][random.randint(0,3)],
+            "freq": [9, 12, 15, 18][random.randint(0, 3)],
             "hsv_range": random.random() * .5,
-            "octaves": random.randint(3,5),
-            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
-            "point_freq": [3, 6, 9][random.randint(0,2)],
+            "octaves": random.randint(3, 5),
+            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
+            "point_freq": [3, 6, 9][random.randint(0, 2)],
             "spline_order": 0,
             "voronoi_alpha": .25,
             "with_bloom": 0 if (random.random() < .5) else random.random(),
@@ -603,12 +606,12 @@ PRESETS = {
             "with_dither": 0 if (random.random() < .5) else random.random() * .125,
         }
     },
-     
+
     "misaligned": {
         "kwargs": {
-            "freq": random.randint(12,24),
-            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
-            "octaves": random.randint(4,8),
+            "freq": random.randint(12, 24),
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "octaves": random.randint(4, 8),
             "spline_order": 0,
             "with_outline": 1,
         }
@@ -616,7 +619,7 @@ PRESETS = {
 
     "muppet-skin": {
         "kwargs": {
-            "freq": random.randint(2,3),
+            "freq": random.randint(2, 3),
             "hsv_range": random.random() * .5,
             "lattice_drift": 0 if random.random() < .5 else random.random(),
             "with_bloom": .25 + random.random() * .5,
@@ -625,7 +628,7 @@ PRESETS = {
             "worms_density": 500,
         }
     },
-     
+
     "neon-cambrian": {
         "kwargs": {
             "hsv_range": 1,
@@ -640,7 +643,7 @@ PRESETS = {
             "wormhole_stride": 0.25,
         }
     },
-     
+
     "neon-plasma": {
         "kwargs": {
             "channels": 3,
@@ -650,7 +653,7 @@ PRESETS = {
             "ridges": True,
         }
     },
-     
+
     "now": {
         "kwargs": {
             "channels": 3,
@@ -667,17 +670,17 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": random.randint(2,5) * 2,
+            "freq": random.randint(2, 5) * 2,
             "mask": "chess",
             "rgb": True,
             "spline_order": 0,
-            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
-            "point_freq": random.randint(4,8),
-            "voronoi_refract": random.randint(8,12),
+            "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
+            "point_freq": random.randint(4, 8),
+            "voronoi_refract": random.randint(8, 12),
             "with_voronoi": 6,
         }
     },
-     
+
     "plaid": {
         "kwargs": {
             "deriv": 3,
@@ -687,7 +690,7 @@ PRESETS = {
             "mask": "chess",
             "octaves": random.randint(2, 5),
             "spline_order": random.randint(1, 3),
-            "warp_freq": random.randint(2,3),
+            "warp_freq": random.randint(2, 3),
             "warp_range": random.random() * .25,
             "warp_octaves": 1,
         },
@@ -696,7 +699,7 @@ PRESETS = {
             "with_dither": random.random() * 0.25,
         }
     },
-     
+
     "political-map": {
         "kwargs": {
             "freq": 5,
@@ -714,12 +717,12 @@ PRESETS = {
             "with_dither": 0.25,
         }
     },
-     
+
     "quilty": {
         "kwargs": {
-            "freq": random.randint(2,6),
+            "freq": random.randint(2, 6),
             "hsv_saturation": random.random() * .5,
-            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
             "point_freq": random.randint(3, 8),
             "spline_order": 0,
             "voronoi_func": random.randint(2, 3),
@@ -733,13 +736,13 @@ PRESETS = {
             "with_dither": random.random() * .5,
         }
     },
-     
+
     "reef": {
         "kwargs": {
             "freq": random.randint(3, 8),
             "hsv_range": random.random(),
             "lattice_drift": 1,
-            "point_distrib": (["random"] + [m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()))],
+            "point_distrib": (["random"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_freq": random.randint(2, 8),
             "ridges": True,
             "shadow": 1.0,
@@ -750,20 +753,20 @@ PRESETS = {
             "with_voronoi": 6,
         }
     },
-     
+
     "refractal": {
         "kwargs": {
             "invert": 1,
             "lattice_drift": 1,
-            "octaves": random.randint(1,3),
-            "point_freq": random.randint(8,10),
+            "octaves": random.randint(1, 3),
+            "point_freq": random.randint(8, 10),
             "post_reflect_range": random.randint(96, 192),
             "sin": random.random() * 10.0,
             "voronoi_alpha": .5 + random.random() * .5,
             "with_voronoi": 6,
         }
     },
-     
+
     "rings": {
         "kwargs": {
             "corners": True,
@@ -777,7 +780,7 @@ PRESETS = {
             "with_outline": 1,
         }
     },
-     
+
     "skeletal-lace": {
         "kwargs": {
             "lattice_drift": 1,
@@ -792,8 +795,8 @@ PRESETS = {
 
     "soft-cells": {
         "kwargs": {
-            "point_distrib": [m.value for m in points.PointDistribution][random.randint(0, len(points.PointDistribution) - 1)],
-            "point_freq": random.randint(4,8),
+            "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
+            "point_freq": random.randint(4, 8),
             "voronoi_alpha": .5 + random.random() * .5,
             "with_bloom": .5 + random.random() * .5,
             "with_voronoi": 5,
@@ -806,49 +809,49 @@ PRESETS = {
             "hsv_range": .25 + random.random() * .25,
             "hsv_rotation": random.random(),
             "lattice_drift": 1,
-            "octaves": random.randint(1,4),
+            "octaves": random.randint(1, 4),
             "with_bloom": .25 + random.random() * .5,
         }
     },
-     
+
     "spiral-in-spiral": {
         "kwargs": {
             "point_distrib": "spiral" if random.random() < .5 else "rotating",
             "point_freq": 10,
-            "with_voronoi": random.randint(1,2),
-            "with_worms": random.randint(1,4),
+            "with_voronoi": random.randint(1, 2),
+            "with_worms": random.randint(1, 4),
             "worms_density": 500,
             "worms_duration": 1,
             "worms_kink": random.randint(5, 25),
         }
     },
-     
+
     "spiraltown": {
         "kwargs": {
             "freq": 2,
             "hsv_range": 1,
-            "reflect_range": random.randint(3,6),
-            "spline_order": random.randint(1,3),
+            "reflect_range": random.randint(3, 6),
+            "spline_order": random.randint(1, 3),
             "with_wormhole": True,
-            "wormhole_kink": random.randint(5,20),
+            "wormhole_kink": random.randint(5, 20),
             "wormhole_stride": random.random() * .05,
         }
     },
-     
+
     "square-stripes": {
         "kwargs": {
             "hsv_range": random.random(),
-            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
+            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
             "point_freq": 2,
-            "point_generations": random.randint(2,3),
+            "point_generations": random.randint(2, 3),
             "voronoi_alpha": .5 + random.random() * .5,
-            "voronoi_func": random.randint(2,3),
-            "voronoi_nth": random.randint(1,3),
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(1, 3),
             "voronoi_refract": 1.46,
             "with_voronoi": 2,
         }
     },
-     
+
     "star-cloud": {
         "kwargs": {
             "deriv": 1,
@@ -858,24 +861,24 @@ PRESETS = {
             "point_freq": 10,
             "reflect_range": random.random() + .5,
             "spline_order": 2,
-            "voronoi_refract": random.randint(2,4),
+            "voronoi_refract": random.randint(2, 4),
             "with_bloom": .25 + random.random() * .5,
             "with_sobel": 1,
             "with_voronoi": 6,
         }
     },
-     
+
     "stepper": {
         "kwargs": {
             "hsv_range": random.random(),
             "hsv_saturation": random.random(),
             "point_corners": (random.random() < .5),
-            "point_distrib": [m.value for m in points.PointDistribution.circular_members()][random.randint(0, len(points.PointDistribution.circular_members()) - 1)],
-            "point_freq": random.randint(7,10),
-            "voronoi_func": random.randint(2,3),
+            "point_distrib": [m.value for m in circular_dists][random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(7, 10),
+            "voronoi_func": random.randint(2, 3),
             "voronoi_nth": random.randint(0, 48),
             "with_outline": 3,
-            "with_voronoi": random.randint(1,5),
+            "with_voronoi": random.randint(1, 5),
         }
     },
 
@@ -885,10 +888,10 @@ PRESETS = {
             "hsv_range": random.random(),
             "freq": 2,
             "point_corners": True,
-            "point_distrib": ["square", "h_hex", "v_hex"][random.randint(0,2)],
+            "point_distrib": ["square", "h_hex", "v_hex"][random.randint(0, 2)],
             "point_freq": 2,
             "spline_order": 0,
-            "vortex_range": random.randint(8,25),
+            "vortex_range": random.randint(8, 25),
             "with_bloom": random.random(),
             "with_voronoi": 5,
         }
@@ -914,15 +917,15 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": random.randint(2,6),
-            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
+            "freq": random.randint(2, 6),
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "octaves": 8,
-            "with_worms": random.randint(1,3),
+            "with_worms": random.randint(1, 3),
             "worms_density": 500,
-            "worms_kink": random.randint(5,25),
+            "worms_kink": random.randint(5, 25),
         }
     },
-     
+
     "triangular": {
         "kwargs": {
             "corners": True,
@@ -934,19 +937,19 @@ PRESETS = {
             "with_sobel": random.randint(0, 1),
         }
     },
-     
+
     "tribbles": {
         "kwargs": {
-            "freq": random.randint(2,8),
+            "freq": random.randint(2, 8),
             "hsv_rotation": 0.375 + random.random() * .15,
             "hsv_saturation": .375 + random.random() * .15,
             "invert": 1,
             "octaves": 3,
             "point_distrib": "h_hex",
-            "point_freq": random.randint(3,4) * 2,
+            "point_freq": random.randint(3, 4) * 2,
             "ridges": True,
             "voronoi_alpha": 0.5 + random.random() * .25,
-            "warp_octaves": random.randint(4,6),
+            "warp_octaves": random.randint(4, 6),
             "warp_range": 0.05 + random.random() * .05,
             "with_bloom": 0.25 + random.random() * .5,
             "with_voronoi": 5,
@@ -957,19 +960,19 @@ PRESETS = {
             "worms_stride_deviation": .5,
         }
     },
-     
+
     "velcro": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": random.randint(0,3),
-            "octaves": random.randint(1,2),
-            "reflect_range": random.randint(6,8),
-            "spline_order": random.randint(2,3),
+            "hsv_range": random.randint(0, 3),
+            "octaves": random.randint(1, 2),
+            "reflect_range": random.randint(6, 8),
+            "spline_order": random.randint(2, 3),
             "with_wormhole": True,
             "wormhole_stride": random.random() * .0125,
         }
     },
-     
+
     "warped-grid": {
         "kwargs": {
             "corners": True,
@@ -978,10 +981,10 @@ PRESETS = {
             "hsv_range": 3,
             "hsv_saturation": 0.27,
             "invert": 1,
-            "mask": [m.value for m in generators.ValueMask][random.randint(0, len(generators.ValueMask) - 1)],
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "posterize_levels": 12,
             "spline_order": 0,
-            "warp_interp": random.randint(1,3),
+            "warp_interp": random.randint(1, 3),
             "warp_freq": random.randint(2, 4),
             "warp_range": .25 + random.random() * .75,
             "warp_octaves": 1,
@@ -999,8 +1002,8 @@ PRESETS = {
             "invert": 1,
             "lattice_drift": random.random(),
             "octaves": 2,
-            "point_distrib": [m.value for m in points.PointDistribution.grid_members()][random.randint(0, len(points.PointDistribution.grid_members()) - 1)],
-            "point_freq": random.randint(7,10),
+            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
+            "point_freq": random.randint(7, 10),
             "voronoi_alpha": 0.25 + random.random() * .5,
             "voronoi_nth": random.randint(1, 5),
             "warp_octaves": random.randint(1, 3),
@@ -1010,10 +1013,10 @@ PRESETS = {
             "with_voronoi": 5,
         }
     },
-     
+
     "web-of-lies": {
         "kwargs": {
-            "point_distrib": (["spiral"] + [m.value for m in points.PointDistribution.circular_members()])[random.randint(0, len(points.PointDistribution.circular_members()))],
+            "point_distrib": (["spiral"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_freq": 10,
             "shadow": .5,
             "voronoi_alpha": 0.25 + random.random() * .5,
@@ -1022,7 +1025,7 @@ PRESETS = {
             "with_voronoi": random.randint(1, 2),
          }
      },
-  
+
     "woahdude": {
         "kwargs": {
             "freq": 4,
@@ -1038,11 +1041,11 @@ PRESETS = {
 
     "woahdude-2": {
         "kwargs": {
-            "freq": random.randint(2,3),
+            "freq": random.randint(2, 3),
             "hsv_range": random.random() * 3.0,
             "shadow": random.random(),
-            "sin": random.randint(5,15),
-            "warp_range": random.randint(3,5),
+            "sin": random.randint(5, 15),
+            "warp_range": random.randint(3, 5),
             "warp_octaves": 3,
             "with_bloom": random.random(),
         }

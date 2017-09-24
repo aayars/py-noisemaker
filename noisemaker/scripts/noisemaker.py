@@ -128,7 +128,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness,
                                  **convolve_kwargs)
 
-    tensor = recipes.post_process(tensor, shape=shape, freq=freq, with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+    tensor = recipes.post_process(tensor, shape=shape, freq=freq,
+                                  with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
     with tf.Session().as_default():
         save(tensor, name)
