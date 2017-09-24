@@ -120,7 +120,7 @@ EFFECTS_PRESETS = {
 
     "vortex": {
         "kwargs": {
-            "vortex_range": random.randint(3,9),
+            "vortex_range": random.randint(12,32),
         }
     },
 
