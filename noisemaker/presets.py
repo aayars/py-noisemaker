@@ -466,6 +466,7 @@ PRESETS = {
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(2, 10),
             "reverb_iterations": random.randint(2, 4),
+            "voronoi_func": random.randint(1, 3),
             "voronoi_nth": random.randint(0, 3),
             "with_reverb": random.randint(4, 8),
             "with_voronoi": random.randint(1, 5),
