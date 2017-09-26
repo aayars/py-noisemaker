@@ -252,6 +252,29 @@ PRESETS = {
         }
     },
 
+    "blobby": {
+        "kwargs": {
+            "deriv": random.randint(1, 3),
+            "distrib": "uniform",
+            "freq": random.randint(6,12) * 2,
+            "hsv_saturation": .25 + random.random() * .5,
+            "hsv_range": .25 + random.random() * .5,
+            "hsv_rotation": None if random.random() < .5 else random.random(),
+            "invert": 1,
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "outline": 1,
+            # "posterize_levels": random.randint(10, 20),
+            "reverb_iterations": random.randint(2, 4),
+            "shadow": 1,
+            "spline_order": random.randint(2, 3),
+            "warp_freq": random.randint(6, 12),
+            "warp_interp": random.randint(1, 3),
+            "warp_octaves": random.randint(2, 4),
+            "warp_range": .05 + random.random() * .1,
+            "with_reverb": random.randint(1, 3),
+        }
+    },
+
     "bringing-hexy-back": {
         "kwargs": {
             "lattice_drift": 1,
@@ -1043,8 +1066,9 @@ PRESETS = {
             "point_freq": random.randint(3, 4) * 2,
             "ridges": True,
             "voronoi_alpha": 0.5 + random.random() * .25,
-            "warp_octaves": random.randint(4, 6),
-            "warp_range": 0.05 + random.random() * .05,
+            "warp_freq": random.randint(2, 4),
+            "warp_octaves": random.randint(2, 4),
+            "warp_range": 0.05 + random.random() * .01,
             "with_bloom": 0.25 + random.random() * .5,
             "with_voronoi": 5,
             "with_worms": 3,
@@ -1052,6 +1076,27 @@ PRESETS = {
             "worms_density": 750,
             "worms_duration": .5,
             "worms_stride_deviation": .5,
+        }
+    },
+
+    "triblets": {
+        "kwargs": {
+            "distrib": "uniform",
+            "freq": random.randint(3, 15) * 2,
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "hsv_rotation": 0.875 + random.random() * .15,
+            "hsv_saturation": .375 + random.random() * .15,
+            "octaves": random.randint(3, 6),
+            "warp_octaves": random.randint(1, 2),
+            "warp_freq": random.randint(2, 4),
+            "warp_range": 0.05 + random.random() * .1,
+            "with_bloom": 0.25 + random.random() * .5,
+            "with_worms": 3,
+            "worms_alpha": .75 + random.random() * .25,
+            "worms_density": 750,
+            "worms_duration": .5,
+            "worms_stride": .5,
+            "worms_stride_deviation": .25,
         }
     },
 
