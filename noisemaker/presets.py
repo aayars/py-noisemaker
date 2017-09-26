@@ -712,7 +712,7 @@ PRESETS = {
             "lattice_drift": 0 if random.random() < .5 else random.random(),
             "with_bloom": .25 + random.random() * .5,
             "with_worms": 3 if random.random() < .5 else 1,
-            "worms_alpha": 0 if random.random() < .5 else (.75 + random.random() * .25),
+            "worms_alpha": .75 + random.random() * .25,
             "worms_density": 500,
         }
     },
