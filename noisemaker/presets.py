@@ -494,7 +494,7 @@ PRESETS = {
             "voronoi_nth": random.randint(0, 3),
             "with_bloom": .25 + random.random() * .5,
             "with_reverb": random.randint(4, 8),
-            "with_voronoi": random.randint(3, 5),
+            "with_voronoi": random.randint(1, 5),
         }
     },
 
