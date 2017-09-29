@@ -916,6 +916,16 @@ PRESETS = {
         }
     },
 
+    "shmoo": {
+        "kwargs": {
+            "freq": random.randint(4, 6),
+            "hsv_range": 2 + random.random(),
+            "invert": 1,
+            "posterize_levels": random.randint(3, 5),
+            "with_outline": 1,
+        }
+    },
+
     "skeletal-lace": {
         "kwargs": {
             "lattice_drift": 1,
