@@ -963,6 +963,8 @@ PRESETS = {
         "kwargs": {
             "point_distrib": "spiral" if random.random() < .5 else "rotating",
             "point_freq": 10,
+            "reverb_iterations": random.randint(1, 4),
+            "with_reverb": random.randint(0, 6),
             "with_voronoi": random.randint(1, 2),
             "with_worms": random.randint(1, 4),
             "worms_density": 500,
