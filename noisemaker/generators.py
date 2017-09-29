@@ -1,3 +1,6 @@
+import math
+import random
+
 import numpy as np
 import tensorflow as tf
 
@@ -95,6 +98,19 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                 [[0.0], [0.0], [0.0], [0.0]]
             ]
             mask_shape = [4, 4, 1]
+
+        elif mask == ValueMask.sparse:
+            mask_values = []
+
+            for y in range(freq[0]):
+                mask_row = []
+
+                for x in range(freq[1]):
+                    mask_row.append([1.0] if random.random() < .15 else [0.0])
+
+                mask_values.append(mask_row)
+
+            mask_shape = [10, 10, 1]
 
         tensor *= effects.expand_tile(tf.stack(mask_values), mask_shape, channel_shape)
 

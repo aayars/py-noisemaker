@@ -547,6 +547,21 @@ PRESETS = {
         }
     },
 
+    "game-show": {
+        "kwargs": {
+            "distrib": "normal",
+            "freq": random.randint(8, 16) * 2,
+            "mask": ["h_tri", "v_tri"][random.randint(0, 1)],
+            "posterize_levels": random.randint(2, 5),
+            "spline_order": 2,
+            "with_snow": random.random() * .333,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+        }
+    },
+
     "glom": {
         "kwargs": {
             "lattice_drift": 1,
@@ -569,7 +584,6 @@ PRESETS = {
             "hsv_saturation": 0.27,
             "invert": random.randint(0, 1),
             "mask": "chess",
-            # "posterize_levels": 12,
             "spline_order": 0,
             "voronoi_alpha": .25 + random.random() * .75,
             "voronoi_refract": random.random() * 4,
@@ -699,6 +713,7 @@ PRESETS = {
 
     "misaligned": {
         "kwargs": {
+            "distrib": [m.value for m in ValueDistribution][random.randint(0, len(ValueDistribution) - 1)],
             "freq": random.randint(12, 24),
             "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "octaves": random.randint(4, 8),
@@ -1100,6 +1115,22 @@ PRESETS = {
             "worms_stride": .5,
             "worms_stride_deviation": .25,
         }
+    },
+
+    "vectoroids": {
+        "kwargs": {
+            "freq": 25,
+            "distrib": "ones",
+            "mask": "sparse",
+            "point_freq": 10,
+            "point_drift": .25 + random.random() * .75,
+            "post_deriv": 1,
+            "reverb_iterations": random.randint(1, 3),
+            "spline_order": 0,
+            "with_aberration": .0025 + random.random() * .0075,
+            "with_voronoi": 4,
+            "with_reverb": random.randint(0, 5),
+        },
     },
 
     "velcro": {

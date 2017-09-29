@@ -193,6 +193,8 @@ class ValueMask(Enum):
 
     v_tri = 13
 
+    sparse = 100
+
 
 class VoronoiDiagramType(Enum):
     """
