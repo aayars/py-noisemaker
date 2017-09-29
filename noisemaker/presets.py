@@ -80,6 +80,7 @@ EFFECTS_PRESETS = {
 
     "mosaic": {
         "kwargs": {
+            "point_distrib": "random" if random.random() < .5 else [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": 10,
             "voronoi_alpha": .75 + random.random() * .25,
             "with_voronoi": 5,
