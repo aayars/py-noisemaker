@@ -117,8 +117,9 @@ EFFECTS_PRESETS = {
     "voronoid": {
         "kwargs": {
             "point_freq": random.randint(4, 10),
-            "voronoi_refract": random.random(),
             "voronoi_func": random.randint(1, 3),
+            "voronoi_refract": .5 + random.random() * .5,
+            "voronoi_nth": random.randint(0, 3),
             "with_voronoi": [1, 3, 6][random.randint(0, 2)]
         }
     },
@@ -1127,6 +1128,18 @@ PRESETS = {
             "worms_duration": .5,
             "worms_stride": .5,
             "worms_stride_deviation": .25,
+        }
+    },
+
+    "unicorn-puddle": {
+        "kwargs": {
+            "emboss": 1,
+            "freq": random.randint(3, 5),
+            "hsv_range": 1.0 + random.random() * .5,
+            "invert": .5 * random.random() * .5,
+            "lattice_drift": 1,
+            "octaves": random.randint(4, 6),
+            "with_bloom": .5 + random.random() * .5,
         }
     },
 
