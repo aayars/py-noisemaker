@@ -1379,17 +1379,12 @@ def bloom(tensor, shape, alpha=.5):
 
     height, width, channels = shape
 
-    shape_0 = [max(int(height * .005), 1), max(int(width * .005), 1), channels]
-    shape_1 = [max(int(height * .01), 1), max(int(width * .01), 1), channels]
-    shape_2 = [max(int(height * .02), 1), max(int(width * .02), 1), channels]
+    blurred = tf.maximum(tensor * 4.0 - 3.0, 0.0)
+    blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 2.0
+    blurred = resample(blurred, shape)
+    blurred = offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
-    bright_spots = tf.maximum(tensor * 2 - 1, 0.0)
-
-    blurred = (resample(_downsample(bright_spots, shape, shape_0) * 4, shape)
-               + resample(_downsample(bright_spots, shape, shape_1) * 4, shape)
-               + resample(_downsample(bright_spots, shape, shape_2) * 4, shape)) / 3.0
-
-    return blend_cosine(tensor, normalize(tensor + blurred), alpha)
+    return blend(tensor, normalize(tensor + blurred), alpha)
 
 
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
