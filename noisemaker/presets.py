@@ -624,19 +624,24 @@ PRESETS = {
 
     "hairy-diamond": {
         "kwargs": {
+            "erosion_worms_alpha": .75 + random.random() * .25,
+            "erosion_worms_contraction": .5 + random.random(),
+            "erosion_worms_density": random.randint(25, 50),
+            "erosion_worms_iterations": random.randint(25, 50),
             "freq": random.randint(2, 6),
             "hsv_range": random.random(),
             "hsv_rotation": random.random(),
             "hsv_saturation": random.random(),
             "point_corners": True,
-            "point_distrib": "concentric",
+            "point_distrib": [m.value for m in circular_dists][random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(3, 6),
             "point_generations": 2,
-            "voronoi_func": 2,
+            "spline_order": random.randint(0, 3),
+            "voronoi_func": random.randint(2, 3),
             "voronoi_inverse": True,
             "voronoi_alpha": .25 + random.random() * .5,
             "with_erosion_worms": True,
-            "with_voronoi": 6,
+            "with_voronoi": [1, 6][random.randint(0, 1)],
         }
     },
 
