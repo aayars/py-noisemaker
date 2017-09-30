@@ -29,6 +29,14 @@ def main(ctx, name, preset_name, input_filename):
 
         need_resample = False
 
+        # Some presets only like square images. Work around for now by cropping.
+        if height != width:
+            length = min(height, width)
+            height = length
+            width = length
+
+            tensor = tf.image.resize_image_with_crop_or_pad(tensor, length, length)
+
         if height > max_height:
             need_resample = True
             width = int(width * (max_height / height))
