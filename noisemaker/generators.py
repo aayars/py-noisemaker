@@ -135,28 +135,11 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                     elif x % invader_width == 0:
                         mask_row.append([0.0])
 
-                    elif invader_width == 6:
-                        if x % 6 == 4:
-                            mask_row.append(mask_row[x - 2])
+                    elif x % invader_width > invader_width / 2:
+                        mask_row.append(mask_row[x - int(((x % invader_width) - invader_width / 2) * 2)])
 
-                        elif x % 6 == 5:
-                            mask_row.append(mask_row[x - 4])
-
-                        else:
-                            mask_row.append([random.randint(0, 1) * 1.0])
-
-                    elif invader_width == 8:
-                        if x % 8 == 5:
-                            mask_row.append(mask_row[x - 2])
-
-                        elif x % 8 == 6:
-                            mask_row.append(mask_row[x - 4])
-
-                        elif x % 8 == 7:
-                            mask_row.append(mask_row[x - 6])
-
-                        else:
-                            mask_row.append([random.randint(0, 1) * 1.0])
+                    else:
+                        mask_row.append([random.randint(0, 1) * 1.0])
 
                 mask_values.append(mask_row)
 
