@@ -585,6 +585,17 @@ PRESETS = {
         }
     },
 
+    "glass-onion": {
+        "kwargs": {
+            "point_freq": random.randint(3, 6),
+            "post_deriv": random.randint(1, 3),
+            "post_refract_range": .75 + random.random() * .5,
+            "voronoi_inverse": random.randint(0, 1),
+            "with_reverb": random.randint(3, 5),
+            "with_voronoi": 2,
+        }
+    },
+
     "glom": {
         "kwargs": {
             "lattice_drift": 1,
