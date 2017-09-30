@@ -102,15 +102,65 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         elif mask == ValueMask.sparse:
             mask_values = []
 
-            for y in range(freq[0]):
+            for y in range(channel_shape[0]):
                 mask_row = []
 
-                for x in range(freq[1]):
+                for x in range(channel_shape[1]):
                     mask_row.append([1.0] if random.random() < .15 else [0.0])
 
                 mask_values.append(mask_row)
 
-            mask_shape = [10, 10, 1]
+            mask_shape = channel_shape
+
+        elif mask == ValueMask.invaders:
+            # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
+
+            mask_values = []
+
+            if random.randint(0, 1):
+                invader_height = 6
+                invader_width = 6
+
+            else:
+                invader_height = 5
+                invader_width = 8
+
+            for y in range(channel_shape[0]):
+                mask_row = []
+
+                for x in range(channel_shape[1]):
+                    if y % invader_height == 0:
+                        mask_row.append([0.0])
+
+                    elif x % invader_width == 0:
+                        mask_row.append([0.0])
+
+                    elif invader_width == 6:
+                        if x % 6 == 4:
+                            mask_row.append(mask_row[x - 2])
+
+                        elif x % 6 == 5:
+                            mask_row.append(mask_row[x - 4])
+
+                        else:
+                            mask_row.append([random.randint(0, 1) * 1.0])
+
+                    elif invader_width == 8:
+                        if x % 8 == 5:
+                            mask_row.append(mask_row[x - 2])
+
+                        elif x % 8 == 6:
+                            mask_row.append(mask_row[x - 4])
+
+                        elif x % 8 == 7:
+                            mask_row.append(mask_row[x - 6])
+
+                        else:
+                            mask_row.append([random.randint(0, 1) * 1.0])
+
+                mask_values.append(mask_row)
+
+            mask_shape = channel_shape
 
         tensor *= effects.expand_tile(tf.stack(mask_values), mask_shape, channel_shape)
 

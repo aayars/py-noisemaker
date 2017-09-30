@@ -1527,7 +1527,7 @@ def pop(tensor, shape):
         image = image % tf.random_normal([3], mean=.5, stddev=.25)
         images.append(image)
 
-    x, y = point_cloud(freq, distrib=PointDistribution.square, shape=shape, corners=True, drift=0 if random.random() < .5 else random.random())
+    x, y = point_cloud(freq, distrib=PointDistribution.square, shape=shape, corners=True, drift=0 if random.randint(0, 1) else random.random())
 
     out = voronoi(None, shape, diagram_type=VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=random.randint(0, 3), collage_images=images, image_count=4)
 

@@ -195,6 +195,8 @@ class ValueMask(Enum):
 
     sparse = 100
 
+    invaders = 101
+
 
 class VoronoiDiagramType(Enum):
     """
