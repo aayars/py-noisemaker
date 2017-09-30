@@ -1,4 +1,3 @@
-import math
 import random
 
 import numpy as np
@@ -70,6 +69,7 @@ _MASKS = {
     },
 
 }
+
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
     """

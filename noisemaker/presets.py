@@ -279,7 +279,7 @@ PRESETS = {
         "kwargs": {
             "deriv": random.randint(1, 3),
             "distrib": "uniform",
-            "freq": random.randint(6,12) * 2,
+            "freq": random.randint(6, 12) * 2,
             "hsv_saturation": .25 + random.random() * .5,
             "hsv_range": .25 + random.random() * .5,
             "hsv_rotation": None if random.randint(0, 1) else random.random(),
