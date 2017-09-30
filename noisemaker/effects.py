@@ -1379,8 +1379,8 @@ def bloom(tensor, shape, alpha=.5):
 
     height, width, channels = shape
 
-    blurred = tf.maximum(tensor * 4.0 - 3.0, 0.0)
-    blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 2.0
+    blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
+    blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
     blurred = resample(blurred, shape)
     blurred = offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
