@@ -47,6 +47,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "extract-derivative": {
+        "kwargs": {
+            "deriv": random.randint(1, 3),
+        }
+    },
+
     "funhouse": {
         "kwargs": {
             "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
@@ -94,6 +100,13 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "posterize-outline": {
+        "kwargs": {
+            "posterize_levels": random.randint(3, 7),
+            "with_outline": 1,
+        }
+    },
+
     "reindex": {
         "kwargs": {
             "reindex_range": .125 + random.random() * .125,
@@ -105,6 +118,14 @@ EFFECTS_PRESETS = {
             "reverb_iterations": random.randint(1, 4),
             "with_reverb": random.randint(3, 6),
         },
+    },
+
+    "shadows": {
+        "kwargs": {
+            "shadow": .5 + random.random() * .5,
+            "with_vignette": .5 + random.random() * .5,
+            "vignette_brightness": 0,
+        }
     },
 
     "sobel-operator": {
