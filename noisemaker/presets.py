@@ -1060,9 +1060,11 @@ PRESETS = {
             "invert": 1,
             "point_freq": 10,
             "reflect_range": random.random() + .5,
+            "reverb_iterations": random.randint(1, 4),
             "spline_order": 2,
             "voronoi_refract": random.randint(2, 4),
             "with_bloom": .25 + random.random() * .5,
+            "with_reverb": random.randint(0, 3),
             "with_sobel": 1,
             "with_voronoi": 6,
         }
