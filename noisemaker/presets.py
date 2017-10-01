@@ -891,6 +891,21 @@ PRESETS = {
         }
     },
 
+    "prophesy": {
+        "kwargs": {
+            "distrib": "ones",
+            "emboss": .5 + random.random() * .5,
+            "freq": 48,
+            "hsv_saturation": .075 + random.random() * .075,
+            "invert": random.randint(0, 1),
+            "mask": "invaders",
+            "octaves": 2,
+            "refract_range": .5,
+            "spline_order": random.randint(1, 3),
+            "posterize_levels": random.randint(4, 8),
+        }
+    },
+
     "quilty": {
         "kwargs": {
             "freq": random.randint(2, 6),
