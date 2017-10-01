@@ -1,74 +1,10 @@
-import random
-
 import numpy as np
 import tensorflow as tf
 
 from noisemaker.constants import ValueDistribution, ValueMask
+
 import noisemaker.effects as effects
-
-
-_MASKS = {
-    ValueMask.chess: {
-        "shape": [2, 2, 1],
-        "values": [[0.0, 1.0], [1.0, 0.0]]
-    },
-
-    ValueMask.waffle: {
-        "shape": [2, 2, 1],
-        "values": [[0.0, 1.0], [1.0, 1.0]]
-    },
-
-    ValueMask.h_hex: {
-        "shape": [6, 4, 1],
-        "values": [
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-        ]
-    },
-
-    ValueMask.v_hex: {
-        "shape": [4, 6, 1],
-        "values": [
-            [0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        ]
-    },
-
-    ValueMask.h_tri: {
-        "shape": [4, 2, 1],
-        "values": [
-            [0.0, 1.0],
-            [0.0, 0.0],
-            [1.0, 0.0],
-            [0.0, 0.0]
-        ]
-    },
-
-    ValueMask.v_tri: {
-        "shape": [2, 4, 1],
-        "values": [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0]
-        ]
-    },
-
-    ValueMask.square: {
-        "shape": [4, 4, 1],
-        "values": [
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 1.0, 0.0],
-            [0.0, 1.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0]
-        ]
-    },
-
-}
+import noisemaker.masks as masks
 
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
@@ -109,53 +45,23 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     if mask:
-        if mask in _MASKS:
-            mask_shape = _MASKS[mask]["shape"]
-            mask_values = _MASKS[mask]["values"]
+        if mask in masks.Masks:
+            mask_values = effects.expand_tile(masks.Masks[mask]["values"], masks.Masks[mask]["shape"], [channel_shape[0], channel_shape[1]])
 
-        elif mask == ValueMask.sparse:
-            mask_shape = channel_shape
+        else:
             mask_values = []
+
+            mask_function = getattr(masks, mask.name)
+            mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)()
 
             for y in range(channel_shape[0]):
                 mask_row = []
-
-                for x in range(channel_shape[1]):
-                    mask_row.append(1.0 if random.random() < .15 else 0.0)
-
                 mask_values.append(mask_row)
 
-        elif mask == ValueMask.invaders:
-            # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
-            mask_shape = channel_shape
-            mask_values = []
-
-            if random.randint(0, 1):
-                invader_height = 6
-                invader_width = 6
-
-            else:
-                invader_height = 5
-                invader_width = 8
-
-            for y in range(channel_shape[0]):
-                mask_row = []
-
                 for x in range(channel_shape[1]):
-                    if y % invader_height == 0 or x % invader_width == 0:
-                        mask_row.append(0.0)
+                    mask_row.append(mask_function(x, y, mask_row, mask_shape))
 
-                    elif x % invader_width > invader_width / 2:
-                        mask_row.append(mask_row[x - int(((x % invader_width) - invader_width / 2) * 2)])
-
-                    else:
-                        mask_row.append(random.randint(0, 1) * 1.0)
-
-                mask_values.append(mask_row)
-
-        mask_values = tf.reshape(mask_values, mask_shape)
-
-        tensor *= effects.expand_tile(tf.stack(mask_values), mask_shape, channel_shape)
+        tensor *= tf.reshape(mask_values, channel_shape)
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
