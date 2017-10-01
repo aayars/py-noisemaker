@@ -901,7 +901,7 @@ PRESETS = {
             "mask": "invaders",
             "octaves": 2,
             "refract_range": .5,
-            "spline_order": random.randint(1, 3),
+            "spline_order": random.randint(1, 2),
             "posterize_levels": random.randint(4, 8),
         }
     },
