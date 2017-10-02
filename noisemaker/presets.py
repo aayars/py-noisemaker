@@ -816,11 +816,20 @@ PRESETS = {
     "now": {
         "kwargs": {
             "channels": 3,
-            "lattice_drift": 1,
-            "octaves": 3,
+            "freq": random.randint(3, 10),
+            "hsv_range": random.random(),
+            "lattice_drift": random.randint(0, 1),
+            "octaves": random.randint(2, 4),
+            "reverb_iterations": 3,
+            "point_freq": random.randint(3, 10),
             "spline_order": 0,
-            "voronoi_refract": 2,
+            "voronoi_refract": random.randint(1, 4),
+            "warp_freq": random.randint(2, 4),
+            "warp_interp": 3,
+            "warp_octaves": 1,
+            "warp_range": .075 + random.random() * .075,
             "with_outline": 1,
+            "with_reverb": random.randint(0, 1),
             "with_voronoi": 6,
         }
     },
