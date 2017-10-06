@@ -695,15 +695,6 @@ PRESETS = {
         }
     },
 
-    "inderpulate": {
-        "kwargs": {
-            "freq": random.randint(2, 4),
-            "lattice_drift": 1,
-            "refract_range": random.randint(8, 12),
-            "ridges": True,
-        }
-    },
-
     "invaders": {
         "kwargs": {
              "distrib": "ones",
