@@ -634,6 +634,21 @@ PRESETS = {
         }
     },
 
+    "gravy": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 24 * random.randint(2, 6),
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "post_deriv": 2,
+            "spline_order": random.randint(1, 2),
+            "warp_range": .25 + random.random() * .5,
+            "warp_octaves": 3,
+            "warp_freq": random.randint(2, 4),
+            "warp_interp": 3,
+            "with_bloom": .25 + random.random() * .5,
+        }
+    },
+
     "hairy-diamond": {
         "kwargs": {
             "erosion_worms_alpha": .75 + random.random() * .25,
