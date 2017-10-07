@@ -351,15 +351,18 @@ PRESETS = {
 
     "conjoined": {
         "kwargs": {
+            "corners": True,
+            "freq": 2,
             "hsv_range": random.random(),
-            "lattice_drift": 1,
             "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(3, 7),
             "post_deriv": 1,
-            "voronoi_alpha": 0.25 + random.random() * .5,
+            "reindex_range": .5 + random.random() * .5,
+            "voronoi_alpha": .5 + random.random() * .5,
             "voronoi_nth": random.randint(0, 4),
-            "voronoi_refract": random.randint(6, 12),
-            "with_bloom": 0.25 + random.random() * .5,
+            "voronoi_refract": random.randint(2, 4),
+            "with_bloom": .25 + random.random() * .5,
+            "with_reverb": 2,
             "with_voronoi": 2,
         }
     },
