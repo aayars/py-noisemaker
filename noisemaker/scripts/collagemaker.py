@@ -8,6 +8,7 @@ from noisemaker.util import save
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
+import noisemaker.generators as generators
 import noisemaker.points as points
 
 
@@ -69,8 +70,12 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 
     x, y = points.point_cloud(point_freq, distrib=point_distrib, shape=shape, drift=point_drift)
 
-    tensor = effects.voronoi(None, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
-                             input_dir=input_dir)
+    base = generators.basic(freq=random.randint(2, 4), shape=shape, lattice_drift=random.randint(0, 1), hsv_range=random.random())
+
+    tensor = effects.voronoi(base, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
+                             input_dir=input_dir, alpha=.333 + random.random() * .333)
+
+    tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 
     with tf.Session().as_default():
         save(tensor, name)
