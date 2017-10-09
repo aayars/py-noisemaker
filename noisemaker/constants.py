@@ -197,6 +197,16 @@ class ValueMask(Enum):
 
     invaders = 101
 
+    matrix = 102
+
+    @classmethod
+    def procedural_members(cls):
+        return [m for m in cls if cls.is_procedural(m)]
+
+    @classmethod
+    def is_procedural(cls, member):
+        return member.value >= cls.sparse.value
+
 
 class VoronoiDiagramType(Enum):
     """

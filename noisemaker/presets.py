@@ -716,8 +716,8 @@ PRESETS = {
     "invaders": {
         "kwargs": {
              "distrib": "ones",
-             "freq": 24 * random.randint(1, 6),
-             "mask": "invaders",
+             "freq": 24 * random.randint(1, 8),
+             "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
              "spline_order": 0,
              "with_bloom": .25 + random.random() * .25,
         },

@@ -92,3 +92,17 @@ def invaders(x, y, row, shape, *args):
 
     else:
         return random.randint(0, 1) * 1.0
+
+
+def matrix_shape():
+    return (6, 4)
+
+
+def matrix(x, y, row, shape, *args):
+    height = shape[0]
+    width = shape[1]
+
+    if y % height == 0 or x % width == 0:
+        return 0.0
+
+    return random.randint(0, 1) * 1.0
