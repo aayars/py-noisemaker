@@ -1,4 +1,4 @@
-""" Presets library for noisemaker/artmaker """
+""" Presets library for artmaker/artmangler scripts """
 
 import random
 
@@ -1396,14 +1396,15 @@ PRESETS = {
 
 def load(preset_name, preset_set=None):
     """
-    Load a named preset.
+    Load a named preset. Specify "random" for a random preset.
 
-    Returns a tuple of (dict, dict), containing `generators.multires` and `recipes.post_process` keyword args.
+    Returns a tuple of (dict, dict, str): `generators.multires` keyword args, `recipes.post_process` keyword args, and preset name.
 
     See the `artmaker` script for an example of how these values are used.
 
     :param str preset_name: Name of the preset. If "random" is given, a random preset is returned.
-    :return: Tuple(dict, dict)
+    :param dict|None preset_set: Use a provided preset set. Defaults to `presets.PRESETS`.
+    :return: tuple(dict, dict, str)
     """
 
     if preset_set is None:
