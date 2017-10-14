@@ -275,6 +275,17 @@ PRESETS = {
         }
     },
 
+    "berkeley": {
+        "kwargs": {
+            "freq": random.randint(12, 24),
+            "octaves": 8,
+            "post_ridges": True,
+            "reindex_range": .333 + random.random() * .333,
+            "ridges": True,
+            "sin": 2 * random.random() * 2,
+        }
+    },
+
     "blobby": {
         "kwargs": {
             "deriv": random.randint(1, 3),
@@ -1015,6 +1026,16 @@ PRESETS = {
             "voronoi_alpha": .25 + random.random() * .25,
             "with_reverb": random.randint(0, 2),
             "with_voronoi": 2,
+        }
+    },
+
+    "ridged-ridges": {
+        "kwargs": {
+            "freq": random.randint(2, 8),
+            "lattice-drift": random.randint(0, 1),
+            "octaves": random.randint(3, 6),
+            "post_ridges": True,
+            "ridges": True,
         }
     },
 
