@@ -213,9 +213,6 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and not hsv, spline_order=spline_order,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_func=deriv_func, **post_process_args)
-
-    if post_ridges:
-        tensor = effects.crease(tensor)
+                                  deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, **post_process_args)
 
     return tensor

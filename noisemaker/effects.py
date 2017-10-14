@@ -25,7 +25,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 input_dir=None, **convolve_kwargs):
+                 input_dir=None, with_crease=False, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -88,6 +88,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
+    :param bool with_crease: Crease at midpoint values
 
     :return: Tensor
     """
@@ -146,6 +147,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if deriv:
         tensor = derivative(tensor, shape, deriv, alpha=deriv_alpha)
+
+    if with_crease:
+        tensor = crease(tensor)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)

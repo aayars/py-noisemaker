@@ -277,11 +277,12 @@ PRESETS = {
 
     "berkeley": {
         "kwargs": {
-            "freq": random.randint(12, 24),
+            "freq": random.randint(12, 16),
             "octaves": 8,
             "post_ridges": True,
-            "reindex_range": .333 + random.random() * .333,
+            "reindex_range": .375 + random.random() * .125,
             "ridges": True,
+            "shadow": 1,
             "sin": 2 * random.random() * 2,
         }
     },
