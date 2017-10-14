@@ -142,7 +142,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False, spline_order=3, seed=None,
+def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False, with_reverb=None, reverb_iterations=1,
@@ -159,7 +159,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False,
     :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8
-    :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
+    :param bool ridges: Per-octave "crease" at midpoint values: (1 - abs(n * 2 - 1))
+    :param bool post_ridges: Post-reduce "crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param float sin: Apply sin function to noise basis
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
@@ -213,5 +214,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=True, sin=0.0, wavelet=False,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
                                   deriv=post_deriv, deriv_func=deriv_func, **post_process_args)
+
+    if post_ridges:
+        tensor = effects.crease(tensor)
 
     return tensor

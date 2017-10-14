@@ -39,11 +39,11 @@ EFFECTS_PRESETS = {
 
     "erosion-worms": {
         "kwargs": {
-            "with_erosion_worms": True,
             "erosion_worms_alpha": .25 + random.random() * .75,
             "erosion_worms_contraction": .5 + random.random() * .5,
             "erosion_worms_density": random.randint(25, 100),
             "erosion_worms_iterations": random.randint(25, 100),
+            "with_erosion_worms": True,
         }
     },
 
@@ -241,13 +241,13 @@ PRESETS = {
             "ridges": True,
             "shadow": .75,
             "sin": 1 + random.random(),
-            "voronoi_alpha": 0.25 + random.random() * .25,
-            "voronoi_refract": 0.25 + random.random() * .25,
+            "voronoi_alpha": 0.333 + random.random() * .333,
+            "voronoi_refract": 0.333 + random.random() * .333,
             "with_bloom": 0.5 + random.random() * .25,
             "with_erosion_worms": True,
             "with_voronoi": 6,
             "with_worms": 4,
-            "worms_alpha": .05 + random.random() * .025,
+            "worms_alpha": .1 + random.random() * .025,
             "worms_kink": random.randint(35, 50),
             "worms_duration": 0.4,
             "worms_density": 500,
@@ -1004,6 +1004,20 @@ PRESETS = {
         }
     },
 
+    "ridged-bubbles": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "invert": True,
+            "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
+            "point_freq": random.randint(4, 10),
+            "post_ridges": True,
+            "voronoi_alpha": .25 + random.random() * .25,
+            "with_reverb": random.randint(0, 2),
+            "with_voronoi": 2,
+        }
+    },
+
     "shmoo": {
         "kwargs": {
             "freq": random.randint(4, 6),
@@ -1390,7 +1404,8 @@ PRESETS = {
             "worms_kink": 1.0 + random.random() * 4.0,
             "worms_stride": 8.0 + random.random() * 4.0,
         }
-    }
+    },
+
 }
 
 

@@ -133,9 +133,15 @@ def octaves_option(**attrs):
 
 
 def ridges_option(**attrs):
-    attrs.setdefault("help", "\"Crease\" at midpoint values: abs(noise * 2 - 1)")
+    attrs.setdefault("help", "Per-octave \"crease\" at midpoint values: abs(noise * 2 - 1)")
 
     return bool_option("--ridges", **attrs)
+
+
+def post_ridges_option(**attrs):
+    attrs.setdefault("help", "Post-reduce \"crease\" at midpoint values: abs(noise * 2 - 1)")
+
+    return bool_option("--post-ridges", **attrs)
 
 
 def distrib_option(**attrs):

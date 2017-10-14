@@ -19,6 +19,7 @@ import noisemaker.recipes as recipes
 @cli.channels_option()
 @cli.octaves_option()
 @cli.ridges_option()
+@cli.post_ridges_option()
 @cli.deriv_option()
 @cli.deriv_alpha_option()
 @cli.post_deriv_option()
@@ -97,7 +98,7 @@ import noisemaker.recipes as recipes
 @cli.wavelet_option()
 @cli.name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
+def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
          reflect, refract, reindex, reverb, reverb_iterations, post_reflect, post_refract, clut, clut_horizontal, clut_range,
          worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
          wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
@@ -109,8 +110,9 @@ def main(ctx, freq, width, height, channels, octaves, ridges, sin, wavelet, latt
 
     shape = [height, width, channels]
 
-    tensor = generators.multires(freq=freq, shape=shape, octaves=octaves, ridges=ridges, sin=sin, wavelet=wavelet, lattice_drift=lattice_drift,
-                                 reflect_range=reflect, refract_range=refract, reindex_range=reindex, with_reverb=reverb, reverb_iterations=reverb_iterations,
+    tensor = generators.multires(freq=freq, shape=shape, octaves=octaves, ridges=ridges, post_ridges=post_ridges, sin=sin, wavelet=wavelet,
+                                 lattice_drift=lattice_drift, reflect_range=reflect, refract_range=refract, reindex_range=reindex,
+                                 with_reverb=reverb, reverb_iterations=reverb_iterations,
                                  post_reflect_range=post_reflect, post_refract_range=post_refract,
                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
