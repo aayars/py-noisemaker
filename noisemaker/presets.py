@@ -70,7 +70,7 @@ EFFECTS_PRESETS = {
         "post_kwargs": {
             "with_crt": random.random() > .25,
             "with_dither": random.random() * .25 if random.randint(0, 1) else 0,
-            "with_glitch": random.random() > .25,
+            "with_glitch": True,
             "with_scan_error": random.randint(0, 1),
         },
     },
