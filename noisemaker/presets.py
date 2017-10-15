@@ -162,6 +162,7 @@ EFFECTS_PRESETS = {
     "worms": {
         "kwargs": {
             "with_worms": random.randint(1, 4),
+            "worms_alpha": .75 + random.random() * .25,
             "worms_density": 500,
             "worms_duration": 1,
             "worms_kink": 2.5,
