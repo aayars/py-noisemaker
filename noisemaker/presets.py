@@ -1041,6 +1041,20 @@ PRESETS = {
         }
     },
 
+    "shatter": {
+        "kwargs": {
+             "freq": random.randint(2, 4),
+             "invert": random.randint(0, 1),
+             "point_freq": random.randint(3, 6),
+             "post_refract_range": random.randint(3, 5),
+             "posterize_levels": random.randint(4, 6),
+             "voronoi_func": [1, 3][random.randint(0, 1)],
+             "voronoi_inverse": random.randint(0, 1),
+             "with_outline": random.randint(1, 3),
+             "with_voronoi": 5,
+        }
+    },
+
     "shmoo": {
         "kwargs": {
             "freq": random.randint(4, 6),
