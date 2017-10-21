@@ -576,28 +576,40 @@ def rgb_option(**attrs):
     return bool_option("--rgb", **attrs)
 
 
-def hsv_range_option(**attrs):
+def hue_range_option(**attrs):
     attrs.setdefault("help", "HSV: Hue range (0..1+)")
 
-    return float_option("--hsv-range", default=0.25, **attrs)
+    return float_option("--hue-range", default=0.25, **attrs)
 
 
-def hsv_rotation_option(**attrs):
+def hue_rotation_option(**attrs):
     attrs.setdefault("help", "HSV: Hue rotation (0..1)")
 
-    return float_option("--hsv-rotation", default=None, **attrs)
+    return float_option("--hue-rotation", default=None, **attrs)
 
 
-def hsv_saturation_option(**attrs):
+def saturation_option(**attrs):
     attrs.setdefault("help", "HSV: Saturation (0..1+)")
 
-    return float_option("--hsv-saturation", default=1.0, **attrs)
+    return float_option("--saturation", default=1.0, **attrs)
 
 
-def post_hsv_rotation_option(**attrs):
+def saturation_distrib_option(**attrs):
+    attrs.setdefault("help", "HSV: Override value distribution for saturation")
+
+    return str_option("--saturation-distrib", type=click.Choice([m.name for m in ValueDistribution]), default=None, **attrs)
+
+
+def brightness_distrib_option(**attrs):
+    attrs.setdefault("help", "HSV: Override value distribution for brightness")
+
+    return str_option("--brightness-distrib", type=click.Choice([m.name for m in ValueDistribution]), default=None, **attrs)
+
+
+def post_hue_rotation_option(**attrs):
     attrs.setdefault("help", "HSV: Post-reduce hue rotation (-0.5 .. 0.5)")
 
-    return float_option("--post-hsv-rotation", default=1.0, **attrs)
+    return float_option("--post-hue-rotation", default=1.0, **attrs)
 
 
 def input_dir_option(**attrs):

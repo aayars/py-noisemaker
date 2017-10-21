@@ -70,7 +70,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 
     x, y = points.point_cloud(point_freq, distrib=point_distrib, shape=shape, drift=point_drift)
 
-    base = generators.basic(freq=random.randint(2, 4), shape=shape, lattice_drift=random.randint(0, 1), hsv_range=random.random())
+    base = generators.basic(freq=random.randint(2, 4), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     tensor = effects.voronoi(base, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
                              input_dir=input_dir, alpha=.333 + random.random() * .333)

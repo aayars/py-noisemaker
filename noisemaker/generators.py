@@ -29,7 +29,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     if distrib == ValueDistribution.ones:
         tensor = tf.ones(initial_shape)
 
-    if distrib == ValueDistribution.normal:
+    elif distrib == ValueDistribution.mids:
+        tensor = tf.ones(initial_shape) * .5
+
+    elif distrib == ValueDistribution.normal:
         tensor = tf.random_normal(initial_shape, seed=seed)
 
     elif distrib == ValueDistribution.uniform:
@@ -76,7 +79,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
           distrib=ValueDistribution.normal, corners=False, mask=None, lattice_drift=0.0,
-          hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
+          rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, brightness_distrib=None, saturation_distrib=None,
           **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -97,10 +100,12 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param None|ValueMask mask:
     :param float lattice_drift: Push away from underlying lattice
     :param int seed: Random seed for reproducible output. Ineffective with exp
-    :param bool hsv: Set to False for RGB noise
-    :param float hsv_range: HSV hue range
-    :param float|None hsv_rotation: HSV hue bias
-    :param float hsv_saturation: HSV saturation
+    :param bool rgb: Disable HSV
+    :param float hue_range: HSV hue range
+    :param float|None hue_rotation: HSV hue bias
+    :param float saturation: HSV saturation
+    :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
+    :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -118,25 +123,40 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
     tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
 
-    if shape[-1] == 3 and hsv:
-        if hsv_rotation is None:
-            hsv_rotation = tf.random_normal([])
+    if shape[-1] == 3 and not rgb:
+        if hue_rotation is None:
+            hue_rotation = tf.random_normal([])
 
-        hue = (tensor[:, :, 0] * hsv_range + hsv_rotation) % 1.0
+        h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
-        saturation = effects.normalize(tensor[:, :, 1]) * hsv_saturation
+        if saturation_distrib:
+            s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners, mask=mask,
+                                  spline_order=spline_order, seed=seed, wavelet=wavelet))
 
-        value = effects.crease(tensor[:, :, 2]) if ridges else tensor[:, :, 2]
+        else:
+            s = tensor[:, :, 1]
+
+        s *= saturation
+
+        if brightness_distrib:
+            v = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=brightness_distrib, corners=corners, mask=mask,
+                                  spline_order=spline_order, seed=seed, wavelet=wavelet))
+
+        else:
+            v = tensor[:, :, 2]
+
+        if ridges:
+            v = effects.crease(v)
 
         if sin:
-            value = effects.normalize(tf.sin(sin * value))
+            v = effects.normalize(tf.sin(sin * v))
 
-        tensor = tf.image.hsv_to_rgb([tf.stack([hue, saturation, value], 2)])[0]
+        tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
 
     elif ridges:
         tensor = effects.crease(tensor)
 
-    if sin and not hsv:
+    if sin and rgb:
         tensor = tf.sin(sin * tensor)
 
     return tensor
@@ -146,7 +166,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False, with_reverb=None, reverb_iterations=1,
-             hsv=True, hsv_range=.125, hsv_rotation=None, hsv_saturation=1.0,
+             rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, saturation_distrib=None, brightness_distrib=None,
              **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
@@ -180,10 +200,12 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param float post_reflect_range: Reduced derivative-based distort gradient
     :param float post_refract_range: Reduced self-distort gradient
     :param bool post_deriv: Reduced derivatives
-    :param bool hsv: Set to False for RGB noise
-    :param float hsv_range: HSV hue range
-    :param float|None hsv_rotation: HSV hue bias
-    :param float hsv_saturation: HSV saturation
+    :param bool rgb: Disable HSV
+    :param float hue_range: HSV hue range
+    :param float|None hue_rotation: HSV hue bias
+    :param float saturation: HSV saturation
+    :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
+    :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -205,12 +227,13 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       distrib=distrib, corners=corners, mask=mask, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
-                      hsv=hsv, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation,
+                      rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
+                      brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                       )
 
         tensor += layer / multiplier
 
-    tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and not hsv, spline_order=spline_order,
+    tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
                                   deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, **post_process_args)

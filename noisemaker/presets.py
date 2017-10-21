@@ -191,6 +191,18 @@ PRESETS = {
         }
     },
 
+    "3d-rgb": {
+        "kwargs": {
+            "brightness_distrib": "mids",
+            "distrib": "uniform",
+            "freq": random.randint(6, 16),
+            "hue_range": random.randint(1, 4),
+            "lattice_drift": random.random(),
+            "saturation_distrib": "ones",
+            "with_shadow": 1,
+        }
+    },
+
     "acid-grid": {
         "kwargs": {
             "invert": 1,
@@ -215,12 +227,12 @@ PRESETS = {
             "deriv": 1,
             "deriv_alpha": .333 + random.random() * .333,
             "freq": random.randint(4, 6),
-            "hsv_saturation": .25 + random.random() * .25,
+            "saturation": .25 + random.random() * .25,
             "invert": 1,
             "lattice_drift": 1,
-            "octaves": 6,
+            "octaves": 8,
             "with_bloom": .5 + random.random() * .25,
-            "with_shadow": .5 + random.random() * .25,
+            "with_shadow": .5 + random.random() * .375,
         }
     },
 
@@ -233,8 +245,8 @@ PRESETS = {
             "erosion_worms_density": random.randint(50, 75),
             "erosion_worms_iterations": random.randint(25, 50),
             "freq": random.randint(2, 6),
-            "hsv_rotation": 0 if random.randint(0, 1) else random.random(),
-            "hsv_saturation": 0.25 + random.random() * .25,
+            "hue_rotation": 0 if random.randint(0, 1) else random.random(),
+            "saturation": 0.25 + random.random() * .25,
             "invert": random.randint(0, 1),
             "lattice_drift": 1,
             "octaves": 4,
@@ -246,7 +258,7 @@ PRESETS = {
             "voronoi_refract": 0.333 + random.random() * .333,
             "with_bloom": 0.5 + random.random() * .25,
             "with_erosion_worms": True,
-            "with_shadow": .75,
+            "with_shadow": .5 + random.random() * .375,
             "with_voronoi": 6,
             "with_worms": 4,
             "worms_alpha": .1 + random.random() * .025,
@@ -294,9 +306,9 @@ PRESETS = {
             "deriv": random.randint(1, 3),
             "distrib": "uniform",
             "freq": random.randint(6, 12) * 2,
-            "hsv_saturation": .25 + random.random() * .5,
-            "hsv_range": .25 + random.random() * .5,
-            "hsv_rotation": None if random.randint(0, 1) else random.random(),
+            "saturation": .25 + random.random() * .5,
+            "hue_range": .25 + random.random() * .5,
+            "hue_rotation": None if random.randint(0, 1) else random.random(),
             "invert": 1,
             "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "outline": 1,
@@ -367,7 +379,7 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "freq": 2,
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(3, 7),
             "post_deriv": 1,
@@ -386,8 +398,8 @@ PRESETS = {
             "distrib": "laplace",
             "corners": False,
             "freq": random.randint(4, 6) * 2,
-            "hsv_range": 1,
-            "hsv_saturation": .75,
+            "hue_range": 1,
+            "saturation": .75,
             "mask": ["h_hex", "v_hex"][random.randint(0, 1)],
             "reindex_range": .1 + random.random() * .1,
             "spline_order": 2,
@@ -417,9 +429,9 @@ PRESETS = {
 
     "deadlock": {
         "kwargs": {
-           "hsv_range": random.random(),
-           "hsv_rotation": random.random(),
-           "hsv_saturation": random.random(),
+           "hue_range": random.random(),
+           "hue_rotation": random.random(),
+           "saturation": random.random(),
            "point_corners": random.randint(0, 1),
            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
            "point_drift": 0 if random.randint(0, 1) else random.random(),
@@ -469,7 +481,7 @@ PRESETS = {
     "dla-cells": {
         "kwargs": {
             "dla_padding": random.randint(2, 8),
-            "hsv_range": random.random() * 1.5,
+            "hue_range": random.random() * 1.5,
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(2, 8),
             "voronoi_alpha": random.random(),
@@ -493,7 +505,7 @@ PRESETS = {
         "kwargs": {
             "freq": 22,
             "distrib": "uniform",
-            "hsv_range": random.random() * 2.5,
+            "hue_range": random.random() * 2.5,
             "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "with_worms": 3,
             "worms_alpha": .875,
@@ -510,7 +522,7 @@ PRESETS = {
             "corners": True,
             "distrib": ["ones", "uniform"][random.randint(0, 1)],
             "freq": 12 * random.randint(1, 2),
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "invert": 1,
             "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "ridges": True,
@@ -559,7 +571,7 @@ PRESETS = {
     "fuzzy-swirls": {
         "kwargs": {
             "freq": random.randint(2, 32),
-            "hsv_range": random.random() * 2,
+            "hue_range": random.random() * 2,
             "point_freq": random.randint(8, 10),
             "spline_order": random.randint(1, 3),
             "voronoi_alpha": 0.5 * random.random() * .5,
@@ -631,9 +643,9 @@ PRESETS = {
             "corners": True,
             "distrib": "ones",
             "freq": random.randint(4, 12) * 2,
-            "hsv_range": 0,
-            "hsv_rotation": random.random(),
-            "hsv_saturation": 0.27,
+            "hue_range": 0,
+            "hue_rotation": random.random(),
+            "saturation": 0.27,
             "invert": random.randint(0, 1),
             "mask": "chess",
             "spline_order": 0,
@@ -673,9 +685,9 @@ PRESETS = {
             "erosion_worms_density": random.randint(25, 50),
             "erosion_worms_iterations": random.randint(25, 50),
             "freq": random.randint(2, 6),
-            "hsv_range": random.random(),
-            "hsv_rotation": random.random(),
-            "hsv_saturation": random.random(),
+            "hue_range": random.random(),
+            "hue_rotation": random.random(),
+            "saturation": random.random(),
             "point_corners": True,
             "point_distrib": [m.value for m in circular_dists][random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(3, 6),
@@ -692,7 +704,7 @@ PRESETS = {
     "halt-catch-fire": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": .05,
+            "hue_range": .05,
             "lattice_drift": 1,
             "octaves": random.randint(3, 5),
             "spline_order": 0,
@@ -722,7 +734,7 @@ PRESETS = {
     "hsv-gradient": {
         "kwargs": {
             "freq": random.randint(2, 3),
-            "hsv_range": .125 + random.random() * 2.0,
+            "hue_range": .125 + random.random() * 2.0,
             "lattice_drift": random.random(),
         }
     },
@@ -744,7 +756,7 @@ PRESETS = {
 
     "isoform": {
         "kwargs": {
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "invert": random.randint(0, 1),
             "post_deriv": 0 if random.randint(0, 1) else random.randint(1, 3),
             "post_refract_range": .25 + random.random() * .25,
@@ -774,7 +786,7 @@ PRESETS = {
             "distrib": [m.value for m in ValueDistribution if m.name != "ones"][random.randint(0, len(ValueDistribution) - 2)],
             "edges": .25 + random.random() * .5,
             "freq": [9, 12, 15, 18][random.randint(0, 3)],
-            "hsv_range": random.random() * .5,
+            "hue_range": random.random() * .5,
             "octaves": random.randint(3, 5),
             "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
             "point_freq": [3, 6, 9][random.randint(0, 2)],
@@ -803,7 +815,7 @@ PRESETS = {
     "muppet-skin": {
         "kwargs": {
             "freq": random.randint(2, 3),
-            "hsv_range": random.random() * .5,
+            "hue_range": random.random() * .5,
             "lattice_drift": 0 if random.randint(0, 1) else random.random(),
             "with_bloom": .25 + random.random() * .5,
             "with_worms": 3 if random.randint(0, 1) else 1,
@@ -814,7 +826,7 @@ PRESETS = {
 
     "neon-cambrian": {
         "kwargs": {
-            "hsv_range": 1,
+            "hue_range": 1,
             "invert": 1,
             "posterize_levels": 24,
             "with_aberration": 0.01,
@@ -841,8 +853,8 @@ PRESETS = {
         "kwargs": {
             "channels": 3,
             "freq": random.randint(3, 10),
-            "hsv_range": random.random(),
-            "hsv_saturation": .5 + random.random() * .5,
+            "hue_range": random.random(),
+            "saturation": .5 + random.random() * .5,
             "lattice_drift": random.randint(0, 1),
             "octaves": random.randint(2, 4),
             "reverb_iterations": random.randint(1, 2),
@@ -864,8 +876,8 @@ PRESETS = {
             "corners": True,
             "distrib": "ones",
             "freq": random.randint(4, 10),
-            "hsv_range": random.random(),
-            "hsv_saturation": 0.5,
+            "hue_range": random.random(),
+            "saturation": 0.5,
             "mask": "waffle",
             "octaves": random.randint(2, 5),
             "sin": random.random() * 5.0,
@@ -892,7 +904,7 @@ PRESETS = {
         "kwargs": {
             "deriv": 3,
             "distrib": "ones",
-            "hsv_range": random.random() * .5,
+            "hue_range": random.random() * .5,
             "freq": random.randint(3, 6) * 2,
             "mask": "chess",
             "octaves": random.randint(2, 5),
@@ -910,7 +922,7 @@ PRESETS = {
     "political-map": {
         "kwargs": {
             "freq": 5,
-            "hsv_saturation": 0.35,
+            "saturation": 0.35,
             "lattice_drift": 1,
             "octaves": 2,
             "posterize_levels": 4,
@@ -930,7 +942,7 @@ PRESETS = {
             "distrib": "ones",
             "emboss": .5 + random.random() * .5,
             "freq": 48,
-            "hsv_saturation": .075 + random.random() * .075,
+            "saturation": .075 + random.random() * .075,
             "invert": random.randint(0, 1),
             "mask": "invaders",
             "octaves": 2,
@@ -943,7 +955,7 @@ PRESETS = {
     "quilty": {
         "kwargs": {
             "freq": random.randint(2, 6),
-            "hsv_saturation": random.random() * .5,
+            "saturation": random.random() * .5,
             "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
             "point_freq": random.randint(3, 8),
             "spline_order": 0,
@@ -964,7 +976,7 @@ PRESETS = {
             "corners": True,
             "distrib": "uniform",
             "freq": 8,
-            "hsv_range": random.random() * 4.0,
+            "hue_range": random.random() * 4.0,
             "invert": random.randint(0, 1),
             "mask": "square",
             "point_generations": 2,
@@ -991,7 +1003,7 @@ PRESETS = {
     "reef": {
         "kwargs": {
             "freq": random.randint(3, 8),
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "lattice_drift": 1,
             "point_distrib": (["random"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_freq": random.randint(2, 8),
@@ -1059,7 +1071,7 @@ PRESETS = {
     "shmoo": {
         "kwargs": {
             "freq": random.randint(4, 6),
-            "hsv_range": 2 + random.random(),
+            "hue_range": 2 + random.random(),
             "invert": 1,
             "posterize_levels": random.randint(3, 5),
             "with_outline": 1,
@@ -1091,8 +1103,8 @@ PRESETS = {
     "soften": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": .25 + random.random() * .25,
-            "hsv_rotation": random.random(),
+            "hue_range": .25 + random.random() * .25,
+            "hue_rotation": random.random(),
             "lattice_drift": 1,
             "octaves": random.randint(1, 4),
             "with_bloom": .25 + random.random() * .5,
@@ -1116,7 +1128,7 @@ PRESETS = {
     "spiraltown": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": 1,
+            "hue_range": 1,
             "reflect_range": random.randint(3, 6),
             "spline_order": random.randint(1, 3),
             "with_wormhole": True,
@@ -1127,7 +1139,7 @@ PRESETS = {
 
     "square-stripes": {
         "kwargs": {
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
             "point_freq": 2,
             "point_generations": random.randint(2, 3),
@@ -1143,7 +1155,7 @@ PRESETS = {
         "kwargs": {
             "deriv": 1,
             "freq": 2,
-            "hsv_range": random.random() * 2.0,
+            "hue_range": random.random() * 2.0,
             "invert": 1,
             "point_freq": 10,
             "reflect_range": random.random() + .5,
@@ -1159,8 +1171,8 @@ PRESETS = {
 
     "stepper": {
         "kwargs": {
-            "hsv_range": random.random(),
-            "hsv_saturation": random.random(),
+            "hue_range": random.random(),
+            "saturation": random.random(),
             "point_corners": random.randint(0, 1),
             "point_distrib": [m.value for m in circular_dists][random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(7, 10),
@@ -1174,7 +1186,7 @@ PRESETS = {
     "tensorflower": {
         "kwargs": {
             "corners": True,
-            "hsv_range": random.random(),
+            "hue_range": random.random(),
             "freq": 2,
             "point_corners": True,
             "point_distrib": ["square", "h_hex", "v_hex"][random.randint(0, 2)],
@@ -1189,7 +1201,7 @@ PRESETS = {
     "the-data-must-flow": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": random.random() * 2.5,
+            "hue_range": random.random() * 2.5,
             "invert": 1,
             "with_bloom": .25 + random.random() * .5,
             "with_sobel": 1,
@@ -1230,8 +1242,8 @@ PRESETS = {
     "tribbles": {
         "kwargs": {
             "freq": random.randint(2, 8),
-            "hsv_rotation": 0.375 + random.random() * .15,
-            "hsv_saturation": .375 + random.random() * .15,
+            "hue_rotation": 0.375 + random.random() * .15,
+            "saturation": .375 + random.random() * .15,
             "invert": 1,
             "octaves": 3,
             "point_distrib": "h_hex",
@@ -1256,8 +1268,8 @@ PRESETS = {
             "distrib": "uniform",
             "freq": random.randint(3, 15) * 2,
             "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
-            "hsv_rotation": 0.875 + random.random() * .15,
-            "hsv_saturation": .375 + random.random() * .15,
+            "hue_rotation": 0.875 + random.random() * .15,
+            "saturation": .375 + random.random() * .15,
             "octaves": random.randint(3, 6),
             "warp_octaves": random.randint(1, 2),
             "warp_freq": random.randint(2, 4),
@@ -1276,7 +1288,7 @@ PRESETS = {
         "kwargs": {
             "emboss": 1,
             "freq": random.randint(3, 5),
-            "hsv_range": 1.0 + random.random() * .5,
+            "hue_range": 1.0 + random.random() * .5,
             "invert": .5 * random.random() * .5,
             "lattice_drift": 1,
             "octaves": random.randint(4, 6),
@@ -1301,7 +1313,7 @@ PRESETS = {
     "velcro": {
         "kwargs": {
             "freq": 2,
-            "hsv_range": random.randint(0, 3),
+            "hue_range": random.randint(0, 3),
             "octaves": random.randint(1, 2),
             "reflect_range": random.randint(6, 8),
             "spline_order": random.randint(2, 3),
@@ -1315,8 +1327,8 @@ PRESETS = {
             "freq": random.randint(4, 10) * 2,
             "distrib": ["ones", "uniform", "laplace"][random.randint(0, 2)],
             "mask": "chess",
-            "hsv_range": random.random(),
-            "hsv_saturation": random.random(),
+            "hue_range": random.random(),
+            "saturation": random.random(),
             "outline": 3,
             "posterize": random.randint(10, 15),
             "reverb_iterations": random.randint(2, 4),
@@ -1332,8 +1344,8 @@ PRESETS = {
             "corners": True,
             "distrib": "ones",
             "freq": random.randint(4, 48) * 2,
-            "hsv_range": 3,
-            "hsv_saturation": 0.27,
+            "hue_range": 3,
+            "saturation": 0.27,
             "invert": 1,
             "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "posterize_levels": 12,
@@ -1351,8 +1363,8 @@ PRESETS = {
     "wireframe": {
         "kwargs": {
             "freq": random.randint(2, 5),
-            "hsv_range": random.random(),
-            "hsv_saturation": random.random(),
+            "hue_range": random.random(),
+            "saturation": random.random(),
             "invert": 1,
             "lattice_drift": random.random(),
             "octaves": 2,
@@ -1383,7 +1395,7 @@ PRESETS = {
     "woahdude-voronoi-refract": {
         "kwargs": {
             "freq": 4,
-            "hsv_range": 2,
+            "hue_range": 2,
             "lattice_drift": 1,
             "point_freq": 8,
             "sin": 100,
@@ -1396,7 +1408,7 @@ PRESETS = {
     "woahdude-octave-warp": {
         "kwargs": {
             "freq": random.randint(2, 3),
-            "hsv_range": random.random() * 3.0,
+            "hue_range": random.random() * 3.0,
             "sin": random.randint(5, 15),
             "warp_range": random.randint(3, 5),
             "warp_octaves": 3,
@@ -1407,7 +1419,7 @@ PRESETS = {
 
     "wooly-bully": {
         "kwargs": {
-            "hsv_range": random.random() * 1.5,
+            "hue_range": random.random() * 1.5,
             "point_corners": True,
             "point_distrib": [m.value for m in circular_dists][random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(2, 3),

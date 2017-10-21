@@ -168,6 +168,8 @@ class ValueDistribution(Enum):
 
     ones = 5
 
+    mids = 6
+
 
 class ValueMask(Enum):
     """

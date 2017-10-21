@@ -91,10 +91,12 @@ import noisemaker.recipes as recipes
 @cli.unsharp_mask_option()
 @cli.invert_option()
 @cli.rgb_option()
-@cli.hsv_range_option()
-@cli.hsv_rotation_option()
-@cli.hsv_saturation_option()
-@cli.post_hsv_rotation_option()
+@cli.hue_range_option()
+@cli.hue_rotation_option()
+@cli.post_hue_rotation_option()
+@cli.saturation_option()
+@cli.saturation_distrib_option()
+@cli.brightness_distrib_option()
 @cli.input_dir_option()
 @cli.wavelet_option()
 @cli.name_option()
@@ -105,7 +107,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
          wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
-         pop, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, post_hsv_rotation, input_dir,
+         pop, bloom, rgb, hue_range, hue_rotation, saturation, saturation_distrib, post_hue_rotation, brightness_distrib, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
          shadow, name, **convolve_kwargs):
 
@@ -127,7 +129,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask,
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
-                                 hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, post_hsv_rotation=post_hsv_rotation,
+                                 rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
+                                 brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                                  input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_shadow=shadow,
                                  **convolve_kwargs)

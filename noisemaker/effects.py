@@ -25,7 +25,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 post_hsv_rotation=None, input_dir=None, with_crease=False, with_shadow=None, **convolve_kwargs):
+                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -87,7 +87,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float with_light_leak: Light leak effect alpha
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
-    :param None|float post_hsv_rotation: Rotate hue (-.5 - .5)
+    :param None|float post_hue_rotation: Rotate hue (-.5 - .5)
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
@@ -203,8 +203,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_normal_map:
         tensor = normal_map(tensor, shape)
 
-    if post_hsv_rotation:
-        tensor = tf.image.adjust_hue(tensor, post_hsv_rotation)
+    if post_hue_rotation not in (1.0, 0.0, None) and channels == 3:
+        tensor = tf.image.adjust_hue(tensor, post_hue_rotation)
 
     tensor = normalize(tensor)
 
@@ -840,9 +840,34 @@ def jpeg_decimate(tensor):
     return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
 
 
+def morph(a, b, g, dist_func=DistanceFunction.euclidean, spline_order=1):
+    """
+    Linear or cosine interpolation using a specified distance function
+
+    :param Tensor a:
+    :param Tensor b:
+    :param float|Tensor g: Blending gradient a to b (0..1)
+    :param DistanceFunction|int|str dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :param int spline_order: 1=Linear, 2=Cosine
+    """
+
+    if spline_order not in (1, 2):
+        raise ValueError("Can't interpolate with spline order {0}".format(spline_order))
+
+    elif spline_order == 1:
+        component_func = _linear_components
+
+    elif spline_order == 2:
+        component_func = _cosine_components
+
+    x, y = component_func(a, b, g)
+
+    return distance(x, y, dist_func)
+
+
 def distance(a, b, func):
     """
-    Compute the distance from a to b using the specified function.
+    Compute the distance from a to b, using the specified function.
 
     :param Tensor a:
     :param Tensor b:
@@ -871,17 +896,29 @@ def distance(a, b, func):
     return dist
 
 
+def _linear_components(a, b, g):
+    return a * (1 - g), b * g
+
+
 def blend(a, b, g):
     """
     Blend a and b values with linear interpolation.
 
     :param Tensor a:
     :param Tensor b:
-    :param Tensor g: Blending gradient a to b (0..1)
+    :param float|Tensor g: Blending gradient a to b (0..1)
     :return Tensor:
     """
 
-    return (a * (1 - g) + b * g)
+    return sum(_linear_components(a, b, g))
+
+
+def _cosine_components(a, b, g):
+    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
+
+    g2 = (1 - tf.cos(g * math.pi)) / 2
+
+    return a * (1 - g2), b * g2
 
 
 def blend_cosine(a, b, g):
@@ -890,14 +927,24 @@ def blend_cosine(a, b, g):
 
     :param Tensor a:
     :param Tensor b:
-    :param Tensor g: Blending gradient a to b (0..1)
+    :param float|Tensor g: Blending gradient a to b (0..1)
     :return Tensor:
     """
 
-    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
-    g2 = (1 - tf.cos(g * math.pi)) / 2
+    return sum(_cosine_components(a, b, g))
 
-    return a * (1 - g2) + b * g2
+
+def _cubic_components(a, b, c, d, g):
+    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
+
+    g2 = g * g
+
+    a0 = d - c - a + b
+    a1 = a - b - a0
+    a2 = c - a
+    a3 = b
+
+    return a0 * g * g2, a1 * g2, a2 * g + a3
 
 
 def blend_cubic(a, b, c, d, g):
@@ -908,19 +955,11 @@ def blend_cubic(a, b, c, d, g):
     :param Tensor b:
     :param Tensor c:
     :param Tensor d:
-    :param Tensor g: Blending gradient b to c (0..1)
+    :param float|Tensor g: Blending gradient b to c (0..1)
     :return Tensor:
     """
 
-    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
-    g2 = g * g
-
-    a0 = d - c - a + b
-    a1 = a - b - a0
-    a2 = c - a
-    a3 = b
-
-    return a0 * g * g2 + a1 * g2 + a2 * g + a3
+    return sum(_cubic_components(a, b, c, d, g))
 
 
 def center_mask(center, edges, shape):
@@ -1636,10 +1675,7 @@ def shadow(tensor, shape, alpha=1.0):
     if random.randint(0, 1):
         y = 1.0 - y
 
-    x *= grad
-    y *= 1.0 - grad
-
-    shade = normalize(distance(x, y, DistanceFunction.euclidean)) * 2.0 - 1.0
+    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan, spline_order=2)) * 2.0 - 1.0
 
     down = tf.minimum(shade + 1.0, 1.0)
     up = tf.maximum(shade, 0.0)
