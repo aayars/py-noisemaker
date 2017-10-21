@@ -191,18 +191,6 @@ PRESETS = {
         }
     },
 
-    "3d-rgb": {
-        "kwargs": {
-            "brightness_distrib": "mids",
-            "distrib": "uniform",
-            "freq": random.randint(6, 16),
-            "hue_range": random.randint(1, 4),
-            "lattice_drift": random.random(),
-            "saturation_distrib": "ones",
-            "with_shadow": 1,
-        }
-    },
-
     "acid-grid": {
         "kwargs": {
             "invert": 1,
@@ -739,6 +727,18 @@ PRESETS = {
         }
     },
 
+    "hsv-shadows": {
+        "kwargs": {
+            "brightness_distrib": "mids",
+            "distrib": "uniform",
+            "freq": random.randint(12, 24),
+            "hue_range": .25 + random.random() * .25,
+            "saturation": .25 + random.random() * .25,
+            "saturation_distrib": "uniform",
+            "with_shadow": 1,
+        }
+    },
+
     "invaders": {
         "kwargs": {
              "distrib": "ones",
@@ -1027,6 +1027,18 @@ PRESETS = {
             "sin": random.random() * 10.0,
             "voronoi_alpha": .5 + random.random() * .5,
             "with_voronoi": 6,
+        }
+    },
+
+    "rgb-shadows": {
+        "kwargs": {
+            "brightness_distrib": "mids",
+            "distrib": "uniform",
+            "freq": random.randint(6, 16),
+            "hue_range": random.randint(1, 4),
+            "lattice_drift": random.random(),
+            "saturation_distrib": "ones",
+            "with_shadow": 1,
         }
     },
 
