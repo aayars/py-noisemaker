@@ -523,6 +523,23 @@ PRESETS = {
         }
     },
 
+    "flowbie": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "octaves": random.randint(1, 2),
+            # "post_deriv": random.randint(1, 3),
+            "with_bloom": .25 + random.random() * .5,
+            "with_wormhole": True,
+            "with_worms": random.randint(1, 3),
+            "refract": random.randint(0, 3),
+            "wormhole_alpha": .333 + random.random() * .333,
+            "wormhole_kink": .25 + random.random() * .25,
+            "wormhole_stride": random.random() * 2.5,
+            "worms_alpha": .125 + random.random() * .125,
+            "worms_stride": .25 + random.random() * .25,
+        }
+    },
+
     "fractile": {
         "kwargs": {
             "corners": True,

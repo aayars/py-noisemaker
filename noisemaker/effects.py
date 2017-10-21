@@ -17,7 +17,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
-                 with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1,
+                 with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0, erosion_worms_alpha=1.0,
@@ -52,6 +52,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
     :param float wormhole_stride: Wormhole thickness range
+    :param float wormhole_alpha: Wormhole alpha blending
     :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param int voronoi_nth: Voronoi Nth nearest
     :param DistanceFunction|int voronoi_func: Voronoi distance function
@@ -161,7 +162,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                        stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink)
 
     if with_wormhole:
-        tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride)
+        tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride, alpha=wormhole_alpha)
 
     if with_erosion_worms:
         tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
@@ -686,7 +687,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     return blend(tensor, tf.sqrt(normalize(out)), alpha)
 
 
-def wormhole(tensor, shape, kink, input_stride):
+def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
     """
     Apply per-pixel field flow. Non-iterative.
 
@@ -718,7 +719,7 @@ def wormhole(tensor, shape, kink, input_stride):
 
     out = tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor))
 
-    return tf.sqrt(out)
+    return blend(tensor, tf.sqrt(out), alpha)
 
 
 def wavelet(tensor, shape):
