@@ -1140,6 +1140,20 @@ PRESETS = {
         }
     },
 
+    "spiral-clouds": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "lattice_drift": 1.0,
+            "octaves": random.randint(4, 8),
+            "saturation-distrib": "ones",
+            "shadow": 1,
+            "with_wormhole": True,
+            "wormhole_alpha": .333 + random.random() * .333,
+            "wormhole_stride": .001 + random.random() * .0005,
+            "wormhole_kink": random.randint(40, 50),
+        }
+    },
+
     "spiral-in-spiral": {
         "kwargs": {
             "point_distrib": "spiral" if random.randint(0, 1) else "rotating",
