@@ -840,6 +840,37 @@ def jpeg_decimate(tensor):
     return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
 
 
+def distance(a, b, func):
+    """
+    Compute the distance from a to b using the specified function.
+
+    :param Tensor a:
+    :param Tensor b:
+    :param DistanceFunction|int|str func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :return: Tensor
+    """
+
+    if isinstance(func, int):
+        func = DistanceFunction(func)
+
+    elif isinstance(func, str):
+        func = DistanceFunction[func]
+
+    if func == DistanceFunction.euclidean:
+        dist = tf.sqrt(a * a + b * b)
+
+    elif func == DistanceFunction.manhattan:
+        dist = tf.abs(a) + tf.abs(b)
+
+    elif func == DistanceFunction.chebyshev:
+        dist = tf.maximum(tf.abs(a), tf.abs(b))
+
+    else:
+        raise ValueError("{0} isn't a distance function.".format(func))
+
+    return dist
+
+
 def blend(a, b, g):
     """
     Blend a and b values with linear interpolation.
@@ -1069,37 +1100,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         out = blend(tensor, out, alpha)
 
     return out
-
-
-def distance(a, b, func):
-    """
-    Compute the distance from a to b using the specified function.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param DistanceFunction|int|str dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
-    :return: Tensor
-    """
-
-    if isinstance(func, int):
-        func = DistanceFunction(func)
-
-    elif isinstance(func, str):
-        func = DistanceFunction[func]
-
-    if func == DistanceFunction.euclidean:
-        dist = tf.sqrt(a * a + b * b)
-
-    elif func == DistanceFunction.manhattan:
-        dist = tf.abs(a) + tf.abs(b)
-
-    elif func == DistanceFunction.chebyshev:
-        dist = tf.maximum(tf.abs(a), tf.abs(b))
-
-    else:
-        raise ValueError("{0} isn't a distance function.".format(func))
-
-    return dist
 
 
 def posterize(tensor, levels):
@@ -1639,7 +1639,7 @@ def shadow(tensor, shape, alpha=1.0):
     x *= grad
     y *= 1.0 - grad
 
-    shade = normalize(distance(x, y, DistanceFunction.manhattan)) * 2.0 - 1.0
+    shade = normalize(distance(x, y, DistanceFunction.euclidean)) * 2.0 - 1.0
 
     down = tf.minimum(shade + 1.0, 1.0)
     up = tf.maximum(shade, 0.0)
