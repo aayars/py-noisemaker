@@ -94,6 +94,7 @@ import noisemaker.recipes as recipes
 @cli.hsv_range_option()
 @cli.hsv_rotation_option()
 @cli.hsv_saturation_option()
+@cli.post_hsv_rotation_option()
 @cli.input_dir_option()
 @cli.wavelet_option()
 @cli.name_option()
@@ -104,9 +105,9 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
          wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
          erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
-         pop, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, input_dir,
+         pop, bloom, rgb, hsv_range, hsv_rotation, hsv_saturation, post_hsv_rotation, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
-         name, **convolve_kwargs):
+         shadow, name, **convolve_kwargs):
 
     shape = [height, width, channels]
 
@@ -126,9 +127,9 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask,
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
-                                 hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, input_dir=input_dir,
-                                 with_aberration=aberration, with_bloom=bloom, with_pop=pop,
-                                 with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness,
+                                 hsv=not rgb, hsv_range=hsv_range, hsv_rotation=hsv_rotation, hsv_saturation=hsv_saturation, post_hsv_rotation=post_hsv_rotation,
+                                 input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
+                                 with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_shadow=shadow,
                                  **convolve_kwargs)
 
     tensor = recipes.post_process(tensor, shape=shape, freq=freq,

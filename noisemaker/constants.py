@@ -28,12 +28,6 @@ class ConvKernel(Enum):
 
     rand = np.random.normal(.5, .5, (5, 5)).tolist()
 
-    shadow = [
-        [0, 1, 2],
-        [-1, 0, 1],
-        [-2, -1, 0]
-    ]
-
     edges = [
         [1, 2, 1],
         [2, -12, 2],

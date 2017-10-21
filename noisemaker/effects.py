@@ -25,7 +25,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 input_dir=None, with_crease=False, **convolve_kwargs):
+                 post_hsv_rotation=None, input_dir=None, with_crease=False, with_shadow=None, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -87,8 +87,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float with_light_leak: Light leak effect alpha
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
+    :param None|float post_hsv_rotation: Rotate hue (-.5 - .5)
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
+    :param None|float with_shadow: Sobel-based shading alpha
 
     :return: Tensor
     """
@@ -168,14 +170,14 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel)
 
-    if with_normal_map:
-        tensor = normal_map(tensor, shape)
-
     for kernel in ConvKernel:
         alpha = convolve_kwargs.get(kernel.name)
 
         if alpha:
             tensor = convolve(kernel, tensor, shape, alpha=alpha)
+
+    if with_shadow:
+        tensor = shadow(tensor, shape, with_shadow)
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
@@ -197,6 +199,12 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_vignette:
         tensor = vignette(tensor, shape, brightness=vignette_brightness, alpha=with_vignette)
+
+    if with_normal_map:
+        tensor = normal_map(tensor, shape)
+
+    if post_hsv_rotation:
+        tensor = tf.image.adjust_hue(tensor, post_hsv_rotation)
 
     tensor = normalize(tensor)
 
@@ -238,26 +246,19 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     kernel_values = _conform_kernel_to_tensor(kernel.value, tensor, shape)
 
     # Give the conv kernel some room to play on the edges
-    half_height = tf.cast(shape[0] / 2, tf.int32)
-    half_width = tf.cast(shape[1] / 2, tf.int32)
+    half_height = tf.cast(height / 2, tf.int32)
+    half_width = tf.cast(width / 2, tf.int32)
 
     out = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
-    out = out[half_height:shape[0] * 2 + half_height, half_width:shape[1] * 2 + half_width]  # Center Crop 2x2
+    out = out[half_height:height * 2 + half_height, half_width:width * 2 + half_width]  # Center Crop 2x2
     out = tf.nn.depthwise_conv2d([out], kernel_values, [1, 1, 1, 1], "VALID")[0]
-    out = out[half_height:shape[0] + half_height, half_width:shape[1] + half_width]  # Center Crop 1x1
+    out = out[half_height:height + half_height, half_width:width + half_width]  # Center Crop 1x1
 
     if with_normalize:
         out = normalize(out)
 
     if kernel == ConvKernel.edges:
         out = tf.abs(out - .5) * 2
-
-    if kernel == ConvKernel.shadow:
-        down = tf.minimum((out + .5) * 2.0, 1.0)
-        up = tf.maximum((out - .5) * 2.0, 0.0)
-
-        out = tensor * down
-        out = 1.0 - (1.0 - out * out) * (1.0 - up * up)
 
     if alpha == 1.0:
         return out
@@ -1601,6 +1602,9 @@ def light_leak(tensor, shape, alpha=.25):
 
 
 def vignette(tensor, shape, brightness=0.0, alpha=1.0):
+    """
+    """
+
     edges = convolve(ConvKernel.blur, tensor, shape)
     edges = convolve(ConvKernel.blur, edges, shape)
     edges = convolve(ConvKernel.blur, edges, shape)
@@ -1609,3 +1613,35 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     edges = center_mask(tensor, edges, shape)
 
     return blend(tensor, edges, alpha)
+
+
+def shadow(tensor, shape, alpha=1.0):
+    """
+    """
+
+    height, width, channels = shape
+
+    reference = value_map(tensor, shape, keep_dims=True)
+
+    value_shape = [height, width, 1]
+
+    grad = random.random()
+
+    x = convolve(ConvKernel.sobel_x, reference, value_shape, with_normalize=True)
+    y = convolve(ConvKernel.sobel_y, reference, value_shape, with_normalize=True)
+
+    if random.randint(0, 1):
+        x = 1.0 - x
+
+    if random.randint(0, 1):
+        y = 1.0 - y
+
+    x *= grad
+    y *= 1.0 - grad
+
+    shade = normalize(distance(x, y, DistanceFunction.manhattan)) * 2.0 - 1.0
+
+    down = tf.minimum(shade + 1.0, 1.0)
+    up = tf.maximum(shade, 0.0)
+
+    return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)

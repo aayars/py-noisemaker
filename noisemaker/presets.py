@@ -122,7 +122,7 @@ EFFECTS_PRESETS = {
 
     "shadows": {
         "kwargs": {
-            "shadow": .5 + random.random() * .5,
+            "with_shadow": .5 + random.random() * .5,
             "with_vignette": .5 + random.random() * .5,
             "vignette_brightness": 0,
         }
@@ -213,13 +213,14 @@ PRESETS = {
     "alien-terrain-multires": {
         "kwargs": {
             "deriv": 1,
-            "deriv_alpha": .5,
-            "hsv_saturation": .5,
+            "deriv_alpha": .333 + random.random() * .333,
+            "freq": random.randint(4, 6),
+            "hsv_saturation": .25 + random.random() * .25,
             "invert": 1,
             "lattice_drift": 1,
-            "octaves": 8,
-            "shadow": .75,
-            "with_bloom": .25,
+            "octaves": 6,
+            "with_bloom": .5 + random.random() * .25,
+            "with_shadow": .5 + random.random() * .25,
         }
     },
 
@@ -240,12 +241,12 @@ PRESETS = {
             "point_freq": 10,
             "point_distrib": "random",
             "ridges": True,
-            "shadow": .75,
             "sin": 1 + random.random(),
             "voronoi_alpha": 0.333 + random.random() * .333,
             "voronoi_refract": 0.333 + random.random() * .333,
             "with_bloom": 0.5 + random.random() * .25,
             "with_erosion_worms": True,
+            "with_shadow": .75,
             "with_voronoi": 6,
             "with_worms": 4,
             "worms_alpha": .1 + random.random() * .025,
@@ -283,8 +284,8 @@ PRESETS = {
             "post_ridges": True,
             "reindex_range": .375 + random.random() * .125,
             "ridges": True,
-            "shadow": 1,
             "sin": 2 * random.random() * 2,
+            "with_shadow": 1,
         }
     },
 
@@ -301,13 +302,13 @@ PRESETS = {
             "outline": 1,
             # "posterize_levels": random.randint(10, 20),
             "reverb_iterations": random.randint(2, 4),
-            "shadow": 1,
             "spline_order": random.randint(2, 3),
             "warp_freq": random.randint(6, 12),
             "warp_interp": random.randint(1, 3),
             "warp_octaves": random.randint(2, 4),
             "warp_range": .05 + random.random() * .1,
             "with_reverb": random.randint(1, 3),
+            "with_shadow": 1,
         }
     },
 
@@ -513,12 +514,12 @@ PRESETS = {
             "invert": 1,
             "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
             "ridges": True,
-            "shadow": 1,
             "spline_order": random.randint(2, 3),
             "with_outline": 1,
             "warp_freq": 2,
             "warp_octaves": 1,
             "warp_range": random.randint(1, 4),
+            "with_shadow": 1,
         }
     },
 
@@ -995,11 +996,11 @@ PRESETS = {
             "point_distrib": (["random"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_freq": random.randint(2, 8),
             "ridges": True,
-            "shadow": 1.0,
             "sin": random.random() * 2.5,
             "voronoi_alpha": .5 + random.random() * .5,
             "voronoi_refract": random.randint(8, 16),
             "with_bloom": .25 + random.random() * .5,
+            "with_shadow": 1.0,
             "with_voronoi": 6,
         }
     },
@@ -1371,10 +1372,10 @@ PRESETS = {
         "kwargs": {
             "point_distrib": (["spiral"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
             "point_freq": 10,
-            "shadow": .5,
             "voronoi_alpha": 0.25 + random.random() * .5,
             "voronoi_refract": random.randint(1, 3),
             "with_bloom": 0.25 + random.random() * .5,
+            "with_shadow": .5,
             "with_voronoi": random.randint(1, 2),
          }
      },
@@ -1396,11 +1397,11 @@ PRESETS = {
         "kwargs": {
             "freq": random.randint(2, 3),
             "hsv_range": random.random() * 3.0,
-            "shadow": random.random(),
             "sin": random.randint(5, 15),
             "warp_range": random.randint(3, 5),
             "warp_octaves": 3,
             "with_bloom": .25 + random.random() * .5,
+            "with_shadow": random.random(),
         }
     },
 

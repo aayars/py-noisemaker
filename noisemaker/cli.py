@@ -594,6 +594,12 @@ def hsv_saturation_option(**attrs):
     return float_option("--hsv-saturation", default=1.0, **attrs)
 
 
+def post_hsv_rotation_option(**attrs):
+    attrs.setdefault("help", "HSV: Post-reduce hue rotation (-0.5 .. 0.5)")
+
+    return float_option("--post-hsv-rotation", default=1.0, **attrs)
+
+
 def input_dir_option(**attrs):
     attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
 
