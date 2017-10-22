@@ -244,6 +244,26 @@ PRESETS = {
         }
     },
 
+    "acid-wash": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "hue_range": 1,
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(6, 10),
+            "post_ridges": True,
+            "reflect": random.randint(0, 4),
+            "ridges": True,
+            "saturation": .25,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "warp_range": .5,
+            "warp_octaves": 8,
+            "with_reverb": 1,
+            "with_shadow": 1,
+            "with_voronoi": 2,
+        }
+    },
+
     "alien-terrain-multires": {
         "kwargs": {
             "deriv": 1,
@@ -1156,7 +1176,8 @@ PRESETS = {
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(4, 10),
             "post_ridges": True,
-            "voronoi_alpha": .25 + random.random() * .25,
+            "rgb": random.randint(0, 1),
+            "voronoi_alpha": .333 + random.random() * .333,
             "with_reverb": random.randint(0, 2),
             "with_voronoi": 2,
         }
