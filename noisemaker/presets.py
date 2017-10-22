@@ -1002,6 +1002,29 @@ PRESETS = {
         }
     },
 
+    "pluto": {
+        "kwargs": {
+            "freq": random.randint(4, 8),
+            "deriv": random.randint(1, 3),
+            "deriv_alpha": .333 + random.random() * .333,
+            "hue_rotation": .575,
+            "octaves": 10,
+            "point_freq": random.randint(6, 8),
+            "refract_range": .075 + random.random() * .075,
+            "ridges": True,
+            "saturation": .125 + random.random() * .075,
+            "voronoi_alpha": .75,
+            "voronoi_nth": random.randint(1, 3),
+            "with_bloom": .25 + random.random() * .25,
+            "with_shadow": .75 + random.random() * .25,
+            "with_voronoi": 2,
+        },
+
+        "post_kwargs": {
+            "with_dither": .075 + random.random() * .075,
+        }
+    },
+
     "political-map": {
         "kwargs": {
             "freq": 5,

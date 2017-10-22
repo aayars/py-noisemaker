@@ -1686,9 +1686,9 @@ def shadow(tensor, shape, alpha=1.0):
     if random.randint(0, 1):
         y = 1.0 - y
 
-    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan, spline_order=2)) * 2.0 - 1.0
+    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan)) * 2.0 - 1.0
 
-    down = tf.minimum(shade + 1.0, 1.0)
-    up = tf.maximum(shade, 0.0)
+    down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
+    up = tf.square(tf.maximum(shade * .5, 0.0))
 
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
