@@ -58,13 +58,13 @@ def glitch(tensor, shape):
 
     tensor = effects.normalize(tensor)
 
-    base = multires(2, [height, width, channels], octaves=int(random.random() * 2) + 1, spline_order=0, refract_range=random.random())
+    base = multires(2, shape, octaves=int(random.random() * 2) + 1, spline_order=0, refract_range=random.random())
     stylized = effects.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
 
-    base2 = multires(int(random.random() * 4 + 2), [height, width, channels], octaves=int(random.random() * 3) + 2, spline_order=0,
+    base2 = multires(int(random.random() * 4 + 2), shape, octaves=int(random.random() * 3) + 2, spline_order=0,
                      refract_range=random.random())
 
-    jpegged = effects.jpeg_decimate(effects.color_map(base2, stylized, shape, horizontal=True, displacement=2.5))
+    jpegged = effects.jpeg_decimate(effects.color_map(base2, stylized, shape, horizontal=True, displacement=2.5), shape)
 
     # Offset a single color channel
     separated = [stylized[:, :, i] for i in range(channels)]
@@ -80,7 +80,7 @@ def glitch(tensor, shape):
 
     stylized = tf.stack(separated, 2)
 
-    combined = effects.blend_cosine(tf.multiply(stylized, 1.0), jpegged, tf.maximum(base2 * 2 - 1, 0))
+    combined = effects.blend_cosine(tf.multiply(stylized, 1.0), jpegged, base2)
     combined = effects.blend_cosine(tensor, combined, tf.maximum(base * 2 - 1, 0))
 
     return combined

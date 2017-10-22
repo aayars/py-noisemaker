@@ -94,6 +94,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "needs-more-jpeg": {
+        "kwargs": {
+            "with_jpeg_decimate": random.randint(10, 25),
+        },
+    },
+
     "pop-art": {
         "kwargs": {
             "with_pop": True
@@ -107,9 +113,21 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "reflect-domain-warp": {
+        "kwargs": {
+            "reflect_range": .125 + random.random() * 2.5,
+        },
+    },
+
+    "refract-domain-warp": {
+        "kwargs": {
+            "refract_range": .125 + random.random() * 2.5,
+        },
+    },
+
     "reindex": {
         "kwargs": {
-            "reindex_range": .125 + random.random() * .125,
+            "reindex_range": .125 + random.random() * 2.5,
         },
     },
 
@@ -133,6 +151,22 @@ EFFECTS_PRESETS = {
             "invert": random.randint(0, 1),
             "with_sobel": random.randint(1, 3),
         }
+    },
+
+    "swerve-h": {
+        "kwargs": {
+            "warp_freq": [random.randint(3, 6), 1],
+            "warp_octaves": 1,
+            "warp_range": 1.0 + random.random(),
+        },
+    },
+
+    "swerve-v": {
+        "kwargs": {
+            "warp_freq": [1, random.randint(3, 6)],
+            "warp_octaves": 1,
+            "warp_range": 1.0 + random.random(),
+        },
     },
 
     "voronoid": {
@@ -287,6 +321,27 @@ PRESETS = {
             "sin": 2 * random.random() * 2,
             "with_shadow": 1,
         }
+    },
+
+    "blacklight-fantasy": {
+        "kwargs": {
+            "invert": 1,
+            "post_hue_rotation": -.125,
+            "posterize_levels": 3,
+            "rgb": True,
+            "voronoi_func": random.randint(1, 3),
+            "voronoi_nth": random.randint(0, 3),
+            "voronoi_refract": 1.0 + random.random() * 2.5,
+            "warp_octaves": random.randint(1, 4),
+            "warp_range": None if random.randint(0, 1) else random.random() * 2.0,
+            "with_bloom": .5 + random.random() * .5,
+            "with_sobel": 2,
+            "with_voronoi": random.randint(1, 6),
+        },
+
+        "post_kwargs": {
+            "with_dither": .075 + random.random() * .075,
+        },
     },
 
     "blobby": {
@@ -458,7 +513,7 @@ PRESETS = {
             "voronoi_nth": random.randint(1, 3),
             "with_aberration": random.random() * .01,
             "with_sobel": 2,
-            "with_voronoi": random.randint(1, 4),
+            "with_voronoi": 1,
         },
 
         "post_kwargs": {

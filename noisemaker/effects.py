@@ -25,7 +25,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, **convolve_kwargs):
+                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None,
+                 **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -92,6 +93,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
+    :param None|int with_jpeg_decimate: Conv2D feedback + JPEG encode/decode iteration count
 
     :return: Tensor
     """
@@ -206,6 +208,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if post_hue_rotation not in (1.0, 0.0, None) and shape[2] == 3:
         tensor = tf.image.adjust_hue(tensor, post_hue_rotation)
+
+    if with_jpeg_decimate:
+        tensor = jpeg_decimate(tensor, shape, iterations=with_jpeg_decimate)
 
     tensor = normalize(tensor)
 
@@ -822,23 +827,28 @@ def value_map(tensor, shape, keep_dims=False):
     return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
 
 
-def jpeg_decimate(tensor):
+def jpeg_decimate(tensor, shape, iterations=25):
     """
-    Needs more JPEG? Never again.
+    JPEG decimation with conv2d feedback loop
 
     :param Tensor tensor:
     :return: Tensor
     """
 
-    jpegged = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
+    jpegged = tensor
 
-    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5 + 10)
-    jpegged = tf.image.decode_jpeg(data)
+    for i in range(iterations):
+        jpegged = convolve(ConvKernel.blur, jpegged, shape)
+        jpegged = convolve(ConvKernel.sharpen, jpegged, shape)
 
-    data = tf.image.encode_jpeg(jpegged, quality=random.random() * 5)
-    jpegged = tf.image.decode_jpeg(data)
+        jpegged = tf.image.convert_image_dtype(jpegged, tf.uint8)
 
-    return tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
+        data = tf.image.encode_jpeg(jpegged, quality=random.randint(5, 50), x_density=random.randint(50, 500), y_density=random.randint(50, 500))
+        jpegged = tf.image.decode_jpeg(data)
+
+        jpegged = tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
+
+    return jpegged
 
 
 def morph(a, b, g, dist_func=DistanceFunction.euclidean, spline_order=1):
