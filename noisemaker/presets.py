@@ -350,7 +350,7 @@ PRESETS = {
             "with_voronoi": 1,
             "point_freq": random.randint(3, 4),
             "post_ridges": True,
-            "reindex": 1.0 + random.random() * 1.5,
+            "reindex_range": 1.0 + random.random() * 1.5,
             "voronoi_refract": random.randint(8, 12),
             "ridges": True,
         }
