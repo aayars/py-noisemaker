@@ -345,6 +345,17 @@ PRESETS = {
         }
     },
 
+    "cell-refract": {
+        "kwargs": {
+            "with_voronoi": 1,
+            "point_freq": random.randint(3, 4),
+            "post_ridges": True,
+            "reindex": 1.0 + random.random() * 1.5,
+            "voronoi_refract": random.randint(8, 12),
+            "ridges": True,
+        }
+    },
+
     "circulent": {
         "kwargs": {
             "corners": True,
@@ -1434,6 +1445,22 @@ PRESETS = {
             "with_voronoi": random.randint(1, 2),
          }
      },
+
+    "wild-kingdom": {
+        "kwargs": {
+            "freq": 25,
+            "lattice_drift": 1,
+            "mask": "sparse",
+            "post_hue_rotation": random.random(),
+            "posterize_levels": 3,
+            "rgb": True,
+            "ridges": True,
+            "with_bloom": 2.0,
+            "warp_octaves": 2,
+            "warp_range": .05,
+            "with_outline": 2,
+        }
+    },
 
     "woahdude-voronoi-refract": {
         "kwargs": {

@@ -204,7 +204,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_normal_map:
         tensor = normal_map(tensor, shape)
 
-    if post_hue_rotation not in (1.0, 0.0, None) and channels == 3:
+    if post_hue_rotation not in (1.0, 0.0, None) and shape[2] == 3:
         tensor = tf.image.adjust_hue(tensor, post_hue_rotation)
 
     tensor = normalize(tensor)
