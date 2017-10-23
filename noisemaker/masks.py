@@ -76,10 +76,22 @@ def sparse(*args):
 
 
 def invaders_shape():
-    return (6, 6) if random.randint(0, 1) else (5, 8)
+    return (random.randint(5, 7), random.randint(6,12))
 
 
-def invaders(x, y, row, shape, *args):
+def invaders_square_shape():
+    return (random.randint(3, 5) * 2, ) * 2
+
+
+def invaders(*args):
+    return _invaders(*args)
+
+
+def invaders_square(*args):
+    return _invaders(*args)
+
+
+def _invaders(x, y, row, shape, *args):
     # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
     height = shape[0]
     width = shape[1]

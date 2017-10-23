@@ -272,7 +272,7 @@ PRESETS = {
             "saturation": .25 + random.random() * .25,
             "invert": 1,
             "lattice_drift": 1,
-            "octaves": 8,
+            "octaves": 5,
             "with_bloom": .5 + random.random() * .25,
             "with_shadow": .5 + random.random() * .375,
         }
@@ -337,6 +337,7 @@ PRESETS = {
             "octaves": 8,
             "post_ridges": True,
             "reindex_range": .375 + random.random() * .125,
+            "rgb": random.randint(0, 1),
             "ridges": True,
             "sin": 2 * random.random() * 2,
             "with_shadow": 1,
@@ -422,12 +423,13 @@ PRESETS = {
 
     "cell-refract": {
         "kwargs": {
-            "with_voronoi": 1,
             "point_freq": random.randint(3, 4),
             "post_ridges": True,
             "reindex_range": 1.0 + random.random() * 1.5,
-            "voronoi_refract": random.randint(8, 12),
+            "rgb": random.randint(0, 1),
             "ridges": True,
+            "voronoi_refract": random.randint(8, 12),
+            "with_voronoi": 1,
         }
     },
 
@@ -1068,13 +1070,14 @@ PRESETS = {
             "distrib": "ones",
             "emboss": .5 + random.random() * .5,
             "freq": 48,
-            "saturation": .075 + random.random() * .075,
             "invert": random.randint(0, 1),
-            "mask": "invaders",
+            "mask": "invaders_square",
             "octaves": 2,
             "refract_range": .5,
+            "saturation": .125 + random.random() * .075,
             "spline_order": random.randint(1, 2),
             "posterize_levels": random.randint(4, 8),
+            "with_shadow": .5,
         }
     },
 
@@ -1189,21 +1192,23 @@ PRESETS = {
             "lattice-drift": random.randint(0, 1),
             "octaves": random.randint(3, 6),
             "post_ridges": True,
+            "rgb": random.randint(0, 1),
             "ridges": True,
         }
     },
 
     "shatter": {
         "kwargs": {
-             "freq": random.randint(2, 4),
-             "invert": random.randint(0, 1),
-             "point_freq": random.randint(3, 6),
-             "post_refract_range": random.randint(3, 5),
-             "posterize_levels": random.randint(4, 6),
-             "voronoi_func": [1, 3][random.randint(0, 1)],
-             "voronoi_inverse": random.randint(0, 1),
-             "with_outline": random.randint(1, 3),
-             "with_voronoi": 5,
+            "freq": random.randint(2, 4),
+            "invert": random.randint(0, 1),
+            "point_freq": random.randint(3, 6),
+            "post_refract_range": random.randint(3, 5),
+            "posterize_levels": random.randint(4, 6),
+            "rgb": random.randint(0, 1),
+            "voronoi_func": [1, 3][random.randint(0, 1)],
+            "voronoi_inverse": random.randint(0, 1),
+            "with_outline": random.randint(1, 3),
+            "with_voronoi": 5,
         }
     },
 
@@ -1213,6 +1218,7 @@ PRESETS = {
             "hue_range": 2 + random.random(),
             "invert": 1,
             "posterize_levels": random.randint(3, 5),
+            "rgb": random.randint(0, 1),
             "with_outline": 1,
         }
     },
@@ -1246,6 +1252,7 @@ PRESETS = {
             "hue_rotation": random.random(),
             "lattice_drift": 1,
             "octaves": random.randint(1, 4),
+            "rgb": random.randint(0, 1),
             "with_bloom": .25 + random.random() * .5,
         }
     },
@@ -1344,6 +1351,7 @@ PRESETS = {
             "point_corners": True,
             "point_distrib": ["square", "h_hex", "v_hex"][random.randint(0, 2)],
             "point_freq": 2,
+            "rgb": random.randint(0, 1),
             "spline_order": 0,
             "vortex_range": random.randint(8, 25),
             "with_bloom": .25 + random.random() * .5,

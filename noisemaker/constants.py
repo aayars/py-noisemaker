@@ -193,7 +193,9 @@ class ValueMask(Enum):
 
     invaders = 101
 
-    matrix = 102
+    invaders_square = 102
+
+    matrix = 103
 
     @classmethod
     def procedural_members(cls):
