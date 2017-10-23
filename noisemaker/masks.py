@@ -76,7 +76,7 @@ def sparse(*args):
 
 
 def invaders_shape():
-    return (random.randint(5, 7), random.randint(6,12))
+    return (random.randint(5, 7), random.randint(6, 12))
 
 
 def invaders_square_shape():
