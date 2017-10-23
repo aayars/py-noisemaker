@@ -197,6 +197,10 @@ class ValueMask(Enum):
 
     matrix = 103
 
+    letters = 104
+
+    iching = 105
+
     @classmethod
     def procedural_members(cls):
         return [m for m in cls if cls.is_procedural(m)]

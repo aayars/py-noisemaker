@@ -107,7 +107,7 @@ def _invaders(x, y, row, shape, *args):
 
 
 def matrix_shape():
-    return (6, 4)
+    return (random.randint(5, 8), random.randint(3, 5))
 
 
 def matrix(x, y, row, shape, *args):
@@ -118,3 +118,53 @@ def matrix(x, y, row, shape, *args):
         return 0.0
 
     return random.randint(0, 1) * 1.0
+
+
+def letters_shape():
+    return (random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1)
+
+
+def letters(x, y, row, shape, *args):
+    # Inspired by https://www.shadertoy.com/view/4lscz8
+    height = shape[0]
+    width = shape[1]
+
+    if any(n == 0 for n in (x % width, y % height)):
+        return 0.0
+
+    if any(n == 1 for n in (width - (x % width), height - (y % height))):
+        return 0.0
+
+    if all(n % 2 == 0 for n in (x % width, y % height)):
+        return 0.0
+
+    if x % 2 == 0 or y % 2 == 0:
+        return random.random() > .25
+
+    return random.random() > .75
+
+
+def iching_shape():
+    return (14, 8)
+
+
+def iching(x, y, row, shape, *args):
+    height = shape[0]
+    width = shape[1]
+
+    if any(n == 0 for n in (x % width, y % height)):
+        return 0.0
+
+    if any(n == 1 for n in (width - (x % width), height - (y % height))):
+        return 0.0
+
+    if y % 2 == 0:
+        return 0.0
+
+    if x % 2 == 1 and x % width not in (3, 4):
+        return 1.0
+
+    if x % 2 == 0:
+        return row[x - 1]
+
+    return random.randint(0, 1)

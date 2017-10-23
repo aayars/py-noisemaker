@@ -844,21 +844,6 @@ PRESETS = {
         }
     },
 
-    "invaders": {
-        "kwargs": {
-             "distrib": "ones",
-             "freq": 24 * random.randint(1, 8),
-             "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
-             "spline_order": 0,
-             "with_bloom": .25 + random.random() * .25,
-        },
-
-        "post_kwargs": {
-             "with_crt": True,
-             "with_scan_error": True,
-        }
-    },
-
     "isoform": {
         "kwargs": {
             "hue_range": random.random(),
@@ -1062,6 +1047,21 @@ PRESETS = {
 
         "post_kwargs": {
             "with_dither": 0.25,
+        }
+    },
+
+    "procedural-mask": {
+        "kwargs": {
+             "distrib": "ones",
+             "freq": 24 * random.randint(1, 8),
+             "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
+             "spline_order": 0,
+             "with_bloom": .25 + random.random() * .25,
+        },
+
+        "post_kwargs": {
+             "with_crt": True,
+             "with_scan_error": True,
         }
     },
 
