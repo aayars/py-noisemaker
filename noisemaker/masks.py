@@ -107,7 +107,7 @@ def _invaders(x, y, row, shape, *args):
 
 
 def matrix_shape():
-    return (random.randint(5, 8), random.randint(3, 5))
+    return (6, 4)
 
 
 def matrix(x, y, row, shape, *args):
