@@ -1147,23 +1147,6 @@ PRESETS = {
         }
     },
 
-    "reef": {
-        "kwargs": {
-            "freq": random.randint(3, 8),
-            "hue_range": random.random(),
-            "lattice_drift": 1,
-            "point_distrib": (["random"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
-            "point_freq": random.randint(2, 8),
-            "ridges": True,
-            "sin": random.random() * 2.5,
-            "voronoi_alpha": .5 + random.random() * .5,
-            "voronoi_refract": random.randint(8, 16),
-            "with_bloom": .25 + random.random() * .5,
-            "with_shadow": 1.0,
-            "with_voronoi": 6,
-        }
-    },
-
     "refractal": {
         "kwargs": {
             "invert": 1,
@@ -1212,6 +1195,25 @@ PRESETS = {
             "post_ridges": True,
             "rgb": random.randint(0, 1),
             "ridges": True,
+        }
+    },
+
+    "satori": {
+        "kwargs": {
+            "freq": random.randint(3, 8),
+            "hue_range": random.random(),
+            "lattice_drift": 1,
+            "point_distrib": (["random"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
+            "point_freq": random.randint(2, 8),
+            "post_ridges": random.randint(0, 1),
+            "rgb": random.randint(0, 1),
+            "ridges": True,
+            "sin": random.random() * 2.5,
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_refract": random.randint(6, 12),
+            "with_bloom": .25 + random.random() * .5,
+            "with_shadow": 1.0,
+            "with_voronoi": 6,
         }
     },
 
