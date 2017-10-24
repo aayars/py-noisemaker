@@ -1556,6 +1556,7 @@ PRESETS = {
     "wild-kingdom": {
         "kwargs": {
             "freq": 25,
+            "invert": random.randint(0, 1),
             "lattice_drift": 1,
             "mask": "sparse",
             "post_hue_rotation": random.random(),
