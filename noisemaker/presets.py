@@ -314,6 +314,23 @@ PRESETS = {
         }
     },
 
+    "alien-transmission": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(8, 200),
+            "invert": random.randint(0, 1),
+            "mask": "letters",
+            "reindex_range": .02 + random.random() * .02,
+            "with_aberration": .005 + random.random() * .005,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_glitch": True,
+            "with_scan_error": True,
+        }
+    },
+
     "aztec-waffles": {
         "kwargs": {
             "freq": 7,
