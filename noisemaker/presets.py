@@ -317,7 +317,7 @@ PRESETS = {
     "alien-transmission": {
         "kwargs": {
             "distrib": "ones",
-            "freq": random.randint(8, 200),
+            "freq": random.randint(48, 200),
             "invert": random.randint(0, 1),
             "mask": "letters",
             "reindex_range": .02 + random.random() * .02,
