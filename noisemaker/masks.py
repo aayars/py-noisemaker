@@ -80,7 +80,7 @@ def invaders_shape():
 
 
 def invaders_square_shape():
-    return (random.randint(3, 5) * 2, ) * 2
+    return (6, 6)
 
 
 def invaders(*args):
