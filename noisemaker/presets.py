@@ -317,10 +317,11 @@ PRESETS = {
     "alien-transmission": {
         "kwargs": {
             "distrib": "ones",
-            "freq": random.randint(48, 200),
+            "freq": random.randint(100, 200),
             "invert": random.randint(0, 1),
             "mask": "letters",
             "reindex_range": .02 + random.random() * .02,
+            "spline_order": 2,
             "with_aberration": .005 + random.random() * .005,
         },
 
