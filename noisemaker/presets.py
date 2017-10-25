@@ -268,13 +268,13 @@ PRESETS = {
         "kwargs": {
             "deriv": 1,
             "deriv_alpha": .333 + random.random() * .333,
-            "freq": random.randint(4, 6),
-            "saturation": .25 + random.random() * .25,
-            "invert": 1,
+            "freq": random.randint(4, 8),
+            "saturation": .125 + random.random() * .125,
+            "invert": random.randint(0, 1),
             "lattice_drift": 1,
-            "octaves": 5,
-            "with_bloom": .5 + random.random() * .25,
-            "with_shadow": .5 + random.random() * .375,
+            "octaves": 10,
+            "with_bloom": .25 + random.random() * .25,
+            "with_shadow": .75 + random.random() * .25,
         }
     },
 
@@ -319,7 +319,7 @@ PRESETS = {
             "distrib": "ones",
             "freq": random.randint(100, 200),
             "invert": random.randint(0, 1),
-            "mask": "letters",
+            "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
             "reindex_range": .02 + random.random() * .02,
             "spline_order": 2,
             "with_aberration": .005 + random.random() * .005,
@@ -1070,16 +1070,16 @@ PRESETS = {
 
     "procedural-mask": {
         "kwargs": {
-             "distrib": "ones",
-             "freq": 24 * random.randint(1, 8),
-             "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
-             "spline_order": 0,
-             "with_bloom": .25 + random.random() * .25,
+            "distrib": "ones",
+            "freq": 24 * random.randint(1, 8),
+            "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
+            "spline_order": 0,
+            "with_bloom": .25 + random.random() * .25,
         },
 
         "post_kwargs": {
-             "with_crt": True,
-             "with_scan_error": True,
+            "with_crt": True,
+            "with_scan_error": True,
         }
     },
 
