@@ -475,7 +475,7 @@ PRESETS = {
             "freq": 2,
             "point_distrib": ([m.value for m in PointDistribution])[random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(4, 10),
-            "with_reverb": 3,
+            "with_reverb": random.randint(0, 3),
             "rgb": random.randint(0, 1),
             "voronoi_refract": .25 + random.random() * .375,
             "with_voronoi": 7,
@@ -582,6 +582,15 @@ PRESETS = {
             "octaves": 5,
             "sin": 10,
             "with_bloom": 0.5,
+        }
+    },
+
+    "density-wave": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "reflect_range": random.randint(4, 12),
+            "with_density_map": True,
+            "with_shadow": 1,
         }
     },
 
