@@ -1395,6 +1395,17 @@ PRESETS = {
          }
     },
 
+    "time-to-reflect": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "post_reflect": random.randint(0, 1),
+            "post_ridges": random.randint(0, 1),
+            "reflect_range": random.randint(7, 14),
+            "ridges": random.randint(0, 1),
+         }
+    },
+
     "traceroute": {
         "kwargs": {
             "corners": True,
