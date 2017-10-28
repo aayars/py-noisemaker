@@ -888,6 +888,18 @@ PRESETS = {
         }
     },
 
+    "just-refracts-maam": {
+        "kwargs": {
+            "corners": True,
+            "freq": random.randint(2, 3),
+            "post_refract": random.randint(0, 1),
+            "post_ridges": random.randint(0, 1),
+            "refract_range": random.randint(4, 8),
+            "ridges": random.randint(0, 1),
+            "with_shadow": random.randint(0, 1),
+         }
+    },
+
     "magic-squares": {
         "kwargs": {
             "channels": 3,
@@ -1403,6 +1415,7 @@ PRESETS = {
             "post_ridges": random.randint(0, 1),
             "reflect_range": random.randint(7, 14),
             "ridges": random.randint(0, 1),
+            "with_shadow": random.randint(0, 1),
          }
     },
 
@@ -1477,6 +1490,22 @@ PRESETS = {
         }
     },
 
+    "twilight-zone": {
+        "kwargs": {
+            "freq": 2,
+            "corners": True,
+            "reindex_range": random.randint(8, 16),
+            "saturation": 0,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": random.randint(0, 1),
+            "with_vhs": random.randint(0, 1),
+            "with_snow": .25 + random.random() * .25,
+            "with_dither": .075 + random.random() * .077,
+        }
+    },
     "unicorn-puddle": {
         "kwargs": {
             "emboss": 1,
