@@ -199,39 +199,28 @@ def script(x, y, row, shape, *args):
     height = shape[0]
     width = shape[1]
 
+    x_step = x % width
     y_step = y % height
+
+    if x > 0 and (x + y) % 2 == 1:
+        return row[x - 1]
 
     if y_step == 0:
         return 0.0
 
-    if y_step == 1:
-        return random.random() > .2
+    if y_step in (1, 3, 6):
+        return random.random() > .25
 
-    if y_step == 2:
+    if y_step in (2, 4, 5):
         return random.random() > .9
 
-    if x % width == 0:
+    if x_step == 0:
         return 0.0
 
-    if (x + y) % 2 == 1:
-        return row[x - 1]
-
-    if y_step == 3:
-        return random.random() > .3
-
-    if y_step == 4:
-        return random.random() > .9
-
-    if y_step == 5:
-        return random.random() > .9
-
-    if y_step == 6:
-        return random.random() > .3
-
-    if any(n == 0 for n in (width - (x % width), height - (y % height))):
+    if any(n == 0 for n in (width - x_step, height - y_step)):
         return 0.0
 
-    if all(n % 2 == 0 for n in (x % width, y % height)):
+    if all(n % 2 == 0 for n in (x_step, y_step)):
         return 0.0
 
     if y_step == height - 1:
