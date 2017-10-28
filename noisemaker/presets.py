@@ -646,6 +646,42 @@ PRESETS = {
         }
     },
 
+    "fractal-forms": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "invert": random.randint(0, 1),
+            "octaves": random.randint(2, 4),
+            "with_density_map": True,
+            "with_bloom": .75 + random.random() * .25,
+            "with_worms": 4,
+            "worms_alpha": .9 + random.random() * .1,
+            "worms_density": random.randint(750, 1500),
+            "worms_kink": random.randint(64, 512),
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+        }
+    },
+
+    "fractal-smoke": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "invert": random.randint(0, 1),
+            "octaves": random.randint(2, 4),
+            "with_density_map": True,
+            "with_bloom": .75 + random.random() * .25,
+            "with_worms": 4,
+            "worms_alpha": .9 + random.random() * .1,
+            "worms_density": random.randint(750, 1500),
+            "worms_stride": random.randint(128, 256),
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+        }
+    },
+
     "fractile": {
         "kwargs": {
             "corners": True,

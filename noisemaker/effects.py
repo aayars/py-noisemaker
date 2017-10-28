@@ -837,9 +837,7 @@ def density_map(tensor, shape):
 
     height, width, channels = shape
 
-    bins = max(height, width) * 2
-
-    tensor = posterize(tensor, bins)
+    bins = max(height, width)
 
     values = value_map(tensor, shape, keep_dims=True)
 
