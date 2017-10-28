@@ -925,7 +925,7 @@ PRESETS = {
         "kwargs": {
             "freq": random.randint(2, 4),
             "octaves": random.randint(1, 3),
-            "with_worms": random.randint(1, 4),
+            "with_worms": random.randint(1, 2),
             "worms_alpha": 1,
             "worms_density": 750,
             "worms_duration": .25,
@@ -1220,6 +1220,19 @@ PRESETS = {
             "post_ridges": True,
             "rgb": random.randint(0, 1),
             "ridges": True,
+        }
+    },
+
+    "sands-of-time": {
+        "kwargs": {
+            "freq": random.randint(3, 5),
+            "octaves": random.randint(1, 3),
+            "with_worms": random.randint(3, 4),
+            "worms_alpha": 1,
+            "worms_density": 750,
+            "worms_duration": .25,
+            "worms-kink": random.randint(1, 2),
+            "worms_stride": random.randint(128, 256),
         }
     },
 
