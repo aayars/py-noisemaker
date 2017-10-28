@@ -921,6 +921,18 @@ PRESETS = {
         }
     },
 
+    "magic-smoke": {
+        "kwargs": {
+            "octaves": random.randint(1, 3),
+            "with_worms": random.randint(1, 4),
+            "worms_alpha": 1,
+            "worms_density": 750,
+            "worms_duration": .25,
+            "worms-kink": random.randint(2, 3),
+            "worms_stride": random.randint(128, 256),
+        }
+    },
+
     "misaligned": {
         "kwargs": {
             "distrib": [m.value for m in ValueDistribution][random.randint(0, len(ValueDistribution) - 1)],
