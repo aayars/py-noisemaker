@@ -99,6 +99,7 @@ import noisemaker.recipes as recipes
 @cli.brightness_distrib_option()
 @cli.input_dir_option()
 @cli.wavelet_option()
+@cli.density_map_option()
 @cli.name_option()
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
@@ -109,7 +110,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
          glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
          pop, bloom, rgb, hue_range, hue_rotation, saturation, saturation_distrib, post_hue_rotation, brightness_distrib, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
-         shadow, name, **convolve_kwargs):
+         shadow, density, name, **convolve_kwargs):
 
     shape = [height, width, channels]
 
@@ -133,6 +134,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
                                  brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                                  input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_shadow=shadow,
+                                 with_density_map=density,
                                  **convolve_kwargs)
 
     tensor = recipes.post_process(tensor, shape=shape, freq=freq,

@@ -612,6 +612,12 @@ def post_hue_rotation_option(**attrs):
     return float_option("--post-hue-rotation", default=1.0, **attrs)
 
 
+def density_map_option(**attrs):
+    attrs.setdefault("help", "Map values to color density histogram")
+
+    return bool_option("--density", default=False, **attrs)
+
+
 def input_dir_option(**attrs):
     attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
 

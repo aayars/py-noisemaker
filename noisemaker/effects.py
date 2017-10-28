@@ -25,7 +25,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None,
+                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_density_map=False,
                  **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -94,6 +94,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
     :param None|int with_jpeg_decimate: Conv2D feedback + JPEG encode/decode iteration count
+    :param bool with_density_map: Map values to color histogram
 
     :return: Tensor
     """
@@ -169,6 +170,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_erosion_worms:
         tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
                        contraction=erosion_worms_contraction, alpha=erosion_worms_alpha)
+
+    if with_density_map:
+        tensor = density_map(tensor, shape)
 
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel)
@@ -825,6 +829,28 @@ def value_map(tensor, shape, keep_dims=False):
     """
 
     return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
+
+
+def density_map(tensor, shape):
+    """
+    """
+
+    height, width, channels = shape
+
+    bins = max(height, width) * 2
+
+    tensor = posterize(tensor, bins)
+
+    values = value_map(tensor, shape, keep_dims=True)
+
+    # https://stackoverflow.com/a/34143927
+    binned_values = tf.cast(tf.reshape(values * (bins - 1), [-1]), tf.int32)
+    ones = tf.ones_like(binned_values, dtype=tf.int32)
+    counts = tf.unsorted_segment_sum(ones, binned_values, bins)
+
+    out = tf.gather(counts, tf.cast(values[:, :] * (bins - 1), tf.int32))
+
+    return tf.ones(shape) * normalize(tf.cast(out, tf.float32))
 
 
 def jpeg_decimate(tensor, shape, iterations=25):
