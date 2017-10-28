@@ -923,6 +923,7 @@ PRESETS = {
 
     "magic-smoke": {
         "kwargs": {
+            "freq": random.randint(2, 4),
             "octaves": random.randint(1, 3),
             "with_worms": random.randint(1, 4),
             "worms_alpha": 1,
