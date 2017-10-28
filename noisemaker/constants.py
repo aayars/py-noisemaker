@@ -241,8 +241,19 @@ class VoronoiDiagramType(Enum):
     #: Edgeless voronoi. Natural logarithm of reduced distance sums.
     flow = 6
 
+    #: Density-mapped flow diagram
+    density = 7
+
     #: Stitched collage based on indexed regions
-    collage = 7
+    collage = 8
+
+    @classmethod
+    def flow_members(cls):
+        return [cls.flow, cls.density]
+
+    @classmethod
+    def is_flow_member(cls, member):
+        return member in cls.flow_members()
 
 
 class WormBehavior(Enum):

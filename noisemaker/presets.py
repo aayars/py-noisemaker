@@ -175,7 +175,7 @@ EFFECTS_PRESETS = {
             "voronoi_func": random.randint(1, 3),
             "voronoi_refract": .5 + random.random() * .5,
             "voronoi_nth": random.randint(0, 3),
-            "with_voronoi": [1, 3, 6][random.randint(0, 2)]
+            "with_voronoi": [1, 3, 6, 7][random.randint(0, 3)]
         }
     },
 
@@ -375,7 +375,7 @@ PRESETS = {
             "warp_range": None if random.randint(0, 1) else random.random() * 2.0,
             "with_bloom": .5 + random.random() * .5,
             "with_sobel": 2,
-            "with_voronoi": random.randint(1, 6),
+            "with_voronoi": random.randint(1, 7),
         },
 
         "post_kwargs": {
@@ -466,6 +466,18 @@ PRESETS = {
             "with_wormhole": True,
             "wormhole_kink": random.randint(3, 6),
             "wormhole_stride": .05 + random.random() * .05,
+        }
+    },
+
+    "cloverleaf": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "point_distrib": ([m.value for m in PointDistribution])[random.randint(0, len(PointDistribution) - 1)],
+            "point_freq": random.randint(4, 10),
+            "rgb": random.randint(0, 1),
+            "voronoi_refract": .25 + random.random() * .375,
+            "with_voronoi": 7,
         }
     },
 
@@ -1199,7 +1211,7 @@ PRESETS = {
             "voronoi_nth": random.randint(0, 3),
             "with_bloom": .25 + random.random() * .5,
             "with_reverb": random.randint(3, 6),
-            "with_voronoi": random.randint(1, 6),
+            "with_voronoi": random.randint(1, 7),
         },
 
         "post_kwargs": {

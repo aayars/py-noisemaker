@@ -1081,7 +1081,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     # x_diff = (x_index - x) / width
     # y_diff = (y_index - y) / height
 
-    if diagram_type == VoronoiDiagramType.flow:
+    if diagram_type in VoronoiDiagramType.flow_members():
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
         x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
         y_diff += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
@@ -1089,7 +1089,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     dist = distance(x_diff, y_diff, dist_func)
 
     ###
-    if diagram_type not in (VoronoiDiagramType.flow, ):
+    if diagram_type not in VoronoiDiagramType.flow_members():
         dist, indices = tf.nn.top_k(dist, k=point_count)
         index = int((nth + 1) * -1)
 
@@ -1114,8 +1114,16 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type == VoronoiDiagramType.range:
         range_out = range_slice
 
-    if diagram_type in (VoronoiDiagramType.flow, ):
-        range_out = resample(offset(normalize(tf.reduce_sum(tf.log(dist), 3)), shape, **offset_kwargs), original_shape)
+    if diagram_type in VoronoiDiagramType.flow_members():
+        range_out = tf.reduce_sum(tf.log(dist), 3)
+
+        range_out = resample(offset(tf.reduce_sum(tf.log(dist), 3), shape, **offset_kwargs), original_shape)
+
+        if diagram_type == VoronoiDiagramType.flow:
+            range_out = normalize(range_out)
+
+        else:
+            range_out = density_map(range_out, original_shape)
 
     if diagram_type in (VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
         range_out = blend(tensor * range_slice, range_slice, range_slice)
@@ -1161,7 +1169,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type == VoronoiDiagramType.range_regions:
         out = blend(regions_out, range_out, tf.square(range_out))
 
-    elif diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.flow):
+    elif diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, *VoronoiDiagramType.flow_members()):
         out = range_out
 
     elif diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions):
