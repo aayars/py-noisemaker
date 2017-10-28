@@ -199,7 +199,12 @@ class ValueMask(Enum):
 
     letters = 104
 
-    iching = 105
+    ideogram = 105
+
+    iching = 106
+
+    script = 107
+
 
     @classmethod
     def procedural_members(cls):

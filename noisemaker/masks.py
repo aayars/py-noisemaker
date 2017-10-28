@@ -1,3 +1,4 @@
+import math
 import random
 
 from noisemaker.constants import ValueMask
@@ -168,3 +169,72 @@ def iching(x, y, row, shape, *args):
         return row[x - 1]
 
     return random.randint(0, 1)
+
+
+def ideogram_shape():
+    return (random.randint(4, 6) * 2, ) * 2
+
+
+def ideogram(x, y, row, shape, *args):
+    height = shape[0]
+    width = shape[1]
+
+    if any(n == 0 for n in (x % width, y % height)):
+        return 0.0
+
+    if any(n == 1 for n in (width - (x % width), height - (y % height))):
+        return 0.0
+
+    if all(n % 2 == 1 for n in (x % width, y % height)):
+        return 0.0
+
+    return random.random() > .5
+
+
+def script_shape():
+    return (random.randint(7, 9), random.randint(12, 24))
+
+
+def script(x, y, row, shape, *args):
+    height = shape[0]
+    width = shape[1]
+
+    y_step = y % height
+
+    if y_step == 0:
+        return 0.0
+
+    if y_step == 1:
+        return random.random() > .2
+
+    if y_step == 2:
+        return random.random() > .9
+
+    if x % width == 0:
+        return 0.0
+
+    if (x + y) % 2 == 1:
+        return row[x - 1]
+
+    if y_step == 3:
+        return random.random() > .3
+
+    if y_step == 4:
+        return random.random() > .9
+
+    if y_step == 5:
+        return random.random() > .9
+
+    if y_step == 6:
+        return random.random() > .3
+
+    if any(n == 0 for n in (width - (x % width), height - (y % height))):
+        return 0.0
+
+    if all(n % 2 == 0 for n in (x % width, y % height)):
+        return 0.0
+
+    if y_step == height - 1:
+        return 0.0
+
+    return random.random() > .5
