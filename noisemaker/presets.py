@@ -679,7 +679,7 @@ PRESETS = {
             "with_worms": 4,
             "worms_alpha": .9 + random.random() * .1,
             "worms_density": random.randint(750, 1500),
-            "worms_kink": random.randint(64, 512),
+            "worms_kink": random.randint(256, 512),
         },
 
         "post_kwargs": {
