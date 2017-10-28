@@ -648,9 +648,9 @@ PRESETS = {
 
     "fractal-forms": {
         "kwargs": {
-            "freq": random.randint(2, 4),
+            "freq": random.randint(2, 3),
             "invert": random.randint(0, 1),
-            "octaves": random.randint(2, 4),
+            "octaves": random.randint(3, 4),
             "with_density_map": True,
             "with_bloom": .75 + random.random() * .25,
             "with_worms": 4,
