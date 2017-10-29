@@ -926,6 +926,34 @@ PRESETS = {
         }
     },
 
+    "hydraulic-flow": {
+        "kwargs": {
+            "deriv": random.randint(0, 1),
+            "deriv_alpha": .25 + random.random() * .25,
+            "distrib": [m.value for m in ValueDistribution if m.name not in ("ones", "mids")][random.randint(0, len(ValueDistribution) - 3)],
+            "erosion_worms_alpha": .125 + random.random() * .125,
+            "erosion_worms_contraction": .75 + random.random() * .5,
+            "erosion_worms_density": random.randint(5, 250),
+            "erosion_worms_iterations": random.randint(50, 250),
+            "freq": random.randint(2, 3),
+            "hue_range": random.random(),
+            "invert": random.randint(0, 1),
+            "octaves": random.randint(4, 8),
+            "refract_range": random.random() * 2,
+            "ridges": random.randint(0, 1),
+            "rgb": random.randint(0, 1),
+            "saturation": random.random(),
+            "with_bloom": .25 + random.random() * .25,
+            "with_erosion_worms": True,
+            "with_density_map": True,
+            "with_shadow": 1,
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+        }
+    },
+
     "isoform": {
         "kwargs": {
             "hue_range": random.random(),
@@ -967,7 +995,7 @@ PRESETS = {
     "magic-squares": {
         "kwargs": {
             "channels": 3,
-            "distrib": [m.value for m in ValueDistribution if m.name != "ones"][random.randint(0, len(ValueDistribution) - 2)],
+            "distrib": [m.value for m in ValueDistribution if m.name not in ("ones", "mids")][random.randint(0, len(ValueDistribution) - 3)],
             "edges": .25 + random.random() * .5,
             "freq": [9, 12, 15, 18][random.randint(0, 3)],
             "hue_range": random.random() * .5,
@@ -1094,6 +1122,23 @@ PRESETS = {
             "point_freq": random.randint(4, 8),
             "voronoi_refract": random.randint(8, 12),
             "with_voronoi": 6,
+        }
+    },
+
+    "outer-limits": {
+        "kwargs": {
+            "freq": 2,
+            "corners": True,
+            "reindex_range": random.randint(8, 16),
+            "saturation": 0,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": random.randint(0, 1),
+            "with_vhs": random.randint(0, 1),
+            "with_snow": .25 + random.random() * .25,
+            "with_dither": .075 + random.random() * .077,
         }
     },
 
@@ -1580,22 +1625,6 @@ PRESETS = {
         }
     },
 
-    "twilight-zone": {
-        "kwargs": {
-            "freq": 2,
-            "corners": True,
-            "reindex_range": random.randint(8, 16),
-            "saturation": 0,
-        },
-
-        "post_kwargs": {
-            "with_crt": True,
-            "with_scan_error": random.randint(0, 1),
-            "with_vhs": random.randint(0, 1),
-            "with_snow": .25 + random.random() * .25,
-            "with_dither": .075 + random.random() * .077,
-        }
-    },
     "unicorn-puddle": {
         "kwargs": {
             "emboss": 1,
