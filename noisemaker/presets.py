@@ -588,6 +588,7 @@ PRESETS = {
         "kwargs": {
             "freq": random.randint(2, 4),
             "reflect_range": random.randint(4, 12),
+            "saturation": 0,
             "with_density_map": True,
             "with_shadow": 1,
         }
@@ -670,10 +671,12 @@ PRESETS = {
     "fractal-forms": {
         "kwargs": {
             "freq": random.randint(2, 3),
-            "invert": random.randint(0, 1),
+            "hue_range": random.random() * 3,
+            "invert": 1,
             "octaves": random.randint(3, 4),
-            "with_density_map": True,
+            "saturation": .075,
             "with_bloom": .75 + random.random() * .25,
+            "with_density_map": True,
             "with_shadow": .5 + random.random() * .5,
             "with_worms": 4,
             "worms_alpha": .9 + random.random() * .1,
@@ -689,10 +692,12 @@ PRESETS = {
     "fractal-smoke": {
         "kwargs": {
             "freq": random.randint(2, 4),
-            "invert": random.randint(0, 1),
+            "hue_range": random.random() * 3,
+            "invert": 1,
             "octaves": random.randint(2, 4),
-            "with_density_map": True,
+            "saturation": .075,
             "with_bloom": .75 + random.random() * .25,
+            "with_density_map": True,
             "with_shadow": .5 + random.random() * .5,
             "with_worms": 4,
             "worms_alpha": .9 + random.random() * .1,

@@ -839,7 +839,8 @@ def density_map(tensor, shape):
 
     bins = max(height, width)
 
-    values = value_map(tensor, shape, keep_dims=True)
+    # values = value_map(tensor, shape, keep_dims=True)
+    values = tensor
 
     # https://stackoverflow.com/a/34143927
     binned_values = tf.cast(tf.reshape(values * (bins - 1), [-1]), tf.int32)
