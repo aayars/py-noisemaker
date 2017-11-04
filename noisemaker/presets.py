@@ -813,13 +813,18 @@ PRESETS = {
 
     "glom": {
         "kwargs": {
+            "freq": 2,
+            "hue_range": .25 + random.random() * .25,
             "lattice_drift": 1,
-            "reflect_range": random.randint(2, 4),
-            "refract_range": random.randint(2, 4),
-            "ridges": True,
-            "warp_range": random.random() * .5,
+            "octaves": 2,
+            "post_reflect_range": random.randint(1, 2),
+            "post_refract_range": random.randint(1, 2),
+            "reflect_range": random.randint(1, 2) * .25,
+            "refract_range": random.randint(1, 2) * .25,
+            "warp_range": .25 + random.random() * .25,
             "warp_octaves": 1,
             "with_bloom": .25 + random.random() * .5,
+            "with_shadow": .75 + random.random() * .25,
         }
     },
 
