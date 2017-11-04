@@ -750,6 +750,34 @@ PRESETS = {
         }
     },
 
+    "fast-eddies": {
+        "kwargs": {
+            "hue_range": .25 + random.random() * .75,
+            "hue_rotation": random.random(),
+            "invert": 1,
+            "octaves": random.randint(1, 3),
+            "point_freq": random.randint(2, 10),
+            "post_contrast": 1.5,
+            "post_saturation": .125 + random.random() * .375,
+            "ridges": random.randint(0, 1),
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_refract": 2.0,
+            "with_bloom": .333 + random.random() * .333,
+            "with_density_map": True,
+            "with_shadow": .75 + random.random() * .25,
+            "with_voronoi": 6,
+            "with_worms": 4,
+            "worms_alpha": .5 + random.random() * .5,
+            "worms_density": 1000,
+            "worms_duration": 6,
+            "worms_kink": random.randint(125, 375),
+        },
+
+        "post_kwargs": {
+            "with_dither": .175 + random.random() * .175,
+        }
+    },
+
     "flowbie": {
         "kwargs": {
             "freq": random.randint(2, 4),
