@@ -109,7 +109,7 @@ EFFECTS_PRESETS = {
         },
     },
 
-    "noiremaker": {
+    "noirmaker": {
         "kwargs": {
             "post_contrast": 5,
             "post_saturation": 0,
