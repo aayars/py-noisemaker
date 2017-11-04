@@ -1473,6 +1473,22 @@ PRESETS = {
         }
     },
 
+    "solar": {
+        "kwargs": {
+            "freq": random.randint(20, 28),
+            "hue_range": .225 + random.random() * .05,
+            "hue_rotation": .975,
+            "octaves": random.randint(4, 8),
+            "reflect_range": .666 + random.random() * .333,
+            "refract_range": .666 + random.random() * .333,
+            "saturation": 4 + random.random() * 2.5,
+            "sin": 3,
+            "warp_range": .2 + random.random() * .1,
+            "warp_freq": 2,
+            "with_bloom": .5 + random.random() * .25,
+        }
+    },
+
     "spiral-clouds": {
         "kwargs": {
             "freq": random.randint(2, 4),
