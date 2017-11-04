@@ -1572,7 +1572,7 @@ PRESETS = {
             "mask": "sparse",
             "octaves": random.randint(1, 3),
             "reflect_range": random.randint(0, 1) * random.random() * 4,
-            "spline_order": 2,
+            "spline_order": random.randint(1, 3),
             "with_bloom": .25 + random.random() * .25,
             "with_density_map": True,
             "with_worms": 1,
