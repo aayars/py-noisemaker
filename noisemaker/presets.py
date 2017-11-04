@@ -109,6 +109,21 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "noiremaker": {
+        "kwargs": {
+            "post_contrast": 5,
+            "post_saturation": 0,
+            "vignette_brightness": 0,
+            "with_bloom": .333 + random.random() * .333,
+            "with_light_leak": .25 + random.random() * .25,
+            "with_vignette": .5 + random.random() * .25,
+        },
+
+        "post_kwargs": {
+            "with_dither": .175 + random.random() * .175,
+        }
+    },
+
     "pop-art": {
         "kwargs": {
             "with_pop": True
@@ -1436,6 +1451,20 @@ PRESETS = {
             "posterize_levels": random.randint(3, 5),
             "rgb": random.randint(0, 1),
             "with_outline": 1,
+        }
+    },
+
+    "sined-multifractal": {
+        "kwargs": {
+            "distrib": "uniform",
+            "freq": random.randint(2, 12),
+            "hue_range": random.random(),
+            "hue_rotation": random.random(),
+            "lattice_drift": .75,
+            "octaves": 7,
+            "ridges": True,
+            "sin": -3,
+            "with_bloom": .25 + random.random() * .25,
         }
     },
 

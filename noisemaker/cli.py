@@ -609,7 +609,19 @@ def brightness_distrib_option(**attrs):
 def post_hue_rotation_option(**attrs):
     attrs.setdefault("help", "HSV: Post-reduce hue rotation (-0.5 .. 0.5)")
 
-    return float_option("--post-hue-rotation", default=1.0, **attrs)
+    return float_option("--post-hue-rotation", default=None, **attrs)
+
+
+def post_saturation_option(**attrs):
+    attrs.setdefault("help", "HSV: Post-reduce saturation")
+
+    return float_option("--post-saturation", default=None, **attrs)
+
+
+def post_contrast_option(**attrs):
+    attrs.setdefault("help", "HSV: Post-reduce contrast adjustment")
+
+    return float_option("--post-contrast", default=None, **attrs)
 
 
 def density_map_option(**attrs):

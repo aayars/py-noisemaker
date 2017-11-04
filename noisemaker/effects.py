@@ -25,7 +25,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 post_hue_rotation=None, input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_density_map=False,
+                 post_hue_rotation=None, post_saturation=None, post_contrast=None,
+                 input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_density_map=False,
                  **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -90,6 +91,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
     :param None|float post_hue_rotation: Rotate hue (-.5 - .5)
+    :param None|float post_saturation: Adjust saturation (0 - 1)
+    :param None|float post_contrast: Adjust contrast
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
@@ -212,6 +215,12 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if post_hue_rotation not in (1.0, 0.0, None) and shape[2] == 3:
         tensor = tf.image.adjust_hue(tensor, post_hue_rotation)
+
+    if post_saturation is not None:
+        tensor = tf.image.adjust_saturation(tensor, post_saturation)
+
+    if post_contrast is not None:
+        tensor = tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, post_contrast), 1.0), 0.0)
 
     if with_jpeg_decimate:
         tensor = jpeg_decimate(tensor, shape, iterations=with_jpeg_decimate)
