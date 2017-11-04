@@ -1564,6 +1564,25 @@ PRESETS = {
          }
     },
 
+    "timeworms": {
+        "kwargs": {
+            "freq": random.randint(8, 36),
+            "hue_range": 0,
+            "invert": 1,
+            "mask": "sparse",
+            "octaves": random.randint(1, 3),
+            "reflect_range": random.randint(0, 1) * random.random() * 4,
+            "spline_order": 2,
+            "with_bloom": .25 + random.random() * .25,
+            "with_density_map": True,
+            "with_worms": 1,
+            "worms_alpha": 1,
+            "worms_density": .25,
+            "worms_duration": 25,
+            "worms_kink": .25 + random.random() * 2.5,
+        }
+    },
+
     "traceroute": {
         "kwargs": {
             "corners": True,
