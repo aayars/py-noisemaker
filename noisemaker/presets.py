@@ -508,6 +508,22 @@ PRESETS = {
         }
     },
 
+    "cool-water": {
+        "kwargs": {
+            "distrib": "uniform",
+            "freq": 16,
+            "hue_range": .05 + random.random() * .05,
+            "hue_rotation": .5125 + random.random() * .025,
+            "lattice_drift": 1,
+            "octaves": 4,
+            "reflect_range": .333 + random.random() * .333,
+            "refract_range": .333 + random.random() * .333,
+            "warp_range": .125 + random.random() * .125,
+            "warp_freq": random.randint(2, 3),
+            "with_bloom": .25 + random.random() * .25,
+        }
+    },
+
     "corner-case": {
         "kwargs": {
             "corners": True,
