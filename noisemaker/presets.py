@@ -508,6 +508,24 @@ PRESETS = {
         }
     },
 
+    "corner-case": {
+        "kwargs": {
+            "corners": True,
+            "freq": random.randint(2, 4),
+            "lattice_drift": random.randint(0, 1),
+            "octaves": 8,
+            "ridges": True,
+            "saturation": random.randint(0, 1) * random.random() * .25,
+            "spline_order": 0,
+            "with_bloom": .25 + random.random() * .25,
+            "with_density_map": True,
+         },
+
+        "post_kwargs": {
+            "with_dither": .25,
+        }
+    },
+
     "crop-spirals": {
         "kwargs": {
             "distrib": "laplace",
