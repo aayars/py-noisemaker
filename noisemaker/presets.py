@@ -463,6 +463,26 @@ PRESETS = {
         }
     },
 
+    "cell-reflect": {
+        "kwargs": {
+            "invert": random.randint(0, 1),
+            "point_freq": random.randint(2, 3),
+            "post_deriv": random.randint(1, 3),
+            "post_reflect_range": random.randint(2, 4),
+            "post_saturation": .5,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_func": random.randint(1, 3),
+            "voronoi_nth": random.randint(0, 1),
+            "with_density_map": True,
+            "with_bloom": .333 + random.random() * .333,
+            "with_voronoi": 2,
+        },
+
+        "post_kwargs": {
+            "with_dither": .075 + random.random() * .075,
+        }
+    },
+
     "cell-refract": {
         "kwargs": {
             "point_freq": random.randint(3, 4),
@@ -472,6 +492,26 @@ PRESETS = {
             "ridges": True,
             "voronoi_refract": random.randint(8, 12),
             "with_voronoi": 1,
+        }
+    },
+
+    "cell-refract-2": {
+        "kwargs": {
+            "invert": 1,
+            "point_freq": random.randint(2, 3),
+            "post_deriv": random.randint(1, 3),
+            "post_refract_range": random.randint(2, 4),
+            "post_saturation": .5,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_func": random.randint(1, 3),
+            "voronoi_nth": random.randint(0, 1),
+            "with_density_map": True,
+            "with_bloom": .333 + random.random() * .333,
+            "with_voronoi": 2,
+        },
+
+        "post_kwargs": {
+            "with_dither": .075 + random.random() * .075,
         }
     },
 
@@ -1026,7 +1066,9 @@ PRESETS = {
             "post_refract_range": .25 + random.random() * .25,
             "ridges": random.randint(0, 1),
             "voronoi_alpha": .75 + random.random() * .25,
-            "voronoi_func": random.randint(1, 3),
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(0, 1),
+            "with_bloom":  .25 + random.random() * .25,
             "with_outline":  random.randint(1, 3),
             "with_voronoi": random.randint(1, 2),
         }
