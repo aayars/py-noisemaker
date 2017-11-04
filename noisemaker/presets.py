@@ -37,6 +37,15 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "crt": {
+        "post_kwargs": {
+            "with_snow": random.randint(0, 1) * random.random() * .4,
+            "with_dither": random.randint(0, 1) * random.random() * .25,
+            "with_scan_error": random.randint(0, 1),
+            "with_crt": True,
+        }
+    },
+
     "erosion-worms": {
         "kwargs": {
             "erosion_worms_alpha": .25 + random.random() * .75,
@@ -586,6 +595,7 @@ PRESETS = {
 
     "density-wave": {
         "kwargs": {
+            "corners": True,
             "freq": random.randint(2, 4),
             "reflect_range": random.randint(4, 12),
             "saturation": 0,
