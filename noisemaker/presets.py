@@ -787,16 +787,20 @@ PRESETS = {
             "invert": 1,
             "octaves": random.randint(3, 4),
             "post_hue_rotation": random.random(),
-            "post_saturation": .333 + random.random() * .333,
+            "post_saturation": .25 + random.random() * .25,
             "ridges": True,
-            "with_density_map": True,
-            "with_worms": 5,
-            "with_shadow": .75 + random.random() * .25,
-            "with_bloom": .25 + random.random() * .25,
             "with_aberration": .0075 + random.random() * .0075,
-            "worms_stride": random.randint(150, 350),
+            "with_bloom": .25 + random.random() * .25,
+            "with_density_map": True,
+            "with_shadow": .75 + random.random() * .25,
+            "with_worms": 5,
             "worms_alpha": .975 + random.random() * .025,
             "worms_density": 1500,
+            "worms_stride": random.randint(150, 350),
+        },
+
+        "post_kwargs": {
+            "with_dither": .075,
         }
     },
 
@@ -1874,6 +1878,16 @@ PRESETS = {
             "worms_duration": .5,
             "worms_stride": .5,
             "worms_stride_deviation": .25,
+        }
+    },
+
+    "twister": {
+        "kwargs": {
+            "freq": random.randint(12, 24),
+            "octaves": 2,
+            "with_wormhole": True,
+            "wormhole_kink": 1 + random.random() * 3,
+            "wormhole_stride": .0333 + random.random() * .0333,
         }
     },
 

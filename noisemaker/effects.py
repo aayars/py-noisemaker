@@ -745,7 +745,7 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
 
     luminosity = tf.square(tf.reshape(values, [height, width, 1]))
 
-    out = tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor))
+    out = normalize(tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor)))
 
     return blend(tensor, tf.sqrt(out), alpha)
 
