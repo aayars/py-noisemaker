@@ -274,3 +274,5 @@ class WormBehavior(Enum):
     unruly = 3
 
     chaotic = 4
+
+    random = 5

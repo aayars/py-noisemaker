@@ -750,6 +750,25 @@ PRESETS = {
         }
     },
 
+    "fake-fractal-flame": {
+        "kwargs": {
+            "hue_range": random.random(),
+            "invert": 1,
+            "octaves": random.randint(3, 4),
+            "post_hue_rotation": random.random(),
+            "post_saturation": .333 + random.random() * .333,
+            "ridges": True,
+            "with_density_map": True,
+            "with_worms": 5,
+            "with_shadow": .75 + random.random() * .25,
+            "with_bloom": .25 + random.random() * .25,
+            "with_aberration": .0075 + random.random() * .0075,
+            "worms_stride": random.randint(150, 350),
+            "worms_alpha": .975 + random.random() * .025,
+            "worms_density": 1500,
+        }
+    },
+
     "fast-eddies": {
         "kwargs": {
             "hue_range": .25 + random.random() * .75,

@@ -675,8 +675,18 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     elif behavior == WormBehavior.chaotic:
         worms_rot = tf.random_normal([count]) * 360.0
 
-    else:
+    elif behavior == WormBehavior.unruly:
         worms_rot = tf.random_normal([count]) * .25 - .125
+
+    else:
+        quarter_count = int(count * .25)
+
+        worms_rot = tf.reshape(tf.stack([
+            tf.zeros([quarter_count]),
+            (tf.floor(tf.random_normal([quarter_count]) * 100) % 2) * 90,
+            tf.random_normal([quarter_count]) * 360.0,
+            tf.random_normal([int(count - quarter_count * 3)]) * .25 - .125
+        ]), [count])
 
     index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
 
