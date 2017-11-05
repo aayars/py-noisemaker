@@ -1588,6 +1588,25 @@ PRESETS = {
         }
     },
 
+    "spaghettification": {
+        "kwargs": {
+            "invert": 1,
+            "octaves": random.randint(2, 5),
+            "point_freq": 1,
+            "voronoi_func": random.randint(1, 3),
+            "voronoi_inverse": True,
+            "with_aberration": .0075 + random.random() * .0075,
+            "with_bloom": .333 + random.random() * .333,
+            "with_density_map": True,
+            "with_shadow": .75 + random.random() * .25,
+            "with_voronoi": 6,
+            "with_worms": 4,
+            "worms_alpha": .75,
+            "worms_density": 1500,
+            "worms_stride": random.randint(150, 350),
+        },
+    },
+
     "spiral-clouds": {
         "kwargs": {
             "freq": random.randint(2, 4),
