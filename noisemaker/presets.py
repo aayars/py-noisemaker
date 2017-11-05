@@ -515,6 +515,35 @@ PRESETS = {
         }
     },
 
+    "cell-worms": {
+        "kwargs": {
+            "freq": random.randint(3, 7),
+            "hue_range": .125 + random.random() * .875,
+            "invert": 1,
+            "octaves": 3,
+            "point_distrib": random.randint(0, 1) * ([50] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
+            "point_freq": random.randint(2, 4),
+            "post_hue_rotation": random.random(),
+            "saturation": .125 + random.random() * .25,
+            "with_bloom": .25 + random.random() * .25,
+            "with_density_map": True,
+            "with_shadow": .75 + random.random() * .25,
+            "with_voronoi": [1, 2, 4, 5, 6][random.randint(0, 4)],
+            "with_worms": 5,
+            "voronoi_alpha": .75,
+            "voronoi_inverse": random.randint(0, 1),
+            "voronoi_func": random.randint(1, 3),
+            "voronoi_nth": random.randint(0, 3),
+            "worms_alpha": .875,
+            "worms_density": 1500,
+            "worms_kink": random.randint(16, 32),
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+        }
+    },
+
     "circulent": {
         "kwargs": {
             "corners": True,
