@@ -1189,7 +1189,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type == VoronoiDiagramType.range_regions:
         out = blend(regions_out, range_out, tf.square(range_out))
 
-    elif diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, *VoronoiDiagramType.flow_members()):
+    elif diagram_type in [VoronoiDiagramType.range, VoronoiDiagramType.color_range] + VoronoiDiagramType.flow_members():
         out = range_out
 
     elif diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions):
