@@ -640,10 +640,13 @@ PRESETS = {
             "lattice_drift": 1,
             "octaves": 4,
             "reflect_range": .333 + random.random() * .333,
-            "refract_range": .333 + random.random() * .333,
+            "refract_range": .5 + random.random() * .25,
+            "ripple_range": .01 + random.random() * .005,
+            "ripple_kink": random.randint(2, 4),
+            "ripple_freq": random.randint(2, 4),
             "warp_range": .125 + random.random() * .125,
             "warp_freq": random.randint(2, 3),
-            "with_bloom": .25 + random.random() * .25,
+            "with_bloom": .333 + random.random() * .333,
         }
     },
 
