@@ -176,6 +176,14 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "ripples": {
+        "kwargs": {
+            "ripple_freq": random.randint(2, 3),
+            "ripple_kink": 2.5 + random.random() * 1.25,
+            "ripple_range": .05 + random.random() * .25,
+        }
+    },
+
     "shadows": {
         "kwargs": {
             "with_shadow": .5 + random.random() * .5,
@@ -1575,7 +1583,6 @@ PRESETS = {
             "freq": random.randint(2, 5),
             "invert": 1,
             "lattice_drift": 1,
-            "post_hue_rotation": random.random(),
             "ridges": random.randint(0, 1),
             "ripple_freq": random.randint(2, 3),
             "ripple_kink": random.randint(8, 24),
