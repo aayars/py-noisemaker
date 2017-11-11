@@ -20,7 +20,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0,
-                 with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0, erosion_worms_alpha=1.0,
+                 with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
+                 erosion_worms_alpha=1.0, erosion_worms_inverse=False,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
@@ -71,6 +72,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float erosion_worms_iterations: Default: 50
     :param float erosion_worms_contraction: Inverse of stride. Default: 1.0, smaller=longer steps
     :param float erosion_worms_alpha:
+    :param bool erosion_worms_inverse:
     :param float vortex_range: Vortex tiling amount
     :param float warp_range: Orthogonal distortion gradient.
     :param int warp_octaves: Multi-res iteration count for warp
@@ -176,7 +178,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_erosion_worms:
         tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
-                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha)
+                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha, inverse=erosion_worms_inverse)
 
     if with_density_map:
         tensor = density_map(tensor, shape)
@@ -423,7 +425,7 @@ def crease(tensor):
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25):
+def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False):
     """
     WIP hydraulic erosion effect.
     """
@@ -488,7 +490,12 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25):
         x = (x + x_dir) % width
         y = (y + y_dir) % height
 
-    return blend(tensor, tf.maximum(tf.minimum(out, 1.0), 0.0), alpha)
+    out = tf.maximum(tf.minimum(out, 1.0), 0.0)
+
+    if inverse:
+        out = 1.0 - out
+
+    return blend(tensor, out, alpha)
 
 
 def reindex(tensor, shape, displacement=.5):
@@ -521,7 +528,7 @@ def reindex(tensor, shape, displacement=.5):
 
 def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False):
     """
-    Apply self-displacement along X and Y axes, based on each pixel value.
+    Apply displacement from pixel values.
 
     .. image:: images/refract.jpg
        :width: 1024
