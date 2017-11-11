@@ -1781,7 +1781,7 @@ def reverb(tensor, shape, octaves, iterations=1, ridges=True):
 
             out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
 
-    return 1 - normalize(out)
+    return normalize(out)
 
 
 def light_leak(tensor, shape, alpha=.25):

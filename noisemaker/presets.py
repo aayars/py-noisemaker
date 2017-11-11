@@ -1321,6 +1321,7 @@ PRESETS = {
             "octaves": random.randint(2, 4),
             "reverb_iterations": random.randint(1, 2),
             "point_freq": random.randint(3, 10),
+            "reverb_ridges": False,
             "spline_order": 0,
             "voronoi_refract": random.randint(1, 4),
             "warp_freq": random.randint(2, 4),
