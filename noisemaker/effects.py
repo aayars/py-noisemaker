@@ -23,6 +23,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
+                 ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
@@ -78,6 +79,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int warp_octaves: Multi-res iteration count for warp
     :param int|None warp_interp: Override spline order for warp (None = use spline_order)
     :param int|None warp_freq: Override frequency for warp (None = use freq)
+    :param float ripple_range: Ripple range
+    :param float ripple_freq: Ripple frequency
+    :param float ripple_kink: Ripple twistiness
     :param bool with_pop: Pop art filter
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
@@ -154,8 +158,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
 
-    # else:
-        # tensor = normalize(tensor)
+    if ripple_range:
+        ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
+
+        tensor = ripple(tensor, shape, ripple_freq, displacement=ripple_range, kink=ripple_kink)
 
     if vortex_range:
         tensor = vortex(tensor, shape, displacement=vortex_range)
@@ -582,6 +588,57 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     reference_y = value_map(reference_y, shape) * displacement * height
 
     # Bilinear interpolation of midpoints
+    x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
+    x1_offsets = (x0_offsets + 1) % width
+    y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
+    y1_offsets = (y0_offsets + 1) % height
+
+    x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
+    x1_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x1_offsets], 2))
+    x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
+    x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
+
+    x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
+    y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
+
+    x_y0 = blend(x0_y0, x1_y0, x_fract)
+    x_y1 = blend(x0_y1, x1_y1, x_fract)
+
+    return blend(x_y0, x_y1, y_fract)
+
+
+def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3):
+    """
+    Apply displacement from pixel radian values.
+
+    :param Tensor tensor: An image tensor.
+    :param list[int] shape:
+    :param list[int] freq: Displacement frequency
+    :param float displacement:
+    :param float kink:
+    :param Tensor reference: An optional displacement map.
+    :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :return: Tensor
+    """
+
+    height, width, channels = shape
+
+    x0_index = row_index(shape)
+    y0_index = column_index(shape)
+
+    value_shape = [shape[0], shape[1], 1]
+
+    if reference is None:
+        reference = resample(tf.random_uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
+        # reference = derivative(reference, [shape[0], shape[1], 1], with_normalize=False)
+
+    # Twist index, borrowed from worms. TODO merge me.
+    index = value_map(reference, shape) * 360.0 * math.radians(1) * kink
+
+    reference_x = (tf.cos(index) * displacement * width) % width
+    reference_y = (tf.sin(index) * displacement * height) % height
+
+    # Bilinear interpolation of midpoints, borrowed from refract(). TODO merge me
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
     x1_offsets = (x0_offsets + 1) % width
     y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
