@@ -24,10 +24,11 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
-                 with_bloom=None, with_reverb=None, reverb_iterations=1, with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
+                 with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
+                 with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
-                 input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_density_map=False,
-                 **convolve_kwargs):
+                 input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
+                 with_density_map=False, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -87,6 +88,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)
     :param None|int with_reverb: Reverb octave count
     :param int reverb_iterations: Re-reverberation N times
+    :param bool reverb_ridges: Ridged reverb layers (False to disable)
     :param None|float with_light_leak: Light leak effect alpha
     :param None|float with_vignette: Vignette effect alpha
     :param None|float vignette_brightness: Vignette effect brightness
@@ -97,6 +99,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
     :param None|int with_jpeg_decimate: Conv2D feedback + JPEG encode/decode iteration count
+    :param None|int with_conv_feedback: Conv2D feedback iterations
+    :param float conv_feedback_alpha: Conv2D feedback alpha
     :param bool with_density_map: Map values to color histogram
 
     :return: Tensor
@@ -193,7 +197,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = outline(tensor, shape, sobel_func=with_outline)
 
     if with_reverb:
-        tensor = reverb(tensor, shape, with_reverb, iterations=reverb_iterations)
+        tensor = reverb(tensor, shape, with_reverb, iterations=reverb_iterations, ridges=reverb_ridges)
 
     if with_pop:
         tensor = pop(tensor, shape)
@@ -224,6 +228,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_jpeg_decimate:
         tensor = jpeg_decimate(tensor, shape, iterations=with_jpeg_decimate)
+
+    if with_conv_feedback:
+        tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     tensor = normalize(tensor)
 
@@ -893,6 +900,33 @@ def jpeg_decimate(tensor, shape, iterations=25):
         jpegged = tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
 
     return jpegged
+
+
+def conv_feedback(tensor, shape, iterations=50, alpha=.5):
+    """
+    Conv2d feedback loop
+
+    :param Tensor tensor:
+    :return: Tensor
+    """
+
+    iterations = 100
+
+    half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
+
+    convolved = offset(_downsample(tensor, shape, half_shape), half_shape, x=iterations * -3, y=iterations * -3)
+
+    for i in range(iterations):
+        convolved = convolve(ConvKernel.blur, convolved, half_shape)
+        convolved = convolve(ConvKernel.sharpen, convolved, half_shape)
+
+    convolved = normalize(convolved)
+
+    up = tf.maximum((convolved - .5) * 2, 0.0)
+
+    down = tf.minimum(convolved * 2, 1.0)
+
+    return blend(tensor, resample(up + (1.0 - down), shape), alpha)
 
 
 def morph(a, b, g, dist_func=DistanceFunction.euclidean, spline_order=1):
@@ -1651,7 +1685,7 @@ def offset(tensor, shape, x=0, y=0):
     return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
 
 
-def reverb(tensor, shape, octaves, iterations=1):
+def reverb(tensor, shape, octaves, iterations=1, ridges=True):
     """
     Multi-octave "reverberation" of input image tensor
 
@@ -1659,11 +1693,16 @@ def reverb(tensor, shape, octaves, iterations=1):
     :param float[int] shape:
     :param int octaves:
     :param int iterations: Re-reverberate N times. Gratuitous!
+    :param bool ridges: abs(tensor * 2 - 1) -- False to not do that.
     """
 
     height, width, channels = shape
 
-    reference = tf.abs(tensor * 2 - 1)
+    if ridges:
+        reference = tf.abs(tensor * 2 - 1)
+
+    else:
+        reference = tensor
 
     out = reference
 

@@ -23,6 +23,13 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "convolution-feedback": {
+        "kwargs": {
+            "conv_feedback_alpha": .5,
+            "with_conv_feedback": 500,
+        }
+    },
+
     "corrupt": {
         "kwargs": {
             "warp_freq": [random.randint(4, 7), random.randint(1, 3)],
@@ -43,6 +50,13 @@ EFFECTS_PRESETS = {
             "with_dither": random.randint(0, 1) * random.random() * .25,
             "with_scan_error": random.randint(0, 1),
             "with_crt": True,
+        }
+    },
+
+    "density-map": {
+        "kwargs": {
+            "invert": 1,
+            "with_density_map": True,
         }
     },
 
@@ -744,6 +758,26 @@ PRESETS = {
             "with_density_map": True,
             "with_shadow": 1,
         }
+    },
+
+    "diffusion-feedback": {
+        "kwargs": {
+            "corners": True,
+            "distrib": "normal",
+            "freq": 8,
+            "dla_padding": 5,
+            "invert": 1,
+            "point_distrib": "square",
+            "point_freq": 1,
+            "saturation": 0,
+            "with_aberration": .005 + random.random() * .005,
+            "with_bloom": .25 + random.random() * .25,
+            "with_conv_feedback": 125,
+            "with_density_map": True,
+            "with_dla": .75,
+            "with_sobel": 3,
+            "with_vignette": .75,
+        },
     },
 
     "dla-cells": {
