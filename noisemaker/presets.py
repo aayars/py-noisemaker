@@ -249,6 +249,28 @@ PRESETS = {
         }
     },
 
+    "acid-droplets": {
+        "kwargs": {
+            "freq": random.randint(12, 18),
+            "hue_range": 0,
+            "invert": 1,
+            "mask": "sparse",
+            "octaves": random.randint(2, 3),
+            "post_hue_rotation": random.random(),
+            "post_saturation": .25,
+            "reflect_range": .75 + random.random() * .75,
+            "ridges": random.randint(0, 1),
+            "saturation": 1.5,
+            "with_bloom": .25 + random.random() * .25,
+            "with_density_map": True,
+            "with_shadow": 1,
+        },
+
+        "post_kwargs": {
+            "with_dither": .075 * random.random() * .075,
+        }
+    },
+
     "acid-grid": {
         "kwargs": {
             "invert": 1,
