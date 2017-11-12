@@ -1594,6 +1594,7 @@ PRESETS = {
             "ripple_range": .05 + random.random() * .2,
             "sin": 3,
             "with_bloom": .25 + random.random() * .25,
+            "with_shadow": .5 + random.random() * .25,
         }
     },
 
