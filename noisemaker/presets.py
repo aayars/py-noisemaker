@@ -355,7 +355,7 @@ PRESETS = {
             "erosion_worms_density": random.randint(150, 200),
             "erosion_worms_iterations": random.randint(50, 75),
             "erosion_worms_inverse": True,
-            "erosion_worms_xy_blend": .333,
+            "erosion_worms_xy_blend": .5,
             "freq": 2,
             "hue_rotation": .875,
             "hue_range": .25 + random.random() * .25,
