@@ -337,10 +337,11 @@ PRESETS = {
             "deriv": 1,
             "deriv_alpha": .333 + random.random() * .333,
             "freq": random.randint(4, 8),
-            "saturation": .125 + random.random() * .125,
             "invert": random.randint(0, 1),
             "lattice_drift": 1,
             "octaves": 10,
+            "post_saturation": .075 + random.random() * .075,
+            "saturation": 2,
             "with_bloom": .25 + random.random() * .25,
             "with_shadow": .75 + random.random() * .25,
         }
