@@ -1993,13 +1993,21 @@ PRESETS = {
 
     "unicorn-puddle": {
         "kwargs": {
-            "emboss": 1,
-            "freq": random.randint(3, 5),
-            "hue_range": 1.0 + random.random() * .5,
+            "distrib": "uniform",
+            "freq": random.randint(8, 12),
+            "hue_range": 2.5,
             "invert": .5 * random.random() * .5,
             "lattice_drift": 1,
             "octaves": random.randint(4, 6),
-            "with_bloom": .5 + random.random() * .5,
+            "post_contrast": 1.5,
+            "post_hue_rotation": random.random(),
+            "reflect_range": .25 + random.random() * .125,
+            "ripple_freq": [random.randint(12, 64), random.randint(12, 64)],
+            "ripple_kink": .5 + random.random() * .25,
+            "ripple_range": .25 + random.random() * .125,
+            "with_bloom": .25 + random.random() * .25,
+            "with_light_leak": .5 + random.random() * .25,
+            "with_shadow": 1,
         }
     },
 
