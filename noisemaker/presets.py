@@ -955,17 +955,18 @@ PRESETS = {
     "fuzzy-squares": {
         "kwargs": {
             "corners": True,
-            "freq": 20,
-            "distrib": "uniform",
-            "mask": [m.value for m in ValueMask if m.name != "chess"][random.randint(0, len(ValueMask) - 2)],
+            "distrib": "ones",
+            "freq": random.randint(6, 24) * 2,
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "post_contrast": 1.5,
             "spline_order": 1,
-            "with_worms": 4,
-            "worms_alpha": .5 + random.random() * .5,
-            "worms_density": 400,
+            "with_worms": 5,
+            "worms_alpha": 1,
+            "worms_density": 1000,
             "worms_duration": 2.0,
-            "worms_stride": .5 + random.random(),
-            "worms_stride_deviation": 1.0 + random.random(),
-            "worms_kink": 1 + random.random() * 2.5,
+            "worms_stride": .75 + random.random() * .75,
+            "worms_stride_deviation": random.random(),
+            "worms_kink": 1 + random.random() * 5.0,
         }
     },
 
