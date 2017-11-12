@@ -362,7 +362,6 @@ PRESETS = {
             "lattice_drift": 1,
             "octaves": 6,
             "point_freq": 10,
-            "post_contrast": .75,
             "post_saturation": .125,
             "ridges": True,
             "saturation": 2,
