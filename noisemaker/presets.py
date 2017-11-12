@@ -616,24 +616,6 @@ PRESETS = {
         }
     },
 
-    "conjoined": {
-        "kwargs": {
-            "corners": True,
-            "freq": 2,
-            "hue_range": random.random(),
-            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
-            "point_freq": random.randint(3, 7),
-            "post_deriv": 1,
-            "reindex_range": .5 + random.random() * .5,
-            "voronoi_alpha": .5 + random.random() * .5,
-            "voronoi_nth": random.randint(0, 4),
-            "voronoi_refract": random.randint(2, 4),
-            "with_bloom": .25 + random.random() * .5,
-            "with_reverb": 2,
-            "with_voronoi": 2,
-        }
-    },
-
     "cool-water": {
         "kwargs": {
             "distrib": "uniform",
@@ -1300,6 +1282,22 @@ PRESETS = {
         }
     },
 
+    "nerdvana": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "invert": 1,
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(5, 10),
+            "reverb_ridges": False,
+            "with_bloom": 0.25 + random.random() * .5,
+            "with_density_map": True,
+            "with_voronoi": 2,
+            "with_reverb": 2,
+            "voronoi_nth": 1,
+        }
+    },
+
     "neon-cambrian": {
         "kwargs": {
             "hue_range": 1,
@@ -1543,6 +1541,29 @@ PRESETS = {
             "sin": random.random() * 10.0,
             "voronoi_alpha": .5 + random.random() * .5,
             "with_voronoi": 6,
+        }
+    },
+
+    "remember-logo": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "invert": True,
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(3, 7),
+            "voronoi_alpha": 1.0,
+            "voronoi_nth": random.randint(0, 4),
+            "with_density_map": True,
+            "post_deriv": 2,
+            "with_aberration": .005 + random.random() * .005,
+            "with_vignette": .25 + random.random() * .25,
+            "with_voronoi": 3,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_snow": .25 + random.random() * .125,
+            "with_scan_error": True,
         }
     },
 
@@ -2065,18 +2086,6 @@ PRESETS = {
             "with_voronoi": 5,
         }
     },
-
-    "web-of-lies": {
-        "kwargs": {
-            "point_distrib": (["spiral"] + [m.value for m in circular_dists])[random.randint(0, len(circular_dists))],
-            "point_freq": 10,
-            "voronoi_alpha": 0.25 + random.random() * .5,
-            "voronoi_refract": random.randint(1, 3),
-            "with_bloom": 0.25 + random.random() * .5,
-            "with_shadow": .5,
-            "with_voronoi": random.randint(1, 2),
-         }
-     },
 
     "wild-kingdom": {
         "kwargs": {
