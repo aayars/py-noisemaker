@@ -21,7 +21,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
-                 erosion_worms_alpha=1.0, erosion_worms_inverse=False,
+                 erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
@@ -74,6 +74,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float erosion_worms_contraction: Inverse of stride. Default: 1.0, smaller=longer steps
     :param float erosion_worms_alpha:
     :param bool erosion_worms_inverse:
+    :param None|float erosion_worms_xy_blend:
     :param float vortex_range: Vortex tiling amount
     :param float warp_range: Orthogonal distortion gradient.
     :param int warp_octaves: Multi-res iteration count for warp
@@ -184,7 +185,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_erosion_worms:
         tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
-                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha, inverse=erosion_worms_inverse)
+                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha, inverse=erosion_worms_inverse,
+                       xy_blend=erosion_worms_xy_blend)
 
     if with_density_map:
         tensor = density_map(tensor, shape)
@@ -431,7 +433,7 @@ def crease(tensor):
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False):
+def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False):
     """
     WIP hydraulic erosion effect.
     """
@@ -500,6 +502,9 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
 
     if inverse:
         out = 1.0 - out
+
+    if xy_blend:
+        tensor = blend(shadow(tensor, shape), reindex(tensor, shape, 1), xy_blend)
 
     return blend(tensor, out, alpha)
 
