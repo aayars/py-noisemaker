@@ -1768,7 +1768,7 @@ def reverb(tensor, shape, octaves, iterations=1, ridges=True):
     height, width, channels = shape
 
     if ridges:
-        reference = tf.abs(tensor * 2 - 1)
+        reference = 1.0 - tf.abs(tensor * 2 - 1)
 
     else:
         reference = tensor
