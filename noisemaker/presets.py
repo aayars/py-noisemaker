@@ -352,7 +352,7 @@ PRESETS = {
         "kwargs": {
             "deriv": 1,
             "deriv_alpha": 0.25 + random.random() * .125,
-            "erosion_worms_alpha": .0333 + random.random() * .0167,
+            "erosion_worms_alpha": .025 + random.random() * .015,
             "erosion_worms_contraction": .5 + random.random() * .25,
             "erosion_worms_density": random.randint(150, 200),
             "erosion_worms_iterations": random.randint(50, 75),
