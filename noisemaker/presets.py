@@ -1159,18 +1159,6 @@ PRESETS = {
         }
     },
 
-    "hsv-shadows": {
-        "kwargs": {
-            "brightness_distrib": "mids",
-            "distrib": "uniform",
-            "freq": random.randint(12, 24),
-            "hue_range": .25 + random.random() * .25,
-            "saturation": .25 + random.random() * .25,
-            "saturation_distrib": "uniform",
-            "with_shadow": 1,
-        }
-    },
-
     "hydraulic-flow": {
         "kwargs": {
             "deriv": random.randint(0, 1),
