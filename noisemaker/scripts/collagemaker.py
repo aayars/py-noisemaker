@@ -10,6 +10,9 @@ import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.points as points
+import noisemaker.presets as presets
+import noisemaker.recipes as recipes
+import noisemaker.util as util
 
 
 @click.group(help="""
@@ -74,6 +77,37 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 
     tensor = effects.voronoi(base, shape, diagram_type=effects.VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=voronoi_nth,
                              input_dir=input_dir, alpha=.333 + random.random() * .333)
+
+    tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
+
+    with tf.Session().as_default():
+        save(tensor, name)
+
+    print(name)
+
+
+@main.command()
+@cli.width_option()
+@cli.height_option()
+@cli.input_dir_option()
+@cli.name_option(default="collage.png")
+@click.pass_context
+def basic(ctx, width, height, input_dir, name):
+    shape = [height, width, 3]
+
+    filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
+
+    collage_count = min(random.randint(3, 5), len(filenames))
+    collage_images = []
+
+    for i in range(collage_count + 1):
+        index = random.randint(0, len(filenames) - 1)
+
+        collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
+        collage_images.append(effects.resample(collage_input, shape))
+
+    base = collage_images.pop()
+    tensor = effects.blend_layers(base, shape, *collage_images)
 
     tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 

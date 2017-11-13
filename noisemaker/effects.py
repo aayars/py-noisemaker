@@ -1120,6 +1120,20 @@ def blend_cubic(a, b, c, d, g):
     return sum(_cubic_components(a, b, c, d, g))
 
 
+def blend_layers(control, shape, *layers):
+    layer_count = len(layers)
+
+    control *= layer_count
+
+    control_floor = tf.cast(control, tf.int32)
+    control_floor_fract = control - tf.floor(control)
+
+    combined_layer_0 = tf.gather_nd(layers, tf.stack([control_floor[:, :, 0] % layer_count, column_index(shape), row_index(shape)], 2))
+    combined_layer_1 = tf.gather_nd(layers, tf.stack([(control_floor[:, :, 0] + 1) % layer_count, column_index(shape), row_index(shape)], 2))
+
+    return blend(combined_layer_0, combined_layer_1, control_floor_fract)
+
+
 def center_mask(center, edges, shape):
     """
     Blend two image tensors from the center to the edges.
