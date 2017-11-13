@@ -249,7 +249,7 @@ def ripple_option(**attrs):
 def ripple_freq_option(**attrs):
     attrs.setdefault("help", "Ripple effect: Override --freq for ripple frequency {0}".format(FREQ_HINT))
 
-    return int_option("--ripple_freq", default=3, **attrs)
+    return int_option("--ripple-freq", default=3, **attrs)
 
 
 def ripple_kink_option(**attrs):

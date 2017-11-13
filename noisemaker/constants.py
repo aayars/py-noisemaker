@@ -205,6 +205,13 @@ class ValueMask(Enum):
 
     script = 107
 
+    @classmethod
+    def grid_members(cls):
+        return [m for m in cls if cls.is_grid(m)]
+
+    @classmethod
+    def is_grid(cls, member):
+        return member.value < cls.sparse.value
 
     @classmethod
     def procedural_members(cls):

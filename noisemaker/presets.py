@@ -472,6 +472,19 @@ PRESETS = {
         }
     },
 
+    "branewaves": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(16, 24) * 2,
+            "mask": [m.value for m in ValueMask.grid_members()][random.randint(0, len(ValueMask.grid_members()) - 1)],
+            "ridges": True,
+            "ripple_freq": 2,
+            "ripple_kink": 1.5 + random.random() * 2,
+            "ripple_range": .075 + random.random() * .075,
+            "with_bloom": .333 + random.random() * .333,
+        }
+    },
+
     "bringing-hexy-back": {
         "kwargs": {
             "lattice_drift": 1,
