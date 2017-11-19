@@ -1227,6 +1227,24 @@ PRESETS = {
          }
     },
 
+    "lattice-noise": {
+        "kwargs": {
+            "deriv": random.randint(1, 3),
+            "freq": random.randint(5, 12),
+            "invert": 1,
+            "octaves": random.randint(1, 3),
+            "post_deriv": random.randint(1, 3),
+            "ridges": random.randint(0, 1),
+            "saturation": random.random(),
+            "with_density_map": True,
+            "with_shadow": random.random(),
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+        }
+    },
+
     "magic-squares": {
         "kwargs": {
             "channels": 3,
@@ -1451,6 +1469,20 @@ PRESETS = {
 
         "post_kwargs": {
             "with_dither": 0.25,
+        }
+    },
+
+    "precision-error": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "invert": 1,
+            "deriv": random.randint(1, 3),
+            "post_deriv": random.randint(1, 3),
+            "reflect_range": .125 + random.random() * 4.0,
+            "with_density_map": True,
+            "with_bloom": .333 + random.random() * .333,
+            "with_shadow": 1,
         }
     },
 

@@ -935,6 +935,7 @@ def density_map(tensor, shape):
     bins = max(height, width)
 
     # values = value_map(tensor, shape, keep_dims=True)
+    # values = tf.minimum(tf.maximum(tensor, 0.0), 1.0)  # TODO: Get this to work with HDR data
     values = tensor
 
     # https://stackoverflow.com/a/34143927
