@@ -504,7 +504,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
         out = 1.0 - out
 
     if xy_blend:
-        tensor = blend(shadow(tensor, shape), reindex(tensor, shape, 1), xy_blend)
+        tensor = blend(shadow(tensor, shape), reindex(tensor, shape, 1), xy_blend * values)
 
     return blend(tensor, out, alpha)
 
@@ -1121,16 +1121,27 @@ def blend_cubic(a, b, c, d, g):
     return sum(_cubic_components(a, b, c, d, g))
 
 
-def blend_layers(control, shape, *layers):
+def blend_layers(control, shape, feather=1.0, *layers):
     layer_count = len(layers)
+
+    control = normalize(control)
 
     control *= layer_count
 
     control_floor = tf.cast(control, tf.int32)
-    control_floor_fract = control - tf.floor(control)
 
-    combined_layer_0 = tf.gather_nd(layers, tf.stack([control_floor[:, :, 0] % layer_count, column_index(shape), row_index(shape)], 2))
-    combined_layer_1 = tf.gather_nd(layers, tf.stack([(control_floor[:, :, 0] + 1) % layer_count, column_index(shape), row_index(shape)], 2))
+    x_index = row_index(shape)
+    y_index = column_index(shape)
+
+    combined_layer_0 = tf.gather_nd(layers, tf.stack([control_floor[:, :, 0], y_index, x_index], 2))
+
+    if feather is None:
+        return combined_layer_0
+
+    control_floor_fract = control - tf.floor(control)
+    control_floor_fract = tf.minimum(tf.maximum(control_floor_fract - (1.0 - feather), 0.0) / feather, 1.0)
+
+    combined_layer_1 = tf.gather_nd(list(layers) + [layers[-1]], tf.stack([control_floor[:, :, 0] + 1, y_index, x_index], 2))
 
     return blend(combined_layer_0, combined_layer_1, control_floor_fract)
 

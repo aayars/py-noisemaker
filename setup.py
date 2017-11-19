@@ -18,6 +18,7 @@ setup(name='noisemaker',
         collagemaker=noisemaker.scripts.collagemaker:main
         glitchmaker=noisemaker.scripts.glitchmaker:main
         noisemaker=noisemaker.scripts.noisemaker:main
+        worldmaker=noisemaker.scripts.worldmaker:main
         ''',
 
       install_requires=[
