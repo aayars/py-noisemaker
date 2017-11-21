@@ -17,7 +17,7 @@ LARGE_Y = 1024
 
 FREQ = 4
 SATURATION = .333
-OCTAVES = 6
+OCTAVES = 8
 
 CONTROL_FILENAME = "worldmaker-control.png"
 LOW_FILENAME = "worldmaker-lowland.png"
