@@ -469,8 +469,8 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
     starting_colors = tf.gather_nd(tensor, index)
 
     for i in range(iterations):
-        x_index = tf.cast(x, tf.int32)
-        y_index = tf.cast(y, tf.int32)
+        x_index = tf.cast(x, tf.int32) % width
+        y_index = tf.cast(y, tf.int32) % height
         index = tf.stack([y_index, x_index], 1)
 
         exposure = 1 - abs(1 - i / (iterations - 1) * 2)  # Makes linear gradient [ 0 .. 1 .. 0 ]
