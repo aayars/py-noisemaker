@@ -1121,41 +1121,25 @@ def blend_cubic(a, b, c, d, g):
     return sum(_cubic_components(a, b, c, d, g))
 
 
-def blend_layers_cpusafe(control, shape, *layers):
-    # Version of blend_layers that doesn't randomly crap out when run on tensorflow-cpu :-(((
-
-    layer_count = len(layers)
-
-    control *= layer_count
-
-    control_floor = tf.cast(control, tf.int32)
-    control_floor_fract = control - tf.floor(control)
-
-    combined_layer_0 = tf.gather_nd(layers, tf.stack([control_floor[:, :, 0] % layer_count, column_index(shape), row_index(shape)], 2))
-    combined_layer_1 = tf.gather_nd(layers, tf.stack([(control_floor[:, :, 0] + 1) % layer_count, column_index(shape), row_index(shape)], 2))
-
-    return blend(combined_layer_0, combined_layer_1, control_floor_fract)
-
-
 def blend_layers(control, shape, feather=1.0, *layers):
-    # Not safe for tensorflow-cpu, apparently.
-
     layer_count = len(layers)
 
     control = normalize(control)
 
     control *= layer_count
-
     control_floor = tf.cast(control, tf.int32)
 
     x_index = row_index(shape)
     y_index = column_index(shape)
 
     layers = tf.stack(list(layers) + [layers[-1]])
+    layer_count += 1
+
     floor_values = control_floor[:, :, 0]
 
-    combined_layer_0 = tf.gather_nd(layers, tf.stack([floor_values, y_index, x_index], 2))
-    combined_layer_1 = tf.gather_nd(layers, tf.stack([floor_values + 1, y_index, x_index], 2))
+    # I'm not sure why the mod operation is needed, but tensorflow-cpu explodes without it.
+    combined_layer_0 = tf.gather_nd(layers, tf.stack([floor_values % layer_count, y_index, x_index], 2))
+    combined_layer_1 = tf.gather_nd(layers, tf.stack([(floor_values + 1) % layer_count, y_index, x_index], 2))
 
     control_floor_fract = control - tf.floor(control)
     control_floor_fract = tf.minimum(tf.maximum(control_floor_fract - (1.0 - feather), 0.0) / feather, 1.0)

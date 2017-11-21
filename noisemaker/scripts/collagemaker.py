@@ -105,7 +105,7 @@ def basic(ctx, width, height, input_dir, name):
         collage_images.append(effects.resample(collage_input, shape))
 
     base = collage_images.pop()
-    tensor = effects.blend_layers_cpusafe(base, shape, *collage_images)
+    tensor = effects.blend_layers(base, shape, random.random(), *collage_images)
 
     tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 
