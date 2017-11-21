@@ -10,8 +10,6 @@ import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.points as points
-import noisemaker.presets as presets
-import noisemaker.recipes as recipes
 import noisemaker.util as util
 
 
@@ -107,7 +105,7 @@ def basic(ctx, width, height, input_dir, name):
         collage_images.append(effects.resample(collage_input, shape))
 
     base = collage_images.pop()
-    tensor = effects.blend_layers(base, shape, *collage_images)
+    tensor = effects.blend_layers(base, shape, random.random(), *collage_images)
 
     tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 
