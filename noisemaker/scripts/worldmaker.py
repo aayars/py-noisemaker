@@ -139,7 +139,7 @@ def blended():
     shape = [LARGE_Y, LARGE_X, 3]
 
     erode_kwargs = {
-        "alpha": .0333,
+        "alpha": .04,
         "density": 250,
         "iterations": 125,
         "inverse": True,
@@ -165,10 +165,9 @@ def blended():
     combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
     combined = effects.blend(combined_land, combined, .625)
 
-    combined = effects.bloom(combined, shape, .333)
-    combined = recipes.dither(combined, shape, .1)
-
-    combined = tf.image.adjust_saturation(combined, .75)
+    combined = tf.image.adjust_brightness(combined, .05)
+    combined = tf.image.adjust_contrast(combined, .875)
+    combined = tf.image.adjust_saturation(combined, .625)
 
     with tf.Session().as_default():
         save(combined, BLENDED_FILENAME)
@@ -215,7 +214,7 @@ def clouds(input_filename):
     post_shape = [LARGE_Y, LARGE_X, 3]
 
     tensor = effects.bloom(tensor, post_shape, .333)
-    tensor = recipes.dither(tensor, post_shape, .1)
+    tensor = recipes.dither(tensor, post_shape, .075)
 
     with tf.Session().as_default():
         save(tensor, FINAL_FILENAME)
