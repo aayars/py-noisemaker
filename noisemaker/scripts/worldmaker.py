@@ -72,7 +72,6 @@ def midland():
         "freq": FREQ * 2,
         "hue_range": .25 + random.random() * .125,
         "hue_rotation": .875 + random.random() * .1,
-        "lattice_drift": 1,
         "octaves": OCTAVES,
         "point_freq": 5,
         "saturation": SATURATION * 3,
