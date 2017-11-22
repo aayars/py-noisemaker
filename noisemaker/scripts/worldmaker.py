@@ -74,9 +74,9 @@ def midland():
         "hue_rotation": .875 + random.random() * .1,
         "octaves": OCTAVES,
         "point_freq": 5,
-        "saturation": SATURATION * 3,
+        "saturation": SATURATION * 2,
         "voronoi_refract": .5,
-        "voronoi_alpha": .333,
+        "voronoi_alpha": .5,
         "voronoi_nth": 1,
         "with_voronoi": 6,
     }
@@ -94,19 +94,21 @@ def highland():
     kwargs = {
         "deriv": 1,
         "deriv_alpha": 0.25 + random.random() * .125,
-        "freq": FREQ * 3,
+        "freq": FREQ * 2,
         "hue_range": .125 + random.random() * .125,
         "hue_rotation": .925 + random.random() * .05,
         "octaves": OCTAVES,
-        "point_freq": 5,
+        "point_freq": 8,
         "ridges": True,
         "saturation": SATURATION,
         "voronoi_alpha": .5,
-        "voronoi_nth": 1,
+        "voronoi_nth": 3,
         "with_voronoi": 2,
     }
 
     tensor = generators.multires(shape=shape, **kwargs)
+
+    tensor = tf.image.adjust_brightness(tensor, .1)
 
     with tf.Session().as_default():
         save(tensor, HIGH_FILENAME)
@@ -114,11 +116,19 @@ def highland():
 
 @main.command("control")
 def _control():
-    shape = [LARGE_Y, LARGE_X, 3]
+    shape = [LARGE_Y, LARGE_X, 1]
 
     control = generators.multires(shape=shape, freq=4, octaves=OCTAVES, warp_range=.25)
 
-    control = effects.value_map(control, shape, keep_dims=True)
+    erode_kwargs = {
+        "alpha": .025,
+        "density": 250,
+        "iterations": 125,
+        "inverse": True,
+    }
+
+    control = effects.erode(control, shape, **erode_kwargs)
+    control = effects.convolve(effects.ConvKernel.blur, control, shape)
 
     with tf.Session().as_default():
         save(control, CONTROL_FILENAME)
@@ -129,11 +139,11 @@ def blended():
     shape = [LARGE_Y, LARGE_X, 3]
 
     erode_kwargs = {
-        "alpha": .05,
-        "density": 500,
+        "alpha": .0333,
+        "density": 250,
         "iterations": 125,
         "inverse": True,
-        "xy_blend": .25,
+        "xy_blend": .125,
     }
 
     control = tf.image.convert_image_dtype(load(CONTROL_FILENAME), tf.float32)
