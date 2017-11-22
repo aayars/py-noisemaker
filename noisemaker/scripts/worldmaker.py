@@ -40,20 +40,23 @@ def lowland():
 
     kwargs = {
         "deriv": 1,
-        "deriv_alpha": .25,
+        "deriv_alpha": .5,
         "freq": FREQ,
-        "hue_range": .125 + random.random() * .125,
-        "hue_rotation": .925 + random.random() * .05,
+        "hue_range": .125 + random.random() * .25,
+        "hue_rotation": .875 + random.random() * .125,
         "lattice_drift": 1,
         "octaves": OCTAVES,
-        "point_freq": 10,
-        "saturation": SATURATION,
+        "point_freq": 5,
+        "saturation": SATURATION * 2,
         "voronoi_alpha": .333,
+        "voronoi_inverse": True,
         "voronoi_nth": 0,
         "with_voronoi": 2,
     }
 
     tensor = generators.multires(shape=shape, **kwargs)
+
+    tensor = tf.image.adjust_brightness(tensor, .1)
 
     with tf.Session().as_default():
         save(tensor, LOW_FILENAME)
@@ -67,11 +70,12 @@ def midland():
         "deriv": 1,
         "deriv_alpha": .25,
         "freq": FREQ * 2,
-        "hue_range": .125 + random.random() * .125,
-        "hue_rotation": .925 + random.random() * .05,
+        "hue_range": .25 + random.random() * .125,
+        "hue_rotation": .875 + random.random() * .1,
+        "lattice_drift": 1,
         "octaves": OCTAVES,
-        "point_freq": 10,
-        "saturation": SATURATION,
+        "point_freq": 5,
+        "saturation": SATURATION * 3,
         "voronoi_refract": .5,
         "voronoi_alpha": .333,
         "voronoi_nth": 1,
@@ -95,10 +99,10 @@ def highland():
         "hue_range": .125 + random.random() * .125,
         "hue_rotation": .925 + random.random() * .05,
         "octaves": OCTAVES,
-        "point_freq": 10,
+        "point_freq": 5,
         "ridges": True,
         "saturation": SATURATION,
-        "voronoi_alpha": .333,
+        "voronoi_alpha": .5,
         "voronoi_nth": 1,
         "with_voronoi": 2,
     }
@@ -113,7 +117,7 @@ def highland():
 def _control():
     shape = [LARGE_Y, LARGE_X, 3]
 
-    control = generators.multires(shape=shape, freq=4, octaves=OCTAVES)
+    control = generators.multires(shape=shape, freq=4, octaves=OCTAVES, warp_range=.25)
 
     control = effects.value_map(control, shape, keep_dims=True)
 
