@@ -1852,13 +1852,17 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     return blend(tensor, edges, alpha)
 
 
-def shadow(tensor, shape, alpha=1.0):
+def shadow(tensor, shape, alpha=1.0, reference=None):
     """
     """
 
     height, width, channels = shape
 
-    reference = value_map(tensor, shape, keep_dims=True)
+    if reference is None:
+        reference = value_map(tensor, shape, keep_dims=True)
+
+    else:
+        reference = value_map(reference, shape, keep_dims=True)
 
     value_shape = [height, width, 1]
 

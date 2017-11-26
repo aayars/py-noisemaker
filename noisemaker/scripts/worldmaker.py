@@ -94,7 +94,7 @@ def highland():
     kwargs = {
         "deriv": 1,
         "deriv_alpha": 0.25 + random.random() * .125,
-        "freq": FREQ * 2,
+        "freq": FREQ * 4,
         "hue_range": .125 + random.random() * .125,
         "hue_rotation": .925 + random.random() * .05,
         "octaves": OCTAVES,
@@ -116,19 +116,31 @@ def highland():
 
 @main.command("control")
 def _control():
-    shape = [LARGE_Y, LARGE_X, 1]
+    shape = [SMALL_Y, SMALL_X, 1]
 
-    control = generators.multires(shape=shape, freq=4, octaves=OCTAVES, warp_range=.25)
+    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, post_refract_range=1.0)
 
     erode_kwargs = {
-        "alpha": .025,
-        "density": 250,
-        "iterations": 125,
+        "alpha": .01,
+        "density": 50,
+        "iterations": 25,
         "inverse": True,
     }
 
-    control = effects.erode(control, shape, **erode_kwargs)
-    control = effects.convolve(effects.ConvKernel.blur, control, shape)
+    iterations = 5
+    for i in range(iterations):
+       control = effects.erode(control, shape, **erode_kwargs)
+       control = effects.convolve(effects.ConvKernel.blur, control, shape)
+
+    post_shape = [LARGE_Y, LARGE_X, 1]
+    control = effects.resample(control, post_shape)
+
+    for i in range(iterations):
+       control = effects.erode(control, post_shape, **erode_kwargs)
+       control = effects.convolve(effects.ConvKernel.blur, control, post_shape)
+
+    control = effects.convolve(effects.ConvKernel.sharpen, control, post_shape)
+    control = effects.normalize(control)
 
     with tf.Session().as_default():
         save(control, CONTROL_FILENAME)
@@ -139,11 +151,11 @@ def blended():
     shape = [LARGE_Y, LARGE_X, 3]
 
     erode_kwargs = {
-        "alpha": .04,
+        "alpha": .05,
         "density": 250,
-        "iterations": 125,
+        "iterations": 50,
         "inverse": True,
-        "xy_blend": .125,
+        "xy_blend": .25,
     }
 
     control = tf.image.convert_image_dtype(load(CONTROL_FILENAME), tf.float32)
@@ -160,7 +172,8 @@ def blended():
 
     combined_land = effects.blend_layers(control, shape, blend_control, control * 2, low, mid, high)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
-    combined_land = effects.shadow(combined_land, shape, 1.0)
+
+    combined_land = effects.shadow(combined_land, shape, alpha=1.0, reference=control)
 
     combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
     combined = effects.blend(combined_land, combined, .625)
