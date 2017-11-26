@@ -118,10 +118,10 @@ def highland():
 def _control():
     shape = [SMALL_Y, SMALL_X, 1]
 
-    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, post_refract_range=1.0)
+    control = generators.multires(shape=shape, freq=3, octaves=OCTAVES, post_refract_range=1.0)
 
     erode_kwargs = {
-        "alpha": .01,
+        "alpha": .0175,
         "density": 50,
         "iterations": 25,
         "inverse": True,
@@ -135,6 +135,7 @@ def _control():
     post_shape = [LARGE_Y, LARGE_X, 1]
     control = effects.resample(control, post_shape)
 
+    iterations = 2
     for i in range(iterations):
        control = effects.erode(control, post_shape, **erode_kwargs)
        control = effects.convolve(effects.ConvKernel.blur, control, post_shape)
@@ -151,11 +152,10 @@ def blended():
     shape = [LARGE_Y, LARGE_X, 3]
 
     erode_kwargs = {
-        "alpha": .05,
+        "alpha": .025,
         "density": 250,
         "iterations": 50,
         "inverse": True,
-        "xy_blend": .25,
     }
 
     control = tf.image.convert_image_dtype(load(CONTROL_FILENAME), tf.float32)
@@ -168,9 +168,10 @@ def blended():
     high = tf.image.convert_image_dtype(load(HIGH_FILENAME), tf.float32)
 
     blend_control = generators.multires(shape=shape, freq=FREQ, ridges=True, octaves=1, post_refract_range=2.5)
-    blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
+    blend_control = effects.value_map(blend_control, shape, keep_dims=True)
 
     combined_land = effects.blend_layers(control, shape, blend_control, control * 2, low, mid, high)
+    combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
 
     combined_land = effects.shadow(combined_land, shape, alpha=1.0, reference=control)
@@ -225,6 +226,8 @@ def clouds(input_filename):
     tensor = effects.blend(tensor, tf.ones(post_shape), combined)
 
     post_shape = [LARGE_Y, LARGE_X, 3]
+
+    tensor = effects.shadow(tensor, post_shape, alpha=.25)
 
     tensor = effects.bloom(tensor, post_shape, .333)
     tensor = recipes.dither(tensor, post_shape, .075)
