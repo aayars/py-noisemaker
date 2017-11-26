@@ -167,8 +167,8 @@ def blended():
     mid = tf.image.convert_image_dtype(load(MID_FILENAME), tf.float32)
     high = tf.image.convert_image_dtype(load(HIGH_FILENAME), tf.float32)
 
-    blend_control = generators.multires(shape=shape, freq=FREQ, ridges=True, octaves=1, post_refract_range=2.5)
-    blend_control = effects.value_map(blend_control, shape, keep_dims=True)
+    blend_control = generators.multires(shape=shape, freq=FREQ * 2, ridges=True, octaves=2, post_refract_range=2.5)
+    blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, blend_control, control * 2, low, mid, high)
     combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
