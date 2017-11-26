@@ -1370,13 +1370,14 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "distrib": "ones",
-            "freq": random.randint(4, 10),
-            "hue_range": random.random(),
-            "saturation": 0.5,
+            "freq": random.randint(1, 3) * 2,
+            "invert": 1,
             "mask": "waffle",
-            "octaves": random.randint(2, 5),
-            "sin": random.random() * 5.0,
-            "with_outline": 1,
+            "octaves": random.randint(1, 2),
+            "post_reflect_range": random.randint(0, 2),
+            "reverb_ridges": False,
+            "with_reverb": random.randint(4, 8),
+            "with_sobel": 2,
         }
     },
 
