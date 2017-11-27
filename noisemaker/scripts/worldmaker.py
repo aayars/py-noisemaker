@@ -121,7 +121,7 @@ def _control():
     control = generators.multires(shape=shape, freq=3, octaves=OCTAVES, post_refract_range=1.0)
 
     erode_kwargs = {
-        "alpha": .0175,
+        "alpha": .02,
         "density": 50,
         "iterations": 25,
         "inverse": True,
