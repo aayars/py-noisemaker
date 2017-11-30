@@ -86,13 +86,13 @@ EFFECTS_PRESETS = {
 
     "glitchin-out": {
         "kwargs": {
-            "with_aberration": random.random() * .02 if random.random() > .333 else 0,
-            "with_bloom": .5 + random.random() * .5 if random.randint(0, 1) else 0,
+            "with_aberration": random.randint(0, 1) * random.random() * .02,
+            "with_bloom": random.randint(0, 1) * (.5 + random.random() * .5),
         },
 
         "post_kwargs": {
             "with_crt": random.random() > .25,
-            "with_dither": random.random() * .25 if random.randint(0, 1) else 0,
+            "with_dither": random.randint(0, 1) * random.random() * .25,
             "with_glitch": True,
             "with_scan_error": random.randint(0, 1),
         },
@@ -103,7 +103,7 @@ EFFECTS_PRESETS = {
             "vignette_brightness": random.randint(0, 1),
             "with_bloom": .25 + random.random() * .5,
             "with_light_leak": .5 + random.random() * .5,
-            "with_vignette": .333 + random.random() * .333 if random.randint(0, 1) else None,
+            "with_vignette": random.randint(0, 1) * (.333 + random.random() * .333),
         },
     },
 
@@ -266,7 +266,7 @@ PRESETS = {
             "point_freq": 8,
             "spline_order": 0,
             "voronoi_alpha": 0.5 + random.random() * .5,
-            "voronoi_nth": 0 if random.randint(0, 1) else random.randint(0, 63),
+            "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
             "with_voronoi": 2 if random.randint(0, 1) else random.randint(1, 5),
         }
     },
@@ -438,7 +438,7 @@ PRESETS = {
             "voronoi_nth": random.randint(0, 3),
             "voronoi_refract": 1.0 + random.random() * 2.5,
             "warp_octaves": random.randint(1, 4),
-            "warp_range": None if random.randint(0, 1) else random.random() * 2.0,
+            "warp_range": random.randint(0, 1) * random.random() * 2.0,
             "with_bloom": .5 + random.random() * .5,
             "with_sobel": 2,
             "with_voronoi": random.randint(1, 7),
@@ -456,7 +456,7 @@ PRESETS = {
             "freq": random.randint(6, 12) * 2,
             "saturation": .25 + random.random() * .5,
             "hue_range": .25 + random.random() * .5,
-            "hue_rotation": None if random.randint(0, 1) else random.random(),
+            "hue_rotation": random.randint(0, 1) * random.random(),
             "invert": 1,
             "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
             "outline": 1,
@@ -490,9 +490,9 @@ PRESETS = {
             "lattice_drift": 1,
             "point_distrib": "v_hex" if random.randint(0, 1) else "v_hex",
             "point_freq": 10,
-            "post_deriv": 0 if random.randint(0, 1) else random.randint(1, 3),
+            "post_deriv": random.randint(0, 1) * random.randint(1, 3),
             "voronoi_alpha": 0.5,
-            "voronoi_refract": 0 if random.randint(0, 1) else random.random(),
+            "voronoi_refract": random.randint(0, 1) * random.random(),
             "warp_octaves": 1,
             "warp_range": random.random() * .5,
             "with_bloom": 0.5,
@@ -515,6 +515,19 @@ PRESETS = {
             "with_wormhole": True,
             "wormhole_kink": 1.0 + random.random() * 5,
             "wormhole_stride": .25 + random.random() * .75,
+        }
+    },
+
+    "bubble-multiverse": {
+        "kwargs": {
+            "point_freq": 10,
+            "post_hue_rotation": random.random(),
+            "post_refract_range": .125 + random.random() * .05,
+            "voronoi_refract": 1.25 + random.random() * .5,
+            "with_bloom": .5 * random.random() * .25,
+            "with_density_map": True,
+            "with_shadow": 1.0,
+            "with_voronoi": 6,
         }
     },
 
@@ -707,7 +720,7 @@ PRESETS = {
            "saturation": random.random(),
            "point_corners": random.randint(0, 1),
            "point_distrib": [m.value for m in grid_dists][random.randint(0, len(grid_dists) - 1)],
-           "point_drift": 0 if random.randint(0, 1) else random.random(),
+           "point_drift": random.randint(0, 1) * random.random(),
            "point_freq": 4,
            "point_generations": 2,
            "voronoi_func": random.randint(2, 3),
@@ -791,7 +804,7 @@ PRESETS = {
             "voronoi_alpha": random.random(),
             "with_bloom": .25 + random.random() * .25,
             "with_dla": .5 + random.random() * .5,
-            "with_voronoi": 0 if random.randint(0, 1) else random.randint(1, 5),
+            "with_voronoi": random.randint(0, 1) * random.randint(1, 5),
         }
     },
 
@@ -1191,7 +1204,7 @@ PRESETS = {
         "kwargs": {
             "hue_range": random.random(),
             "invert": random.randint(0, 1),
-            "post_deriv": 0 if random.randint(0, 1) else random.randint(1, 3),
+            "post_deriv": random.randint(0, 1) * random.randint(1, 3),
             "post_refract_range": .25 + random.random() * .25,
             "ridges": random.randint(0, 1),
             "voronoi_alpha": .75 + random.random() * .25,
@@ -1257,12 +1270,12 @@ PRESETS = {
             "point_freq": [3, 6, 9][random.randint(0, 2)],
             "spline_order": 0,
             "voronoi_alpha": .25,
-            "with_bloom": 0 if random.randint(0, 1) else random.random(),
-            "with_voronoi": 0 if random.randint(0, 1) else 4,
+            "with_bloom": random.randint(0, 1) * random.random(),
+            "with_voronoi": random.randint(0, 1) * 4,
         },
 
         "post_kwargs": {
-            "with_dither": 0 if random.randint(0, 1) else random.random() * .125,
+            "with_dither": random.randint(0, 1) * random.random() * .125,
         }
     },
 
@@ -1294,7 +1307,7 @@ PRESETS = {
         "kwargs": {
             "freq": random.randint(2, 3),
             "hue_range": random.random() * .5,
-            "lattice_drift": 0 if random.randint(0, 1) else random.random(),
+            "lattice_drift": random.randint(0, 1) * random.random(),
             "with_bloom": .25 + random.random() * .5,
             "with_worms": 3 if random.randint(0, 1) else 1,
             "worms_alpha": .75 + random.random() * .25,
@@ -1777,6 +1790,23 @@ PRESETS = {
         }
     },
 
+    "soup": {
+        "kwargs": {
+            "invert": 1,
+            "point_freq": random.randint(2, 4),
+            "post_refract_range": random.randint(8, 12),
+            "voronoi_inverse": True,
+            "with_bloom": .5 * random.random() * .25,
+            "with_density_map": True,
+            "with_shadow": 1.0,
+            "with_voronoi": 6,
+            "with_worms": 5,
+            "worms_alpha": .5 + random.random() * .45,
+            "worms_density": 500,
+            "worms_kink": 4.0 + random.random() * 2.0,
+        }
+    },
+
     "spaghettification": {
         "kwargs": {
             "invert": 1,
@@ -2123,7 +2153,7 @@ PRESETS = {
             "voronoi_alpha": 0.25 + random.random() * .5,
             "voronoi_nth": random.randint(1, 5),
             "warp_octaves": random.randint(1, 3),
-            "warp_range": 0 if random.randint(0, 1) else random.random() * .5,
+            "warp_range": random.randint(0, 1) * random.random() * .5,
             "with_bloom": 0.25 + random.random() * .5,
             "with_sobel": 1,
             "with_voronoi": 5,
