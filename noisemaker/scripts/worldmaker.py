@@ -9,11 +9,11 @@ import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.recipes as recipes
 
-SMALL_X = 512
-SMALL_Y = 512
+SMALL_X = 720
+SMALL_Y = 360
 
-LARGE_X = 1024
-LARGE_Y = 1024
+LARGE_X = 1440
+LARGE_Y = 720
 
 FREQ = 4
 SATURATION = .333
@@ -118,12 +118,12 @@ def highland():
 def _control():
     shape = [SMALL_Y, SMALL_X, 1]
 
-    control = generators.multires(shape=shape, freq=3, octaves=OCTAVES, post_refract_range=1.0)
+    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, refract_range=1.0)
 
     erode_kwargs = {
-        "alpha": .02,
-        "density": 50,
-        "iterations": 25,
+        "alpha": .025,
+        "density": 40,
+        "iterations": 20,
         "inverse": True,
     }
 
@@ -167,20 +167,23 @@ def blended():
     mid = tf.image.convert_image_dtype(load(MID_FILENAME), tf.float32)
     high = tf.image.convert_image_dtype(load(HIGH_FILENAME), tf.float32)
 
-    blend_control = generators.multires(shape=shape, freq=FREQ * 2, ridges=True, octaves=2, post_refract_range=2.5)
+    blend_control = generators.multires(shape=shape, freq=FREQ * 4, ridges=True, octaves=4)
     blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, blend_control, control * 2, low, mid, high)
     combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
 
-    combined_land = effects.shadow(combined_land, shape, alpha=1.0, reference=control)
+    combined_land_0 = effects.shadow(combined_land, shape, alpha=1.0)
+    combined_land_1 = effects.shadow(combined_land, shape, alpha=1.0, reference=control)
+
+    combined_land = effects.blend(combined_land_0, combined_land_1, .5)
 
     combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
     combined = effects.blend(combined_land, combined, .625)
 
-    combined = tf.image.adjust_brightness(combined, .05)
-    combined = tf.image.adjust_contrast(combined, .875)
+    combined = tf.image.adjust_brightness(combined, .1)
+    combined = tf.image.adjust_contrast(combined, .75)
     combined = tf.image.adjust_saturation(combined, .625)
 
     with tf.Session().as_default():
@@ -231,6 +234,8 @@ def clouds(input_filename):
 
     tensor = effects.bloom(tensor, post_shape, .333)
     tensor = recipes.dither(tensor, post_shape, .075)
+
+    combined = tf.image.adjust_contrast(combined, 1.125)
 
     with tf.Session().as_default():
         save(tensor, FINAL_FILENAME)
