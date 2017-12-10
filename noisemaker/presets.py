@@ -1330,6 +1330,17 @@ PRESETS = {
         }
     },
 
+    "multires-voronoi-worms": {
+        "kwargs": {
+            "point_freq": random.randint(8, 10),
+            "reverb_ridges": False,
+            "with_reverb": 2,
+            "with_voronoi": 1,
+            "with_worms": 2,
+            "worms_density": 1000,
+        }
+    },
+
     "muppet-skin": {
         "kwargs": {
             "freq": random.randint(2, 3),
