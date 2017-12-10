@@ -1753,6 +1753,27 @@ PRESETS = {
         }
     },
 
+    "sideways": {
+        "kwargs": {
+            "freq": random.randint(6, 12),
+            "distrib": "ones",
+            "mask": "script",
+            "octaves": random.randint(3, 5),
+            "reflect_range": 1,
+            "saturation": .06125 + random.random() * .125,
+            "sin": random.random() * 4,
+            "spline_order": random.randint(1, 3),
+            "with_aberration": .005 + random.random() * .01,
+            "with_bloom": .333 + random.random() * .333,
+            "with_shadow": .5 + random.random() * .5,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+        }
+    },
+
     "sined-multifractal": {
         "kwargs": {
             "distrib": "uniform",
