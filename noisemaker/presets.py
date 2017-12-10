@@ -1997,7 +1997,8 @@ PRESETS = {
             "with_worms": 1,
             "worms_alpha": 1,
             "worms_density": .25,
-            "worms_duration": 25,
+            "worms_duration": 10,
+            "worms_stride": 2,
             "worms_kink": .25 + random.random() * 2.5,
         }
     },
