@@ -1336,7 +1336,7 @@ PRESETS = {
             "reverb_ridges": False,
             "with_reverb": 2,
             "with_voronoi": 1,
-            "with_worms": 2,
+            "with_worms": 1,
             "worms_density": 1000,
         }
     },
