@@ -795,6 +795,18 @@ PRESETS = {
         },
     },
 
+    "distance": {
+        "kwargs": {
+            "deriv": random.randint(1, 3),
+            "distrib": "exp",
+            "lattice_drift": 1,
+            "octaves": 8,
+            "saturation": .06125 + random.random() * .125,
+            "with_bloom": .333 + random.random() * .333,
+            "with_shadow": 1,
+        }
+    },
+
     "dla-cells": {
         "kwargs": {
             "dla_padding": random.randint(2, 8),
@@ -1051,6 +1063,21 @@ PRESETS = {
             "voronoi_inverse": random.randint(0, 1),
             "with_reverb": random.randint(3, 5),
             "with_voronoi": 2,
+        }
+    },
+
+    "globules": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(6, 12),
+            "hue_range": .25 + random.random() * .5,
+            "lattice_drift": 1,
+            "mask": "sparse",
+            "octaves": random.randint(2, 4),
+            "reflect_range": 1,
+            "saturation": .175 + random.random() * .175,
+            "with_density_map": True,
+            "with_shadow": 1,
         }
     },
 
