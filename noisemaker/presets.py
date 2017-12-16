@@ -2106,6 +2106,27 @@ PRESETS = {
         }
     },
 
+    "turf": {
+        "kwargs": {
+            "freq": random.randint(6, 12),
+            "hue_rotation": .25 + random.random() * .05,
+            "lattice_drift": 1,
+            "octaves": 8,
+            "saturation": .625 + random.random() * .25,
+            "with_worms": 4,
+            "worms_alpha": .9,
+            "worms_density": 50 + random.random() * 25,
+            "worms_duration": 1.125,
+            "worms_stride": .875,
+            "worms_stride_deviation": .125,
+            "worms_kink": .125 + random.random() * .5,
+        },
+
+        "post_kwargs": {
+            "with_dither": .1 + random.random() * .05,
+        }
+    },
+
     "twister": {
         "kwargs": {
             "freq": random.randint(12, 24),
