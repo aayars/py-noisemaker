@@ -95,7 +95,7 @@ def basic(ctx, width, height, input_dir, name):
 
     filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
-    collage_count = min(random.randint(5, 8), len(filenames))
+    collage_count = min(random.randint(4, 6), len(filenames))
     collage_images = []
 
     for i in range(collage_count + 1):
