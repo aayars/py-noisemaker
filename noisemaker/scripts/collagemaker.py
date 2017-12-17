@@ -95,7 +95,7 @@ def basic(ctx, width, height, input_dir, name):
 
     filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
-    collage_count = min(random.randint(3, 5), len(filenames))
+    collage_count = min(random.randint(4, 6), len(filenames))
     collage_images = []
 
     for i in range(collage_count + 1):
@@ -107,12 +107,18 @@ def basic(ctx, width, height, input_dir, name):
     base = generators.basic(freq=random.randint(2, 4), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     control = collage_images.pop()
+    blend_control = collage_images.pop()
 
-    tensor = effects.blend_layers(control, shape, random.random(), *collage_images)
+    control = effects.blend(control, base, .25 + (1.0 - base) * .25)
+    control = effects.normalize(control)
+
+    tensor = effects.blend_layers(control, shape, blend_control, *collage_images)
 
     tensor = effects.blend(tensor, base, .25 + random.random() * .25)
 
-    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .25)
+    tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
+
+    tensor = tf.image.adjust_contrast(tensor, 1.25)
 
     with tf.Session().as_default():
         save(tensor, name)
