@@ -138,6 +138,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "normals": {
+        "kwargs": {
+            "with_normal_map": True,
+        }
+    },
+
     "pop-art": {
         "kwargs": {
             "with_pop": True
@@ -330,6 +336,25 @@ PRESETS = {
             "with_reverb": 1,
             "with_shadow": 1,
             "with_voronoi": 2,
+        }
+    },
+
+    "activation-signal": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 4,
+            "mask": "white_bear",
+            "rgb": random.randint(0, 1),
+            "spline_order": 0,
+            "with_aberration": .005 + random.random() * .005,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_glitch": random.randint(0, 1),
+            "with_scan_error": random.randint(0, 1),
+            "with_snow": .25 + random.random() * .25,
+            "with_vhs": random.randint(0, 1),
         }
     },
 

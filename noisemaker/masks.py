@@ -91,6 +91,14 @@ def invaders_square(*args):
     return _invaders(*args)
 
 
+def white_bear(*args):
+    return _invaders(*args)
+
+
+def white_bear_shape():
+    return (4, 4)
+
+
 def _invaders(x, y, row, shape, *args):
     # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
     height = shape[0]

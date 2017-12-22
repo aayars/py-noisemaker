@@ -205,6 +205,8 @@ class ValueMask(Enum):
 
     script = 107
 
+    white_bear = 108
+
     @classmethod
     def grid_members(cls):
         return [m for m in cls if cls.is_grid(m)]

@@ -959,9 +959,6 @@ def jpeg_decimate(tensor, shape, iterations=25):
     jpegged = tensor
 
     for i in range(iterations):
-        jpegged = convolve(ConvKernel.blur, jpegged, shape)
-        jpegged = convolve(ConvKernel.sharpen, jpegged, shape)
-
         jpegged = tf.image.convert_image_dtype(jpegged, tf.uint8)
 
         data = tf.image.encode_jpeg(jpegged, quality=random.randint(5, 50), x_density=random.randint(50, 500), y_density=random.randint(50, 500))
@@ -1530,7 +1527,7 @@ def singularity(tensor, shape, diagram_type=1, **kwargs):
 
     x, y = point_cloud(1, PointDistribution.square, shape)
 
-    return convolve(ConvKernel.blur, voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs) * tf.ones(shape), shape)
+    return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
 
 
 def vortex(tensor, shape, displacement=64.0):

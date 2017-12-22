@@ -58,30 +58,27 @@ def glitch(tensor, shape):
 
     tensor = effects.normalize(tensor)
 
-    base = multires(2, shape, octaves=int(random.random() * 2) + 1, spline_order=0, refract_range=random.random())
+    base = multires(2, shape, octaves=random.randint(2, 5), spline_order=0, refract_range=random.random())
     stylized = effects.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
 
-    base2 = multires(int(random.random() * 4 + 2), shape, octaves=int(random.random() * 3) + 2, spline_order=0,
-                     refract_range=random.random())
-
-    jpegged = effects.jpeg_decimate(effects.color_map(base2, stylized, shape, horizontal=True, displacement=2.5), shape)
+    jpegged = effects.jpeg_decimate(effects.color_map(base, stylized, shape, horizontal=True, displacement=2.5), shape)
 
     # Offset a single color channel
     separated = [stylized[:, :, i] for i in range(channels)]
-    x_index = (effects.row_index(shape) + int(random.random() * width)) % width
+    x_index = (effects.row_index(shape) + random.randint(1, width)) % width
     index = tf.cast(tf.stack([effects.column_index(shape), x_index], 2), tf.int32)
 
-    channel = int(random.random() * channels)
+    channel = random.randint(0, channels - 1)
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
 
-    channel = int(random.random() * channels)
+    channel = random.randint(0, channels - 1)
     top, _ = tf.nn.top_k(effects.value_map(tensor, shape), k=width)
     separated[channel] += top
 
     stylized = tf.stack(separated, 2)
 
-    combined = effects.blend_cosine(tf.multiply(stylized, 1.0), jpegged, base2)
-    combined = effects.blend_cosine(tensor, combined, tf.maximum(base * 2 - 1, 0))
+    combined = effects.blend(tf.multiply(stylized, 1.0), jpegged, base)
+    combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
 
     return combined
 
