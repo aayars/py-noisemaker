@@ -111,11 +111,12 @@ def basic(ctx, width, height, input_dir, name):
 
     tensor = effects.blend_layers(control, shape, blend_control, *collage_images)
 
-    tensor = effects.blend(tensor, base, .125 + random.random() * .125)
+    tensor = effects.blend(tensor, base, .25 + random.random() * .125)
 
-    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .25)
-    tensor = effects.shadow(tensor, shape, alpha=.333 + random.random() * .333)
+    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125)
 
+    tensor = tf.image.adjust_brightness(tensor, .05)
     tensor = tf.image.adjust_contrast(tensor, 1.25)
 
     with tf.Session().as_default():
