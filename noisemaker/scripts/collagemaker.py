@@ -104,15 +104,13 @@ def basic(ctx, width, height, input_dir, name):
         collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
         collage_images.append(effects.resample(collage_input, shape))
 
-    base = generators.basic(freq=random.randint(2, 4), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
+    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
-    # this is not doing the right thing on CPU (all black), not sure why.
-    # blend_control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
-    tensor = effects.blend_layers(control, shape, random.random(), *collage_images)
+    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-    tensor = effects.blend(tensor, base, .25 + random.random() * .125)
+    tensor = effects.blend(tensor, base, .125 + random.random() * .125)
 
     tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
     tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125)
