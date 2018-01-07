@@ -18,7 +18,7 @@ Installation
 Docker
 ~~~~~~
 
-Noisemaker can run on CPU in a container. See `Noisemaker on Docker`.
+Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_.
 
 Not Docker
 ~~~~~~~~~~
