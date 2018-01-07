@@ -2,10 +2,10 @@
 
 ## Usage
 
-Getting noisemaker output out of Docker is clunky. You must mount a
-volume for noisemaker's output (`-v /your/local/output:/output`), and
-specify this directory as the output location for noisemaker commands
-(`--name output/noise.png`).
+Getting noisemaker output out of Docker is clunky. You must tell Docker to
+mount a volume for noisemaker's output (`-v /your/local/output:/output`),
+and prefix noisemaker's output filename with `output/` (`--name
+output/noise.png`).
 
 ### Docker on Linux
 
