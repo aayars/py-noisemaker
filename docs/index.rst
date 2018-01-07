@@ -42,10 +42,6 @@ Install `Noisemaker`_ in a new virtualenv:
     # Hopefully there is a wheel available for your platform.
     pip install tensorflow  # or tensorflow-gpu, if you're all set up with cuda/cudnn
 
-    # pip install $TF_BINARY_URL
-    # e.g. Mac OS X CPU:
-    # https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py3-none-any.whl
-
 Upgrading
 ^^^^^^^^^
 
