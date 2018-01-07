@@ -9,7 +9,7 @@ output/noise.png`).
 
 ### Docker on Linux
 
-Make sure out output directory exists (`mkdir output`). To generate basic noise, run:
+Make sure your output directory exists (`mkdir output`). To generate basic noise, run:
 
 ```
 docker run -v output:/output aayars/noisemaker noisemaker --name output/noise.png
