@@ -35,11 +35,11 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-`Install TensorFlow`_ in the virtualenv, using ``pip``. See TensorFlow's platform-specific docs for your ``$TF_BINARY_URL``.
+`Install TensorFlow`_ in the virtualenv, using ``pip``.
 
 .. code-block:: bash
 
-    # Try to see if there is a wheel available for your platform.
+    # Hopefully there is a wheel available for your platform.
     pip install tensorflow  # or tensorflow-gpu, if you're all set up with cuda/cudnn
 
     # pip install $TF_BINARY_URL
@@ -47,7 +47,7 @@ Install `Noisemaker`_ in a new virtualenv:
     # https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py3-none-any.whl
 
 Upgrading
----------
+^^^^^^^^^
 
 Activate the virtual environment, and run:
 
