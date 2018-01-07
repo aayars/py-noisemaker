@@ -20,8 +20,8 @@ Docker
 
 Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_.
 
-Not Docker
-~~~~~~~~~~
+Not Docker (Python 3 virtualenv)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Noisemaker is intended for Python 3.5+.
 
@@ -85,7 +85,7 @@ Indices and tables
 
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
-.. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/noisemaker/
+.. _`Noisemaker on Docker`: https://github.com/aayars/py-noisemaker/blob/master/docker/README.md
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
 .. _`Wikipedia: Value Noise`: https://en.wikipedia.org/wiki/Value_noise
