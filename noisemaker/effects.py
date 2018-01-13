@@ -1342,6 +1342,8 @@ def posterize(tensor, levels):
 
     tensor *= levels
 
+    tensor += (1/levels) * .5
+
     tensor = tf.floor(tensor)
 
     tensor /= levels
