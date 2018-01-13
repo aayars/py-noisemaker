@@ -844,7 +844,7 @@ def wavelet(tensor, shape):
 
     height, width, channels = shape
 
-    return normalize(tensor - resample(resample(tensor, [int(height * .5), int(width * .5), channels]), shape))
+    return normalize(tensor - resample(_downsample(tensor, shape, [int(height * .5), int(width * .5), channels]), shape))
 
 
 def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
