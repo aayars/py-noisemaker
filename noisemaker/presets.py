@@ -1810,6 +1810,15 @@ PRESETS = {
         }
     },
 
+    "sine-here-please": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "octaves": 8,
+            "sin": 25 + random.random() * 200,
+            "with_shadow": 1,
+        }
+    },
+
     "sined-multifractal": {
         "kwargs": {
             "distrib": "uniform",
