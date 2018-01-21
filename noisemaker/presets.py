@@ -497,6 +497,15 @@ PRESETS = {
         }
     },
 
+    "branemelt": {
+        "kwargs": {
+            "freq": random.randint(6, 12),
+            "octaves": 8,
+            "post_reflect_range": .075 + random.random() * .025,
+            "sin": random.randint(32, 64),
+        }
+    },
+
     "branewaves": {
         "kwargs": {
             "distrib": "ones",
@@ -797,6 +806,17 @@ PRESETS = {
             "saturation": 0,
             "with_density_map": True,
             "with_shadow": 1,
+        }
+    },
+
+    "different": {
+        "kwargs": {
+            "freq": random.randint(8, 12),
+            "octaves": 8,
+            "reflect_range": 1.5 + random.random(),
+            "reindex_range": .25 + random.random() * .25,
+            "sin": random.randint(15, 25),
+            "warp_range": .075 * random.random() * .075,
         }
     },
 
