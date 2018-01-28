@@ -22,7 +22,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
-    :param bool with_false_color: Swap colors
+    :param bool with_false_color: Swap colors with basic noise
     :return: Tensor
     """
 
@@ -205,10 +205,10 @@ def dither(tensor, shape, amount):
     return effects.blend(tensor, white_noise, amount)
 
 
-def false_color(tensor, shape, horizontal=False, displacement=1.0, corners=True, **basic_kwargs):
+def false_color(tensor, shape, horizontal=False, displacement=.5, **basic_kwargs):
     """
     """
 
-    clut = basic(random.randint(2, 4), shape, corners=True, **basic_kwargs)
+    clut = basic(2, shape, **basic_kwargs)
 
-    return effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement)
+    return effects.normalize(effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
