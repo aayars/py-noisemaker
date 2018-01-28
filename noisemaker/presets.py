@@ -76,6 +76,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "falsetto": {
+        "post_kwargs": {
+            "with_false_color": True
+        }
+    },
+
     "funhouse": {
         "kwargs": {
             "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
@@ -1718,9 +1724,11 @@ PRESETS = {
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
             "point_freq": random.randint(4, 10),
             "post_ridges": True,
+            "reverb_iterations": random.randint(1, 4),
             "rgb": random.randint(0, 1),
             "voronoi_alpha": .333 + random.random() * .333,
-            "with_reverb": random.randint(0, 2),
+            "with_density_map": random.randint(0, 1),
+            "with_reverb": random.randint(2, 4),
             "with_voronoi": 2,
         }
     },

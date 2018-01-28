@@ -8,7 +8,8 @@ from noisemaker.generators import basic, multires
 import noisemaker.effects as effects
 
 
-def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False):
+def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
+                 with_false_color=False):
     """
     Apply complex post-processing recipes.
 
@@ -21,8 +22,12 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
+    :param bool with_false_color: Swap colors
     :return: Tensor
     """
+
+    if with_false_color:
+        tensor = false_color(tensor, shape)
 
     if with_glitch:
         tensor = glitch(tensor, shape)
@@ -198,3 +203,12 @@ def dither(tensor, shape, amount):
     white_noise = basic([height, width], [height, width, 1])
 
     return effects.blend(tensor, white_noise, amount)
+
+
+def false_color(tensor, shape, horizontal=False, displacement=1.0, corners=True, **basic_kwargs):
+    """
+    """
+
+    clut = basic(random.randint(2, 4), shape, corners=True, **basic_kwargs)
+
+    return effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement)
