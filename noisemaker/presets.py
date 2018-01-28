@@ -23,6 +23,12 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "bloom": {
+        "kwargs": {
+            "with_bloom": .333 + random.random() * .333,
+        }
+    },
+
     "convolution-feedback": {
         "kwargs": {
             "conv_feedback_alpha": .5,
@@ -102,6 +108,12 @@ EFFECTS_PRESETS = {
             "with_glitch": True,
             "with_scan_error": random.randint(0, 1),
         },
+    },
+
+    "glowing-edges": {
+        "kwargs": {
+            "with_glowing_edges": 1.0,
+        }
     },
 
     "light-leak": {
@@ -201,6 +213,13 @@ EFFECTS_PRESETS = {
             "with_shadow": .5 + random.random() * .5,
             "with_vignette": .5 + random.random() * .5,
             "vignette_brightness": 0,
+        }
+    },
+
+    "snow": {
+        "post_kwargs": {
+            "with_dither": .05 + random.random() * .025,
+            "with_snow": .333 + random.random() * .333,
         }
     },
 
@@ -1316,6 +1335,24 @@ PRESETS = {
             "ridges": random.randint(0, 1),
             "with_shadow": random.randint(0, 1),
          }
+    },
+
+    "later": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(8, 16),
+            "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
+            "octaves": random.randint(3, 6),
+            "point_freq": random.randint(4, 8),
+            "spline_order": 0,
+            "voronoi_refract": random.randint(1, 4),
+            "warp_freq": random.randint(2, 4),
+            "warp_interp": 3,
+            "warp_octaves": 2,
+            "warp_range": .25 + random.random() * .125,
+            "with_glowing_edges": 1,
+            "with_voronoi": 6,
+        }
     },
 
     "lattice-noise": {

@@ -17,7 +17,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
-                 with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
+                 with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
@@ -205,6 +205,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_outline:
         tensor = outline(tensor, shape, sobel_func=with_outline)
+
+    if with_glowing_edges:
+        tensor = glowing_edges(tensor, shape, alpha=with_glowing_edges)
 
     if with_reverb:
         tensor = reverb(tensor, shape, with_reverb, iterations=reverb_iterations, ridges=reverb_ridges)
@@ -1516,6 +1519,29 @@ def outline(tensor, shape, sobel_func=1):
     return edges * tensor
 
 
+def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
+    """
+    """
+
+    height, width, channels = shape
+
+    value_shape = [height, width, 1]
+
+    edges = value_map(tensor, shape, keep_dims=True)
+
+    edges = posterize(edges, random.randint(3, 5))
+
+    edges = 1.0 - sobel(edges, value_shape, dist_func=sobel_func)
+
+    edges = tf.minimum(edges * 8, 1.0) * tf.minimum(tensor * 1.25, 1.0)
+
+    edges = bloom(edges, shape, alpha=.5)
+
+    edges = normalize(edges + convolve(ConvKernel.blur, edges, shape))
+
+    return blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
+
+
 def singularity(tensor, shape, diagram_type=1, **kwargs):
     """
     Return the range diagram for a single voronoi point, approximately centered.
@@ -1618,9 +1644,9 @@ def bloom(tensor, shape, alpha=.5):
     blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
     blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
     blurred = resample(blurred, shape)
-    blurred = offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
+    blurred = offset(blurred, shape, x=int(shape[1] * -.005), y=int(shape[0] * -.005))
 
-    return blend(tensor, normalize(tensor + blurred), alpha)
+    return blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
 
 
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
