@@ -1827,7 +1827,7 @@ PRESETS = {
         }
     },
 
-    "seether": {
+    "seether-reflect": {
         "kwargs": {
             "corners": True,
             "freq": 2,
@@ -1836,6 +1836,27 @@ PRESETS = {
             "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
             "point_freq": random.randint(4, 6),
             "post_reflect_range": random.randint(8, 12),
+            "post_ridges": True,
+            "ridges": True,
+            "voronoi_alpha": .25 + random.random() * .25,
+            "warp_range": .5,
+            "warp_octaves": 6,
+            "with_glowing_edges": 1,
+            "with_reverb": 1,
+            "with_shadow": 1,
+            "with_voronoi": 2,
+        }
+    },
+
+    "seether-refract": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "hue_range": 1.0 + random.random(),
+            "invert": True,
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(4, 6),
+            "post_refract_range": random.randint(4, 8),
             "post_ridges": True,
             "ridges": True,
             "voronoi_alpha": .25 + random.random() * .25,
