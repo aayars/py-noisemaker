@@ -9,7 +9,7 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False):
+                 with_false_color=False, with_interference=False):
     """
     Apply complex post-processing recipes.
 
@@ -23,6 +23,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
     :param bool with_false_color: Swap colors with basic noise
+    :param bool with_interference: CRT-like moire effect
     :return: Tensor
     """
 
@@ -46,6 +47,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_crt:
         tensor = crt(tensor, shape)
+
+    if with_interference:
+        tensor = interference(tensor, shape)
 
     return tensor
 
@@ -120,6 +124,26 @@ def vhs(tensor, shape):
     return tensor
 
 
+def interference(tensor, shape):
+    """
+    """
+
+    height, width, channels = shape
+
+    value_shape = [height, width, 1]
+
+    distortion = basic(2, value_shape, corners=True)
+
+    scan_noise = basic([2, 1], [2, 1, 1])
+    scan_noise = tf.tile(scan_noise, [random.randint(32, 128), width, 1])
+    scan_noise = effects.resample(scan_noise, value_shape, spline_order=0)
+    scan_noise = effects.refract(scan_noise, value_shape, 1, reference_x=distortion, reference_y=distortion)
+
+    tensor = 1.0 - (1.0 - tensor) * scan_noise
+
+    return tensor
+
+
 def crt(tensor, shape):
     """
     Apply vintage CRT snow and scanlines.
@@ -136,16 +160,16 @@ def crt(tensor, shape):
     distortion_amount = .25
 
     white_noise = basic(int(height * .75), value_shape, spline_order=0) - .5
-    white_noise = effects.center_mask(white_noise, effects.refract(white_noise, shape, distortion_amount, reference_x=distortion), shape)
+    white_noise = effects.center_mask(white_noise, effects.refract(white_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
 
     white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
-    white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, shape, distortion_amount, reference_x=distortion), shape)
+    white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, value_shape, distortion_amount, reference_x=distortion), value_shape)
 
     tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .25)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
-    scan_noise = effects.resample(scan_noise, shape)
-    scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, shape, distortion_amount, reference_x=distortion), shape)
+    scan_noise = effects.resample(scan_noise, value_shape)
+    scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
     tensor = effects.blend_cosine(tensor, scan_noise, 0.25)
 
     if channels <= 2:

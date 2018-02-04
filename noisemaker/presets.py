@@ -152,13 +152,28 @@ EFFECTS_PRESETS = {
         },
 
         "post_kwargs": {
-            "with_dither": .175 + random.random() * .175,
+            "with_dither": .25 + random.random() * .125,
         }
     },
 
     "normals": {
         "kwargs": {
             "with_normal_map": True,
+        }
+    },
+
+    "one-art-please": {
+        "kwargs": {
+            "post_contrast": 1.25,
+            "post_saturation": .75,
+            "vignette_brightness": random.random(),
+            "with_bloom": .333 + random.random() * .333,
+            "with_light_leak": .25 + random.random() * .125,
+            "with_vignette": .25 + random.random() * .125,
+        },
+
+        "post_kwargs": {
+            "with_dither": .25 + random.random() * .125,
         }
     },
 
@@ -992,7 +1007,7 @@ PRESETS = {
             "with_bloom": .25 + random.random() * .5,
             "with_wormhole": True,
             "with_worms": random.randint(1, 3),
-            "refract": random.randint(0, 3),
+            "refract_range": random.randint(0, 3),
             "wormhole_alpha": .333 + random.random() * .333,
             "wormhole_kink": .25 + random.random() * .25,
             "wormhole_stride": random.random() * 2.5,
@@ -1328,7 +1343,7 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "freq": random.randint(2, 3),
-            "post_refract": random.randint(0, 1),
+            "post_refract_range": random.randint(0, 1),
             "post_ridges": random.randint(0, 1),
             "refract_range": random.randint(4, 8),
             "ridges": random.randint(0, 1),
@@ -1401,8 +1416,8 @@ PRESETS = {
             "worms_alpha": 1,
             "worms_density": 750,
             "worms_duration": .25,
-            "worms-kink": random.randint(2, 3),
-            "worms_stride": random.randint(128, 256),
+            "worms_kink": random.randint(1, 3),
+            "worms_stride": random.randint(64, 256),
         }
     },
 
@@ -1414,6 +1429,18 @@ PRESETS = {
             "octaves": random.randint(4, 8),
             "spline_order": 0,
             "with_outline": 1,
+        }
+    },
+
+    "moire": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "sin": random.randint(250, 500),
+        },
+
+        "post_kwargs": {
+            "with_interference": True
         }
     },
 
@@ -2147,7 +2174,7 @@ PRESETS = {
         "kwargs": {
             "corners": True,
             "freq": 2,
-            "post_reflect": random.randint(0, 1),
+            "post_reflect_range": random.randint(0, 1),
             "post_ridges": random.randint(0, 1),
             "reflect_range": random.randint(7, 14),
             "ridges": random.randint(0, 1),
