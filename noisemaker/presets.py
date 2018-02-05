@@ -1311,6 +1311,18 @@ PRESETS = {
         }
     },
 
+    "interference": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "sin": random.randint(250, 500),
+        },
+
+        "post_kwargs": {
+            "with_interference": True
+        }
+    },
+
     "isoform": {
         "kwargs": {
             "hue_range": random.random(),
@@ -1429,18 +1441,6 @@ PRESETS = {
             "octaves": random.randint(4, 8),
             "spline_order": 0,
             "with_outline": 1,
-        }
-    },
-
-    "moire": {
-        "kwargs": {
-            "corners": True,
-            "freq": 2,
-            "sin": random.randint(250, 500),
-        },
-
-        "post_kwargs": {
-            "with_interference": True
         }
     },
 
