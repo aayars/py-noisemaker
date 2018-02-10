@@ -216,6 +216,12 @@ def warp_freq_option(**attrs):
     return int_option("--warp-freq", callback=validate_more_than_one(allow_none=True), default=None, **attrs)
 
 
+def post_reindex_option(**attrs):
+    attrs.setdefault("help", "Post-reduce color re-indexing range {0}".format(ENTIRE_IMAGE_HINT))
+
+    return float_option("--post-reindex", **attrs)
+
+
 def post_reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Post-reduce derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
 

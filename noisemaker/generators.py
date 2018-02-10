@@ -165,7 +165,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
              deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
-             post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False, with_reverb=None, reverb_iterations=1,
+             post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
+             with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, saturation_distrib=None, brightness_distrib=None,
              **post_process_args):
     """
@@ -185,9 +186,9 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int seed: Random seed for reproducible output. Ineffective with exponential
-    :param float reflect_range: Per-octave derivative-based distort gradient
-    :param float refract_range: Per-octave self-distort gradient
-    :param float reindex_range: Per-octave self-reindexing gradient
+    :param float reflect_range: Per-octave derivative-based distort range (0..1+)
+    :param float refract_range: Per-octave self-distort range (0..1+)
+    :param float reindex_range: Per-octave self-reindexing range (0..1+)
     :param None|int with_reverb: Post-reduce tiled octave count
     :param int reverb_iterations: Re-reverberate N times
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
@@ -197,8 +198,9 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
     :param float lattice_drift: Push away from underlying lattice
-    :param float post_reflect_range: Reduced derivative-based distort gradient
-    :param float post_refract_range: Reduced self-distort gradient
+    :param float post_reindex_range: Reduced self-reindexing range (0..1+)
+    :param float post_reflect_range: Reduced derivative-based distort range (0..1+)
+    :param float post_refract_range: Reduced self-distort range (0..1+)
     :param bool post_deriv: Reduced derivatives
     :param bool rgb: Disable HSV
     :param float hue_range: HSV hue range
@@ -234,7 +236,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         tensor += layer / multiplier
 
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
-                                  reflect_range=post_reflect_range, refract_range=post_refract_range,
+                                  reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
                                   deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, **post_process_args)
 

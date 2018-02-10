@@ -479,6 +479,18 @@ PRESETS = {
         }
     },
 
+    "band-together": {
+        "kwargs": {
+            "freq": random.randint(6, 12),
+            "reindex_range": random.randint(8, 12),
+            "warp_range": 1,
+            "warp_octaves": 8,
+            "warp_freq": 2,
+            "with_shadow": .25 + random.random() * .25,
+
+        }
+    },
+
     "berkeley": {
         "kwargs": {
             "freq": random.randint(12, 16),
@@ -784,6 +796,15 @@ PRESETS = {
             "with_outline": 1,
             "with_voronoi": random.randint(1, 2),
         }
+    },
+
+    "cyclic-dilation": {
+        "kwargs": {
+            "with_voronoi": 2,
+            "post_reindex_range": random.randint(4, 6),
+            "freq": random.randint(24, 48),
+            "hue_range": .25 + random.random() * 1.25,
+        },
     },
 
     "deadlock": {
@@ -1323,6 +1344,19 @@ PRESETS = {
         }
     },
 
+    "i-dream-of-tweegee": {
+        "kwargs": {
+            "reindex_range": 2,
+            "point_corners": True,
+            "point_freq": 2,
+            "point_distrib": "square",
+            "post_reindex_range": 2,
+            "rgb": True,
+            "voronoi_alpha": .625,
+            "with_voronoi": 4,
+        }
+    },
+
     "isoform": {
         "kwargs": {
             "hue_range": random.random(),
@@ -1508,6 +1542,16 @@ PRESETS = {
         }
     },
 
+    "noise-blaster": {
+        "kwargs": {
+            "freq": random.randint(3, 4),
+            "lattice_drift": 1,
+            "octaves": 6,
+            "post_reindex_range": 2,
+            "reindex_range": 4,
+            "with_shadow": .25 + random.random() * .25,
+        }
+    },
     "now": {
         "kwargs": {
             "channels": 3,
@@ -2386,6 +2430,18 @@ PRESETS = {
             "with_bloom": random.randint(0, 1) * .5,
             "with_sobel": 2,
         }
+    },
+
+    "whatami": {
+        "kwargs": {
+             "freq": random.randint(7, 9),
+             "hue_range": 3,
+             "invert": 1,
+             "post_reindex_range": 2,
+             "reindex_range": 2,
+             "voronoi_alpha": .75 + random.random() * .125,
+             "with_voronoi": 2,
+         }
     },
 
     "wireframe": {
