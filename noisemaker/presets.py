@@ -1095,6 +1095,25 @@ PRESETS = {
         }
     },
 
+    "fundamentals": {
+        "kwargs": {
+            "freq": random.randint(3, 5),
+            "invert": 1,
+            "point_freq": random.randint(3, 5),
+            "post_deriv": random.randint(1, 3),
+            "post_saturation": .333 + random.random() * .333,
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(3, 5),
+            "voronoi_refract": .125 + random.random() * .125,
+            "with_density_map": True,
+            "with_voronoi": 2,
+        },
+
+        "post_kwargs": {
+            "with_dither": .175 + random.random() * .175,
+        }
+    },
+
     "fuzzy-squares": {
         "kwargs": {
             "corners": True,
