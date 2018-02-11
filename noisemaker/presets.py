@@ -1020,6 +1020,15 @@ PRESETS = {
         }
     },
 
+    "financial-district": {
+        "kwargs": {
+            "point_freq": 2,
+            "voronoi_func": 2,
+            "voronoi_nth": random.randint(1, 3),
+            "with_voronoi": 5,
+        }
+    },
+
     "flowbie": {
         "kwargs": {
             "freq": random.randint(2, 4),
