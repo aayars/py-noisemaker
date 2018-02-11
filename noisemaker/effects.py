@@ -120,7 +120,11 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         tiled_shape = [int(shape[0] / multiplier), int(shape[1] / multiplier), shape[2]]
 
-        x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift)
+        if point_freq == 1:
+            x, y = point_cloud(1, PointDistribution.square, shape)
+
+        else:
+            x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift)
 
         xy = (x, y, len(x))
 
@@ -1569,8 +1573,10 @@ def vortex(tensor, shape, displacement=64.0):
 
     displacement_map = singularity(None, shape)
 
-    x = convolve(ConvKernel.deriv_x, displacement_map, shape, with_normalize=False)
-    y = convolve(ConvKernel.deriv_y, displacement_map, shape, with_normalize=False)
+    value_shape = [shape[0], shape[1], 1]
+
+    x = convolve(ConvKernel.deriv_x, displacement_map, value_shape, with_normalize=False)
+    y = convolve(ConvKernel.deriv_y, displacement_map, value_shape, with_normalize=False)
 
     warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
 

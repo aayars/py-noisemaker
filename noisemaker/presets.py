@@ -697,6 +697,22 @@ PRESETS = {
         }
     },
 
+    "chiral": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "invert": 1,
+            "point_freq": 1,
+            "post_refract_range": random.randint(24, 48),
+            "post_reindex_range": .05,
+            "voronoi_alpha": .95,
+            "voronoi_func": random.randint(1, 3),
+            "with_density_map": True,
+            "with_sobel": random.randint(1, 3),
+            "with_voronoi": 6,
+        }
+    },
+
     "circulent": {
         "kwargs": {
             "corners": True,
