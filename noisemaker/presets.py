@@ -703,8 +703,8 @@ PRESETS = {
             "freq": 2,
             "invert": 1,
             "point_freq": 1,
-            "post_refract_range": random.randint(24, 48),
             "post_reindex_range": .05,
+            "post_refract_range": random.randint(24, 48),
             "voronoi_alpha": .95,
             "voronoi_func": random.randint(1, 3),
             "with_density_map": True,
@@ -2064,6 +2064,21 @@ PRESETS = {
             "with_wormhole": True,
             "wormhole_stride": 0.01,
         }
+    },
+
+    "slimer": {
+        "kwargs": {
+            "freq": random.randint(3, 4),
+            "hue_range": .5,
+            "point_freq": random.randint(1, 3),
+            "post_reindex_range": .25 + random.random() * .333,
+            "reindex_range": .5 + random.random() * .666,
+            "ripple_range": .025 + random.random() * .0333,
+            "voronoi_alpha": .5 + random.random() * .333,
+            "voronoi_refract": random.randint(3, 5),
+            "warp_range": .075 + random.random() * .075,
+            "with_voronoi": 2,
+        },
     },
 
     "soft-cells": {
