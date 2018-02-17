@@ -585,6 +585,24 @@ PRESETS = {
         }
     },
 
+   "broken": {
+       "kwargs": {
+           "freq": random.randint(3, 4),
+           "lattice_drift": 2,
+           "octaves": random.randint(3, 4),
+           "post_brightness": .125,
+           "post_saturation": .25,
+           "posterize_levels": 3,
+           "reindex_range": random.randint(3, 4),
+           "rgb": True,
+           "with_glowing_edges": 1,
+       },
+
+       "post_kwargs": {
+           "with_dither": .125 + random.random() * .075,
+       }
+   },
+
     "bubble-machine": {
         "kwargs": {
             "corners": True,
@@ -948,6 +966,16 @@ PRESETS = {
             "with_bloom": .25 + random.random() * .25,
             "with_dla": 1,
             "with_reverb": random.randint(3, 6),
+        }
+    },
+
+    "domain-warp": {
+        "kwargs": {
+            "lattice_drift": 1,
+            "octaves": 8,
+            "post_refract_range": .333 + random.random() * .333,
+            "refract_range": .333 + random.random() * .333,
+            "ridges": True,
         }
     },
 
