@@ -2455,6 +2455,17 @@ PRESETS = {
         }
     },
 
+    "value-moire": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "saturation": 0,
+            "with_density_map": True,
+            "with_wormhole": True,
+            "wormhole_kink": 128,
+            "wormhole_stride": .0005,
+        },
+    },
+
     "vectoroids": {
         "kwargs": {
             "freq": 25,
