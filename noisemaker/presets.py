@@ -2481,6 +2481,17 @@ PRESETS = {
         }
     },
 
+    "voronoi-moire": {
+        "kwargs": {
+            "point_freq": random.randint(1, 3),
+            "with_density_map": True,
+            "with_voronoi": 1,
+            "with_wormhole": True,
+            "wormhole_kink": 128,
+            "wormhole_stride": .0005,
+        }
+    },
+
     "vortex-checkers": {
         "kwargs": {
             "freq": random.randint(4, 10) * 2,
