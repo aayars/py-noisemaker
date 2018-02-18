@@ -2458,6 +2458,7 @@ PRESETS = {
     "value-moire": {
         "kwargs": {
             "freq": random.randint(2, 4),
+            "post_deriv": 1,
             "saturation": 0,
             "with_density_map": True,
             "with_wormhole": True,
