@@ -1550,6 +1550,21 @@ PRESETS = {
         }
     },
 
+    "moire-than-a-feeling": {
+        "kwargs": {
+            "freq": random.randint(2, 4),
+            "octaves": random.randint(1, 2),
+            "point_freq": random.randint(1, 3),
+            # "post_deriv": 1,
+            "saturation": 0,
+            "with_density_map": True,
+            "with_voronoi": random.randint(0, 1),
+            "with_wormhole": True,
+            "wormhole_kink": 128,
+            "wormhole_stride": .0005,
+        },
+    },
+
     "multires-voronoi-worms": {
         "kwargs": {
             "point_freq": random.randint(8, 10),
@@ -2455,18 +2470,6 @@ PRESETS = {
         }
     },
 
-    "value-moire": {
-        "kwargs": {
-            "freq": random.randint(2, 4),
-            "post_deriv": 1,
-            "saturation": 0,
-            "with_density_map": True,
-            "with_wormhole": True,
-            "wormhole_kink": 128,
-            "wormhole_stride": .0005,
-        },
-    },
-
     "vectoroids": {
         "kwargs": {
             "freq": 25,
@@ -2490,17 +2493,6 @@ PRESETS = {
             "spline_order": random.randint(2, 3),
             "with_wormhole": True,
             "wormhole_stride": random.random() * .0125,
-        }
-    },
-
-    "voronoi-moire": {
-        "kwargs": {
-            "point_freq": random.randint(1, 3),
-            "with_density_map": True,
-            "with_voronoi": 1,
-            "with_wormhole": True,
-            "wormhole_kink": 128,
-            "wormhole_stride": .0005,
         }
     },
 
