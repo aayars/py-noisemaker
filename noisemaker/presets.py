@@ -1469,6 +1469,21 @@ PRESETS = {
          }
     },
 
+    "knotty-clouds": {
+        "kwargs": {
+            "point_freq": random.randint(6, 10),
+            "voronoi_alpha": .125 + random.random() * .25,
+            "with_bloom": .25 + random.random() * .25,
+            "with_shadow": 1,
+            "with_voronoi": 2,
+            "with_worms": 1,
+            "worms_alpha": .666 + random.random() * .333,
+            "worms_density": 1000,
+            "worms_duration": 1,
+            "worms_kink": 4,
+        }
+    },
+
     "later": {
         "kwargs": {
             "distrib": "ones",
