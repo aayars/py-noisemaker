@@ -9,7 +9,7 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False, with_interference=False, with_stray_hair=False):
+                 with_false_color=False, with_interference=False, with_stray_hair=False, with_grime=False):
     """
     Apply complex post-processing recipes.
 
@@ -50,6 +50,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_interference:
         tensor = interference(tensor, shape)
+
+    if with_grime:
+        tensor = grime(tensor, shape)
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
@@ -248,12 +251,34 @@ def stray_hair(tensor, shape):
     value_shape = [shape[0], shape[1], 1]
 
     mask = basic(4, value_shape,
-                 invert=True,
                  with_worms=4,
                  worms_alpha=1,
-                 worms_density=.0025 + random.random() * .00125,
+                 worms_density=.0025 + random.random() * .0025,
                  worms_duration=random.randint(6, 12),
                  worms_kink=random.randint(5, 50),
+                 worms_stride=.5,
+                 worms_stride_deviation=.125,
                  )
 
-    return tensor * mask
+    brightness = basic(32, value_shape)
+
+    return effects.blend(tensor, brightness * .5, mask * .75)
+
+
+def grime(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    mask = multires(5, value_shape, distrib="exp", octaves=8, refract_range=1.0, deriv=3, deriv_alpha=.5)
+
+    dusty = effects.blend(tensor, .5, tf.square(mask) * .125)
+
+    specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, distrib="exp", refract_range=.1)
+    specks = effects.resample(specks, value_shape)
+    specks = 1.0 - effects.normalize(tf.maximum(specks - .4, 0.0))
+
+    dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape), .25) * specks
+
+    return effects.blend(tensor, dusty, mask)

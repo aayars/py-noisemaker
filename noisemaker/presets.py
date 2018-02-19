@@ -88,6 +88,13 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "filthy": {
+        "post_kwargs": {
+            "with_grime": True,
+            "with_stray_hair": True,
+        }
+    },
+
     "funhouse": {
         "kwargs": {
             "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
@@ -242,12 +249,6 @@ EFFECTS_PRESETS = {
         "kwargs": {
             "invert": random.randint(0, 1),
             "with_sobel": random.randint(1, 3),
-        }
-    },
-
-    "stray-hair": {
-        "post_kwargs": {
-            "with_stray_hair": True
         }
     },
 
