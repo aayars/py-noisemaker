@@ -91,6 +91,7 @@ import noisemaker.recipes as recipes
 @cli.emboss_option()
 @cli.shadow_option()
 @cli.edges_option()
+@cli.blur_option()
 @cli.sharpen_option()
 @cli.unsharp_mask_option()
 @cli.invert_option()

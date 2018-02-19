@@ -995,6 +995,29 @@ PRESETS = {
         }
     },
 
+    "electric-worms": {
+        "kwargs": {
+            "blur": 1,
+            "freq": random.randint(3, 6),
+            "invert": 1,
+            "lattice_drift": 1,
+            "point_freq": 10,
+            "voronoi_alpha": .25 + random.random() * .25,
+            "voronoi_func": random.randint(2, 3),
+            "voronoi_nth": random.randint(0, 3),
+            "with_bloom": .125 + random.random() * .125,
+            "with_density_map": True,
+            "with_glowing_edges": .75 + random.random() * .25,
+            "with_voronoi": 2,
+            "with_worms": 5,
+            "worms_alpha": .666 + random.random() * .333,
+            "worms_density": 1000,
+            "worms_duration": 1,
+            "worms_kink": random.randint(7, 9),
+            "worms_stride_deviation": 16,
+        }
+    },
+
     "eyes": {
         "kwargs": {
             "corners": True,

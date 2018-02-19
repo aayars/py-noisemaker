@@ -576,6 +576,12 @@ def edges_option(**attrs):
     return float_option("--edges", **attrs)
 
 
+def blur_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: Blur {0}".format(ALPHA_BLENDING_HINT))
+
+    return float_option("--blur", **attrs)
+
+
 def sharpen_option(**attrs):
     attrs.setdefault("help", "Convolution kernel: Sharpen {0}".format(ALPHA_BLENDING_HINT))
 
