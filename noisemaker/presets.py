@@ -245,6 +245,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "stray-hair": {
+        "post_kwargs": {
+            "with_stray_hair": True
+        }
+    },
+
     "swerve-h": {
         "kwargs": {
             "warp_freq": [random.randint(3, 6), 1],

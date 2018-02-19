@@ -9,7 +9,7 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False, with_interference=False):
+                 with_false_color=False, with_interference=False, with_stray_hair=False):
     """
     Apply complex post-processing recipes.
 
@@ -50,6 +50,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_interference:
         tensor = interference(tensor, shape)
+
+    if with_stray_hair:
+        tensor = stray_hair(tensor, shape)
 
     return tensor
 
@@ -236,3 +239,21 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, **basic_kwargs
     clut = basic(2, shape, **basic_kwargs)
 
     return effects.normalize(effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
+
+
+def stray_hair(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    mask = basic(4, value_shape,
+                 invert=True,
+                 with_worms=4,
+                 worms_alpha=1,
+                 worms_density=.0025 + random.random() * .00125,
+                 worms_duration=random.randint(6, 12),
+                 worms_kink=random.randint(5, 50),
+                 )
+
+    return tensor * mask
