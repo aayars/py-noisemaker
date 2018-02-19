@@ -263,7 +263,7 @@ def stray_hair(tensor, shape):
 
     brightness = basic(32, value_shape)
 
-    return effects.blend(tensor, brightness * .25, mask * .75)
+    return effects.blend(tensor, brightness * .333, mask * .666)
 
 
 def grime(tensor, shape):
@@ -274,12 +274,11 @@ def grime(tensor, shape):
 
     mask = multires(5, value_shape, distrib="exp", octaves=8, refract_range=1.0, deriv=3, deriv_alpha=.5)
 
-    dusty = effects.blend(tensor, .5, tf.square(mask) * .125)
+    dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
 
     specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, distrib="exp", refract_range=.1)
-    specks = effects.resample(specks, value_shape)
-    specks = 1.0 - effects.normalize(tf.maximum(specks - .4, 0.0))
+    specks = 1.0 - tf.sqrt(effects.normalize(tf.maximum(specks - .5, 0.0)))
 
-    dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape), .25) * specks
+    dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape), .125) * specks
 
     return effects.blend(tensor, dusty, mask)
