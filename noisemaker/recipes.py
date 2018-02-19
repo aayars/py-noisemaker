@@ -56,6 +56,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
+        tensor = stray_hair(tensor, shape)
 
     return tensor
 
@@ -253,16 +254,16 @@ def stray_hair(tensor, shape):
     mask = basic(4, value_shape,
                  with_worms=4,
                  worms_alpha=1,
-                 worms_density=.0025 + random.random() * .0025,
-                 worms_duration=random.randint(6, 12),
+                 worms_density=.005 + random.random() * .0025,
+                 worms_duration=random.randint(8, 16),
                  worms_kink=random.randint(5, 50),
                  worms_stride=.5,
-                 worms_stride_deviation=.125,
+                 worms_stride_deviation=.25,
                  )
 
     brightness = basic(32, value_shape)
 
-    return effects.blend(tensor, brightness * .5, mask * .75)
+    return effects.blend(tensor, brightness * .25, mask * .75)
 
 
 def grime(tensor, shape):
