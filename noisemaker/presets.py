@@ -1556,6 +1556,17 @@ PRESETS = {
         }
     },
 
+    "lightcycle-derby": {
+        "kwargs": {
+            "freq": random.randint(16, 32),
+            "rgb": random.randint(0, 1),
+            "spline_order": 0,
+            "lattice_drift": 1,
+            "with_bloom": .25 + random.random() * .125,
+            "with_erosion_worms": True,
+        }
+    },
+
     "magic-squares": {
         "kwargs": {
             "channels": 3,
