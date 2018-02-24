@@ -300,8 +300,8 @@ def frame(tensor, shape):
     white = tf.ones(value_shape)
 
     mask = effects.singularity(tensor, value_shape, 1, dist_func=3, inverse=True)
-    mask = effects.normalize(mask + noise * .005)
-    mask = effects.blend_layers(tf.sqrt(mask), value_shape, 0.025, white, black, black, black)
+    mask = effects.normalize(mask + noise * .0025)
+    mask = effects.blend_layers(tf.sqrt(mask), value_shape, 0.0125, white, black, black, black)
 
     faded = tensor
     faded = tf.image.adjust_brightness(faded, .1)
@@ -314,6 +314,7 @@ def frame(tensor, shape):
     edge_texture = white * .9 + effects.shadow(noise, value_shape, 1.0) * .1
 
     out = effects.blend(faded, edge_texture, mask)
+    out = effects.aberration(out, shape, .00333)
     out = grime(out, shape)
     out = stray_hair(out, shape)
 
