@@ -238,6 +238,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "shake-it-like": {
+        "post_kwargs": {
+            "with_frame": True,
+        }
+    },
+
     "snow": {
         "post_kwargs": {
             "with_dither": .05 + random.random() * .025,

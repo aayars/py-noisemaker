@@ -9,7 +9,7 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False, with_interference=False, with_stray_hair=False, with_grime=False):
+                 with_false_color=False, with_interference=False, with_frame=False, with_stray_hair=False, with_grime=False):
     """
     Apply complex post-processing recipes.
 
@@ -22,6 +22,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
+    :param bool with_frame: Shitty instant camera effect
     :param bool with_false_color: Swap colors with basic noise
     :param bool with_interference: CRT-like moire effect
     :return: Tensor
@@ -50,6 +51,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_interference:
         tensor = interference(tensor, shape)
+
+    if with_frame:
+        tensor = frame(tensor, shape)
 
     if with_grime:
         tensor = grime(tensor, shape)
@@ -282,3 +286,35 @@ def grime(tensor, shape):
     dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape), .125) * specks
 
     return effects.blend(tensor, dusty, mask)
+
+
+def frame(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    noise = multires(128, value_shape, octaves=8)
+
+    black = tf.zeros(value_shape)
+    white = tf.ones(value_shape)
+
+    mask = effects.singularity(tensor, value_shape, 1, dist_func=3, inverse=True)
+    mask = effects.normalize(mask + noise * .005)
+    mask = effects.blend_layers(tf.sqrt(mask), value_shape, 0.025, white, black, black, black)
+
+    faded = tensor
+    faded = tf.image.adjust_brightness(faded, .1)
+    faded = tf.image.adjust_contrast(faded, .75)
+    faded = effects.light_leak(faded, shape, .125)
+    faded = effects.vignette(faded, shape, 0.05, .75)
+    faded = tf.image.adjust_saturation(faded, .5)
+    faded = tf.image.random_hue(faded, .05)
+
+    edge_texture = white * .9 + effects.shadow(noise, value_shape, 1.0) * .1
+
+    out = effects.blend(faded, edge_texture, mask)
+    out = grime(out, shape)
+    out = stray_hair(out, shape)
+
+    return out
