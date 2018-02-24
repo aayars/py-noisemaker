@@ -254,7 +254,7 @@ def stray_hair(tensor, shape):
     mask = basic(4, value_shape,
                  with_worms=4,
                  worms_alpha=1,
-                 worms_density=.005 + random.random() * .0025,
+                 worms_density=.0025 + random.random() * .00125,
                  worms_duration=random.randint(8, 16),
                  worms_kink=random.randint(5, 50),
                  worms_stride=.5,
