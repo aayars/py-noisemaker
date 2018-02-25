@@ -308,8 +308,6 @@ def frame(tensor, shape):
     faded = tf.image.adjust_contrast(faded, .75)
     faded = effects.light_leak(faded, shape, .125)
     faded = effects.vignette(faded, shape, 0.05, .75)
-    faded = tf.image.adjust_saturation(faded, .5)
-    faded = tf.image.random_hue(faded, .05)
 
     edge_texture = white * .9 + effects.shadow(noise, value_shape, 1.0) * .1
 
@@ -317,5 +315,8 @@ def frame(tensor, shape):
     out = effects.aberration(out, shape, .00333)
     out = grime(out, shape)
     out = stray_hair(out, shape)
+
+    out = tf.image.adjust_saturation(out, .5)
+    out = tf.image.random_hue(out, .05)
 
     return out
