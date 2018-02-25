@@ -322,23 +322,18 @@ def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     uv_floor = int(uv_value)
     uv_fract = uv_value - uv_floor
 
-    uv2_value = uv_noise[(uv_y + int(shape[0] * .5)) % shape[0]][uv_x] * len(glyphs)
-    uv2_floor = int(uv2_value)
-    uv2_fract = uv2_value - uv2_floor
-
-    uv3_value = uv_noise[uv_y][(uv_x + int(shape[1] * .5)) % shape[1]] * len(glyphs)
-    uv3_floor = int(uv3_value)
-    uv3_fract = uv3_value - uv3_floor
+    float2 = uv_noise[(uv_y + int(shape[0] * .5)) % shape[0]][uv_x]
+    float3 = uv_noise[uv_y][(uv_x + int(shape[1] * .5)) % shape[1]]
 
     if uv_fract < .5:
         _x = tex_x
         tex_x = tex_y
         tex_y = _x
 
-    if uv2_fract < .5:
+    if float2 < .5:
         tex_x = shape[1] - tex_x - 1
 
-    if uv3_fract < .5:
+    if float3 < .5:
         tex_y = shape[0] - tex_y - 1
 
     return glyphs[uv_floor][tex_x][tex_y]
