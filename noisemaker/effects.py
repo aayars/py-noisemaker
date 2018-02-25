@@ -1222,7 +1222,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     half_width = int(width * .5)
     half_height = int(height * .5)
 
-    # Wrapping edges!
+    # Wrapping edges! Nearest neighbors might be actually be "wrapped around", on the opposite side of the image.
+    # Determine which direction is closer, and use the minimum.
     x0_diff = x_index - x - half_width
     x1_diff = x_index - x + half_width
     y0_diff = y_index - y - half_height
@@ -1271,7 +1272,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if diagram_type in VoronoiDiagramType.flow_members():
         range_out = tf.reduce_sum(tf.log(dist), 3)
 
-        range_out = resample(offset(tf.reduce_sum(tf.log(dist), 3), shape, **offset_kwargs), original_shape)
+        range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
 
         if diagram_type == VoronoiDiagramType.flow:
             range_out = normalize(range_out)
