@@ -292,31 +292,34 @@ def frame(tensor, shape):
     """
     """
 
-    value_shape = [shape[0], shape[1], 1]
+    half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
+    half_value_shape = [half_shape[0], half_shape[1], 1]
 
-    noise = multires(128, value_shape, octaves=8)
+    noise = multires(64, half_value_shape, octaves=8)
 
-    black = tf.zeros(value_shape)
-    white = tf.ones(value_shape)
+    black = tf.zeros(half_value_shape)
+    white = tf.ones(half_value_shape)
 
-    mask = effects.singularity(tensor, value_shape, 1, dist_func=3, inverse=True)
-    mask = effects.normalize(mask + noise * .0025)
-    mask = effects.blend_layers(tf.sqrt(mask), value_shape, 0.0125, white, black, black, black)
+    mask = effects.singularity(None, half_value_shape, 1, dist_func=3, inverse=True)
+    mask = effects.normalize(mask + noise * .005)
+    mask = effects.blend_layers(tf.sqrt(mask), half_value_shape, 0.0125, white, black, black, black)
 
-    faded = tensor
+    faded = effects._downsample(tensor, shape, half_shape)
     faded = tf.image.adjust_brightness(faded, .1)
     faded = tf.image.adjust_contrast(faded, .75)
-    faded = effects.light_leak(faded, shape, .125)
-    faded = effects.vignette(faded, shape, 0.05, .75)
+    faded = effects.light_leak(faded, half_shape, .125)
+    faded = effects.vignette(faded, half_shape, 0.05, .75)
 
-    edge_texture = white * .9 + effects.shadow(noise, value_shape, 1.0) * .1
+    edge_texture = white * .9 + effects.shadow(noise, half_value_shape, 1.0) * .1
 
     out = effects.blend(faded, edge_texture, mask)
-    out = effects.aberration(out, shape, .00333)
-    out = grime(out, shape)
-    out = stray_hair(out, shape)
+    out = effects.aberration(out, half_shape, .00666)
+    out = grime(out, half_shape)
 
     out = tf.image.adjust_saturation(out, .5)
     out = tf.image.random_hue(out, .05)
+
+    out = effects.resample(out, shape)
+    out = stray_hair(out, shape)
 
     return out
