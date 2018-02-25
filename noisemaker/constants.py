@@ -207,6 +207,12 @@ class ValueMask(Enum):
 
     white_bear = 108
 
+    zero = 109
+
+    one = 110
+
+    binary = 111
+
     @classmethod
     def grid_members(cls):
         return [m for m in cls if cls.is_grid(m)]

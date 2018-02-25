@@ -65,13 +65,36 @@ Masks = {
         ]
     },
 
+    ValueMask.zero: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 1.0, 1.0, 1.0, 0.0 ],
+            [ 0.0, 1.0, 0.0, 0.0, 1.0, 1.0 ],
+            [ 0.0, 1.0, 0.0, 1.0, 0.0, 1.0 ],
+            [ 0.0, 1.0, 1.0, 0.0, 0.0, 1.0 ],
+            [ 0.0, 0.0, 1.0, 1.0, 1.0, 0.0 ]
+        ]
+    },
+
+    ValueMask.one: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 1.0, 1.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 ],
+            [ 0.0, 0.0, 1.0, 1.0, 1.0, 0.0 ]
+        ]
+    },
+
 }
 
 
-# Procedural masks, also mapping to keys in the ValueMask enum.
+# Procedural masks, corresponding to keys in constants.ValueMask
 
-
-def sparse(*args):
+def sparse(**kwargs):
     return 1.0 if random.random() < .15 else 0.0
 
 
@@ -83,23 +106,23 @@ def invaders_square_shape():
     return (6, 6)
 
 
-def invaders(*args):
-    return _invaders(*args)
+def invaders(**kwargs):
+    return _invaders(**kwargs)
 
 
-def invaders_square(*args):
-    return _invaders(*args)
+def invaders_square(**kwargs):
+    return _invaders(**kwargs)
 
 
-def white_bear(*args):
-    return _invaders(*args)
+def white_bear(**kwargs):
+    return _invaders(**kwargs)
 
 
 def white_bear_shape():
     return (4, 4)
 
 
-def _invaders(x, y, row, shape, *args):
+def _invaders(x, y, row, shape, **kwargs):
     # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
     height = shape[0]
     width = shape[1]
@@ -118,7 +141,7 @@ def matrix_shape():
     return (6, 4)
 
 
-def matrix(x, y, row, shape, *args):
+def matrix(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -132,7 +155,7 @@ def letters_shape():
     return (random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1)
 
 
-def letters(x, y, row, shape, *args):
+def letters(x, y, row, shape, **kwargs):
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
     width = shape[1]
@@ -156,7 +179,7 @@ def iching_shape():
     return (14, 8)
 
 
-def iching(x, y, row, shape, *args):
+def iching(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -182,7 +205,7 @@ def ideogram_shape():
     return (random.randint(4, 6) * 2, ) * 2
 
 
-def ideogram(x, y, row, shape, *args):
+def ideogram(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -202,7 +225,7 @@ def script_shape():
     return (random.randint(7, 9), random.randint(12, 24))
 
 
-def script(x, y, row, shape, *args):
+def script(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -234,3 +257,13 @@ def script(x, y, row, shape, *args):
         return 0.0
 
     return random.random() > .5
+
+
+def binary_shape():
+    return (6, 6)
+
+
+def binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    glyph = Masks[ValueMask.zero] if uv_noise[uv_y][uv_x] < .5 else Masks[ValueMask.one]
+
+    return glyph["values"][y % shape[0]][x % shape[1]]

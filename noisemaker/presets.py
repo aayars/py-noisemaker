@@ -517,6 +517,22 @@ PRESETS = {
         }
     },
 
+    "bit-by-bit": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 6 * random.randint(25, 125),
+            "mask": "binary",
+            "spline_order": 1,
+            "with_bloom": .25 + random.random() * .125,
+            "with_shadow": random.random(),
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+        }
+    },
+
     "blacklight-fantasy": {
         "kwargs": {
             "invert": 1,

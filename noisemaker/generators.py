@@ -57,12 +57,19 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
             mask_function = getattr(masks, mask.name)
             mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)()
 
+            uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
+            uv_noise = np.random.uniform(size=uv_shape)  # Use numpy here, so values won't be locked away in a graph
+
             for y in range(channel_shape[0]):
+                uv_y = int((y  / channel_shape[0]) * uv_shape[0])
+
                 mask_row = []
                 mask_values.append(mask_row)
 
                 for x in range(channel_shape[1]):
-                    mask_row.append(mask_function(x, y, mask_row, mask_shape))
+                    uv_x = int((x / channel_shape[1]) * uv_shape[1])
+
+                    mask_row.append(mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise))
 
         tensor *= tf.reshape(mask_values, channel_shape)
 
