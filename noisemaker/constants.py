@@ -207,11 +207,21 @@ class ValueMask(Enum):
 
     white_bear = 108
 
-    zero = 109
+    binary = 120
 
-    one = 110
+    zero = 121
 
-    binary = 111
+    one = 122
+
+    tromino = 130
+
+    tromino_i = 131
+
+    tromino_l = 132
+
+    tromino_o = 133
+
+    tromino_s = 134
 
     @classmethod
     def grid_members(cls):

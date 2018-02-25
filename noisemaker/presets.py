@@ -2497,6 +2497,23 @@ PRESETS = {
         }
     },
 
+    "trominos": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 4 * random.randint(25, 50),
+            "invert": 1,
+            "mask": "tromino",
+            "spline_order": 0,
+            "with_bloom": .25 + random.random() * .125,
+            "with_sobel": random.randint(1, 3),
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+        }
+    },
+
     "turf": {
         "kwargs": {
             "freq": random.randint(6, 12),
