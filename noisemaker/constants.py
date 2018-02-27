@@ -189,6 +189,34 @@ class ValueMask(Enum):
 
     v_tri = 13
 
+    zero = 20
+
+    one = 21
+
+    two = 22
+
+    three = 23
+
+    four = 24
+
+    five = 25
+
+    six = 26
+
+    seven = 27
+
+    eight = 28
+
+    nine = 29
+
+    tromino_i = 30
+
+    tromino_l = 31
+
+    tromino_o = 32
+
+    tromino_s = 33
+
     sparse = 100
 
     invaders = 101
@@ -207,21 +235,11 @@ class ValueMask(Enum):
 
     white_bear = 108
 
-    binary = 120
+    binary = 109
 
-    zero = 121
+    tromino = 110
 
-    one = 122
-
-    tromino = 130
-
-    tromino_i = 131
-
-    tromino_l = 132
-
-    tromino_o = 133
-
-    tromino_s = 134
+    numeric = 111
 
     @classmethod
     def grid_members(cls):

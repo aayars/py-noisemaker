@@ -1740,6 +1740,24 @@ PRESETS = {
         }
     },
 
+    "numberwang": {
+        "kwargs": {
+            "mask": "numeric",
+            "freq": 6 * random.randint(15, 30),
+            "spline_order": random.randint(0, 2),
+            "distrib": "ones",
+            "warp_range": .5 + random.random() * 1.5,
+            "warp_octaves": 1,
+            "warp_freq": random.randint(2, 4),
+            "warp_interp": 3,
+            "with_bloom": .25 + random.random() * .125,
+        },
+
+        "post_kwargs": {
+            "with_false_color": True
+        }
+    },
+
     "octave-rings": {
         "kwargs": {
             "corners": True,
