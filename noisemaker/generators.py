@@ -49,7 +49,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
     if mask:
         if mask in masks.Masks:
-            mask_values = effects.expand_tile(masks.Masks[mask]["values"], masks.Masks[mask]["shape"], [channel_shape[0], channel_shape[1]])
+            mask_values = effects.expand_tile(tf.cast(masks.Masks[mask]["values"], tf.float32),
+                                              masks.Masks[mask]["shape"],
+                                              [channel_shape[0], channel_shape[1]])
 
         else:
             mask_values = []
@@ -69,7 +71,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                 for x in range(channel_shape[1]):
                     uv_x = int((x / channel_shape[1]) * uv_shape[1])
 
-                    mask_row.append(mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise))
+                    mask_row.append(mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise) * 1.0)
 
         tensor *= tf.reshape(mask_values, channel_shape)
 
