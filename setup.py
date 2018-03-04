@@ -23,5 +23,6 @@ setup(name='noisemaker',
 
       install_requires=[
         "click==6.7",
+        "Pillow==4.1.1",
         ]
       )

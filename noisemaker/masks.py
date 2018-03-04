@@ -1,5 +1,7 @@
 import random
 
+import tensorflow as tf
+
 from noisemaker.constants import ValueMask
 
 
@@ -182,6 +184,78 @@ Masks = {
             [ 0, 1, 1, 1, 1, 0 ],
             [ 0, 0, 0, 0, 1, 0 ],
             [ 0, 1, 1, 1, 0, 0 ]
+        ]
+    },
+
+    ValueMask.a: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 1, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ]
+        ]
+    },
+
+    ValueMask.b: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ]
+        ]
+    },
+
+    ValueMask.c: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 1, 1, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 1, 1, 0 ]
+        ]
+    },
+
+    ValueMask.d: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ]
+        ]
+    },
+
+    ValueMask.e: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 1, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 1, 0 ]
+        ]
+    },
+
+    ValueMask.f: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 1, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ]
         ]
     },
 
@@ -410,12 +484,12 @@ def tromino_shape():
 
 
 def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    glyphs = [Masks[g]["values"] for g in Masks if g.name.startswith("tromino")]
+    atlas = [Masks[g]["values"] for g in Masks if g.name.startswith("tromino")]
 
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
-    uv_value = uv_noise[uv_y][uv_x] * len(glyphs)
+    uv_value = uv_noise[uv_y][uv_x] * len(atlas)
     uv_floor = int(uv_value)
     uv_fract = uv_value - uv_floor
 
@@ -433,7 +507,7 @@ def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     if float3 < .5:
         tex_y = shape[0] - tex_y - 1
 
-    return glyphs[uv_floor][tex_x][tex_y]
+    return atlas[uv_floor][tex_x][tex_y]
 
 
 def numeric_shape():
@@ -441,8 +515,30 @@ def numeric_shape():
 
 
 def numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    glyphs = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.nine.value]
+    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.nine.value]
 
-    glyph = glyphs[int(uv_noise[uv_y][uv_x] * 9)]
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
+
+    return glyph[y % shape[0]][x % shape[1]]
+
+
+def hex_shape():
+    return (6, 6)
+
+
+def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.f.value]
+
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
+
+    return glyph[y % shape[0]][x % shape[1]]
+
+
+def truetype_shape():
+    return (25, 25)
+
+
+def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * len(atlas))]
 
     return glyph[y % shape[0]][x % shape[1]]

@@ -521,7 +521,7 @@ PRESETS = {
         "kwargs": {
             "distrib": "ones",
             "freq": 6 * random.randint(25, 125),
-            "mask": "binary",
+            "mask": ["binary", "hex", "numeric"][random.randint(0, 2)],
             "spline_order": 1,
             "with_bloom": .25 + random.random() * .125,
             "with_shadow": random.random(),
@@ -574,6 +574,23 @@ PRESETS = {
             "warp_range": .05 + random.random() * .1,
             "with_reverb": random.randint(1, 3),
             "with_shadow": 1,
+        }
+    },
+
+    "blockchain-stock-photo-background": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(20, 30) * 25,
+            "mask": ["truetype", "binary", "hex", "numeric"][random.randint(0, 3)],
+            "spline_order": random.randint(0, 2),
+            "with_aberration": .01 + random.random() * .01,
+            "with_vignette": 1.0,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_glitch": True,
+            "with_scan_error": True,
         }
     },
 
@@ -1717,6 +1734,7 @@ PRESETS = {
             "with_shadow": .25 + random.random() * .25,
         }
     },
+
     "now": {
         "kwargs": {
             "channels": 3,
@@ -2149,6 +2167,19 @@ PRESETS = {
         }
     },
 
+    "shmootype": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(4, 8) * 100,
+            "mask": "truetype",
+            "spline_order": random.randint(0, 2),
+            "warp_freq": 3,
+            "warp_interp": 3,
+            "warp_octaves": 1,
+            "warp_range": 2,
+        }
+    },
+
     "sideways": {
         "kwargs": {
             "freq": random.randint(6, 12),
@@ -2412,6 +2443,19 @@ PRESETS = {
          }
     },
 
+    "the-inward-spiral": {
+        "kwargs": {
+            "point_freq": 1,
+            "voronoi_func": random.randint(1, 3),
+            "with_voronoi": 2,
+            "with_worms": random.randint(1, 5),
+            "worms_alpha": 1,
+            "worms_duration": random.randint(1, 4),
+            "worms_density": 500,
+            "worms_kink": random.randint(6, 24),
+        }
+    },
+
     "time-to-reflect": {
         "kwargs": {
             "corners": True,
@@ -2623,6 +2667,18 @@ PRESETS = {
             "spline_order": 0,
             "vortex_range": 2.5 + random.random() * 5,
             "with_reverb": random.randint(3, 5),
+        }
+    },
+
+    "warped-cells": {
+        "kwargs": {
+            "invert": 1,
+            "point_distrib": ([m.value for m in PointDistribution])[random.randint(0, len(PointDistribution) - 1)],
+            "point_freq": random.randint(6, 10),
+            "post_ridges": True,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "warp_range": .5 + random.random() * .5,
+            "with_voronoi": 2,
         }
     },
 

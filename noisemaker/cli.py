@@ -162,6 +162,12 @@ def mask_option(**attrs):
     return str_option("--mask", type=click.Choice([m.name for m in ValueMask]), **attrs)
 
 
+def mask_inverse_option(**attrs):
+    attrs.setdefault("help", "Mask: Invert hot pixels")
+
+    return bool_option("--mask-inverse", **attrs)
+
+
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
 

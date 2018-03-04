@@ -7,7 +7,8 @@ import noisemaker.effects as effects
 import noisemaker.masks as masks
 
 
-def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, spline_order=3, seed=None, wavelet=False):
+def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
+           spline_order=3, seed=None, wavelet=False):
     """
     """
 
@@ -56,6 +57,17 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         else:
             mask_values = []
 
+            atlas = None
+
+            if mask == ValueMask.truetype:
+                from noisemaker.glyphs import load_glyphs
+                from noisemaker.masks import truetype_shape
+
+                atlas = load_glyphs(truetype_shape())
+
+                if not atlas:
+                    mask = ValueMask.numeric  # Fall back to canned values
+
             mask_function = getattr(masks, mask.name)
             mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)()
 
@@ -71,7 +83,13 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                 for x in range(channel_shape[1]):
                     uv_x = int((x / channel_shape[1]) * uv_shape[1])
 
-                    mask_row.append(mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise) * 1.0)
+                    pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape,
+                                          uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, atlas=atlas) * 1.0
+
+                    if mask_inverse:
+                        pixel = 1.0 - pixel
+
+                    mask_row.append(pixel)
 
         tensor *= tf.reshape(mask_values, channel_shape)
 
@@ -87,7 +105,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
-          distrib=ValueDistribution.normal, corners=False, mask=None, lattice_drift=0.0,
+          distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
           rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, brightness_distrib=None, saturation_distrib=None,
           **post_process_args):
     """
@@ -107,6 +125,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
     :param None|ValueMask mask:
+    :param bool mask_inverse:
     :param float lattice_drift: Push away from underlying lattice
     :param int seed: Random seed for reproducible output. Ineffective with exp
     :param bool rgb: Disable HSV
@@ -123,7 +142,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, spline_order=spline_order, seed=seed, wavelet=wavelet)
+    tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
+                    spline_order=spline_order, seed=seed, wavelet=wavelet)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -139,8 +159,9 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
         if saturation_distrib:
-            s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners, mask=mask,
-                                  spline_order=spline_order, seed=seed, wavelet=wavelet))
+            s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
+                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order, seed=seed,
+                                  wavelet=wavelet))
 
         else:
             s = tensor[:, :, 1]
@@ -148,8 +169,9 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         s *= saturation
 
         if brightness_distrib:
-            v = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=brightness_distrib, corners=corners, mask=mask,
-                                  spline_order=spline_order, seed=seed, wavelet=wavelet))
+            v = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=brightness_distrib, corners=corners,
+                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order, seed=seed,
+                                  wavelet=wavelet))
 
         else:
             v = tensor[:, :, 2]
@@ -172,8 +194,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
 
 def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
-             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False, mask=None,
-             deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
+             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
+             mask=None, mask_inverse=False, deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, saturation_distrib=None, brightness_distrib=None,
@@ -203,6 +225,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
     :param None|ValueMask mask:
+    :param bool mask_inverse:
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
@@ -237,8 +260,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
 
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
-                      distrib=distrib, corners=corners, mask=mask, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha, lattice_drift=lattice_drift,
-                      rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
+                      distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
+                      lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                       )
 

@@ -28,6 +28,7 @@ import noisemaker.recipes as recipes
 @cli.distrib_option()
 @cli.corners_option()
 @cli.mask_option()
+@cli.mask_inverse_option()
 @cli.lattice_drift_option()
 @cli.vortex_option()
 @cli.warp_option()
@@ -111,8 +112,8 @@ import noisemaker.recipes as recipes
 def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
          reflect, refract, reindex, reverb, reverb_iterations, post_reindex, post_reflect, post_refract, clut, clut_horizontal, clut_range,
          ripple, ripple_freq, ripple_kink, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
-         wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, posterize,
-         erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
+         wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, mask_inverse,
+         posterize, erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
          glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
          pop, bloom, rgb, hue_range, hue_rotation, saturation, saturation_distrib, post_hue_rotation, post_saturation, brightness_distrib, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
@@ -134,7 +135,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
                                  with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_corners=point_corners,
                                  point_generations=point_generations, point_drift=point_drift,
                                  with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
-                                 spline_order=interp, distrib=distrib, corners=corners, mask=mask,
+                                 spline_order=interp, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,

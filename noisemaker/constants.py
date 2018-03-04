@@ -209,13 +209,25 @@ class ValueMask(Enum):
 
     nine = 29
 
-    tromino_i = 30
+    a = 30
 
-    tromino_l = 31
+    b = 31
 
-    tromino_o = 32
+    c = 32
 
-    tromino_s = 33
+    d = 33
+
+    e = 34
+
+    f = 35
+
+    tromino_i = 40
+
+    tromino_l = 41
+
+    tromino_o = 42
+
+    tromino_s = 43
 
     sparse = 100
 
@@ -240,6 +252,10 @@ class ValueMask(Enum):
     tromino = 110
 
     numeric = 111
+
+    hex = 112
+
+    truetype = 120
 
     @classmethod
     def grid_members(cls):
