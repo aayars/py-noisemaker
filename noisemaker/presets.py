@@ -475,6 +475,30 @@ PRESETS = {
         }
     },
 
+    "are-you-human": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 25,
+            "hue_range": random.random() * .25,
+            "hue_rotation": random.random(),
+            "mask": "truetype",
+            "octaves": 8,
+            "saturation": random.random() * .125,
+            "spline_order": 0,
+            "warp_freq": 2,
+            "warp_interp": 3,
+            "warp_octaves": 1,
+            "warp_range": 1,
+            "with_aberration": .0075 + random.random() * .0075,
+            "with_density_map": True,
+        },
+
+        "post_kwargs": {
+            "with_snow": .333 + random.random() * .333,
+            "with_dither": .25,
+        }
+    },
+
     "aztec-waffles": {
         "kwargs": {
             "freq": 7,
