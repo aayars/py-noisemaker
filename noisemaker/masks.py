@@ -535,7 +535,7 @@ def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
 
 
 def truetype_shape():
-    return (25, 25)
+    return (10, 10)
 
 
 def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
