@@ -484,7 +484,7 @@ PRESETS = {
     "are-you-human": {
         "kwargs": {
             "distrib": "ones",
-            "freq": 25,
+            "freq": 15,
             "hue_range": random.random() * .25,
             "hue_rotation": random.random(),
             "mask": "truetype",
@@ -610,7 +610,7 @@ PRESETS = {
     "blockchain-stock-photo-background": {
         "kwargs": {
             "distrib": "ones",
-            "freq": random.randint(20, 30) * 25,
+            "freq": random.randint(20, 30) * 15,
             "mask": ["truetype", "binary", "hex", "numeric"][random.randint(0, 3)],
             "spline_order": random.randint(0, 2),
             "with_aberration": .01 + random.random() * .01,
@@ -2200,7 +2200,7 @@ PRESETS = {
     "shmootype": {
         "kwargs": {
             "distrib": "ones",
-            "freq": random.randint(4, 8) * 100,
+            "freq": random.randint(4, 6) * 150,
             "mask": "truetype",
             "spline_order": random.randint(0, 2),
             "warp_freq": 3,
