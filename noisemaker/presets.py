@@ -123,6 +123,12 @@ EFFECTS_PRESETS = {
         }
     },
 
+    "glyph-map": {
+        "kwargs": {
+            "with_glyph_map": True,
+        }
+    },
+
     "light-leak": {
         "kwargs": {
             "vignette_brightness": random.randint(0, 1),

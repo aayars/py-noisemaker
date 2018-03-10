@@ -46,7 +46,7 @@ def load_glyphs(shape):
         glyph = []
         glyphs.append(glyph)
 
-        image = Image.new("F", (shape[1], shape[0]))
+        image = Image.new("RGB", (shape[1], shape[0]))
 
         ImageDraw.Draw(image).text((0, 0), chr(i), font=font)
 
@@ -55,7 +55,7 @@ def load_glyphs(shape):
             glyph.append(row)
 
             for x in range(shape[1]):
-                value = image.getpixel((x, y))
+                value = image.getpixel((x, y))[0] / 255
 
                 row.append(value)
                 sum += value

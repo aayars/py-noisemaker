@@ -8,8 +8,10 @@ import numpy as np
 import tensorflow as tf
 
 from noisemaker.constants import ConvKernel, DistanceFunction, PointDistribution, VoronoiDiagramType, WormBehavior
+from noisemaker.glyphs import load_glyphs
 from noisemaker.points import point_cloud
 
+import noisemaker.masks as masks
 import noisemaker.util as util
 
 
@@ -30,7 +32,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, **convolve_kwargs):
+                 with_density_map=False, with_glyph_map=False, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -109,7 +111,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|int with_conv_feedback: Conv2D feedback iterations
     :param float conv_feedback_alpha: Conv2D feedback alpha
     :param bool with_density_map: Map values to color histogram
-
+    :param bool with_glyph_map: Map values to glyph brightness
     :return: Tensor
     """
 
@@ -154,6 +156,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if clut:
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
+
+    if with_glyph_map:
+        tensor = glyph_map(tensor, shape)
 
     if warp_range:
         if warp_interp is None:
@@ -1915,3 +1920,37 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     up = tf.square(tf.maximum(shade * .5, 0.0))
 
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
+
+
+def glyph_map(tensor, shape):
+    """
+    :param Tensor tensor:
+    :param list[int] shape:
+    """
+
+    height, width, channels = shape
+
+    glyph_shape = masks.truetype_shape()
+
+    glyphs = load_glyphs(glyph_shape)
+
+    # Figure out how many glyphs it will take approximately to cover the image
+    uv_shape = [int(shape[0] / glyph_shape[0]) or 1, int(shape[1] / glyph_shape[1] or 1), 1]
+
+    # Generate a value map, multiply by len(glyphs) to create glyph index offsets
+    value_shape = [height, width, 1]
+    uv_noise = _downsample(value_map(tensor, shape, keep_dims=True), value_shape, uv_shape)
+
+    approx_shape = [glyph_shape[0] * uv_shape[0], glyph_shape[1] * uv_shape[1], 1]
+
+    uv_noise = resample(uv_noise, approx_shape, spline_order=0)
+
+    x_index = row_index(approx_shape) % glyph_shape[1]
+    y_index = column_index(approx_shape) % glyph_shape[0]
+
+    glyph_count = len(glyphs)
+    z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
+
+    out = resample(tf.gather_nd(tf.expand_dims(glyphs, -1), tf.stack([z_index, y_index, x_index], 2)), value_shape, spline_order=1)
+
+    return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
