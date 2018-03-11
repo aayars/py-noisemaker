@@ -69,7 +69,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                     mask = ValueMask.numeric  # Fall back to canned values
 
             mask_function = getattr(masks, mask.name)
-            mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)()
+            mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)() or channel_shape
 
             uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
             uv_noise = np.random.uniform(size=uv_shape)  # Use numpy here, so values won't be locked away in a graph

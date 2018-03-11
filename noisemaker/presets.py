@@ -2441,6 +2441,27 @@ PRESETS = {
         }
     },
 
+    "teh-matrex-haz-u": {
+        "kwargs": {
+            "distrib": "exp",
+            "freq": (random.randint(1, 4), random.randint(48, 96)),
+            "hue_rotation": .4 + random.random() * .2,
+            "hue_range": .25,
+            "lattice_drift": 1,
+            "mask": "sparse",
+            "octaves": 2,
+            "post_saturation": 2,
+            "spline_order": 1,
+            "with_bloom": .333 + random.random() * .333,
+            "with_glyph_map": True,
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+        }
+    },
+
     "tensorflower": {
         "kwargs": {
             "corners": True,
