@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 import tensorflow as tf
 
 from noisemaker.constants import ValueMask
@@ -303,6 +304,43 @@ Masks = {
 
 
 # Procedural masks, corresponding to keys in constants.ValueMask
+
+def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=False):
+    """
+    """
+
+    mask_function = globals().get(mask.name)
+    mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or channel_shape
+
+    mask_values = []
+
+    uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
+
+    if uv_noise is None:
+        uv_noise = np.random.uniform(size=uv_shape)
+
+    sum = 0
+
+    for y in range(channel_shape[0]):
+        uv_y = int((y  / channel_shape[0]) * uv_shape[0])
+
+        mask_row = []
+        mask_values.append(mask_row)
+
+        for x in range(channel_shape[1]):
+            uv_x = int((x / channel_shape[1]) * uv_shape[1])
+
+            pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise,
+                                  atlas=atlas) * 1.0
+
+            if inverse:
+                pixel = 1.0 - pixel
+
+            mask_row.append(pixel)
+            sum += pixel
+
+    return mask_values, sum
+
 
 def sparse(**kwargs):
     return 1 if random.random() < .15 else 0

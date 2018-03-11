@@ -55,41 +55,17 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
                                               [channel_shape[0], channel_shape[1]])
 
         else:
-            mask_values = []
-
             atlas = None
 
             if mask == ValueMask.truetype:
                 from noisemaker.glyphs import load_glyphs
-                from noisemaker.masks import truetype_shape
 
-                atlas = load_glyphs(truetype_shape())
+                atlas = load_glyphs(masks.truetype_shape())
 
                 if not atlas:
                     mask = ValueMask.numeric  # Fall back to canned values
 
-            mask_function = getattr(masks, mask.name)
-            mask_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)() or channel_shape
-
-            uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
-            uv_noise = np.random.uniform(size=uv_shape)  # Use numpy here, so values won't be locked away in a graph
-
-            for y in range(channel_shape[0]):
-                uv_y = int((y  / channel_shape[0]) * uv_shape[0])
-
-                mask_row = []
-                mask_values.append(mask_row)
-
-                for x in range(channel_shape[1]):
-                    uv_x = int((x / channel_shape[1]) * uv_shape[1])
-
-                    pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape,
-                                          uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, atlas=atlas) * 1.0
-
-                    if mask_inverse:
-                        pixel = 1.0 - pixel
-
-                    mask_row.append(pixel)
+            mask_values, _ = masks.bake_procedural(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
 
         tensor *= tf.reshape(mask_values, channel_shape)
 

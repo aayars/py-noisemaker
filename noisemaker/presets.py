@@ -125,7 +125,7 @@ EFFECTS_PRESETS = {
 
     "glyph-map": {
         "kwargs": {
-            "with_glyph_map": True,
+            "with_glyph_map": "truetype",
         }
     },
 
@@ -2453,7 +2453,7 @@ PRESETS = {
             "post_saturation": 2,
             "spline_order": 1,
             "with_bloom": .333 + random.random() * .333,
-            "with_glyph_map": True,
+            "with_glyph_map": [["binary", "numeric", "hex"][random.randint(0, 2)], "truetype", "ideogram", "invaders_square"][random.randint(0, 3)],
         },
 
         "post_kwargs": {
