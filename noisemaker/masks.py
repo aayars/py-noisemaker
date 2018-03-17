@@ -300,6 +300,116 @@ Masks = {
         ]
     },
 
+    ValueMask.halftone_0: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ]
+        ],
+    },
+
+    ValueMask.halftone_1: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ]
+        ],
+    },
+
+    ValueMask.halftone_2: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 1, 0, 0, 0, 1 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 1 ]
+        ],
+    },
+
+    ValueMask.halftone_3: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+        ],
+    },
+
+    ValueMask.halftone_4: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+        ],
+    },
+
+    ValueMask.halftone_5: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 0, 1, 0, 1 ],
+            [ 0, 1, 0, 1, 0 ]
+        ],
+    },
+
+    ValueMask.halftone_6: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 0, 1, 0, 1, 0 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 0, 1, 0, 1, 0 ]
+        ],
+    },
+
+    ValueMask.halftone_7: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 0, 1, 1, 1, 0 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 0, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 0, 1, 1, 1, 0 ]
+        ],
+    },
+
+    ValueMask.halftone_8: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 0, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ]
+        ],
+    },
+
+    ValueMask.halftone_9: {
+        "shape": [5, 5, 1],
+        "values": [
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1 ]
+        ],
+    },
+
 }
 
 
@@ -340,6 +450,10 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
             sum += pixel
 
     return mask_values, sum
+
+
+def sparse_shape():
+    return (5, 5)
 
 
 def sparse(**kwargs):
@@ -578,5 +692,17 @@ def truetype_shape():
 
 def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
     glyph = atlas[int(uv_noise[uv_y][uv_x] * len(atlas))]
+
+    return glyph[y % shape[0]][x % shape[1]]
+
+
+def halftone_shape():
+    return (5, 5)
+
+
+def halftone(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.halftone_0.value and g.value <= ValueMask.halftone_9.value]
+
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
 
     return glyph[y % shape[0]][x % shape[1]]

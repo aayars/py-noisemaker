@@ -32,7 +32,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, **convolve_kwargs):
+                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -112,6 +112,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float conv_feedback_alpha: Conv2D feedback alpha
     :param bool with_density_map: Map values to color histogram
     :param ValueMask|None with_glyph_map: Map values to glyph brightness. Square masks only for now
+    :param bool glyph_map_colorize: Colorize glyphs from on average input colors
     :return: Tensor
     """
 
@@ -158,7 +159,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if with_glyph_map:
-        tensor = glyph_map(tensor, shape, mask=with_glyph_map)
+        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize)
 
     if warp_range:
         if warp_interp is None:
@@ -1922,7 +1923,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
 
 
-def glyph_map(tensor, shape, mask=None):
+def glyph_map(tensor, shape, mask=None, colorize=True):
     """
     :param Tensor tensor:
     :param list[int] shape:
@@ -1977,5 +1978,8 @@ def glyph_map(tensor, shape, mask=None):
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
     out = resample(tf.gather_nd(tf.expand_dims(glyphs, -1), tf.stack([z_index, y_index, x_index], 2)), value_shape, spline_order=1)
+
+    if not colorize:
+        return out
 
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)

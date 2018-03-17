@@ -176,58 +176,46 @@ class ValueMask(Enum):
     """
 
     square = 1
-
     waffle = 2
-
     chess = 3
 
     h_hex = 10
-
     v_hex = 11
-
     h_tri = 12
-
     v_tri = 13
 
     zero = 20
-
     one = 21
-
     two = 22
-
     three = 23
-
     four = 24
-
     five = 25
-
     six = 26
-
     seven = 27
-
     eight = 28
-
     nine = 29
-
     a = 30
-
     b = 31
-
     c = 32
-
     d = 33
-
     e = 34
-
     f = 35
 
     tromino_i = 40
-
     tromino_l = 41
-
     tromino_o = 42
-
     tromino_s = 43
+
+    halftone_0 = 50
+    halftone_1 = 51
+    halftone_2 = 52
+    halftone_3 = 53
+    halftone_4 = 54
+    halftone_5 = 55
+    halftone_6 = 56
+    halftone_7 = 57
+    halftone_8 = 58
+    halftone_9 = 59
 
     sparse = 100
 
@@ -257,13 +245,15 @@ class ValueMask(Enum):
 
     truetype = 120
 
+    halftone = 121
+
     @classmethod
     def grid_members(cls):
         return [m for m in cls if cls.is_grid(m)]
 
     @classmethod
     def is_grid(cls, member):
-        return member.value < cls.sparse.value
+        return member.value < cls.zero.value
 
     @classmethod
     def procedural_members(cls):

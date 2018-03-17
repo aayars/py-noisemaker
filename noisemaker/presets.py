@@ -280,6 +280,13 @@ EFFECTS_PRESETS = {
         },
     },
 
+    "tensor-tone": {
+        "kwargs": {
+            "glyph_map_colorize": random.randint(0, 1),
+            "with_glyph_map": "halftone",
+        }
+    },
+
     "voronoid": {
         "kwargs": {
             "point_freq": random.randint(4, 10),
@@ -835,6 +842,17 @@ PRESETS = {
             "voronoi_refract": .25 + random.random() * .375,
             "with_voronoi": 7,
         }
+    },
+
+    "conference": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 5 * random.randint(15, 30),
+            "invert": random.randint(0, 1),
+            "mask": "halftone",
+            "spline_order": 2,
+            "with_sobel": 1,
+        },
     },
 
     "cool-water": {
