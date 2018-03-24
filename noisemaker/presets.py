@@ -488,6 +488,25 @@ PRESETS = {
         }
     },
 
+    "anticounterfeit": {
+        "kwargs": {
+            "freq": 2,
+            "invert": 1,
+            "point_freq": 1,
+            "voronoi_refract": 1,
+            "with_voronoi": 6,
+            "with_wormhole": True,
+            "wormhole_kink": 6,
+            "wormhole_stride": .25,
+        },
+
+        "post_kwargs": {
+            "with_dither": .125,
+            "with_fibers": True,
+            "with_watermark": True,
+        }
+    },
+
     "are-you-human": {
         "kwargs": {
             "distrib": "ones",
@@ -753,11 +772,12 @@ PRESETS = {
         "kwargs": {
             "invert": 1,
             "point_freq": random.randint(2, 3),
-            "post_deriv": random.randint(1, 3),
+            "post_deriv": random.randint(0, 3),
             "post_refract_range": random.randint(2, 4),
             "post_saturation": .5,
             "voronoi_alpha": .333 + random.random() * .333,
             "voronoi_func": random.randint(1, 3),
+            "voronoi_inverse": random.randint(0, 1),
             "voronoi_nth": random.randint(0, 1),
             "with_density_map": True,
             "with_bloom": .333 + random.random() * .333,

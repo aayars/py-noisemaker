@@ -9,7 +9,8 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False, with_interference=False, with_frame=False, with_stray_hair=False, with_grime=False):
+                 with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, with_grime=False,
+                 with_watermark=False):
     """
     Apply complex post-processing recipes.
 
@@ -52,11 +53,17 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     if with_interference:
         tensor = interference(tensor, shape)
 
+    if with_watermark:
+        tensor = watermark(tensor, shape)
+
     if with_frame:
         tensor = frame(tensor, shape)
 
     if with_grime:
         tensor = grime(tensor, shape)
+
+    if with_fibers:
+        tensor = fibers(tensor, shape)
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
@@ -249,6 +256,30 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, **basic_kwargs
     return effects.normalize(effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
 
 
+def fibers(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    for i in range(4):
+        mask = basic(4, value_shape,
+                     with_worms=4,
+                     worms_alpha=1,
+                     worms_density=.05 + random.random() * .00125,
+                     worms_duration=1,
+                     worms_kink=random.randint(5, 10),
+                     worms_stride=.75,
+                     worms_stride_deviation=.125,
+                     )
+
+        brightness = basic(128, shape, saturation=2.0)
+
+        tensor = effects.blend(tensor, brightness, mask * .5)
+
+    return tensor
+
+
 def stray_hair(tensor, shape):
     """
     """
@@ -323,3 +354,25 @@ def frame(tensor, shape):
     out = stray_hair(out, shape)
 
     return out
+
+
+def watermark(tensor, shape):
+    """
+    """
+
+    value_shape = [int(shape[0] * .5), int(shape[1] * .5), 1]
+    value_shape = [shape[0], shape[1], 1]
+
+    mask = basic(240, value_shape, spline_order=0, distrib=ValueDistribution.ones, mask="numeric")
+
+    mask = crt(mask, value_shape)
+
+    mask = effects.warp(mask, value_shape, [2, 4], octaves=1, displacement=.5)
+
+    mask *= tf.square(basic(2, value_shape))
+
+    value_shape = [shape[0], shape[1], 1]
+
+    brightness = basic(16, value_shape)
+
+    return effects.blend(tensor, brightness, mask * .125)
