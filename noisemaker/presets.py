@@ -2188,6 +2188,29 @@ PRESETS = {
         }
     },
 
+    "scribbles": {
+        "kwargs": {
+            "deriv": random.randint(1, 3),
+            "freq": random.randint(4, 8),
+            "lattice_drift": random.random(),
+            "octaves": 2,
+            "post_contrast": 5,
+            "post_deriv": random.randint(1, 3),
+            "post_saturation": 0,
+            "ridges": True,
+            "with_density_map": True,
+            "with_vignette": .075 + random.random() * .05,
+            "with_shadow": random.random(),
+            "with_sobel": random.randint(1, 3),
+        },
+
+        "post_kwargs": {
+            "with_dither": .25,
+            "with_fibers": True,
+            "with_grime": True,
+        }
+    },
+
     "seether-refract": {
         "kwargs": {
             "corners": True,
