@@ -1541,18 +1541,6 @@ PRESETS = {
         }
     },
 
-    "interference": {
-        "kwargs": {
-            "corners": True,
-            "freq": 2,
-            "sin": random.randint(250, 500),
-        },
-
-        "post_kwargs": {
-            "with_interference": True
-        }
-    },
-
     "i-dream-of-tweegee": {
         "kwargs": {
             "reindex_range": 2,
@@ -1563,6 +1551,41 @@ PRESETS = {
             "rgb": True,
             "voronoi_alpha": .625,
             "with_voronoi": 4,
+        }
+    },
+
+    "inkling": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": random.randint(4, 8),
+            "invert": True,
+            "mask": "sparse",
+            "point_freq": random.randint(4, 8),
+            "post_refract_range": .125 + random.random() * .05,
+            "post_saturation": 0,
+            "post_contrast": 10,
+            "ripple_range": .025 + random.random() * .0125,
+            "voronoi_refract": .5 + random.random() * .25,
+            "with_density_map": True,
+            "with_voronoi": 6,
+        },
+
+        "post_kwargs": {
+            "with_dither": .175,
+            "with_fibers": True,
+            "with_grime": True,
+        }
+    },
+
+    "interference": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "sin": random.randint(250, 500),
+        },
+
+        "post_kwargs": {
+            "with_interference": True
         }
     },
 
