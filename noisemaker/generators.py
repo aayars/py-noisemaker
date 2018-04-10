@@ -16,6 +16,8 @@ def set_seed(seed):
     if seed is not None:
         random.seed(seed)
 
+        np.random.seed(seed)
+
         tf.set_random_seed(seed)
 
 
