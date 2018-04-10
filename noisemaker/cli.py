@@ -672,6 +672,12 @@ def input_dir_option(**attrs):
     return str_option("--input-dir", type=click.Path(exists=True, file_okay=False, resolve_path=True), **attrs)
 
 
+def seed_option(**attrs):
+    attrs.setdefault("help", "Random seed. Might not affect all things.")
+
+    return int_option("--seed", default=None, **attrs)
+
+
 def name_option(default=None, **attrs):
     attrs.setdefault("help", "Filename for image output (should end with .png or .jpg)")
 

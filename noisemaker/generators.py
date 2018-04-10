@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import tensorflow as tf
 
@@ -7,8 +9,18 @@ import noisemaker.effects as effects
 import noisemaker.masks as masks
 
 
+def set_seed(seed):
+    """
+    """
+
+    if seed is not None:
+        random.seed(seed)
+
+        tf.set_random_seed(seed)
+
+
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
-           spline_order=3, seed=None, wavelet=False):
+           spline_order=3, wavelet=False):
     """
     """
 
@@ -34,10 +46,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.ones(initial_shape) * .5
 
     elif distrib == ValueDistribution.normal:
-        tensor = tf.random_normal(initial_shape, seed=seed)
+        tensor = tf.random_normal(initial_shape)
 
     elif distrib == ValueDistribution.uniform:
-        tensor = tf.random_uniform(initial_shape, seed=seed)
+        tensor = tf.random_uniform(initial_shape)
 
     elif distrib == ValueDistribution.exp:
         tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
@@ -80,7 +92,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     return tensor
 
 
-def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
+def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
           rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, brightness_distrib=None, saturation_distrib=None,
           **post_process_args):
@@ -103,7 +115,6 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     :param None|ValueMask mask:
     :param bool mask_inverse:
     :param float lattice_drift: Push away from underlying lattice
-    :param int seed: Random seed for reproducible output. Ineffective with exp
     :param bool rgb: Disable HSV
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
@@ -119,7 +130,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
         freq = effects.freq_for_shape(freq, shape)
 
     tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
-                    spline_order=spline_order, seed=seed, wavelet=wavelet)
+                    spline_order=spline_order, wavelet=wavelet)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -136,7 +147,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
         if saturation_distrib:
             s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order, seed=seed,
+                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
                                   wavelet=wavelet))
 
         else:
@@ -146,7 +157,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
 
         if brightness_distrib:
             v = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=brightness_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order, seed=seed,
+                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
                                   wavelet=wavelet))
 
         else:
@@ -169,7 +180,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3, see
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3, seed=None,
+def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
@@ -192,7 +203,6 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param float sin: Apply sin function to noise basis
     :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int seed: Random seed for reproducible output. Ineffective with exponential
     :param float reflect_range: Per-octave derivative-based distort range (0..1+)
     :param float refract_range: Per-octave self-distort range (0..1+)
     :param float reindex_range: Per-octave self-reindexing range (0..1+)
@@ -234,7 +244,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order, seed=seed,
+        layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,

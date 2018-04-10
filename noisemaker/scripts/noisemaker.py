@@ -107,6 +107,7 @@ import noisemaker.recipes as recipes
 @cli.input_dir_option()
 @cli.wavelet_option()
 @cli.density_map_option()
+@cli.seed_option()
 @cli.name_option()
 @click.pass_context
 def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
@@ -117,7 +118,9 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
          glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
          pop, bloom, rgb, hue_range, hue_rotation, saturation, saturation_distrib, post_hue_rotation, post_saturation, brightness_distrib, input_dir,
          dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
-         shadow, density, name, **convolve_kwargs):
+         shadow, density, seed, name, **convolve_kwargs):
+
+    generators.set_seed(seed)
 
     shape = [height, width, channels]
 

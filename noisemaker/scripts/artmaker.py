@@ -17,10 +17,13 @@ import noisemaker.recipes as recipes
 @cli.width_option()
 @cli.height_option()
 @cli.channels_option()
+@cli.seed_option()
 @cli.name_option(default="art.png")
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.PRESETS)))
+@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.PRESETS())))
 @click.pass_context
-def main(ctx, width, height, channels, name, preset_name):
+def main(ctx, width, height, channels, seed, name, preset_name):
+    generators.set_seed(seed)
+
     kwargs, post_kwargs, preset_name = presets.load(preset_name)
 
     kwargs["shape"] = [height, width, channels]

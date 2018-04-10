@@ -9,7 +9,8 @@ circular_dists = PointDistribution.circular_members()
 grid_dists = PointDistribution.grid_members()
 
 
-EFFECTS_PRESETS = {
+# Use a lambda to permit re-eval with new seed
+EFFECTS_PRESETS = lambda: {
     "be-kind-rewind": {
         "kwargs": {
             "with_aberration": random.random() * .02,
@@ -326,7 +327,7 @@ EFFECTS_PRESETS = {
 }
 
 
-PRESETS = {
+PRESETS = lambda: {
     "2d-chess": {
         "kwargs": {
             "corners": True,
@@ -2968,10 +2969,10 @@ def load(preset_name, preset_set=None):
     """
 
     if preset_set is None:
-        preset_set = PRESETS
+        preset_set = PRESETS()
 
     if preset_name == "random":
-        preset_name = list(preset_set)[random.randint(0, len(preset_set) - 1)]
+        preset_name = sorted(preset_set)[random.randint(0, len(preset_set) - 1)]
 
         preset = preset_set.get(preset_name)
 

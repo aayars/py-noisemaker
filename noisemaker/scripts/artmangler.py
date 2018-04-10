@@ -5,6 +5,7 @@ from noisemaker.util import save, load
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
+import noisemaker.generators as generators
 import noisemaker.presets as presets
 import noisemaker.recipes as recipes
 
@@ -14,11 +15,14 @@ import noisemaker.recipes as recipes
 
         https://github.com/aayars/py-noisemaker
         """, context_settings=cli.CLICK_CONTEXT_SETTINGS)
+@cli.seed_option()
 @cli.name_option(default="mangled.png")
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.EFFECTS_PRESETS)))
+@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.EFFECTS_PRESETS())))
 @click.argument('input_filename')
 @click.pass_context
-def main(ctx, name, preset_name, input_filename):
+def main(ctx, seed, name, preset_name, input_filename):
+    generators.set_seed(seed)
+
     tensor = tf.image.convert_image_dtype(load(input_filename), tf.float32)
 
     max_height = 1024
@@ -52,7 +56,7 @@ def main(ctx, name, preset_name, input_filename):
         if need_resample:
             tensor = effects.resample(tensor, shape)
 
-        kwargs, post_kwargs, preset_name = presets.load(preset_name, presets.EFFECTS_PRESETS)
+        kwargs, post_kwargs, preset_name = presets.load(preset_name, presets.EFFECTS_PRESETS())
 
         kwargs["shape"] = [height, width, channels]
 
