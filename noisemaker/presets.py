@@ -1915,6 +1915,21 @@ PRESETS = lambda: {
         }
     },
 
+    "pearlescent": {
+        "kwargs": {
+            "hue_range": random.randint(3, 5),
+            "octaves": random.randint(1, 8),
+            "point_freq": random.randint(6, 10),
+            "ridges": random.randint(0, 1),
+            "saturation": .175 + random.random() * .25,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_refract": 1.5 + random.random(),
+            "with_bloom": .333 + random.random() * .333,
+            "with_shadow": .333 + random.random() * .333,
+            "with_voronoi": 6,
+        }
+    },
+
     "plaid": {
         "kwargs": {
             "deriv": 3,
