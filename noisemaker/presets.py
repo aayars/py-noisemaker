@@ -1372,6 +1372,25 @@ PRESETS = lambda: {
         }
     },
 
+    "galalaga": {
+        "kwargs": {
+            "distrib": ["ones", "uniform"][random.randint(0, 1)],
+            "freq": 6 * random.randint(1, 3),
+            "glyph_map_zoom": 1.0 + random.random() * 10.0,
+            "hue_range": random.random() * 2.5,
+            "mask": "invaders_square",
+            "posterize_levels": 6,
+            "spline_order": 0,
+            "with_glowing_edges": .125 + random.random() * .125,
+            "with_glyph_map": "invaders_square",
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_scan_error": True,
+        }
+    },
+
     "game-show": {
         "kwargs": {
             "distrib": "normal",

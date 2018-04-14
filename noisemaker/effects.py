@@ -32,7 +32,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, **convolve_kwargs):
+                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -113,6 +113,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_density_map: Map values to color histogram
     :param ValueMask|None with_glyph_map: Map values to glyph brightness. Square masks only for now
     :param bool glyph_map_colorize: Colorize glyphs from on average input colors
+    :param float glyph_map_zoom: Scale glyph output
     :return: Tensor
     """
 
@@ -159,7 +160,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if with_glyph_map:
-        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize)
+        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom)
 
     if warp_range:
         if warp_interp is None:
@@ -1923,7 +1924,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
 
 
-def glyph_map(tensor, shape, mask=None, colorize=True):
+def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     """
     :param Tensor tensor:
     :param list[int] shape:
@@ -1958,14 +1959,16 @@ def glyph_map(tensor, shape, mask=None, colorize=True):
 
         glyphs = [g for sum, g in sorted(zip(sums, glyphs))]
 
-    height, width, channels = shape
+    in_shape = [int(shape[0] / zoom), int(shape[1] / zoom), shape[2]]
+
+    height, width, channels = in_shape
 
     # Figure out how many glyphs it will take approximately to cover the image
-    uv_shape = [int(shape[0] / glyph_shape[0]) or 1, int(shape[1] / glyph_shape[1] or 1), 1]
+    uv_shape = [int(in_shape[0] / glyph_shape[0]) or 1, int(in_shape[1] / glyph_shape[1] or 1), 1]
 
     # Generate a value map, multiply by len(glyphs) to create glyph index offsets
     value_shape = [height, width, 1]
-    uv_noise = _downsample(value_map(tensor, shape, keep_dims=True), value_shape, uv_shape)
+    uv_noise = _downsample(value_map(tensor, in_shape, keep_dims=True), value_shape, uv_shape)
 
     approx_shape = [glyph_shape[0] * uv_shape[0], glyph_shape[1] * uv_shape[1], 1]
 
@@ -1977,7 +1980,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True):
     glyph_count = len(glyphs)
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
-    out = resample(tf.gather_nd(tf.expand_dims(glyphs, -1), tf.stack([z_index, y_index, x_index], 2)), value_shape, spline_order=1)
+    out = resample(tf.gather_nd(tf.expand_dims(glyphs, -1), tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=1)
 
     if not colorize:
         return out
