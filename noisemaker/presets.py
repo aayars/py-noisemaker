@@ -1561,7 +1561,7 @@ PRESETS = lambda: {
             "freq": random.randint(4, 8),
             "invert": True,
             "mask": "sparse",
-            "point_freq": random.randint(4, 8),
+            "point_freq": 4,
             "post_refract_range": .125 + random.random() * .05,
             "post_saturation": 0,
             "post_contrast": 10,
