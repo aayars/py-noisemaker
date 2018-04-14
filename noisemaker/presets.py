@@ -1202,6 +1202,23 @@ PRESETS = lambda: {
         }
     },
 
+    "figments": {
+        "kwargs": {
+            "freq": 2,
+            "hue_range": 2,
+            "lattice_drift": 1,
+            "octaves": 3,
+            "voronoi_refract": 1,
+            "warp_freq": random.randint(2, 4),
+            "warp_range": 1,
+            "with_wormhole": True,
+            "with_bloom": 1,
+            "with_voronoi": 6,
+            "wormhole_stride": .05,
+            "wormhole_kink": 4,
+        }
+    },
+
     "financial-district": {
         "kwargs": {
             "point_freq": 2,
@@ -1898,6 +1915,22 @@ PRESETS = lambda: {
         }
     },
 
+    "oracle": {
+        "kwargs": {
+            "corners": True,
+            "freq": [14, 8],
+            "invert": random.randint(0, 1),
+            "distrib": "ones",
+            "mask": "iching",
+            "spline_order": 0,
+        },
+
+        "post_kwargs": {
+            "with_snow": .25 + random.random() * .25,
+            "with_dither": .075 + random.random() * .077,
+        }
+    },
+
     "outer-limits": {
         "kwargs": {
             "freq": 2,
@@ -2206,27 +2239,6 @@ PRESETS = lambda: {
         }
     },
 
-    "seether-reflect": {
-        "kwargs": {
-            "corners": True,
-            "freq": 2,
-            "hue_range": 1.0 + random.random(),
-            "invert": True,
-            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
-            "point_freq": random.randint(4, 6),
-            "post_reflect_range": random.randint(8, 12),
-            "post_ridges": True,
-            "ridges": True,
-            "voronoi_alpha": .25 + random.random() * .25,
-            "warp_range": .5,
-            "warp_octaves": 6,
-            "with_glowing_edges": 1,
-            "with_reverb": 1,
-            "with_shadow": 1,
-            "with_voronoi": 2,
-        }
-    },
-
     "scribbles": {
         "kwargs": {
             "deriv": random.randint(1, 3),
@@ -2247,6 +2259,27 @@ PRESETS = lambda: {
             "with_dither": .25,
             "with_fibers": True,
             "with_grime": True,
+        }
+    },
+
+    "seether-reflect": {
+        "kwargs": {
+            "corners": True,
+            "freq": 2,
+            "hue_range": 1.0 + random.random(),
+            "invert": True,
+            "point_distrib": ([m.value for m in circular_dists])[random.randint(0, len(circular_dists) - 1)],
+            "point_freq": random.randint(4, 6),
+            "post_reflect_range": random.randint(8, 12),
+            "post_ridges": True,
+            "ridges": True,
+            "voronoi_alpha": .25 + random.random() * .25,
+            "warp_range": .5,
+            "warp_octaves": 6,
+            "with_glowing_edges": 1,
+            "with_reverb": 1,
+            "with_shadow": 1,
+            "with_voronoi": 2,
         }
     },
 
