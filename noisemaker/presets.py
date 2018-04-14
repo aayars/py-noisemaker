@@ -2597,6 +2597,7 @@ PRESETS = lambda: {
         "kwargs": {
             "distrib": "exp",
             "freq": (random.randint(2, 4), random.randint(48, 96)),
+            "glyph_map_zoom": random.randint(2, 5),
             "hue_rotation": .4 + random.random() * .2,
             "hue_range": .25,
             "lattice_drift": 1,
