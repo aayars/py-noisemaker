@@ -229,6 +229,12 @@ EFFECTS_PRESETS = lambda: {
         },
     },
 
+    "rgb-composite": {
+        "kwargs": {
+            "with_composite": True,
+        },
+    },
+
     "ripples": {
         "kwargs": {
             "ripple_freq": random.randint(2, 3),

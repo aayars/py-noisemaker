@@ -32,7 +32,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, **convolve_kwargs):
+                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -114,6 +114,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param ValueMask|None with_glyph_map: Map values to glyph brightness. Square masks only for now
     :param bool glyph_map_colorize: Colorize glyphs from on average input colors
     :param float glyph_map_zoom: Scale glyph output
+    :param bool with_composite: Composite video effect
     :return: Tensor
     """
 
@@ -255,6 +256,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_conv_feedback:
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
+
+    if with_composite:
+        tensor = composite(tensor, shape)
 
     tensor = normalize(tensor)
 
@@ -1385,15 +1389,20 @@ def inner_tile(tensor, shape, freq):
     return tiled
 
 
-def expand_tile(tensor, input_shape, output_shape):
+def expand_tile(tensor, input_shape, output_shape, with_offset=True):
     """
     """
 
     input_width = input_shape[1]
     input_height = input_shape[0]
 
-    x_offset = tf.cast(input_shape[1] / 2, tf.int32)
-    y_offset = tf.cast(input_shape[0] / 2, tf.int32)
+    if with_offset:
+        x_offset = tf.cast(input_shape[1] / 2, tf.int32)
+        y_offset = tf.cast(input_shape[0] / 2, tf.int32)
+
+    else:
+        x_offset = 0
+        y_offset = 0
 
     x_index = (x_offset + row_index(output_shape)) % input_width
     y_index = (y_offset + column_index(output_shape)) % input_height
@@ -1986,3 +1995,26 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
         return out
 
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
+
+
+def composite(tensor, shape):
+    """
+    Split an image into pseudo-pixels each containing only a red, green, or blue value.
+    """
+
+    quarter_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, shape[2]]
+
+    out = _downsample(tensor, shape, quarter_shape)
+
+    out = resample(out, shape, spline_order=0)
+
+    subpixel_vals = [
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+        [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    ]
+
+    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [4, 4, 3], shape, with_offset=False)
+
+    return out * subpixel_filter
