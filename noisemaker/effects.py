@@ -32,7 +32,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, **convolve_kwargs):
+                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, composite_scale=1.0,
+                 **convolve_kwargs):
     """
     Apply post-processing effects.
 
@@ -115,6 +116,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool glyph_map_colorize: Colorize glyphs from on average input colors
     :param float glyph_map_zoom: Scale glyph output
     :param bool with_composite: Composite video effect
+    :param float composite_scale: Composite subpixel scaling
     :return: Tensor
     """
 
@@ -258,7 +260,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     if with_composite:
-        tensor = composite(tensor, shape)
+        tensor = composite(tensor, shape, scale=composite_scale)
 
     tensor = normalize(tensor)
 
@@ -1997,16 +1999,32 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
 
 
-def composite(tensor, shape):
+def composite(tensor, shape, scale=2.0):
     """
-    Split an image into pseudo-pixels each containing only a red, green, or blue value.
+    Split an image into giant subpixels of red, green, or blue.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float scale:
     """
 
-    quarter_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, shape[2]]
+    if scale == 1.0:
+        scaled_shape = shape
+        scaled = tensor
 
-    out = _downsample(tensor, shape, quarter_shape)
+    else:
+        scaled_shape = [int(shape[0] / scale) or 1, int(shape[1] / scale) or 1, shape[2]]
 
-    out = resample(out, shape, spline_order=0)
+        if scale > 1.0:
+            scaled = _downsample(tensor, shape, scaled_shape)
+        else:
+            scaled = resample(tensor, scaled_shape)
+
+    quarter_shape = [int(scaled_shape[0] * .25) or 1, int(scaled_shape[1] * .25) or 1, scaled_shape[2]]
+
+    out = _downsample(scaled, scaled_shape, quarter_shape)
+
+    out = resample(out, scaled_shape, spline_order=0)
 
     subpixel_vals = [
         [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
@@ -2015,6 +2033,15 @@ def composite(tensor, shape):
         [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
     ]
 
-    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [4, 4, 3], shape, with_offset=False)
+    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [4, 4, 3], scaled_shape, with_offset=False)
 
-    return out * subpixel_filter
+    out *= subpixel_filter
+
+    if scale == 1.0:
+        return out
+
+    elif scale > 1.0:
+        return resample(out, shape, spline_order=0)
+
+    else:
+        return _downsample(out, scaled_shape, shape)

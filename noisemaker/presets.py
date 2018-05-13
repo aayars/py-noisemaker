@@ -231,6 +231,7 @@ EFFECTS_PRESETS = lambda: {
 
     "rgb-composite": {
         "kwargs": {
+            "composite_scale": [.5, 1, 2, 4][random.randint(0, 3)],
             "with_composite": True,
         },
     },
