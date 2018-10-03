@@ -19,6 +19,7 @@ setup(name='noisemaker',
         glitchmaker=noisemaker.scripts.glitchmaker:main
         noisemaker=noisemaker.scripts.noisemaker:main
         worldmaker=noisemaker.scripts.worldmaker:main
+        crop=noisemaker.scripts.crop:main
         ''',
 
       install_requires=[
