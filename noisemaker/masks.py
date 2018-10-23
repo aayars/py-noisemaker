@@ -631,7 +631,7 @@ def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
-    uv_value = uv_noise[uv_y][uv_x] * len(atlas)
+    uv_value = uv_noise[uv_y][uv_x] * (len(atlas) - 1)
     uv_floor = int(uv_value)
     uv_fract = uv_value - uv_floor
 
@@ -659,7 +659,7 @@ def numeric_shape():
 def numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.nine.value]
 
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
 
@@ -671,7 +671,7 @@ def hex_shape():
 def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.f.value]
 
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
 
@@ -681,7 +681,7 @@ def truetype_shape():
 
 
 def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * len(atlas))]
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
 
@@ -693,6 +693,6 @@ def halftone_shape():
 def halftone(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.halftone_0.value and g.value <= ValueMask.halftone_9.value]
 
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * 9)]
+    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
