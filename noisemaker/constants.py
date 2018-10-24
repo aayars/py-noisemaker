@@ -217,6 +217,17 @@ class ValueMask(Enum):
     halftone_8 = 58
     halftone_9 = 59
 
+    lcd_0 = 60
+    lcd_1 = 61
+    lcd_2 = 62
+    lcd_3 = 63
+    lcd_4 = 64
+    lcd_5 = 65
+    lcd_6 = 66
+    lcd_7 = 67
+    lcd_8 = 68
+    lcd_9 = 69
+
     sparse = 100
 
     invaders = 101
@@ -246,6 +257,8 @@ class ValueMask(Enum):
     truetype = 120
 
     halftone = 121
+
+    lcd = 122
 
     @classmethod
     def grid_members(cls):

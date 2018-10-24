@@ -400,6 +400,145 @@ Masks = {
         ]
     },
 
+    ValueMask.lcd_0: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_1: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_2: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_3: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_4: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_5: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_6: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_7: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_8: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.lcd_9: {
+        "shape": [5, 8, 1],
+        "values": [
+            [ 0, 1, 1, 0, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 1, 0, 0, 1, 0 ],
+            [ 0, 1, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 0 ],
+        ]
+    },
 }
 
 
@@ -657,11 +796,7 @@ def numeric_shape():
 
 
 def numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.nine.value]
-
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
-
-    return glyph[y % shape[0]][x % shape[1]]
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.nine.value)
 
 
 def hex_shape():
@@ -669,11 +804,7 @@ def hex_shape():
 
 
 def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.zero.value and g.value <= ValueMask.f.value]
-
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
-
-    return glyph[y % shape[0]][x % shape[1]]
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.f.value)
 
 
 def truetype_shape():
@@ -691,8 +822,19 @@ def halftone_shape():
 
 
 def halftone(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    atlas = [Masks[g]["values"] for g in Masks if g.value >= ValueMask.halftone_0.value and g.value <= ValueMask.halftone_9.value]
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.halftone_0.value, ValueMask.halftone_9.value)
 
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
-    return glyph[y % shape[0]][x % shape[1]]
+def lcd_shape():
+    return (8, 5)
+
+
+def lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_9.value)
+
+
+def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
+    atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
+
+    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))][y % shape[0]][x % shape[1]]
+

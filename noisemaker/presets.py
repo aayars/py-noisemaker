@@ -963,6 +963,19 @@ PRESETS = lambda: {
         },
     },
 
+    "deadbeef": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 6 * random.randint(9, 24),
+            "mask": "hex",
+            "spline_order": 0,
+            "warp_freq": [random.randint(4, 7), random.randint(1, 3)],
+            "warp_octaves": random.randint(3, 5),
+            "warp_range": .05 + random.random() * .45,
+            "with_bloom": .25 + random.random() * .25,
+        },
+    },
+
     "deadlock": {
         "kwargs": {
            "hue_range": random.random(),
@@ -1722,6 +1735,29 @@ PRESETS = lambda: {
         "post_kwargs": {
             "with_dither": .125,
         }
+    },
+
+    "lcd": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 40 * random.randint(1, 4),
+            "invert": 1,
+            "mask": "lcd",
+            "saturation": .05,
+            "spline_order": random.randint(0, 3),
+            "with_bloom": .25 + random.random() * .125,
+            "with_shadow": random.random(),
+        },
+    },
+
+    "led": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 40 * random.randint(1, 4),
+            "mask": "lcd",
+            "spline_order": random.randint(0, 3),
+            "with_bloom": .25 + random.random() * .125,
+        },
     },
 
     "lightcycle-derby": {
