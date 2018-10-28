@@ -2476,6 +2476,27 @@ PRESETS = lambda: {
         },
     },
 
+    "slum": {
+        "kwargs": {
+            "freq": 2,
+            "lattice_drift": 1,
+            "octaves": 2,
+            "point_freq": random.randint(2, 4),
+            "post_reflect_range": random.randint(1, 2),
+            "post_refract_range": random.randint(1, 2),
+            "reflect_range": random.randint(1, 2) * .125,
+            "refract_range": random.randint(1, 2) * .125,
+            "saturation": 0,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_refract": 2.5,
+            "warp_range": .25 + random.random() * .125,
+            "warp_octaves": 2,
+            "with_bloom": .333 + random.random() * .333,
+            "with_shadow": .333 + random.random() * .333,
+            "with_voronoi": 6,
+        }
+    },
+
     "soft-cells": {
         "kwargs": {
             "point_distrib": [m.value for m in PointDistribution][random.randint(0, len(PointDistribution) - 1)],
