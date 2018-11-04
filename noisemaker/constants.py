@@ -226,7 +226,18 @@ class ValueMask(Enum):
     lcd_6 = 66
     lcd_7 = 67
     lcd_8 = 68
-    lcd_9 = 69
+    lcd_9 = 69  # nice
+
+    fat_lcd_0 = 70
+    fat_lcd_1 = 71
+    fat_lcd_2 = 72
+    fat_lcd_3 = 73
+    fat_lcd_4 = 74
+    fat_lcd_5 = 75
+    fat_lcd_6 = 76
+    fat_lcd_7 = 77
+    fat_lcd_8 = 78
+    fat_lcd_9 = 79
 
     sparse = 100
 
@@ -259,6 +270,8 @@ class ValueMask(Enum):
     halftone = 121
 
     lcd = 122
+
+    fat_lcd = 123
 
     @classmethod
     def grid_members(cls):
