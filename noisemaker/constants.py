@@ -238,6 +238,12 @@ class ValueMask(Enum):
     fat_lcd_7 = 77
     fat_lcd_8 = 78
     fat_lcd_9 = 79
+    fat_lcd_a = 80
+    fat_lcd_b = 81
+    fat_lcd_c = 82
+    fat_lcd_d = 83
+    fat_lcd_e = 84
+    fat_lcd_f = 85
 
     sparse = 100
 
