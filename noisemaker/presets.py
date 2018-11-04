@@ -1375,6 +1375,16 @@ PRESETS = lambda: {
         }
     },
 
+    "fat-led": {
+        "kwargs": {
+            "distrib": "ones",
+            "freq": 10 * random.randint(25, 40),
+            "mask": "fat_lcd",
+            "spline_order": random.randint(1, 2),
+            "with_bloom": .125 + random.random() * .125,
+        },
+    },
+
     "fuzzy-thorns": {
         "kwargs": {
             "point_freq": random.randint(2, 4),
