@@ -548,8 +548,13 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
     """
     """
 
-    mask_function = globals().get(mask.name)
-    mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or channel_shape
+    if mask in Masks:
+        mask_function = None
+        mask_shape = Masks[mask]["shape"]
+
+    else:
+        mask_function = globals().get(mask.name)
+        mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or channel_shape
 
     mask_values = []
 
@@ -569,8 +574,12 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
         for x in range(channel_shape[1]):
             uv_x = int((x / channel_shape[1]) * uv_shape[1])
 
-            pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise,
-                                  atlas=atlas) * 1.0
+            if mask_function:
+                pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise,
+                                      atlas=atlas) * 1.0
+
+            else:
+                pixel = Masks[mask]["values"][y % mask_shape[0]][x % mask_shape[1]] * 1.0
 
             if inverse:
                 pixel = 1.0 - pixel

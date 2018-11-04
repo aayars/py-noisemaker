@@ -2149,6 +2149,27 @@ PRESETS = lambda: {
         }
     },
 
+    "rasteroids": {
+        "kwargs": {
+            "distrib": ["uniform", "ones"][random.randint(0, 1)],
+            "freq": 6 * random.randint(2, 3),
+            "invert": 1,
+            "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+            "spline_order": 0,
+            "warp_freq": random.randint(3, 5),
+            "warp_octaves": random.randint(3, 5),
+            "warp_range": .25 + random.random() * .125,
+            "with_bloom": .125 + random.random() * .125,
+            "with_sobel": random.randint(1, 3),
+        },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_snow": .25 + random.random() * .125,
+            "with_scan_error": True,
+        }
+    },
+
     "redmond": {
         "kwargs": {
             "corners": True,
@@ -2907,6 +2928,12 @@ PRESETS = lambda: {
             "with_aberration": .0025 + random.random() * .0075,
             "with_voronoi": 4,
         },
+
+        "post_kwargs": {
+            "with_crt": True,
+            "with_snow": .25 + random.random() * .125,
+            "with_scan_error": True,
+        }
     },
 
     "velcro": {

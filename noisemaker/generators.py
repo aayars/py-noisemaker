@@ -63,23 +63,17 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     if mask:
-        if mask in masks.Masks:
-            mask_values = effects.expand_tile(tf.cast(masks.Masks[mask]["values"], tf.float32),
-                                              masks.Masks[mask]["shape"],
-                                              [channel_shape[0], channel_shape[1]])
+        atlas = None
 
-        else:
-            atlas = None
+        if mask == ValueMask.truetype:
+            from noisemaker.glyphs import load_glyphs
 
-            if mask == ValueMask.truetype:
-                from noisemaker.glyphs import load_glyphs
+            atlas = load_glyphs(masks.truetype_shape())
 
-                atlas = load_glyphs(masks.truetype_shape())
+            if not atlas:
+                mask = ValueMask.numeric  # Fall back to canned values
 
-                if not atlas:
-                    mask = ValueMask.numeric  # Fall back to canned values
-
-            mask_values, _ = masks.bake_procedural(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
+        mask_values, _ = masks.bake_procedural(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
 
         tensor *= tf.reshape(mask_values, channel_shape)
 
