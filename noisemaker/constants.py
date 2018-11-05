@@ -244,40 +244,60 @@ class ValueMask(Enum):
     fat_lcd_d = 83
     fat_lcd_e = 84
     fat_lcd_f = 85
+    fat_lcd_g = 86
+    fat_lcd_h = 87
+    fat_lcd_i = 88
+    fat_lcd_j = 89
+    fat_lcd_k = 90
+    fat_lcd_l = 91
+    fat_lcd_m = 92
+    fat_lcd_n = 93
+    fat_lcd_o = 94
+    fat_lcd_p = 95
+    fat_lcd_q = 96
+    fat_lcd_r = 97
+    fat_lcd_s = 98
+    fat_lcd_t = 99
+    fat_lcd_u = 100
+    fat_lcd_v = 101
+    fat_lcd_w = 102
+    fat_lcd_x = 103
+    fat_lcd_y = 104
+    fat_lcd_z = 105
 
-    sparse = 100
+    sparse = 1000
 
-    invaders = 101
+    invaders = 1001
 
-    invaders_square = 102
+    invaders_square = 1002
 
-    matrix = 103
+    matrix = 1003
 
-    letters = 104
+    letters = 1004
 
-    ideogram = 105
+    ideogram = 1005
 
-    iching = 106
+    iching = 1006
 
-    script = 107
+    script = 1007
 
-    white_bear = 108
+    white_bear = 1008
 
-    binary = 109
+    binary = 1009
 
-    tromino = 110
+    tromino = 1010
 
-    numeric = 111
+    numeric = 1011
 
-    hex = 112
+    hex = 1012
 
-    truetype = 120
+    truetype = 1020
 
-    halftone = 121
+    halftone = 1021
 
-    lcd = 122
+    lcd = 1022
 
-    fat_lcd = 123
+    fat_lcd = 1023
 
     @classmethod
     def grid_members(cls):
