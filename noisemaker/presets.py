@@ -1379,7 +1379,7 @@ PRESETS = lambda: {
         "kwargs": {
             "distrib": "ones",
             "freq": 10 * random.randint(25, 40),
-            "mask": "fat_lcd",
+            "mask": ["fat_lcd", "fat_lcd_binary", "fat_lcd_numeric", "fat_lcd_hex"][random.randint(0, 3)],
             "spline_order": random.randint(1, 2),
             "with_bloom": .125 + random.random() * .125,
         },
@@ -1752,7 +1752,7 @@ PRESETS = lambda: {
             "distrib": "ones",
             "freq": 40 * random.randint(1, 4),
             "invert": 1,
-            "mask": "lcd",
+            "mask": ["lcd", "lcd_binary"][random.randint(0, 1)],
             "saturation": .05,
             "spline_order": random.randint(0, 3),
             "with_bloom": .25 + random.random() * .125,
@@ -1764,7 +1764,7 @@ PRESETS = lambda: {
         "kwargs": {
             "distrib": "ones",
             "freq": 40 * random.randint(1, 4),
-            "mask": "lcd",
+            "mask": ["lcd", "lcd_binary"][random.randint(0, 1)],
             "spline_order": random.randint(0, 3),
             "with_bloom": .25 + random.random() * .125,
         },
@@ -2701,7 +2701,16 @@ PRESETS = lambda: {
             "post_saturation": 2,
             "spline_order": 1,
             "with_bloom": .333 + random.random() * .333,
-            "with_glyph_map": [["binary", "numeric", "hex"][random.randint(0, 2)], "truetype", "ideogram", "invaders_square", "fat_lcd"][random.randint(0, 4)],
+            "with_glyph_map": [
+                ["binary", "numeric", "hex"][random.randint(0, 2)],
+                "truetype",
+                "ideogram",
+                "invaders_square",
+                "fat_lcd",
+                "fat_lcd_binary",
+                "fat_lcd_numeric",
+                "fat_lcd_hex"
+            ][random.randint(0, 7)],
         },
 
         "post_kwargs": {

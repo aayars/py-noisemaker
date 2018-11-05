@@ -1434,6 +1434,14 @@ def lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_9.value)
 
 
+def lcd_binary_shape():
+    return lcd_shape()
+
+
+def lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_1.value)
+
+
 def fat_lcd_shape():
     return (10, 10)
 
@@ -1442,8 +1450,32 @@ def fat_lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_z.value)
 
 
+def fat_lcd_binary_shape():
+    return fat_lcd_shape()
+
+
+def fat_lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_1.value)
+
+
+def fat_lcd_numeric_shape():
+    return fat_lcd_shape()
+
+
+def fat_lcd_numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_9.value)
+
+
+def fat_lcd_hex_shape():
+    return fat_lcd_shape()
+
+
+def fat_lcd_hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_f.value)
+
+
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
 
-    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))][y % shape[0]][x % shape[1]]
+    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
 

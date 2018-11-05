@@ -296,8 +296,12 @@ class ValueMask(Enum):
     halftone = 1021
 
     lcd = 1022
+    lcd_binary = 1023
 
-    fat_lcd = 1023
+    fat_lcd = 1024
+    fat_lcd_binary = 1025
+    fat_lcd_numeric = 1026
+    fat_lcd_hex = 1027
 
     @classmethod
     def grid_members(cls):
