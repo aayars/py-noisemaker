@@ -1342,6 +1342,27 @@ PRESETS = lambda: {
         }
     },
 
+    "funky-glyphs": {
+        "kwargs": {
+            "distrib": ["ones", "uniform"][random.randint(0, 1)],
+            "freq": 20 * random.randint(1, 4),
+            "mask": [
+                "binary",
+                "numeric",
+                "hex",
+                "lcd",
+                "lcd_binary",
+                "fat_lcd",
+                "fat_lcd_binary",
+                "fat_lcd_numeric",
+                "fat_lcd_hex"
+            ][random.randint(0, 8)],
+            "octaves": random.randint(1, 2),
+            "post_refract_range": .125 + random.random() * .25,
+            "spline_order": random.randint(1, 3),
+        },
+    },
+
     "fuzzy-squares": {
         "kwargs": {
             "corners": True,
