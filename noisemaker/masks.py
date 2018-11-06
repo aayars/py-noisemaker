@@ -1182,10 +1182,6 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
     return mask_values, sum
 
 
-def sparse_shape():
-    return (5, 5)
-
-
 def sparse(**kwargs):
     return 1 if random.random() < .15 else 0
 

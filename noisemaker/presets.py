@@ -496,6 +496,16 @@ PRESETS = lambda: {
         }
     },
 
+    "analog-glitch": {
+        "kwargs": {
+            "deriv": 2,
+            "distrib": "ones",
+            "freq": 13 * random.randint(10, 25),
+            "mask": ["hex", "lcd", "fat_lcd"][random.randint(0, 2)],
+            "spline_order": 2,
+        },
+    },
+
     "anticounterfeit": {
         "kwargs": {
             "freq": 2,
