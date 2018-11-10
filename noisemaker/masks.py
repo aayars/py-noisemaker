@@ -1562,8 +1562,7 @@ def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     if y < third_height * 2:
         return arecibo_nucleotide(x, y, row, arecibo_nucleotide_shape(), uv_x, uv_y, uv_noise, **kwargs)
 
-    if y < third_height * 3:
-        return arecibo_bignum(x, y, row, arecibo_bignum_shape(), uv_x, uv_y, uv_noise, **kwargs)
+    return arecibo_bignum(x, y, row, arecibo_bignum_shape(), uv_x, uv_y, uv_noise, **kwargs)
 
 
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
