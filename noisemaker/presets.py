@@ -1874,7 +1874,7 @@ PRESETS = lambda: {
         "distrib": "ones",
         "freq": 30 * random.randint(3, 6),
         "mask": ['arecibo_num', 'arecibo_bignum'][random.randint(0, 1)],
-        "spline_order": 0,
+        "spline_order": random.randint(0, 2),
     },
 
     "sands-of-time": {
@@ -2228,6 +2228,14 @@ PRESETS = lambda: {
         "vortex_range": random.randint(8, 25),
         "with_bloom": .25 + random.random() * .5,
         "with_voronoi": 5,
+    },
+
+    "the-arecibo-response": {
+        "distrib": "ones",
+        "freq": random.randint(42, 210),
+        "mask": 'arecibo',
+        "spline_order": random.randint(0, 2),
+        "with_snow": random.random() * .333,
     },
 
     "the-data-must-flow": {

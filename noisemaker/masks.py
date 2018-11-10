@@ -1496,6 +1496,76 @@ def arecibo_bignum(*args, **kwargs):
     return arecibo_num(*args, **kwargs)
 
 
+def arecibo_nucleotide_shape():
+    return [6, 6]
+
+
+def arecibo_nucleotide(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    tex_x = x % shape[1]
+    tex_y = y % shape[0]
+
+    if tex_y == 0 or tex_y == shape[0] - 1 or tex_x == 0:
+        return 0
+
+    if tex_y == shape[0] - 2:
+        return 1 if tex_x < shape[1] else 0
+
+    if tex_y < shape[0] - 3 and tex_x > shape[1] - 2:
+        return 0
+
+    return random.randint(0, 1)
+
+
+def arecibo_dna_shape():
+    return [11, 17]
+
+
+_ARECIBO_DNA_TEMPLATE = [
+    [ 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0 ],
+    [ 0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0, 0 ],
+    [ 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 1, 0, 0, 0 ],
+    [ 0, 0, 0, 0, 1, 1, 0, 0, -1,  0, 0, 0, 1, 1, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 0, 0, 0, 1, 0,  0,  0, 1, 1, 0, 0, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 0, 0, 0, 0, 0,  1,  1, 0, 0, 0, 0, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 0, 0, 0, 1, 1,  0,  0, 0, 1, 0, 0, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 0, 1, 1, 0, 0,  0, -1, 0, 0, 1, 1, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 1, 0, 0, 0 ],
+    [ 0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0, 0 ],
+    [ 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0 ],
+]
+
+def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    tex_x = x % shape[1]
+    tex_y = y % shape[0]
+
+    value = _ARECIBO_DNA_TEMPLATE[tex_y][tex_x]
+
+    return random.randint(0, 1) if value == -1 else value
+
+
+def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    tex_x = x % shape[1]
+    tex_y = y % shape[0]
+
+    third_height = shape[0] / 3
+    half_width = shape[1] / 2
+    dna_half_width = arecibo_dna_shape()[1] * .5
+
+    if x > half_width - dna_half_width and x < half_width + dna_half_width:
+        dna_x = int(x - half_width - dna_half_width)
+
+        return arecibo_dna(dna_x, y, row, arecibo_dna_shape(), uv_x, uv_y, uv_noise, **kwargs)
+
+    if y < third_height:
+        return arecibo_num(x, y, row, arecibo_num_shape(), uv_x, uv_y, uv_noise, **kwargs)
+
+    if y < third_height * 2:
+        return arecibo_nucleotide(x, y, row, arecibo_nucleotide_shape(), uv_x, uv_y, uv_noise, **kwargs)
+
+    if y < third_height * 3:
+        return arecibo_bignum(x, y, row, arecibo_bignum_shape(), uv_x, uv_y, uv_noise, **kwargs)
+
+
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
 

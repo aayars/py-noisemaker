@@ -305,6 +305,9 @@ class ValueMask(Enum):
 
     arecibo_num = 1030
     arecibo_bignum = 1031
+    arecibo_nucleotide = 1032
+    arecibo_dna = 1033
+    arecibo = 1034
 
     @classmethod
     def grid_members(cls):
