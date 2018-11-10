@@ -881,10 +881,8 @@ PRESETS = lambda: {
     },
 
     "domain-warp": {
-        "lattice_drift": 1,
         "octaves": 8,
-        "post_refract_range": .333 + random.random() * .333,
-        "refract_range": .333 + random.random() * .333,
+        "post_refract_range": .5 + random.random() * .5,
         "ridges": True,
     },
 
