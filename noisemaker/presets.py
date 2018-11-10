@@ -301,7 +301,7 @@ EFFECTS_PRESETS = lambda: {
             "voronoi_func": random.randint(1, 3),
             "voronoi_refract": .5 + random.random() * .5,
             "voronoi_nth": random.randint(0, 3),
-            "with_voronoi": [1, 3, 6, 7][random.randint(0, 3)]
+            "with_voronoi": [1, 3, 6][random.randint(0, 3)]
         }
     },
 
@@ -1877,7 +1877,7 @@ PRESETS = lambda: {
             "point_freq": random.randint(8, 10),
             "reverb_ridges": False,
             "with_reverb": 2,
-            "with_voronoi": 1,
+            "with_voronoi": [0, 1, 6][random.randint(0, 2)],
             "with_worms": 1,
             "worms_density": 1000,
         }
