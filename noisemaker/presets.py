@@ -1870,6 +1870,13 @@ PRESETS = lambda: {
         "with_shadow": .5 + random.random() * .25,
     },
 
+    "runes-of-arecibo": {
+        "distrib": "ones",
+        "freq": 30 * random.randint(3, 6),
+        "mask": ['arecibo_num', 'arecibo_bignum'][random.randint(0, 1)],
+        "spline_order": 0,
+    },
+
     "sands-of-time": {
         "freq": random.randint(3, 5),
         "octaves": random.randint(1, 3),

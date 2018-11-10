@@ -1131,6 +1131,7 @@ Masks = {
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
         ]
     },
+
 }
 
 
@@ -1470,8 +1471,32 @@ def fat_lcd_hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_f.value)
 
 
+def arecibo_num_shape():
+    return [6, 3]
+
+
+def arecibo_num(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    tex_x = x % shape[1]
+    tex_y = y % shape[0]
+
+    if tex_y == 0 or tex_y == shape[0] - 1 or tex_x == 0:
+        return 0
+
+    if tex_y == shape[0] - 2:
+        return 1 if tex_x == 1 else 0
+
+    return random.randint(0, 1)
+
+
+def arecibo_bignum_shape():
+    return [6, 5]
+
+
+def arecibo_bignum(*args, **kwargs):
+    return arecibo_num(*args, **kwargs)
+
+
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
     atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
 
     return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
-

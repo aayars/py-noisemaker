@@ -303,6 +303,9 @@ class ValueMask(Enum):
     fat_lcd_numeric = 1026
     fat_lcd_hex = 1027
 
+    arecibo_num = 1030
+    arecibo_bignum = 1031
+
     @classmethod
     def grid_members(cls):
         return [m for m in cls if cls.is_grid(m)]
