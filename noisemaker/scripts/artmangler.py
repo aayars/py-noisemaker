@@ -56,7 +56,7 @@ def main(ctx, seed, name, preset_name, input_filename):
         if need_resample:
             tensor = effects.resample(tensor, shape)
 
-        kwargs, post_kwargs, preset_name = presets.load(preset_name, presets.EFFECTS_PRESETS())
+        kwargs, preset_name = presets.load(preset_name, presets.EFFECTS_PRESETS())
 
         kwargs["shape"] = [height, width, channels]
 
@@ -69,11 +69,8 @@ def main(ctx, seed, name, preset_name, input_filename):
         if "ridges" not in kwargs:
             kwargs["ridges"] = False
 
-        post_kwargs["shape"] = kwargs["shape"]
-        post_kwargs["freq"] = kwargs["freq"]
-
         tensor = effects.post_process(tensor, **kwargs)
-        tensor = recipes.post_process(tensor, **post_kwargs)
+        tensor = recipes.post_process(tensor, **kwargs)
 
         print(preset_name)
         save(tensor, name)

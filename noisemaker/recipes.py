@@ -10,7 +10,7 @@ import noisemaker.effects as effects
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, with_grime=False,
-                 with_watermark=False):
+                 with_watermark=False, **_):
     """
     Apply complex post-processing recipes.
 

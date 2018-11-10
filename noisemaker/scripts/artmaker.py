@@ -24,7 +24,7 @@ import noisemaker.recipes as recipes
 def main(ctx, width, height, channels, seed, name, preset_name):
     generators.set_seed(seed)
 
-    kwargs, post_kwargs, preset_name = presets.load(preset_name)
+    kwargs, preset_name = presets.load(preset_name)
 
     kwargs["shape"] = [height, width, channels]
 
@@ -39,12 +39,9 @@ def main(ctx, width, height, channels, seed, name, preset_name):
     if "ridges" not in kwargs:
         kwargs["ridges"] = False
 
-    post_kwargs["shape"] = kwargs["shape"]
-    post_kwargs["freq"] = kwargs["freq"]
-
     tensor = generators.multires(**kwargs)
 
-    tensor = recipes.post_process(tensor, **post_kwargs)
+    tensor = recipes.post_process(tensor, **kwargs)
 
     print(preset_name)
 
