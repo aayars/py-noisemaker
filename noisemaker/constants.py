@@ -265,6 +265,11 @@ class ValueMask(Enum):
     fat_lcd_y = 104
     fat_lcd_z = 105
 
+    truchet_maze_00 = 110
+    truchet_maze_01 = 111
+    truchet_maze_02 = 112
+    truchet_maze_03 = 113
+
     sparse = 1000
 
     invaders = 1001
@@ -308,6 +313,8 @@ class ValueMask(Enum):
     arecibo_nucleotide = 1032
     arecibo_dna = 1033
     arecibo = 1034
+
+    truchet_maze = 1040
 
     @classmethod
     def grid_members(cls):

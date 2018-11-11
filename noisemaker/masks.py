@@ -1132,6 +1132,54 @@ Masks = {
         ]
     },
 
+    ValueMask.truchet_maze_00: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 0, 1, 0, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0, 0 ],
+            [ 0, 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0, 0, 1 ],
+        ]
+    },
+
+    ValueMask.truchet_maze_01: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 1 ],
+            [ 0, 0, 0, 0, 1, 0 ],
+            [ 0, 0, 0, 1, 0, 0 ],
+            [ 0, 0, 1, 0, 0, 0 ],
+            [ 0, 1, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.truchet_maze_02: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 0, 1, 1 ],
+            [ 1, 1, 0, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.truchet_maze_03: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 1, 0, 0, 0 ],
+            [ 0, 0, 1, 0, 0, 0 ],
+            [ 1, 1, 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0, 1, 1 ],
+            [ 0, 0, 0, 1, 0, 0 ],
+            [ 0, 0, 0, 1, 0, 0 ],
+        ]
+    },
+
 }
 
 
@@ -1569,3 +1617,16 @@ def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_va
     atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
 
     return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
+
+
+def truchet_maze_shape():
+    return [6, 6]
+
+
+def truchet_maze(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    masks = [
+        [ValueMask.truchet_maze_00.value, ValueMask.truchet_maze_01.value],
+        [ValueMask.truchet_maze_02.value, ValueMask.truchet_maze_03.value]
+    ][0 if uv_noise[0][0] < .5 else 1]
+
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, *masks)

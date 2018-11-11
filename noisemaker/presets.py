@@ -2366,6 +2366,13 @@ PRESETS = lambda: {
         "with_sobel": random.randint(1, 3),
     },
 
+    "truchet-maze": {
+        "distrib": "ones",
+        "freq": 6 * random.randint(50, 100),
+        "mask": "truchet_maze",
+        "spline_order": random.randint(0, 3),
+    },
+
     "turf": {
         "freq": random.randint(6, 12),
         "hue_rotation": .25 + random.random() * .05,
