@@ -1180,6 +1180,54 @@ Masks = {
         ]
     },
 
+    ValueMask.truchet_tile_00: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 0, 0, 0, 0, 0, 1 ],
+            [ 0, 0, 0, 0, 1, 1 ],
+            [ 0, 0, 0, 1, 1, 1 ],
+            [ 0, 0, 1, 1, 1, 1 ],
+            [ 0, 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1, 1 ],
+        ]
+    },
+
+    ValueMask.truchet_tile_01: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 1, 1, 1, 1, 1, 1 ],
+            [ 0, 1, 1, 1, 1, 1 ],
+            [ 0, 0, 1, 1, 1, 1 ],
+            [ 0, 0, 0, 1, 1, 1 ],
+            [ 0, 0, 0, 0, 1, 1 ],
+            [ 0, 0, 0, 0, 0, 1 ],
+        ]
+    },
+
+    ValueMask.truchet_tile_02: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 1, 1, 1, 1, 1, 1 ],
+            [ 1, 1, 1, 1, 1, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 1, 1, 0, 0, 0 ],
+            [ 1, 1, 0, 0, 0, 0 ],
+            [ 1, 0, 0, 0, 0, 0 ],
+        ]
+    },
+
+    ValueMask.truchet_tile_03: {
+        "shape": [6, 6, 1],
+        "values": [
+            [ 1, 0, 0, 0, 0, 0 ],
+            [ 1, 1, 0, 0, 0, 0 ],
+            [ 1, 1, 1, 0, 0, 0 ],
+            [ 1, 1, 1, 1, 0, 0 ],
+            [ 1, 1, 1, 1, 1, 0 ],
+            [ 1, 1, 1, 1, 1, 1 ],
+        ]
+    },
+
 }
 
 
@@ -1630,3 +1678,11 @@ def truchet_maze(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     ][0 if uv_noise[0][0] < .5 else 1]
 
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, *masks)
+
+
+def truchet_tile_shape():
+    return [6, 6]
+
+
+def truchet_tile(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.truchet_tile_00.value, ValueMask.truchet_tile_01.value)

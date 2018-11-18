@@ -270,6 +270,11 @@ class ValueMask(Enum):
     truchet_maze_02 = 112
     truchet_maze_03 = 113
 
+    truchet_tile_00 = 120
+    truchet_tile_01 = 121
+    truchet_tile_02 = 122
+    truchet_tile_03 = 123
+
     sparse = 1000
 
     invaders = 1001
@@ -315,6 +320,7 @@ class ValueMask(Enum):
     arecibo = 1034
 
     truchet_maze = 1040
+    truchet_tile = 1041
 
     @classmethod
     def grid_members(cls):
