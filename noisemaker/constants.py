@@ -275,6 +275,90 @@ class ValueMask(Enum):
     truchet_tile_02 = 122
     truchet_tile_03 = 123
 
+    mcpaint_00 = 130
+    mcpaint_01 = 131
+    mcpaint_02 = 132
+    mcpaint_03 = 133
+    mcpaint_04 = 134
+    mcpaint_05 = 135
+    mcpaint_06 = 136
+    mcpaint_07 = 137
+    mcpaint_08 = 138
+    mcpaint_09 = 139
+    mcpaint_10 = 140
+    mcpaint_11 = 141
+    mcpaint_12 = 142
+    mcpaint_13 = 143
+    mcpaint_14 = 144
+    mcpaint_15 = 145
+    mcpaint_16 = 146
+    mcpaint_17 = 147
+    mcpaint_18 = 148
+    mcpaint_19 = 149
+    mcpaint_20 = 150
+    mcpaint_21 = 151
+    mcpaint_22 = 152
+    mcpaint_23 = 153
+    mcpaint_24 = 154
+    mcpaint_25 = 155
+    mcpaint_26 = 156
+    mcpaint_27 = 157
+    mcpaint_28 = 158
+    mcpaint_29 = 159
+    mcpaint_30 = 160
+    mcpaint_31 = 161
+    mcpaint_32 = 162
+    mcpaint_33 = 163
+    mcpaint_34 = 164
+    mcpaint_35 = 165
+    mcpaint_36 = 166
+    mcpaint_37 = 167
+    mcpaint_38 = 168
+    mcpaint_39 = 169
+    mcpaint_40 = 170
+
+    emoji_00 = 200
+    emoji_01 = 201
+    emoji_02 = 202
+    emoji_03 = 203
+    emoji_04 = 204
+    emoji_05 = 205
+    emoji_06 = 206
+    emoji_07 = 207
+    emoji_08 = 208
+    emoji_09 = 209
+    emoji_10 = 210
+    emoji_11 = 211
+    emoji_12 = 212
+    emoji_13 = 213
+    emoji_14 = 214
+    emoji_15 = 215
+    emoji_16 = 216
+    emoji_17 = 217
+    emoji_18 = 218
+    emoji_19 = 219
+    emoji_20 = 220
+    emoji_21 = 221
+    emoji_22 = 222
+    emoji_23 = 223
+    emoji_24 = 224
+    emoji_25 = 225
+    emoji_26 = 226
+    emoji_27 = 227
+    emoji_28 = 228
+    emoji_29 = 229
+    emoji_30 = 230
+    emoji_31 = 231
+    emoji_32 = 232
+    emoji_33 = 233
+    emoji_34 = 234
+    emoji_35 = 235
+    emoji_36 = 236
+    emoji_37 = 237
+    emoji_38 = 238
+    emoji_39 = 239
+    emoji_40 = 240
+
     sparse = 1000
 
     invaders = 1001
@@ -321,6 +405,10 @@ class ValueMask(Enum):
 
     truchet_maze = 1040
     truchet_tile = 1041
+
+    mcpaint = 1050
+
+    emoji = 1051
 
     @classmethod
     def grid_members(cls):

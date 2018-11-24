@@ -921,6 +921,16 @@ PRESETS = lambda: {
         "worms_stride_deviation": 16,
     },
 
+    "emo": {
+        "distrib": "ones",
+        "freq": 13 * random.randint(15, 30),
+        "mask": "emoji",
+        "spline_order": random.randint(0, 2),
+        "voronoi_func": random.randint(2, 3),
+        "voronoi_refract": random.random() * .5,
+        "with_voronoi": 1,
+    },
+
     "eyes": {
         "corners": True,
         "distrib": ["ones", "uniform"][random.randint(0, 1)],
@@ -1479,6 +1489,19 @@ PRESETS = lambda: {
         "worms_stride": random.randint(64, 256),
     },
 
+    "mcpaint": {
+        "corners": True,
+        "distrib": ["ones", "uniform", "normal"][random.randint(0, 2)],
+        "freq": random.randint(2, 8),
+        "glyph_map_colorize": random.randint(0, 1),
+        "glyph_map_zoom": random.randint(3, 6),
+        "mask": "mcpaint",
+        # "posterize_levels": 12,
+        "spline_order": 2,
+        "vortex": 10,
+        "with_glyph_map": "mcpaint",
+    },
+
     "misaligned": {
         "distrib": [m.value for m in ValueDistribution][random.randint(0, len(ValueDistribution) - 1)],
         "freq": random.randint(12, 24),
@@ -1724,6 +1747,17 @@ PRESETS = lambda: {
         "with_bloom": .25 + random.random() * .25,
         "with_crt": True,
         "with_scan_error": True,
+    },
+
+    "procedural-muck": {
+        "distrib": "ones",
+        "freq": random.randint(100, 250),
+        "mask": [m.value for m in ValueMask][random.randint(0, len(ValueMask) - 1)],
+        "saturation": 0,
+        "spline_order": 0,
+        "warp_freq": random.randint(2, 5),
+        "warp_interp": 2,
+        "warp_range": .5 + random.random(),
     },
 
     "prophesy": {
@@ -2485,13 +2519,13 @@ PRESETS = lambda: {
     },
 
     "whatami": {
-         "freq": random.randint(7, 9),
-         "hue_range": 3,
-         "invert": 1,
-         "post_reindex_range": 2,
-         "reindex_range": 2,
-         "voronoi_alpha": .75 + random.random() * .125,
-         "with_voronoi": 2,
+        "freq": random.randint(7, 9),
+        "hue_range": 3,
+        "invert": 1,
+        "post_reindex_range": 2,
+        "reindex_range": 2,
+        "voronoi_alpha": .75 + random.random() * .125,
+        "with_voronoi": 2,
     },
 
     "wireframe": {
