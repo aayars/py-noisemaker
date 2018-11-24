@@ -927,7 +927,7 @@ PRESETS = lambda: {
         "mask": "emoji",
         "spline_order": random.randint(0, 2),
         "voronoi_func": random.randint(2, 3),
-        "voronoi_refract": random.random() * .5,
+        "voronoi_refract": .25 + random.random() * .5,
         "with_voronoi": 1,
     },
 
