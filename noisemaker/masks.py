@@ -2385,6 +2385,12 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
     return mask_values, sum
 
 
+def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
+    atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
+
+    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
+
+
 def sparse(**kwargs):
     return 1 if random.random() < .15 else 0
 
@@ -2765,12 +2771,6 @@ def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
         return arecibo_nucleotide(x, y, row, arecibo_nucleotide_shape(), uv_x, uv_y, uv_noise, **kwargs)
 
     return arecibo_bignum(x, y, row, arecibo_bignum_shape(), uv_x, uv_y, uv_noise, **kwargs)
-
-
-def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
-    atlas = [Masks[g]["values"] for g in Masks if g.value >= min_value and g.value <= max_value]
-
-    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
 
 
 def truchet_maze_shape():

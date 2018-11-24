@@ -462,6 +462,16 @@ PRESETS = lambda: {
         "with_shadow": random.random(),
     },
 
+    "bitmask": {
+        "distrib": "ones",
+        "freq": random.randint(13, 27),
+        "mask": [m.value for m in ValueMask.procedural_members()][random.randint(0, len(ValueMask.procedural_members()) - 1)],
+        "octaves": random.randint(2, 6),
+        "ridges": True,
+        "spline_order": 2,
+        "with_bloom": .25 + random.random() * .25,
+    },
+
     "blacklight-fantasy": {
         "invert": 1,
         "post_hue_rotation": -.125,
