@@ -4,11 +4,11 @@ from setuptools import setup, find_packages
 
 
 setup(name='noisemaker',
-      version='0.0.1',
-      description='Classic procedural noise for Python 3 and TensorFlow',
+      version='0.1.0',
+      description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
-      url='http://noisemaker.io/',
+      url='https://github.com/aayars/py-noisemaker',
       packages=find_packages(),
 
       entry_points='''
@@ -25,5 +25,6 @@ setup(name='noisemaker',
       install_requires=[
         "click==6.7",
         "Pillow==4.1.1",
+        "tensorflow==1.11.0",
         ]
       )
