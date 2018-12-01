@@ -1,30 +1,9 @@
 language: python
-
 python:
     - "3.5"
     - "3.6"
-
-deploy:
-    provider: script
-    script: bash docker/push-docker
-    on:
-        branch: master
-
-install:
+install: 
     - python3 setup.py install
     - python3 setup.py install_scripts
-
 script:
     - noisemaker
-
-services:
-    - docker
-
-before_install:
-    - docker build -t aayars/noisemaker docker/Dockerfile
-    - docker run aayars/noisemaker
-
-env:
-    matrix:
-        - secure: NbRjgkLwkJOKC8ZrFiw7dN0MsqYEwaq7dwMUTWP+v5rwuOgUtVE6jVdTfA4bn3MO5PSfa7H3l98lPqPZL3cXn6P/wXkmZeb5tIrAo2bC1GnI9YriLMg/M4kU4AXbCJpDAe/L+H1c7yIzs+g2MLFN4JIL7Xkk2CNUbB5g1z5gPbOCX0orU91LlUkOiLpw1MdkPpBWQ0HaWTFE21iFDduPo0oU33vUXtmEnC3y52/bPnw6tqp0Zvxl8BsxaQNscHZ+aemNzGgotOQ+FfcA2V/4walfxFqxX0TZ2yYTGKIfKAzaKLZ2Acb1FqOyb2RiJ5YIUpWecifycMCAJgKx5TEFuavDkLmIMCJyLU8uJdJ0rkQiXRB2WDaTdfC+qAinO9dQxlMZwE/Wg8ShqswLnZl1Sv1kwlu/pt4QPiNGm91CB3mtmJXrP5pWNgfxHnzFL5SUxcXPf61quf9ojGb+ygIJJFc4xJFyHAWLvg0ntNr/zggQPAyqjPXuVSiEjsPTWFkTcPVbtIDPJ2lbe3wjEAfOmXwhkK1BfJtltF5TnhO11EpaM/nbE3LMlcn/iVdFhWNtUFzgm/LzfxEE3VORd/P1YEsm19zJQOFWDm51aZV47Qh+vquit9nSPpCT4OVueCFCjUw9s0dmz9GdNcua5rH934mnlTMbvrGsyZQaRgMqD7g=
-        - secure: H4N3WGUzExM0+k54dX0fECZGMkCD25blENOddjgXmWdLqK7EB5K5cBONywi3jSl4NkUq2MTaJcoxw4NieFNurXYKaTPtMV8N/Odh8sB9tCILeHgar3DCBiGNhZQ5n7h1Uzm1kT5aNftUxQvazh4ZUTyAzAGSU9j1EbqIIDFauN43p+gVkcwHR5z00Dd8MCRofpstRg0scCHatAbJmAMI7u1YzFaShInVBJs6JGscX+cpGvWJvnsZ1YBBHyfHSfrEA7b4aM4bMlJ0eMVAxcvM3uKkhDDxBktMrF7JKp6HTde5JyI3NxsVvBo0lRDodi377rMvUH1XupDu5Bt+9dK+Ztzzr6RMMjS3GZn98L6AJ35wUbZk1OD9wCw38v8nQhAKQ/qRd1fQFL9e16FzbwR5KA7ahuY65DFVS8wBGEkIjsMyAYLBdELjsdyvoQpNtBsqA5LxWUnQhSVKHXY/t0bY7lGrXEE24c8ilQvcLg8QjzCZKpAoRqgLBwE+OSVu91fu5JNDlYOTrLkiL5ZAaVh+OmB/ogPUJZiRIB4fpl4kA2kMJ1Qzv9sQ5lJ9r+auinpPeiV6ipj8ECeiWxpYetfYUvFiPd/TWEM2Hb+igrR5QulnhCVhZ8RiGRzisAyjJNApB/CDShFFfNkaSj8ywqwcyv4oXJCZ4BKBb/yRCq48ZNQ=
