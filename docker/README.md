@@ -12,13 +12,13 @@ output/noise.png`).
 Make sure your output directory exists (`mkdir output`). To generate basic noise, run:
 
 ```
-docker run -v output:/output aayars/py-noisemaker noisemaker --name output/noise.png
+    docker run -v output:/output aayars/py-noisemaker noisemaker --name output/noise.png
 ```
 
 Noise in noisemaker is composed by providing additional arguments. For example, for multi-octave noise, add an `--octaves` argument:
 
 ```
-docker run -v output:/output aayars/py-noisemaker noisemaker --name output/noise.png --octaves 8
+    docker run -v output:/output aayars/py-noisemaker noisemaker --name output/noise.png --octaves 4
 ```
 
 See *Help*.
@@ -28,7 +28,7 @@ See *Help*.
 Make sure that disk sharing is enabled in your local Docker settings, and provide the full local path to `-v` when using noisemaker.
 
 ```
-docker run -v c:/Users/you/stuff/output:/output aayars/py-noisemaker noisemaker --name output/noise.png
+    docker run -v c:/Users/you/stuff/output:/output aayars/py-noisemaker noisemaker --name output/noise.png
 ```
 
 ## Help
@@ -37,11 +37,6 @@ docker run -v c:/Users/you/stuff/output:/output aayars/py-noisemaker noisemaker 
 docker run aayars/py-noisemaker noisemaker --help
 ```
 
-Other noisemaker commands, such as `artmaker`, are included in the image.
-
-```
-docker run aayars/py-noisemaker artmaker --help
-docker run aayars/py-noisemaker artmaker
-```
+Other noisemaker commands, such as `artmaker` and `artmangler`, are included in the image.
 
 See also: [readthedocs](http://noisemaker.readthedocs.io/en/latest/)
