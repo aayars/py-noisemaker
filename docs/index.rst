@@ -43,7 +43,7 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-The above `pip` command also installs tensorflow for CPU. If you are set up with cuda/cudnn and prefer tensorflow-gpu, `Install TensorFlow`_ with the virtualenv activated:
+The above `pip` command also installs tensorflow for CPU. If you are set up with cuda/cudnn and prefer tensorflow-gpu, `install TensorFlow`_ with the virtualenv activated:
 
 .. code-block:: bash
 
@@ -80,9 +80,10 @@ Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or
 See also
 --------
 
--  `Wikipedia: Value Noise`_
--  `Wikipedia: Perlin Noise`_
+-  `Wikipedia: Value noise`_
+-  `Wikipedia: Perlin noise`_
 -  `Wikipedia: Voronoi diagram`_
+-  `Wikipedia: Worley noise`_
 
 Indices and tables
 ==================
@@ -95,6 +96,7 @@ Indices and tables
 .. _`Noisemaker on Docker`: https://github.com/aayars/py-noisemaker/blob/master/docker/README.md
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
-.. _`Wikipedia: Value Noise`: https://en.wikipedia.org/wiki/Value_noise
-.. _`Wikipedia: Perlin Noise`: https://en.wikipedia.org/wiki/Perlin_noise
+.. _`Wikipedia: Value noise`: https://en.wikipedia.org/wiki/Value_noise
+.. _`Wikipedia: Perlin noise`: https://en.wikipedia.org/wiki/Perlin_noise
 .. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
+.. _`Wikipedia: Worley noise`: https://en.wikipedia.org/wiki/Worley_noise
