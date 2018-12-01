@@ -35,12 +35,13 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-`Install TensorFlow`_ in the virtualenv, using ``pip``.
+The above `pip` command also installs tensorflow for CPU. If you are set up with cuda/cudnn and prefer tensorflow-gpu, `Install TensorFlow`_ with the virtualenv activated:
 
 .. code-block:: bash
 
-    # Hopefully there is a wheel available for your platform.
-    pip install tensorflow  # or tensorflow-gpu, if you're all set up with cuda/cudnn
+    pip uninstall tensorflow
+
+    pip install tensorflow-gpu
 
 Upgrading
 ^^^^^^^^^
