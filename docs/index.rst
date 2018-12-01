@@ -5,11 +5,6 @@ Noisemaker
    :maxdepth: 2
    :caption: Contents:
 
-.. image:: images/sploosh.jpg
-   :width: 1024
-   :height: 256
-   :alt: Noisemaker example output (CC0)
-
 **Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3`_ and `TensorFlow`_.
 
 .. image:: https://travis-ci.com/aayars/py-noisemaker.svg?branch=master
@@ -23,13 +18,8 @@ Noisemaker
 Installation
 ------------
 
-Docker
-~~~~~~
-
-Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_.
-
-Not Docker (Python 3 virtualenv)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Python 3 virtualenv
+~~~~~~~~~~~~~~~~~~~
 
 Noisemaker is intended for Python 3.5+.
 
@@ -43,7 +33,12 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-The above `pip` command also installs tensorflow for CPU. If you are set up with cuda/cudnn and prefer tensorflow-gpu, `install TensorFlow`_ with the virtualenv activated:
+For subsequent activation of the virtual environment, run `source bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
+
+Running on GPU
+^^^^^^^^^^^^^^
+
+Noisemaker installs the CPU version of TensorFlow. If you are set up with cuda/cudnn and prefer tensorflow-gpu, activate the virtual environment and `install TensorFlow`_:
 
 .. code-block:: bash
 
@@ -52,13 +47,38 @@ The above `pip` command also installs tensorflow for CPU. If you are set up with
     pip install tensorflow-gpu
 
 Upgrading
-^^^^^^^^^
+~~~~~~~~~
 
 Activate the virtual environment, and run:
 
 .. code-block:: bash
 
     pip install --upgrade git+https://github.com/aayars/py-noisemaker
+
+Development
+~~~~~~~~~~~
+
+To install noisemaker in a dev env:
+
+.. code-block:: bash
+
+    git clone https://github.com/aayars/py-noisemaker
+
+    cd py-noisemaker
+
+    python3 -m venv venv
+
+    source venv/bin/activate
+
+    python setup.py develop
+    python setup.py install_scripts
+
+For subsequent activation of the virtual environment, run `source venv/bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
+
+Docker
+~~~~~~
+
+Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_!
 
 Usage
 -----
