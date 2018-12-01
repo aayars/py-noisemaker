@@ -14,3 +14,7 @@ Read the docs at `readthedocs`_.
 .. image:: https://readthedocs.org/projects/noisemaker/badge/?version=latest
    :target: https://noisemaker.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
+
+.. image:: https://img.shields.io/docker/build/aayars/py-noisemaker.svg
+   :target: https://hub.docker.com/r/aayars/py-noisemaker
+   :alt: Docker Status
