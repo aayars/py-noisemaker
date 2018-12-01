@@ -10,7 +10,7 @@ Noisemaker
    :height: 256
    :alt: Noisemaker example output (CC0)
 
-**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3` and `TensorFlow`.
+**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3`_ and `TensorFlow`_.
 
 .. image:: https://travis-ci.com/aayars/py-noisemaker.svg?branch=master
    :target: https://travis-ci.com/aayars/py-noisemaker
@@ -55,6 +55,8 @@ Upgrading
 ^^^^^^^^^
 
 Activate the virtual environment, and run:
+
+.. code-block:: bash
 
     pip install --upgrade git+https://github.com/aayars/py-noisemaker
 
