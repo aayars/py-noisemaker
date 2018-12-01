@@ -12,6 +12,13 @@ Noisemaker
 
 **Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3` and `TensorFlow`.
 
+.. image:: https://travis-ci.com/aayars/py-noisemaker.svg?branch=master
+   :target: https://travis-ci.com/aayars/py-noisemaker
+
+.. image:: https://readthedocs.org/projects/noisemaker/badge/?version=latest
+   :target: https://noisemaker.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
+
 Installation
 ------------
 
