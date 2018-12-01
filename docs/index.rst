@@ -74,8 +74,8 @@ CLI
 Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or `--help`.
 
 -  `noisemaker`: Fully-featured noise generation pipeline
--  `glitchmaker`: Simple glitch art tool
--  `collagemaker`: Image collage tool
+-  `artmaker`: Generate images from presets
+-  `artmangler`: Apply post-processing effects to images
 
 See also
 --------
