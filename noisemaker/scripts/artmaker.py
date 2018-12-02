@@ -26,6 +26,8 @@ def main(ctx, width, height, channels, seed, name, preset_name):
 
     kwargs, preset_name = presets.load(preset_name)
 
+    print(preset_name)
+
     kwargs["shape"] = [height, width, channels]
 
     # print(kwargs)
@@ -42,8 +44,6 @@ def main(ctx, width, height, channels, seed, name, preset_name):
     tensor = generators.multires(**kwargs)
 
     tensor = recipes.post_process(tensor, **kwargs)
-
-    print(preset_name)
 
     with tf.Session().as_default():
         save(tensor, name)
