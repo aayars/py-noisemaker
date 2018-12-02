@@ -349,19 +349,19 @@ class ValueMask(Enum):
     emoji_25 = 225
     emoji_26 = 226
     emoji_27 = 227
-    emoji_28 = 228
-    emoji_29 = 229
-    emoji_30 = 230
-    emoji_31 = 231
-    emoji_32 = 232
-    emoji_33 = 233
-    emoji_34 = 234
-    emoji_35 = 235
-    emoji_36 = 236
-    emoji_37 = 237
-    emoji_38 = 238
-    emoji_39 = 239
-    emoji_40 = 240
+    # emoji_28 = 228
+    # emoji_29 = 229
+    # emoji_30 = 230
+    # emoji_31 = 231
+    # emoji_32 = 232
+    # emoji_33 = 233
+    # emoji_34 = 234
+    # emoji_35 = 235
+    # emoji_36 = 236
+    # emoji_37 = 237
+    # emoji_38 = 238
+    # emoji_39 = 239
+    # emoji_40 = 240
 
     sparse = 1000
 
