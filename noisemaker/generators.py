@@ -62,6 +62,12 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.lognormal:
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
+    elif distrib == ValueDistribution.column_index:
+        tensor = tf.expand_dims(tf.cast(effects.normalize(effects.column_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
+
+    elif distrib == ValueDistribution.row_index:
+        tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
+
     if mask:
         atlas = None
 

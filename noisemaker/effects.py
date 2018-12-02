@@ -636,6 +636,11 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
     """
     Apply displacement from pixel radian values.
 
+    .. image:: images/ripple.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
     :param list[int] freq: Displacement frequency
@@ -815,6 +820,11 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
     """
     Apply per-pixel field flow. Non-iterative.
 
+    .. image:: images/wormhole.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param list[int] shape:
     :param float kink: Path twistiness
@@ -901,6 +911,11 @@ def sobel(tensor, shape, dist_func=1):
     """
     Apply a sobel operator.
 
+    .. image:: images/sobel.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param list[int] shape:
     :param DistanceFunction|int dist_func: Sobel distance function
@@ -916,6 +931,11 @@ def sobel(tensor, shape, dist_func=1):
 def normal_map(tensor, shape):
     """
     Generate a tangent-space normal map.
+
+    .. image:: images/normals.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -941,6 +961,7 @@ def value_map(tensor, shape, keep_dims=False):
     :param Tensor tensor:
     :param list[int] shape:
     :param bool keep_dims: If True, don't collapse the channel dimension.
+    :return: Tensor of shape (height, width), or (height, width, channels) if keep_dims was True.
     """
 
     return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
@@ -948,6 +969,15 @@ def value_map(tensor, shape, keep_dims=False):
 
 def density_map(tensor, shape):
     """
+    Create a binned pixel value density map.
+
+    .. image:: images/density.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor:
+    :param list[int] shape:
     """
 
     height, width, channels = shape
@@ -1184,6 +1214,11 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
+    .. image:: images/voronoi.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
@@ -1356,6 +1391,11 @@ def posterize(tensor, levels):
     """
     Reduce the number of color levels per channel.
 
+    .. image:: images/posterize.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param int levels:
     :return: Tensor
@@ -1424,8 +1464,13 @@ def row_index(shape):
         ... (x height)
       ]
 
+    .. image:: images/row_index.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param list[int] shape:
-    :return: Tensor
+    :return: Tensor of shape (height, width)
     """
 
     height = shape[0]
@@ -1451,8 +1496,13 @@ def column_index(shape):
         [ height-1, height-1, height-1, ... ]
       ]
 
+    .. image:: images/column_index.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param list[int] shape:
-    :return: Tensor
+    :return: Tensor of shape (height, width)
     """
 
     height = shape[0]
@@ -1509,6 +1559,22 @@ def freq_for_shape(freq, shape):
 
 
 def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
+    """
+    Multi-octave warp effect
+
+    .. image:: images/warp.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param list[int] freq:
+    :param int octaves:
+    :param float displacement:
+    :param int spline_order:
+    """
+
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
 
@@ -1585,6 +1651,11 @@ def vortex(tensor, shape, displacement=64.0):
     """
     Vortex tiling effect
 
+    .. image:: images/vortex.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
     :param Tensor tensor:
     :param list[int] shape:
     :param float displacement:
@@ -1605,6 +1676,11 @@ def vortex(tensor, shape, displacement=64.0):
 def aberration(tensor, shape, displacement=.005):
     """
     Chromatic aberration
+
+    .. image:: images/aberration.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -1659,6 +1735,8 @@ def bloom(tensor, shape, alpha=.5):
     """
     Bloom effect
 
+    Input image must currently be square (sorry).
+
     :param Tensor tensor:
     :param list[int] shape:
     :param float alpha:
@@ -1676,6 +1754,19 @@ def bloom(tensor, shape, alpha=.5):
 
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     """
+    Diffusion-limited aggregation. Slow.
+
+    .. image:: images/dla.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param int padding:
+    :param float seed_density:
+    :param float density:
+    :param None|Tensor xy: Pre-seeded point cloud (optional)
     """
 
     height, width, channels = shape
@@ -1904,6 +1995,17 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
 
 def shadow(tensor, shape, alpha=1.0, reference=None):
     """
+    Convolution-based self-shadowing effect.
+
+    .. image:: images/shadow.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param float alpha:
+    :param None|Tensor reference: Alternate reference values with shape (height, width)
     """
 
     height, width, channels = shape

@@ -170,6 +170,10 @@ class ValueDistribution(Enum):
 
     mids = 6
 
+    column_index = 10
+
+    row_index = 11
+
 
 class ValueMask(Enum):
     """
