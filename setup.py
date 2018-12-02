@@ -2,9 +2,14 @@
 
 from setuptools import setup, find_packages
 
+import pip
+
+
+pip.main(['install', 'tensorflow==1.3.0'])  # install_requires can't find tensorflow, but pip can
+
 
 setup(name='noisemaker',
-      version='0.1.11',
+      version='0.1.12',
       description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
@@ -25,7 +30,6 @@ setup(name='noisemaker',
       install_requires=[
         "click==6.7",
         "Pillow==4.1.1",
-        "tensorflow==1.11.0",
         "wheel==0.26",  # Needed by TF
         ]
       )
