@@ -4,6 +4,7 @@ RUN apt update && \
     apt install -y git python3 python3-pip python3-setuptools python3-six && \
     \
     pip3 install git+https://github.com/aayars/py-noisemaker && \
+    pip3 install tensorflow==1.3.0 && \
     \
     apt remove -y git python3-pip && \
     apt autoremove -y

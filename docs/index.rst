@@ -37,18 +37,9 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
+    pip install tensorflow  # tensorflow==1.3.0 recommended, tensorflow-gpu requires cuda/cudnn
+
 For subsequent activation of the virtual environment, run `source bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
-
-Running on GPU
-^^^^^^^^^^^^^^
-
-Noisemaker installs the CPU version of TensorFlow. If you are set up with cuda/cudnn and prefer tensorflow-gpu, activate the virtual environment and `install TensorFlow`_:
-
-.. code-block:: bash
-
-    pip uninstall tensorflow
-
-    pip install tensorflow-gpu
 
 Upgrading
 ~~~~~~~~~
