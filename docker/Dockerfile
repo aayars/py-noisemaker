@@ -1,21 +1,23 @@
 FROM debian:9-slim
 
-RUN apt update -qqqqq && \
-    apt install -qqqqq -y curl git python3 python3-pip python3-setuptools python3-six && \
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+RUN apt update -qq && \
+    apt install -qq -y curl git python3 python3-pip python3-setuptools python3-six && \
     \
     mkdir -p /root/.noisemaker/fonts && \
     cd /root/.noisemaker/fonts && \
     /usr/bin/curl -s https://releases.pagure.org/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz \
         | /bin/tar xz --strip-components=1 && \
-    cd / \
+    cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
     pip3 install -q tensorflow==1.3.0 && \
     \
-    apt remove -qqqqq --purge -y curl git python3-pip && \
-    apt autoremove -qqqqq -y
-
-ENV LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
+    apt remove -qq --purge -y curl git python3-pip && \
+    apt autoremove -qq -y && \
+    \
+    noisemaker --help > /dev/null
 
 CMD noisemaker --help
