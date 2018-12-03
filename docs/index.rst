@@ -108,7 +108,7 @@ Indices and tables
 
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
-.. _`Noisemaker on Docker`: https://github.com/aayars/py-noisemaker/blob/master/docker/README.md
+.. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/py-noisemaker/
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
 .. _`Wikipedia: Value noise`: https://en.wikipedia.org/wiki/Value_noise
