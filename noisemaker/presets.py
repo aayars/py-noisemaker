@@ -77,12 +77,16 @@ EFFECTS_PRESETS = lambda: {
     },
 
     "glitchin-out": {
-        "with_aberration": random.randint(0, 1) * random.random() * .02,
-        "with_bloom": random.randint(0, 1) * (.5 + random.random() * .5),
-        "with_crt": random.random() > .25,
-        "with_dither": random.randint(0, 1) * random.random() * .25,
+        "warp_freq": [random.randint(2, 3), random.randint(1, 3)],
+        "warp_octaves": random.randint(1, 3),
+        "warp_range": .125 + random.random() * .375,
+        "warp_interp": 0,
+        "with_aberration": .0125 + random.random() * .0125,
+        "with_bloom": .333 + random.random() * .333,
+        "with_crt": True,
+        "with_dither": .125 + random.random() * .125,
         "with_glitch": True,
-        "with_scan_error": random.randint(0, 1),
+        "with_scan_error": True,
     },
 
     "glowing-edges": {
