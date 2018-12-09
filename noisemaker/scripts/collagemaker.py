@@ -92,11 +92,11 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 @click.option("--control-filename", help="Control image filename (optional)")
 @click.pass_context
 def basic(ctx, width, height, input_dir, name, control_filename):
-    shape = [height, width, 3]
+    shape = [height, width, 3]  # Any shape you want, as long as it's [1024, 1024, 3]
 
     filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
 
-    collage_count = min(random.randint(3, 5), len(filenames))
+    collage_count = min(random.randint(4, 6), len(filenames))
     collage_images = []
 
     for i in range(collage_count + 1):
@@ -108,8 +108,11 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     if control_filename:
-        # Image should be pre-cropped and resized to `shape`.
-        control = effects.value_map(util.load(control_filename), shape, keep_dims=True)
+        control = tf.image.convert_image_dtype(util.load(control_filename), dtype=tf.float32)
+
+        control = effects.square_crop_and_resize(control, 1024)
+
+        control = effects.value_map(control, shape, keep_dims=True)
 
     else:
         control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
