@@ -2147,3 +2147,26 @@ def composite(tensor, shape, scale=2.0):
 
     else:
         return _downsample(out, scaled_shape, shape)
+
+
+def square_crop_and_resize(tensor, length=1024):
+    """
+    Crop and resize an image Tensor into a square with desired side length.
+
+    :param Tensor tensor:
+    :param int length: Desired side length
+    :return Tensor:
+    """
+
+    with tf.Session().as_default():
+        height, width, channels = tf.shape(tensor).eval()
+
+    have_length = min(height, width)
+
+    if height != width:
+        tensor = tf.image.resize_image_with_crop_or_pad(tensor, have_length, have_length)
+
+    if length != have_length:
+        tensor = resample(tensor, [height, width, channels])
+
+    return tensor

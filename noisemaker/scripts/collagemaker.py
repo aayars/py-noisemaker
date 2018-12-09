@@ -89,8 +89,9 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 @cli.height_option()
 @cli.input_dir_option()
 @cli.name_option(default="collage.png")
+@click.option("--control-filename", help="Control image filename (optional)")
 @click.pass_context
-def basic(ctx, width, height, input_dir, name):
+def basic(ctx, width, height, input_dir, name, control_filename):
     shape = [height, width, 3]
 
     filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
@@ -106,7 +107,12 @@ def basic(ctx, width, height, input_dir, name):
 
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
-    control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
+    if control_filename:
+        # Image should be pre-cropped and resized to `shape`.
+        control = effects.value_map(util.load(control_filename), shape, keep_dims=True)
+
+    else:
+        control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
     tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 

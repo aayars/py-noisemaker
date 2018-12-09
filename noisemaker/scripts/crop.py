@@ -1,7 +1,7 @@
 import click
 import tensorflow as tf
 
-from noisemaker.util import save, load
+from noisemaker.util import load, save
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
@@ -16,36 +16,7 @@ import noisemaker.effects as effects
 @click.argument('input_filename')
 @click.pass_context
 def main(ctx, name, input_filename):
-    tensor = tf.image.convert_image_dtype(load(input_filename), tf.float32)
-
-    max_height = 1024
-    max_width = 1024
+    tensor = effects.square_crop_and_resize(tf.image.convert_image_dtype(load(input_filename), tf.float32), 1024)
 
     with tf.Session().as_default():
-        height, width, channels = tf.shape(tensor).eval()
-
-        need_resample = False
-
-        if height != width:
-            length = min(height, width)
-            height = length
-            width = length
-
-            tensor = tf.image.resize_image_with_crop_or_pad(tensor, length, length)
-
-        if height > max_height:
-            need_resample = True
-            width = int(width * (max_height / height))
-            height = max_height
-
-        if width > max_width:
-            need_resample = True
-            height = int(height * (max_width / width))
-            width = max_width
-
-        shape = [height, width, channels]
-
-        if need_resample:
-            tensor = effects.resample(tensor, shape)
-
         save(tensor, name)
