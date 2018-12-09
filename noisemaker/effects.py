@@ -2167,6 +2167,6 @@ def square_crop_and_resize(tensor, length=1024):
         tensor = tf.image.resize_image_with_crop_or_pad(tensor, have_length, have_length)
 
     if length != have_length:
-        tensor = resample(tensor, [height, width, channels])
+        tensor = resample(tensor, [length, length, channels])
 
     return tensor
