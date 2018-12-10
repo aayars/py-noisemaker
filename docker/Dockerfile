@@ -15,6 +15,10 @@ RUN apt update -qq && \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
     pip3 install -q tensorflow==1.3.0 && \
     \
+    apt install -qq -y cpanminus gcc libjpeg-dev libpng-dev make perl-doc && \
+    PERL_MM_USE_DEFAULT=1 perl -MCPAN -e 'install Math::Fractal::Noisemaker' && \
+    apt remove -qq --purge -y gcc make && \
+    \
     apt remove -qq --purge -y curl git python3-pip && \
     apt autoremove -qq -y && \
     \
