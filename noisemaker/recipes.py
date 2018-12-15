@@ -2,7 +2,7 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import ConvKernel, ValueDistribution
+from noisemaker.constants import ValueDistribution
 from noisemaker.generators import basic, multires
 
 import noisemaker.effects as effects
@@ -173,8 +173,6 @@ def crt(tensor, shape):
     height, width, channels = shape
 
     value_shape = [height, width, 1]
-
-    tensor *= effects.convolve(ConvKernel.sharpen, tensor, shape)
 
     distortion = basic(3, value_shape)
     distortion_amount = .25
