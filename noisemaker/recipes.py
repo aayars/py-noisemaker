@@ -2,7 +2,7 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import ValueDistribution
+from noisemaker.constants import ConvKernel, ValueDistribution
 from noisemaker.generators import basic, multires
 
 import noisemaker.effects as effects
@@ -174,6 +174,8 @@ def crt(tensor, shape):
 
     value_shape = [height, width, 1]
 
+    tensor = effects.convolve(ConvKernel.sharpen, tensor, shape)
+
     distortion = basic(3, value_shape)
     distortion_amount = .25
 
@@ -183,12 +185,12 @@ def crt(tensor, shape):
     white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
     white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, value_shape, distortion_amount, reference_x=distortion), value_shape)
 
-    tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .25)
+    tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .5)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
     scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
-    tensor = effects.blend_cosine(tensor, scan_noise, 0.25)
+    tensor = effects.blend_cosine(tensor, scan_noise, 0.5)
 
     if channels <= 2:
         return tensor
