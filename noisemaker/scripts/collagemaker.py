@@ -122,7 +122,7 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     tensor = effects.blend(tensor, base, .125 + random.random() * .125)
 
     tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125)
+    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
 
     tensor = tf.image.adjust_brightness(tensor, .05)
     tensor = tf.image.adjust_contrast(tensor, 1.25)
