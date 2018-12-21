@@ -690,16 +690,6 @@ PRESETS = lambda: {
         "wormhole_stride": .05 + random.random() * .05,
     },
 
-    "cloverleaf": {
-        "corners": True,
-        "freq": 2,
-        "point_distrib": ([m.value for m in PointDistribution])[random.randint(0, len(PointDistribution) - 1)],
-        "point_freq": random.randint(4, 10),
-        "with_reverb": random.randint(0, 3),
-        "voronoi_refract": .25 + random.random() * .375,
-        "with_voronoi": 7,
-    },
-
     "conference": {
         "distrib": "ones",
         "freq": 5 * random.randint(15, 30),
