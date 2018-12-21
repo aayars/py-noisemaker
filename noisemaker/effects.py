@@ -1000,7 +1000,7 @@ def density_map(tensor, shape):
 
 def jpeg_decimate(tensor, shape, iterations=25):
     """
-    JPEG decimation with conv2d feedback loop
+    Destroy an image with the power of JPEG
 
     :param Tensor tensor:
     :return: Tensor
