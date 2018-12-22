@@ -44,6 +44,7 @@ def main(ctx, width, height, channels, clut, seed, name, preset_name):
 
     if clut:
         kwargs["clut"] = clut
+        kwargs["clut_horizontal"] = True
 
     tensor = generators.multires(**kwargs)
 
