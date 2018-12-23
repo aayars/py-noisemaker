@@ -2,15 +2,16 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import ValueDistribution
+from noisemaker.constants import ValueDistribution, ValueMask
 from noisemaker.generators import basic, multires
+from noisemaker.masks import mask_function_and_shape
 
 import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, with_grime=False,
-                 with_watermark=False, **_):
+                 with_watermark=False, with_ticker=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -26,6 +27,8 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_frame: Shitty instant camera effect
     :param bool with_false_color: Swap colors with basic noise
     :param bool with_interference: CRT-like moire effect
+    :param bool with_watermark: Stylized digital watermark effect
+    :param bool with_ticker: With spooky ticker effect
     :return: Tensor
     """
 
@@ -64,6 +67,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_fibers:
         tensor = fibers(tensor, shape)
+
+    if with_ticker:
+        tensor = spooky_ticker(tensor, shape)
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
@@ -376,3 +382,58 @@ def watermark(tensor, shape):
     brightness = basic(16, value_shape)
 
     return effects.blend(tensor, brightness, mask * .125)
+
+
+def spooky_ticker(tensor, shape):
+    """
+    """
+
+    masks = [
+        ValueMask.invaders,
+        ValueMask.invaders_square,
+        ValueMask.matrix,
+        ValueMask.letters,
+        ValueMask.ideogram,
+        ValueMask.script,
+        ValueMask.white_bear,
+        ValueMask.binary,
+        ValueMask.numeric,
+        ValueMask.hex,
+        ValueMask.fat_lcd,
+        ValueMask.fat_lcd_binary,
+        ValueMask.fat_lcd_numeric,
+        ValueMask.fat_lcd_hex,
+        ValueMask.arecibo_num,
+        ValueMask.arecibo_bignum,
+        ValueMask.arecibo_nucleotide,
+        ValueMask.bar_code,
+    ]
+
+    bottom_padding = 2
+
+    rendered_mask = tf.zeros(shape)
+
+    for _ in range(random.randint(3, 6)):
+        mask = masks[random.randint(0, len(masks) - 1)]
+
+        _, mask_shape = mask_function_and_shape(mask)
+
+        multiplier = 2 if shape[1] < 5 else 1
+
+        width = int(shape[1] / multiplier) or 1
+
+        width = mask_shape[1] * int(width / mask_shape[1])  # Make sure the mask divides evenly into width
+
+        freq = mask_shape[0] if mask_shape[1] == 1 else mask_shape[1]  # For width of 1 (eg barcode), which doesn't work for freq
+
+        this_mask = basic(freq, [mask_shape[0], width, shape[2]], spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+
+        this_mask = effects.resample(this_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+
+        rendered_mask += tf.pad(this_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
+
+        bottom_padding += mask_shape[0] * multiplier + 2
+
+    rendered_mask = effects.bloom(rendered_mask, shape)
+
+    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), .666 + random.random() * .333)

@@ -197,6 +197,10 @@ EFFECTS_PRESETS = lambda: {
         "with_sobel": random.randint(1, 3),
     },
 
+    "spooky-ticker": {
+        "with_ticker": True,
+    },
+
     "swerve-h": {
         "warp_freq": [random.randint(3, 6), 1],
         "warp_octaves": 1,

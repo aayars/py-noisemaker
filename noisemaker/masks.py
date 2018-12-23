@@ -2338,8 +2338,7 @@ Masks = {
 
 
 # Procedural masks, corresponding to keys in constants.ValueMask
-
-def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=False):
+def mask_function_and_shape(mask, default_shape=None):
     """
     """
 
@@ -2349,7 +2348,16 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
 
     else:
         mask_function = globals().get(mask.name)
-        mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or channel_shape
+        mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or default_shape
+
+    return mask_function, mask_shape
+
+
+def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=False):
+    """
+    """
+
+    mask_function, mask_shape = mask_function_and_shape(mask, channel_shape)
 
     mask_values = []
 
@@ -2808,3 +2816,11 @@ def emoji_shape():
 
 def emoji(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.emoji_00.value, ValueMask.emoji_26.value)
+
+
+def bar_code_shape():
+    return [24, 1]
+
+
+def bar_code(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    return uv_noise[0][uv_x] < .5
