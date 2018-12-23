@@ -426,7 +426,7 @@ def spooky_ticker(tensor, shape):
 
         freq = mask_shape[0] if mask_shape[1] == 1 else mask_shape[1]  # For width of 1 (eg barcode), which doesn't work for freq
 
-        this_mask = basic(freq, [mask_shape[0], width, shape[2]], spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+        this_mask = basic(freq, [mask_shape[0], width, 1], spline_order=0, distrib=ValueDistribution.ones, mask=mask)
 
         this_mask = effects.resample(this_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
 
@@ -434,6 +434,9 @@ def spooky_ticker(tensor, shape):
 
         bottom_padding += mask_shape[0] * multiplier + 2
 
-    rendered_mask = effects.bloom(rendered_mask, shape)
+    alpha = .666 + random.random() * .333
 
-    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), .666 + random.random() * .333)
+    # shadow
+    tensor = effects.blend(tensor, tensor * 1.0 - effects.offset(rendered_mask, shape, -1, -1), alpha * .333)
+
+    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
