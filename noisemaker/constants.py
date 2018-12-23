@@ -415,6 +415,7 @@ class ValueMask(Enum):
     emoji = 1051
 
     bar_code = 1060
+    bar_code_short = 1061
 
     @classmethod
     def grid_members(cls):

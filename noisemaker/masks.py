@@ -2824,3 +2824,11 @@ def bar_code_shape():
 
 def bar_code(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return uv_noise[0][uv_x] < .5
+
+
+def bar_code_short_shape():
+    return [10, 1]
+
+
+def bar_code_short(*args, **kwargs):
+    return bar_code(*args, **kwargs)

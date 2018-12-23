@@ -407,6 +407,7 @@ def spooky_ticker(tensor, shape):
         ValueMask.arecibo_bignum,
         ValueMask.arecibo_nucleotide,
         ValueMask.bar_code,
+        ValueMask.bar_code_short,
     ]
 
     bottom_padding = 2
@@ -434,7 +435,7 @@ def spooky_ticker(tensor, shape):
 
         bottom_padding += mask_shape[0] * multiplier + 2
 
-    alpha = .666 + random.random() * .333
+    alpha = .5 + random.random() * .25
 
     # shadow
     tensor = effects.blend(tensor, tensor * 1.0 - effects.offset(rendered_mask, shape, -1, -1), alpha * .333)
