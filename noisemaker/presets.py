@@ -35,6 +35,7 @@ EFFECTS_PRESETS = lambda: {
         "warp_interp": 0,
         "with_bloom": .5 + random.random() * .5,
         "with_glitch": random.random() > .125,
+        "with_ticker": random.randint(0, 1),
     },
 
     "crt": {
@@ -87,6 +88,7 @@ EFFECTS_PRESETS = lambda: {
         "with_dither": .125 + random.random() * .125,
         "with_glitch": True,
         "with_scan_error": True,
+        "with_ticker": random.randint(0, 1),
     },
 
     "glowing-edges": {
@@ -327,6 +329,7 @@ PRESETS = lambda: {
         "with_glitch": random.randint(0, 1),
         "with_scan_error": random.randint(0, 1),
         "with_snow": .25 + random.random() * .25,
+        "with_ticker": random.randint(0, 1),
         "with_vhs": random.randint(0, 1),
     },
 
@@ -381,6 +384,7 @@ PRESETS = lambda: {
         "with_crt": True,
         "with_glitch": True,
         "with_scan_error": True,
+        "with_ticker": random.randint(0, 1),
     },
 
     "analog-glitch": {
@@ -1289,6 +1293,7 @@ PRESETS = lambda: {
         "with_glitch": True,
         "with_scan_error": True,
         "with_snow": random.random() * .333,
+        "with_ticker": random.randint(0, 1),
     },
 
     "hex-machine": {
