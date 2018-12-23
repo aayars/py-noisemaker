@@ -2160,6 +2160,14 @@ PRESETS = lambda: {
         "worms_stride": random.randint(150, 350),
     },
 
+    "spectrogram": {
+        "distrib": "row_index",
+        "freq": random.randint(256,512),
+        "hue_range": .5 + random.random() * .5,
+        "mask": "bar_code",
+        "spline_order": 0,
+    },
+
     "spiral-clouds": {
         "freq": random.randint(2, 4),
         "lattice_drift": 1.0,

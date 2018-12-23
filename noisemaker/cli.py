@@ -630,6 +630,12 @@ def saturation_option(**attrs):
     return float_option("--saturation", default=1.0, **attrs)
 
 
+def hue_distrib_option(**attrs):
+    attrs.setdefault("help", "HSV: Override value distribution for hue")
+
+    return str_option("--hue-distrib", type=click.Choice([m.name for m in ValueDistribution]), default=None, **attrs)
+
+
 def saturation_distrib_option(**attrs):
     attrs.setdefault("help", "HSV: Override value distribution for saturation")
 

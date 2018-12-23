@@ -101,6 +101,7 @@ import noisemaker.recipes as recipes
 @cli.hue_rotation_option()
 @cli.post_hue_rotation_option()
 @cli.saturation_option()
+@cli.hue_distrib_option()
 @cli.saturation_distrib_option()
 @cli.post_saturation_option()
 @cli.brightness_distrib_option()
@@ -110,14 +111,21 @@ import noisemaker.recipes as recipes
 @cli.seed_option()
 @cli.name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp, warp_freq,
-         reflect, refract, reindex, reverb, reverb_iterations, post_reindex, post_reflect, post_refract, clut, clut_horizontal, clut_range,
-         ripple, ripple_freq, ripple_kink, worms, worms_density, worms_duration, worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
-         wormhole, wormhole_kink, wormhole_stride, sobel, outline, normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners, mask, mask_inverse,
-         posterize, erosion_worms, voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse,
-         glitch, vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette, vignette_brightness,
-         pop, bloom, rgb, hue_range, hue_rotation, saturation, saturation_distrib, post_hue_rotation, post_saturation, brightness_distrib, input_dir,
-         dla, dla_padding, point_freq, point_distrib, point_corners, point_generations, point_drift,
+def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
+         sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp,
+         warp_freq, reflect, refract, reindex, reverb, reverb_iterations,
+         post_reindex, post_reflect, post_refract, clut, clut_horizontal,
+         clut_range, ripple, ripple_freq, ripple_kink, worms, worms_density,
+         worms_duration, worms_stride, worms_stride_deviation, worms_alpha,
+         worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline,
+         normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners,
+         mask, mask_inverse, posterize, erosion_worms, voronoi, voronoi_func,
+         voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse, glitch,
+         vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette,
+         vignette_brightness, pop, bloom, rgb, hue_range, hue_rotation,
+         saturation, hue_distrib, saturation_distrib, post_hue_rotation,
+         post_saturation, brightness_distrib, input_dir, dla, dla_padding,
+         point_freq, point_distrib, point_corners, point_generations, point_drift,
          shadow, density, seed, name, **convolve_kwargs):
 
     generators.set_seed(seed)
@@ -142,8 +150,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges, sin, 
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
-                                 post_saturation=post_saturation, brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
-                                 input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
+                                 post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
+                                 saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_shadow=shadow,
                                  with_density_map=density,
                                  **convolve_kwargs)

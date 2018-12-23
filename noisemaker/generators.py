@@ -96,7 +96,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
-          rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, brightness_distrib=None, saturation_distrib=None,
+          rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+          hue_distrib=None, brightness_distrib=None, saturation_distrib=None,
           **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -121,6 +122,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
     :param float saturation: HSV saturation
+    :param None|int|str|ValueDistribution hue_distrib: Override ValueDistribution for hue
     :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
     :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
     :return: Tensor
@@ -142,10 +144,17 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
 
     if shape[-1] == 3 and not rgb:
-        if hue_rotation is None:
-            hue_rotation = tf.random_normal([])
+        if hue_distrib:
+            h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
+                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
+                                  wavelet=wavelet))
 
-        h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
+
+        else:
+            if hue_rotation is None:
+                hue_rotation = tf.random_normal([])
+
+            h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
         if saturation_distrib:
             s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
@@ -187,7 +196,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              mask=None, mask_inverse=False, deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              with_reverb=None, reverb_iterations=1,
-             rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0, saturation_distrib=None, brightness_distrib=None,
+             rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+             hue_distrib=None, saturation_distrib=None, brightness_distrib=None,
              **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
@@ -226,6 +236,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
     :param float saturation: HSV saturation
+    :param None|ValueDistribution hue_distrib: Override ValueDistribution for HSV hue
     :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
     :return: Tensor
@@ -250,7 +261,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
-                      brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
+                      hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                       )
 
         tensor += layer / multiplier
