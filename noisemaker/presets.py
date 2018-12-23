@@ -132,6 +132,14 @@ EFFECTS_PRESETS = lambda: {
         "with_normal_map": True,
     },
 
+    "octave-warp": {
+        "warp_range": random.randint(3, 5),
+        "warp_octaves": 3,
+        "warp_freq": random.randint(2, 4),
+        "with_bloom": .25 + random.random() * .5,
+        "with_shadow": random.random(),
+    },
+
     "one-art-please": {
         "post_contrast": 1.25,
         "post_saturation": .75,
