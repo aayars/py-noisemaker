@@ -363,6 +363,17 @@ class ValueMask(Enum):
     # emoji_39 = 239
     # emoji_40 = 240
 
+    bank_ocr_0 = 250
+    bank_ocr_1 = 251
+    bank_ocr_2 = 252
+    bank_ocr_3 = 253
+    bank_ocr_4 = 254
+    bank_ocr_5 = 255
+    bank_ocr_6 = 256
+    bank_ocr_7 = 257
+    bank_ocr_8 = 258
+    bank_ocr_9 = 259
+
     sparse = 1000
 
     invaders = 1001
@@ -416,6 +427,8 @@ class ValueMask(Enum):
 
     bar_code = 1060
     bar_code_short = 1061
+
+    bank_ocr = 1070
 
     @classmethod
     def grid_members(cls):
