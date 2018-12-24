@@ -408,6 +408,7 @@ def spooky_ticker(tensor, shape):
         ValueMask.arecibo_nucleotide,
         ValueMask.bar_code,
         ValueMask.bar_code_short,
+        ValueMask.bank_ocr,
     ]
 
     bottom_padding = 2
