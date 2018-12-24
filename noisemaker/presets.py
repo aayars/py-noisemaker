@@ -2170,7 +2170,7 @@ PRESETS = lambda: {
 
     "spectrogram": {
         "distrib": "row_index",
-        "freq": random.randint(256,512),
+        "freq": random.randint(256, 512),
         "hue_range": .5 + random.random() * .5,
         "mask": "bar_code",
         "spline_order": 0,

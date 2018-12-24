@@ -414,12 +414,12 @@ def spooky_ticker(tensor, shape):
 
     rendered_mask = tf.zeros(shape)
 
-    for _ in range(random.randint(3, 6)):
+    for _ in range(random.randint(2, 4)):
         mask = masks[random.randint(0, len(masks) - 1)]
 
         _, mask_shape = mask_function_and_shape(mask)
 
-        multiplier = 2 if shape[1] < 5 else 1
+        multiplier = 1 if mask != ValueMask.script and (mask_shape[1] == 1 or mask_shape[1] >= 10) else 2
 
         width = int(shape[1] / multiplier) or 1
 
