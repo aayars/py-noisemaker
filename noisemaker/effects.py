@@ -33,6 +33,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  post_hue_rotation=None, post_saturation=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, composite_scale=1.0,
+                 with_sort=False,
                  **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -117,6 +118,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float glyph_map_zoom: Scale glyph output
     :param bool with_composite: Composite video effect
     :param float composite_scale: Composite subpixel scaling
+    :param bool with_sort: Pixel sort
     :return: Tensor
     """
 
@@ -261,6 +263,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_composite:
         tensor = composite(tensor, shape, scale=composite_scale)
+
+    if with_sort:
+        tensor = pixel_sort(tensor, shape)
 
     tensor = normalize(tensor)
 
@@ -2147,6 +2152,28 @@ def composite(tensor, shape, scale=2.0):
 
     else:
         return _downsample(out, scaled_shape, shape)
+
+
+def pixel_sort(tensor, shape):
+    """
+    Pixel sort effect
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :return Tensor:
+    """
+
+    # Find index of brightest pixel
+    x_index = tf.expand_dims(tf.argmax(value_map(tensor, shape), axis=1, output_type=tf.int32), -1)
+
+    # Add offset index to normal row index
+    x_index = (row_index(shape) + shape[1] - tf.tile(x_index, [1, shape[1]])) % shape[1]
+
+    # Sort pixels without offset
+    sorted_channels = [tf.nn.top_k(tensor[:, :, c], shape[0])[0] for c in range(shape[2])]
+
+    # Apply offset to sorted pixels
+    return tf.maximum(tensor, tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(shape), x_index], 2)))
 
 
 def square_crop_and_resize(tensor, length=1024):

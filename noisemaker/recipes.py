@@ -104,14 +104,11 @@ def glitch(tensor, shape):
     channel = random.randint(0, channels - 1)
     separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
 
-    channel = random.randint(0, channels - 1)
-    top, _ = tf.nn.top_k(effects.value_map(tensor, shape), k=width)
-    separated[channel] += top
-
     stylized = tf.stack(separated, 2)
 
     combined = effects.blend(tf.multiply(stylized, 1.0), jpegged, base)
     combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
+    combined = effects.blend(combined, effects.pixel_sort(combined, shape), 1.0 - base)
 
     return combined
 

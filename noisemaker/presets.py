@@ -78,12 +78,12 @@ EFFECTS_PRESETS = lambda: {
     },
 
     "glitchin-out": {
-        "warp_freq": [random.randint(2, 3), random.randint(1, 3)],
+        "warp_freq": [random.randint(2, 12), random.randint(1, 3)],
         "warp_octaves": random.randint(1, 3),
         "warp_range": .125 + random.random() * .375,
         "warp_interp": 0,
         "with_aberration": .0125 + random.random() * .0125,
-        "with_bloom": .333 + random.random() * .333,
+        "with_bloom": .25 + random.random() * .125,
         "with_crt": True,
         "with_dither": .125 + random.random() * .125,
         "with_glitch": True,
@@ -148,6 +148,10 @@ EFFECTS_PRESETS = lambda: {
         "with_dither": .25 + random.random() * .125,
         "with_light_leak": .25 + random.random() * .125,
         "with_vignette": .25 + random.random() * .125,
+    },
+
+    "pixel-sort": {
+        "with_sort": True
     },
 
     "pop-art": {
