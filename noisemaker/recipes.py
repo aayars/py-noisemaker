@@ -389,22 +389,22 @@ def spooky_ticker(tensor, shape):
     """
 
     masks = [
-        ValueMask.invaders,
-        ValueMask.matrix,
-        ValueMask.letters,
-        ValueMask.ideogram,
-        ValueMask.script,
-        ValueMask.white_bear,
-        ValueMask.binary,
-        ValueMask.numeric,
-        ValueMask.hex,
-        ValueMask.lcd,
-        ValueMask.fat_lcd_hex,
-        ValueMask.arecibo_num,
         ValueMask.arecibo_nucleotide,
+        ValueMask.arecibo_num,
+        ValueMask.bank_ocr,
         ValueMask.bar_code,
         ValueMask.bar_code_short,
-        ValueMask.bank_ocr,
+        ValueMask.fat_lcd_hex,
+        ValueMask.hex,
+        ValueMask.iching,
+        ValueMask.ideogram,
+        ValueMask.invaders,
+        ValueMask.lcd,
+        ValueMask.letters,
+        ValueMask.matrix,
+        ValueMask.numeric,
+        ValueMask.script,
+        ValueMask.white_bear,
     ]
 
     bottom_padding = 2
