@@ -2167,7 +2167,7 @@ def pixel_sort(tensor, shape):
     x_index = tf.expand_dims(tf.argmax(value_map(tensor, shape), axis=1, output_type=tf.int32), -1)
 
     # Add offset index to normal row index
-    x_index = (row_index(shape) + shape[1] - tf.tile(x_index, [1, shape[1]])) % shape[1]
+    x_index = (row_index(shape) - tf.tile(x_index, [1, shape[1]])) % shape[1]
 
     # Sort pixels without offset
     sorted_channels = [tf.nn.top_k(tensor[:, :, c], shape[0])[0] for c in range(shape[2])]
