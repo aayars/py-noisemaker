@@ -390,7 +390,6 @@ def spooky_ticker(tensor, shape):
 
     masks = [
         ValueMask.invaders,
-        ValueMask.invaders_square,
         ValueMask.matrix,
         ValueMask.letters,
         ValueMask.ideogram,
@@ -399,12 +398,9 @@ def spooky_ticker(tensor, shape):
         ValueMask.binary,
         ValueMask.numeric,
         ValueMask.hex,
-        ValueMask.fat_lcd,
-        ValueMask.fat_lcd_binary,
-        ValueMask.fat_lcd_numeric,
+        ValueMask.lcd,
         ValueMask.fat_lcd_hex,
         ValueMask.arecibo_num,
-        ValueMask.arecibo_bignum,
         ValueMask.arecibo_nucleotide,
         ValueMask.bar_code,
         ValueMask.bar_code_short,
@@ -426,7 +422,7 @@ def spooky_ticker(tensor, shape):
 
         width = mask_shape[1] * int(width / mask_shape[1])  # Make sure the mask divides evenly into width
 
-        freq = mask_shape[0] if mask_shape[1] == 1 else mask_shape[1]  # For width of 1 (eg barcode), which doesn't work for freq
+        freq = [mask_shape[0], width]
 
         this_mask = basic(freq, [mask_shape[0], width, 1], spline_order=0, distrib=ValueDistribution.ones, mask=mask)
 
