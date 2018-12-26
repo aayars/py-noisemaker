@@ -385,12 +385,16 @@ def spooky_ticker(tensor, shape):
     """
     """
 
+    if random.randint(0, 1):
+        tensor = on_screen_display(tensor, shape)
+
     masks = [
         ValueMask.arecibo_nucleotide,
         ValueMask.arecibo_num,
         ValueMask.bank_ocr,
         ValueMask.bar_code,
         ValueMask.bar_code_short,
+        ValueMask.emoji,
         ValueMask.fat_lcd_hex,
         ValueMask.hex,
         ValueMask.iching,
@@ -410,18 +414,16 @@ def spooky_ticker(tensor, shape):
 
     for _ in range(random.randint(2, 4)):
         mask = masks[random.randint(0, len(masks) - 1)]
-
         _, mask_shape = mask_function_and_shape(mask)
 
         multiplier = 1 if mask != ValueMask.script and (mask_shape[1] == 1 or mask_shape[1] >= 10) else 2
 
         width = int(shape[1] / multiplier) or 1
-
         width = mask_shape[1] * int(width / mask_shape[1])  # Make sure the mask divides evenly into width
 
         freq = [mask_shape[0], width]
 
-        this_mask = basic(freq, [mask_shape[0], width, 1], spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+        this_mask = basic(freq, [mask_shape[0], width, 1], corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask)
 
         this_mask = effects.resample(this_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
 
@@ -433,5 +435,35 @@ def spooky_ticker(tensor, shape):
 
     # shadow
     tensor = effects.blend(tensor, tensor * 1.0 - effects.offset(rendered_mask, shape, -1, -1), alpha * .333)
+
+    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
+
+
+def on_screen_display(tensor, shape):
+    glyph_count = random.randint(3, 6)
+
+    masks = [
+        ValueMask.bank_ocr,
+        ValueMask.hex,
+        ValueMask.numeric,
+    ]
+
+    mask = masks[random.randint(0, len(masks) - 1)]
+    _, mask_shape = mask_function_and_shape(mask)
+
+    width = int(shape[1] / 24)
+
+    width = mask_shape[1] * int(width / mask_shape[1])  # Make sure the mask divides evenly
+    height = mask_shape[0] * int(width / mask_shape[1])
+
+    width *= glyph_count
+
+    freq = [mask_shape[0], mask_shape[1] * glyph_count]
+
+    this_mask = basic(freq, [height, width, shape[2]], corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+
+    rendered_mask = tf.pad(this_mask, tf.stack([[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]))
+
+    alpha = .5 + random.random() * .25
 
     return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)

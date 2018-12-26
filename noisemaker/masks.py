@@ -2938,7 +2938,7 @@ def truchet_tile_shape():
 
 
 def truchet_tile(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.truchet_tile_00.value, ValueMask.truchet_tile_01.value)
+    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.truchet_tile_00.value, ValueMask.truchet_tile_03.value)
 
 
 def mcpaint_shape():
