@@ -68,6 +68,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.row_index:
         tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
 
+    else:
+        raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
+
     if mask:
         atlas = None
 

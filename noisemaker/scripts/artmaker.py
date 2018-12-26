@@ -19,32 +19,33 @@ import noisemaker.recipes as recipes
 @cli.channels_option()
 @cli.clut_option()
 @cli.seed_option()
-@cli.name_option(default="art.png")
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(presets.PRESETS())))
+@cli.name_option(default='art.png')
+@click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, clut, seed, name, preset_name):
-    generators.set_seed(seed)
+    presets.bake_presets(seed)
 
-    kwargs, preset_name = presets.load(preset_name)
+    if preset_name == 'random':
+        preset_name = 'random-preset'
 
-    print(preset_name)
+    kwargs = presets.preset(preset_name)
 
-    kwargs["shape"] = [height, width, channels]
+    print(kwargs['name'])
 
-    # print(kwargs)
+    kwargs['shape'] = [height, width, channels]
 
-    if "freq" not in kwargs:
-        kwargs["freq"] = 3
+    if 'freq' not in kwargs:
+        kwargs['freq'] = 3
 
-    if "octaves" not in kwargs:
-        kwargs["octaves"] = 1
+    if 'octaves' not in kwargs:
+        kwargs['octaves'] = 1
 
-    if "ridges" not in kwargs:
-        kwargs["ridges"] = False
+    if 'ridges' not in kwargs:
+        kwargs['ridges'] = False
 
     if clut:
-        kwargs["clut"] = clut
-        kwargs["clut_horizontal"] = True
+        kwargs['clut'] = clut
+        kwargs['clut_horizontal'] = True
 
     tensor = generators.multires(**kwargs)
 

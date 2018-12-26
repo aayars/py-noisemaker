@@ -2180,17 +2180,17 @@ def pixel_sort(tensor, shape):
     return tf.maximum(tensor, tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(shape), x_index], 2)))
 
 
-def square_crop_and_resize(tensor, length=1024):
+def square_crop_and_resize(tensor, shape, length=1024):
     """
     Crop and resize an image Tensor into a square with desired side length.
 
     :param Tensor tensor:
+    :param list[int] shape:
     :param int length: Desired side length
     :return Tensor:
     """
 
-    with tf.Session().as_default():
-        height, width, channels = tf.shape(tensor).eval()
+    height, width, channels = shape
 
     have_length = min(height, width)
 
