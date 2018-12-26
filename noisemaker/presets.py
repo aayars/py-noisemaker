@@ -78,9 +78,9 @@ EFFECTS_PRESETS = lambda: {
     },
 
     "glitchin-out": {
-        "warp_freq": [random.randint(2, 12), random.randint(1, 3)],
+        "warp_freq": [random.randint(2, 4), random.randint(1, 3)],
         "warp_octaves": random.randint(1, 3),
-        "warp_range": .125 + random.random() * .375,
+        "warp_range": .05 + random.random() * .25,
         "warp_interp": 0,
         "with_aberration": .0125 + random.random() * .0125,
         "with_bloom": .25 + random.random() * .125,
