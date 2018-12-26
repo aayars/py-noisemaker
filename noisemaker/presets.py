@@ -2255,12 +2255,11 @@ PRESETS = lambda: {
     "teh-matrex-haz-u": {
         "distrib": "exp",
         "freq": (random.randint(2, 4), random.randint(48, 96)),
-        "glyph_map_zoom": random.randint(2, 5),
+        "glyph_map_zoom": random.randint(2, 4),
         "hue_rotation": .4 + random.random() * .2,
         "hue_range": .25,
         "lattice_drift": 1,
         "mask": "sparse",
-        "octaves": 2,
         "post_saturation": 2,
         "spline_order": 1,
         "with_bloom": .333 + random.random() * .333,
@@ -2270,11 +2269,9 @@ PRESETS = lambda: {
             "truetype",
             "ideogram",
             "invaders_square",
-            "fat_lcd",
-            "fat_lcd_binary",
-            "fat_lcd_numeric",
-            "fat_lcd_hex"
-        ][random.randint(0, 7)],
+            ["fat_lcd", "fat_lcd_binary", "fat_lcd_numeric", "fat_lcd_hex"][random.randint(0, 3)],
+            "emoji",
+        ][random.randint(0, 5)],
         "with_scan_error": True,
     },
 
