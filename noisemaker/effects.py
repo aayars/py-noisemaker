@@ -2170,11 +2170,11 @@ def pixel_sort(tensor, shape):
     # Find index of brightest pixel
     x_index = tf.expand_dims(tf.argmax(value_map(tensor, shape), axis=1, output_type=tf.int32), -1)
 
-    # Add offset index to normal row index
+    # Add offset index to row index
     x_index = (row_index(shape) - tf.tile(x_index, [1, shape[1]])) % shape[1]
 
     # Sort pixels without offset
-    sorted_channels = [tf.nn.top_k(tensor[:, :, c], shape[0])[0] for c in range(shape[2])]
+    sorted_channels = [tf.nn.top_k(tensor[:, :, c], shape[1])[0] for c in range(shape[2])]
 
     # Apply offset to sorted pixels
     return tf.maximum(tensor, tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(shape), x_index], 2)))
