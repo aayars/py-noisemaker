@@ -30,7 +30,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
-                 post_hue_rotation=None, post_saturation=None, post_contrast=None,
+                 post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, composite_scale=1.0,
                  with_sort=False,
@@ -105,6 +105,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float vignette_brightness: Vignette effect brightness
     :param None|float post_hue_rotation: Rotate hue (-.5 - .5)
     :param None|float post_saturation: Adjust saturation (0 - 1)
+    :param None|float post_brightness: Adjust brightness
     :param None|float post_contrast: Adjust contrast
     :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
@@ -251,6 +252,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if post_saturation is not None:
         tensor = tf.image.adjust_saturation(tensor, post_saturation)
+
+    if post_brightness is not None:
+        tensor = tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, post_brightness), 1.0), -1.0)
 
     if post_contrast is not None:
         tensor = tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, post_contrast), 1.0), 0.0)

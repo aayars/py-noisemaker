@@ -589,16 +589,16 @@ PRESETS = lambda: {
     },
 
    "broken": {
-           "freq": random.randint(3, 4),
-           "lattice_drift": 2,
-           "octaves": random.randint(3, 4),
-           "post_brightness": .125,
-           "post_saturation": .25,
-           "posterize_levels": 3,
-           "reindex_range": random.randint(3, 4),
-           "rgb": True,
-           "with_glowing_edges": 1,
-           "with_dither": .125 + random.random() * .075,
+       "freq": random.randint(3, 4),
+       "lattice_drift": 2,
+       "octaves": random.randint(3, 4),
+       "post_brightness": .125,
+       "post_saturation": .25,
+       "posterize_levels": 3,
+       "reindex_range": random.randint(3, 4),
+       "rgb": True,
+       "with_glowing_edges": 1,
+       "with_dither": .125 + random.random() * .075,
    },
 
     "bubble-machine": {
@@ -2251,6 +2251,19 @@ PRESETS = lambda: {
         "with_bloom": .25 + random.random() * .5,
         "with_sobel": 1,
         "with_voronoi": 6,
+    },
+
+    "starfiald": {
+        "distrib": "exp",
+        "freq": random.randint(200, 300),
+        "mask": "sparse",
+        "octaves": 3,
+        "post_brightness": -.333,
+        "post_contrast": 3,
+        "spline_order": 1,
+        "with_aberration": .00125 + random.random() * .00125,
+        "with_bloom": .125 + random.random() * .125,
+        "with_vignette": .25 + random.random() * .25,
     },
 
     "stepper": {
