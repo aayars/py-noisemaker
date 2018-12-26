@@ -99,6 +99,10 @@ EFFECTS_PRESETS = lambda: {
         "with_glyph_map": "truetype",
     },
 
+    "invert": {
+        "invert": 1,
+    },
+
     "light-leak": {
         "vignette_brightness": random.randint(0, 1),
         "with_bloom": .25 + random.random() * .5,
