@@ -264,6 +264,19 @@ EFFECTS_PRESETS = lambda: {
 
 
 PRESETS = lambda: {
+    "2001": {
+        "distrib": "ones",
+        "freq": 13 * random.randint(10,20),
+        "invert": 1,
+        "mask": "bank_ocr",
+        "posterize_levels": 1,
+        "spline_order": 1,
+        "vignette_brightness": 1,
+        "with_aberration": .0075 + random.random() * .0075,
+        "with_bloom": .125 + random.random() * .125,
+        "with_vignette": 1,
+    },
+
     "2d-chess": {
         "corners": True,
         "distrib": "ones",
