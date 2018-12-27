@@ -2290,15 +2290,11 @@ def extend(*args):
 
     settings = {}
 
-    if 'extends' not in settings:
-        settings['extends'] = set()
-
     while args:
         arg = args.popleft()
 
         if isinstance(arg, str):
             settings.update(preset(arg))
-            settings['extends'].add(arg)
 
         else:
             settings.update(arg)

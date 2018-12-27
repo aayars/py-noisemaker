@@ -29,13 +29,7 @@ def main(ctx, seed, name, preset_name, input_filename):
 
     kwargs = presets.preset(preset_name)
 
-    extends = kwargs.get('extends')
-
-    if extends:
-        print('{} ({})'.format(kwargs['name'], ', '.join(sorted(extends))))
-
-    else:
-        print(kwargs['name'])
+    print(kwargs['name'])
 
     if 'freq' not in kwargs:
         kwargs['freq'] = [3, 3]
