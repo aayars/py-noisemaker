@@ -41,9 +41,12 @@ def main(ctx, seed, name, preset_name, input_filename):
         kwargs['ridges'] = False
 
     with tf.Session().as_default():
-        kwargs['shape'] = tf.shape(tensor).eval()  # Use PIL here instead?
+        input_shape = tf.shape(tensor).eval()
 
-        tensor = effects.square_crop_and_resize(tensor, kwargs['shape'], kwargs['shape'][0])
+        kwargs['shape'] = [1024, 1024, input_shape[2]]
+
+        # Use PIL to get shape instead?
+        tensor = effects.square_crop_and_resize(tensor, input_shape, kwargs['shape'][0])
 
         tensor = effects.post_process(tensor, **kwargs)
 
