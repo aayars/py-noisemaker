@@ -30,7 +30,13 @@ def main(ctx, width, height, channels, clut, seed, name, preset_name):
 
     kwargs = presets.preset(preset_name)
 
-    print(kwargs['name'])
+    extends = kwargs.get('extends')
+
+    if extends:
+        print('{} ({})'.format(kwargs['name'], ', '.join(sorted(extends))))
+
+    else:
+        print(kwargs['name'])
 
     kwargs['shape'] = [height, width, channels]
 
