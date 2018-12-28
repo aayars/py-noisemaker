@@ -430,6 +430,8 @@ class ValueMask(Enum):
 
     bank_ocr = 1070
 
+    fake_qr = 1080
+
     @classmethod
     def grid_members(cls):
         return [m for m in cls if cls.is_grid(m)]

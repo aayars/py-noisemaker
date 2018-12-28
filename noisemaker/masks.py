@@ -2979,3 +2979,40 @@ def bank_ocr_shape():
 
 def bank_ocr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.bank_ocr_0.value, ValueMask.bank_ocr_9.value)
+
+
+def fake_qr_shape():
+    return [random.randint(25, 50)] * 2
+
+
+def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+    x = x % shape[1]
+    y = y % shape[1]
+
+    if (x == 0 or y == 0 or x == shape[1] - 1 or y == shape[0] - 1) \
+        or (y in (8, shape[0] - 9) and x < 9) \
+        or (y == 8 and x > shape[1] - 10) \
+        or (x in (8, shape[1] - 9) and y < 9) \
+        or (x == 8 and y > shape[0] - 10) \
+        or (y in (2, 6) and (x in range(2, 7) or x in range(shape[1] - 7, shape[1] - 2))) \
+        or (y in (shape[1] - 3, shape[1] - 7) and x in range(2, 7)) \
+        or (x in (2, 6) and (y in range(2, 7) or y in range(shape[0] - 7, shape[0] - 2))) \
+        or (x in (shape[0] - 3, shape[0] - 7) and y in range(2, 7)) \
+        or (x in (shape[0] - 7, shape[0] - 9) and y in range(shape[0] - 9, shape[0] - 6)) \
+        or (y in (shape[1] - 7, shape[1] - 9) and x in range(shape[1] - 9, shape[1] - 6)):
+
+        return 1
+
+    elif (x == shape[1] - 8 and y == shape[0] - 8) \
+        or (x in (shape[0] - 6, shape[0] - 10) and y in range(shape[0] - 10, shape[0] - 5)) \
+        or (y in (shape[1] - 6, shape[1] - 10) and x in range(shape[1] - 10, shape[1] - 5)):
+
+        return 0
+
+    elif (x > 8 and x < shape[1] - 8) \
+        or (y > 8 and y < shape[0] - 8) \
+        or (x >= shape[1] - 8 and y >= shape[0] - 8):
+
+        return random.randint(0, 1)
+
+    return 0
