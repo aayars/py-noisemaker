@@ -1,6 +1,8 @@
 import click
 import tensorflow as tf
 
+from PIL import Image
+
 from noisemaker.util import save, load
 
 import noisemaker.cli as cli
@@ -40,16 +42,20 @@ def main(ctx, seed, name, preset_name, input_filename):
     if 'ridges' not in kwargs:
         kwargs['ridges'] = False
 
+    image = Image.open(input_filename)
+
+    input_width, input_height = image.size
+    input_channels = len(image.getbands())
+
+    input_shape = [input_height, input_width, input_channels]
+
+    kwargs['shape'] = [1024, 1024, input_shape[2]]
+
+    tensor = effects.square_crop_and_resize(tensor, input_shape, kwargs['shape'][0])
+
+    tensor = effects.post_process(tensor, **kwargs)
+
+    tensor = recipes.post_process(tensor, **kwargs)
+
     with tf.Session().as_default():
-        input_shape = tf.shape(tensor).eval()
-
-        kwargs['shape'] = [1024, 1024, input_shape[2]]
-
-        # Use PIL to get shape instead?
-        tensor = effects.square_crop_and_resize(tensor, input_shape, kwargs['shape'][0])
-
-        tensor = effects.post_process(tensor, **kwargs)
-
-        tensor = recipes.post_process(tensor, **kwargs)
-
         save(tensor, name)
