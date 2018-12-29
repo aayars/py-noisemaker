@@ -42,12 +42,7 @@ def main(ctx, seed, name, preset_name, input_filename):
     if 'ridges' not in kwargs:
         kwargs['ridges'] = False
 
-    image = Image.open(input_filename)
-
-    input_width, input_height = image.size
-    input_channels = len(image.getbands())
-
-    input_shape = [input_height, input_width, input_channels]
+    input_shape = effects.shape_from_file(input_filename)
 
     kwargs['shape'] = [1024, 1024, input_shape[2]]
 

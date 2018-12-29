@@ -16,7 +16,7 @@ import noisemaker.effects as effects
 @click.argument('input_filename')
 @click.pass_context
 def main(ctx, name, input_filename):
-    tensor = effects.square_crop_and_resize(tf.image.convert_image_dtype(load(input_filename), tf.float32), 1024)
+    tensor = effects.square_crop_and_resize(tf.image.convert_image_dtype(load(input_filename), tf.float32), effects.shape_from_file(input_filename), 1024)
 
     with tf.Session().as_default():
         save(tensor, name)

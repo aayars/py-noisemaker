@@ -4,6 +4,8 @@ import math
 import os
 import random
 
+from PIL import Image
+
 import numpy as np
 import tensorflow as tf
 
@@ -2201,3 +2203,15 @@ def square_crop_and_resize(tensor, shape, length=1024):
         tensor = resample(tensor, [length, length, channels])
 
     return tensor
+
+
+def shape_from_file(filename):
+    """
+    Get image dimensions from a file, using PIL, to avoid adding to the TensorFlow graph.
+    """
+
+    image = Image.open(filename)
+
+    input_width, input_height = image.size
+
+    return [input_height, input_width, len(image.getbands())]
