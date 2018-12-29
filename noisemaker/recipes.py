@@ -412,7 +412,7 @@ def spooky_ticker(tensor, shape):
 
     rendered_mask = tf.zeros(shape)
 
-    for _ in range(random.randint(2, 4)):
+    for _ in range(random.randint(2, 3)):
         mask = masks[random.randint(0, len(masks) - 1)]
         _, mask_shape = mask_function_and_shape(mask)
 
