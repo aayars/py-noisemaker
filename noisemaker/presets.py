@@ -199,13 +199,15 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "swerve-h": lambda: {
-        "warp_freq": [random.randint(3, 6), 1],
+        "warp_freq": [random.randint(2, 5), 1],
+        "warp_interp": 3,
         "warp_octaves": 1,
         "warp_range": 1.0 + random.random(),
     },
 
     "swerve-v": lambda: {
-        "warp_freq": [1, random.randint(3, 6)],
+        "warp_freq": [1, random.randint(2, 5)],
+        "warp_interp": 3,
         "warp_octaves": 1,
         "warp_range": 1.0 + random.random(),
     },
@@ -1581,6 +1583,19 @@ _PRESETS = lambda: {
         "saturation_distrib": "ones",
         "with_shadow": 1,
     },
+
+    "ride-the-rainbow": lambda: extend("swerve-v", {
+        "brightness_distrib": "ones",
+        "corners": True,
+        "distrib": "column_index",
+        "freq": random.randint(6, 12),
+        "hue_range": .5 + random.random(),
+        "post_saturation": .125 + random.random() * .375,
+        "saturation_distrib": "ones",
+        "spline_order": 0,
+        "with_dither": .125 + random.random() * .125,
+        "with_grime": True,
+    }),
 
     "ridged-bubbles": lambda: extend("invert", "symmetry", {
         "point_distrib": random_member(PointDistribution),
