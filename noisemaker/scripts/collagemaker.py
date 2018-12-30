@@ -112,7 +112,7 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     if control_filename:
         control = tf.image.convert_image_dtype(util.load(control_filename), dtype=tf.float32)
 
-        control = effects.square_crop_and_resize(control, shape_from_file(control_filename), 1024)
+        control = effects.square_crop_and_resize(control, effects.shape_from_file(control_filename), 1024)
 
         control = effects.value_map(control, shape, keep_dims=True)
 

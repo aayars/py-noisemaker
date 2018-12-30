@@ -1,8 +1,6 @@
 import click
 import tensorflow as tf
 
-from PIL import Image
-
 from noisemaker.util import save, load
 
 import noisemaker.cli as cli
