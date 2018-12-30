@@ -50,6 +50,8 @@ def auto(ctx, width, height, input_dir, point_freq, name):
 
     render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq, point_distrib, point_drift, name)
 
+    print('mashup')
+
 
 @main.command()
 @cli.width_option()
@@ -81,7 +83,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
     with tf.Session().as_default():
         save(tensor, name)
 
-    print(name)
+    print('mashup')
 
 
 @main.command()
@@ -130,4 +132,4 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     with tf.Session().as_default():
         save(tensor, name)
 
-    print(name)
+    print('mashup')
