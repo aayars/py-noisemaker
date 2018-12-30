@@ -94,7 +94,10 @@ def glitch(tensor, shape):
     base = multires(2, shape, octaves=random.randint(2, 5), spline_order=0, refract_range=random.random())
     stylized = effects.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
 
-    jpegged = effects.jpeg_decimate(effects.color_map(base, stylized, shape, horizontal=True, displacement=2.5), shape)
+    jpegged = effects.color_map(base, stylized, shape, horizontal=True, displacement=2.5)
+
+    if channels in (1, 3):
+        jpegged = effects.jpeg_decimate(jpegged, shape)
 
     # Offset a single color channel
     separated = [stylized[:, :, i] for i in range(channels)]
@@ -196,8 +199,9 @@ def crt(tensor, shape):
     if channels <= 2:
         return tensor
 
-    tensor = tf.image.random_hue(tensor, .125)
-    tensor = tf.image.adjust_saturation(tensor, 1.25)
+    if channels == 3:
+        tensor = tf.image.random_hue(tensor, .125)
+        tensor = tf.image.adjust_saturation(tensor, 1.25)
 
     return tensor
 

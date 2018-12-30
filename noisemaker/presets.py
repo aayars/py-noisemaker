@@ -1247,7 +1247,6 @@ _PRESETS = lambda: {
     }),
 
     "magic-squares": lambda: extend("bloom", "multires-low", {
-        "channels": 3,
         "distrib": random_member([m.value for m in ValueDistribution if m.name not in ("ones", "mids")]),
         "edges": .25 + random.random() * .5,
         "freq": random_member([9, 12, 15, 18]),
@@ -1348,7 +1347,6 @@ _PRESETS = lambda: {
     }),
 
     "neon-plasma": lambda: extend("basic", "multires", {
-        "channels": 3,
         "lattice_drift": random.randint(0, 1),
         "ridges": True,
     }),
@@ -1362,7 +1360,6 @@ _PRESETS = lambda: {
     }),
 
     "now": lambda: extend("multires-low", {
-        "channels": 3,
         "freq": random.randint(3, 10),
         "hue_range": random.random(),
         "saturation": .5 + random.random() * .5,

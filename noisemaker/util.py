@@ -35,7 +35,7 @@ def load(filename):
 
     with open(filename, "rb") as fh:
         if filename.endswith(".png"):
-            return tf.image.decode_png(fh.read(), channels=3)
+            return tf.image.decode_png(fh.read())
 
         elif filename.endswith(".jpg"):
-            return tf.image.decode_jpeg(fh.read(), channels=3)
+            return tf.image.decode_jpeg(fh.read())
