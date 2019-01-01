@@ -35,7 +35,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, composite_scale=1.0,
-                 with_sort=False,
+                 with_sort=False, sort_angled=False,
                  **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -122,6 +122,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_composite: Composite video effect
     :param float composite_scale: Composite subpixel scaling
     :param bool with_sort: Pixel sort
+    :param bool sort_angled: Pixel sort along a random angle
     :return: Tensor
     """
 
@@ -271,7 +272,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = composite(tensor, shape, scale=composite_scale)
 
     if with_sort:
-        tensor = pixel_sort(tensor, shape)
+        tensor = pixel_sort(tensor, shape, sort_angled)
 
     tensor = normalize(tensor)
 
@@ -2160,26 +2161,55 @@ def composite(tensor, shape, scale=2.0):
         return _downsample(out, scaled_shape, shape)
 
 
-def pixel_sort(tensor, shape):
+def pixel_sort(tensor, shape, angled=False):
     """
     Pixel sort effect
 
     :param Tensor tensor:
     :param list[int] shape:
+    :param bool angled: If True, sort along a random angle.
     :return Tensor:
     """
 
+    height, width, channels = shape
+
+    if angled:
+        want_length = max(height, width) * 2
+
+        padded_shape = [want_length, want_length, channels]
+
+        padded = tf.image.resize_image_with_crop_or_pad(tensor, want_length, want_length)
+
+        angle = random.randint(0, 360)
+
+        rotated = tf.contrib.image.rotate(padded, angle, 'BILINEAR')
+
+    else:
+        padded_shape = shape
+
+        rotated = tensor
+
     # Find index of brightest pixel
-    x_index = tf.expand_dims(tf.argmax(value_map(tensor, shape), axis=1, output_type=tf.int32), -1)
+    x_index = tf.expand_dims(tf.argmax(value_map(rotated, padded_shape), axis=1, output_type=tf.int32), -1)
 
     # Add offset index to row index
-    x_index = (row_index(shape) - tf.tile(x_index, [1, shape[1]])) % shape[1]
+    x_index = (row_index(padded_shape) - tf.tile(x_index, [1, padded_shape[1]])) % padded_shape[1]
 
-    # Sort pixels without offset
-    sorted_channels = [tf.nn.top_k(tensor[:, :, c], shape[1])[0] for c in range(shape[2])]
+    # Sort pixels
+    sorted_channels = [tf.nn.top_k(rotated[:, :, c], padded_shape[1])[0] for c in range(padded_shape[2])]
 
-    # Apply offset to sorted pixels
-    return tf.maximum(tensor, tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(shape), x_index], 2)))
+    # Apply offset
+    sorted_channels = tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(padded_shape), x_index], 2))
+
+    if angled:
+        # Rotate back to original orientation
+        sorted_channels = tf.contrib.image.rotate(sorted_channels, -angle, 'BILINEAR')
+
+        # Crop to original size
+        sorted_channels = tf.image.resize_image_with_crop_or_pad(sorted_channels, height, width)
+
+    # Blend with source image
+    return tf.maximum(tensor, sorted_channels)
 
 
 def square_crop_and_resize(tensor, shape, length=1024):

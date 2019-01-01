@@ -133,8 +133,12 @@ _EFFECTS_PRESETS = lambda: {
     }),
 
     "pixel-sort": lambda: {
-        "with_sort": True
+        "with_sort": True,
     },
+
+    "pixel-sort-angled": lambda: extend("pixel-sort", {
+        "sort_angled": True,
+    }),
 
     "pop-art": lambda: {
         "with_pop": True
