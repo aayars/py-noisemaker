@@ -642,7 +642,7 @@ _PRESETS = lambda: {
         "with_dither": .25,
     }),
 
-    "crooked": lambda: extend("starfield", "pixel-sort-angled"),
+    "crooked": lambda: extend("glitchin-out", "starfield", "pixel-sort-angled"),
 
     "crop-spirals": lambda: {
         "distrib": "laplace",
