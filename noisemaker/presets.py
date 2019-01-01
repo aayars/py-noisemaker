@@ -1850,13 +1850,14 @@ _PRESETS = lambda: {
         "worms_stride": random.randint(150, 350),
     }),
 
-    "spectrogram": lambda: {
+    "spectrogram": lambda: extend("filthy", {
         "distrib": "row_index",
         "freq": random.randint(256, 512),
         "hue_range": .5 + random.random() * .5,
         "mask": "bar_code",
         "spline_order": 0,
-    },
+        "with_dither": .05 + random.random() * .05,
+    }),
 
     "spiral-clouds": lambda: extend("basic", "multires", "wormhole", {
         "lattice_drift": 1.0,
