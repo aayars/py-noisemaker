@@ -2171,16 +2171,28 @@ def pixel_sort(tensor, shape, angled=False):
     :return Tensor:
     """
 
+    if angled:
+        angle = random.randint(0, 360) if isinstance(angled, bool) else angled
+
+    else:
+        angle = False
+
+    # Twice is nice.
+    tensor = _pixel_sort(tensor, shape, angle)
+    tensor = _pixel_sort(tensor, shape, angle)
+
+    return tensor
+
+
+def _pixel_sort(tensor, shape, angle):
     height, width, channels = shape
 
-    if angled:
+    if angle:
         want_length = max(height, width) * 2
 
         padded_shape = [want_length, want_length, channels]
 
         padded = tf.image.resize_image_with_crop_or_pad(tensor, want_length, want_length)
-
-        angle = random.randint(0, 360)
 
         rotated = tf.contrib.image.rotate(padded, angle, 'BILINEAR')
 
@@ -2201,7 +2213,7 @@ def pixel_sort(tensor, shape, angled=False):
     # Apply offset
     sorted_channels = tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(padded_shape), x_index], 2))
 
-    if angled:
+    if angle:
         # Rotate back to original orientation
         sorted_channels = tf.contrib.image.rotate(sorted_channels, -angle, 'BILINEAR')
 

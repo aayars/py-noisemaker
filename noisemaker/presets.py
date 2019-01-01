@@ -104,6 +104,10 @@ _EFFECTS_PRESETS = lambda: {
         "with_voronoi": 5,
     }),
 
+    "nebula": lambda: {
+        "with_nebula": True,
+    },
+
     "needs-more-jpeg": lambda: {
         "with_jpeg_decimate": random.randint(10, 25),
     },
@@ -637,6 +641,8 @@ _PRESETS = lambda: {
         "with_density_map": True,
         "with_dither": .25,
     }),
+
+    "crooked": lambda: extend("starfield", "pixel-sort-angled"),
 
     "crop-spirals": lambda: {
         "distrib": "laplace",
@@ -1905,7 +1911,7 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "starfiald": lambda: extend("bloom", "multires-low", {
+    "starfield": lambda: extend("bloom", "multires-low", "nebula", {
         "distrib": "exp",
         "freq": random.randint(200, 300),
         "mask": "sparse",
@@ -1913,6 +1919,7 @@ _PRESETS = lambda: {
         "post_contrast": 3,
         "spline_order": 1,
         "with_aberration": .00125 + random.random() * .00125,
+        "with_dither": .05 + random.random() * .05,
         "with_vignette": .25 + random.random() * .25,
     }),
 

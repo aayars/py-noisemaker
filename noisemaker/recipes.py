@@ -10,8 +10,8 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, with_grime=False,
-                 with_watermark=False, with_ticker=False, **_):
+                 with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, 
+                 with_grime=False, with_watermark=False, with_ticker=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -25,12 +25,16 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param float with_snow: Analog broadcast snow
     :param float with_dither: Per-pixel brightness jitter
     :param bool with_frame: Shitty instant camera effect
+    :param bool with_nebula: Add clouds
     :param bool with_false_color: Swap colors with basic noise
     :param bool with_interference: CRT-like moire effect
     :param bool with_watermark: Stylized digital watermark effect
     :param bool with_ticker: With spooky ticker effect
     :return: Tensor
     """
+
+    if with_nebula:
+        tensor = nebula(tensor, shape)
 
     if with_false_color:
         tensor = false_color(tensor, shape)
@@ -471,3 +475,13 @@ def on_screen_display(tensor, shape):
     alpha = .5 + random.random() * .25
 
     return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
+
+
+def nebula(tensor, shape):
+    overlay = multires(random.randint(2, 4), shape, distrib="exp", ridges=True, octaves=6)
+
+    overlay -= multires(random.randint(2, 4), shape, ridges=True, octaves=4)
+
+    overlay = tf.maximum(overlay, 0)
+
+    return tf.maximum(tensor, overlay * .125)
