@@ -68,6 +68,7 @@ _EFFECTS_PRESETS = lambda: {
 
     "filthy": lambda: {
         "with_grime": True,
+        "with_scratches": random.randint(0, 1),
         "with_stray_hair": True,
     },
 
@@ -1162,6 +1163,7 @@ _PRESETS = lambda: {
         "voronoi_refract": .5 + random.random() * .25,
         "with_fibers": True,
         "with_grime": True,
+        "with_scratches": random.randint(0, 1),
         "with_voronoi": 6,
     }),
 
@@ -1594,7 +1596,7 @@ _PRESETS = lambda: {
         "with_shadow": 1,
     },
 
-    "ride-the-rainbow": lambda: extend("swerve-v", {
+    "ride-the-rainbow": lambda: extend("scuff", "swerve-v", {
         "brightness_distrib": "ones",
         "corners": True,
         "distrib": "column_index",
@@ -1668,6 +1670,10 @@ _PRESETS = lambda: {
         "with_shadow": 1.0,
         "with_voronoi": 6,
     }),
+
+    "scuff": lambda: {
+        "with_scratches": True,
+    },
 
     "scribbles": lambda: extend("sobel-operator", {
         "deriv": random.randint(1, 3),

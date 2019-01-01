@@ -10,8 +10,8 @@ import noisemaker.effects as effects
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_fibers=False, with_stray_hair=False, 
-                 with_grime=False, with_watermark=False, with_ticker=False, **_):
+                 with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
+                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -30,6 +30,8 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_interference: CRT-like moire effect
     :param bool with_watermark: Stylized digital watermark effect
     :param bool with_ticker: With spooky ticker effect
+    :param bool with_scratches: Scratched film effect
+    :param bool with_fibers: Old-timey paper fibers
     :return: Tensor
     """
 
@@ -71,6 +73,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_fibers:
         tensor = fibers(tensor, shape)
+
+    if with_scratches:
+        tensor = scratches(tensor, shape)
 
     if with_ticker:
         tensor = spooky_ticker(tensor, shape)
@@ -291,6 +296,34 @@ def fibers(tensor, shape):
     return tensor
 
 
+def scratches(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    for i in range(4):
+        mask = basic(random.randint(2, 4), value_shape,
+                     with_worms=[1, 3][random.randint(0, 1)],
+                     worms_alpha=1,
+                     worms_density=.25 + random.random() * .25,
+                     worms_duration=2 + random.random() * 2,
+                     worms_kink=.125 + random.random() * .125,
+                     worms_stride=.75,
+                     worms_stride_deviation=.5,
+                     )
+
+        mask -= basic(random.randint(2, 4), value_shape) * 2.0
+
+        mask = tf.maximum(mask, 0.0)
+
+        tensor = tf.maximum(tensor, mask * 8.0)
+
+        tensor = tf.minimum(tensor, 1.0)
+
+    return tensor
+
+
 def stray_hair(tensor, shape):
     """
     """
@@ -362,6 +395,9 @@ def frame(tensor, shape):
     out = tf.image.random_hue(out, .05)
 
     out = effects.resample(out, shape)
+
+    out = scratches(out, shape)
+
     out = stray_hair(out, shape)
 
     return out
