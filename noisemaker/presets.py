@@ -185,6 +185,10 @@ _EFFECTS_PRESETS = lambda: {
         "ripple_range": .05 + random.random() * .25,
     },
 
+    "scuff": lambda: {
+        "with_scratches": True,
+    },
+
     "shadows": lambda: extend("vignette-dark", {
         "with_shadow": .5 + random.random() * .5,
     }),
@@ -1670,10 +1674,6 @@ _PRESETS = lambda: {
         "with_shadow": 1.0,
         "with_voronoi": 6,
     }),
-
-    "scuff": lambda: {
-        "with_scratches": True,
-    },
 
     "scribbles": lambda: extend("sobel-operator", {
         "deriv": random.randint(1, 3),
