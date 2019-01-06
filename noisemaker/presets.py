@@ -23,7 +23,7 @@ _EFFECTS_PRESETS = lambda: {
     }),
 
     "bloom": lambda: {
-        "with_bloom": .125 + random.random() * .125,
+        "with_bloom": .075 + random.random() * .075,
     },
 
     "convolution-feedback": lambda: {
@@ -81,7 +81,7 @@ _EFFECTS_PRESETS = lambda: {
 
     "glitchin-out": lambda: extend("bloom", "corrupt", "crt", {
         "with_glitch": True,
-        "with_ticker": random.randint(0, 1),
+        "with_ticker": (random.random() > .75),
     }),
 
     "glowing-edges": lambda: {
