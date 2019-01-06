@@ -92,11 +92,17 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 @cli.input_dir_option(required=True)
 @cli.name_option(default="collage.png")
 @click.option("--control-filename", help="Control image filename (optional)")
+@click.option("--retro-upscale", is_flag=True, help="Nearest-neighbor upsample (for small images)")
 @click.pass_context
-def basic(ctx, width, height, input_dir, name, control_filename):
+def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
     shape = [height, width, 3]  # Any shape you want, as long as it's [1024, 1024, 3]
 
-    filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
+    filenames = []
+
+    for root, _, files in os.walk(input_dir):
+        for filename in files:
+            if filename.endswith(('.png', '.jpg')):
+                filenames.append(os.path.join(root, filename))
 
     collage_count = min(random.randint(4, 6), len(filenames))
     collage_images = []
@@ -104,8 +110,20 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     for i in range(collage_count + 1):
         index = random.randint(0, len(filenames) - 1)
 
-        collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index]), channels=3), dtype=tf.float32)
-        collage_images.append(effects.resample(collage_input, shape))
+        input_filename = os.path.join(input_dir, filenames[index])
+
+        collage_input = tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32)
+
+        input_shape = effects.shape_from_file(input_filename)
+
+        if retro_upscale:
+            input_shape = [input_shape[0] * 2, input_shape[1] * 2, input_shape[2]]
+
+            collage_input = effects.resample(collage_input, input_shape, spline_order=0)
+
+        collage_input = effects.square_crop_and_resize(collage_input, input_shape, 1024)
+
+        collage_images.append(collage_input)
 
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
