@@ -25,7 +25,7 @@ def save(tensor, name="noise.png"):
         fh.write(data)
 
 
-def load(filename):
+def load(filename, channels=None):
     """
     Load a .png or .jpg by filename.
 
@@ -35,7 +35,7 @@ def load(filename):
 
     with open(filename, "rb") as fh:
         if filename.endswith(".png"):
-            return tf.image.decode_png(fh.read())
+            return tf.image.decode_png(fh.read(), channels=channels)
 
         elif filename.endswith(".jpg"):
-            return tf.image.decode_jpeg(fh.read())
+            return tf.image.decode_jpeg(fh.read(), channels=channels)

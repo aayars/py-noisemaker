@@ -89,7 +89,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 @main.command()
 @cli.width_option()
 @cli.height_option()
-@cli.input_dir_option()
+@cli.input_dir_option(required=True)
 @cli.name_option(default="collage.png")
 @click.option("--control-filename", help="Control image filename (optional)")
 @click.pass_context
@@ -104,13 +104,13 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     for i in range(collage_count + 1):
         index = random.randint(0, len(filenames) - 1)
 
-        collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
+        collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index]), channels=3), dtype=tf.float32)
         collage_images.append(effects.resample(collage_input, shape))
 
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     if control_filename:
-        control = tf.image.convert_image_dtype(util.load(control_filename), dtype=tf.float32)
+        control = tf.image.convert_image_dtype(util.load(control_filename, channels=1), dtype=tf.float32)
 
         control = effects.square_crop_and_resize(control, effects.shape_from_file(control_filename), 1024)
 
@@ -119,17 +119,22 @@ def basic(ctx, width, height, input_dir, name, control_filename):
     else:
         control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
-    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
-
-    tensor = effects.blend(tensor, base, .125 + random.random() * .125)
-
-    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
-
-    tensor = tf.image.adjust_brightness(tensor, .05)
-    tensor = tf.image.adjust_contrast(tensor, 1.25)
+    control = effects.convolve(effects.ConvKernel.blur, control, [height, width, 1])
 
     with tf.Session().as_default():
+        # sort collage images by brightness
+        collage_images = [j[1] for j in sorted([(tf.reduce_sum(i).eval(), i) for i in collage_images])]
+
+        tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
+
+        tensor = effects.blend(tensor, base, .125 + random.random() * .125)
+
+        tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+        tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
+
+        tensor = tf.image.adjust_brightness(tensor, .05)
+        tensor = tf.image.adjust_contrast(tensor, 1.25)
+
         save(tensor, name)
 
     print('mashup')
