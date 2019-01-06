@@ -33,8 +33,8 @@ _EFFECTS_PRESETS = lambda: {
 
     "corrupt": lambda: {
         "warp_freq": [random.randint(2, 4), random.randint(1, 3)],
-        "warp_octaves": random.randint(1, 3),
-        "warp_range": .05 + random.random() * .25,
+        "warp_octaves": random.randint(2, 4),
+        "warp_range": .025 + random.random() * .125,
         "warp_interp": 0,
     },
 
