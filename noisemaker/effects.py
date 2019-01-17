@@ -779,27 +779,33 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     if isinstance(behavior, int):
         behavior = WormBehavior(behavior)
 
-    if behavior == WormBehavior.obedient:
-        worms_rot = tf.zeros([count])
+    quarter_count = int(count * .25)
 
-    elif behavior == WormBehavior.crosshatch:
-        worms_rot = (tf.floor(tf.random_normal([count]) * 100) % 2) * 90
+    rots = {}
 
-    elif behavior == WormBehavior.chaotic:
-        worms_rot = tf.random_normal([count]) * 360.0
+    rots = {
+        WormBehavior.obedient: lambda n:
+            tf.ones([n]) * random.random() * 360.0,
 
-    elif behavior == WormBehavior.unruly:
-        worms_rot = tf.random_normal([count]) * .25 - .125
+        WormBehavior.crosshatch: lambda n:
+            rots[WormBehavior.obedient](n) + (tf.floor(tf.random_normal([n]) * 100) % 2) * 90,
 
-    else:
-        quarter_count = int(count * .25)
+        WormBehavior.unruly: lambda n:
+            rots[WormBehavior.obedient](n) + tf.random_normal([n]) * .25 - .125,
 
-        worms_rot = tf.reshape(tf.stack([
-            tf.zeros([quarter_count]),
-            (tf.floor(tf.random_normal([quarter_count]) * 100) % 2) * 90,
-            tf.random_normal([quarter_count]) * 360.0,
-            tf.random_normal([int(count - quarter_count * 3)]) * .25 - .125
-        ]), [count])
+        WormBehavior.chaotic: lambda n:
+            tf.random_normal([n]) * 360.0,
+
+        WormBehavior.random: lambda _:
+            tf.reshape(tf.stack([
+                rots[WormBehavior.obedient](quarter_count),
+                rots[WormBehavior.crosshatch](quarter_count),
+                rots[WormBehavior.unruly](quarter_count),
+                rots[WormBehavior.chaotic](quarter_count),
+            ]), [count]),
+    }
+
+    worms_rot = rots[behavior](count)
 
     index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
 
@@ -933,6 +939,8 @@ def sobel(tensor, shape, dist_func=1):
     :param DistanceFunction|int dist_func: Sobel distance function
     :return: Tensor
     """
+
+    tensor = convolve(ConvKernel.blur, tensor, shape)
 
     x = convolve(ConvKernel.sobel_x, tensor, shape, with_normalize=False)
     y = convolve(ConvKernel.sobel_y, tensor, shape, with_normalize=False)
