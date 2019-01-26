@@ -16,10 +16,11 @@ import noisemaker.recipes as recipes
         """, context_settings=cli.CLICK_CONTEXT_SETTINGS)
 @cli.seed_option()
 @cli.name_option(default='mangled.png')
+@click.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.EFFECTS_PRESETS)))
 @click.argument('input_filename')
 @click.pass_context
-def main(ctx, seed, name, preset_name, input_filename):
+def main(ctx, seed, name, no_resize, preset_name, input_filename):
     presets.bake_presets(seed)
 
     tensor = tf.image.convert_image_dtype(load(input_filename), dtype=tf.float32)
@@ -42,12 +43,15 @@ def main(ctx, seed, name, preset_name, input_filename):
 
     input_shape = effects.shape_from_file(input_filename)
 
-    kwargs['shape'] = [1024, 1024, input_shape[2]]
+    if no_resize:
+        kwargs['shape'] = input_shape
 
-    tensor = effects.square_crop_and_resize(tensor, input_shape, kwargs['shape'][0])
+    else:
+        kwargs['shape'] = [1024, 1024, input_shape[2]]
+
+        tensor = effects.square_crop_and_resize(tensor, input_shape, kwargs['shape'][0])
 
     tensor = effects.post_process(tensor, **kwargs)
-
     tensor = recipes.post_process(tensor, **kwargs)
 
     with tf.Session().as_default():
