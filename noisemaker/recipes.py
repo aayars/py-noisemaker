@@ -122,6 +122,8 @@ def glitch(tensor, shape):
     combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
     combined = effects.blend(combined, effects.pixel_sort(combined, shape), 1.0 - base)
 
+    combined = tf.image.adjust_contrast(combined, 1.75)
+
     return combined
 
 
