@@ -23,7 +23,11 @@ import noisemaker.recipes as recipes
 def main(ctx, seed, name, no_resize, preset_name, input_filename):
     presets.bake_presets(seed)
 
-    tensor = tf.image.convert_image_dtype(load(input_filename), dtype=tf.float32)
+    input_shape = effects.shape_from_file(input_filename)
+
+    input_shape[2] = min(input_shape[2], 3)
+
+    tensor = tf.image.convert_image_dtype(load(input_filename, channels=input_shape[2]), dtype=tf.float32)
 
     if preset_name == 'random':
         preset_name = 'random-effect'
@@ -40,8 +44,6 @@ def main(ctx, seed, name, no_resize, preset_name, input_filename):
 
     if 'ridges' not in kwargs:
         kwargs['ridges'] = False
-
-    input_shape = effects.shape_from_file(input_filename)
 
     if no_resize:
         kwargs['shape'] = input_shape
