@@ -174,11 +174,6 @@ _EFFECTS_PRESETS = lambda: {
         "with_reverb": random.randint(3, 6),
     },
 
-    "rgb-composite": lambda: {
-        "composite_scale": random_member([.5, 1, 2, 4]),
-        "with_composite": True,
-    },
-
     "ripples": lambda: {
         "ripple_freq": random.randint(2, 3),
         "ripple_kink": 2.5 + random.random() * 1.25,
@@ -209,6 +204,12 @@ _EFFECTS_PRESETS = lambda: {
 
     "spooky-ticker": lambda: {
         "with_ticker": True,
+    },
+
+    "subpixels": lambda: {
+        "composite_scale": random_member([2, 4, 8]),
+        "with_composite": True,
+        "composite_mask": random_member(ValueMask.rgb_members()),
     },
 
     "swerve-h": lambda: {

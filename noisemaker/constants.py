@@ -374,6 +374,9 @@ class ValueMask(Enum):
     bank_ocr_8 = 258
     bank_ocr_9 = 259
 
+    rgb = 900
+    roygbiv = 901
+
     sparse = 1000
 
     invaders = 1001
@@ -439,6 +442,14 @@ class ValueMask(Enum):
     @classmethod
     def is_grid(cls, member):
         return member.value < cls.zero.value
+
+    @classmethod
+    def rgb_members(cls):
+        return [m for m in cls if cls.is_rgb(m)]
+
+    @classmethod
+    def is_rgb(cls, member):
+        return member.value >= cls.rgb.value and member.value < cls.sparse.value
 
     @classmethod
     def procedural_members(cls):

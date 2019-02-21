@@ -2473,6 +2473,30 @@ Masks = {
             [ 0, 0, 0, 0, 0, 0, 0 ],
         ]
     },
+
+    ValueMask.rgb: {
+        "shape": [4, 4, 3],
+        "values": [
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
+            [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        ]
+    },
+
+    ValueMask.roygbiv: {
+        "shape": [8, 8, 3],
+        "values": [
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[1, 0, .5], [1, .5, 0], [1, 1, 0], [.5, 1, 0], [0, .5, 1], [.5, 0, 1], [.75, 0, .75], [0, 0, 0]],
+            [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        ]
+    },
 }
 
 
@@ -2498,6 +2522,9 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
 
     mask_function, mask_shape = mask_function_and_shape(mask, channel_shape)
 
+    if len(mask_shape) == 3:
+        channel_shape[2] = mask_shape[2]
+
     mask_values = []
 
     uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
@@ -2505,7 +2532,7 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
     if uv_noise is None:
         uv_noise = np.random.uniform(size=uv_shape)
 
-    sum = 0
+    total = 0
 
     for y in range(channel_shape[0]):
         uv_y = int((y  / channel_shape[0]) * uv_shape[0])
@@ -2521,15 +2548,21 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
                                       atlas=atlas) * 1.0
 
             else:
-                pixel = Masks[mask]["values"][y % mask_shape[0]][x % mask_shape[1]] * 1.0
+                pixel = Masks[mask]["values"][y % mask_shape[0]][x % mask_shape[1]]
+
+                if not isinstance(pixel, list):
+                    pixel = [pixel]
+
+                pixel = [float(i) for i in pixel]
 
             if inverse:
-                pixel = 1.0 - pixel
+                pixel = [1.0 - i for i in pixel]
 
             mask_row.append(pixel)
-            sum += pixel
 
-    return mask_values, sum
+            total = sum(pixel)
+
+    return mask_values, total
 
 
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):

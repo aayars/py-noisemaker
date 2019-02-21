@@ -34,7 +34,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, with_composite=False, composite_scale=1.0,
+                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
+                 with_composite=False, composite_scale=1.0, composite_mask=None,
                  with_sort=False, sort_angled=False,
                  **convolve_kwargs):
     """
@@ -121,6 +122,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float glyph_map_zoom: Scale glyph output
     :param bool with_composite: Composite video effect
     :param float composite_scale: Composite subpixel scaling
+    :param ValueMask composite_mask: Composite subpixel mask (RGB ones work best)
     :param bool with_sort: Pixel sort
     :param bool sort_angled: Pixel sort along a random angle
     :return: Tensor
@@ -269,7 +271,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     if with_composite:
-        tensor = composite(tensor, shape, scale=composite_scale)
+        tensor = composite(tensor, shape, scale=composite_scale, mask=composite_mask)
 
     if with_sort:
         tensor = pixel_sort(tensor, shape, sort_angled)
@@ -1867,8 +1869,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
                 for y_offset in expanded_offsets:
                     expanded_neighborhoods.add(((walker[0] + y_offset) % half_height, (walker[1] + x_offset) % half_width))
 
-            # print(len(walkers))
-
             clustered.append(walker)
 
         if not walkers:
@@ -2121,14 +2121,20 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
 
 
-def composite(tensor, shape, scale=2.0):
+def composite(tensor, shape, scale=2.0, mask=None):
     """
-    Split an image into giant subpixels of red, green, or blue.
+    Explode an image into giant subpixels.
 
     :param Tensor tensor:
     :param list[int] shape:
     :param float scale:
+    :param ValueMask mask: A ValueMask, preferably RGB
     """
+
+    if mask is None:
+        mask = ValueMask.rgb
+
+    subpixel_vals = masks.Masks[mask]['values']
 
     if scale == 1.0:
         scaled_shape = shape
@@ -2142,20 +2148,20 @@ def composite(tensor, shape, scale=2.0):
         else:
             scaled = resample(tensor, scaled_shape)
 
-    quarter_shape = [int(scaled_shape[0] * .25) or 1, int(scaled_shape[1] * .25) or 1, scaled_shape[2]]
+    size = len(subpixel_vals)
 
-    out = _downsample(scaled, scaled_shape, quarter_shape)
+    multiplier = 1 / size
+
+    new_shape = [int(scaled_shape[0] * multiplier) or 1, int(scaled_shape[1] * multiplier) or 1, scaled_shape[2]]
+
+    out = _downsample(scaled, scaled_shape, new_shape)
 
     out = resample(out, scaled_shape, spline_order=0)
 
-    subpixel_vals = [
-        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
-        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
-        [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
-        [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
-    ]
+    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [size, size, 3], scaled_shape, with_offset=False)
 
-    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [4, 4, 3], scaled_shape, with_offset=False)
+    if not isinstance(subpixel_vals[0][0], list):
+        subpixel_filter = tf.expand_dims(tf.stack(subpixel_filter), 2)
 
     out *= subpixel_filter
 

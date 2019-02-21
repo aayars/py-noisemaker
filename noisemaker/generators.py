@@ -27,7 +27,6 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     """
 
     initial_shape = freq + [shape[-1]]
-    channel_shape = freq + [1]
 
     if isinstance(distrib, int):
         distrib = ValueDistribution(distrib)
@@ -82,9 +81,11 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
             if not atlas:
                 mask = ValueMask.numeric  # Fall back to canned values
 
+        channel_shape = freq + [1]
+
         mask_values, _ = masks.bake_procedural(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
 
-        tensor *= tf.reshape(mask_values, channel_shape)
+        tensor *= mask_values
 
     if wavelet:
         tensor = effects.wavelet(tensor, initial_shape)
