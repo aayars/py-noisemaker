@@ -168,6 +168,36 @@ def mask_inverse_option(**attrs):
     return bool_option("--mask-inverse", **attrs)
 
 
+def glyph_map_option(**attrs):
+    attrs.setdefault("help", "Mask: Glyph map brightness atlas mask")
+
+    return str_option("--glyph-map", type=click.Choice([m.name for m in ValueMask.procedural_members()]), **attrs)
+
+
+def glyph_map_colorize_option(**attrs):
+    attrs.setdefault("help", "Glyph map: Colorize exploded pixels")
+
+    return bool_option("--glyph-map-colorize", **attrs)
+
+
+def glyph_map_zoom_option(**attrs):
+    attrs.setdefault("help", "Glyph map: Exploded pixel zoom factor")
+
+    return float_option("--glyph-map-zoom", default=4.0, **attrs)
+
+
+def composite_option(**attrs):
+    attrs.setdefault("help", "Mask: Composite video effect mask")
+
+    return str_option("--composite", type=click.Choice([m.name for m in ValueMask.rgb_members()]), **attrs)
+
+
+def composite_zoom_option(**attrs):
+    attrs.setdefault("help", "Composite video effect: Exploded pixel zoom factor")
+
+    return float_option("--composite-zoom", default=2.0, **attrs)
+
+
 def interp_option(**attrs):
     attrs.setdefault("help", "Interpolation type {0}".format(INTERPOLATION_HINT))
 

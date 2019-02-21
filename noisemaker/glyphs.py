@@ -38,10 +38,10 @@ def load_glyphs(shape):
     font = ImageFont.truetype(font_name, int(max(shape[0], shape[1]) * .9))
 
     glyphs = []
-    sums = []
+    totals = []
 
     for i in range(32, 127):
-        sum = 0
+        total = 0
 
         glyph = []
         glyphs.append(glyph)
@@ -57,9 +57,9 @@ def load_glyphs(shape):
             for x in range(shape[1]):
                 value = image.getpixel((x, y))[0] / 255
 
-                row.append(value)
-                sum += value
+                row.append([value])
+                total += value
 
-        sums.append(sum)
+        totals.append(total)
 
-    return [g for sum, g in sorted(zip(sums, glyphs))]
+    return [g for total, g in sorted(zip(totals, glyphs))]

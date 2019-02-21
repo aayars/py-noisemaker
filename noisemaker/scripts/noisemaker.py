@@ -29,6 +29,11 @@ import noisemaker.recipes as recipes
 @cli.corners_option()
 @cli.mask_option()
 @cli.mask_inverse_option()
+@cli.glyph_map_option()
+@cli.glyph_map_colorize_option()
+@cli.glyph_map_zoom_option()
+@cli.composite_option()
+@cli.composite_zoom_option()
 @cli.lattice_drift_option()
 @cli.vortex_option()
 @cli.warp_option()
@@ -119,14 +124,15 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
          worms_duration, worms_stride, worms_stride_deviation, worms_alpha,
          worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline,
          normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners,
-         mask, mask_inverse, posterize, erosion_worms, voronoi, voronoi_func,
-         voronoi_nth, voronoi_alpha, voronoi_refract, voronoi_inverse, glitch,
-         vhs, crt, scan_error, snow, dither, aberration, light_leak, vignette,
-         vignette_brightness, pop, bloom, rgb, hue_range, hue_rotation,
-         saturation, hue_distrib, saturation_distrib, post_hue_rotation,
-         post_saturation, brightness_distrib, input_dir, dla, dla_padding,
-         point_freq, point_distrib, point_corners, point_generations, point_drift,
-         shadow, density, seed, name, **convolve_kwargs):
+         mask, mask_inverse, glyph_map, glyph_map_colorize, glyph_map_zoom,
+         composite, composite_zoom, posterize, erosion_worms, voronoi,
+         voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract,
+         voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration,
+         light_leak, vignette, vignette_brightness, pop, bloom, rgb, hue_range,
+         hue_rotation, saturation, hue_distrib, saturation_distrib,
+         post_hue_rotation, post_saturation, brightness_distrib, input_dir, dla,
+         dla_padding, point_freq, point_distrib, point_corners, point_generations,
+         point_drift, shadow, density, seed, name, **convolve_kwargs):
 
     generators.set_seed(seed)
 
@@ -147,6 +153,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
                                  point_generations=point_generations, point_drift=point_drift,
                                  with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
+                                 with_glyph_map=glyph_map, glyph_map_colorize=glyph_map_colorize, glyph_map_zoom=glyph_map_zoom,
+                                 with_composite=composite, composite_zoom=composite_zoom,
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,

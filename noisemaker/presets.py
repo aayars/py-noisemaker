@@ -207,9 +207,8 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "subpixels": lambda: {
-        "composite_scale": random_member([2, 4, 8]),
-        "with_composite": True,
-        "composite_mask": random_member(ValueMask.rgb_members()),
+        "composite_zoom": random_member([2, 4, 8]),
+        "with_composite": random_member(ValueMask.rgb_members()),
     },
 
     "swerve-h": lambda: {

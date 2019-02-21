@@ -2545,15 +2545,15 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
 
             if mask_function:
                 pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise,
-                                      atlas=atlas) * 1.0
+                                      atlas=atlas)
 
             else:
                 pixel = Masks[mask]["values"][y % mask_shape[0]][x % mask_shape[1]]
 
-                if not isinstance(pixel, list):
-                    pixel = [pixel]
+            if not isinstance(pixel, list):
+                pixel = [pixel]
 
-                pixel = [float(i) for i in pixel]
+            pixel = [float(i) for i in pixel]
 
             if inverse:
                 pixel = [1.0 - i for i in pixel]

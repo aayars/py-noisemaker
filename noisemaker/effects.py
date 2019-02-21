@@ -35,8 +35,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
-                 with_composite=False, composite_scale=1.0, composite_mask=None,
-                 with_sort=False, sort_angled=False,
+                 with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False,
                  **convolve_kwargs):
     """
     Apply post-processing effects.
@@ -120,9 +119,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param ValueMask|None with_glyph_map: Map values to glyph brightness. Square masks only for now
     :param bool glyph_map_colorize: Colorize glyphs from on average input colors
     :param float glyph_map_zoom: Scale glyph output
-    :param bool with_composite: Composite video effect
-    :param float composite_scale: Composite subpixel scaling
-    :param ValueMask composite_mask: Composite subpixel mask (RGB ones work best)
+    :param None|ValueMask with_composite: Composite video effect
+    :param float composite_zoom: Composite subpixel scaling
     :param bool with_sort: Pixel sort
     :param bool sort_angled: Pixel sort along a random angle
     :return: Tensor
@@ -271,7 +269,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     if with_composite:
-        tensor = composite(tensor, shape, scale=composite_scale, mask=composite_mask)
+        tensor = composite(tensor, shape, zoom=composite_zoom, mask=with_composite)
 
     if with_sort:
         tensor = pixel_sort(tensor, shape, sort_angled)
@@ -2078,7 +2076,8 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
         glyphs = load_glyphs(glyph_shape)
 
     else:
-        glyph_shape = getattr(masks, "{0}_shape".format(mask.name), lambda: None)()
+        _, glyph_shape = masks.mask_function_and_shape(mask)
+
         glyphs = []
         sums = []
 
@@ -2113,37 +2112,43 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     glyph_count = len(glyphs)
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
-    out = resample(tf.gather_nd(tf.expand_dims(glyphs, -1), tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=1)
+    out = resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=1)
 
     if not colorize:
-        return out
+        return out * tf.ones(shape)
 
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
 
 
-def composite(tensor, shape, scale=2.0, mask=None):
+def composite(tensor, shape, zoom=2.0, mask=None):
     """
     Explode an image into giant subpixels.
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param float scale:
+    :param float zoom:
     :param ValueMask mask: A ValueMask, preferably RGB
     """
 
     if mask is None:
         mask = ValueMask.rgb
 
+    elif isinstance(mask, int):
+        mask = ValueMask(mask)
+
+    elif isinstance(mask, str):
+        mask = ValueMask[mask]
+
     subpixel_vals = masks.Masks[mask]['values']
 
-    if scale == 1.0:
+    if zoom == 1.0:
         scaled_shape = shape
         scaled = tensor
 
     else:
-        scaled_shape = [int(shape[0] / scale) or 1, int(shape[1] / scale) or 1, shape[2]]
+        scaled_shape = [int(shape[0] / zoom) or 1, int(shape[1] / zoom) or 1, shape[2]]
 
-        if scale > 1.0:
+        if zoom > 1.0:
             scaled = _downsample(tensor, shape, scaled_shape)
         else:
             scaled = resample(tensor, scaled_shape)
@@ -2165,10 +2170,10 @@ def composite(tensor, shape, scale=2.0, mask=None):
 
     out *= subpixel_filter
 
-    if scale == 1.0:
+    if zoom == 1.0:
         return out
 
-    elif scale > 1.0:
+    elif zoom > 1.0:
         return resample(out, shape, spline_order=0)
 
     else:
