@@ -1013,9 +1013,8 @@ _PRESETS = lambda: {
         "glyph_map_colorize": True,
         "hue_range": random.random() * 2.5,
         "mask": "invaders_square",
-        "post_contrast": 1.5,
         "spline_order": 0,
-        "with_composite": "rgb",
+        "with_composite": random_member(["invaders_square", "rgb", ""]),
         "with_glyph_map": "invaders_square",
     }),
 

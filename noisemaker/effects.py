@@ -172,7 +172,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom)
 
     if with_composite:
-        tensor = composite(tensor, shape, zoom=composite_zoom, mask=with_composite)
+        tensor = glyph_map(tensor, shape, zoom=composite_zoom, mask=with_composite)
 
     if warp_range:
         if warp_interp is None:
@@ -2112,72 +2112,14 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     glyph_count = len(glyphs)
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
-    out = resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=1)
+    resample_order = 1 if mask == ValueMask.truetype else 0
+
+    out = resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=resample_order)
 
     if not colorize:
         return out * tf.ones(shape)
 
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
-
-
-def composite(tensor, shape, zoom=2.0, mask=None):
-    """
-    Explode an image into giant subpixels.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param float zoom:
-    :param ValueMask mask: A ValueMask, preferably RGB
-    """
-
-    if mask is None:
-        mask = ValueMask.rgb
-
-    elif isinstance(mask, int):
-        mask = ValueMask(mask)
-
-    elif isinstance(mask, str):
-        mask = ValueMask[mask]
-
-    subpixel_vals = masks.Masks[mask]['values']
-
-    if zoom == 1.0:
-        scaled_shape = shape
-        scaled = tensor
-
-    else:
-        scaled_shape = [int(shape[0] / zoom) or 1, int(shape[1] / zoom) or 1, shape[2]]
-
-        if zoom > 1.0:
-            scaled = _downsample(tensor, shape, scaled_shape)
-        else:
-            scaled = resample(tensor, scaled_shape)
-
-    size = len(subpixel_vals)
-
-    multiplier = 1 / size
-
-    new_shape = [int(scaled_shape[0] * multiplier) or 1, int(scaled_shape[1] * multiplier) or 1, scaled_shape[2]]
-
-    out = _downsample(scaled, scaled_shape, new_shape)
-
-    out = resample(out, scaled_shape, spline_order=0)
-
-    subpixel_filter = expand_tile(tf.cast(tf.stack(subpixel_vals), tf.float32), [size, size, 3], scaled_shape, with_offset=False)
-
-    if not isinstance(subpixel_vals[0][0], list):
-        subpixel_filter = tf.expand_dims(tf.stack(subpixel_filter), 2)
-
-    out *= subpixel_filter
-
-    if zoom == 1.0:
-        return out
-
-    elif zoom > 1.0:
-        return resample(out, shape, spline_order=0)
-
-    else:
-        return _downsample(out, scaled_shape, shape)
 
 
 def pixel_sort(tensor, shape, angled=False):
