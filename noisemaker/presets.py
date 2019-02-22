@@ -1942,7 +1942,7 @@ _PRESETS = lambda: {
         "with_outline": 3,
     }),
 
-    "subpixelator": lambda: extend("basic", "funhouse", "ripples", "subpixels"),
+    "subpixelator": lambda: extend("basic", "funhouse", "subpixels"),
 
     "symmetry": lambda: {
         "corners": True,
