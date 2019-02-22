@@ -171,6 +171,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_glyph_map:
         tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom)
 
+    if with_composite:
+        tensor = composite(tensor, shape, zoom=composite_zoom, mask=with_composite)
+
     if warp_range:
         if warp_interp is None:
             warp_interp = spline_order
@@ -267,9 +270,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_conv_feedback:
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
-
-    if with_composite:
-        tensor = composite(tensor, shape, zoom=composite_zoom, mask=with_composite)
 
     if with_sort:
         tensor = pixel_sort(tensor, shape, sort_angled)
