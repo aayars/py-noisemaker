@@ -1,3 +1,5 @@
+import json
+
 import click
 import tensorflow as tf
 
@@ -19,10 +21,11 @@ import noisemaker.recipes as recipes
 @cli.channels_option()
 @cli.clut_option()
 @cli.seed_option()
+@cli.option('--overrides', type=str, help='A JSON dictionary containing preset overrides')
 @cli.name_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, clut, seed, name, preset_name):
+def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name):
     presets.bake_presets(seed)
 
     if preset_name == 'random':
@@ -46,6 +49,9 @@ def main(ctx, width, height, channels, clut, seed, name, preset_name):
     if clut:
         kwargs['clut'] = clut
         kwargs['clut_horizontal'] = True
+
+    if overrides:
+        kwargs.update(json.loads(overrides))
 
     tensor = generators.multires(**kwargs)
 
