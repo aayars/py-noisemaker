@@ -1,3 +1,5 @@
+"""Common CLI boilerplate for Noisemaker"""
+
 import click
 
 from noisemaker.constants import DistanceFunction, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior

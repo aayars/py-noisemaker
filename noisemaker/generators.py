@@ -1,3 +1,5 @@
+"""Low-level value noise generators for Noisemaker"""
+
 import random
 
 import numpy as np

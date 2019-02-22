@@ -88,7 +88,7 @@ CLI
 
 Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or `--help`.
 
--  `noisemaker`: Fully-featured noise generation pipeline
+-  `noisemaker`: Low-level CLI
 -  `artmaker`: Generate images from presets
 -  `artmangler`: Apply post-processing effects to images
 

@@ -1,3 +1,5 @@
+"""High-level effect recipes for Noisemaker. May call out to generators or effects."""
+
 import random
 
 import tensorflow as tf

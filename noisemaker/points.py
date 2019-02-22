@@ -1,3 +1,5 @@
+"""Point cloud library for Noisemaker. Used for Voronoi and DLA functions."""
+
 import math
 import random
 

@@ -1,3 +1,5 @@
+"""Low-level effects library for Noisemaker"""
+
 from collections import defaultdict
 
 import math

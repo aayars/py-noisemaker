@@ -1,3 +1,5 @@
+"""Constants used in Noisemaker"""
+
 from enum import Enum
 
 import numpy as np

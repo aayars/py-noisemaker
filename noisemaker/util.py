@@ -1,3 +1,5 @@
+"""Utility functions for Noisemaker."""
+
 import tensorflow as tf
 
 
