@@ -1006,14 +1006,16 @@ _PRESETS = lambda: {
     },
 
     "galalaga": lambda: extend("crt", {
-        "distrib": random_member(["ones", "uniform"]),
+        "composite_zoom": 2,
+        "distrib": "uniform",
         "freq": 6 * random.randint(1, 3),
-        "glyph_map_zoom": 1.0 + random.random() * 10.0,
+        "glyph_map_zoom": random.randint(15, 25),
+        "glyph_map_colorize": True,
         "hue_range": random.random() * 2.5,
         "mask": "invaders_square",
-        "posterize_levels": 6,
+        "post_contrast": 1.5,
         "spline_order": 0,
-        "with_glowing_edges": .125 + random.random() * .125,
+        "with_composite": "rgb",
         "with_glyph_map": "invaders_square",
     }),
 
