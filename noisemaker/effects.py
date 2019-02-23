@@ -11,7 +11,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.constants import ConvKernel, DistanceFunction, PointDistribution, ValueMask, VoronoiDiagramType, WormBehavior
+from noisemaker.constants import DistanceFunction, PointDistribution, ValueMask, VoronoiDiagramType, WormBehavior
 from noisemaker.glyphs import load_glyphs
 from noisemaker.points import point_cloud
 
@@ -35,10 +35,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
-                 input_dir=None, with_crease=False, with_shadow=None, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
+                 input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False,
-                 **convolve_kwargs):
+                 with_convolve=None, with_shadow=None, **_):
     """
     Apply post-processing effects.
 
@@ -125,6 +125,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float composite_zoom: Composite subpixel scaling
     :param bool with_sort: Pixel sort
     :param bool sort_angled: Pixel sort along a random angle
+    :param None|list[str|ValueMask] convolve: List of ValueMasks to apply as convolution kernels
     :return: Tensor
     """
 
@@ -219,11 +220,11 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel)
 
-    for kernel in ConvKernel:
-        alpha = convolve_kwargs.get(kernel.name)
+    if with_convolve:
+        for kernel_name in with_convolve:
+            conv2d_mask = ValueMask['conv2d_{}'.format(kernel_name)]
 
-        if alpha:
-            tensor = convolve(kernel, tensor, shape, alpha=alpha)
+            tensor = convolve(conv2d_mask, tensor, shape)
 
     if with_shadow:
         tensor = shadow(tensor, shape, with_shadow)
@@ -284,11 +285,13 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 def _conform_kernel_to_tensor(kernel, tensor, shape):
     """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
 
-    l = len(kernel)
+    values, _ = masks.mask_values(kernel)
+
+    l = len(values)
 
     channels = shape[-1]
 
-    temp = np.repeat(kernel, channels)
+    temp = np.repeat(values, channels)
 
     temp = tf.reshape(temp, (l, l, channels, 1))
 
@@ -303,17 +306,22 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     """
     Apply a convolution kernel to an image tensor.
 
-    :param ConvKernel kernel: See ConvKernel enum
+    .. code-block:: python
+
+       image = convolve(ValueMask.conv2d_shadow, image)
+
+    :param ValueMask kernel: See conv2d_* members in ValueMask enum
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
     :param bool with_normalize: Normalize output (True)
     :paral float alpha: Alpha blending amount
     :return: Tensor
+
     """
 
     height, width, channels = shape
 
-    kernel_values = _conform_kernel_to_tensor(kernel.value, tensor, shape)
+    kernel_values = _conform_kernel_to_tensor(kernel, tensor, shape)
 
     # Give the conv kernel some room to play on the edges
     half_height = tf.cast(height / 2, tf.int32)
@@ -327,7 +335,7 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     if with_normalize:
         out = normalize(out)
 
-    if kernel == ConvKernel.edges:
+    if kernel == ValueMask.conv2d_edges:
         out = tf.abs(out - .5) * 2
 
     if alpha == 1.0:
@@ -495,7 +503,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
 
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
-    values = value_map(convolve(ConvKernel.blur, tensor, shape), shape, keep_dims=True)
+    values = value_map(convolve(ValueMask.conv2d_blur, tensor, shape), shape, keep_dims=True)
 
     x_index = tf.cast(x, tf.int32)
     y_index = tf.cast(y, tf.int32)
@@ -603,7 +611,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_x is None:
         if from_derivative:
-            reference_x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
+            reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
             reference_x = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
@@ -613,7 +621,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_y is None:
         if from_derivative:
-            reference_y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
+            reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
             reference_y = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
@@ -913,8 +921,8 @@ def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
     :return: Tensor
     """
 
-    x = convolve(ConvKernel.deriv_x, tensor, shape, with_normalize=False)
-    y = convolve(ConvKernel.deriv_y, tensor, shape, with_normalize=False)
+    x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
+    y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
     out = distance(x, y, dist_func)
 
@@ -942,10 +950,10 @@ def sobel(tensor, shape, dist_func=1):
     :return: Tensor
     """
 
-    tensor = convolve(ConvKernel.blur, tensor, shape)
+    tensor = convolve(ValueMask.conv2d_blur, tensor, shape)
 
-    x = convolve(ConvKernel.sobel_x, tensor, shape, with_normalize=False)
-    y = convolve(ConvKernel.sobel_y, tensor, shape, with_normalize=False)
+    x = convolve(ValueMask.conv2d_sobel_x, tensor, shape, with_normalize=False)
+    y = convolve(ValueMask.conv2d_sobel_y, tensor, shape, with_normalize=False)
 
     return tf.abs(normalize(distance(x, y, dist_func)) * 2 - 1)
 
@@ -968,8 +976,8 @@ def normal_map(tensor, shape):
 
     reference = value_map(tensor, shape, keep_dims=True)
 
-    x = normalize(1 - convolve(ConvKernel.sobel_x, reference, [height, width, 1]))
-    y = normalize(convolve(ConvKernel.sobel_y, reference, [height, width, 1]))
+    x = normalize(1 - convolve(ValueMask.conv2d_sobel_x, reference, [height, width, 1]))
+    y = normalize(convolve(ValueMask.conv2d_sobel_y, reference, [height, width, 1]))
 
     z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
@@ -1056,8 +1064,8 @@ def conv_feedback(tensor, shape, iterations=50, alpha=.5):
     convolved = offset(_downsample(tensor, shape, half_shape), half_shape, x=iterations * -3, y=iterations * -3)
 
     for i in range(iterations):
-        convolved = convolve(ConvKernel.blur, convolved, half_shape)
-        convolved = convolve(ConvKernel.sharpen, convolved, half_shape)
+        convolved = convolve(ValueMask.conv2d_blur, convolved, half_shape)
+        convolved = convolve(ValueMask.conv2d_sharpen, convolved, half_shape)
 
     convolved = normalize(convolved)
 
@@ -1648,7 +1656,7 @@ def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
 
     edges = bloom(edges, shape, alpha=.5)
 
-    edges = normalize(edges + convolve(ConvKernel.blur, edges, shape))
+    edges = normalize(edges + convolve(ValueMask.conv2d_blur, edges, shape))
 
     return blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
 
@@ -1687,12 +1695,12 @@ def vortex(tensor, shape, displacement=64.0):
 
     value_shape = [shape[0], shape[1], 1]
 
-    x = convolve(ConvKernel.deriv_x, displacement_map, value_shape, with_normalize=False)
-    y = convolve(ConvKernel.deriv_y, displacement_map, value_shape, with_normalize=False)
+    x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
+    y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
 
     warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
 
-    return center_mask(warped, convolve(ConvKernel.blur, tensor, shape) * .25, shape)
+    return center_mask(warped, convolve(ValueMask.conv2d_blur, tensor, shape) * .25, shape)
 
 
 def aberration(tensor, shape, displacement=.005):
@@ -1901,7 +1909,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     # hot = tf.ones([count, channels])
     hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
 
-    out = convolve(ConvKernel.blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
+    out = convolve(ValueMask.conv2d_blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
 
     return out * tensor
 
@@ -1987,9 +1995,9 @@ def light_leak(tensor, shape, alpha=.25):
     leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
 
     leak = bloom(leak, shape, 1.0)
-    leak = convolve(ConvKernel.blur, leak, shape)
-    leak = convolve(ConvKernel.blur, leak, shape)
-    leak = convolve(ConvKernel.blur, leak, shape)
+
+    for _ in range(3):
+        leak = convolve(ValueMask.conv2d_blur, leak, shape)
 
     leak = 1 - ((1 - tensor) * (1 - leak))
 
@@ -2003,9 +2011,8 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     """
     """
 
-    edges = convolve(ConvKernel.blur, tensor, shape)
-    edges = convolve(ConvKernel.blur, edges, shape)
-    edges = convolve(ConvKernel.blur, edges, shape)
+    for _ in range(3):
+        edges = convolve(ValueMask.conv2d_blur, tensor, shape)
 
     edges = center_mask(edges, tf.ones(shape) * brightness, shape)
     edges = center_mask(tensor, edges, shape)
@@ -2040,8 +2047,8 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
 
     grad = random.random()
 
-    x = convolve(ConvKernel.sobel_x, reference, value_shape, with_normalize=True)
-    y = convolve(ConvKernel.sobel_y, reference, value_shape, with_normalize=True)
+    x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
+    y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
 
     if random.randint(0, 1):
         x = 1.0 - x
@@ -2086,12 +2093,12 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
         levels = 100
         for i in range(levels):
             # Generate some glyphs.
-            glyph, sum = masks.bake_procedural(mask, glyph_shape, uv_noise=np.ones(glyph_shape) * i / levels)
+            glyph, brightness = masks.mask_values(mask, glyph_shape, uv_noise=np.ones(glyph_shape) * i / levels)
 
             glyphs.append(glyph)
-            sums.append(sum)
+            sums.append(brightness)
 
-        glyphs = [g for sum, g in sorted(zip(sums, glyphs))]
+        glyphs = [g for _, g in sorted(zip(sums, glyphs))]
 
     in_shape = [int(shape[0] / zoom), int(shape[1] / zoom), shape[2]]
 

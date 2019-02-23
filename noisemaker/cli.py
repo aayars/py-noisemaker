@@ -87,6 +87,10 @@ def str_option(attr, **attrs):
     return option(attr, **attrs)
 
 
+def multi_str_option(attr, **attrs):
+    return str_option(attr, multiple=True, **attrs)
+
+
 def option(*param_decls, **attrs):
     """ Add a Click option. """
 
@@ -591,51 +595,21 @@ def vignette_brightness_option(**attrs):
 
 
 def pop_option(**attrs):
-    attrs.setdefault("help", "Art effects: Pop art".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("help", "Art effects: Pop art")
 
     return bool_option("--pop", **attrs)
 
 
-def emboss_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Emboss {0}".format(ALPHA_BLENDING_HINT))
+def convolve_option(**attrs):
+    attrs.setdefault("help", "Convolution kernel: May be specified multiple times.")
 
-    return float_option("--emboss", **attrs)
+    return multi_str_option("--convolve", type=click.Choice([m.name.replace('conv2d_', '') for m in ValueMask.conv2d_members()]), **attrs)
 
 
 def shadow_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Shadow {0}".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("help", "Shadow {0}".format(ALPHA_BLENDING_HINT))
 
     return float_option("--shadow", **attrs)
-
-
-def edges_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Edges {0}".format(ALPHA_BLENDING_HINT))
-
-    return float_option("--edges", **attrs)
-
-
-def blur_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Blur {0}".format(ALPHA_BLENDING_HINT))
-
-    return float_option("--blur", **attrs)
-
-
-def sharpen_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Sharpen {0}".format(ALPHA_BLENDING_HINT))
-
-    return float_option("--sharpen", **attrs)
-
-
-def unsharp_mask_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Unsharp mask {0}".format(ALPHA_BLENDING_HINT))
-
-    return float_option("--unsharp-mask", **attrs)
-
-
-def invert_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: Invert {0}".format(ALPHA_BLENDING_HINT))
-
-    return float_option("--invert", **attrs)
 
 
 def rgb_option(**attrs):

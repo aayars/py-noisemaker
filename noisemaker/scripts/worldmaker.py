@@ -130,7 +130,7 @@ def _control():
     iterations = 5
     for i in range(iterations):
        control = effects.erode(control, shape, **erode_kwargs)
-       control = effects.convolve(effects.ConvKernel.blur, control, shape)
+       control = effects.convolve(effects.ValueMap.conv2d_blur, control, shape)
 
     post_shape = [LARGE_Y, LARGE_X, 1]
     control = effects.resample(control, post_shape)
@@ -138,9 +138,9 @@ def _control():
     iterations = 2
     for i in range(iterations):
        control = effects.erode(control, post_shape, **erode_kwargs)
-       control = effects.convolve(effects.ConvKernel.blur, control, post_shape)
+       control = effects.convolve(effects.ValueMap.conv2d_blur, control, post_shape)
 
-    control = effects.convolve(effects.ConvKernel.sharpen, control, post_shape)
+    control = effects.convolve(effects.ValueMap.conv2d_sharpen, control, post_shape)
     control = effects.normalize(control)
 
     with tf.Session().as_default():
@@ -218,9 +218,9 @@ def clouds(input_filename):
 
     shadow = effects.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
     shadow = tf.minimum(shadow * 2.5, 1.0)
-    shadow = effects.convolve(effects.ConvKernel.blur, shadow, pre_shape)
-    shadow = effects.convolve(effects.ConvKernel.blur, shadow, pre_shape)
-    shadow = effects.convolve(effects.ConvKernel.blur, shadow, pre_shape)
+
+    for _ in range(3):
+        shadow = effects.convolve(effects.ValueMap.conv2d_blur, shadow, pre_shape)
 
     shadow = effects.resample(shadow, post_shape)
     combined = effects.resample(combined, post_shape)

@@ -47,11 +47,10 @@ _EFFECTS_PRESETS = lambda: {
         "with_scan_error": random.randint(0, 1),
     }),
 
-    "density-map": lambda: {
-        "invert": 1,
+    "density-map": lambda: extend("invert", {
         "with_density_map": True,
         "with_dither": .075 + random.random() * .075,
-    },
+    }),
 
     "erosion-worms": lambda: {
         "erosion_worms_alpha": .25 + random.random() * .75,
@@ -96,12 +95,16 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "invert": lambda: {
-        "invert": 1,
+        "convolve": ["invert"],
     },
 
     "light-leak": lambda: extend("bloom", random_member(["vignette-bright", "vignette-dark"]), {
         "with_light_leak": .5 + random.random() * .5,
     }),
+
+    "maybe-invert": lambda: {
+        "convolve": [] if random_randint(0, 1) else ["invert"],
+    },
 
     "mosaic": lambda: extend("bloom", "voronoi", {
         "voronoi_alpha": .75 + random.random() * .25,
@@ -200,10 +203,9 @@ _EFFECTS_PRESETS = lambda: {
         "with_snow": .05 + random.random() * .35,
     },
 
-    "sobel-operator": lambda: {
-        "invert": random.randint(0, 1),
+    "sobel-operator": lambda: extend("maybe-invert", {
         "with_sobel": random.randint(1, 3),
-    },
+    }),
 
     "spooky-ticker": lambda: {
         "with_ticker": True,
@@ -280,9 +282,8 @@ _EFFECTS_PRESETS = lambda: {
 }
 
 _PRESETS = lambda: {
-    "2001": lambda: extend("bloom", "value-mask", {
+    "2001": lambda: extend("bloom", "invert", "value-mask", {
         "freq": 13 * random.randint(10,20),
-        "invert": 1,
         "mask": "bank_ocr",
         "posterize_levels": 1,
         "vignette_brightness": 1,
@@ -345,11 +346,10 @@ _PRESETS = lambda: {
         "with_vhs": random.randint(0, 1),
     }),
 
-    "alien-terrain-multires": lambda: extend("bloom", "multires", {
+    "alien-terrain-multires": lambda: extend("bloom", "maybe-invert", "multires", {
         "deriv": 1,
         "deriv_alpha": .333 + random.random() * .333,
         "freq": random.randint(4, 8),
-        "invert": random.randint(0, 1),
         "lattice_drift": 1,
         "post_saturation": .075 + random.random() * .075,
         "saturation": 2,
@@ -377,9 +377,8 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "alien-transmission": lambda: extend("glitchin-out", "value-mask", {
+    "alien-transmission": lambda: extend("glitchin-out", "maybe-invert", "value-mask", {
         "freq": random.randint(100, 200),
-        "invert": random.randint(0, 1),
         "mask": random_member(ValueMask.procedural_members()),
         "reindex_range": .02 + random.random() * .02,
     }),
@@ -390,9 +389,8 @@ _PRESETS = lambda: {
         "mask": random_member(["hex", "lcd", "fat_lcd"]),
     }),
 
-    "anticounterfeit": lambda: extend("wormhole", {
+    "anticounterfeit": lambda: extend("invert", "wormhole", {
         "freq": 2,
-        "invert": 1,
         "point_freq": 1,
         "voronoi_refract": 1,
         "with_dither": .125,
@@ -402,19 +400,17 @@ _PRESETS = lambda: {
         "wormhole_kink": 6,
     }),
 
-    "are-you-human": lambda: extend("density-map", "funhouse", "multires", "snow", "value-mask", {
+    "are-you-human": lambda: extend("density-map", "funhouse", "maybe-invert", "multires", "snow", "value-mask", {
         "freq": 15,
         "hue_range": random.random() * .25,
         "hue_rotation": random.random(),
-        "invert": random.randint(0, 1),
         "mask": "truetype",
         "saturation": random.random() * .125,
         "with_aberration": .0075 + random.random() * .0075,
     }),
 
-    "aztec-waffles": lambda: {
+    "aztec-waffles": lambda: extend("maybe-invert", {
         "freq": 7,
-        "invert": random.randint(0, 1),
         "point_freq": random.randint(2, 4),
         "point_generations": 2,
         "point_distrib": "circular",
@@ -425,7 +421,7 @@ _PRESETS = lambda: {
         "voronoi_nth": random.randint(2, 4),
         "with_outline": 3,
         "with_voronoi": random.randint(1, 5),
-    },
+    }),
 
     "band-together": lambda: {
         "freq": random.randint(6, 12),
@@ -461,8 +457,7 @@ _PRESETS = lambda: {
         "ridges": True,
     }),
 
-    "blacklight-fantasy": lambda: extend("bloom", "sobel-operator", "voronoi", {
-        "invert": 1,
+    "blacklight-fantasy": lambda: extend("bloom", "invert", "sobel-operator", "voronoi", {
         "post_hue_rotation": -.125,
         "posterize_levels": 3,
         "rgb": True,
@@ -472,14 +467,13 @@ _PRESETS = lambda: {
         "with_dither": .075 + random.random() * .075,
     }),
 
-    "blobby": lambda: extend("funhouse", "reverb", {
+    "blobby": lambda: extend("funhouse", "invert", "reverb", {
         "deriv": random.randint(1, 3),
         "distrib": "uniform",
         "freq": random.randint(6, 12) * 2,
         "saturation": .25 + random.random() * .5,
         "hue_range": .25 + random.random() * .5,
         "hue_rotation": random.randint(0, 1) * random.random(),
-        "invert": 1,
         "mask": random_member(ValueMask),
         "outline": 1,
         "spline_order": random.randint(2, 3),
@@ -532,11 +526,10 @@ _PRESETS = lambda: {
        "with_dither": .125 + random.random() * .075,
    }),
 
-    "bubble-machine": lambda: extend("wormhole", {
+    "bubble-machine": lambda: extend("maybe-invert", "wormhole", {
         "corners": True,
         "distrib": "uniform",
         "freq": random.randint(3, 6) * 2,
-        "invert": random.randint(0, 1),
         "mask": random_member(["h_hex", "v_hex"]),
         "posterize_levels": random.randint(8, 16),
         "reverb_iterations": random.randint(1, 3),
@@ -556,8 +549,7 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "cell-reflect": lambda: extend("bloom", {
-        "invert": random.randint(0, 1),
+    "cell-reflect": lambda: extend("bloom", "maybe-invert", {
         "point_freq": random.randint(2, 3),
         "post_deriv": random.randint(1, 3),
         "post_reflect_range": random.randint(2, 4),
@@ -824,12 +816,11 @@ _PRESETS = lambda: {
         "with_voronoi": 1,
     }),
 
-    "eyes": lambda: {
+    "eyes": lambda: extend("invert", {
         "corners": True,
         "distrib": random_member(["ones", "uniform"]),
         "freq": 12 * random.randint(1, 2),
         "hue_range": random.random(),
-        "invert": 1,
         "mask": random_member([m.value for m in ValueMask if m.name != "chess"]),
         "ridges": True,
         "spline_order": random.randint(2, 3),
@@ -838,7 +829,7 @@ _PRESETS = lambda: {
         "warp_octaves": 1,
         "warp_range": random.randint(1, 4),
         "with_shadow": 1,
-    },
+    }),
 
     "fake-fractal-flame": lambda: extend("bloom", "density-map", "multires-low", {
         "hue_range": random.random(),
@@ -1128,7 +1119,7 @@ _PRESETS = lambda: {
         "lattice_drift": random.random(),
     }),
 
-    "hydraulic-flow": lambda: extend("basic", "bloom", "multires", {
+    "hydraulic-flow": lambda: extend("basic", "bloom", "maybe-invert", "multires", {
         "deriv": random.randint(0, 1),
         "deriv_alpha": .25 + random.random() * .25,
         "distrib": random_member([m for m in ValueDistribution if m.name not in ("ones", "mids")]),
@@ -1137,7 +1128,6 @@ _PRESETS = lambda: {
         "erosion_worms_density": random.randint(5, 250),
         "erosion_worms_iterations": random.randint(50, 250),
         "hue_range": random.random(),
-        "invert": random.randint(0, 1),
         "refract_range": random.random() * 2,
         "ridges": random.randint(0, 1),
         "rgb": random.randint(0, 1),
@@ -1180,9 +1170,8 @@ _PRESETS = lambda: {
         "with_interference": True
     }),
 
-    "isoform": lambda: extend("bloom", {
+    "isoform": lambda: extend("bloom", "maybe-invert", {
         "hue_range": random.random(),
-        "invert": random.randint(0, 1),
         "post_deriv": random.randint(0, 1) * random.randint(1, 3),
         "post_refract_range": .25 + random.random() * .25,
         "ridges": random.randint(0, 1),
@@ -1247,9 +1236,8 @@ _PRESETS = lambda: {
         "with_shadow": random.random(),
     }),
 
-    "lcd": lambda: extend("bloom", "value-mask", {
+    "lcd": lambda: extend("bloom", "invert", "value-mask", {
         "freq": 40 * random.randint(1, 4),
-        "invert": 1,
         "mask": random_member(["lcd", "lcd_binary"]),
         "saturation": .05,
         "with_shadow": random.random(),
@@ -1431,10 +1419,9 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     },
 
-    "oracle": lambda: extend("snow", "value-mask", {
+    "oracle": lambda: extend("maybe-invert", "snow", "value-mask", {
         "corners": True,
         "freq": [14, 8],
-        "invert": random.randint(0, 1),
         "mask": "iching",
         "spline_order": 0,
     }),
@@ -1516,10 +1503,9 @@ _PRESETS = lambda: {
         "warp_range": .5 + random.random(),
     }),
 
-    "prophesy": lambda: extend("value-mask", {
-        "emboss": .5 + random.random() * .5,
+    "prophesy": lambda: extend("invert", "value-mask", {
+        "convolve": ["emboss"],
         "freq": 48,
-        "invert": random.randint(0, 1),
         "mask": "invaders_square",
         "octaves": 2,
         "refract_range": .5,
@@ -1555,12 +1541,11 @@ _PRESETS = lambda: {
         "warp_range": .25 + random.random() * .125,
     }),
 
-    "redmond": lambda: extend("bloom", "snow", "voronoi", {
+    "redmond": lambda: extend("bloom", "maybe-invert", "snow", "voronoi", {
         "corners": True,
         "distrib": "uniform",
         "freq": 8,
         "hue_range": random.random() * 4.0,
-        "invert": random.randint(0, 1),
         "mask": "square",
         "point_generations": 2,
         "point_freq": 2,
@@ -1573,8 +1558,7 @@ _PRESETS = lambda: {
         "with_reverb": random.randint(3, 6),
     }),
 
-    "refractal": lambda: {
-        "invert": 1,
+    "refractal": lambda: extend("invert", {
         "lattice_drift": 1,
         "octaves": random.randint(1, 3),
         "point_freq": random.randint(8, 10),
@@ -1582,7 +1566,7 @@ _PRESETS = lambda: {
         "sin": random.random() * 10.0,
         "voronoi_alpha": .5 + random.random() * .5,
         "with_voronoi": 6,
-    },
+    }),
 
     "remember-logo": lambda: extend("crt", "density-map", "symmetry", {
         "point_distrib": random_member(PointDistribution.circular_members()),
@@ -1637,7 +1621,6 @@ _PRESETS = lambda: {
     }),
 
     "ripple-effect": lambda: extend("basic", "bloom", {
-        "invert": 1,
         "lattice_drift": 1,
         "ridges": random.randint(0, 1),
         "ripple_freq": random.randint(2, 3),
@@ -1696,9 +1679,8 @@ _PRESETS = lambda: {
         "with_shadow": random.random(),
     }),
 
-    "seether-reflect": lambda: extend("symmetry", {
+    "seether-reflect": lambda: extend("invert", "symmetry", {
         "hue_range": 1.0 + random.random(),
-        "invert": True,
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(4, 6),
         "post_reflect_range": random.randint(8, 12),
@@ -1713,9 +1695,8 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     }),
 
-    "seether-refract": lambda: extend("symmetry", {
+    "seether-refract": lambda: extend("invert", "symmetry", {
         "hue_range": 1.0 + random.random(),
-        "invert": True,
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(4, 6),
         "post_refract_range": random.randint(4, 8),
@@ -1730,8 +1711,7 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     }),
 
-    "shatter": lambda: extend("basic", {
-        "invert": random.randint(0, 1),
+    "shatter": lambda: extend("basic", "maybe-invert", {
         "point_freq": random.randint(3, 6),
         "post_refract_range": random.randint(3, 5),
         "posterize_levels": random.randint(4, 6),
@@ -1742,14 +1722,13 @@ _PRESETS = lambda: {
         "with_voronoi": 5,
     }),
 
-    "shmoo": lambda: {
+    "shmoo": lambda: extend("invert", {
         "freq": random.randint(4, 6),
         "hue_range": 2 + random.random(),
-        "invert": 1,
         "posterize_levels": random.randint(3, 5),
         "rgb": random.randint(0, 1),
         "with_outline": 1,
-    },
+    }),
 
     "shmootype": lambda: extend("value-mask", {
         "freq": random.randint(4, 6) * 150,
@@ -2049,12 +2028,11 @@ _PRESETS = lambda: {
         "mask": random_member(["h_tri", "v_tri"]),
     }),
 
-    "tribbles": lambda: extend("bloom", {
+    "tribbles": lambda: extend("bloom", "invert", {
         "freq": random.randint(4, 10),
         "hue_rotation": random.random() if random.randint(0, 1) else 0.375 + random.random() * .15,
         "hue_range": random.random() * 2.5 if random.randint(0, 1) else 0.125 + random.random() * .125,
         "saturation": .375 + random.random() * .15,
-        "invert": 1,
         "octaves": 3,
         "point_distrib": "h_hex",
         "point_freq": random.randint(2, 5) * 2,
@@ -2121,11 +2099,10 @@ _PRESETS = lambda: {
         "wormhole_stride": .0333 + random.random() * .0333,
     }),
 
-    "unicorn-puddle": lambda: extend("bloom", "multires", {
+    "unicorn-puddle": lambda: extend("bloom", "invert", "multires", {
         "distrib": "uniform",
         "freq": random.randint(8, 12),
         "hue_range": 2.5,
-        "invert": .5 * random.random() * .5,
         "lattice_drift": 1,
         "post_contrast": 1.5,
         "post_hue_rotation": random.random(),
@@ -2179,15 +2156,14 @@ _PRESETS = lambda: {
         "with_reverb": random.randint(3, 5),
     },
 
-    "warped-cells": lambda: {
-        "invert": 1,
+    "warped-cells": lambda: extend("invert", {
         "point_distrib": random_member(PointDistribution),
         "point_freq": random.randint(6, 10),
         "post_ridges": True,
         "voronoi_alpha": .333 + random.random() * .333,
         "warp_range": .5 + random.random() * .5,
         "with_voronoi": 2,
-    },
+    }),
 
     "warped-grid": lambda: extend("bloom", "sobel-operator", "value-mask", {
         "corners": True,
@@ -2203,15 +2179,14 @@ _PRESETS = lambda: {
         "with_aberration": random.random() * .125,
     }),
 
-    "whatami": lambda: {
+    "whatami": lambda: extend("invert", {
         "freq": random.randint(7, 9),
         "hue_range": 3,
-        "invert": 1,
         "post_reindex_range": 2,
         "reindex_range": 2,
         "voronoi_alpha": .75 + random.random() * .125,
         "with_voronoi": 2,
-    },
+    }),
 
     "wireframe": lambda: extend("basic", "bloom", "multires-low", "sobel-operator", {
         "hue_range": random.random(),
@@ -2226,9 +2201,8 @@ _PRESETS = lambda: {
         "with_voronoi": 5,
     }),
 
-    "wild-kingdom": lambda: extend("bloom", {
+    "wild-kingdom": lambda: extend("bloom", "maybe-invert", {
         "freq": 25,
-        "invert": random.randint(0, 1),
         "lattice_drift": 1,
         "mask": "sparse",
         "post_hue_rotation": random.random(),
@@ -2326,14 +2300,20 @@ def extend(*args):
 
     settings = {}
 
+    settings['convolve'] = set()
+
     while args:
         arg = args.popleft()
 
         if isinstance(arg, str):
-            settings.update(preset(arg))
+            these_settings = preset(arg)
 
         else:
-            settings.update(arg)
+            these_settings = args
+
+        settings['convolve'].update(these_settings.pop('convolve', set()))
+
+        settings.update(these_settings)
 
     del(settings['name'])
 

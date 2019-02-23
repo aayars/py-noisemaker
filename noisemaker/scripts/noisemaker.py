@@ -94,13 +94,8 @@ import noisemaker.recipes as recipes
 @cli.vignette_option()
 @cli.vignette_brightness_option()
 @cli.pop_option()
-@cli.emboss_option()
+@cli.convolve_option()
 @cli.shadow_option()
-@cli.edges_option()
-@cli.blur_option()
-@cli.sharpen_option()
-@cli.unsharp_mask_option()
-@cli.invert_option()
 @cli.rgb_option()
 @cli.hue_range_option()
 @cli.hue_rotation_option()
@@ -128,11 +123,11 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
          composite, composite_zoom, posterize, erosion_worms, voronoi,
          voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract,
          voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration,
-         light_leak, vignette, vignette_brightness, pop, bloom, rgb, hue_range,
-         hue_rotation, saturation, hue_distrib, saturation_distrib,
+         light_leak, vignette, vignette_brightness, pop, convolve, shadow, bloom,
+         rgb, hue_range, hue_rotation, saturation, hue_distrib, saturation_distrib,
          post_hue_rotation, post_saturation, brightness_distrib, input_dir, dla,
          dla_padding, point_freq, point_distrib, point_corners, point_generations,
-         point_drift, shadow, density, seed, name, **convolve_kwargs):
+         point_drift, density, seed, name):
 
     generators.set_seed(seed)
 
@@ -160,9 +155,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
                                  post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
                                  saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
-                                 with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_shadow=shadow,
-                                 with_density_map=density,
-                                 **convolve_kwargs)
+                                 with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,
+                                 with_convolve=convolve, with_shadow=shadow)
 
     tensor = recipes.post_process(tensor, shape=shape, freq=freq,
                                   with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)

@@ -137,7 +137,7 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
     else:
         control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
-    control = effects.convolve(effects.ConvKernel.blur, control, [height, width, 1])
+    control = effects.convolve(effects.ValueMap.conv2d_blur, control, [height, width, 1])
 
     with tf.Session().as_default():
         # sort collage images by brightness

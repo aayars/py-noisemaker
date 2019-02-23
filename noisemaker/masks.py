@@ -401,20 +401,6 @@ Masks = {
         [ 0, 0, 0, 0, 0 ],
     ],
 
-    # ValueMask.fat_lcd_proto: # [
-            # [ 0, 1, 1, 1, 0, 1, 1, 1, 0, 0 ],
-            # [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 0 ],
-            # [ 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 ],
-            # [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 0 ],
-            # [ 0, 1, 1, 1, 0, 1, 1, 1, 0, 0 ],
-            # [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 0 ],
-            # [ 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 ],
-            # [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 0 ],
-            # [ 0, 1, 1, 1, 0, 1, 1, 1, 0, 0 ],
-            # [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
-        # ]
-    # },
-
     ValueMask.fat_lcd_0: [
         [ 0, 1, 1, 1, 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 0, 0, 0, 1, 1, 0 ],
@@ -1964,6 +1950,64 @@ Masks = {
         [ 0, 0, 0, 0, 0, 0, 0 ],
     ],
 
+    ValueMask.conv2d_blur: [
+        [1, 4, 6, 4, 1],
+        [4, 16, 24, 16, 4],
+        [6, 24, 36, 24, 6],
+        [4, 16, 24, 16, 4],
+        [1, 4, 6, 4, 1]
+    ],
+
+    ValueMask.conv2d_deriv_x: [
+        [0, 0, 0],
+        [0, 1, -1],
+        [0, 0, 0]
+    ],
+
+    ValueMask.conv2d_deriv_y: [
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, -1, 0]
+    ],
+
+    ValueMask.conv2d_edges: [
+        [1, 2, 1],
+        [2, -12, 2],
+        [1, 2, 1]
+    ],
+
+    ValueMask.conv2d_emboss: [
+        [0, 2, 4],
+        [-2, 1, 2],
+        [-4, -2, 0]
+    ],
+
+    ValueMask.conv2d_invert: [
+        [0, 0, 0],
+        [0, -1, 0],
+        [0, 0, 0]
+    ],
+
+    ValueMask.conv2d_rand: np.random.normal(.5, .5, (5, 5)).tolist(),
+
+    ValueMask.conv2d_sharpen: [
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0]
+    ],
+
+    ValueMask.conv2d_sobel_x: [
+        [1, 0, -1],
+        [2, 0, -2],
+        [1, 0, -1]
+    ],
+
+    ValueMask.conv2d_sobel_y: [
+        [1, 2, 1],
+        [0, 0, 0],
+        [-1, -2, -1]
+    ],
+
     ValueMask.rgb: [
         [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
         [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]],
@@ -1983,8 +2027,28 @@ Masks = {
     ],
 }
 
-
 # Procedural masks, corresponding to keys in constants.ValueMask
+
+# Procedural mask shapes
+
+_mask_shapes = {}
+
+
+def mask(*args):
+    """Function decorator for procedural masks."""
+
+    def decorator_fn(mask_fn):
+        mask = ValueMask[mask_fn.__name__]
+
+        if args:
+            _mask_shapes[mask] = args[0]
+
+        Masks[mask] = mask_fn
+
+        return mask_fn
+
+    return decorator_fn
+
 
 def mask_function_and_shape(mask, default_shape=None):
     """
@@ -1994,7 +2058,9 @@ def mask_function_and_shape(mask, default_shape=None):
     :param list[int] default_shape:
     """
 
-    if mask in Masks:
+    mask_value = Masks[mask]
+
+    if isinstance(mask_value, list):
         mask_function = None
 
         height = len(Masks[mask])
@@ -2008,13 +2074,13 @@ def mask_function_and_shape(mask, default_shape=None):
         mask_shape = [height, width, channels]
 
     else:
-        mask_function = globals().get(mask.name)
-        mask_shape = globals().get("{0}_shape".format(mask.name), lambda: None)() or default_shape
+        mask_function = mask_value
+        mask_shape = _mask_shapes.get(mask, default_shape)
 
     return mask_function, mask_shape
 
 
-def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=False):
+def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=False):
     """
     Return a tuple of (pixel values, brightness) for the received ValueMask.
 
@@ -2024,6 +2090,9 @@ def bake_procedural(mask, channel_shape, uv_noise=None, atlas=None, inverse=Fals
     :param None|list atlas:
     :param bool inverse:
     """
+
+    if not channel_shape:
+        channel_shape = [10, 10, 1]  # Just make up a default.
 
     mask_function, mask_shape = mask_function_and_shape(mask, channel_shape)
 
@@ -2075,32 +2144,24 @@ def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_va
     return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
 
 
+@mask()
 def sparse(**kwargs):
     return 1 if random.random() < .15 else 0
 
 
-def invaders_shape():
-    return [random.randint(5, 7), random.randint(6, 12), 1]
-
-
-def invaders_square_shape():
-    return [6, 6, 1]
-
-
+@mask([random.randint(5, 7), random.randint(6, 12), 1])
 def invaders(**kwargs):
     return _invaders(**kwargs)
 
 
+@mask([6, 6, 1])
 def invaders_square(**kwargs):
     return _invaders(**kwargs)
 
 
+@mask([4, 4, 1])
 def white_bear(**kwargs):
     return _invaders(**kwargs)
-
-
-def white_bear_shape():
-    return [4, 4, 1]
 
 
 def _invaders(x, y, row, shape, **kwargs):
@@ -2118,10 +2179,7 @@ def _invaders(x, y, row, shape, **kwargs):
         return random.randint(0, 1)
 
 
-def matrix_shape():
-    return [6, 4, 1]
-
-
+@mask([6, 4, 1])
 def matrix(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2132,10 +2190,7 @@ def matrix(x, y, row, shape, **kwargs):
     return random.randint(0, 1)
 
 
-def letters_shape():
-    return [random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1]
-
-
+@mask([random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1])
 def letters(x, y, row, shape, **kwargs):
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
@@ -2156,10 +2211,7 @@ def letters(x, y, row, shape, **kwargs):
     return random.random() > .75
 
 
-def iching_shape():
-    return [14, 8, 1]
-
-
+@mask([14, 8, 1])
 def iching(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2182,10 +2234,7 @@ def iching(x, y, row, shape, **kwargs):
     return random.randint(0, 1)
 
 
-def ideogram_shape():
-    return [random.randint(4, 6) * 2] * 2 + [1]
-
-
+@mask([random.randint(4, 6) * 2] * 2 + [1])
 def ideogram(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2202,10 +2251,7 @@ def ideogram(x, y, row, shape, **kwargs):
     return random.random() > .5
 
 
-def script_shape():
-    return [random.randint(7, 9), random.randint(12, 24), 1]
-
-
+@mask([random.randint(7, 9), random.randint(12, 24), 1])
 def script(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2240,20 +2286,14 @@ def script(x, y, row, shape, **kwargs):
     return random.random() > .5
 
 
-def binary_shape():
-    return [6, 6, 1]
-
-
+@mask([6, 6, 1])
 def binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     glyph = Masks[ValueMask.zero] if uv_noise[uv_y][uv_x] < .5 else Masks[ValueMask.one]
 
     return glyph[y % shape[0]][x % shape[1]]
 
 
-def tromino_shape():
-    return [4, 4, 1]
-
-
+@mask([4, 4, 1])
 def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, **kwargs):
     atlas = [Masks[g] for g in Masks if g.name.startswith("tromino")]
 
@@ -2281,92 +2321,59 @@ def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, **kwargs):
     return atlas[uv_floor][tex_x][tex_y]
 
 
-def numeric_shape():
-    return [6, 6, 1]
-
-
+@mask([6, 6, 1])
 def numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.nine.value)
 
 
-def hex_shape():
-    return [6, 6, 1]
-
-
+@mask([6, 6, 1])
 def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.f.value)
 
 
-def truetype_shape():
-    return [15, 15, 1]
-
-
+@mask([15, 15, 1])
 def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
     glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
 
 
-def halftone_shape():
-    return [4, 4, 1]
-
-
+@mask([4, 4, 1])
 def halftone(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.halftone_0.value, ValueMask.halftone_9.value)
 
 
-def lcd_shape():
-    return [8, 5, 1]
-
-
+@mask([8, 5, 1])
 def lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_9.value)
 
 
-def lcd_binary_shape():
-    return lcd_shape()
-
-
+@mask([8, 5, 1])
 def lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_1.value)
 
 
-def fat_lcd_shape():
-    return [10, 10, 1]
-
-
+@mask([10, 10, 1])
 def fat_lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_z.value)
 
 
-def fat_lcd_binary_shape():
-    return fat_lcd_shape()
-
-
+@mask([10, 10, 1])
 def fat_lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_1.value)
 
 
-def fat_lcd_numeric_shape():
-    return fat_lcd_shape()
-
-
+@mask([10, 10, 1])
 def fat_lcd_numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_9.value)
 
 
-def fat_lcd_hex_shape():
-    return fat_lcd_shape()
-
-
+@mask([10, 10, 1])
 def fat_lcd_hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_f.value)
 
 
-def arecibo_num_shape():
-    return [6, 3]
-
-
+@mask([6, 3, 1])
 def arecibo_num(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
@@ -2380,18 +2387,12 @@ def arecibo_num(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return random.randint(0, 1)
 
 
-def arecibo_bignum_shape():
-    return [6, 5, 1]
-
-
+@mask([6, 5, 1])
 def arecibo_bignum(*args, **kwargs):
     return arecibo_num(*args, **kwargs)
 
 
-def arecibo_nucleotide_shape():
-    return [6, 6, 1]
-
-
+@mask([6, 6, 1])
 def arecibo_nucleotide(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
@@ -2408,10 +2409,6 @@ def arecibo_nucleotide(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return random.randint(0, 1)
 
 
-def arecibo_dna_shape():
-    return [11, 17, 1]
-
-
 _ARECIBO_DNA_TEMPLATE = [
     [ 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0 ],
     [ 0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0, 0 ],
@@ -2426,6 +2423,7 @@ _ARECIBO_DNA_TEMPLATE = [
     [ 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0 ],
 ]
 
+@mask([11, 17, 1])
 def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
@@ -2435,32 +2433,30 @@ def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return random.randint(0, 1) if value == -1 else value
 
 
+@mask()
 def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
     third_height = shape[0] / 3
     half_width = shape[1] / 2
-    dna_half_width = arecibo_dna_shape()[1] * .5
+    dna_half_width = _mask_shapes[ValueMask.arecibo_dna][1] * .5
 
     if x > half_width - dna_half_width and x < half_width + dna_half_width:
         dna_x = int(x - half_width - dna_half_width)
 
-        return arecibo_dna(dna_x, y, row, arecibo_dna_shape(), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_dna(dna_x, y, row, _mask_shapes[ValueMask.arecibo_dna], uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height:
-        return arecibo_num(x, y, row, arecibo_num_shape(), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_num(x, y, row, _mask_shapes[ValueMask.arecibo_num], uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height * 2:
-        return arecibo_nucleotide(x, y, row, arecibo_nucleotide_shape(), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_nucleotide(x, y, row, _mask_shapes[ValueMask.arecibo_nucleotide], uv_x, uv_y, uv_noise, **kwargs)
 
-    return arecibo_bignum(x, y, row, arecibo_bignum_shape(), uv_x, uv_y, uv_noise, **kwargs)
-
-
-def truchet_maze_shape():
-    return [6, 6, 1]
+    return arecibo_bignum(x, y, row, _mask_shapes[ValueMask.arecibo_bignum], uv_x, uv_y, uv_noise, **kwargs)
 
 
+@mask([6, 6, 1])
 def truchet_maze(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     masks = [
         [ValueMask.truchet_maze_00.value, ValueMask.truchet_maze_01.value],
@@ -2470,58 +2466,37 @@ def truchet_maze(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, *masks)
 
 
-def truchet_tile_shape():
-    return [6, 6, 1]
-
-
+@mask([6, 6, 1])
 def truchet_tile(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.truchet_tile_00.value, ValueMask.truchet_tile_03.value)
 
 
-def mcpaint_shape():
-    return [8, 8, 1]
-
-
+@mask([8, 8, 1])
 def mcpaint(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.mcpaint_00.value, ValueMask.mcpaint_40.value)
 
 
-def emoji_shape():
-    return [13, 13, 1]
-
-
+@mask([13, 13, 1])
 def emoji(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.emoji_00.value, ValueMask.emoji_26.value)
 
 
-def bar_code_shape():
-    return [24, 1, 1]
-
-
+@mask([24, 1, 1])
 def bar_code(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return uv_noise[0][uv_x] < .5
 
 
-def bar_code_short_shape():
-    return [10, 1, 1]
-
-
+@mask([10, 1, 1])
 def bar_code_short(*args, **kwargs):
     return bar_code(*args, **kwargs)
 
 
-def bank_ocr_shape():
-    return [8, 7, 1]
-
-
+@mask([8, 7, 1])
 def bank_ocr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.bank_ocr_0.value, ValueMask.bank_ocr_9.value)
 
 
-def fake_qr_shape():
-    return [random.randint(25, 50)] * 2 + [1]
-
-
+@mask([random.randint(25, 50)] * 2 + [1])
 def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     x = x % shape[1]
     y = y % shape[1]

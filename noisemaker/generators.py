@@ -85,7 +85,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         channel_shape = freq + [1]
 
-        mask_values, _ = masks.bake_procedural(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
+        mask_values, _ = masks.mask_values(mask, channel_shape, atlas=atlas, inverse=mask_inverse)
 
         tensor *= mask_values
 

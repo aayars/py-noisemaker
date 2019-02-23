@@ -5,76 +5,6 @@ from enum import Enum
 import numpy as np
 
 
-class ConvKernel(Enum):
-    """
-    A collection of convolution kernels for image post-processing, based on well-known recipes.
-
-    Pass the desired kernel as an argument to :py:func:`convolve`.
-
-    .. code-block:: python
-
-       image = convolve(ConvKernel.shadow, image)
-    """
-
-    invert = [
-        [0, 0, 0],
-        [0, -1, 0],
-        [0, 0, 0]
-    ]
-
-    emboss = [
-        [0, 2, 4],
-        [-2, 1, 2],
-        [-4, -2, 0]
-    ]
-
-    rand = np.random.normal(.5, .5, (5, 5)).tolist()
-
-    edges = [
-        [1, 2, 1],
-        [2, -12, 2],
-        [1, 2, 1]
-    ]
-
-    sharpen = [
-        [0, -1, 0],
-        [-1, 5, -1],
-        [0, -1, 0]
-    ]
-
-    sobel_x = [
-        [1, 0, -1],
-        [2, 0, -2],
-        [1, 0, -1]
-    ]
-
-    sobel_y = [
-        [1, 2, 1],
-        [0, 0, 0],
-        [-1, -2, -1]
-    ]
-
-    deriv_x = [
-        [0, 0, 0],
-        [0, 1, -1],
-        [0, 0, 0]
-    ]
-
-    deriv_y = [
-        [0, 0, 0],
-        [0, 1, 0],
-        [0, -1, 0]
-    ]
-
-    blur = [
-        [1, 4, 6, 4, 1],
-        [4, 16, 24, 16, 4],
-        [6, 24, 36, 24, 6],
-        [4, 16, 24, 16, 4],
-        [1, 4, 6, 4, 1]
-    ]
-
-
 class DistanceFunction(Enum):
     """
     Specify the distance function used in various operations, such as Voronoi cells, derivatives, and sobel operators.
@@ -376,6 +306,17 @@ class ValueMask(Enum):
     bank_ocr_8 = 258
     bank_ocr_9 = 259
 
+    conv2d_blur = 800
+    conv2d_deriv_x = 801
+    conv2d_deriv_y = 802
+    conv2d_edges = 803
+    conv2d_emboss = 804
+    conv2d_invert = 805
+    conv2d_rand = 806
+    conv2d_sharpen = 807
+    conv2d_sobel_x = 808
+    conv2d_sobel_y = 809
+
     rgb = 900
     roygbiv = 901
 
@@ -436,6 +377,14 @@ class ValueMask(Enum):
     bank_ocr = 1070
 
     fake_qr = 1080
+
+    @classmethod
+    def conv2d_members(cls):
+        return [m for m in cls if cls.is_conv2d(m)]
+
+    @classmethod
+    def is_conv2d(cls, member):
+        return member.name.startswith('conv2d')
 
     @classmethod
     def grid_members(cls):
