@@ -2133,7 +2133,7 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
 
             mask_row.append(pixel)
 
-            total = sum(pixel)
+            total += sum(pixel)
 
     return mask_values, total
 
