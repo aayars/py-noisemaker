@@ -2312,7 +2312,7 @@ def extend(*args):
             these_settings = preset(arg)
 
         else:
-            these_settings = args
+            these_settings = arg
 
         settings['convolve'].update(these_settings.pop('convolve', set()))
 
