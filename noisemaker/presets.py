@@ -12,6 +12,7 @@ import random
 from noisemaker.constants import PointDistribution, ValueDistribution, ValueMask
 
 import noisemaker.generators as generators
+import noisemaker.masks as masks
 
 
 # Baked presets go here
@@ -91,7 +92,7 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "glyph-map": lambda: {
-        "with_glyph_map": "truetype",
+        "with_glyph_map": random_member(set(ValueMask.procedural_members()).intersection(masks.square_masks())),
     },
 
     "invert": lambda: {
