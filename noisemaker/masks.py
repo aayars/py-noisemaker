@@ -2309,7 +2309,7 @@ def binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
 
 @mask([4, 4, 1])
 def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, **kwargs):
-    atlas = [Masks[g] for g in Masks if g.name.startswith("tromino")]
+    atlas = [Masks[g] for g in Masks if g.name.startswith("tromino_")]
 
     tex_x = x % shape[1]
     tex_y = y % shape[0]

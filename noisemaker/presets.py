@@ -92,6 +92,8 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "glyph-map": lambda: {
+        "glyph_map_colorize": random.randint(0, 1),
+        "glyph_map_zoom": random.randint(1, 3),
         "with_glyph_map": random_member(set(ValueMask.procedural_members()).intersection(masks.square_masks())),
     },
 
@@ -104,7 +106,7 @@ _EFFECTS_PRESETS = lambda: {
     }),
 
     "maybe-invert": lambda: {
-        "convolve": [] if random_randint(0, 1) else ["invert"],
+        "convolve": [] if random.randint(0, 1) else ["invert"],
     },
 
     "mosaic": lambda: extend("bloom", "voronoi", {
