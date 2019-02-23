@@ -605,7 +605,7 @@ def pop_option(**attrs):
 
 
 def convolve_option(**attrs):
-    attrs.setdefault("help", "Convolution kernel: May be specified multiple times.")
+    attrs.setdefault("help", "Convolution kernel: May be specified multiple times")
 
     return multi_str_option("--convolve", type=click.Choice([m.name.replace('conv2d_', '') for m in ValueMask.conv2d_members()]), **attrs)
 
