@@ -4,6 +4,8 @@ import click
 
 from noisemaker.constants import DistanceFunction, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior
 
+import noisemaker.masks as masks
+
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -177,7 +179,9 @@ def mask_inverse_option(**attrs):
 def glyph_map_option(**attrs):
     attrs.setdefault("help", "Mask: Glyph map brightness atlas mask")
 
-    return str_option("--glyph-map", type=click.Choice([m.name for m in ValueMask.procedural_members()]), **attrs)
+    choices = sorted(m.name for m in set(ValueMask.procedural_members()).intersection(masks.square_masks()))
+
+    return str_option("--glyph-map", type=click.Choice(choices), **attrs)
 
 
 def glyph_map_colorize_option(**attrs):
