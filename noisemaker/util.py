@@ -14,10 +14,10 @@ def save(tensor, name="noise.png"):
 
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
 
-    if name.endswith(".png"):
+    if name.lower().endswith(".png"):
         data = tf.image.encode_png(tensor).eval()
 
-    elif name.endswith(".jpg"):
+    elif name.lower().endswith((".jpg", ".jpeg")):
         data = tf.image.encode_jpeg(tensor).eval()
 
     else:
@@ -36,8 +36,8 @@ def load(filename, channels=None):
     """
 
     with open(filename, "rb") as fh:
-        if filename.endswith(".png"):
+        if filename.lower().endswith(".png"):
             return tf.image.decode_png(fh.read(), channels=channels)
 
-        elif filename.endswith(".jpg"):
+        elif filename.lower().endswith((".jpg", ".jpeg")):
             return tf.image.decode_jpeg(fh.read(), channels=channels)
