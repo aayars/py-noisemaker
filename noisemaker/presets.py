@@ -98,7 +98,7 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "invert": lambda: {
-        "convolve": ["invert"],
+        "with_convolve": ["invert"],
     },
 
     "light-leak": lambda: extend("bloom", random_member(["vignette-bright", "vignette-dark"]), {
@@ -106,7 +106,7 @@ _EFFECTS_PRESETS = lambda: {
     }),
 
     "maybe-invert": lambda: {
-        "convolve": [] if random.randint(0, 1) else ["invert"],
+        "with_convolve": [] if random.randint(0, 1) else ["invert"],
     },
 
     "mosaic": lambda: extend("bloom", "voronoi", {
@@ -1516,7 +1516,6 @@ _PRESETS = lambda: {
     }),
 
     "prophesy": lambda: extend("invert", "value-mask", {
-        "convolve": ["emboss"],
         "freq": 48,
         "mask": "invaders_square",
         "octaves": 2,
@@ -1524,6 +1523,7 @@ _PRESETS = lambda: {
         "saturation": .125 + random.random() * .075,
         "spline_order": random.randint(1, 2),
         "posterize_levels": random.randint(4, 8),
+        "with_convolve": ["emboss"],
         "with_shadow": .5,
     }),
 
@@ -2312,7 +2312,7 @@ def extend(*args):
 
     settings = {}
 
-    settings['convolve'] = set()
+    settings['with_convolve'] = set()
 
     while args:
         arg = args.popleft()
@@ -2323,7 +2323,7 @@ def extend(*args):
         else:
             these_settings = arg
 
-        settings['convolve'].update(these_settings.pop('convolve', set()))
+        settings['with_convolve'].update(these_settings.pop('with_convolve', set()))
 
         settings.update(these_settings)
 
