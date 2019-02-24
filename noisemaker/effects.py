@@ -221,10 +221,14 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = sobel(tensor, shape, with_sobel)
 
     if with_convolve:
-        for kernel_name in with_convolve:
-            conv2d_mask = ValueMask['conv2d_{}'.format(kernel_name)]
+        for kernel in with_convolve:
+            if isinstance(kernel, str):
+                if kernel not in ValueMask:
+                    kernel = 'conv2d_{}'.format(kernel)
 
-            tensor = convolve(conv2d_mask, tensor, shape)
+                kernel = ValueMask[kernel]
+
+            tensor = convolve(kernel, tensor, shape)
 
     if with_shadow:
         tensor = shadow(tensor, shape, with_shadow)
