@@ -2050,19 +2050,19 @@ def mask(*args):
     return decorator_fn
 
 
-def mask_function_and_shape(mask, default_shape=None):
-    """
-    Return a tuple of (function, shape) for the received ValueMask.
+def mask_shape(mask):
+    """Return the shape for the received ValueMask.
 
     :param ValueMask mask:
-    :param list[int] default_shape:
     """
 
-    mask_value = Masks[mask]
+    if mask in _mask_shapes:
+        shape = _mask_shapes[mask]
 
-    if isinstance(mask_value, list):
-        mask_function = None
+        if callable(shape):
+            shape = shape()
 
+    else:
         height = len(Masks[mask])
         width = len(Masks[mask][0])
 
@@ -2071,13 +2071,9 @@ def mask_function_and_shape(mask, default_shape=None):
         else:
             channels = 1
 
-        mask_shape = [height, width, channels]
+        shape = [height, width, channels]
 
-    else:
-        mask_function = mask_value
-        mask_shape = _mask_shapes.get(mask, default_shape)
-
-    return mask_function, mask_shape
+    return shape
 
 
 def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=False):
@@ -2091,17 +2087,17 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     :param bool inverse:
     """
 
-    if not channel_shape:
-        channel_shape = [10, 10, 1]  # Just make up a default.
+    shape = mask_shape(mask)
 
-    mask_function, mask_shape = mask_function_and_shape(mask, channel_shape)
+    if channel_shape is None:
+        channel_shape = shape
 
-    if len(mask_shape) == 3:
-        channel_shape[2] = mask_shape[2]
+    if len(shape) == 3:
+        channel_shape[2] = shape[2]
 
     mask_values = []
 
-    uv_shape = [int(channel_shape[0] / mask_shape[0]) or 1, int(channel_shape[1] / mask_shape[1]) or 1]
+    uv_shape = [int(channel_shape[0] / shape[0]) or 1, int(channel_shape[1] / shape[1]) or 1]
 
     if uv_noise is None:
         uv_noise = np.random.uniform(size=uv_shape)
@@ -2117,11 +2113,11 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
         for x in range(channel_shape[1]):
             uv_x = int((x / channel_shape[1]) * uv_shape[1])
 
-            if mask_function:
-                pixel = mask_function(x=x, y=y, row=mask_row, shape=mask_shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas)
+            if callable(Masks[mask]):
+                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas)
 
             else:
-                pixel = Masks[mask][y % mask_shape[0]][x % mask_shape[1]]
+                pixel = Masks[mask][y % shape[0]][x % shape[1]]
 
             if not isinstance(pixel, list):
                 pixel = [pixel]
@@ -2144,9 +2140,12 @@ def square_masks():
     square = []
 
     for mask in ValueMask:
-        _, mask_shape = mask_function_and_shape(mask, None)
+        if callable(_mask_shapes.get(mask)):  # No dynamic shapes
+            continue
 
-        if mask_shape and mask_shape[0] == mask_shape[1]:
+        shape = mask_shape(mask)
+
+        if shape and shape[0] == shape[1]:
             square.append(mask)
 
     return square
@@ -2158,12 +2157,12 @@ def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_va
     return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
 
 
-@mask()
+@mask([10, 10, 1])
 def sparse(**kwargs):
     return 1 if random.random() < .15 else 0
 
 
-@mask([random.randint(5, 7), random.randint(6, 12), 1])
+@mask(lambda: [random.randint(5, 7), random.randint(6, 12), 1])
 def invaders(**kwargs):
     return _invaders(**kwargs)
 
@@ -2204,7 +2203,7 @@ def matrix(x, y, row, shape, **kwargs):
     return random.randint(0, 1)
 
 
-@mask([random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1])
+@mask(lambda: [random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1])
 def letters(x, y, row, shape, **kwargs):
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
@@ -2248,7 +2247,7 @@ def iching(x, y, row, shape, **kwargs):
     return random.randint(0, 1)
 
 
-@mask([random.randint(4, 6) * 2] * 2 + [1])
+@mask(lambda: [random.randint(4, 6) * 2] * 2 + [1])
 def ideogram(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2265,7 +2264,7 @@ def ideogram(x, y, row, shape, **kwargs):
     return random.random() > .5
 
 
-@mask([random.randint(7, 9), random.randint(12, 24), 1])
+@mask(lambda: [random.randint(7, 9), random.randint(12, 24), 1])
 def script(x, y, row, shape, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2447,27 +2446,27 @@ def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return random.randint(0, 1) if value == -1 else value
 
 
-@mask()
+@mask(lambda: [random.randint(256, 512)] * 2 + [1])
 def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
     third_height = shape[0] / 3
     half_width = shape[1] / 2
-    dna_half_width = _mask_shapes[ValueMask.arecibo_dna][1] * .5
+    dna_half_width = mask_shape(ValueMask.arecibo_dna)[1] * .5
 
     if x > half_width - dna_half_width and x < half_width + dna_half_width:
         dna_x = int(x - half_width - dna_half_width)
 
-        return arecibo_dna(dna_x, y, row, _mask_shapes[ValueMask.arecibo_dna], uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_dna(dna_x, y, row, mask_shape(ValueMask.arecibo_dna), uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height:
-        return arecibo_num(x, y, row, _mask_shapes[ValueMask.arecibo_num], uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_num(x, y, row, mask_shapes(ValueMask.arecibo_num), uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height * 2:
-        return arecibo_nucleotide(x, y, row, _mask_shapes[ValueMask.arecibo_nucleotide], uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_nucleotide(x, y, row, mask_shapes(ValueMask.arecibo_nucleotide), uv_x, uv_y, uv_noise, **kwargs)
 
-    return arecibo_bignum(x, y, row, _mask_shapes[ValueMask.arecibo_bignum], uv_x, uv_y, uv_noise, **kwargs)
+    return arecibo_bignum(x, y, row, mask_shapes(ValueMask.arecibo_bignum), uv_x, uv_y, uv_noise, **kwargs)
 
 
 @mask([6, 6, 1])
@@ -2510,7 +2509,7 @@ def bank_ocr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.bank_ocr_0.value, ValueMask.bank_ocr_9.value)
 
 
-@mask([random.randint(25, 50)] * 2 + [1])
+@mask(lambda: [random.randint(25, 50)] * 2 + [1])
 def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     x = x % shape[1]
     y = y % shape[1]

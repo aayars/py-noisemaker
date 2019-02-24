@@ -6,9 +6,9 @@ import tensorflow as tf
 
 from noisemaker.constants import ValueDistribution, ValueMask
 from noisemaker.generators import basic, multires
-from noisemaker.masks import mask_function_and_shape
 
 import noisemaker.effects as effects
+import noisemaker.masks as masks
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
@@ -462,7 +462,7 @@ def spooky_ticker(tensor, shape):
 
     for _ in range(random.randint(1, 3)):
         mask = masks[random.randint(0, len(masks) - 1)]
-        _, mask_shape = mask_function_and_shape(mask)
+        mask_shape = masks.mask_shape(mask)
 
         multiplier = 1 if mask != ValueMask.script and (mask_shape[1] == 1 or mask_shape[1] >= 10) else 2
 
@@ -497,7 +497,7 @@ def on_screen_display(tensor, shape):
     ]
 
     mask = masks[random.randint(0, len(masks) - 1)]
-    _, mask_shape = mask_function_and_shape(mask)
+    mask_shape = masks.mask_shape(mask)
 
     width = int(shape[1] / 24)
 

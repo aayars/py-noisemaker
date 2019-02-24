@@ -2050,12 +2050,6 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
     y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
 
-    if random.randint(0, 1):
-        x = 1.0 - x
-
-    if random.randint(0, 1):
-        y = 1.0 - y
-
     shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan)) * 2.0 - 1.0
 
     down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
@@ -2081,11 +2075,11 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
         mask = ValueMask[mask]
 
     if mask == ValueMask.truetype:
-        glyph_shape = masks._mask_shapes[ValueMask.truetype]
+        glyph_shape = masks.mask_shape(ValueMask.truetype)
         glyphs = load_glyphs(glyph_shape)
 
     else:
-        _, glyph_shape = masks.mask_function_and_shape(mask)
+        glyph_shape = masks.mask_shape(mask)
 
         glyphs = []
         sums = []
