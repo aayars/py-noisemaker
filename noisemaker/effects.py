@@ -2081,7 +2081,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
         mask = ValueMask[mask]
 
     if mask == ValueMask.truetype:
-        glyph_shape = masks._mask_shapes(ValueMask.truetype)
+        glyph_shape = masks._mask_shapes[ValueMask.truetype]
         glyphs = load_glyphs(glyph_shape)
 
     else:
