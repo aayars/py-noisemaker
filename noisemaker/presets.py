@@ -201,6 +201,12 @@ _EFFECTS_PRESETS = lambda: {
         "with_frame": True,
     },
 
+    "sketch": lambda: {
+        "with_grime": True,
+        "with_fibers": True,
+        "with_sketch": True,
+    },
+
     "snow": lambda: {
         "with_dither": .05 + random.random() * .025,
         "with_snow": .05 + random.random() * .35,

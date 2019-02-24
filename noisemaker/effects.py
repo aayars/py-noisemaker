@@ -38,7 +38,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False,
-                 with_convolve=None, with_shadow=None, **_):
+                 with_convolve=None, with_shadow=None, with_sketch=False, **_):
     """
     Apply post-processing effects.
 
@@ -126,6 +126,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_sort: Pixel sort
     :param bool sort_angled: Pixel sort along a random angle
     :param None|list[str|ValueMask] convolve: List of ValueMasks to apply as convolution kernels
+    :param bool with_sketch: Pencil sketch effect
     :return: Tensor
     """
 
@@ -280,6 +281,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_sort:
         tensor = pixel_sort(tensor, shape, sort_angled)
+
+    if with_sketch:
+        tensor = sketch(tensor, shape)
 
     tensor = normalize(tensor)
 
@@ -2190,6 +2194,37 @@ def _pixel_sort(tensor, shape, angle):
 
     # Blend with source image
     return tf.maximum(tensor, sorted_channels)
+
+
+def sketch(tensor, shape):
+    """
+    Pencil sketch effect
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :return Tensor:
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    values = value_map(tensor, value_shape, keep_dims=True)
+
+    outline = 1.0 - derivative(values, value_shape)
+    outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
+    outline = normalize(outline)
+
+    values = vignette(values, value_shape, 1.1, .875)
+
+    crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=250, duration=.5, stride=.75, stride_deviation=.25, alpha=1.0)
+    crosshatch = normalize(crosshatch)
+
+    combined = blend(crosshatch, outline, .5)
+
+    combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.005)
+
+    combined *= combined
+
+    return combined * tf.ones(shape)
 
 
 def square_crop_and_resize(tensor, shape, length=1024):
