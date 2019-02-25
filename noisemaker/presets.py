@@ -205,6 +205,7 @@ _EFFECTS_PRESETS = lambda: {
         "with_grime": True,
         "with_fibers": True,
         "with_sketch": True,
+        "with_texture": True,
     },
 
     "snow": lambda: {

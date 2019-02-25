@@ -2208,20 +2208,17 @@ def sketch(tensor, shape):
     value_shape = [shape[0], shape[1], 1]
 
     values = value_map(tensor, value_shape, keep_dims=True)
+    values = tf.image.adjust_contrast(values, 2.5)
 
     outline = 1.0 - derivative(values, value_shape)
     outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
-    outline = normalize(outline)
 
-    values = vignette(values, value_shape, 1.1, .875)
+    values = vignette(values, value_shape, 1.0, .875)
 
-    crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=250, duration=.5, stride=.75, stride_deviation=.25, alpha=1.0)
-    crosshatch = normalize(crosshatch)
+    crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, kink=2.0, density=125, duration=.5, stride=1, stride_deviation=.25, alpha=1.0)
 
     combined = blend(crosshatch, outline, .5)
-
     combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.005)
-
     combined *= combined
 
     return combined * tf.ones(shape)

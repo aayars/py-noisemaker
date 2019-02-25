@@ -13,7 +13,7 @@ import noisemaker.masks as masks
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
-                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, **_):
+                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -34,6 +34,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_ticker: With spooky ticker effect
     :param bool with_scratches: Scratched film effect
     :param bool with_fibers: Old-timey paper fibers
+    :param bool with_texture: Bumpy canvas
     :return: Tensor
     """
 
@@ -78,6 +79,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_scratches:
         tensor = scratches(tensor, shape)
+
+    if with_texture:
+        tensor = texture(tensor, shape)
 
     if with_ticker:
         tensor = spooky_ticker(tensor, shape)
@@ -405,6 +409,17 @@ def frame(tensor, shape):
     out = stray_hair(out, shape)
 
     return out
+
+
+def texture(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    noise = multires(64, value_shape, octaves=8, ridges=True)
+
+    return tensor * (tf.ones(value_shape) * .95 + effects.shadow(noise, value_shape, 1.0) * .05)
 
 
 def watermark(tensor, shape):
