@@ -72,6 +72,13 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 x_point = _x[i]
                 y_point = _y[i]
 
+                if (x_point, y_point) in seen:
+                    continue
+
+                seen.add((x_point, y_point))
+
+                active_set.add((x_point, y_point, generation + 1))
+
                 if drift:
                     x_drift = random.random() * drift - drift * .5
                     y_drift = random.random() * drift - drift * .5
@@ -87,13 +94,6 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 else:
                     x_point = int(x_point + (x_drift / freq * shape[1])) % shape[1]
                     y_point = int(y_point + (y_drift / freq * shape[0])) % shape[0]
-
-                    if (x_point, y_point) in seen:
-                        continue
-
-                    seen.add((x_point, y_point))
-
-                active_set.add((x_point, y_point, generation + 1))
 
                 x.append(x_point)
                 y.append(y_point)

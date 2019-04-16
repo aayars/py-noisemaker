@@ -150,7 +150,6 @@ def vhs(tensor, shape):
     # Create horizontal offsets
     grad = tf.maximum(basic([int(random.random() * 10) + 5, 1], [height, width, 1]) - .5, 0)
     grad *= grad
-    grad = tf.image.convert_image_dtype(grad, tf.float32, saturate=True)
     grad = effects.normalize(grad)
     grad = tf.reshape(grad, [height, width])
 
@@ -160,7 +159,6 @@ def vhs(tensor, shape):
     identity = tf.stack([effects.column_index(shape), x_index], 2) % width
 
     tensor = tf.gather_nd(tensor, identity)
-    tensor = tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
     return tensor
 
@@ -451,7 +449,7 @@ def spooky_ticker(tensor, shape):
     if random.random() > .75:
         tensor = on_screen_display(tensor, shape)
 
-    masks = [
+    _masks = [
         ValueMask.arecibo_nucleotide,
         ValueMask.arecibo_num,
         ValueMask.bank_ocr,
@@ -476,7 +474,7 @@ def spooky_ticker(tensor, shape):
     rendered_mask = tf.zeros(shape)
 
     for _ in range(random.randint(1, 3)):
-        mask = masks[random.randint(0, len(masks) - 1)]
+        mask = _masks[random.randint(0, len(_masks) - 1)]
         mask_shape = masks.mask_shape(mask)
 
         multiplier = 1 if mask != ValueMask.script and (mask_shape[1] == 1 or mask_shape[1] >= 10) else 2
@@ -505,13 +503,13 @@ def spooky_ticker(tensor, shape):
 def on_screen_display(tensor, shape):
     glyph_count = random.randint(3, 6)
 
-    masks = [
+    _masks = [
         ValueMask.bank_ocr,
         ValueMask.hex,
         ValueMask.numeric,
     ]
 
-    mask = masks[random.randint(0, len(masks) - 1)]
+    mask = _masks[random.randint(0, len(_masks) - 1)]
     mask_shape = masks.mask_shape(mask)
 
     width = int(shape[1] / 24)

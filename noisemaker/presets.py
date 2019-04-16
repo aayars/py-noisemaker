@@ -292,13 +292,14 @@ _EFFECTS_PRESETS = lambda: {
 }
 
 _PRESETS = lambda: {
-    "1969": lambda: extend("density-map", "dither", "posterize-outline", "nerdvana", {
+    "1969": lambda: extend("density-map", "dither", "filthy", "posterize-outline", "nerdvana", {
         "point_corners": True,
         "point_distrib": "circular",
         "point_freq": random.randint(3, 5) * 2,
         "reflect_range": 4,
         "rgb": True,
         "voronoi_alpha": .5 + random.random() * .5,
+        "with_bloom": False,
         "with_reverb": False,
         "with_voronoi": 2,
     }),
@@ -1920,14 +1921,16 @@ _PRESETS = lambda: {
         "with_vignette": .25 + random.random() * .25,
     }),
 
-    "stepper": lambda: extend("voronoi", {
+    "stepper": lambda: extend("voronoi", "symmetry", {
         "hue_range": random.random(),
         "saturation": random.random(),
+        "point_freq": random.randint(5, 10),
         "point_corners": random.randint(0, 1),
         "point_distrib": random_member(PointDistribution.circular_members()),
         "voronoi_func": random.randint(2, 3),
-        "voronoi_nth": random.randint(0, 48),
+        "voronoi_nth": random.randint(0, 25),
         "with_outline": 3,
+        "with_voronoi": random.randint(1, 5),
     }),
 
     "subpixelator": lambda: extend("basic", "funhouse", "subpixels"),
@@ -2322,6 +2325,9 @@ def extend(*args):
         settings.update(these_settings)
 
     del(settings['name'])
+
+    # Convert to a JSON-friendly type
+    settings['with_convolve'] = list(settings['with_convolve'])
 
     return settings
 

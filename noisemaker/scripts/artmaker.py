@@ -53,6 +53,8 @@ def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name)
     if overrides:
         kwargs.update(json.loads(overrides))
 
+    # print(json.dumps(kwargs, sort_keys=True, indent=4, default=str))
+
     tensor = generators.multires(**kwargs)
 
     tensor = recipes.post_process(tensor, **kwargs)
