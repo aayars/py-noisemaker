@@ -211,9 +211,6 @@ def crt(tensor, shape):
     scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
     tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
 
-    if channels <= 2:
-        return tensor
-
     if channels == 3:
         tensor = tf.image.random_hue(tensor, .125)
         tensor = tf.image.adjust_saturation(tensor, 1.25)
