@@ -1582,6 +1582,7 @@ _PRESETS = lambda: {
     "regional": lambda: extend("glyph-map", "voronoi", {
         "glyph_map_colorize": True,
         "glyph_map_zoom": random.randint(2, 4),
+        "hue_range": .25 + random.random(),
         "voronoi_nth": 0,
         "with_voronoi": 4,
     }),
