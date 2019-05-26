@@ -1579,6 +1579,13 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
+    "regional": lambda: extend("glyph-map", "voronoi", {
+        "glyph_map_colorize": True,
+        "glyph_map_zoom": random.randint(2, 4),
+        "voronoi_nth": 0,
+        "with_voronoi": 4,
+    }),
+
     "remember-logo": lambda: extend("crt", "density-map", "symmetry", {
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(3, 7),
