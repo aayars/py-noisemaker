@@ -1906,7 +1906,7 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     },
 
-    "star-cloud": lambda: extend("bloom", "sobel-operator", {
+    "star-cloud": lambda: extend("bloom", "invert", "sobel-operator", {
         "deriv": 1,
         "freq": 2,
         "hue_range": random.random() * 2.0,
