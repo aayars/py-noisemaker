@@ -398,10 +398,9 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "alien-transmission": lambda: extend("glitchin-out", "maybe-invert", "value-mask", {
-        "freq": random.randint(100, 200),
+    "alien-transmission": lambda: extend("glitchin-out", "sobel-operator", "value-mask", {
+        "freq": random.randint(125, 200),
         "mask": random_member(ValueMask.procedural_members()),
-        "reindex_range": .02 + random.random() * .02,
     }),
 
     "analog-glitch": lambda: extend("value-mask", {

@@ -78,7 +78,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         if mask == ValueMask.truetype:
             from noisemaker.glyphs import load_glyphs
 
-            atlas = load_glyphs(masks.truetype_shape())
+            atlas = load_glyphs([15, 15, 1])
 
             if not atlas:
                 mask = ValueMask.numeric  # Fall back to canned values
