@@ -1296,7 +1296,12 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         y = tf.random_uniform([point_count]) * height
 
     else:
-        x, y, point_count = xy
+        if len(xy) == 2:
+            x, y = xy
+            point_count = len(x)
+
+        else:
+            x, y, point_count = xy
 
         x = tf.cast(tf.stack(x) / 2, tf.float32)
         y = tf.cast(tf.stack(y) / 2, tf.float32)

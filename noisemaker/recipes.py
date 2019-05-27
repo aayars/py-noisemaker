@@ -4,8 +4,9 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import ValueDistribution, ValueMask
+from noisemaker.constants import PointDistribution, ValueDistribution, ValueMask
 from noisemaker.generators import basic, multires
+from noisemaker.points import point_cloud
 
 import noisemaker.effects as effects
 import noisemaker.masks as masks
@@ -13,7 +14,7 @@ import noisemaker.masks as masks
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
-                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, **_):
+                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, with_moirio=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -35,8 +36,12 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_scratches: Scratched film effect
     :param bool with_fibers: Old-timey paper fibers
     :param bool with_texture: Bumpy canvas
+    :param bool with_moirio: Hex grid interference pattern
     :return: Tensor
     """
+
+    if with_moirio:
+        tensor = moirio(tensor, shape)
 
     if with_nebula:
         tensor = nebula(tensor, shape)
@@ -209,11 +214,14 @@ def crt(tensor, shape):
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
     scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
+
     tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
 
     if channels == 3:
         tensor = tf.image.random_hue(tensor, .125)
         tensor = tf.image.adjust_saturation(tensor, 1.25)
+
+    tensor = tf.image.adjust_contrast(tensor, 1.25)
 
     return tensor
 
@@ -535,3 +543,18 @@ def nebula(tensor, shape):
     overlay = tf.maximum(overlay, 0)
 
     return tf.maximum(tensor, overlay * .125)
+
+
+def moirio(tensor, shape):
+    # props https://twitter.com/quasimondo/status/1132277209257922562
+    diagram_type = [1, 2, 5][random.randint(0, 2)]
+
+    freq = random.randint(6, 10)
+
+    nth = random.randint(0, freq - 1)
+
+    v1 = effects.voronoi(tensor, shape, diagram_type=diagram_type, nth=nth, xy=point_cloud(freq, distrib=PointDistribution.h_hex, shape=shape))
+
+    v2 = effects.voronoi(tensor, shape, diagram_type=diagram_type, nth=nth, xy=point_cloud(freq, distrib=PointDistribution.v_hex, shape=shape))
+
+    return effects.blend(v1, v2, .5)
