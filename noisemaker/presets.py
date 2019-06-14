@@ -569,6 +569,12 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
+    "celebrate": lambda: extend("dither", "filthy", "scuff", {
+        "brightness_distrib": "ones",
+        "hue_range": 1,
+        "posterize_levels": random.randint(3, 5),
+    }),
+
     "cell-reflect": lambda: extend("bloom", "dither", "maybe-invert", {
         "point_freq": random.randint(2, 3),
         "post_deriv": random.randint(1, 3),
@@ -1161,7 +1167,7 @@ _PRESETS = lambda: {
         "with_voronoi": 4,
     },
 
-    "i-made-an-art": lambda: extend("dither", "outline", {
+    "i-made-an-art": lambda: extend("dither", "filthy", "outline", "scuff", {
         "spline_order": 0,
         "lattice_drift": random.randint(5, 10),
         "hue_range": random.random() * 4,
