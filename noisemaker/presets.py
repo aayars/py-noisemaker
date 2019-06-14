@@ -193,8 +193,8 @@ _EFFECTS_PRESETS = lambda: {
 
     "ripples": lambda: {
         "ripple_freq": random.randint(2, 3),
-        "ripple_kink": 2.5 + random.random() * 1.25,
-        "ripple_range": .05 + random.random() * .25,
+        "ripple_kink": .25 + random.random() * 1.25,
+        "ripple_range": .125 + random.random() * .5,
     },
 
     "scuff": lambda: {
@@ -1131,6 +1131,19 @@ _PRESETS = lambda: {
         "mask": "h_tri",
         "post_deriv": 3,
         "sin": random.randint(-25, 25),
+    }),
+
+    "hotel-carpet": lambda: extend("basic", "dither", "ripples", {
+        "ripple_kink": .25 + random.random() * .25,
+        "ripple_range": 1.0 + random.random() * .5,
+        "spline_order": 0,
+        "with_grime": True,
+        "with_worms": 4,
+        "worms_alpha": .5,
+        "worms_density": 250,
+        "worms_duration": .75,
+        "worms_stride": .5,
+        "worms_stride_deviation": .25,
     }),
 
     "hsv-gradient": lambda: extend("basic", {
