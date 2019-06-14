@@ -1292,7 +1292,9 @@ _PRESETS = lambda: {
         "with_erosion_worms": True,
     }),
 
-    "lsd": lambda: extend("density-map", "dither", "rgb-shadows", "random-hue", "scuff", {
+    "lsd": lambda: extend("density-map", "dither", "filthy", "invert", "scuff", {
+        "brightness_distrib": "mids",
+        "freq": random.randint(8, 16),
         "hue_range": random.randint(3, 6),
         "post_saturation": .5 + random.random() * .25,
     }),
