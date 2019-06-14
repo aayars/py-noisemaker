@@ -105,7 +105,7 @@ _EFFECTS_PRESETS = lambda: {
     },
 
     "light-leak": lambda: extend("bloom", random_member(["vignette-bright", "vignette-dark"]), {
-        "with_light_leak": .5 + random.random() * .5,
+        "with_light_leak": .333 + random.random() * .333,
     }),
 
     "maybe-invert": lambda: {
@@ -1160,6 +1160,12 @@ _PRESETS = lambda: {
         "voronoi_alpha": .625,
         "with_voronoi": 4,
     },
+
+    "i-made-an-art": lambda: extend("dither", "outline", {
+        "spline_order": 0,
+        "lattice_drift": random.randint(5, 10),
+        "hue_range": random.random() * 4,
+    }),
 
     "inkling": lambda: extend("density-map", {
         "distrib": "ones",
