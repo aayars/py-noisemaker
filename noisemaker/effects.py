@@ -806,7 +806,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             tf.ones([n]) * random.random() * 360.0,
 
         WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(tf.random_normal([n]) * 100) % 2) * 90,
+            rots[WormBehavior.obedient](n) + (tf.floor(tf.random_normal([n]) * 100) % 4) * 90,
 
         WormBehavior.unruly: lambda n:
             rots[WormBehavior.obedient](n) + tf.random_normal([n]) * .25 - .125,
@@ -963,7 +963,13 @@ def sobel(tensor, shape, dist_func=1):
     x = convolve(ValueMask.conv2d_sobel_x, tensor, shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_sobel_y, tensor, shape, with_normalize=False)
 
-    return tf.abs(normalize(distance(x, y, dist_func)) * 2 - 1)
+    out = tf.abs(normalize(distance(x, y, dist_func)) * 2 - 1)
+
+    fudge = -2
+
+    out = offset(out, shape, x=fudge, y=fudge)
+
+    return out
 
 
 def normal_map(tensor, shape):
@@ -1370,6 +1376,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
         else:
             range_out = density_map(range_out, original_shape)
+
+        if inverse:
+            range_out = 1.0 - range_out
 
     if diagram_type in (VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
         range_out = blend(tensor * range_slice, range_slice, range_slice)
