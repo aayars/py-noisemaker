@@ -52,6 +52,10 @@ _EFFECTS_PRESETS = lambda: {
         "with_density_map": True,
     }),
 
+    "distressed": lambda: extend("dither", "filthy", "scuff", {
+        "post_saturation": .25 + random.random() * .25,
+    }),
+
     "dither": lambda: {
         "with_dither": .125 + random.random() * .125,
     },
@@ -299,7 +303,7 @@ _EFFECTS_PRESETS = lambda: {
 }
 
 _PRESETS = lambda: {
-    "1969": lambda: extend("density-map", "dither", "filthy", "posterize-outline", "nerdvana", {
+    "1969": lambda: extend("density-map", "distressed", "posterize-outline", "nerdvana", {
         "point_corners": True,
         "point_distrib": "circular",
         "point_freq": random.randint(3, 5) * 2,
@@ -456,6 +460,12 @@ _PRESETS = lambda: {
         "with_shadow": .25 + random.random() * .25,
     },
 
+    "benny-lava": lambda: extend("distressed", {
+        "distrib": "column_index",
+        "posterize_levels": 1,
+        "warp_range": 2 + random.random(),
+    }),
+
     "berkeley": lambda: extend("multires-ridged", {
         "freq": random.randint(12, 16),
         "post_ridges": True,
@@ -569,7 +579,7 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "celebrate": lambda: extend("dither", "filthy", "scuff", {
+    "celebrate": lambda: extend("distressed", {
         "brightness_distrib": "ones",
         "hue_range": 1,
         "posterize_levels": random.randint(3, 5),
@@ -1105,6 +1115,11 @@ _PRESETS = lambda: {
         "warp_interp": 3,
     }),
 
+    "groove-is-stored-in-the-heart": lambda: extend("benny-lava", {
+        "ripple_range": 2.0 + random.random(),
+        "warp_range": 0,
+    }),
+
     "hairy-diamond": lambda: extend("basic", {
         "erosion_worms_alpha": .75 + random.random() * .25,
         "erosion_worms_contraction": .5 + random.random(),
@@ -1188,7 +1203,7 @@ _PRESETS = lambda: {
         "with_voronoi": 4,
     },
 
-    "i-made-an-art": lambda: extend("dither", "filthy", "outline", "scuff", {
+    "i-made-an-art": lambda: extend("distressed", "outline", {
         "spline_order": 0,
         "lattice_drift": random.randint(5, 10),
         "hue_range": random.random() * 4,
@@ -1300,11 +1315,10 @@ _PRESETS = lambda: {
         "with_erosion_worms": True,
     }),
 
-    "lsd": lambda: extend("density-map", "dither", "filthy", "invert", "scuff", {
+    "lsd": lambda: extend("density-map", "distressed", "invert", "scuff", {
         "brightness_distrib": "mids",
         "freq": random.randint(8, 16),
         "hue_range": random.randint(3, 6),
-        "post_saturation": .5 + random.random() * .25,
     }),
 
     "magic-squares": lambda: extend("bloom", "dither", "multires-low", {
@@ -1645,16 +1659,14 @@ _PRESETS = lambda: {
         "with_shadow": 1,
     },
 
-    "ride-the-rainbow": lambda: extend("dither", "scuff", "swerve-v", {
+    "ride-the-rainbow": lambda: extend("distressed", "scuff", "swerve-v", {
         "brightness_distrib": "ones",
         "corners": True,
         "distrib": "column_index",
         "freq": random.randint(6, 12),
         "hue_range": .5 + random.random(),
-        "post_saturation": .125 + random.random() * .375,
         "saturation_distrib": "ones",
         "spline_order": 0,
-        "with_grime": True,
     }),
 
     "ridged-bubbles": lambda: extend("invert", "symmetry", {
