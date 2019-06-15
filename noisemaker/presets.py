@@ -811,6 +811,14 @@ _PRESETS = lambda: {
         "worms_kink": 6.36,
     },
 
+    "eat-static": lambda: extend("be-kind-rewind", {
+        "distrib": "uniform",
+        "freq": 512,
+        "saturation": 0,
+        "wavelet": True,
+        "with_scan_error": True,
+    }),
+
     "electric-worms": lambda: extend("bloom", "density-map", "voronoi", "worms", {
         "freq": random.randint(3, 6),
         "lattice_drift": 1,

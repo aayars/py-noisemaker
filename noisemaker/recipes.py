@@ -223,6 +223,8 @@ def crt(tensor, shape):
 
     tensor = tf.image.adjust_contrast(tensor, 1.25)
 
+    tensor = effects.vignette(tensor, shape, brightness=0, alpha=random.random() * .175)
+
     return tensor
 
 
