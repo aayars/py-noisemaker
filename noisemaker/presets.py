@@ -1788,9 +1788,10 @@ _PRESETS = lambda: {
         "with_voronoi": 5,
     }),
 
-    "shmoo": lambda: extend("invert", "outline", {
+    "shmoo": lambda: extend("invert", "distressed", "outline", {
         "freq": random.randint(4, 6),
         "hue_range": 2 + random.random(),
+        "post_saturation": .5 + random.random() * .25,
         "posterize_levels": random.randint(3, 5),
         "rgb": random.randint(0, 1),
     }),

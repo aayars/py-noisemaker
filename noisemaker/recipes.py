@@ -93,7 +93,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
-        tensor = stray_hair(tensor, shape)
 
     return tensor
 
