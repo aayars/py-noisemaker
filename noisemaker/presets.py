@@ -928,6 +928,17 @@ _PRESETS = lambda: {
         "worms_stride": .25 + random.random() * .25,
     }),
 
+    "fossil-hunt": lambda: extend("dither", {
+        "freq": random.randint(3, 5),
+        "refract_range": random.randint(4, 6),
+        "point_freq": 10,
+        "posterize_levels": random.randint(3, 5),
+        "post_saturation": .25,
+        "voronoi_alpha": .5,
+        "with_outline": 1,
+        "with_voronoi": 2,
+    }),
+
     "fractal-forms": lambda: extend("basic", "bloom", "density-map", "multires-low", {
         "hue_range": random.random() * 3,
         "saturation": .05,
