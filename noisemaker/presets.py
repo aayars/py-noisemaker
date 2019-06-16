@@ -638,7 +638,7 @@ _PRESETS = lambda: {
     }),
 
     "circulent": lambda: extend("invert", "reverb", "symmetry", "voronoi", "wormhole", {
-        "point_distrib": random_member(["spiral"] + [m.value for m in PointDistribution.circular_members()]),
+        "point_distrib": random_member(["spiral"] + [m.name for m in PointDistribution.circular_members()]),
         "point_corners": True,
         "voronoi_alpha": .5 + random.random() * .5,
         "wormhole_kink": random.randint(3, 6),
