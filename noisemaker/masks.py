@@ -2162,6 +2162,11 @@ def sparse(**kwargs):
     return 1 if random.random() < .15 else 0
 
 
+@mask([10, 10, 1])
+def sparser(**kwargs):
+    return 1 if random.random() < .05 else 0
+
+
 @mask(lambda: [random.randint(5, 7), random.randint(6, 12), 1])
 def invaders(**kwargs):
     return _invaders(**kwargs)

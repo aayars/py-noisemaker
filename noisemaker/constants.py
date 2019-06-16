@@ -322,29 +322,31 @@ class ValueMask(Enum):
 
     sparse = 1000
 
-    invaders = 1001
+    sparser = 1001
 
-    invaders_square = 1002
+    invaders = 1002
 
-    matrix = 1003
+    invaders_square = 1003
 
-    letters = 1004
+    matrix = 1004
 
-    ideogram = 1005
+    letters = 1005
 
-    iching = 1006
+    ideogram = 1006
 
-    script = 1007
+    iching = 1007
 
-    white_bear = 1008
+    script = 1008
 
-    binary = 1009
+    white_bear = 1009
 
-    tromino = 1010
+    binary = 1010
 
-    numeric = 1011
+    tromino = 1011
 
-    hex = 1012
+    numeric = 1012
+
+    hex = 1013
 
     truetype = 1020
 

@@ -2263,10 +2263,10 @@ _PRESETS = lambda: {
         "with_voronoi": 5,
     }),
 
-    "wild-kingdom": lambda: extend("bloom", "maybe-invert", "outline", "random-hue", {
+    "wild-kingdom": lambda: extend("bloom", "dither", "maybe-invert", "outline", "random-hue", {
         "freq": 25,
         "lattice_drift": 1,
-        "mask": "sparse",
+        "mask": "sparser",
         "posterize_levels": 3,
         "rgb": True,
         "ridges": True,
