@@ -38,7 +38,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False,
-                 with_convolve=None, with_shadow=None, with_sketch=False, **_):
+                 with_convolve=None, with_shadow=None, with_sketch=False, rgb=False, **_):
     """
     Apply post-processing effects.
 
@@ -127,6 +127,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool sort_angled: Pixel sort along a random angle
     :param None|list[str|ValueMask] convolve: List of ValueMasks to apply as convolution kernels
     :param bool with_sketch: Pencil sketch effect
+    :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
 
@@ -219,7 +220,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = density_map(tensor, shape)
 
     if with_sobel:
-        tensor = sobel(tensor, shape, with_sobel)
+        tensor = sobel(tensor, shape, with_sobel, rgb)
 
     if with_convolve:
         for kernel in with_convolve:
@@ -943,7 +944,7 @@ def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
     return blend(tensor, out, alpha)
 
 
-def sobel(tensor, shape, dist_func=1):
+def sobel_operator(tensor, shape, dist_func=1):
     """
     Apply a sobel operator.
 
@@ -1640,7 +1641,24 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
     return tensor
 
 
-def outline(tensor, shape, sobel_func=1):
+def sobel(tensor, shape, dist_func=1, rgb=False):
+    """
+    Colorized sobel edges.
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param DistanceFunction|int dist_func: Sobel distance function
+    :param bool rgb:
+    """
+
+    if rgb:
+        return sobel_operator(tensor, shape, dist_func)
+
+    else:
+        return outline(tensor, shape, dist_func, True)
+
+
+def outline(tensor, shape, sobel_func=1, invert=False):
     """
     Superimpose sobel operator results (cartoon edges)
 
@@ -1655,7 +1673,10 @@ def outline(tensor, shape, sobel_func=1):
 
     values = value_map(tensor, shape, keep_dims=True)
 
-    edges = sobel(values, value_shape, dist_func=sobel_func)
+    edges = sobel_operator(values, value_shape, dist_func=sobel_func)
+
+    if invert:
+        edges = 1 - edges
 
     return edges * tensor
 
@@ -1672,7 +1693,7 @@ def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
 
     edges = posterize(edges, random.randint(3, 5))
 
-    edges = 1.0 - sobel(edges, value_shape, dist_func=sobel_func)
+    edges = 1.0 - sobel_operator(edges, value_shape, dist_func=sobel_func)
 
     edges = tf.minimum(edges * 8, 1.0) * tf.minimum(tensor * 1.25, 1.0)
 

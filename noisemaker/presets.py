@@ -224,7 +224,7 @@ _EFFECTS_PRESETS = lambda: {
         "with_snow": .05 + random.random() * .35,
     }),
 
-    "sobel-operator": lambda: extend("maybe-invert", {
+    "sobel": lambda: extend("maybe-invert", {
         "with_sobel": random.randint(1, 3),
     }),
 
@@ -348,7 +348,7 @@ _PRESETS = lambda: {
         "with_shadow": 1,
     }),
 
-    "acid-grid": lambda: extend("bloom", "funhouse", "sobel-operator", "voronoid", {
+    "acid-grid": lambda: extend("bloom", "funhouse", "sobel", "voronoid", {
         "lattice_drift": random.randint(0, 1),
         "point_distrib": random_member(PointDistribution.grid_members()),
         "point_freq": 4,
@@ -408,7 +408,7 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "alien-transmission": lambda: extend("glitchin-out", "sobel-operator", "value-mask", {
+    "alien-transmission": lambda: extend("glitchin-out", "sobel", "value-mask", {
         "freq": random.randint(125, 200),
         "mask": random_member(ValueMask.procedural_members()),
     }),
@@ -491,11 +491,12 @@ _PRESETS = lambda: {
         "ridges": True,
     }),
 
-    "blacklight-fantasy": lambda: extend("bloom", "dither", "invert", "sobel-operator", "voronoi", {
+    "blacklight-fantasy": lambda: extend("bloom", "dither", "invert", "voronoi", {
         "post_hue_rotation": -.125,
         "posterize_levels": 3,
         "rgb": True,
         "voronoi_refract": 1.0 + random.random() * 2.5,
+        "with_sobel": 1,
         "warp_octaves": random.randint(1, 4),
         "warp_range": random.randint(0, 1) * random.random() * 2.0,
     }),
@@ -628,7 +629,7 @@ _PRESETS = lambda: {
         "worms_kink": random.randint(16, 32),
     }),
 
-    "chiral": lambda: extend("sobel-operator", "symmetry", "voronoi", {
+    "chiral": lambda: extend("sobel", "symmetry", "voronoi", {
         "point_freq": 1,
         "post_reindex_range": .05,
         "post_refract_range": random.randint(24, 48),
@@ -645,7 +646,7 @@ _PRESETS = lambda: {
         "wormhole_stride": .05 + random.random() * .05,
     }),
 
-    "conference": lambda: extend("sobel-operator", "value-mask", {
+    "conference": lambda: extend("sobel", "value-mask", {
         "freq": 5 * random.randint(15, 30),
         "mask": "halftone",
         "spline_order": 2,
@@ -731,14 +732,15 @@ _PRESETS = lambda: {
         "with_voronoi": 1,
     }),
 
-    "death-star-plans": lambda: extend("crt", "sobel-operator", {
-        "point_freq": random.randint(2, 4),
-        "post_refract_range": random.randint(0, 1),
+    "death-star-plans": lambda: extend("crt", {
+        "point_freq": random.randint(3, 4),
+        "post_refract_range": 1,
         "posterize_levels": random.randint(3, 5),
         "voronoi_alpha": 1,
         "voronoi_func": random.randint(2, 3),
-        "voronoi_nth": random.randint(1, 3),
+        "voronoi_nth": random.randint(2, 3),
         "with_voronoi": 1,
+        "with_sobel": random.randint(1, 3),
     }),
 
     "defocus": lambda: extend("bloom", "multires", {
@@ -763,7 +765,7 @@ _PRESETS = lambda: {
         "warp_range": .075 * random.random() * .075,
     }),
 
-    "diffusion-feedback": lambda: extend("bloom", "sobel-operator", {
+    "diffusion-feedback": lambda: extend("bloom", "sobel", {
         "corners": True,
         "distrib": "normal",
         "freq": 8,
@@ -1103,14 +1105,15 @@ _PRESETS = lambda: {
         "with_shadow": .75 + random.random() * .25,
     }),
 
-    "graph-paper": lambda: extend("bloom", "crt", "sobel-operator", {
+    "graph-paper": lambda: extend("bloom", "crt", "sobel", {
         "corners": True,
         "distrib": "ones",
         "freq": random.randint(4, 12) * 2,
         "hue_range": 0,
         "hue_rotation": random.random(),
-        "saturation": 0.27,
         "mask": "chess",
+        "rgb": True,
+        "saturation": 0.27,
         "spline_order": 0,
         "voronoi_alpha": .25 + random.random() * .75,
         "voronoi_refract": random.random() * 4,
@@ -1426,10 +1429,11 @@ _PRESETS = lambda: {
         "voronoi_nth": 1,
     }),
 
-    "neon-cambrian": lambda: extend("bloom", "sobel-operator", "wormhole", {
+    "neon-cambrian": lambda: extend("bloom", "wormhole", {
         "hue_range": 1,
         "posterize_levels": 24,
         "with_aberration": 0.01,
+        "with_sobel": 1,
         "with_voronoi": 6,
         "wormhole_stride": 0.25,
     }),
@@ -1472,7 +1476,7 @@ _PRESETS = lambda: {
         "with_false_color": True
     }),
 
-    "octave-rings": lambda: extend("sobel-operator", {
+    "octave-rings": lambda: extend("sobel", {
         "corners": True,
         "distrib": "ones",
         "freq": random.randint(1, 3) * 2,
@@ -1605,7 +1609,7 @@ _PRESETS = lambda: {
     "random-preset": lambda:
         preset(random_member([m for m in PRESETS if m != "random-preset"])),
 
-    "rasteroids": lambda: extend("bloom", "crt", "sobel-operator", {
+    "rasteroids": lambda: extend("bloom", "crt", "sobel", {
         "distrib": random_member(["uniform", "ones"]),
         "freq": 6 * random.randint(2, 3),
         "mask": random_member(ValueMask),
@@ -1741,7 +1745,7 @@ _PRESETS = lambda: {
         "with_voronoi": 6,
     }),
 
-    "scribbles": lambda: extend("dither", "sobel-operator", {
+    "scribbles": lambda: extend("dither", "sobel", {
         "deriv": random.randint(1, 3),
         "freq": random.randint(4, 8),
         "lattice_drift": random.random(),
@@ -1966,7 +1970,7 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     },
 
-    "star-cloud": lambda: extend("bloom", "invert", "sobel-operator", {
+    "star-cloud": lambda: extend("bloom", "sobel", {
         "deriv": 1,
         "freq": 2,
         "hue_range": random.random() * 2.0,
@@ -2042,9 +2046,11 @@ _PRESETS = lambda: {
         "mask": 'arecibo',
     }),
 
-    "the-data-must-flow": lambda: extend("bloom", "sobel-operator", {
+    "the-data-must-flow": lambda: extend("bloom", {
         "freq": 2,
-        "hue_range": random.random() * 2.5,
+        "post_contrast": 2,
+        "post_deriv": 1,
+        "rgb": True,
         "with_worms": 1,
         "worms_alpha": .9 + random.random() * .1,
         "worms_density": 1.5 + random.random(),
@@ -2097,7 +2103,7 @@ _PRESETS = lambda: {
         "worms_kink": random.randint(5, 25),
     }),
 
-    "triangular": lambda: extend("multires", "sobel-operator", {
+    "triangular": lambda: extend("multires", "sobel", {
         "corners": True,
         "distrib": random_member(["ones", "uniform"]),
         "freq": random.randint(1, 4) * 2,
@@ -2142,7 +2148,7 @@ _PRESETS = lambda: {
         "worms_stride_deviation": .25,
     }),
 
-    "trominos": lambda: extend("bloom", "crt", "sobel-operator", "value-mask", {
+    "trominos": lambda: extend("bloom", "crt", "sobel", "value-mask", {
         "freq": 4 * random.randint(25, 50),
         "mask": "tromino",
         "spline_order": 0,
@@ -2238,7 +2244,7 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     }),
 
-    "warped-grid": lambda: extend("bloom", "sobel-operator", "value-mask", {
+    "warped-grid": lambda: extend("bloom", "sobel", "value-mask", {
         "corners": True,
         "freq": random.randint(4, 48) * 2,
         "hue_range": 3,
@@ -2261,7 +2267,7 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     }),
 
-    "wireframe": lambda: extend("basic", "bloom", "multires-low", "sobel-operator", {
+    "wireframe": lambda: extend("basic", "bloom", "multires-low", "sobel", {
         "hue_range": random.random(),
         "saturation": random.random(),
         "lattice_drift": random.random(),

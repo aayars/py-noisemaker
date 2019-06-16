@@ -147,7 +147,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
         tensor = effects.refract(tensor, shape, displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, rgb=rgb, **post_process_args)
 
     if shape[-1] == 3 and not rgb:
         if hue_distrib:
@@ -275,6 +275,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, **post_process_args)
+                                  deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, rgb=rgb,
+                                  **post_process_args)
 
     return tensor
