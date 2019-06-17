@@ -1867,6 +1867,18 @@ _PRESETS = lambda: {
         "with_voronoi": 2,
     },
 
+    "smoke-on-the-water": lambda: extend("bloom", "dither", "shadows", {
+        "octaves": 8,
+        "point_freq": 10,
+        "post_saturation": .5,
+        "ridges": 1,
+        "voronoi_alpha": .5,
+        "voronoi_inverse": True,
+        "with_voronoi": random.randint(1, 2),
+        "with_worms": 5,
+        "worms_density": 1000,
+    }),
+
     "soft-cells": lambda: extend("bloom", {
         "point_distrib": random_member(PointDistribution),
         "point_freq": random.randint(4, 8),
