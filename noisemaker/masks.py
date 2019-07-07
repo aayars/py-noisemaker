@@ -2466,12 +2466,12 @@ def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
         return arecibo_dna(dna_x, y, row, mask_shape(ValueMask.arecibo_dna), uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height:
-        return arecibo_num(x, y, row, mask_shapes(ValueMask.arecibo_num), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_num(x, y, row, mask_shape(ValueMask.arecibo_num), uv_x, uv_y, uv_noise, **kwargs)
 
     if y < third_height * 2:
-        return arecibo_nucleotide(x, y, row, mask_shapes(ValueMask.arecibo_nucleotide), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_nucleotide(x, y, row, mask_shape(ValueMask.arecibo_nucleotide), uv_x, uv_y, uv_noise, **kwargs)
 
-    return arecibo_bignum(x, y, row, mask_shapes(ValueMask.arecibo_bignum), uv_x, uv_y, uv_noise, **kwargs)
+    return arecibo_bignum(x, y, row, mask_shape(ValueMask.arecibo_bignum), uv_x, uv_y, uv_noise, **kwargs)
 
 
 @mask([6, 6, 1])
