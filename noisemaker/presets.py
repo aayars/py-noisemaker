@@ -53,7 +53,7 @@ _EFFECTS_PRESETS = lambda: {
     }),
 
     "distressed": lambda: extend("dither", "filthy", "scuff", {
-        "post_saturation": .25 + random.random() * .25,
+        "post_saturation": .25 + random.random() * .125,
     }),
 
     "dither": lambda: {
@@ -1329,7 +1329,7 @@ _PRESETS = lambda: {
         "with_erosion_worms": True,
     }),
 
-    "lsd": lambda: extend("density-map", "distressed", "invert", "scuff", {
+    "lsd": lambda: extend("density-map", "distressed", "invert", "random-hue", {
         "brightness_distrib": "mids",
         "freq": random.randint(8, 16),
         "hue_range": random.randint(3, 6),
