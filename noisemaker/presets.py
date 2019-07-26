@@ -1143,7 +1143,7 @@ _PRESETS = lambda: {
         "hue_rotation": random.random(),
         "saturation": random.random(),
         "point_corners": True,
-        "point_distrib": random_members(PointDistribution.circular_members()),
+        "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(3, 6),
         "point_generations": 2,
         "spline_order": random.randint(0, 3),
