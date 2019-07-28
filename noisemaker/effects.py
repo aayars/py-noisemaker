@@ -1776,7 +1776,12 @@ def aberration(tensor, shape, displacement=.005):
     displacement_pixels = width * displacement
 
     shift = random.random() - .5
-    color_shifted = tf.image.adjust_hue(tensor, shift)
+
+    if channels == 3:
+        color_shifted = tf.image.adjust_hue(tensor, shift)
+
+    else:
+        color_shifted = tensor
 
     for i in range(channels):
         # Left and right neighbor pixels
@@ -1799,9 +1804,12 @@ def aberration(tensor, shape, displacement=.005):
 
         separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
 
-    separated = tf.image.adjust_hue(tf.stack(separated, 2), -shift)
+    joined = tf.stack(separated, 2)
 
-    return center_mask(tensor, separated, shape)
+    if channels == 3:
+        joined = tf.image.adjust_hue(joined, -shift)
+
+    return center_mask(tensor, joined, shape)
 
 
 def bloom(tensor, shape, alpha=.5):
