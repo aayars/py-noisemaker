@@ -2206,6 +2206,15 @@ _PRESETS = lambda: {
         "with_shadow": 1,
     }),
 
+    "unmasked": lambda: {
+        "distrib": "uniform",
+        "freq": random.randint(15, 30),
+        "mask": random_member(ValueMask.procedural_members()),
+        "octaves": random.randint(1, 2),
+        "post_reindex_range": 1 + random.random() * 1.5,
+        "sobel": 1,
+    },
+
     "value-mask": lambda: {
         "distrib": "ones",
         "freq": 24 * random.randint(1, 8),
