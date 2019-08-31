@@ -1516,6 +1516,7 @@ _PRESETS = lambda: {
         "hue_range": random.randint(3, 5),
         "octaves": random.randint(1, 8),
         "point_freq": random.randint(6, 10),
+        "post_refract_range": random.randint(0, 1) * (.125 + random.random() * 2.5),
         "ridges": random.randint(0, 1),
         "saturation": .175 + random.random() * .25,
         "voronoi_alpha": .333 + random.random() * .333,
