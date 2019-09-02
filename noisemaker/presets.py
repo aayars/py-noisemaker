@@ -2286,6 +2286,14 @@ _PRESETS = lambda: {
         "with_aberration": random.random() * .125,
     }),
 
+    "watercolor": lambda: {
+        "post_saturation": .333,
+        "warp_range": 1,
+        "warp_octaves": 8,
+        "with_fibers": True,
+        "with_texture": True,
+    },
+
     "whatami": lambda: extend("invert", {
         "freq": random.randint(7, 9),
         "hue_range": 3,
