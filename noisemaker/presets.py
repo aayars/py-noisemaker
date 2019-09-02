@@ -1244,6 +1244,12 @@ _PRESETS = lambda: {
         "with_interference": True
     }),
 
+    "is-this-anything": lambda: extend("soup", {
+        "point_freq": 1,
+        "voronoi_alpha": .875,
+        "voronoi_func": random.randint(1, 3),
+    }),
+
     "isoform": lambda: extend("bloom", "maybe-invert", "outline", {
         "hue_range": random.random(),
         "post_deriv": random.randint(0, 1) * random.randint(1, 3),
