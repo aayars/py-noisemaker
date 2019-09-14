@@ -1740,7 +1740,7 @@ _PRESETS = lambda: {
         "freq": random.randint(3, 8),
         "hue_range": random.random(),
         "lattice_drift": 1,
-        "point_distrib": random_member(["random"] + PointDistribution.circular_members()),
+        "point_distrib": random_member([PointDistribution.random] + PointDistribution.circular_members()),
         "point_freq": random.randint(2, 8),
         "post_ridges": random.randint(0, 1),
         "rgb": random.randint(0, 1),
