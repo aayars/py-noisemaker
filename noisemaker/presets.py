@@ -1217,6 +1217,13 @@ _PRESETS = lambda: {
         "with_voronoi": 4,
     },
 
+    "i-heart-tweegee": lambda: {
+        "freq": random.randint(2, 3),
+        "hue_range": .5 + random.random() * 2,
+        "octaves": 8,
+        "post_reindex_range": random.randint(15, 20),
+    },
+
     "i-made-an-art": lambda: extend("distressed", "outline", {
         "spline_order": 0,
         "lattice_drift": random.randint(5, 10),
