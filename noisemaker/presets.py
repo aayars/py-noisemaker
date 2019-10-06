@@ -1220,7 +1220,7 @@ _PRESETS = lambda: {
     "i-heart-tweegee": lambda: {
         "freq": random.randint(12, 20),
         "octaves": 8,
-        "post_reindex_range": 1.25 + random.random() * 1.25,
+        "post_reindex_range": 2.5 + random.random() * 2.5,
         "rgb": True,
     },
 
