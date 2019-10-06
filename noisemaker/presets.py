@@ -1218,10 +1218,10 @@ _PRESETS = lambda: {
     },
 
     "i-heart-tweegee": lambda: {
-        "freq": random.randint(2, 3),
-        "hue_range": .5 + random.random() * 2,
+        "freq": random.randint(12, 20),
         "octaves": 8,
-        "post_reindex_range": random.randint(15, 20),
+        "post_reindex_range": 1.25 + random.random() * 1.25,
+        "rgb": True,
     },
 
     "i-made-an-art": lambda: extend("distressed", "outline", {
