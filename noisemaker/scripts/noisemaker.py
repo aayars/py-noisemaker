@@ -129,8 +129,6 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
          dla_padding, point_freq, point_distrib, point_corners, point_generations,
          point_drift, density, seed, name):
 
-    tf.compat.v1.disable_eager_execution()
-
     generators.set_seed(seed)
 
     shape = [height, width, channels]
