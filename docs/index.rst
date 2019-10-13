@@ -5,7 +5,7 @@ Noisemaker
    :maxdepth: 2
    :caption: Contents:
 
-**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python`_ and `TensorFlow`_.
+**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3`_ and `TensorFlow`_.
 
 .. image:: https://travis-ci.com/aayars/py-noisemaker.svg?branch=master
    :target: https://travis-ci.com/aayars/py-noisemaker
@@ -22,10 +22,10 @@ Noisemaker
 Installation
 ------------
 
-Python virtualenv
+Python 3 virtualenv
 ~~~~~~~~~~~~~~~~~~~
 
-Noisemaker is intended for Python 3.5+ and Tensorflow 2.0+.
+Noisemaker is intended for Python 3.5+.
 
 Install `Noisemaker`_ in a new virtualenv:
 
@@ -37,7 +37,7 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-    pip install tensorflow  # tensorflow>=2.0.0, tensorflow-gpu requires cuda/cudnn
+    pip install tensorflow  # tensorflow==1.3.0 recommended, tensorflow-gpu requires cuda/cudnn
 
 For subsequent activation of the virtual environment, run `source bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
 
@@ -106,7 +106,7 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 
-.. _`Python`: https://www.python.org/
+.. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
 .. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/py-noisemaker/
 .. _`TensorFlow`: https://www.tensorflow.org/
