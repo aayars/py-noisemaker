@@ -296,13 +296,13 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
 
     values, _ = masks.mask_values(kernel)
 
-    l = len(values)
+    length = len(values)
 
     channels = shape[-1]
 
     temp = np.repeat(values, channels)
 
-    temp = tf.reshape(temp, (l, l, channels, 1))
+    temp = tf.reshape(temp, (length, length, channels, 1))
 
     temp = tf.cast(temp, tf.float32)
 

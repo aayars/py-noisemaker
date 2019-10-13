@@ -4,7 +4,6 @@ Presets may contain any keyword arg accepted by :func:`~noisemaker.effects.post_
 """
 
 from collections import deque
-from copy import deepcopy
 from enum import Enum, EnumMeta
 
 import random
@@ -21,7 +20,7 @@ EFFECTS_PRESETS = {}
 PRESETS = {}
 
 # Use a lambda to permit re-eval with new seed
-_EFFECTS_PRESETS = lambda: {
+_EFFECTS_PRESETS = lambda: {  # noqa: E731
     "be-kind-rewind": lambda: extend("crt", {
         "with_vhs": True,
     }),
@@ -302,7 +301,7 @@ _EFFECTS_PRESETS = lambda: {
 
 }
 
-_PRESETS = lambda: {
+_PRESETS = lambda: {  # noqa: E731
     "1969": lambda: extend("density-map", "distressed", "posterize-outline", "nerdvana", {
         "point_corners": True,
         "point_distrib": "circular",
@@ -316,7 +315,7 @@ _PRESETS = lambda: {
     }),
 
     "2001": lambda: extend("bloom", "invert", "value-mask", {
-        "freq": 13 * random.randint(10,20),
+        "freq": 13 * random.randint(10, 20),
         "mask": "bank_ocr",
         "posterize_levels": 1,
         "vignette_brightness": 1,

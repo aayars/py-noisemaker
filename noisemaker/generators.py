@@ -155,7 +155,6 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
                                   mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
                                   wavelet=wavelet))
 
-
         else:
             if hue_rotation is None:
                 hue_rotation = tf.random.normal([])

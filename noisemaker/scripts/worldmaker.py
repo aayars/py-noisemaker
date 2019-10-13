@@ -129,16 +129,16 @@ def _control():
 
     iterations = 5
     for i in range(iterations):
-       control = effects.erode(control, shape, **erode_kwargs)
-       control = effects.convolve(effects.ValueMap.conv2d_blur, control, shape)
+        control = effects.erode(control, shape, **erode_kwargs)
+        control = effects.convolve(effects.ValueMap.conv2d_blur, control, shape)
 
     post_shape = [LARGE_Y, LARGE_X, 1]
     control = effects.resample(control, post_shape)
 
     iterations = 2
     for i in range(iterations):
-       control = effects.erode(control, post_shape, **erode_kwargs)
-       control = effects.convolve(effects.ValueMap.conv2d_blur, control, post_shape)
+        control = effects.erode(control, post_shape, **erode_kwargs)
+        control = effects.convolve(effects.ValueMap.conv2d_blur, control, post_shape)
 
     control = effects.convolve(effects.ValueMap.conv2d_sharpen, control, post_shape)
     control = effects.normalize(control)

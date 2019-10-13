@@ -3,7 +3,6 @@
 import random
 
 import numpy as np
-import tensorflow as tf
 
 from noisemaker.constants import ValueMask
 
@@ -2105,7 +2104,7 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     total = 0
 
     for y in range(channel_shape[0]):
-        uv_y = int((y  / channel_shape[0]) * uv_shape[0])
+        uv_y = int((y / channel_shape[0]) * uv_shape[0])
 
         mask_row = []
         mask_values.append(mask_row)
@@ -2441,6 +2440,7 @@ _ARECIBO_DNA_TEMPLATE = [
     [ 0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0 ],
 ]
 
+
 @mask([11, 17, 1])
 def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     tex_x = x % shape[1]
@@ -2453,9 +2453,6 @@ def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
 
 @mask(lambda: [random.randint(256, 512)] * 2 + [1])
 def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    tex_x = x % shape[1]
-    tex_y = y % shape[0]
-
     third_height = shape[0] / 3
     half_width = shape[1] / 2
     dna_half_width = mask_shape(ValueMask.arecibo_dna)[1] * .5
@@ -2520,28 +2517,28 @@ def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     y = y % shape[1]
 
     if (x == 0 or y == 0 or x == shape[1] - 1 or y == shape[0] - 1) \
-        or (y in (8, shape[0] - 9) and x < 9) \
-        or (y == 8 and x > shape[1] - 10) \
-        or (x in (8, shape[1] - 9) and y < 9) \
-        or (x == 8 and y > shape[0] - 10) \
-        or (y in (2, 6) and (x in range(2, 7) or x in range(shape[1] - 7, shape[1] - 2))) \
-        or (y in (shape[1] - 3, shape[1] - 7) and x in range(2, 7)) \
-        or (x in (2, 6) and (y in range(2, 7) or y in range(shape[0] - 7, shape[0] - 2))) \
-        or (x in (shape[0] - 3, shape[0] - 7) and y in range(2, 7)) \
-        or (x in (shape[0] - 7, shape[0] - 9) and y in range(shape[0] - 9, shape[0] - 6)) \
-        or (y in (shape[1] - 7, shape[1] - 9) and x in range(shape[1] - 9, shape[1] - 6)):
+            or (y in (8, shape[0] - 9) and x < 9) \
+            or (y == 8 and x > shape[1] - 10) \
+            or (x in (8, shape[1] - 9) and y < 9) \
+            or (x == 8 and y > shape[0] - 10) \
+            or (y in (2, 6) and (x in range(2, 7) or x in range(shape[1] - 7, shape[1] - 2))) \
+            or (y in (shape[1] - 3, shape[1] - 7) and x in range(2, 7)) \
+            or (x in (2, 6) and (y in range(2, 7) or y in range(shape[0] - 7, shape[0] - 2))) \
+            or (x in (shape[0] - 3, shape[0] - 7) and y in range(2, 7)) \
+            or (x in (shape[0] - 7, shape[0] - 9) and y in range(shape[0] - 9, shape[0] - 6)) \
+            or (y in (shape[1] - 7, shape[1] - 9) and x in range(shape[1] - 9, shape[1] - 6)):
 
         return 1
 
     elif (x == shape[1] - 8 and y == shape[0] - 8) \
-        or (x in (shape[0] - 6, shape[0] - 10) and y in range(shape[0] - 10, shape[0] - 5)) \
-        or (y in (shape[1] - 6, shape[1] - 10) and x in range(shape[1] - 10, shape[1] - 5)):
+            or (x in (shape[0] - 6, shape[0] - 10) and y in range(shape[0] - 10, shape[0] - 5)) \
+            or (y in (shape[1] - 6, shape[1] - 10) and x in range(shape[1] - 10, shape[1] - 5)):
 
         return 0
 
     elif (x > 8 and x < shape[1] - 8) \
-        or (y > 8 and y < shape[0] - 8) \
-        or (x >= shape[1] - 8 and y >= shape[0] - 8):
+            or (y > 8 and y < shape[0] - 8) \
+            or (x >= shape[1] - 8 and y >= shape[0] - 8):
 
         return random.randint(0, 1)
 
