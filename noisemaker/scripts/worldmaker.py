@@ -58,7 +58,7 @@ def lowland():
 
     tensor = tf.image.adjust_brightness(tensor, .1)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, LOW_FILENAME)
 
 
@@ -168,7 +168,7 @@ def blended():
     high = tf.image.convert_image_dtype(load(HIGH_FILENAME), tf.float32)
 
     blend_control = generators.multires(shape=shape, freq=FREQ * 4, ridges=True, octaves=4)
-    blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
+    blend_control = 1.0 - effects.value_map(blend_control, shape, keepdims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, blend_control, control * 2, low, mid, high)
     combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)

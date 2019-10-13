@@ -24,6 +24,8 @@ import noisemaker.recipes as recipes
 @click.argument('input_filename')
 @click.pass_context
 def main(ctx, seed, name, no_resize, overrides, preset_name, input_filename):
+    tf.compat.v1.disable_eager_execution()
+
     presets.bake_presets(seed)
 
     input_shape = effects.shape_from_file(input_filename)
@@ -62,5 +64,5 @@ def main(ctx, seed, name, no_resize, overrides, preset_name, input_filename):
     tensor = effects.post_process(tensor, **kwargs)
     tensor = recipes.post_process(tensor, **kwargs)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, name)
