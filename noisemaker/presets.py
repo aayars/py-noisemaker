@@ -227,6 +227,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_sobel": random.randint(1, 3),
     }),
 
+    "spatter": lambda: {
+        "with_spatter": True,
+    },
+
     "spooky-ticker": lambda: {
         "with_ticker": True,
     },

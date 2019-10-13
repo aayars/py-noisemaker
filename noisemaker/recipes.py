@@ -14,7 +14,8 @@ import noisemaker.masks as masks
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
-                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, with_moirio=False, **_):
+                 with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, with_moirio=False,
+                 with_spatter=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -37,6 +38,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_fibers: Old-timey paper fibers
     :param bool with_texture: Bumpy canvas
     :param bool with_moirio: Hex grid interference pattern
+    :param bool with_spatter: Spatter mask
     :return: Tensor
     """
 
@@ -93,6 +95,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape)
+
+    if with_spatter:
+        tensor = spatter(tensor, shape)
 
     return tensor
 
@@ -543,7 +548,7 @@ def nebula(tensor, shape):
 
     overlay = tf.maximum(overlay, 0)
 
-    return tf.maximum(tensor, overlay * .125)
+    return tf.maximum(tensor, overlay * .25)
 
 
 def moirio(tensor, shape):
@@ -559,3 +564,34 @@ def moirio(tensor, shape):
     v2 = effects.voronoi(tensor, shape, diagram_type=diagram_type, nth=nth, xy=point_cloud(freq, distrib=PointDistribution.v_hex, shape=shape))
 
     return effects.blend(v1, v2, .5)
+
+
+
+def spatter(tensor, shape):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    # Generate a smear
+    smear = multires(random.randint(2, 4), value_shape, distrib="exp",
+                     ridges=True, octaves=6)
+
+    smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
+                         octaves=random.randint(1, 2), displacement=1.0 + random.random())
+
+    # Add spatter dots
+    smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, distrib="exp",
+                                       post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
+
+    smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, distrib="exp",
+                                       post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
+
+    # Remove some of it
+    smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, distrib="exp",
+                                             ridges=True, octaves=3, spline_order=1) * .5)
+
+    #
+    splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+
+    return effects.blend_layers(effects.normalize(smear), shape, .005, tensor, splash)
