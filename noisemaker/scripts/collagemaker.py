@@ -80,7 +80,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 
     tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 
-    with tf.compat.v1.Session().as_default():
+    with tf.Session().as_default():
         save(tensor, name)
 
     print('mashup')
@@ -132,10 +132,10 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
         control = effects.square_crop_and_resize(control, effects.shape_from_file(control_filename), 1024)
 
-        control = effects.value_map(control, shape, keepdims=True)
+        control = effects.value_map(control, shape, keep_dims=True)
 
     else:
-        control = effects.value_map(collage_images.pop(), shape, keepdims=True)
+        control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
     control = effects.convolve(effects.ValueMask.conv2d_blur, control, [height, width, 1])
 

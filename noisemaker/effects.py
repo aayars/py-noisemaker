@@ -496,23 +496,23 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
 
     count = int(math.sqrt(height * width) * density)
 
-    x = tf.random.uniform([count]) * (width - 1)
-    y = tf.random.uniform([count]) * (height - 1)
+    x = tf.random_uniform([count]) * (width - 1)
+    y = tf.random_uniform([count]) * (height - 1)
 
-    x_dir = tf.random.normal([count])
-    y_dir = tf.random.normal([count])
+    x_dir = tf.random_normal([count])
+    y_dir = tf.random_normal([count])
 
     length = tf.sqrt(x_dir * x_dir + y_dir * y_dir)
     x_dir /= length
     y_dir /= length
 
-    inertia = tf.random.normal([count], mean=0.75, stddev=0.25)
+    inertia = tf.random_normal([count], mean=0.75, stddev=0.25)
 
     out = tf.zeros(shape)
 
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
-    values = value_map(convolve(ValueMask.conv2d_blur, tensor, shape), shape, keepdims=True)
+    values = value_map(convolve(ValueMask.conv2d_blur, tensor, shape), shape, keep_dims=True)
 
     x_index = tf.cast(x, tf.int32)
     y_index = tf.cast(y, tf.int32)
@@ -623,7 +623,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(tf.random.uniform(warp_shape), shape, spline_order=spline_order)
+            reference_x = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -633,7 +633,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(tf.random.uniform(warp_shape), shape, spline_order=spline_order)
+            reference_y = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
 
         else:
             y0_index += int(height * .5)
@@ -690,7 +690,7 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
     value_shape = [shape[0], shape[1], 1]
 
     if reference is None:
-        reference = resample(tf.random.uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
+        reference = resample(tf.random_uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
         # reference = derivative(reference, [shape[0], shape[1], 1], with_normalize=False)
 
     # Twist index, borrowed from worms. TODO merge me.
@@ -787,9 +787,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     count = int(max(width, height) * density)
 
-    worms_y = tf.random.uniform([count]) * (height - 1)
-    worms_x = tf.random.uniform([count]) * (width - 1)
-    worms_stride = tf.random.normal([count], mean=stride, stddev=stride_deviation)
+    worms_y = tf.random_uniform([count]) * (height - 1)
+    worms_x = tf.random_uniform([count]) * (width - 1)
+    worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation)
 
     color_source = colors if colors is not None else tensor
 
@@ -807,13 +807,13 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             tf.ones([n]) * random.random() * 360.0,
 
         WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(tf.random.normal([n]) * 100) % 4) * 90,
+            rots[WormBehavior.obedient](n) + (tf.floor(tf.random_normal([n]) * 100) % 4) * 90,
 
         WormBehavior.unruly: lambda n:
-            rots[WormBehavior.obedient](n) + tf.random.normal([n]) * .25 - .125,
+            rots[WormBehavior.obedient](n) + tf.random_normal([n]) * .25 - .125,
 
         WormBehavior.chaotic: lambda n:
-            tf.random.normal([n]) * 360.0,
+            tf.random_normal([n]) * 360.0,
 
         WormBehavior.random: lambda _:
             tf.reshape(tf.stack([
@@ -989,7 +989,7 @@ def normal_map(tensor, shape):
 
     height, width, channels = shape
 
-    reference = value_map(tensor, shape, keepdims=True)
+    reference = value_map(tensor, shape, keep_dims=True)
 
     x = normalize(1 - convolve(ValueMask.conv2d_sobel_x, reference, [height, width, 1]))
     y = normalize(convolve(ValueMask.conv2d_sobel_y, reference, [height, width, 1]))
@@ -999,17 +999,17 @@ def normal_map(tensor, shape):
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
 
-def value_map(tensor, shape, keepdims=False):
+def value_map(tensor, shape, keep_dims=False):
     """
     Create a grayscale value map from the given image Tensor by reducing the sum across channels.
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param bool keepdims: If True, don't collapse the channel dimension.
-    :return: Tensor of shape (height, width), or (height, width, channels) if keepdims was True.
+    :param bool keep_dims: If True, don't collapse the channel dimension.
+    :return: Tensor of shape (height, width), or (height, width, channels) if keep_dims was True.
     """
 
-    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keepdims=keepdims))
+    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
 
 
 def density_map(tensor, shape):
@@ -1029,14 +1029,14 @@ def density_map(tensor, shape):
 
     bins = max(height, width)
 
-    # values = value_map(tensor, shape, keepdims=True)
+    # values = value_map(tensor, shape, keep_dims=True)
     # values = tf.minimum(tf.maximum(tensor, 0.0), 1.0)  # TODO: Get this to work with HDR data
     values = tensor
 
     # https://stackoverflow.com/a/34143927
     binned_values = tf.cast(tf.reshape(values * (bins - 1), [-1]), tf.int32)
     ones = tf.ones_like(binned_values, dtype=tf.int32)
-    counts = tf.math.unsorted_segment_sum(ones, binned_values, bins)
+    counts = tf.unsorted_segment_sum(ones, binned_values, bins)
 
     out = tf.gather(counts, tf.cast(values[:, :] * (bins - 1), tf.int32))
 
@@ -1299,8 +1299,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     if xy is None:
         point_count = int(min(width, height) * density)
 
-        x = tf.random.uniform([point_count]) * width
-        y = tf.random.uniform([point_count]) * height
+        x = tf.random_uniform([point_count]) * width
+        y = tf.random_uniform([point_count]) * height
 
     else:
         if len(xy) == 2:
@@ -1336,8 +1336,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
     if diagram_type in VoronoiDiagramType.flow_members():
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
-        x_diff += tf.random.normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y_diff += tf.random.normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
+        x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y_diff += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
 
     dist = distance(x_diff, y_diff, dist_func)
 
@@ -1368,7 +1368,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = range_slice
 
     if diagram_type in VoronoiDiagramType.flow_members():
-        range_out = tf.reduce_sum(tf.math.log(dist), 3)
+        range_out = tf.reduce_sum(tf.log(dist), 3)
 
         range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
 
@@ -1671,7 +1671,7 @@ def outline(tensor, shape, sobel_func=1, invert=False):
 
     value_shape = [height, width, 1]
 
-    values = value_map(tensor, shape, keepdims=True)
+    values = value_map(tensor, shape, keep_dims=True)
 
     edges = sobel_operator(values, value_shape, dist_func=sobel_func)
 
@@ -1689,7 +1689,7 @@ def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
 
     value_shape = [height, width, 1]
 
-    edges = value_map(tensor, shape, keepdims=True)
+    edges = value_map(tensor, shape, keep_dims=True)
 
     edges = posterize(edges, random.randint(3, 5))
 
@@ -1981,7 +1981,7 @@ def pop(tensor, shape):
 
     for i in range(freq * freq):
         image = posterize(ref, random.randint(3, 6))
-        image = image % tf.random.normal([3], mean=.5, stddev=.25)
+        image = image % tf.random_normal([3], mean=.5, stddev=.25)
         images.append(image)
 
     x, y = point_cloud(freq, distrib=PointDistribution.square, shape=shape, corners=True)
@@ -2089,10 +2089,10 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     height, width, channels = shape
 
     if reference is None:
-        reference = value_map(tensor, shape, keepdims=True)
+        reference = value_map(tensor, shape, keep_dims=True)
 
     else:
-        reference = value_map(reference, shape, keepdims=True)
+        reference = value_map(reference, shape, keep_dims=True)
 
     value_shape = [height, width, 1]
 
@@ -2154,7 +2154,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
 
     # Generate a value map, multiply by len(glyphs) to create glyph index offsets
     value_shape = [height, width, 1]
-    uv_noise = _downsample(value_map(tensor, in_shape, keepdims=True), value_shape, uv_shape)
+    uv_noise = _downsample(value_map(tensor, in_shape, keep_dims=True), value_shape, uv_shape)
 
     approx_shape = [glyph_shape[0] * uv_shape[0], glyph_shape[1] * uv_shape[1], 1]
 
@@ -2250,7 +2250,7 @@ def sketch(tensor, shape):
 
     value_shape = [shape[0], shape[1], 1]
 
-    values = value_map(tensor, value_shape, keepdims=True)
+    values = value_map(tensor, value_shape, keep_dims=True)
     values = tf.image.adjust_contrast(values, 2.0)
 
     values = tf.minimum(values, 1.0)

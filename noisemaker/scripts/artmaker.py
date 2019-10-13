@@ -26,8 +26,6 @@ import noisemaker.recipes as recipes
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name):
-    tf.compat.v1.disable_eager_execution()
-
     presets.bake_presets(seed)
 
     if preset_name == 'random':
@@ -61,5 +59,5 @@ def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name)
 
     tensor = recipes.post_process(tensor, **kwargs)
 
-    with tf.compat.v1.Session().as_default():
+    with tf.Session().as_default():
         save(tensor, name)

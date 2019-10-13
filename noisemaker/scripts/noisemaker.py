@@ -161,7 +161,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
     tensor = recipes.post_process(tensor, shape=shape, freq=freq,
                                   with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
-    with tf.compat.v1.Session().as_default():
+    with tf.Session().as_default():
         save(tensor, name)
 
     print(name)
