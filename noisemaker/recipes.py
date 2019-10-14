@@ -589,7 +589,7 @@ def spatter(tensor, shape):
 
     # Remove some of it
     smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, distrib="exp",
-                                             ridges=True, octaves=3, spline_order=1) * .5)
+                                             ridges=True, octaves=3, spline_order=1) * .75)
 
     #
     splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
