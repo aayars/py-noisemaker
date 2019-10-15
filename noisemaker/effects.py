@@ -1769,50 +1769,53 @@ def aberration(tensor, shape, displacement=.005):
     y_index = column_index(shape)
 
     x_index_float = tf.cast(x_index, tf.float32)
+
     gradient = normalize(x_index_float)
 
     separated = []
 
-    displacement_pixels = width * displacement
+    displacement_pixels = int(width * displacement)
 
     shift = random.random() - .5
-
-    if channels == 3:
-        color_shifted = tf.image.adjust_hue(tensor, shift)
-
-    else:
-        color_shifted = tensor
+    color_shifted = tf.image.adjust_hue(tensor, shift)
 
     mask = tf.squeeze(tf.pow(singularity(None, [shape[0], shape[1], 1]), 3))
 
     for i in range(channels):
         # Left and right neighbor pixels
-        if i == 1:
+        if i == 0:
+            # Left (red)
+            _x_index = tf.maximum(x_index - displacement_pixels, 0)
+
+        elif i == 1:
             # Center (green)
             _x_index = x_index
 
-        else:
-            _x_index = tf.minimum(tf.maximum(x_index + int(-displacement_pixels * (i - 1)), 0), 1)
+        elif i == 2:
+            # Right (blue)
+            _x_index = tf.minimum(x_index + displacement_pixels, width)
 
         _x_index = tf.cast(_x_index, tf.float32)
 
         # Left and right image sides
         if i == 0:
             # Left (red)
-            _x_index = blend(_x_index, x_index_float, gradient)
+            _x_index = blend_cosine(_x_index, x_index_float, gradient)
 
         elif i == 2:
             # Right (blue)
-            _x_index = blend(x_index_float, _x_index, gradient)
+            # _x_index = blend_cosine(x_index_float, _x_index, gradient)
+            pass
 
-        _x_index = tf.cast(blend(tf.cast(x_index, tf.float32), _x_index, mask), tf.int32)
+        # Fade effect towards center
+        _x_index = tf.cast(blend(x_index_float, _x_index, mask), tf.int32)
 
         separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
 
     joined = tf.stack(separated, 2)
 
-    if channels == 3:
-        joined = tf.image.adjust_hue(joined, -shift)
+    # Restore original colors
+    joined = tf.image.adjust_hue(joined, -shift)
 
     return joined
 
