@@ -592,6 +592,10 @@ def spatter(tensor, shape):
                                              ridges=True, octaves=3, spline_order=1) * .75)
 
     #
-    splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+    if shape[2] == 3:
+        splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+
+    else:
+        splash = tf.zeros(shape)
 
     return effects.blend_layers(effects.normalize(smear), shape, .005, tensor, splash)
