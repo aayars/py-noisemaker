@@ -208,7 +208,6 @@ def crt(tensor, shape):
     distortion_amount = .25
 
     mask = tf.pow(effects.singularity(None, value_shape), 4)
-    mask = effects.offset(mask, value_shape, int(width * .5), int(height * .5))
 
     distortion *= mask
 
@@ -225,7 +224,8 @@ def crt(tensor, shape):
 
     tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
 
-    tensor = effects.refract(tensor, value_shape, distortion_amount, reference_x=distortion)
+    tensor = effects.refract(tensor, shape, distortion_amount, reference_x=distortion)
+    tensor = effects.offset(tensor, shape, int(width * .5), int(height * .5))
 
     if channels == 3:
         tensor = tf.image.random_hue(tensor, .125)
