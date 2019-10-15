@@ -21,6 +21,10 @@ PRESETS = {}
 
 # Use a lambda to permit re-eval with new seed
 _EFFECTS_PRESETS = lambda: {  # noqa: E731
+    "aberration": lambda: {
+        "with_aberration": .0025 + random.random() * .0025,
+    },
+
     "be-kind-rewind": lambda: extend("crt", {
         "with_vhs": True,
     }),
@@ -41,8 +45,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_interp": 0,
     },
 
-    "crt": lambda: extend("snow", {
-        "with_aberration": .0075 + random.random() * .0075,
+    "crt": lambda: extend("aberration", "snow", {
         "with_crt": True,
         "with_scan_error": random.randint(0, 1),
     }),
@@ -318,12 +321,11 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
-    "2001": lambda: extend("bloom", "invert", "value-mask", {
+    "2001": lambda: extend("aberration", "bloom", "invert", "value-mask", {
         "freq": 13 * random.randint(10, 20),
         "mask": "bank_ocr",
         "posterize_levels": 1,
         "vignette_brightness": 1,
-        "with_aberration": .0075 + random.random() * .0075,
         "with_vignette": 1,
     }),
 
@@ -432,13 +434,12 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_kink": 6,
     }),
 
-    "are-you-human": lambda: extend("density-map", "funhouse", "maybe-invert", "multires", "snow", "value-mask", {
+    "are-you-human": lambda: extend("aberration", "density-map", "funhouse", "maybe-invert", "multires", "snow", "value-mask", {
         "freq": 15,
         "hue_range": random.random() * .25,
         "hue_rotation": random.random(),
         "mask": "truetype",
         "saturation": random.random() * .125,
-        "with_aberration": .0075 + random.random() * .0075,
     }),
 
     "aztec-waffles": lambda: extend("maybe-invert", "outline", {
@@ -768,7 +769,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_range": .075 * random.random() * .075,
     }),
 
-    "diffusion-feedback": lambda: extend("bloom", "sobel", {
+    "diffusion-feedback": lambda: extend("aberration", "bloom", "sobel", {
         "corners": True,
         "distrib": "normal",
         "freq": 8,
@@ -776,7 +777,6 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": "square",
         "point_freq": 1,
         "saturation": 0,
-        "with_aberration": .005 + random.random() * .005,
         "with_conv_feedback": 125,
         "with_density_map": True,
         "with_dla": .75,
@@ -874,11 +874,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": 1,
     }),
 
-    "fake-fractal-flame": lambda: extend("bloom", "density-map", "multires-low", "random-hue", {
+    "fake-fractal-flame": lambda: extend("aberration", "bloom", "density-map", "multires-low", "random-hue", {
         "hue_range": random.random(),
         "post_saturation": .25 + random.random() * .25,
         "ridges": True,
-        "with_aberration": .0075 + random.random() * .0075,
         "with_shadow": .75 + random.random() * .25,
         "with_worms": 5,
         "worms_alpha": .975 + random.random() * .025,
@@ -1445,10 +1444,9 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": 1,
     }),
 
-    "neon-cambrian": lambda: extend("bloom", "wormhole", {
+    "neon-cambrian": lambda: extend("aberration", "bloom", "wormhole", {
         "hue_range": 1,
         "posterize_levels": 24,
-        "with_aberration": 0.01,
         "with_sobel": 1,
         "with_voronoi": 6,
         "wormhole_stride": 0.25,
@@ -1936,11 +1934,10 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_kink": 4.0 + random.random() * 2.0,
     }),
 
-    "spaghettification": lambda: extend("bloom", "density-map", "multires-low", {
+    "spaghettification": lambda: extend("aberration", "bloom", "density-map", "multires-low", {
         "point_freq": 1,
         "voronoi_func": random.randint(1, 3),
         "voronoi_inverse": True,
-        "with_aberration": .0075 + random.random() * .0075,
         "with_shadow": .75 + random.random() * .25,
         "with_voronoi": 6,
         "with_worms": 4,
@@ -2010,14 +2007,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 6,
     }),
 
-    "starfield": lambda: extend("dither", "bloom", "multires-low", "nebula", {
+    "starfield": lambda: extend("aberration", "dither", "bloom", "multires-low", "nebula", {
         "distrib": "exp",
         "freq": random.randint(200, 300),
         "mask": "sparse",
         "post_brightness": -.333,
         "post_contrast": 3,
         "spline_order": 1,
-        "with_aberration": .00125 + random.random() * .00125,
         "with_vignette": .25 + random.random() * .25,
     }),
 
@@ -2282,7 +2278,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
-    "warped-grid": lambda: extend("bloom", "sobel", "value-mask", {
+    "warped-grid": lambda: extend("aberration", "bloom", "sobel", "value-mask", {
         "corners": True,
         "freq": random.randint(4, 48) * 2,
         "hue_range": 3,
@@ -2293,7 +2289,6 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": random.randint(2, 4),
         "warp_range": .25 + random.random() * .75,
         "warp_octaves": 1,
-        "with_aberration": random.random() * .125,
     }),
 
     "watercolor": lambda: {
