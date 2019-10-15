@@ -22,7 +22,7 @@ PRESETS = {}
 # Use a lambda to permit re-eval with new seed
 _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "aberration": lambda: {
-        "with_aberration": .0025 + random.random() * .0025,
+        "with_aberration": .0075 + random.random() * .0075,
     },
 
     "be-kind-rewind": lambda: extend("crt", {
