@@ -1792,7 +1792,7 @@ def aberration(tensor, shape, displacement=.005):
             _x_index = x_index
 
         else:
-            _x_index = (x_index + int(-displacement_pixels * (i - 1))) % width
+            _x_index = tf.minimum(tf.maximum(x_index + int(-displacement_pixels * (i - 1)), 0), 1)
 
         _x_index = tf.cast(_x_index, tf.float32)
 
