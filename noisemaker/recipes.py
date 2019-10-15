@@ -207,19 +207,25 @@ def crt(tensor, shape):
     distortion = basic(3, value_shape)
     distortion_amount = .25
 
+    mask = tf.pow(effects.singularity(None, value_shape), 4)
+    mask = effects.offset(mask, value_shape, int(width * .5), int(height * .5))
+
+    distortion *= mask
+
     white_noise = basic(int(height * .75), value_shape, spline_order=0) - .5
-    white_noise = effects.center_mask(white_noise, effects.refract(white_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
+    # white_noise = effects.refract(white_noise, value_shape, distortion_amount, reference_x=distortion)
 
     white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
-    white_noise2 = effects.center_mask(white_noise2, effects.refract(white_noise2, value_shape, distortion_amount, reference_x=distortion), value_shape)
+    # white_noise2 = effects.refract(white_noise2, value_shape, distortion_amount, reference_x=distortion)
 
     tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .333)
 
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
-    scan_noise = effects.center_mask(scan_noise, effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion), value_shape)
 
     tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
+
+    tensor = effects.refract(tensor, value_shape, distortion_amount, reference_x=distortion)
 
     if channels == 3:
         tensor = tf.image.random_hue(tensor, .125)

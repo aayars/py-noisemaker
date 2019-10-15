@@ -1783,6 +1783,8 @@ def aberration(tensor, shape, displacement=.005):
     else:
         color_shifted = tensor
 
+    mask = tf.squeeze(tf.pow(singularity(None, [shape[0], shape[1], 1]), 3))
+
     for i in range(channels):
         # Left and right neighbor pixels
         if i == 1:
@@ -1791,16 +1793,19 @@ def aberration(tensor, shape, displacement=.005):
 
         else:
             _x_index = (x_index + int(-displacement_pixels * (i - 1))) % width
-            _x_index = tf.cast(_x_index, tf.float32)
+
+        _x_index = tf.cast(_x_index, tf.float32)
 
         # Left and right image sides
         if i == 0:
             # Left (red)
-            _x_index = tf.cast(blend_cosine(_x_index, x_index_float, gradient), tf.int32)
+            _x_index = blend(_x_index, x_index_float, gradient)
 
         elif i == 2:
             # Right (blue)
-            _x_index = tf.cast(blend_cosine(x_index_float, _x_index, gradient), tf.int32)
+            _x_index = blend(x_index_float, _x_index, gradient)
+
+        _x_index = tf.cast(blend(tf.cast(x_index, tf.float32), _x_index, mask), tf.int32)
 
         separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
 
@@ -1809,7 +1814,7 @@ def aberration(tensor, shape, displacement=.005):
     if channels == 3:
         joined = tf.image.adjust_hue(joined, -shift)
 
-    return center_mask(tensor, joined, shape)
+    return joined
 
 
 def bloom(tensor, shape, alpha=.5):
