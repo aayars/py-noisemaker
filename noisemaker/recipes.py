@@ -222,10 +222,10 @@ def crt(tensor, shape):
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
-    tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
+    scan_noise = effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion)
+    scan_noise = effects.offset(scan_noise, value_shape, int(width * .5), int(height * .5))
 
-    tensor = effects.refract(tensor, shape, distortion_amount, reference_x=distortion)
-    tensor = effects.offset(tensor, shape, int(width * .5), int(height * .5))
+    tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
 
     if channels == 3:
         tensor = tf.image.random_hue(tensor, .125)
