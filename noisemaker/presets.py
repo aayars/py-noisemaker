@@ -45,7 +45,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_interp": 0,
     },
 
-    "crt": lambda: extend("aberration", "snow", {
+    "crt": lambda: extend("snow", {
         "with_crt": True,
         "with_scan_error": random.randint(0, 1),
     }),
@@ -381,6 +381,16 @@ _PRESETS = lambda: {  # noqa: E731
         "mask": "white_bear",
         "rgb": random.randint(0, 1),
         "with_vhs": random.randint(0, 1),
+    }),
+
+    "aesthetic": lambda: extend("be-kind-rewind", {
+        "corners": True,
+        "deriv": random.randint(0, 1),
+        "distrib": random_member(["column_index", "ones", "row_index"]),
+        "freq": random.randint(3, 5) * 2,
+        "mask": "chess",
+        "spline_order": 0,
+        "with_pre_spatter": True,
     }),
 
     "alien-terrain-multires": lambda: extend("bloom", "maybe-invert", "multires", {

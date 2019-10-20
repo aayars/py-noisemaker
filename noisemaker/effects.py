@@ -336,10 +336,15 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     half_height = tf.cast(height / 2, tf.int32)
     half_width = tf.cast(width / 2, tf.int32)
 
-    out = tf.tile(tensor, [3, 3, 1])  # Tile 3x3
-    out = out[half_height:height * 2 + half_height, half_width:width * 2 + half_width]  # Center Crop 2x2
+    double_shape = [height * 2, width * 2, channels]
+
+    out = tf.tile(tensor, [2, 2, 1])  # Tile 2x2
+
+    out = offset(out, double_shape, half_width, half_height)
+
     out = tf.nn.depthwise_conv2d([out], kernel_values, [1, 1, 1, 1], "VALID")[0]
-    out = out[half_height:height + half_height, half_width:width + half_width]  # Center Crop 1x1
+
+    out = tf.image.resize_image_with_crop_or_pad(out, height, width)
 
     if with_normalize:
         out = normalize(out)

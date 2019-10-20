@@ -15,7 +15,7 @@ import noisemaker.masks as masks
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, with_moirio=False,
-                 with_spatter=False, **_):
+                 with_pre_spatter=False, with_spatter=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -38,9 +38,13 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_fibers: Old-timey paper fibers
     :param bool with_texture: Bumpy canvas
     :param bool with_moirio: Hex grid interference pattern
+    :param bool with_pre_spatter: Spatter mask (early pass)
     :param bool with_spatter: Spatter mask
     :return: Tensor
     """
+
+    if with_pre_spatter:
+        tensor = spatter(tensor, shape)
 
     if with_moirio:
         tensor = moirio(tensor, shape)
@@ -153,19 +157,21 @@ def vhs(tensor, shape):
 
     height, width, channels = shape
 
-    scan_noise = tf.reshape(basic([int(height * .5) + 1, int(width * .01) + 1], [height, width, 1]), [height, width])
-    white_noise = basic([int(height * .5) + 1, int(width * .1) + 1], [height, width, 1], spline_order=0)
+    # Generate scan noise
+    scan_noise = basic([int(height * .5) + 1, int(width * .05) + 1], [height, width, 1], spline_order=1)
 
     # Create horizontal offsets
-    grad = tf.maximum(basic([int(random.random() * 10) + 5, 1], [height, width, 1]) - .5, 0)
-    grad *= grad
-    grad = effects.normalize(grad)
-    grad = tf.reshape(grad, [height, width])
+    grad = basic([int(random.random() * 10) + 5, 1], [height, width, 1])
+    grad = tf.maximum(grad - .5, 0)
+    grad = tf.minimum(grad * 2, 1)
 
-    tensor = effects.blend_cosine(tensor, white_noise, tf.reshape(grad, [height, width, 1]) * .75)
+    x_index = effects.row_index(shape)
+    x_index -= tf.squeeze(tf.cast(scan_noise * width * tf.square(grad), tf.int32))
+    x_index = x_index % width
 
-    x_index = effects.row_index(shape) - tf.cast(grad * width * .125 + (scan_noise * width * .25 * grad * grad), tf.int32)
-    identity = tf.stack([effects.column_index(shape), x_index], 2) % width
+    tensor = effects.blend(tensor, scan_noise, grad)
+
+    identity = tf.stack([effects.column_index(shape), x_index], 2)
 
     tensor = tf.gather_nd(tensor, identity)
 
@@ -228,6 +234,7 @@ def crt(tensor, shape):
     tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
 
     if channels == 3:
+        tensor = effects.aberration(tensor, shape, .0075 + random.random() * .0075)
         tensor = tf.image.random_hue(tensor, .125)
         tensor = tf.image.adjust_saturation(tensor, 1.25)
 
@@ -572,7 +579,6 @@ def moirio(tensor, shape):
     return effects.blend(v1, v2, .5)
 
 
-
 def spatter(tensor, shape):
     """
     """
@@ -581,10 +587,11 @@ def spatter(tensor, shape):
 
     # Generate a smear
     smear = multires(random.randint(2, 4), value_shape, distrib="exp",
-                     ridges=True, octaves=6)
+                     ridges=True, octaves=6, spline_order=1)
 
     smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
-                         octaves=random.randint(1, 2), displacement=1.0 + random.random())
+                         octaves=random.randint(1, 2), displacement=1.0 + random.random(),
+                         spline_order=1)
 
     # Add spatter dots
     smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, distrib="exp",
