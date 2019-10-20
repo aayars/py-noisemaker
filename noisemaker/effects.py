@@ -1793,7 +1793,7 @@ def aberration(tensor, shape, displacement=.005):
 
         elif i == 2:
             # Right (blue)
-            _x_index = tf.minimum(x_index + displacement_pixels, width)
+            _x_index = tf.minimum(x_index + displacement_pixels, width - 1)
 
         _x_index = tf.cast(_x_index, tf.float32)
 
@@ -1804,11 +1804,10 @@ def aberration(tensor, shape, displacement=.005):
 
         elif i == 2:
             # Right (blue)
-            # _x_index = blend_cosine(x_index_float, _x_index, gradient)
-            pass
+            _x_index = blend_cosine(x_index_float, _x_index, gradient)
 
         # Fade effect towards center
-        _x_index = tf.cast(blend(x_index_float, _x_index, mask), tf.int32)
+        _x_index = tf.cast(blend_cosine(x_index_float, _x_index, mask), tf.int32)
 
         separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
 

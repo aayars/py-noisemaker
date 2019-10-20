@@ -205,7 +205,7 @@ def crt(tensor, shape):
     value_shape = [height, width, 1]
 
     distortion = basic(3, value_shape)
-    distortion_amount = .25
+    distortion_amount = .125
 
     mask = tf.pow(effects.singularity(None, value_shape), 4)
 
