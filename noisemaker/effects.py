@@ -1767,7 +1767,7 @@ def aberration(tensor, shape, displacement=.005):
 
     height, width, channels = shape
 
-    if channels != 3:
+    if channels != 3:  # aye cannit doit
         return tensor
 
     x_index = row_index(shape)
@@ -1775,53 +1775,52 @@ def aberration(tensor, shape, displacement=.005):
 
     x_index_float = tf.cast(x_index, tf.float32)
 
-    gradient = normalize(x_index_float)
-
     separated = []
 
     displacement_pixels = int(width * displacement)
 
-    shift = random.random() - .5
-    color_shifted = tf.image.adjust_hue(tensor, shift)
+    mask = tf.pow(tf.squeeze(singularity(None, [shape[0], shape[1], 1])), 3)
 
-    mask = tf.squeeze(tf.pow(singularity(None, [shape[0], shape[1], 1]), 3))
+    gradient = normalize(x_index_float)
+
+    shift = random.random() * .1 - .05
+    tensor = tf.image.adjust_hue(tensor, shift)
 
     for i in range(channels):
         # Left and right neighbor pixels
         if i == 0:
             # Left (red)
-            _x_index = tf.maximum(x_index - displacement_pixels, 0)
+            offset_x_index = tf.minimum(x_index + displacement_pixels, width - 1)
 
         elif i == 1:
             # Center (green)
-            _x_index = x_index
+            offset_x_index = x_index
 
         elif i == 2:
             # Right (blue)
-            _x_index = tf.minimum(x_index + displacement_pixels, width - 1)
+            offset_x_index = tf.maximum(x_index - displacement_pixels, 0)
 
-        _x_index = tf.cast(_x_index, tf.float32)
+        # return tf.expand_dims(offset_x_index, axis=2)
+        offset_x_index = tf.cast(offset_x_index, tf.float32)
 
         # Left and right image sides
         if i == 0:
             # Left (red)
-            _x_index = blend_cosine(_x_index, x_index_float, gradient)
+            offset_x_index = blend(offset_x_index, x_index_float, gradient)
 
         elif i == 2:
             # Right (blue)
-            _x_index = blend_cosine(x_index_float, _x_index, gradient)
+            offset_x_index = blend(x_index_float, offset_x_index, gradient)
 
         # Fade effect towards center
-        _x_index = tf.cast(blend_cosine(x_index_float, _x_index, mask), tf.int32)
+        offset_x_index = tf.cast(blend_cosine(x_index_float, offset_x_index, mask), tf.int32)
 
-        separated.append(tf.gather_nd(color_shifted[:, :, i], tf.stack([y_index, _x_index], 2)))
+        separated.append(tf.gather_nd(tensor[:, :, i], tf.stack([y_index, offset_x_index], 2)))
 
-    joined = tf.stack(separated, 2)
+    tensor = tf.stack(separated, 2)
 
     # Restore original colors
-    joined = tf.image.adjust_hue(joined, -shift)
-
-    return joined
+    return tf.image.adjust_hue(tensor, -shift)
 
 
 def bloom(tensor, shape, alpha=.5):
