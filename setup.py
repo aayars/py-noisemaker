@@ -24,7 +24,7 @@ setup(name='noisemaker',
 
       install_requires=[
         "click==6.7",
-        "Pillow==4.1.1",
+        "Pillow==6.2.0",
         "wheel==0.26",  # Needed by TF
         ]
       )
