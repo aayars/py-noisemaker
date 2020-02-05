@@ -202,7 +202,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
-             hue_distrib=None, saturation_distrib=None, brightness_distrib=None,
+             hue_distrib=None, saturation_distrib=None, brightness_distrib=None, reduce_max=False,
              **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
@@ -244,6 +244,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param None|ValueDistribution hue_distrib: Override ValueDistribution for HSV hue
     :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
+    :param bool reduce_max: If True, accumulate max values across all octaves
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -269,7 +270,10 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
                       )
 
-        tensor += layer / multiplier
+        if reduce_max:
+            tensor = tf.maximum(tensor, layer)
+        else:
+            tensor += layer / multiplier
 
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,

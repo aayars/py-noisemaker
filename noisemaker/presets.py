@@ -1117,6 +1117,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .75 + random.random() * .25,
     }),
 
+    "glyphic": lambda: extend("value-mask", {
+        "freq": random.randint(3, 5),
+        "mask": random_member(ValueMask.procedural_members()),
+        "octaves": random.randint(3, 5),
+        "posterize_levels": 1,
+        "reduce_max": True,
+        "saturation": 0,
+        "spline_order": 2,
+    }),
+
     "graph-paper": lambda: extend("bloom", "crt", "sobel", {
         "corners": True,
         "distrib": "ones",
