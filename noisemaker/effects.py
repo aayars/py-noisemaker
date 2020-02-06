@@ -358,18 +358,24 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     return blend(tensor, out, alpha)
 
 
-def normalize(tensor):
+def normalize(tensor, extend_range=False):
     """
     Squeeze the given Tensor into a range between 0 and 1.
 
     :param Tensor tensor: An image tensor.
+    :param bool extend_range: Use a range between -1 and 1.
     :return: Tensor
     """
 
     floor = tf.reduce_min(tensor)
     ceil = tf.reduce_max(tensor)
 
-    return (tensor - floor) / (ceil - floor)
+    values = (tensor - floor) / (ceil - floor)
+
+    if extend_range:
+        values = values * 2.0 - 1.0
+
+    return values
 
 
 def resample(tensor, shape, spline_order=3):
@@ -645,8 +651,9 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             x0_index += int(width * .5)
             reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
 
-    reference_x = value_map(reference_x, shape) * displacement * width
-    reference_y = value_map(reference_y, shape) * displacement * height
+    # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1)
+    reference_x = value_map(reference_x, shape, extend_range=True) * displacement * width
+    reference_y = value_map(reference_y, shape, extend_range=True) * displacement * height
 
     # Bilinear interpolation of midpoints
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
@@ -1004,17 +1011,20 @@ def normal_map(tensor, shape):
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
 
-def value_map(tensor, shape, keep_dims=False):
+def value_map(tensor, shape, keep_dims=False, extend_range=False):
     """
     Create a grayscale value map from the given image Tensor by reducing the sum across channels.
+
+    Return value ranges between 0 and 1.
 
     :param Tensor tensor:
     :param list[int] shape:
     :param bool keep_dims: If True, don't collapse the channel dimension.
+    :param bool extend_range: If True, use an extended value range between -1 and 1.
     :return: Tensor of shape (height, width), or (height, width, channels) if keep_dims was True.
     """
 
-    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims))
+    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims), extend_range=extend_range)
 
 
 def density_map(tensor, shape):
