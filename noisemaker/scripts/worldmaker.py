@@ -20,14 +20,14 @@ FREQ = 3
 SATURATION = .333
 OCTAVES = 8
 
-CONTROL_FILENAME = "worldmaker-control.png"
-LOW_FILENAME = "worldmaker-lowland.png"
-MID_FILENAME = "worldmaker-midland.png"
-HIGH_FILENAME = "worldmaker-highland.png"
+CONTROL_FILENAME = "worldmaker/control.png"
+LOW_FILENAME = "worldmaker/lowland.png"
+MID_FILENAME = "worldmaker/midland.png"
+HIGH_FILENAME = "worldmaker/highland.png"
 
-BLENDED_FILENAME = "worldmaker-blended.png"
+BLENDED_FILENAME = "worldmaker/blended.png"
 
-FINAL_FILENAME = "worldmaker.png"
+FINAL_FILENAME = "worldmaker/worldmaker.png"
 
 
 @click.group()
