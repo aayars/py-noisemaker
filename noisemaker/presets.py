@@ -45,9 +45,8 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_interp": 0,
     },
 
-    "crt": lambda: extend("snow", {
+    "crt": lambda: extend("scanline-error", "snow", {
         "with_crt": True,
-        "with_scan_error": random.randint(0, 1),
     }),
 
     "density-map": lambda: extend("invert", "dither", {
@@ -203,6 +202,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "ripple_range": .125 + random.random() * .5,
     },
 
+    "scanline-error": lambda: {
+        "with_scan_error": True,
+    },
+
     "scuff": lambda: {
         "with_scratches": True,
     },
@@ -223,7 +226,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "snow": lambda: {
-        "with_snow": .25 + random.random() * .75,
+        "with_snow": .5 + random.random() * .5,
     },
 
     "sobel": lambda: extend("maybe-invert", {
@@ -848,12 +851,11 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_kink": 6.36,
     },
 
-    "eat-static": lambda: extend("be-kind-rewind", {
+    "eat-static": lambda: extend("be-kind-rewind", "scanline-error", {
         "distrib": "uniform",
         "freq": 512,
         "saturation": 0,
         "wavelet": True,
-        "with_scan_error": True,
     }),
 
     "electric-worms": lambda: extend("bloom", "density-map", "voronoi", "worms", {

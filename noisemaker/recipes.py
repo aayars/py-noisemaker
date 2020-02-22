@@ -220,7 +220,7 @@ def crt(tensor, shape):
     distortion_y *= mask
 
     # Horizontal scanlines
-    scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .25) or 1, width, 1])
+    scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .125) or 1, width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
     distortion_amount = .125
