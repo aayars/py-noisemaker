@@ -181,11 +181,11 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "reflect-domain-warp": lambda: {
-        "reflect_range": .125 + random.random() * 2.5,
+        "reflect_range": .05 + random.random() * 1.25,
     },
 
     "refract-domain-warp": lambda: {
-        "refract_range": .125 + random.random() * 2.5,
+        "refract_range": .125 + random.random() * 1.25,
     },
 
     "reindex": lambda: {
@@ -313,7 +313,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_corners": True,
         "point_distrib": "circular",
         "point_freq": random.randint(3, 5) * 2,
-        "reflect_range": 4,
+        "reflect_range": 2,
         "rgb": True,
         "voronoi_alpha": .5 + random.random() * .5,
         "with_bloom": False,
@@ -347,7 +347,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 0,
         "mask": "sparse",
         "post_saturation": .25,
-        "reflect_range": .75 + random.random() * .75,
+        "reflect_range": .375 + random.random() * .375,
         "ridges": random.randint(0, 1),
         "saturation": 1.5,
         "with_shadow": 1,
@@ -458,7 +458,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_generations": 2,
         "point_distrib": "circular",
         "posterize_levels": random.randint(6, 18),
-        "reflect_range": random.random() * 2,
+        "reflect_range": random.random(),
         "spline_order": 0,
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(2, 4),
@@ -536,7 +536,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "branemelt": lambda: extend("multires", {
         "freq": random.randint(6, 12),
-        "post_reflect_range": .075 + random.random() * .025,
+        "post_reflect_range": .0375 + random.random() * .025,
         "sin": random.randint(32, 64),
     }),
 
@@ -603,7 +603,7 @@ _PRESETS = lambda: {  # noqa: E731
     "cell-reflect": lambda: extend("bloom", "dither", "maybe-invert", {
         "point_freq": random.randint(2, 3),
         "post_deriv": random.randint(1, 3),
-        "post_reflect_range": random.randint(2, 4),
+        "post_reflect_range": random.randint(2, 4) * .5,
         "post_saturation": .5,
         "voronoi_alpha": .333 + random.random() * .333,
         "voronoi_func": random.randint(1, 3),
@@ -625,7 +625,7 @@ _PRESETS = lambda: {  # noqa: E731
     "cell-refract-2": lambda: extend("bloom", "density-map", "voronoi", {
         "point_freq": random.randint(2, 3),
         "post_deriv": random.randint(0, 3),
-        "post_refract_range": random.randint(2, 4),
+        "post_refract_range": random.randint(1, 3),
         "post_saturation": .5,
         "voronoi_alpha": .333 + random.random() * .333,
         "with_voronoi": 2,
@@ -646,7 +646,7 @@ _PRESETS = lambda: {  # noqa: E731
     "chiral": lambda: extend("sobel", "symmetry", "voronoi", {
         "point_freq": 1,
         "post_reindex_range": .05,
-        "post_refract_range": random.randint(24, 48),
+        "post_refract_range": random.randint(18, 36),
         "voronoi_alpha": .95,
         "with_density_map": True,
         "with_voronoi": 6,
@@ -673,8 +673,8 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_rotation": .5125 + random.random() * .025,
         "lattice_drift": 1,
         "octaves": 4,
-        "reflect_range": .333 + random.random() * .333,
-        "refract_range": .5 + random.random() * .25,
+        "reflect_range": .16667 + random.random() * .16667,
+        "refract_range": .25 + random.random() * .125,
         "ripple_range": .01 + random.random() * .005,
         "ripple_kink": random.randint(2, 4),
         "ripple_freq": random.randint(2, 4),
@@ -777,7 +777,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "density-wave": lambda: extend("basic", {
         "corners": True,
-        "reflect_range": random.randint(4, 12),
+        "reflect_range": random.randint(2, 6),
         "saturation": 0,
         "with_density_map": True,
         "with_shadow": 1,
@@ -785,7 +785,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "different": lambda: extend("multires", {
         "freq": random.randint(8, 12),
-        "reflect_range": 1.5 + random.random(),
+        "reflect_range": .75 + random.random() * .5,
         "reindex_range": .25 + random.random() * .25,
         "sin": random.randint(15, 25),
         "warp_range": .075 * random.random() * .075,
@@ -831,7 +831,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "domain-warp": lambda: extend("multires-ridged", {
-        "post_refract_range": .5 + random.random() * .5,
+        "post_refract_range": .25 + random.random() * .25,
     }),
 
     "ears": lambda: {
@@ -946,7 +946,7 @@ _PRESETS = lambda: {  # noqa: E731
     "flowbie": lambda: extend("basic", "bloom", "wormhole", {
         "octaves": random.randint(1, 2),
         "with_worms": random.randint(1, 3),
-        "refract_range": random.randint(0, 3),
+        "refract_range": random.randint(0, 2),
         "wormhole_alpha": .333 + random.random() * .333,
         "wormhole_kink": .25 + random.random() * .25,
         "wormhole_stride": random.random() * 2.5,
@@ -956,7 +956,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "fossil-hunt": lambda: extend("dither", {
         "freq": random.randint(3, 5),
-        "refract_range": random.randint(4, 6),
+        "refract_range": random.randint(3, 5),
         "point_freq": 10,
         "posterize_levels": random.randint(3, 5),
         "post_saturation": .25,
@@ -1097,7 +1097,7 @@ _PRESETS = lambda: {  # noqa: E731
     "glass-onion": lambda: {
         "point_freq": random.randint(3, 6),
         "post_deriv": random.randint(1, 3),
-        "post_refract_range": .75 + random.random() * .5,
+        "post_refract_range": .5 + random.random() * .25,
         "voronoi_inverse": random.randint(0, 1),
         "with_reverb": random.randint(3, 5),
         "with_voronoi": 2,
@@ -1109,7 +1109,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": .25 + random.random() * .5,
         "lattice_drift": 1,
         "mask": "sparse",
-        "reflect_range": 1,
+        "reflect_range": .5,
         "saturation": .175 + random.random() * .175,
         "with_density_map": True,
         "with_shadow": 1,
@@ -1120,10 +1120,10 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": .25 + random.random() * .25,
         "lattice_drift": 1,
         "octaves": 2,
-        "post_reflect_range": random.randint(1, 2),
-        "post_refract_range": random.randint(1, 2),
-        "reflect_range": random.randint(1, 2) * .25,
-        "refract_range": random.randint(1, 2) * .25,
+        "post_reflect_range": random.randint(1, 2) * .5,
+        "post_refract_range": random.randint(1, 2) * .5,
+        "reflect_range": random.randint(1, 2) * .125,
+        "refract_range": random.randint(1, 2) * .125,
         "warp_range": .25 + random.random() * .25,
         "warp_octaves": 1,
         "with_shadow": .75 + random.random() * .25,
@@ -1231,7 +1231,7 @@ _PRESETS = lambda: {  # noqa: E731
         "erosion_worms_density": random.randint(5, 250),
         "erosion_worms_iterations": random.randint(50, 250),
         "hue_range": random.random(),
-        "refract_range": random.random() * 2,
+        "refract_range": random.random(),
         "ridges": random.randint(0, 1),
         "rgb": random.randint(0, 1),
         "saturation": random.random(),
@@ -1294,7 +1294,7 @@ _PRESETS = lambda: {  # noqa: E731
     "isoform": lambda: extend("bloom", "maybe-invert", "outline", {
         "hue_range": random.random(),
         "post_deriv": random.randint(0, 1) * random.randint(1, 3),
-        "post_refract_range": .25 + random.random() * .25,
+        "post_refract_range": .125 + random.random() * .125,
         "ridges": random.randint(0, 1),
         "voronoi_alpha": .75 + random.random() * .25,
         "voronoi_func": random.randint(2, 3),
@@ -1314,9 +1314,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "just-refracts-maam": lambda: extend("basic", {
         "corners": True,
-        "post_refract_range": random.randint(0, 1),
+        "post_refract_range": random.randint(0, 1) * random.random(),
         "post_ridges": random.randint(0, 1),
-        "refract_range": random.randint(4, 8),
+        "refract_range": random.randint(2, 4),
         "ridges": random.randint(0, 1),
         "with_shadow": random.randint(0, 1),
     }),
@@ -1528,7 +1528,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(1, 3) * 2,
         "mask": "waffle",
         "octaves": random.randint(1, 2),
-        "post_reflect_range": random.randint(0, 2),
+        "post_reflect_range": random.randint(0, 2) * .5,
         "reverb_ridges": False,
         "with_reverb": random.randint(4, 8),
     }),
@@ -1611,7 +1611,7 @@ _PRESETS = lambda: {  # noqa: E731
     "precision-error": lambda: extend("bloom", "invert", "symmetry", {
         "deriv": random.randint(1, 3),
         "post_deriv": random.randint(1, 3),
-        "reflect_range": .125 + random.random() * 4.0,
+        "reflect_range": .075 + random.random() * 2.0,
         "with_density_map": True,
         "with_shadow": 1,
     }),
@@ -1633,7 +1633,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 48,
         "mask": "invaders_square",
         "octaves": 2,
-        "refract_range": .5,
+        "refract_range": .25,
         "saturation": .125 + random.random() * .075,
         "spline_order": random.randint(1, 2),
         "posterize_levels": random.randint(4, 8),
@@ -1687,7 +1687,7 @@ _PRESETS = lambda: {  # noqa: E731
         "lattice_drift": 1,
         "octaves": random.randint(1, 3),
         "point_freq": random.randint(8, 10),
-        "post_reflect_range": random.randint(96, 192),
+        "post_reflect_range": random.randint(48, 96),
         "sin": random.random() * 10.0,
         "voronoi_alpha": .5 + random.random() * .5,
         "with_voronoi": 6,
@@ -1812,7 +1812,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 1.0 + random.random(),
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(4, 6),
-        "post_reflect_range": random.randint(8, 12),
+        "post_reflect_range": random.randint(4, 6),
         "post_ridges": True,
         "ridges": True,
         "voronoi_alpha": .25 + random.random() * .25,
@@ -1828,7 +1828,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 1.0 + random.random(),
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(4, 6),
-        "post_refract_range": random.randint(4, 8),
+        "post_refract_range": random.randint(2, 4),
         "post_ridges": True,
         "ridges": True,
         "voronoi_alpha": .25 + random.random() * .25,
@@ -1842,7 +1842,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "shatter": lambda: extend("basic", "maybe-invert", "outline", {
         "point_freq": random.randint(3, 6),
-        "post_refract_range": random.randint(3, 5),
+        "post_refract_range": random.randint(2, 4),
         "posterize_levels": random.randint(4, 6),
         "rgb": random.randint(0, 1),
         "voronoi_func": random_member([1, 3]),
@@ -1871,7 +1871,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(6, 12),
         "distrib": "ones",
         "mask": "script",
-        "reflect_range": 1,
+        "reflect_range": .5,
         "saturation": .06125 + random.random() * .125,
         "sin": random.random() * 4,
         "spline_order": random.randint(1, 3),
@@ -1946,8 +1946,8 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(20, 28),
         "hue_range": .225 + random.random() * .05,
         "hue_rotation": .975,
-        "reflect_range": .666 + random.random() * .333,
-        "refract_range": .666 + random.random() * .333,
+        "reflect_range": .333 + random.random() * .16667,
+        "refract_range": .333 + random.random() * .16667,
         "saturation": 4 + random.random() * 2.5,
         "sin": 3,
         "warp_range": .2 + random.random() * .1,
@@ -1956,7 +1956,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "soup": lambda: extend("bloom", "density-map", {
         "point_freq": random.randint(2, 4),
-        "post_refract_range": random.randint(8, 12),
+        "post_refract_range": random.randint(4, 6),
         "voronoi_inverse": True,
         "with_shadow": 1.0,
         "with_voronoi": 6,
@@ -2010,7 +2010,7 @@ _PRESETS = lambda: {  # noqa: E731
     "spiraltown": lambda: extend("wormhole", {
         "freq": 2,
         "hue_range": 1,
-        "reflect_range": random.randint(3, 6),
+        "reflect_range": random.randint(3, 6) * .5,
         "spline_order": random.randint(1, 3),
         "wormhole_kink": random.randint(5, 20),
         "wormhole_stride": random.random() * .05,
@@ -2033,7 +2033,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 2,
         "hue_range": random.random() * 2.0,
         "point_freq": 10,
-        "reflect_range": random.random() + .5,
+        "reflect_range": random.random() + .25,
         "spline_order": 2,
         "voronoi_refract": random.randint(2, 4),
         "with_voronoi": 6,
@@ -2128,9 +2128,9 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "time-to-reflect": lambda: extend("symmetry", {
-        "post_reflect_range": random.randint(0, 1),
+        "post_reflect_range": random.randint(0, 1) * .5,
         "post_ridges": random.randint(0, 1),
-        "reflect_range": random.randint(7, 14),
+        "reflect_range": random.randint(7, 14) * .5,
         "ridges": random.randint(0, 1),
         "with_shadow": random.randint(0, 1),
     }),
@@ -2140,7 +2140,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 0,
         "mask": "sparse",
         "octaves": random.randint(1, 3),
-        "reflect_range": random.randint(0, 1) * random.random() * 4,
+        "reflect_range": random.randint(0, 1) * random.random() * 2,
         "spline_order": random.randint(1, 3),
         "with_worms": 1,
         "worms_alpha": 1,
@@ -2243,7 +2243,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 2.5,
         "lattice_drift": 1,
         "post_contrast": 1.5,
-        "reflect_range": .25 + random.random() * .125,
+        "reflect_range": .125 + random.random() * .075,
         "ripple_freq": [random.randint(12, 64), random.randint(12, 64)],
         "ripple_kink": .5 + random.random() * .25,
         "ripple_range": .25 + random.random() * .125,
@@ -2282,7 +2282,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 2,
         "hue_range": random.randint(0, 3),
         "octaves": random.randint(1, 2),
-        "reflect_range": random.randint(6, 8),
+        "reflect_range": random.randint(6, 8) * .5,
         "spline_order": random.randint(2, 3),
         "wormhole_stride": random.random() * .0125,
     }),
@@ -2390,7 +2390,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(2, 3),
         "point_generations": 2,
         "reverb_iterations": random.randint(1, 2),
-        "refract_range": random.randint(0, 2),
+        "refract_range": random.randint(0, 1) * random.random(),
         "voronoi_func": 3,
         "voronoi_nth": random.randint(1, 3),
         "voronoi_alpha": .5 + random.random() * .5,
