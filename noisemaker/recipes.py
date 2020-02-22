@@ -210,24 +210,22 @@ def crt(tensor, shape):
 
     value_shape = [height, width, 1]
 
-    # Displacement values to make it wavy towards the edges
-    distortion_x = basic(3, value_shape)
-    distortion_y = basic(3, value_shape)
-
+    # CRT lens shape
     mask = tf.pow(effects.singularity(None, value_shape), 4)  # Power of 4 to obscure center pinch
 
-    distortion_x *= mask
-    distortion_y *= mask
+    # Displacement values to make it wavy towards the edges
+    distortion_x = basic(2, value_shape, spline_order=2) * mask
+    distortion_y = basic(2, value_shape, spline_order=2) * mask
 
     # Horizontal scanlines
-    scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .125) or 1, width, 1])
+    scan_noise = tf.tile(basic([2, 1], [2, 1, 1], spline_order=0), [int(height * .125) or 1, width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
     distortion_amount = .125
     scan_noise = effects.refract(scan_noise, value_shape, distortion_amount,
                                  reference_x=distortion_x, reference_y=distortion_y, extend_range=False)
 
-    tensor = effects.blend(tensor, scan_noise, 0.25)
+    tensor = effects.blend(tensor, scan_noise, 0.125)
 
     if channels == 3:
         tensor = effects.aberration(tensor, shape, .0075 + random.random() * .0075)
