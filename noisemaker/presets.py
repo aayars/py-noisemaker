@@ -41,7 +41,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "corrupt": lambda: {
         "warp_freq": [random.randint(2, 4), random.randint(1, 3)],
         "warp_octaves": random.randint(2, 4),
-        "warp_range": .025 + random.random() * .125,
+        "warp_range": .0125 + random.random() * .05,
         "warp_interp": 0,
     },
 
@@ -87,7 +87,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_interp": 3,
         "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
         "warp_octaves": random.randint(1, 4),
-        "warp_range": .25 + random.random() * .5,
+        "warp_range": .125 + random.random() * .25,
     },
 
     "glitchin-out": lambda: extend("bloom", "corrupt", "crt", {
@@ -141,7 +141,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "octave-warp": lambda: extend("bloom", {
-        "warp_range": random.randint(3, 5),
+        "warp_range": random.randint(3, 5) * .5,
         "warp_octaves": 3,
         "warp_freq": random.randint(2, 4),
         "with_shadow": random.random(),
@@ -256,14 +256,14 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_freq": [random.randint(2, 5), 1],
         "warp_interp": 3,
         "warp_octaves": 1,
-        "warp_range": 1.0 + random.random(),
+        "warp_range": .5 + random.random() * .5,
     },
 
     "swerve-v": lambda: {
         "warp_freq": [1, random.randint(2, 5)],
         "warp_interp": 3,
         "warp_octaves": 1,
-        "warp_range": 1.0 + random.random(),
+        "warp_range": .5 + random.random() * .5,
     },
 
     "tensor-tone": lambda: {
@@ -477,7 +477,7 @@ _PRESETS = lambda: {  # noqa: E731
     "band-together": lambda: {
         "freq": random.randint(6, 12),
         "reindex_range": random.randint(8, 12),
-        "warp_range": 1,
+        "warp_range": .5,
         "warp_octaves": 8,
         "warp_freq": 2,
         "with_shadow": .25 + random.random() * .25,
@@ -486,7 +486,7 @@ _PRESETS = lambda: {  # noqa: E731
     "benny-lava": lambda: extend("distressed", {
         "distrib": "column_index",
         "posterize_levels": 1,
-        "warp_range": 2 + random.random(),
+        "warp_range": 1 + random.random() * .5,
     }),
 
     "berkeley": lambda: extend("multires-ridged", {
@@ -521,7 +521,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": 1.0 + random.random() * 2.5,
         "with_sobel": 1,
         "warp_octaves": random.randint(1, 4),
-        "warp_range": random.randint(0, 1) * random.random() * 2.0,
+        "warp_range": random.randint(0, 1) * random.random(),
     }),
 
     "blobby": lambda: extend("funhouse", "invert", "reverb", "outline", {
@@ -566,7 +566,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 0.5,
         "voronoi_refract": random.randint(0, 1) * random.random(),
         "warp_octaves": 1,
-        "warp_range": random.random() * .5,
+        "warp_range": random.random() * .25,
         "with_voronoi": 5,
     }),
 
@@ -687,7 +687,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ripple_range": .01 + random.random() * .005,
         "ripple_kink": random.randint(2, 4),
         "ripple_freq": random.randint(2, 4),
-        "warp_range": .125 + random.random() * .125,
+        "warp_range": .0625 + random.random() * .0625,
         "warp_freq": random.randint(2, 3),
     }),
 
@@ -775,7 +775,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": 5,
         "reduce_max": True,
         "refract_range": 0.25,
-        "warp_range": .25,
+        "warp_range": .125,
     }),
 
     "defocus": lambda: extend("bloom", "multires", {
@@ -797,7 +797,7 @@ _PRESETS = lambda: {  # noqa: E731
         "reflect_range": .75 + random.random() * .5,
         "reindex_range": .25 + random.random() * .25,
         "sin": random.randint(15, 25),
-        "warp_range": .075 * random.random() * .075,
+        "warp_range": .0375 * random.random() * .0375,
     }),
 
     "diffusion-feedback": lambda: extend("aberration", "bloom", "sobel", {
@@ -900,7 +900,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": random.randint(2, 3),
         "warp_freq": 2,
         "warp_octaves": 1,
-        "warp_range": random.randint(1, 4),
+        "warp_range": random.randint(1, 4) * .5,
         "with_shadow": 1,
     }),
 
@@ -1132,7 +1132,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": random.randint(1, 2) * .5,
         "reflect_range": random.randint(1, 2) * .125,
         "refract_range": random.randint(1, 2) * .125,
-        "warp_range": .25 + random.random() * .25,
+        "warp_range": .125 + random.random() * .125,
         "warp_octaves": 1,
         "with_shadow": .75 + random.random() * .25,
     }),
@@ -1165,7 +1165,7 @@ _PRESETS = lambda: {  # noqa: E731
     "gravy": lambda: extend("bloom", "value-mask", {
         "freq": 24 * random.randint(2, 6),
         "post_deriv": 2,
-        "warp_range": .25 + random.random() * .5,
+        "warp_range": .125 + random.random() * .25,
         "warp_octaves": 3,
         "warp_freq": random.randint(2, 4),
         "warp_interp": 3,
@@ -1349,7 +1349,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": random.randint(2, 4),
         "warp_interp": 3,
         "warp_octaves": 2,
-        "warp_range": .25 + random.random() * .125,
+        "warp_range": .125 + random.random() * .0625,
         "with_glowing_edges": 1,
         "with_voronoi": 6,
     }),
@@ -1516,14 +1516,14 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": random.randint(2, 4),
         "warp_interp": 3,
         "warp_octaves": 1,
-        "warp_range": .075 + random.random() * .075,
+        "warp_range": .0375 + random.random() * .0375,
         "with_voronoi": 6,
     }),
 
     "numberwang": lambda: extend("bloom", "value-mask", {
         "freq": 6 * random.randint(15, 30),
         "mask": "numeric",
-        "warp_range": .5 + random.random() * 1.5,
+        "warp_range": .25 + random.random() * .75,
         "warp_freq": random.randint(2, 4),
         "warp_interp": 3,
         "warp_octaves": 1,
@@ -1587,7 +1587,7 @@ _PRESETS = lambda: {  # noqa: E731
         "mask": "chess",
         "spline_order": random.randint(1, 3),
         "warp_freq": random.randint(2, 3),
-        "warp_range": random.random() * .25,
+        "warp_range": random.random() * .125,
         "warp_octaves": 1,
     }),
 
@@ -1613,7 +1613,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": 2,
         "posterize_levels": 4,
         "warp_octaves": 8,
-        "warp_range": 1,
+        "warp_range": .5,
     }),
 
     "precision-error": lambda: extend("bloom", "invert", "symmetry", {
@@ -1634,7 +1634,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "warp_freq": random.randint(2, 5),
         "warp_interp": 2,
-        "warp_range": .5 + random.random(),
+        "warp_range": .25 + random.random(),
     }),
 
     "prophesy": lambda: extend("invert", "value-mask", {
@@ -1671,7 +1671,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "warp_freq": random.randint(3, 5),
         "warp_octaves": random.randint(3, 5),
-        "warp_range": .25 + random.random() * .125,
+        "warp_range": .125 + random.random() * .0625,
     }),
 
     "redmond": lambda: extend("bloom", "maybe-invert", "snow", "voronoi", {
@@ -1824,7 +1824,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_ridges": True,
         "ridges": True,
         "voronoi_alpha": .25 + random.random() * .25,
-        "warp_range": .5,
+        "warp_range": .25,
         "warp_octaves": 6,
         "with_glowing_edges": 1,
         "with_reverb": 1,
@@ -1840,7 +1840,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_ridges": True,
         "ridges": True,
         "voronoi_alpha": .25 + random.random() * .25,
-        "warp_range": .5,
+        "warp_range": .25,
         "warp_octaves": 6,
         "with_glowing_edges": 1,
         "with_reverb": 1,
@@ -1872,7 +1872,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": 3,
         "warp_interp": 3,
         "warp_octaves": 1,
-        "warp_range": 2,
+        "warp_range": 1,
     }),
 
     "sideways": lambda: extend("bloom", "crt", "multires-low", "pixel-sort", {
@@ -1918,7 +1918,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ripple_range": .025 + random.random() * .0333,
         "voronoi_alpha": .5 + random.random() * .333,
         "voronoi_refract": random.randint(3, 5),
-        "warp_range": .075 + random.random() * .075,
+        "warp_range": .0375 + random.random() * .0375,
         "with_voronoi": 2,
     },
 
@@ -1958,7 +1958,7 @@ _PRESETS = lambda: {  # noqa: E731
         "refract_range": .333 + random.random() * .16667,
         "saturation": 4 + random.random() * 2.5,
         "sin": 3,
-        "warp_range": .2 + random.random() * .1,
+        "warp_range": .1 + random.random() * .05,
         "warp_freq": 2,
     }),
 
@@ -2187,7 +2187,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 0.5 + random.random() * .25,
         "warp_freq": random.randint(2, 4),
         "warp_octaves": random.randint(2, 4),
-        "warp_range": 0.05 + random.random() * .01,
+        "warp_range": 0.025 + random.random() * .005,
         "with_voronoi": 5,
         "with_worms": 3,
         "worms_alpha": .75 + random.random() * .25,
@@ -2204,7 +2204,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": .375 + random.random() * .15,
         "warp_octaves": random.randint(1, 2),
         "warp_freq": random.randint(2, 3),
-        "warp_range": 0.05 + random.random() * .1,
+        "warp_range": 0.025 + random.random() * .05,
         "with_worms": 3,
         "worms_alpha": .875 + random.random() * .125,
         "worms_density": 750,
@@ -2314,7 +2314,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(6, 10),
         "post_ridges": True,
         "voronoi_alpha": .333 + random.random() * .333,
-        "warp_range": .5 + random.random() * .5,
+        "warp_range": .25 + random.random() * .25,
         "with_voronoi": 2,
     }),
 
@@ -2327,13 +2327,13 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "warp_interp": random.randint(1, 3),
         "warp_freq": random.randint(2, 4),
-        "warp_range": .25 + random.random() * .75,
+        "warp_range": .125 + random.random() * .375,
         "warp_octaves": 1,
     }),
 
     "watercolor": lambda: {
         "post_saturation": .333,
-        "warp_range": 1,
+        "warp_range": .5,
         "warp_octaves": 8,
         "with_fibers": True,
         "with_texture": True,
@@ -2357,7 +2357,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 0.25 + random.random() * .5,
         "voronoi_nth": random.randint(1, 5),
         "warp_octaves": random.randint(1, 3),
-        "warp_range": random.randint(0, 1) * random.random() * .5,
+        "warp_range": random.randint(0, 1) * random.random() * .25,
         "with_voronoi": 5,
     }),
 
@@ -2369,7 +2369,7 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": True,
         "ridges": True,
         "warp_octaves": 2,
-        "warp_range": .05,
+        "warp_range": .025,
     }),
 
     "woahdude-voronoi-refract": lambda: {
@@ -2386,7 +2386,7 @@ _PRESETS = lambda: {  # noqa: E731
     "woahdude-octave-warp": lambda: extend("basic", "bloom", {
         "hue_range": random.random() * 3.0,
         "sin": random.randint(5, 15),
-        "warp_range": random.randint(3, 5),
+        "warp_range": random.randint(3, 5) * .5,
         "warp_octaves": 3,
         "with_shadow": random.random(),
     }),
