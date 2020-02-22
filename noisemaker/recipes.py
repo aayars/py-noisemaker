@@ -210,28 +210,24 @@ def crt(tensor, shape):
 
     value_shape = [height, width, 1]
 
-    distortion = basic(3, value_shape)
-    distortion_amount = .125
+    # Displacement values to make it wavy towards the edges
+    distortion_x = basic(3, value_shape)
+    distortion_y = basic(3, value_shape)
 
-    mask = tf.pow(effects.singularity(None, value_shape), 4)
+    mask = tf.pow(effects.singularity(None, value_shape), 4)  # Power of 4 to obscure center pinch
 
-    distortion *= mask
+    distortion_x *= mask
+    distortion_y *= mask
 
-    white_noise = basic(int(height * .75), value_shape, spline_order=0) - .5
-    # white_noise = effects.refract(white_noise, value_shape, distortion_amount, reference_x=distortion)
-
-    white_noise2 = basic([int(height * .5), int(width * .25)], value_shape)
-    # white_noise2 = effects.refract(white_noise2, value_shape, distortion_amount, reference_x=distortion)
-
-    tensor = effects.blend_cosine(tensor, white_noise, white_noise2 * .333)
-
-    scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .333), width, 1])
+    # Horizontal scanlines
+    scan_noise = tf.tile(basic([2, 1], [2, 1, 1]), [int(height * .25) or 1, width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
-    scan_noise = effects.refract(scan_noise, value_shape, distortion_amount, reference_x=distortion)
-    scan_noise = effects.offset(scan_noise, value_shape, int(width * .5), int(height * .5))
+    distortion_amount = .125
+    scan_noise = effects.refract(scan_noise, value_shape, distortion_amount,
+                                 reference_x=distortion_x, reference_y=distortion_y, extend_range=False)
 
-    tensor = effects.blend_cosine(tensor, scan_noise, 0.333)
+    tensor = effects.blend(tensor, scan_noise, 0.25)
 
     if channels == 3:
         tensor = effects.aberration(tensor, shape, .0075 + random.random() * .0075)
@@ -276,10 +272,10 @@ def snow(tensor, shape, amount):
 
     height, width, channels = shape
 
-    white_noise_1 = basic([height, width], [height, width, 1], wavelet=True, refract_range=10)
-    white_noise_2 = tf.maximum(basic([int(height * .75), int(width * .75)], [height, width, 1]) - (1 - amount), 0) * 2
+    static = basic([height, width], [height, width, 1], distrib=ValueDistribution.uniform, spline_order=0)
+    static_limiter = basic([height, width], [height, width, 1], distrib=ValueDistribution.exp, spline_order=0) * amount
 
-    return effects.blend(tensor, white_noise_1, white_noise_2)
+    return effects.blend(tensor, static, static_limiter)
 
 
 def dither(tensor, shape, amount):

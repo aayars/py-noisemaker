@@ -222,9 +222,9 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_texture": True,
     },
 
-    "snow": lambda: extend("dither", {
-        "with_snow": .05 + random.random() * .35,
-    }),
+    "snow": lambda: {
+        "with_snow": .25 + random.random() * .75,
+    },
 
     "sobel": lambda: extend("maybe-invert", {
         "with_sobel": random.randint(1, 3),

@@ -599,7 +599,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True):
     """
     Apply displacement from pixel values.
 
@@ -616,6 +616,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     :param list[int] warp_freq: If given, generate new reference_x and reference_y noise with this base frequency.
     :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
+    :param bool extend_range: Scale displacement values from -1..1 instead of 0..1
     :return: Tensor
     """
 
@@ -652,13 +653,13 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
 
     # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1)
-    reference_x = value_map(reference_x, shape, extend_range=True) * displacement * width
-    reference_y = value_map(reference_y, shape, extend_range=True) * displacement * height
+    reference_x = value_map(reference_x, shape, extend_range=extend_range) * displacement * width
+    reference_y = value_map(reference_y, shape, extend_range=extend_range) * displacement * height
 
     # Bilinear interpolation of midpoints
-    x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
+    x0_offsets = (tf.cast(reference_x * 2.0 - 1.0, tf.int32) + x0_index) % width
     x1_offsets = (x0_offsets + 1) % width
-    y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
+    y0_offsets = (tf.cast(reference_y * 2.0 - 1.0, tf.int32) + y0_index) % height
     y1_offsets = (y0_offsets + 1) % height
 
     x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
