@@ -164,6 +164,12 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "sort_angled": True,
     }),
 
+    "pixel-sort-darkest": lambda: extend("pixel-sort", {
+        "sort_darkest": True,
+    }),
+
+    "pixel-sort-angled-darkest": lambda: extend("pixel-sort-angled", "pixel-sort-darkest"),
+
     "pop-art": lambda: {
         "with_pop": True
     },

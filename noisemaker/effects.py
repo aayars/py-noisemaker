@@ -37,7 +37,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
-                 with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False,
+                 with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False, rgb=False, **_):
     """
     Apply post-processing effects.
@@ -125,6 +125,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float composite_zoom: Composite subpixel scaling
     :param bool with_sort: Pixel sort
     :param bool sort_angled: Pixel sort along a random angle
+    :param bool sort_darkest: Pixel sort order by darkest instead of brightest
     :param None|list[str|ValueMask] convolve: List of ValueMasks to apply as convolution kernels
     :param bool with_sketch: Pencil sketch effect
     :param bool rgb: Using RGB mode? Hint for some effects.
@@ -281,7 +282,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     if with_sort:
-        tensor = pixel_sort(tensor, shape, sort_angled)
+        tensor = pixel_sort(tensor, shape, sort_angled, sort_darkest)
 
     if with_sketch:
         tensor = sketch(tensor, shape)
@@ -2198,13 +2199,14 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
 
 
-def pixel_sort(tensor, shape, angled=False):
+def pixel_sort(tensor, shape, angled=False, darkest=False):
     """
     Pixel sort effect
 
     :param Tensor tensor:
     :param list[int] shape:
     :param bool angled: If True, sort along a random angle.
+    :param bool darkest: If True, order by darkest instead of brightest
     :return Tensor:
     """
 
@@ -2214,15 +2216,16 @@ def pixel_sort(tensor, shape, angled=False):
     else:
         angle = False
 
-    # Twice is nice.
-    tensor = _pixel_sort(tensor, shape, angle)
-    tensor = _pixel_sort(tensor, shape, angle)
+    tensor = _pixel_sort(tensor, shape, angle, darkest)
 
     return tensor
 
 
-def _pixel_sort(tensor, shape, angle):
+def _pixel_sort(tensor, shape, angle, darkest):
     height, width, channels = shape
+
+    if darkest:
+        tensor = 1.0 - tensor
 
     if angle:
         want_length = max(height, width) * 2
@@ -2256,9 +2259,14 @@ def _pixel_sort(tensor, shape, angle):
 
         # Crop to original size
         sorted_channels = tf.image.resize_image_with_crop_or_pad(sorted_channels, height, width)
-
+ 
     # Blend with source image
-    return tf.maximum(tensor, sorted_channels)
+    tensor = tf.maximum(tensor, sorted_channels)
+
+    if darkest:
+        tensor = 1.0 - tensor
+
+    return tensor
 
 
 def sketch(tensor, shape):
