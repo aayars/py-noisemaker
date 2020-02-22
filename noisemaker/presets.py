@@ -757,6 +757,18 @@ _PRESETS = lambda: {  # noqa: E731
         "with_sobel": random.randint(1, 3),
     }),
 
+    "deep-field": lambda: extend("multires", "funhouse", {
+        "distrib": "uniform",
+        "freq": random.randint(16, 20),
+        "hue_range": 1,
+        "mask": "sparser",
+        "lattice_drift": 1,
+        "octaves": 5,
+        "reduce_max": True,
+        "refract_range": 0.25,
+        "warp_range": .25,
+    }),
+
     "defocus": lambda: extend("bloom", "multires", {
         "freq": 12,
         "mask": random_member(ValueMask),
