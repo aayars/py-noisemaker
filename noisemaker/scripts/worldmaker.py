@@ -1,3 +1,4 @@
+import json
 import random
 
 import click
@@ -8,6 +9,7 @@ from noisemaker.util import save, load
 import noisemaker.constants as constants
 import noisemaker.effects as effects
 import noisemaker.generators as generators
+import noisemaker.presets as presets
 import noisemaker.recipes as recipes
 
 SMALL_X = 512
@@ -30,6 +32,9 @@ BLENDED_FILENAME = "worldmaker/blended.png"
 FINAL_FILENAME = "worldmaker/worldmaker.png"
 
 
+presets.bake_presets(None)
+
+
 @click.group()
 def main():
     pass
@@ -37,82 +42,38 @@ def main():
 
 @main.command()
 def lowland():
-    shape = [LARGE_Y, LARGE_X, 3]
+    names = [
+        'alien-terrain-multires',
+        'alien-terrain-worms',
+        'lowland',
+    ]
 
-    kwargs = {
-        "deriv": 1,
-        "deriv_alpha": .5,
-        "freq": FREQ,
-        "hue_range": .125 + random.random() * .25,
-        "hue_rotation": .875 + random.random() * .125,
-        "lattice_drift": 1,
-        "octaves": OCTAVES,
-        "point_freq": 5,
-        "saturation": SATURATION * 2,
-        "voronoi_alpha": .333,
-        "voronoi_inverse": True,
-        "voronoi_nth": 0,
-        "with_voronoi": 2,
-    }
-
-    tensor = generators.multires(shape=shape, **kwargs)
-
-    tensor = tf.image.adjust_brightness(tensor, .1)
-
-    with tf.Session().as_default():
-        save(tensor, LOW_FILENAME)
+    run_preset(presets.random_member(names), [LARGE_Y, LARGE_X, 3], LOW_FILENAME)
 
 
 @main.command()
 def midland():
-    shape = [LARGE_Y, LARGE_X, 3]
+    names = [
+        'alien-terrain-multires',
+        'alien-terrain-worms',
+        'domain-warp',
+        'midland',
+        'turf',
+    ]
 
-    kwargs = {
-        "deriv": 1,
-        "deriv_alpha": .25,
-        "freq": FREQ * 2,
-        "hue_range": .25 + random.random() * .125,
-        "hue_rotation": .875 + random.random() * .1,
-        "octaves": OCTAVES,
-        "point_freq": 5,
-        "saturation": SATURATION * 2,
-        "voronoi_refract": .25,
-        "voronoi_alpha": .5,
-        "voronoi_nth": 1,
-        "with_voronoi": 6,
-    }
-
-    tensor = generators.multires(shape=shape, **kwargs)
-
-    with tf.Session().as_default():
-        save(tensor, MID_FILENAME)
+    run_preset(presets.random_member(names), [LARGE_Y, LARGE_X, 3], MID_FILENAME)
 
 
 @main.command()
 def highland():
-    shape = [LARGE_Y, LARGE_X, 3]
+    names = [
+        'alien-terrain-multires',
+        'alien-terrain-worms',
+        'highland',
+        'pluto',
+    ]
 
-    kwargs = {
-        "deriv": 1,
-        "deriv_alpha": 0.25 + random.random() * .125,
-        "freq": FREQ * 4,
-        "hue_range": .125 + random.random() * .125,
-        "hue_rotation": .925 + random.random() * .05,
-        "octaves": OCTAVES,
-        "point_freq": 8,
-        "ridges": True,
-        "saturation": SATURATION,
-        "voronoi_alpha": .5,
-        "voronoi_nth": 3,
-        "with_voronoi": 2,
-    }
-
-    tensor = generators.multires(shape=shape, **kwargs)
-
-    tensor = tf.image.adjust_brightness(tensor, .1)
-
-    with tf.Session().as_default():
-        save(tensor, HIGH_FILENAME)
+    run_preset(presets.random_member(names), [LARGE_Y, LARGE_X, 3], HIGH_FILENAME)
 
 
 @main.command("control")
@@ -171,7 +132,7 @@ def blended():
     # blend_control = generators.multires(shape=shape, freq=FREQ * 4, ridges=True, octaves=4)
     # blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
-    combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high, high)
+    combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high)
     combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
 
@@ -180,7 +141,7 @@ def blended():
 
     combined_land = effects.blend(combined_land_0, combined_land_1, .5)
 
-    combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land)
+    combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
     combined = effects.blend(combined_land, combined, .625)
 
     combined = tf.image.adjust_brightness(combined, .1)
@@ -241,3 +202,28 @@ def clouds(input_filename):
 
     with tf.Session().as_default():
         save(tensor, FINAL_FILENAME)
+
+
+def run_preset(preset_name, shape, filename):
+    kwargs = presets.preset(preset_name)
+
+    kwargs['shape'] = shape
+
+    if 'freq' not in kwargs:
+        kwargs['freq'] = 3
+
+    if 'octaves' not in kwargs:
+        kwargs['octaves'] = 1
+
+    if 'ridges' not in kwargs:
+        kwargs['ridges'] = False
+
+    if 'post_brightness' not in kwargs:
+        kwargs["post_brightness"] = .125  # This script likes bright values
+
+    tensor = generators.multires(**kwargs)
+
+    tensor = recipes.post_process(tensor, **kwargs)
+
+    with tf.Session().as_default():
+        save(tensor, filename)

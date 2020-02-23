@@ -1212,6 +1212,22 @@ _PRESETS = lambda: {  # noqa: E731
         "sin": random.randint(-25, 25),
     }),
 
+    "highland": lambda: {
+        "deriv": 1,
+        "deriv_alpha": 0.25 + random.random() * .125,
+        "freq": 12,
+        "hue_range": .125 + random.random() * .125,
+        "hue_rotation": .925 + random.random() * .05,
+        "octaves": 8,
+        "point_freq": 8,
+        "post_brightness": .125,
+        "ridges": True,
+        "saturation": .333,
+        "voronoi_alpha": .5,
+        "voronoi_nth": 3,
+        "with_voronoi": 2,
+    },
+
     "hotel-carpet": lambda: extend("basic", "dither", "ripples", {
         "ripple_kink": .25 + random.random() * .25,
         "ripple_range": 1.0 + random.random() * .5,
@@ -1384,6 +1400,23 @@ _PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     }),
 
+    "lowland": lambda: {
+        "deriv": 1,
+        "deriv_alpha": .5,
+        "freq": 3,
+        "hue_range": .125 + random.random() * .25,
+        "hue_rotation": .875 + random.random() * .125,
+        "lattice_drift": 1,
+        "octaves": 8,
+        "point_freq": 5,
+        "post_brightness": .125,
+        "saturation": .666,
+        "voronoi_alpha": .333,
+        "voronoi_inverse": True,
+        "voronoi_nth": 0,
+        "with_voronoi": 2,
+    },
+
     "lsd": lambda: extend("density-map", "distressed", "invert", "random-hue", {
         "brightness_distrib": "mids",
         "freq": random.randint(8, 16),
@@ -1423,6 +1456,22 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 2,
         "vortex": 10,
         "with_glyph_map": "mcpaint",
+    },
+
+    "midland": lambda: {
+        "deriv": 1,
+        "deriv_alpha": .25,
+        "freq": 6,
+        "hue_range": .25 + random.random() * .125,
+        "hue_rotation": .875 + random.random() * .1,
+        "octaves": 8,
+        "point_freq": 5,
+        "post_brightness": .125,
+        "saturation": .666,
+        "voronoi_refract": .25,
+        "voronoi_alpha": .5,
+        "voronoi_nth": 1,
+        "with_voronoi": 6,
     },
 
     "misaligned": lambda: extend("multires", "outline", {
