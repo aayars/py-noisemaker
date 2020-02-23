@@ -56,9 +56,7 @@ def midland():
     names = [
         'alien-terrain-multires',
         'alien-terrain-worms',
-        'domain-warp',
         'midland',
-        'turf',
     ]
 
     run_preset(presets.random_member(names), [LARGE_Y, LARGE_X, 3], MID_FILENAME)
@@ -122,8 +120,8 @@ def blended():
 
     control = tf.image.convert_image_dtype(load(CONTROL_FILENAME), tf.float32)
 
-    water = tf.ones(shape) * tf.stack([.05, .2, .333])
-    water = effects.blend(water, control * 4.0, .125)
+    water = tf.ones(shape) * tf.stack([.05, .175, .625])
+    water = effects.blend(water, water + control, .125)
 
     low = tf.image.convert_image_dtype(load(LOW_FILENAME), tf.float32)
     mid = tf.image.convert_image_dtype(load(MID_FILENAME), tf.float32)
@@ -134,17 +132,18 @@ def blended():
 
     combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high)
     combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
+    combined_land = tf.image.adjust_brightness(combined_land, .15)
+    combined_land = tf.image.adjust_contrast(combined_land, 1.5)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
 
-    combined_land_0 = effects.shadow(combined_land, shape, alpha=1.0)
-    combined_land_1 = effects.shadow(combined_land, shape, alpha=1.0, reference=control)
+    combined_land_0 = effects.shadow(combined_land, shape, alpha=0.5)
+    combined_land_1 = effects.shadow(combined_land, shape, alpha=0.5, reference=control)
 
     combined_land = effects.blend(combined_land_0, combined_land_1, .5)
 
     combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
     combined = effects.blend(combined_land, combined, .625)
 
-    combined = tf.image.adjust_brightness(combined, .1)
     combined = tf.image.adjust_contrast(combined, .75)
     combined = tf.image.adjust_saturation(combined, .625)
 
@@ -192,13 +191,13 @@ def clouds(input_filename):
 
     post_shape = [LARGE_Y, LARGE_X, 3]
 
-    tensor = effects.shadow(tensor, post_shape, alpha=.75)
+    tensor = effects.shadow(tensor, post_shape, alpha=.5)
 
-    tensor = effects.bloom(tensor, post_shape, .5)
-    tensor = recipes.dither(tensor, post_shape, .125)
+    # tensor = effects.bloom(tensor, post_shape, .5)
+    # tensor = recipes.dither(tensor, post_shape, .05)
 
-    tensor = tf.image.adjust_brightness(tensor, .125)
-    tensor = tf.image.adjust_contrast(tensor, 2.0)
+    tensor = tf.image.adjust_brightness(tensor, .0625)
+    tensor = tf.image.adjust_contrast(tensor, 1.125)
 
     with tf.Session().as_default():
         save(tensor, FINAL_FILENAME)
@@ -218,8 +217,7 @@ def run_preset(preset_name, shape, filename):
     if 'ridges' not in kwargs:
         kwargs['ridges'] = False
 
-    if 'post_brightness' not in kwargs:
-        kwargs["post_brightness"] = .125  # This script likes bright values
+    kwargs['post_brightness'] = .125
 
     tensor = generators.multires(**kwargs)
 
