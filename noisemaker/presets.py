@@ -205,7 +205,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "ripples": lambda: {
         "ripple_freq": random.randint(2, 3),
         "ripple_kink": .25 + random.random() * 1.25,
-        "ripple_range": .125 + random.random() * .5,
+        "ripple_range": .0625 + random.random() * .25,
     },
 
     "scanline-error": lambda: {
@@ -555,7 +555,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ridges": True,
         "ripple_freq": 2,
         "ripple_kink": 1.5 + random.random() * 2,
-        "ripple_range": .075 + random.random() * .075,
+        "ripple_range": .0375 + random.random() * .0375,
     }),
 
     "bringing-hexy-back": lambda: extend("bloom", {
@@ -684,7 +684,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": 4,
         "reflect_range": .16667 + random.random() * .16667,
         "refract_range": .25 + random.random() * .125,
-        "ripple_range": .01 + random.random() * .005,
+        "ripple_range": .005 + random.random() * .0025,
         "ripple_kink": random.randint(2, 4),
         "ripple_freq": random.randint(2, 4),
         "warp_range": .0625 + random.random() * .0625,
@@ -1172,7 +1172,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "groove-is-stored-in-the-heart": lambda: extend("benny-lava", {
-        "ripple_range": 2.0 + random.random(),
+        "ripple_range": 1.0 + random.random() * .5,
         "warp_range": 0,
     }),
 
@@ -1230,7 +1230,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "hotel-carpet": lambda: extend("basic", "dither", "ripples", {
         "ripple_kink": .25 + random.random() * .25,
-        "ripple_range": 1.0 + random.random() * .5,
+        "ripple_range": .5 + random.random() * .25,
         "spline_order": 0,
         "with_grime": True,
         "with_worms": 4,
@@ -1296,7 +1296,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": .125 + random.random() * .05,
         "post_saturation": 0,
         "post_contrast": 10,
-        "ripple_range": .025 + random.random() * .0125,
+        "ripple_range": .0125 + random.random() * .00625,
         "voronoi_refract": .25 + random.random() * .125,
         "with_fibers": True,
         "with_grime": True,
@@ -1812,7 +1812,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ridges": random.randint(0, 1),
         "ripple_freq": random.randint(2, 3),
         "ripple_kink": random.randint(3, 18),
-        "ripple_range": .05 + random.random() * .2,
+        "ripple_range": .025 + random.random() * .1,
         "sin": 3,
         "with_shadow": .5 + random.random() * .25,
     }),
@@ -1964,7 +1964,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(1, 3),
         "post_reindex_range": .25 + random.random() * .333,
         "reindex_range": .5 + random.random() * .666,
-        "ripple_range": .025 + random.random() * .0333,
+        "ripple_range": .0125 + random.random() * .016667,
         "voronoi_alpha": .5 + random.random() * .333,
         "voronoi_refract": random.randint(3, 5) * .5,
         "warp_range": .0375 + random.random() * .0375,
@@ -2303,7 +2303,7 @@ _PRESETS = lambda: {  # noqa: E731
         "reflect_range": .125 + random.random() * .075,
         "ripple_freq": [random.randint(12, 64), random.randint(12, 64)],
         "ripple_kink": .5 + random.random() * .25,
-        "ripple_range": .25 + random.random() * .125,
+        "ripple_range": .125 + random.random() * .0625,
         "with_light_leak": .5 + random.random() * .25,
         "with_shadow": 1,
     }),
