@@ -131,7 +131,7 @@ def blended():
     # blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high)
-    combined_land = effects.erode(combined_land, shape, xy_blend=.25, **erode_kwargs)
+    combined_land = effects.erode(combined_land, shape, xy_blend=.5, **erode_kwargs)
     combined_land = tf.image.adjust_brightness(combined_land, .15)
     combined_land = tf.image.adjust_contrast(combined_land, 1.5)
     combined_land = effects.erode(combined_land, shape, **erode_kwargs)
