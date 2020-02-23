@@ -193,8 +193,8 @@ def clouds(input_filename):
 
     tensor = effects.shadow(tensor, post_shape, alpha=.5)
 
-    # tensor = effects.bloom(tensor, post_shape, .5)
-    # tensor = recipes.dither(tensor, post_shape, .05)
+    tensor = effects.bloom(tensor, post_shape, .25)
+    tensor = recipes.dither(tensor, post_shape, .05)
 
     tensor = tf.image.adjust_brightness(tensor, .0625)
     tensor = tf.image.adjust_contrast(tensor, 1.125)
