@@ -112,6 +112,7 @@ class ValueMask(Enum):
     square = 1
     waffle = 2
     chess = 3
+    grid = 4
 
     h_hex = 10
     v_hex = 11
@@ -316,7 +317,14 @@ class ValueMask(Enum):
     conv2d_sobel_y = 809
 
     rgb = 900
-    roygbiv = 901
+    rbggbr = 901
+    rggb = 902
+    rgbgr = 903
+    roygbiv = 904
+    rainbow = 910
+    ace = 911
+    nb = 912
+    trans = 913
 
     sparse = 1000
 

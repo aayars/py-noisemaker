@@ -150,6 +150,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "one-art-please": lambda: extend("dither", "light-leak", {
         "post_contrast": 1.25,
         "post_saturation": .75,
+        "with_texture": True,
     }),
 
     "outline": lambda: {
@@ -474,6 +475,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": random.randint(1, 5),
     }),
 
+    "bad-map": lambda: extend("splork", {
+        "freq": random.randint(30, 50),
+        "mask": "grid",
+        "with_voronoi": 1,
+    }),
+
+    "basic": lambda: {
+        "freq": random.randint(2, 4),
+    },
+
     "band-together": lambda: {
         "freq": random.randint(6, 12),
         "reindex_range": random.randint(8, 12),
@@ -498,9 +509,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": 1,
     }),
 
-    "basic": lambda: {
-        "freq": random.randint(2, 4),
-    },
+    "big-data-startup": lambda: extend("dither", "glyphic", {
+        "mask": "script",
+        "hue_rotation": random.random(),
+        "hue_range": .0625 + random.random() * .5,
+        "post_saturation": .125 + random.random() * .125,
+        "posterize_levels": random.randint(2, 4),
+        "saturation": 1.0,
+    }),
 
     "bit-by-bit": lambda: extend("bloom", "crt", "value-mask", {
         "freq": 6 * random.randint(25, 125),
@@ -556,6 +572,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ripple_freq": 2,
         "ripple_kink": 1.5 + random.random() * 2,
         "ripple_range": .0375 + random.random() * .0375,
+        "spline_order": random.randint(1, 3),
     }),
 
     "bringing-hexy-back": lambda: extend("bloom", {
@@ -1137,7 +1154,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .75 + random.random() * .25,
     }),
 
-    "glyphic": lambda: extend("value-mask", {
+    "glyphic": lambda: extend("maybe-invert", "value-mask", {
         "freq": random.randint(3, 5),
         "mask": random_member(ValueMask.procedural_members()),
         "octaves": random.randint(3, 5),
@@ -1615,6 +1632,21 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": 0,
     }),
 
+    "painterly": lambda: {
+        "distrib": "uniform",
+        "freq": random.randint(3, 5),
+        "hue_range": .333 + random.random() * .333,
+        "mask": random_member(ValueMask.grid_members()),
+        "octaves": 8,
+        "ripple_freq": random.randint(4, 6),
+        "ripple_kink": .0625 + random.random() * .125,
+        "ripple_range": .0625 + random.random() * .125,
+        "spline_order": 1,
+        "warp_freq": random.randint(5, 7),
+        "warp_octaves": 8,
+        "warp_range": .0625 + random.random() * .125,
+    },
+
     "pearlescent": lambda: extend("bloom", {
         "hue_range": random.randint(3, 5),
         "octaves": random.randint(1, 8),
@@ -1897,6 +1929,22 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
+    "shape-party": lambda: extend("invert", {
+        "distrib": "ones",
+        "freq": 23,
+        "mask": random_member(ValueMask.procedural_members()),
+        "point_freq": 2,
+        "posterize_levels": 1,
+        "rgb": True,
+        "spline_order": 2,
+        "voronoi_func": 2,
+        "voronoi_nth": 1,
+        "voronoi_refract": .125 + random.random() * .25,
+        "with_aberration": .075 + random.random() * .075,
+        "with_bloom": .075 + random.random() * .075,
+        "with_voronoi": 1,
+    }),
+
     "shatter": lambda: extend("basic", "maybe-invert", "outline", {
         "point_freq": random.randint(3, 6),
         "post_refract_range": random.randint(2, 4),
@@ -2072,6 +2120,20 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_kink": random.randint(5, 20),
         "wormhole_stride": random.random() * .05,
     }),
+
+    "splork": lambda: {
+        "distrib": "ones",
+        "freq": 33,
+        "mask": "bank_ocr",
+        "point_freq": 2,
+        "posterize_levels": 1,
+        "rgb": True,
+        "spline_order": 2,
+        "voronoi_func": 3,
+        "voronoi_nth": 1,
+        "voronoi_refract": .125,
+        "with_voronoi": 2,
+    },
 
     "square-stripes": lambda: {
         "hue_range": random.random(),
@@ -2397,17 +2459,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
-    "wireframe": lambda: extend("basic", "bloom", "multires-low", "sobel", {
-        "hue_range": random.random(),
-        "saturation": random.random(),
-        "lattice_drift": random.random(),
-        "point_distrib": random_member(PointDistribution.grid_members()),
-        "point_freq": random.randint(7, 10),
-        "voronoi_alpha": 0.25 + random.random() * .5,
-        "voronoi_nth": random.randint(1, 5),
-        "warp_octaves": random.randint(1, 3),
-        "warp_range": random.randint(0, 1) * random.random() * .25,
-        "with_voronoi": 5,
+    "wild-hair": lambda: extend("multires", "erosion-worms", "voronoi", {
+        "erosion_worms_density": 25,
+        "erosion_worms_alpha": .125 + random.random() * .125,
+        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_freq": random.randint(5, 10),
+        "saturation": 0,
+        "voronoi_alpha": .5 + random.random() * .5,
+        "voronoi_nth": 1,
+        "with_voronoi": 1,
+        "with_shadow": .75 + random.random() * .25,
     }),
 
     "wild-kingdom": lambda: extend("bloom", "dither", "maybe-invert", "outline", "random-hue", {
@@ -2419,6 +2480,19 @@ _PRESETS = lambda: {  # noqa: E731
         "ridges": True,
         "warp_octaves": 2,
         "warp_range": .025,
+    }),
+
+    "wireframe": lambda: extend("basic", "bloom", "multires-low", "sobel", {
+        "hue_range": random.random(),
+        "saturation": random.random(),
+        "lattice_drift": random.random(),
+        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_freq": random.randint(7, 10),
+        "voronoi_alpha": 0.25 + random.random() * .5,
+        "voronoi_nth": random.randint(1, 5),
+        "warp_octaves": random.randint(1, 3),
+        "warp_range": random.randint(0, 1) * random.random() * .25,
+        "with_voronoi": 5,
     }),
 
     "woahdude-voronoi-refract": lambda: {

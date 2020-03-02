@@ -225,7 +225,7 @@ def crt(tensor, shape):
     scan_noise = effects.refract(scan_noise, value_shape, distortion_amount,
                                  reference_x=distortion_x, reference_y=distortion_y, extend_range=False)
 
-    tensor = effects.normalize(effects.blend(tensor, (tensor + .05) * scan_noise, 0.1))
+    tensor = effects.normalize(effects.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
     if channels == 3:
         tensor = effects.aberration(tensor, shape, .0075 + random.random() * .0075)
