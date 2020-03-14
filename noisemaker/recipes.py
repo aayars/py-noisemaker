@@ -581,11 +581,11 @@ def spatter(tensor, shape):
 
     # Generate a smear
     smear = multires(random.randint(2, 4), value_shape, distrib="exp",
-                     ridges=True, octaves=6, spline_order=1)
+                     ridges=True, octaves=6, spline_order=3)
 
     smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
-                         octaves=random.randint(1, 2), displacement=1.0 + random.random(),
-                         spline_order=1)
+                         octaves=random.randint(1, 2), displacement=.5 + random.random() * .5,
+                         spline_order=3)
 
     # Add spatter dots
     smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, distrib="exp",

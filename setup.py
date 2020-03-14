@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='noisemaker',
-      version='0.1.183',
+      version='0.1.184',
       description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
