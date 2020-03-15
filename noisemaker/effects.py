@@ -1725,9 +1725,10 @@ def singularity(tensor, shape, diagram_type=1, **kwargs):
     """
     Return the range diagram for a single voronoi point, approximately centered.
 
+    :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int dist_func:
     :param VoronoiDiagramType|int diagram_type:
+    :param DistanceFunction|int dist_func:
 
     Additional kwargs will be sent to the `voronoi` function.
     """
@@ -1751,16 +1752,21 @@ def vortex(tensor, shape, displacement=64.0):
     :param float displacement:
     """
 
-    displacement_map = singularity(None, shape)
-
     value_shape = [shape[0], shape[1], 1]
+
+    displacement_map = singularity(None, value_shape)
 
     x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
 
+    fader = singularity(None, value_shape, dist_func=DistanceFunction.chebyshev, inverse=True)
+
+    x *= fader
+    y *= fader
+
     warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
 
-    return center_mask(warped, convolve(ValueMask.conv2d_blur, tensor, shape) * .25, shape)
+    return warped
 
 
 def aberration(tensor, shape, displacement=.005):
