@@ -162,8 +162,14 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         else:
             tensor = expand_tile(input_tensor, tiled_shape, shape)
 
+    # Keep values between 0 and 1 if we're reflecting and refracting, because math?
+    # Using refract and reflect together exposes unpleasant edge artifacting along
+    # the natural edge where negative and positive offset values meet. It's normally
+    # invisible to the human eye, but becomes obvious after extracting derivatives.
+    extend_range = refract_range != 0 and reflect_range != 0
+
     if refract_range != 0:
-        tensor = refract(tensor, shape, displacement=refract_range)
+        tensor = refract(tensor, shape, displacement=refract_range, extend_range=extend_range)
 
     if reflect_range != 0:
         tensor = refract(tensor, shape, displacement=reflect_range, from_derivative=True)
@@ -653,14 +659,21 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             x0_index += int(width * .5)
             reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
 
-    # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1)
-    reference_x = value_map(reference_x, shape, extend_range=extend_range) * displacement * width
-    reference_y = value_map(reference_y, shape, extend_range=extend_range) * displacement * height
+    quad_directional = extend_range and not from_derivative
+
+    # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1).
+    # Doesn't work with derivatives (and isn't needed), because derivatives are signed naturally.
+    x_offsets = value_map(reference_x, shape, extend_range=quad_directional) * displacement * width
+    y_offsets = value_map(reference_y, shape, extend_range=quad_directional) * displacement * height
+    # If not using extended range (0..1 instead of -1..1), keep the value range consistent.
+    if not quad_directional:
+        x_offsets *= 2.0
+        y_offsets *= 2.0
 
     # Bilinear interpolation of midpoints
-    x0_offsets = (tf.cast(reference_x * 2.0 - 1.0, tf.int32) + x0_index) % width
+    x0_offsets = (tf.cast(x_offsets, tf.int32) + x0_index) % width
     x1_offsets = (x0_offsets + 1) % width
-    y0_offsets = (tf.cast(reference_y * 2.0 - 1.0, tf.int32) + y0_index) % height
+    y0_offsets = (tf.cast(y_offsets, tf.int32) + y0_index) % height
     y1_offsets = (y0_offsets + 1) % height
 
     x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
@@ -668,8 +681,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
     x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
 
-    x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
-    y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
+    x_fract = tf.reshape(x_offsets - tf.floor(x_offsets), [height, width, 1])
+    y_fract = tf.reshape(y_offsets - tf.floor(y_offsets), [height, width, 1])
 
     x_y0 = blend(x0_y0, x1_y0, x_fract)
     x_y1 = blend(x0_y1, x1_y1, x_fract)
