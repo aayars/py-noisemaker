@@ -275,6 +275,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         else:
             tensor += layer / multiplier
 
+    post_process_args['refract_extend_range'] = False
+
     tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,

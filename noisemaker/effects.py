@@ -20,7 +20,7 @@ import noisemaker.util as util
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
-                 clut=None, clut_horizontal=False, clut_range=0.5,
+                 refract_extend_range=False, clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
@@ -166,7 +166,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     # Using refract and reflect together exposes unpleasant edge artifacting along
     # the natural edge where negative and positive offset values meet. It's normally
     # invisible to the human eye, but becomes obvious after extracting derivatives.
-    extend_range = refract_range != 0 and reflect_range != 0
+    extend_range = refract_extend_range and refract_range != 0 and reflect_range != 0
 
     if refract_range != 0:
         tensor = refract(tensor, shape, displacement=refract_range, extend_range=extend_range)

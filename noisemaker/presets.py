@@ -1147,6 +1147,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": 2,
         "post_reflect_range": random.randint(1, 2) * .5,
         "post_refract_range": random.randint(1, 2) * .5,
+        "refract_extend_range": False,
         "reflect_range": random.randint(1, 2) * .125,
         "refract_range": random.randint(1, 2) * .125,
         "warp_range": .125 + random.random() * .125,
