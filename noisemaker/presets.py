@@ -105,6 +105,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": random_member(set(ValueMask.procedural_members()).intersection(masks.square_masks())),
     },
 
+    "grayscale": lambda: {
+        "post_saturation": 0,
+    },
+
     "invert": lambda: {
         "with_convolve": ["invert"],
     },
@@ -490,6 +494,12 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "basic-lowpoly": lambda: extend("basic", "lowpoly"),
+
+    "basic-voronoi-refract": lambda: extend("basic", {
+        "hue-range": .25 + random.random() * .5,
+        "voronoi_refract": .5 + random.random() * .5,
+        "with_voronoi": 1,
+    }),
 
     "band-together": lambda: {
         "freq": random.randint(6, 12),
@@ -2430,6 +2440,11 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "vortex_range": 2.5 + random.random() * 5,
         "with_reverb": random.randint(3, 5),
+    }),
+
+    "wall-art": lambda: extend("glyphic", "lowpoly", {
+        "angle": random.random() * 360.0,
+        "lowpoly_distrib": random_member(PointDistribution.grid_members()),
     }),
 
     "warped-cells": lambda: extend("invert", {

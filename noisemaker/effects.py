@@ -40,6 +40,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
+                 angle=None,
                  rgb=False, **_):
     """
     Apply post-processing effects.
@@ -133,6 +134,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_lowpoly: Low-poly art effect
     :param PointDistribution lowpoly_distrib: Point distribution for low-poly art effect
     :param int lowpoly_freq: Point frequency for low-poly art effect
+    :param None|float angle: Rotation angle
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -300,6 +302,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_lowpoly:
         tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq)
+
+    if angle is not None:
+        tensor = rotate(tensor, shape, angle)
 
     tensor = normalize(tensor)
 
@@ -1360,6 +1365,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
     # Wrapping edges! Nearest neighbors might be actually be "wrapped around", on the opposite side of the image.
     # Determine which direction is closer, and use the minimum.
+
+    # Subtracting the list of points from the index results in a new shape
+    # [y, x, value] - [point_count] -> [y, x, value, point_count]
     x0_diff = x_index - x - half_width
     x1_diff = x_index - x + half_width
     y0_diff = y_index - y - half_height
@@ -2294,6 +2302,25 @@ def _pixel_sort(tensor, shape, angle, darkest):
         tensor = 1.0 - tensor
 
     return tensor
+
+
+def rotate(tensor, shape, angle=None):
+    """Rotate the image. This breaks seamless edges."""
+
+    height, width, channels = shape
+
+    if angle is None:
+        angle = random.random() * 360.0
+
+    want_length = max(height, width) * 2
+
+    padded_shape = [want_length, want_length, channels]
+
+    padded = expand_tile(tensor, shape, padded_shape)
+
+    rotated = tf.contrib.image.rotate(padded, angle, 'BILINEAR')
+
+    return tf.image.resize_image_with_crop_or_pad(rotated, height, width)
 
 
 def sketch(tensor, shape):
