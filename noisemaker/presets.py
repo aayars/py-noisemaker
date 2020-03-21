@@ -113,6 +113,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_light_leak": .333 + random.random() * .333,
     }),
 
+    "lowpoly": lambda: {
+        "with_lowpoly": True,
+    },
+
     "maybe-invert": lambda: {
         "with_convolve": [] if random.randint(0, 1) else ["invert"],
     },
@@ -484,6 +488,8 @@ _PRESETS = lambda: {  # noqa: E731
     "basic": lambda: {
         "freq": random.randint(2, 4),
     },
+
+    "basic-lowpoly": lambda: extend("basic", "lowpoly"),
 
     "band-together": lambda: {
         "freq": random.randint(6, 12),
@@ -2186,6 +2192,11 @@ _PRESETS = lambda: {  # noqa: E731
         "corners": True,
         "freq": 2,
     },
+
+    "symmetry-lowpoly": lambda: extend("lowpoly", "symmetry", {
+        "lowpoly_distrib": random_member(PointDistribution.circular_members()),
+        "lowpoly_freq": random.randint(4, 15),
+    }),
 
     "teh-matrex-haz-u": lambda: extend("bloom", "crt", {
         "distrib": "exp",

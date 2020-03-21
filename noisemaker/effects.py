@@ -38,7 +38,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
-                 with_convolve=None, with_shadow=None, with_sketch=False, rgb=False, **_):
+                 with_convolve=None, with_shadow=None, with_sketch=False,
+                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
+                 rgb=False, **_):
     """
     Apply post-processing effects.
 
@@ -128,6 +130,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool sort_darkest: Pixel sort order by darkest instead of brightest
     :param None|list[str|ValueMask] convolve: List of ValueMasks to apply as convolution kernels
     :param bool with_sketch: Pencil sketch effect
+    :param bool with_lowpoly: Low-poly art effect
+    :param PointDistribution lowpoly_distrib: Point distribution for low-poly art effect
+    :param int lowpoly_freq: Point frequency for low-poly art effect
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -292,6 +297,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_sketch:
         tensor = sketch(tensor, shape)
+
+    if with_lowpoly:
+        tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq)
 
     tensor = normalize(tensor)
 
@@ -2319,6 +2327,17 @@ def sketch(tensor, shape):
     combined *= combined
 
     return combined * tf.ones(shape)
+
+
+def lowpoly(tensor, shape, distrib=0, freq=10):
+    """Low-poly art style effect"""
+
+    xy = point_cloud(freq, distrib=distrib, shape=shape)
+
+    distance = voronoi(tensor, shape, nth=1, xy=xy)
+    color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy)
+
+    return normalize(blend(distance, color, .5))
 
 
 def square_crop_and_resize(tensor, shape, length=1024):
