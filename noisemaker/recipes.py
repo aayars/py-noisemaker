@@ -15,7 +15,7 @@ import noisemaker.masks as masks
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False, with_moirio=False,
-                 with_pre_spatter=False, with_spatter=False, **_):
+                 with_pre_spatter=False, with_spatter=False, with_clouds=False, **_):
     """
     Apply complex post-processing recipes.
 
@@ -40,6 +40,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_moirio: Hex grid interference pattern
     :param bool with_pre_spatter: Spatter mask (early pass)
     :param bool with_spatter: Spatter mask
+    :param bool with_clouds: Cloud cover
     :return: Tensor
     """
 
@@ -102,6 +103,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_spatter:
         tensor = spatter(tensor, shape)
+
+    if with_clouds:
+        tensor = clouds(tensor, shape)
 
     return tensor
 
@@ -606,3 +610,45 @@ def spatter(tensor, shape):
         splash = tf.zeros(shape)
 
     return effects.blend_layers(effects.normalize(smear), shape, .005, tensor, splash)
+
+
+def clouds(tensor, shape):
+    """Top-down cloud cover effect"""
+
+    pre_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, 1]
+
+    control_kwargs = {
+        "freq": random.randint(2, 4),
+        "lattice_drift": 1,
+        "octaves": 8,
+        "ridges": True,
+        "shape": pre_shape,
+        "warp_freq": 3,
+        "warp_range": .125,
+        "warp_octaves": 2,
+    }
+
+    control = multires(**control_kwargs)
+
+    layer_0 = tf.ones(pre_shape)
+    layer_1 = tf.zeros(pre_shape)
+
+    combined = effects.blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
+
+    shadow = effects.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
+    shadow = tf.minimum(shadow * 2.5, 1.0)
+
+    for _ in range(3):
+        shadow = effects.convolve(ValueMask.conv2d_blur, shadow, pre_shape)
+
+    post_shape = [shape[0], shape[1], 1]
+
+    shadow = effects.resample(shadow, post_shape)
+    combined = effects.resample(combined, post_shape)
+
+    tensor = effects.blend(tensor, tf.zeros(shape), shadow * .75)
+    tensor = effects.blend(tensor, tf.ones(shape), combined)
+
+    tensor = effects.shadow(tensor, shape, alpha=.5)
+
+    return tensor

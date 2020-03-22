@@ -43,6 +43,14 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "worms_stride_deviation": .25,
     },
 
+    "clouds": lambda: {
+        "post_brightness": .0625,
+        "post_contrast": 1.125,
+        "with_clouds": True,
+        "with_bloom": .25,
+        "with_dither": .05,
+    },
+
     "convolution-feedback": lambda: {
         "conv_feedback_alpha": .5,
         "with_conv_feedback": 500,
@@ -1395,6 +1403,9 @@ _PRESETS = lambda: {  # noqa: E731
         "post_brightness": -.125,
         "post_contrast": .0625 + random.random() * .0625,
         "post_saturation": .125 + random.random() * .25,
+        "warp_freq": 2,
+        "warp_range": .0625 + random.random() * .125,
+        "warp_octaves": 1,
         "with_glyph_map": ValueMask.v_bar,
     }),
 

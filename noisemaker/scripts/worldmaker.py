@@ -156,54 +156,10 @@ def blended():
 def clouds(input_filename):
     tensor = tf.image.convert_image_dtype(load(input_filename), tf.float32)
 
-    pre_shape = [SMALL_Y, SMALL_X, 1]
-    post_shape = [LARGE_Y, LARGE_X, 1]
-
-    control_kwargs = {
-        "freq": FREQ * 2,
-        "lattice_drift": 1,
-        "octaves": OCTAVES,
-        "ridges": True,
-        "shape": pre_shape,
-        "warp_freq": 3,
-        "warp_range": .125,
-        "warp_octaves": 2,
-    }
-
-    control = generators.multires(**control_kwargs)
-
-    layer_0 = tf.ones(pre_shape)
-    layer_1 = tf.zeros(pre_shape)
-
-    combined = effects.blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
-
-    shadow = effects.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
-    shadow = tf.minimum(shadow * 2.5, 1.0)
-
-    for _ in range(3):
-        shadow = effects.convolve(constants.ValueMask.conv2d_blur, shadow, pre_shape)
-
-    shadow = effects.resample(shadow, post_shape)
-    combined = effects.resample(combined, post_shape)
-
-    tensor = effects.blend(tensor, tf.zeros(post_shape), shadow * .75)
-    tensor = effects.blend(tensor, tf.ones(post_shape), combined)
-
-    post_shape = [LARGE_Y, LARGE_X, 3]
-
-    tensor = effects.shadow(tensor, post_shape, alpha=.5)
-
-    tensor = effects.bloom(tensor, post_shape, .25)
-    tensor = recipes.dither(tensor, post_shape, .05)
-
-    tensor = tf.image.adjust_brightness(tensor, .0625)
-    tensor = tf.image.adjust_contrast(tensor, 1.125)
-
-    with tf.Session().as_default():
-        save(tensor, FINAL_FILENAME)
+    run_preset("clouds", [LARGE_Y, LARGE_X, 3], FINAL_FILENAME, tensor=tensor)
 
 
-def run_preset(preset_name, shape, filename):
+def run_preset(preset_name, shape, filename, tensor=None):
     kwargs = presets.preset(preset_name)
 
     kwargs['shape'] = shape
@@ -219,7 +175,8 @@ def run_preset(preset_name, shape, filename):
 
     kwargs['post_brightness'] = .125
 
-    tensor = generators.multires(**kwargs)
+    if tensor is None:
+        tensor = generators.multires(**kwargs)
 
     tensor = recipes.post_process(tensor, **kwargs)
 
