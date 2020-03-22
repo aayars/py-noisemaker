@@ -33,6 +33,16 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_bloom": .075 + random.random() * .075,
     },
 
+    "carpet": lambda: {
+        "with_grime": True,
+        "with_worms": 4,
+        "worms_alpha": .5,
+        "worms_density": 250,
+        "worms_duration": .75,
+        "worms_stride": .5,
+        "worms_stride_deviation": .25,
+    },
+
     "convolution-feedback": lambda: {
         "conv_feedback_alpha": .5,
         "with_conv_feedback": 500,
@@ -339,6 +349,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
+    "1985": lambda: extend("spatter", {
+        "freq": random.randint(15, 25),
+        "reindex_range": .2 + random.random() * .1,
+        "rgb": True,
+        "spline_order": 0,
+        "voronoi_func": 3,
+        "voronoi_refract": .2 + random.random() * .1,
+        "with_voronoi": 1,
+    }),
+
     "2001": lambda: extend("aberration", "bloom", "invert", "value-mask", {
         "freq": 13 * random.randint(10, 20),
         "mask": "bank_ocr",
@@ -460,6 +480,18 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 6,
         "with_watermark": True,
         "wormhole_kink": 6,
+    }),
+
+    "arcade-carpet": lambda: extend("basic", "dither", {
+        "post_hue_rotation": -.125,
+        "distrib": ValueDistribution.exp,
+        "freq": random.randint(75, 125),
+        "hue_range": 1,
+        "mask": "sparser",
+        "posterize_levels": 3,
+        "post_contrast": 1.25,
+        "reflect_range": 0.0625,
+        "rgb": True,
     }),
 
     "are-you-human": lambda: extend("aberration", "density-map", "funhouse", "maybe-invert", "multires", "snow", "value-mask", {
@@ -1262,17 +1294,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     },
 
-    "hotel-carpet": lambda: extend("basic", "dither", "ripples", {
+    "hotel-carpet": lambda: extend("basic", "carpet", "dither", "ripples", {
         "ripple_kink": .25 + random.random() * .25,
         "ripple_range": .5 + random.random() * .25,
         "spline_order": 0,
-        "with_grime": True,
-        "with_worms": 4,
-        "worms_alpha": .5,
-        "worms_density": 250,
-        "worms_duration": .75,
-        "worms_stride": .5,
-        "worms_stride_deviation": .25,
     }),
 
     "hsv-gradient": lambda: extend("basic", {
