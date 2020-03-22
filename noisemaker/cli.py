@@ -179,7 +179,7 @@ def mask_inverse_option(**attrs):
 def glyph_map_option(**attrs):
     attrs.setdefault("help", "Mask: Glyph map brightness atlas mask")
 
-    choices = sorted(m.name for m in set(ValueMask.procedural_members()).intersection(masks.square_masks()))
+    choices = set(m.name for m in masks.square_masks())
 
     return str_option("--glyph-map", type=click.Choice(choices), **attrs)
 
@@ -194,6 +194,12 @@ def glyph_map_zoom_option(**attrs):
     attrs.setdefault("help", "Glyph map: Exploded pixel zoom factor")
 
     return float_option("--glyph-map-zoom", default=4.0, **attrs)
+
+
+def glyph_map_alpha_option(**attrs):
+    attrs.setdefault("help", "Glyph map: Output {0}".format(ALPHA_BLENDING_HINT))
+
+    return float_option("--glyph-map-alpha", default=1.0, **attrs)
 
 
 def composite_option(**attrs):

@@ -13,6 +13,16 @@ Masks = {
 
     ValueMask.waffle: [[0, 1], [1, 1]],
 
+    ValueMask.h_bar: [
+        [1, 1],
+        [0, 0],
+    ],
+
+    ValueMask.v_bar: [
+        [1, 0],
+        [1, 0],
+    ],
+
     ValueMask.h_hex: [
         [0, 1, 0, 0],
         [0, 0, 0, 1],

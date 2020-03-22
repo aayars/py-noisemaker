@@ -36,7 +36,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
-                 with_density_map=False, with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0,
+                 with_density_map=False,
+                 with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
@@ -124,6 +125,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param ValueMask|None with_glyph_map: Map values to glyph brightness. Square masks only for now
     :param bool glyph_map_colorize: Colorize glyphs from on average input colors
     :param float glyph_map_zoom: Scale glyph output
+    :param float glyph_map_alpha: Fade glyph output
     :param None|ValueMask with_composite: Composite video effect
     :param float composite_zoom: Composite subpixel scaling
     :param bool with_sort: Pixel sort
@@ -188,7 +190,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if with_glyph_map:
-        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom)
+        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom, alpha=glyph_map_alpha)
 
     if with_composite:
         tensor = glyph_map(tensor, shape, zoom=composite_zoom, mask=with_composite)
@@ -2167,7 +2169,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
 
 
-def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
+def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0):
     """
     :param Tensor tensor:
     :param list[int] shape:
@@ -2231,7 +2233,12 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1):
     if not colorize:
         return out * tf.ones(shape)
 
-    return out * resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
+    out *= resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
+
+    if alpha == 1.0:
+        return out
+
+    return blend(tensor, out, alpha)
 
 
 def pixel_sort(tensor, shape, angled=False, darkest=False):

@@ -33,6 +33,7 @@ import noisemaker.recipes as recipes
 @cli.glyph_map_option()
 @cli.glyph_map_colorize_option()
 @cli.glyph_map_zoom_option()
+@cli.glyph_map_alpha_option()
 @cli.composite_option()
 @cli.composite_zoom_option()
 @cli.lattice_drift_option()
@@ -120,8 +121,8 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
          worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline,
          normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners,
          mask, mask_inverse, glyph_map, glyph_map_colorize, glyph_map_zoom,
-         composite, composite_zoom, posterize, erosion_worms, voronoi,
-         voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract,
+         glyph_map_alpha, composite, composite_zoom, posterize, erosion_worms,
+         voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract,
          voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration,
          light_leak, vignette, vignette_brightness, pop, convolve, shadow, bloom,
          rgb, hue_range, hue_rotation, saturation, hue_distrib, saturation_distrib,
@@ -149,7 +150,7 @@ def main(ctx, freq, width, height, channels, octaves, ridges, post_ridges,
                                  with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
                                  with_glyph_map=glyph_map, glyph_map_colorize=glyph_map_colorize, glyph_map_zoom=glyph_map_zoom,
-                                 with_composite=composite, composite_zoom=composite_zoom,
+                                 glyph_map_alpha=glyph_map_alpha, with_composite=composite, composite_zoom=composite_zoom,
                                  warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,

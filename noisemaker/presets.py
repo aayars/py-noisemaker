@@ -1360,6 +1360,19 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": random.randint(1, 2),
     }),
 
+    "jorts": lambda: extend("dither", {
+        "freq": [128,512],
+        "glyph_map_alpha": .125 + random.random() * .25,
+        "glyph_map_zoom": 2,
+        "glyph_map_colorize": True,
+        "hue_rotation": .5 + random.random() * .05,
+        "hue_range": .0625 + random.random() * .0625,
+        "post_brightness": -.125,
+        "post_contrast": .0625 + random.random() * .0625,
+        "post_saturation": .125 + random.random() * .25,
+        "with_glyph_map": ValueMask.v_bar,
+    }),
+
     "jovian-clouds": lambda: {
         "point_freq": 10,
         "voronoi_refract": 1,
@@ -1450,6 +1463,11 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": 0,
         "with_voronoi": 2,
     },
+
+    "lowpoly-regions": lambda: extend("lowpoly", {
+        "with_voronoi": 4,
+        "point_freq": random.randint(2, 3),
+    }),
 
     "lsd": lambda: extend("density-map", "distressed", "invert", "random-hue", {
         "brightness_distrib": "mids",

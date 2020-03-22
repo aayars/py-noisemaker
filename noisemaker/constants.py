@@ -113,6 +113,8 @@ class ValueMask(Enum):
     waffle = 2
     chess = 3
     grid = 4
+    h_bar = 5
+    v_bar = 6
 
     h_hex = 10
     v_hex = 11

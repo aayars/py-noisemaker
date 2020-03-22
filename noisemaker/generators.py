@@ -103,7 +103,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
           rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
-          hue_distrib=None, brightness_distrib=None, saturation_distrib=None,
+          hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           **post_process_args):
     """
     Generate a single layer of scaled noise.
@@ -131,6 +131,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param None|int|str|ValueDistribution hue_distrib: Override ValueDistribution for hue
     :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
     :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
+    :param None|int|list[int] brightness_freq: Override frequency for brightness
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -171,10 +172,14 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
         s *= saturation
 
-        if brightness_distrib:
-            v = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=brightness_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet))
+        if brightness_distrib or brightness_freq:
+            if isinstance(brightness_freq, int):
+                brightness_freq = effects.freq_for_shape(brightness_freq, shape)
+
+            v = tf.squeeze(values(brightness_freq or freq, [shape[0], shape[1], 1],
+                                  distrib=brightness_distrib or ValueDistribution.normal,
+                                  corners=corners, mask=mask, mask_inverse=mask_inverse,
+                                  spline_order=spline_order, wavelet=wavelet))
 
         else:
             v = tensor[:, :, 2]
@@ -202,8 +207,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
              with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
-             hue_distrib=None, saturation_distrib=None, brightness_distrib=None, reduce_max=False,
-             **post_process_args):
+             hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
+             reduce_max=False, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -244,6 +249,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param None|ValueDistribution hue_distrib: Override ValueDistribution for HSV hue
     :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
+    :param None|int|list[int] brightness_freq: Override frequency for HSV brightness
     :param bool reduce_max: If True, accumulate max values across all octaves
     :return: Tensor
 
@@ -267,7 +273,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
-                      hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, saturation_distrib=saturation_distrib,
+                      hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
+                      saturation_distrib=saturation_distrib,
                       )
 
         if reduce_max:
