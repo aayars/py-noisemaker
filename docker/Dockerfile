@@ -1,10 +1,10 @@
-FROM debian:9-slim
+FROM python:3.7-slim-stretch
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 RUN apt update -qq && \
-    apt install -qq -y curl git python3 python3-pip python3-setuptools python3-six && \
+    apt install -qq -y curl git python3-pip python3-setuptools python3-six && \
     \
     mkdir -p /root/.noisemaker/fonts && \
     cd /root/.noisemaker/fonts && \
@@ -13,7 +13,7 @@ RUN apt update -qq && \
     cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
-    pip3 install -q tensorflow==1.3.0 && \
+    pip3 install -q tensorflow==1.15.2 && \
     \
     apt install -qq -y cpanminus gcc libjpeg-dev libpng-dev make perl-doc && \
     PERL_MM_USE_DEFAULT=1 perl -MCPAN -e 'install Math::Fractal::Noisemaker' && \
