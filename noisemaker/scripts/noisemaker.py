@@ -160,7 +160,7 @@ def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,
                                  with_convolve=convolve, with_shadow=shadow)
 
-    tensor = recipes.post_process(tensor, shape=shape, freq=freq,
+    tensor = recipes.post_process(tensor, shape=shape, freq=freq, time=time,
                                   with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
     with tf.Session().as_default():
