@@ -252,8 +252,8 @@ def scanline_error(tensor, shape, time=0.0):
     height, width, channels = shape
 
     value_shape = [height, width, 1]
-    error_line = tf.maximum(basic([int(height * .75), 1], value_shape, time=time, distrib=ValueDistribution.simplex) - .5, 0)
-    error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, time=time, distrib=ValueDistribution.simplex) - .5, 0)
+    error_line = tf.maximum(basic([int(height * .75), 1], value_shape, time=time, distrib=ValueDistribution.simplex_exp) - .5, 0)
+    error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, time=time, distrib=ValueDistribution.simplex_exp) - .5, 0)
 
     error_line *= error_swerve
 
@@ -277,7 +277,7 @@ def snow(tensor, shape, amount, time=0.0):
     height, width, channels = shape
 
     static = basic([height, width], [height, width, 1], time=time, distrib=ValueDistribution.simplex, spline_order=0)
-    static_limiter = basic([height, width], [height, width, 1], time=time, distrib=ValueDistribution.simplex, spline_order=0) * amount
+    static_limiter = basic([height, width], [height, width, 1], time=time, distrib=ValueDistribution.simplex_exp, spline_order=0) * amount
 
     return effects.blend(tensor, static, static_limiter)
 
@@ -387,11 +387,11 @@ def grime(tensor, shape, time=0.0):
 
     value_shape = [shape[0], shape[1], 1]
 
-    mask = multires(5, value_shape, time=time, distrib=ValueDistribution.simplex, octaves=8, refract_range=1.0, deriv=3, deriv_alpha=.5)
+    mask = multires(5, value_shape, time=time, distrib=ValueDistribution.simplex_exp, octaves=8, refract_range=1.0, deriv=3, deriv_alpha=.5)
 
     dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
 
-    specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, time=time, distrib=ValueDistribution.simplex, refract_range=.1)
+    specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, time=time, distrib=ValueDistribution.simplex_exp, refract_range=.1)
     specks = 1.0 - tf.sqrt(effects.normalize(tf.maximum(specks - .5, 0.0)))
 
     dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape, time=time, distrib=ValueDistribution.simplex), .125) * specks
@@ -461,7 +461,7 @@ def watermark(tensor, shape, time=0.0):
 
     mask = crt(mask, value_shape)
 
-    mask = effects.warp(mask, value_shape, [2, 4], octaves=1, displacement=.5)
+    mask = effects.warp(mask, value_shape, [2, 4], octaves=1, displacement=.5, time=time)
 
     mask *= tf.square(basic(2, value_shape, time=time, distrib=ValueDistribution.simplex))
 
@@ -561,7 +561,7 @@ def on_screen_display(tensor, shape):
 
 
 def nebula(tensor, shape, time=0.0):
-    overlay = multires(random.randint(2, 4), shape, time=time, distrib=ValueDistribution.simplex, ridges=True, octaves=6)
+    overlay = multires(random.randint(2, 4), shape, time=time, distrib=ValueDistribution.simplex_exp, ridges=True, octaves=6)
 
     overlay -= multires(random.randint(2, 4), shape, time=time, distrib=ValueDistribution.simplex, ridges=True, octaves=4)
 
@@ -592,22 +592,22 @@ def spatter(tensor, shape, time=0.0):
     value_shape = [shape[0], shape[1], 1]
 
     # Generate a smear
-    smear = multires(random.randint(2, 4), value_shape, time=time, distrib=ValueDistribution.simplex,
+    smear = multires(random.randint(2, 4), value_shape, time=time, distrib=ValueDistribution.simplex_exp,
                      ridges=True, octaves=6, spline_order=3)
 
     smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
                          octaves=random.randint(1, 2), displacement=.5 + random.random() * .5,
-                         spline_order=3)
+                         spline_order=3, time=time)
 
     # Add spatter dots
-    smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, time=time, distrib=ValueDistribution.simplex,
+    smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, time=time, distrib=ValueDistribution.simplex_exp,
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
-    smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, time=time, distrib=ValueDistribution.simplex,
+    smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, time=time, distrib=ValueDistribution.simplex_exp,
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
     # Remove some of it
-    smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, time=time, distrib=ValueDistribution.simplex,
+    smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, time=time, distrib=ValueDistribution.simplex_exp,
                                              ridges=True, octaves=3, spline_order=1) * .75)
 
     #

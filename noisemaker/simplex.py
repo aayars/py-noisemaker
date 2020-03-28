@@ -18,7 +18,7 @@ def get_seed():
     return _seed or random.randint(1, 65536)
 
 
-def simplex(shape, time=0.0):
+def simplex(shape, time=0.0, square=False):
     """
     Return simplex noise values. Lives in its own module to avoid circular dependencies.
     """
@@ -40,4 +40,9 @@ def simplex(shape, time=0.0):
             for x in range(shape[1]):
                 tensor[y][x][c] = simplex.noise4d(x, y, z, w)
 
-    return (tf.stack(tensor) + 1.0) * .5
+    tensor = (tf.stack(tensor) + 1.0) * .5
+
+    if square:
+        tensor = tf.square(tf.square(tensor))
+
+    return tensor

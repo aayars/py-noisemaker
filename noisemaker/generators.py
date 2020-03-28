@@ -75,6 +75,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.simplex:
         tensor = simplex.simplex(initial_shape, time=time)
 
+    elif distrib == ValueDistribution.simplex_exp:
+        tensor = simplex.simplex(initial_shape, time=time, square=True)
+
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 

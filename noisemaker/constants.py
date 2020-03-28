@@ -107,6 +107,7 @@ class ValueDistribution(Enum):
     row_index = 11
 
     simplex = 20
+    simplex_exp = 21
 
 
 class ValueMask(Enum):
