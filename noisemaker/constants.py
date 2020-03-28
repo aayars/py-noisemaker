@@ -16,6 +16,8 @@ class DistanceFunction(Enum):
 
     chebyshev = 3
 
+    quadratic = 4
+
 
 class InterpolationType(Enum):
     """
@@ -103,6 +105,8 @@ class ValueDistribution(Enum):
     column_index = 10
 
     row_index = 11
+
+    simplex = 20
 
 
 class ValueMask(Enum):

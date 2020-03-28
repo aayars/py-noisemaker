@@ -1,6 +1,9 @@
 """Low-level value noise generators for Noisemaker"""
 
+import math
 import random
+
+from opensimplex import OpenSimplex
 
 import numpy as np
 import tensorflow as tf
@@ -11,9 +14,14 @@ import noisemaker.effects as effects
 import noisemaker.masks as masks
 
 
+_seed = None
+
 def set_seed(seed):
     """
     """
+
+    global _seed
+    _seed = seed
 
     if seed is not None:
         random.seed(seed)
@@ -23,8 +31,16 @@ def set_seed(seed):
         tf.set_random_seed(seed)
 
 
+def get_seed():
+    """
+    """
+
+    global _seed
+    return _seed or random.randint(1, 65536)
+
+
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
-           spline_order=3, wavelet=False):
+           spline_order=3, wavelet=False, time=0.0):
     """
     """
 
@@ -69,6 +85,26 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.row_index:
         tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
 
+    elif distrib == ValueDistribution.simplex:
+        tensor = np.empty(initial_shape, dtype=np.float32)
+
+        seed = get_seed()
+
+        # h/t Etienne Jacob
+        # https://necessarydisorder.wordpress.com/2017/11/15/drawing-from-noise-and-then-making-animated-loopy-gifs-from-there/
+        two_pi_times_time = math.pi * 2 * time
+        z = math.cos(two_pi_times_time)
+        w = math.sin(two_pi_times_time)
+
+        for c in range(shape[2]):
+            simplex = OpenSimplex(seed=seed + c * 65535)
+
+            for y in range(initial_shape[0]):
+                for x in range(initial_shape[1]):
+                    tensor[y][x][c] = simplex.noise4d(x, y, z, w)
+
+        tensor = (tf.stack(tensor) + 1.0) * .5
+
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 
@@ -104,7 +140,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
           rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
-          **post_process_args):
+          time=0.0, **post_process_args):
     """
     Generate a single layer of scaled noise.
 
@@ -132,6 +168,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
     :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
     :param None|int|list[int] brightness_freq: Override frequency for brightness
+    :param float time: Time argument for Z axis (simplex only)
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -141,7 +178,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         freq = effects.freq_for_shape(freq, shape)
 
     tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
-                    spline_order=spline_order, wavelet=wavelet)
+                    spline_order=spline_order, wavelet=wavelet, time=time)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -154,7 +191,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         if hue_distrib:
             h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
                                   mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet))
+                                  wavelet=wavelet, time=time))
 
         else:
             if hue_rotation is None:
@@ -165,7 +202,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         if saturation_distrib:
             s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
                                   mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet))
+                                  wavelet=wavelet, time=time))
 
         else:
             s = tensor[:, :, 1]
@@ -179,7 +216,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             v = tf.squeeze(values(brightness_freq or freq, [shape[0], shape[1], 1],
                                   distrib=brightness_distrib or ValueDistribution.normal,
                                   corners=corners, mask=mask, mask_inverse=mask_inverse,
-                                  spline_order=spline_order, wavelet=wavelet))
+                                  spline_order=spline_order, wavelet=wavelet, time=time))
 
         else:
             v = tensor[:, :, 2]
@@ -208,7 +245,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             reduce_max=False, **post_process_args):
+             reduce_max=False, time=0.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -251,6 +288,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
     :param None|int|list[int] brightness_freq: Override frequency for HSV brightness
     :param bool reduce_max: If True, accumulate max values across all octaves
+    :param float time: Time argument for Z axis (simplex only)
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -274,7 +312,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                      saturation_distrib=saturation_distrib,
+                      saturation_distrib=saturation_distrib, time=time,
                       )
 
         if reduce_max:

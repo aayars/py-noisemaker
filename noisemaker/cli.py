@@ -134,6 +134,12 @@ def channels_option(**attrs):
     return int_option("--channels", type=click.IntRange(1, 4), default=3, **attrs)
 
 
+def time_option(**attrs):
+    attrs.setdefault("help", "Time value for Z axis (simplex only)")
+
+    return float_option("--time", default=0.0, **attrs)
+
+
 def octaves_option(**attrs):
     attrs.setdefault("help", "Octave count: Number of multi-res layers")
 

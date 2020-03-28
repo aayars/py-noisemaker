@@ -19,13 +19,14 @@ import noisemaker.recipes as recipes
 @cli.width_option()
 @cli.height_option()
 @cli.channels_option()
+@cli.time_option()
 @cli.clut_option()
 @cli.seed_option()
 @cli.option('--overrides', type=str, help='A JSON dictionary containing preset overrides')
 @cli.name_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name):
+def main(ctx, width, height, channels, time, clut, seed, overrides, name, preset_name):
     presets.bake_presets(seed)
 
     if preset_name == 'random':
@@ -36,6 +37,7 @@ def main(ctx, width, height, channels, clut, seed, overrides, name, preset_name)
     print(kwargs['name'])
 
     kwargs['shape'] = [height, width, channels]
+    kwargs['time'] = time
 
     if 'freq' not in kwargs:
         kwargs['freq'] = 3
