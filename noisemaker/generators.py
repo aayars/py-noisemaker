@@ -1,9 +1,6 @@
 """Low-level value noise generators for Noisemaker"""
 
-import math
 import random
-
-from opensimplex import OpenSimplex
 
 import numpy as np
 import tensorflow as tf
@@ -12,16 +9,12 @@ from noisemaker.constants import ValueDistribution, ValueMask
 
 import noisemaker.effects as effects
 import noisemaker.masks as masks
+import noisemaker.simplex as simplex
 
-
-_seed = None
 
 def set_seed(seed):
     """
     """
-
-    global _seed
-    _seed = seed
 
     if seed is not None:
         random.seed(seed)
@@ -30,13 +23,7 @@ def set_seed(seed):
 
         tf.set_random_seed(seed)
 
-
-def get_seed():
-    """
-    """
-
-    global _seed
-    return _seed or random.randint(1, 65536)
+        simplex._seed = seed
 
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
@@ -86,24 +73,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
 
     elif distrib == ValueDistribution.simplex:
-        tensor = np.empty(initial_shape, dtype=np.float32)
-
-        seed = get_seed()
-
-        # h/t Etienne Jacob
-        # https://necessarydisorder.wordpress.com/2017/11/15/drawing-from-noise-and-then-making-animated-loopy-gifs-from-there/
-        two_pi_times_time = math.pi * 2 * time
-        z = math.cos(two_pi_times_time)
-        w = math.sin(two_pi_times_time)
-
-        for c in range(shape[2]):
-            simplex = OpenSimplex(seed=seed + c * 65535)
-
-            for y in range(initial_shape[0]):
-                for x in range(initial_shape[1]):
-                    tensor[y][x][c] = simplex.noise4d(x, y, z, w)
-
-        tensor = (tf.stack(tensor) + 1.0) * .5
+        tensor = simplex.simplex(initial_shape, time=time)
 
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
@@ -183,9 +153,9 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
 
-        tensor = effects.refract(tensor, shape, displacement=displacement, warp_freq=freq, spline_order=spline_order)
+        tensor = effects.refract(tensor, shape, time=time, displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-    tensor = effects.post_process(tensor, shape, freq, spline_order=spline_order, rgb=rgb, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, time=time, spline_order=spline_order, rgb=rgb, **post_process_args)
 
     if shape[-1] == 3 and not rgb:
         if hue_distrib:
@@ -322,7 +292,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
 
     post_process_args['refract_extend_range'] = False
 
-    tensor = effects.post_process(tensor, shape, freq, ridges_hint=ridges and rgb, spline_order=spline_order,
+    tensor = effects.post_process(tensor, shape, freq, time=time, ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
                                   deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, rgb=rgb,

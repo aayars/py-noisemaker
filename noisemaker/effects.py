@@ -16,6 +16,7 @@ from noisemaker.glyphs import load_glyphs
 from noisemaker.points import point_cloud
 
 import noisemaker.masks as masks
+import noisemaker.simplex as simplex
 import noisemaker.util as util
 
 
@@ -42,7 +43,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
                  angle=None,
-                 rgb=False, **_):
+                 rgb=False, time=0.0, **_):
     """
     Apply post-processing effects.
 
@@ -201,7 +202,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else freq_for_shape(warp_freq, shape)
 
-        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp)
+        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp, time=time)
 
     if ripple_range:
         ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
@@ -621,7 +622,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True, time=0.0):
     """
     Apply displacement from pixel values.
 
@@ -657,7 +658,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
+            reference_x = resample(simplex.simplex(warp_shape, time=time), shape, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -667,7 +668,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(tf.random_uniform(warp_shape), shape, spline_order=spline_order)
+            reference_y = resample(simplex.simplex(warp_shape, time=time), shape, spline_order=spline_order)
 
         else:
             y0_index += int(height * .5)
@@ -1659,7 +1660,7 @@ def freq_for_shape(freq, shape):
         return [int(freq * height / width), freq]
 
 
-def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
+def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, time=0.0):
     """
     Multi-octave warp effect
 
@@ -1684,7 +1685,7 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3):
         if base_freq[0] >= shape[0] or base_freq[1] >= shape[1]:
             break
 
-        tensor = refract(tensor, shape, displacement=displacement / multiplier, warp_freq=base_freq, spline_order=spline_order)
+        tensor = refract(tensor, shape, displacement=displacement / multiplier, warp_freq=base_freq, spline_order=spline_order, time=time)
 
     return tensor
 
