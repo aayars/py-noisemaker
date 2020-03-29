@@ -18,14 +18,15 @@ def get_seed():
     return _seed or random.randint(1, 65536)
 
 
-def simplex(shape, time=0.0, square=False):
+def simplex(shape, time=0.0, square=False, seed=None):
     """
     Return simplex noise values. Lives in its own module to avoid circular dependencies.
     """
 
     tensor = np.empty(shape, dtype=np.float32)
 
-    seed = get_seed()
+    if seed is None:
+        seed = get_seed()
 
     # h/t Etienne Jacob
     # https://necessarydisorder.wordpress.com/2017/11/15/drawing-from-noise-and-then-making-animated-loopy-gifs-from-there/

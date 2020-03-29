@@ -301,7 +301,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = pixel_sort(tensor, shape, sort_angled, sort_darkest)
 
     if with_sketch:
-        tensor = sketch(tensor, shape)
+        tensor = sketch(tensor, shape, time=time())
 
     if with_lowpoly:
         tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq)
@@ -658,7 +658,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(simplex.simplex(warp_shape, time=time), shape, spline_order=spline_order)
+            reference_x = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536)), shape, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -668,7 +668,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(simplex.simplex(warp_shape, time=time), shape, spline_order=spline_order)
+            reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536)), shape, spline_order=spline_order)
 
         else:
             y0_index += int(height * .5)
@@ -2331,7 +2331,7 @@ def rotate(tensor, shape, angle=None):
     return tf.image.resize_image_with_crop_or_pad(rotated, height, width)
 
 
-def sketch(tensor, shape):
+def sketch(tensor, shape, time=0.0):
     """
     Pencil sketch effect
 
@@ -2358,7 +2358,7 @@ def sketch(tensor, shape):
     crosshatch = normalize(crosshatch)
 
     combined = blend(crosshatch, outline, .625)
-    combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.005)
+    combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time)
     combined *= combined
 
     return combined * tf.ones(shape)
