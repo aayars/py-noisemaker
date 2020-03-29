@@ -535,6 +535,8 @@ _PRESETS = lambda: {  # noqa: E731
 
     "basic-lowpoly": lambda: extend("basic", "lowpoly"),
 
+    "basic-voronoi": lambda: extend("basic", "voronoi"),
+
     "basic-voronoi-refract": lambda: extend("basic", {
         "hue-range": .25 + random.random() * .5,
         "voronoi_refract": .5 + random.random() * .5,

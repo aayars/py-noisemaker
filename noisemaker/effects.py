@@ -153,7 +153,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
             x, y = point_cloud(1, PointDistribution.square, shape)
 
         else:
-            x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift)
+            x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift, time=time)
 
         xy = (x, y, len(x))
 
@@ -207,10 +207,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if ripple_range:
         ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
 
-        tensor = ripple(tensor, shape, ripple_freq, displacement=ripple_range, kink=ripple_kink)
+        tensor = ripple(tensor, shape, ripple_freq, displacement=ripple_range, kink=ripple_kink, time=time)
 
     if vortex_range:
-        tensor = vortex(tensor, shape, displacement=vortex_range)
+        tensor = vortex(tensor, shape, displacement=vortex_range, time=time)
 
     if deriv:
         tensor = derivative(tensor, shape, deriv, alpha=deriv_alpha)
@@ -265,13 +265,13 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = pop(tensor, shape)
 
     if with_aberration:
-        tensor = aberration(tensor, shape, displacement=with_aberration)
+        tensor = aberration(tensor, shape, displacement=with_aberration, time=time)
 
     if with_bloom:
         tensor = bloom(tensor, shape, alpha=with_bloom)
 
     if with_light_leak:
-        tensor = light_leak(tensor, shape, with_light_leak)
+        tensor = light_leak(tensor, shape, with_light_leak, time=time)
 
     if with_vignette:
         tensor = vignette(tensor, shape, brightness=vignette_brightness, alpha=with_vignette)
@@ -304,7 +304,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = sketch(tensor, shape, time=time())
 
     if with_lowpoly:
-        tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq)
+        tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq, time=time)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
@@ -706,7 +706,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     return blend(x_y0, x_y1, y_fract)
 
 
-def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3):
+def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3, time=0.0):
     """
     Apply displacement from pixel radian values.
 
@@ -737,7 +737,7 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
         # reference = derivative(reference, [shape[0], shape[1], 1], with_normalize=False)
 
     # Twist index, borrowed from worms. TODO merge me.
-    index = value_map(reference, shape) * 360.0 * math.radians(1) * kink
+    index = value_map(reference, shape) * 360.0 * math.radians(1) * kink * simplex.random(time)
 
     reference_x = (tf.cos(index) * displacement * width) % width
     reference_y = (tf.sin(index) * displacement * height) % height
@@ -1770,7 +1770,7 @@ def singularity(tensor, shape, diagram_type=1, **kwargs):
     return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
 
 
-def vortex(tensor, shape, displacement=64.0):
+def vortex(tensor, shape, displacement=64.0, time=0.0):
     """
     Vortex tiling effect
 
@@ -1796,12 +1796,12 @@ def vortex(tensor, shape, displacement=64.0):
     x *= fader
     y *= fader
 
-    warped = refract(tensor, shape, displacement=displacement, reference_x=x, reference_y=y)
+    warped = refract(tensor, shape, displacement=displacement * simplex.random(time), reference_x=x, reference_y=y)
 
     return warped
 
 
-def aberration(tensor, shape, displacement=.005):
+def aberration(tensor, shape, displacement=.005, time=0.0):
     """
     Chromatic aberration
 
@@ -1827,7 +1827,7 @@ def aberration(tensor, shape, displacement=.005):
 
     separated = []
 
-    displacement_pixels = int(width * displacement)
+    displacement_pixels = int(width * displacement * simplex.random(time))
 
     mask = tf.pow(tf.squeeze(singularity(None, [shape[0], shape[1], 1])), 3)
 
@@ -2097,11 +2097,11 @@ def reverb(tensor, shape, octaves, iterations=1, ridges=True):
     return normalize(out)
 
 
-def light_leak(tensor, shape, alpha=.25):
+def light_leak(tensor, shape, alpha=.25, time=0.0):
     """
     """
 
-    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], shape=shape)
+    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], shape=shape, time=time)
 
     leak = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
     leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
@@ -2364,10 +2364,10 @@ def sketch(tensor, shape, time=0.0):
     return combined * tf.ones(shape)
 
 
-def lowpoly(tensor, shape, distrib=0, freq=10):
+def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0):
     """Low-poly art style effect"""
 
-    xy = point_cloud(freq, distrib=distrib, shape=shape)
+    xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time)
 
     distance = voronoi(tensor, shape, nth=1, xy=xy)
     color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy)

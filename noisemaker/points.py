@@ -5,8 +5,10 @@ import random
 
 from noisemaker.constants import PointDistribution
 
+import noisemaker.simplex as simplex
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0):
+
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0, time=0.0):
     """
     """
 
@@ -23,9 +25,6 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     else:
         width = shape[1]
         height = shape[0]
-
-    range_x = width * .5
-    range_y = height * .5
 
     if isinstance(distrib, int):
         distrib = PointDistribution(distrib)
@@ -44,6 +43,9 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     elif PointDistribution.is_circular(distrib):
         point_func = circular
 
+    range_x = width * .5
+    range_y = height * .5
+
     #
     seen = set()
     active_set = set()
@@ -52,7 +54,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
         active_set.add((0.0, 0.0, 1))
 
     else:
-        active_set.add((range_x, range_y, 1))
+        active_set.add((range_y, range_x, 1))
 
     seen.update(active_set)
 
@@ -64,7 +66,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
 
             next = point_func(freq=freq, distrib=distrib, corners=corners,
                               center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
-                              width=width, height=height, generation=generation)
+                              width=width, height=height, generation=generation, time=time)
 
             _x, _y = next
 
@@ -80,8 +82,8 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 active_set.add((x_point, y_point, generation + 1))
 
                 if drift:
-                    x_drift = random.random() * drift - drift * .5
-                    y_drift = random.random() * drift - drift * .5
+                    x_drift = simplex.random(time) * drift - drift * .5
+                    y_drift = simplex.random(time) * drift - drift * .5
 
                 else:
                     x_drift = 0
@@ -101,7 +103,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     return (x, y)
 
 
-def rand(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
+def rand(freq=2.0, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0, height=1.0, **kwargs):
     """
     """
 
@@ -166,11 +168,11 @@ def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.
     return x, y
 
 
-def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
+def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, time=0.0, **kwargs):
     """
     """
 
-    kink = random.random() * 5.0 - 2.5
+    kink = simplex.random(time) * 5.0 - 2.5
 
     x = []
     y = []
@@ -188,7 +190,7 @@ def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width
     return x, y
 
 
-def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, **kwargs):
+def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, time=0.0, **kwargs):
     """
     """
 
@@ -203,7 +205,7 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
-    kink = random.random() * 100 - 50
+    kink = simplex.random(time) * 100 - 50
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count

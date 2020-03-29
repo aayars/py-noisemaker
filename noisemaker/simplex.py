@@ -1,5 +1,5 @@
 import math
-import random
+import random as _random
 
 from opensimplex import OpenSimplex
 
@@ -15,7 +15,17 @@ def get_seed():
     """
 
     global _seed
-    return _seed or random.randint(1, 65536)
+    return _seed or _random.randint(1, 65536)
+
+
+def random(time, seed=None):
+    """Like random.random(), but returns a smooth periodic value over time."""
+
+    two_pi_times_time = math.pi * 2 * time
+    z = math.cos(two_pi_times_time)
+    w = math.sin(two_pi_times_time)
+
+    return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise4d(time, 0, z, w) + 1.0) * .5
 
 
 def simplex(shape, time=0.0, square=False, seed=None):

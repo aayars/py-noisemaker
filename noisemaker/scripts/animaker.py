@@ -36,7 +36,7 @@ def main(ctx, width, height, channels, clut, seed, name, preset_name):
         for i in range(frames):
             subprocess.check_call(['artmaker', preset_name,
                                   '--seed', str(seed or 1),
-                                  '--overrides', '{"distrib": "simplex"}',
+                                  '--overrides', '{"distrib": "simplex", "lattice_drift": 1.0, "point_drift": 1.0}',
                                   '--height', str(height),
                                   '--width', str(width),
                                   '--time', f'{i/frames:0.4f}',
