@@ -832,7 +832,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     worms_y = tf.random_uniform([count]) * (height - 1)
     worms_x = tf.random_uniform([count]) * (width - 1)
-    worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation)
+    worms_stride = tf.random_normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)
 
     color_source = colors if colors is not None else tensor
 
