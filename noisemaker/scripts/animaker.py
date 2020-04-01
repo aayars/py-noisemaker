@@ -40,14 +40,17 @@ def main(ctx, width, height, channels, clut, seed, name, preset_name):
     if distrib in (ValueDistribution.exp, 'exp'):
         overrides['distrib'] = 'simplex_exp'
 
-    elif distrib not in (ValueDistribution.ones, 'ones', ValueDistribution.simplex_exp, 'simplex_exp'):
+    elif distrib not in (ValueDistribution.simplex_exp, 'simplex_exp'):
         overrides['distrib'] = 'simplex'
 
     if not kwargs.get('lattice_drift'):
-        overrides['lattice_drift'] = 0.5
+        overrides['lattice_drift'] = 1.0
 
     if not kwargs.get('point_drift'):
-        overrides['point_drift'] = 0.5
+        overrides['point_drift'] = 1.0
+
+    if not kwargs.get('simplex_displacement'):
+        overrides['simplex_displacement'] = 0.25
 
     frames = 30
 
