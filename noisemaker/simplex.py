@@ -25,7 +25,7 @@ def random(time, seed=None, displacement=1.0):
     z = math.cos(two_pi_times_time) * displacement
     w = math.sin(two_pi_times_time) * displacement
 
-    return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise4d(0, 0, z, w) + 1.0) * .5
+    return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise2d(z, w) + 1.0) * .5
 
 
 def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0):
