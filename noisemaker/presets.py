@@ -2146,8 +2146,8 @@ _PRESETS = lambda: {  # noqa: E731
 
     "spaghettification": lambda: extend("aberration", "bloom", "density-map", "multires-low", {
         "point_freq": 1,
-        "voronoi_func": random.randint(1, 3),
         "voronoi_inverse": True,
+        "warp_range": .5 + random.random() * .5,
         "with_shadow": .75 + random.random() * .25,
         "with_voronoi": 6,
         "with_worms": 4,
