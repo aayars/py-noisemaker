@@ -152,10 +152,6 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_nebula": True,
     },
 
-    "needs-more-jpeg": lambda: {
-        "with_jpeg_decimate": random.randint(10, 25),
-    },
-
     "noirmaker": lambda: extend("bloom", "dither", "vignette-dark", {
         "post_contrast": 5,
         "post_saturation": 0,
