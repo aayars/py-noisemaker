@@ -20,10 +20,11 @@ import noisemaker.recipes as recipes
 @cli.name_option(default='mangled.png')
 @cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
 @cli.option('--overrides', type=str, help='A JSON dictionary containing preset overrides')
+@cli.time_option()
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.EFFECTS_PRESETS)))
 @click.argument('input_filename')
 @click.pass_context
-def main(ctx, seed, name, no_resize, overrides, preset_name, input_filename):
+def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filename):
     presets.bake_presets(seed)
 
     input_shape = effects.shape_from_file(input_filename)
@@ -38,6 +39,8 @@ def main(ctx, seed, name, no_resize, overrides, preset_name, input_filename):
     kwargs = presets.preset(preset_name)
 
     print(kwargs['name'])
+
+    kwargs['time'] = time
 
     if 'freq' not in kwargs:
         kwargs['freq'] = [3, 3]
