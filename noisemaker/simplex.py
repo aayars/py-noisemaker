@@ -28,7 +28,8 @@ def random(time, seed=None, displacement=1.0):
     return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise2d(z, w) + 1.0) * .5
 
 
-def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0):
+def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0, as_np=False):
+
     """
     Return simplex noise values. Lives in its own module to avoid circular dependencies.
     """
@@ -59,9 +60,12 @@ def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0):
                 for x in range(shape[1]):
                     tensor[y][x][c] = simplex.noise4d(x, y, z, w)
 
-    tensor = (tf.stack(tensor) + 1.0) * .5
+    tensor += 1.0 * .5
 
     if square:
-        tensor = tf.square(tf.square(tensor))
+        tensor = np.square(np.square(tensor))
+
+    if not as_np:
+        tensor = tf.stack(tensor)
 
     return tensor

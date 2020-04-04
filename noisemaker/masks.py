@@ -2176,7 +2176,7 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     uv_shape = [int(channel_shape[0] / shape[0]) or 1, int(channel_shape[1] / shape[1]) or 1]
 
     if uv_noise is None:
-        uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), displacement=simplex_displacement)
+        uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), displacement=simplex_displacement, as_np=True)
 
     total = 0
 
@@ -2230,7 +2230,11 @@ def square_masks():
 def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
     atlas = [Masks[g] for g in Masks if g.value >= min_value and g.value <= max_value]
 
-    return atlas[int(uv_noise[uv_y][uv_x] * (len(atlas)))][y % shape[0]][x % shape[1]]
+    glyph_index = int(uv_noise[uv_y][uv_x] * (len(atlas)))
+
+    glyph_index = min(max(glyph_index, 0), 1)
+
+    return atlas[glyph_index][y % shape[0]][x % shape[1]]
 
 
 @mask([10, 10, 1])
