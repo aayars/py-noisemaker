@@ -2190,7 +2190,7 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
             uv_x = int((x / channel_shape[1]) * uv_shape[1])
 
             if callable(Masks[mask]):
-                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas)
+                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas, channel_shape=channel_shape)
 
             else:
                 pixel = Masks[mask][y % shape[0]][x % shape[1]]
@@ -2528,16 +2528,19 @@ def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     return random.randint(0, 1) if value == -1 else value
 
 
-@mask(lambda: [random.randint(256, 512)] * 2 + [1])
-def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    third_height = shape[0] / 3
-    half_width = shape[1] / 2
+@mask(lambda: [64, 64, 1])
+def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, channel_shape, **kwargs):
+    third_height = channel_shape[0] / 3
+    half_width = channel_shape[1] / 2
     dna_half_width = mask_shape(ValueMask.arecibo_dna)[1] * .5
 
     if x > half_width - dna_half_width and x < half_width + dna_half_width:
         dna_x = int(x - half_width - dna_half_width)
 
         return arecibo_dna(dna_x, y, row, mask_shape(ValueMask.arecibo_dna), uv_x, uv_y, uv_noise, **kwargs)
+
+    if x > half_width - (dna_half_width + 2) and x < half_width + dna_half_width + 1:
+        return 0
 
     if y < third_height:
         return arecibo_num(x, y, row, mask_shape(ValueMask.arecibo_num), uv_x, uv_y, uv_noise, **kwargs)

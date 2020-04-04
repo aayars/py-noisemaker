@@ -1966,11 +1966,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": random.random(),
     }),
 
-    "seether-reflect": lambda: extend("invert", "symmetry", {
+    "seether": lambda: extend("invert", "symmetry", {
         "hue_range": 1.0 + random.random(),
         "point_distrib": random_member(PointDistribution.circular_members()),
         "point_freq": random.randint(4, 6),
-        "post_reflect_range": random.randint(4, 6),
         "post_ridges": True,
         "ridges": True,
         "voronoi_alpha": .25 + random.random() * .25,
@@ -1982,20 +1981,12 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
-    "seether-refract": lambda: extend("invert", "symmetry", {
-        "hue_range": 1.0 + random.random(),
-        "point_distrib": random_member(PointDistribution.circular_members()),
-        "point_freq": random.randint(4, 6),
+    "seether-reflect": lambda: extend("seether", {
+        "post_reflect_range": random.randint(4, 6),
+    }),
+
+    "seether-refract": lambda: extend("seether", {
         "post_refract_range": random.randint(2, 4),
-        "post_ridges": True,
-        "ridges": True,
-        "voronoi_alpha": .25 + random.random() * .25,
-        "warp_range": .25,
-        "warp_octaves": 6,
-        "with_glowing_edges": 1,
-        "with_reverb": 1,
-        "with_shadow": 1,
-        "with_voronoi": 2,
     }),
 
     "shape-party": lambda: extend("invert", {
