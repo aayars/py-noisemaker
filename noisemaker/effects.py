@@ -1296,7 +1296,7 @@ def center_mask(center, edges, shape):
 
     mask = tf.square(singularity(None, shape, dist_func=DistanceFunction.chebyshev))
 
-    return blend_cosine(center, edges, mask)
+    return blend(center, edges, mask)
 
 
 def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False,
@@ -2122,11 +2122,18 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     """
     """
 
-    for _ in range(3):
-        edges = convolve(ValueMask.conv2d_blur, tensor, shape)
+    tensor = normalize(tensor)
 
-    edges = center_mask(edges, tf.ones(shape) * brightness, shape)
-    edges = center_mask(tensor, edges, shape)
+    #
+    blurred = _downsample(tensor, shape, [int(shape[0] * .01) or 1, int(shape[1] * .01) or 1, shape[2]])
+    blurred = resample(blurred, shape)
+
+    blurred = center_mask(tensor, blurred, shape)
+
+    tensor = blend(tensor, blurred, alpha)
+
+    #
+    edges = center_mask(tensor, tf.ones(shape) * brightness, shape)
 
     return blend(tensor, edges, alpha)
 
