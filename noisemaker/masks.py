@@ -2232,7 +2232,7 @@ def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_va
 
     glyph_index = int(uv_noise[uv_y][uv_x] * (len(atlas)))
 
-    glyph_index = min(max(glyph_index, 0), len(atlas))
+    glyph_index = min(max(glyph_index, 0), len(atlas) - 1)
 
     return atlas[glyph_index][y % shape[0]][x % shape[1]]
 
