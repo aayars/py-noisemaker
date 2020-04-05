@@ -52,7 +52,11 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, preset_n
     if distrib in (ValueDistribution.exp, 'exp'):
         overrides['distrib'] = 'simplex_exp'
 
-    elif distrib not in (ValueDistribution.simplex_exp, 'simplex_exp'):
+    elif distrib not in (
+        ValueDistribution.simplex_exp, 'simplex_exp',
+        ValueDistribution.column_index, 'column_index',
+        ValueDistribution.row_index, 'row_index',
+    ):
         overrides['distrib'] = 'simplex'
 
     if not kwargs.get('point_drift'):
