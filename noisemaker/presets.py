@@ -1577,10 +1577,6 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_stride": .0005,
     }),
 
-    "moirio": lambda: extend("density-map", "symmetry", {
-        "with_moirio": True,
-    }),
-
     "multires": lambda: {
         "octaves": random.randint(4, 8),
     },

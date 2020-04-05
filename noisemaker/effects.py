@@ -298,7 +298,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = conv_feedback(tensor, shape, iterations=with_conv_feedback, alpha=conv_feedback_alpha)
 
     if with_sort:
-        tensor = pixel_sort(tensor, shape, sort_angled, sort_darkest)
+        tensor = pixel_sort(tensor, shape, sort_angled, sort_darkest, time=time, simplex_displacement=simplex_displacement)
 
     if with_sketch:
         tensor = sketch(tensor, shape, time=time, simplex_displacement=simplex_displacement)
@@ -2248,7 +2248,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0):
     return blend(tensor, out, alpha)
 
 
-def pixel_sort(tensor, shape, angled=False, darkest=False):
+def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, simplex_displacement=1.0):
     """
     Pixel sort effect
 
@@ -2260,7 +2260,7 @@ def pixel_sort(tensor, shape, angled=False, darkest=False):
     """
 
     if angled:
-        angle = random.randint(0, 360) if isinstance(angled, bool) else angled
+        angle = simplex.random(time, seed=random.randint(1, 65536), displacement=simplex_displacement) if isinstance(angled, bool) else angled
 
     else:
         angle = False
