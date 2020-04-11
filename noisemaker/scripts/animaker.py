@@ -59,6 +59,9 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, preset_n
     ):
         overrides['distrib'] = 'simplex'
 
+    if 'point_drift' not in kwargs:
+        overrides['point_drift'] = 0.5
+
     if 'speed' not in kwargs:
         overrides['speed'] = 0.25
 
