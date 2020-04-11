@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='noisemaker',
-      version='0.1.225',
+      version='0.1.226',
       description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
@@ -18,6 +18,7 @@ setup(name='noisemaker',
         artmangler=noisemaker.scripts.artmangler:main
         collagemaker=noisemaker.scripts.collagemaker:main
         glitchmaker=noisemaker.scripts.glitchmaker:main
+        magic-mashup=noisemaker.scripts.magic_mashup:main
         noisemaker=noisemaker.scripts.noisemaker:main
         worldmaker=noisemaker.scripts.worldmaker:main
         crop=noisemaker.scripts.crop:main

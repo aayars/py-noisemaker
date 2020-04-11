@@ -75,7 +75,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.simplex:
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
-    elif distrib == ValueDistribution.speed:
+    elif distrib == ValueDistribution.simplex_exp:
         tensor = simplex.simplex(initial_shape, time=time, speed=speed, square=True)
 
     else:
@@ -203,7 +203,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             v = effects.crease(v)
 
         if sin:
-            v = effects.normalize(tf.sin(sin * v * simplex.random(time * .25)))
+            v = effects.normalize(tf.sin(sin * v))
 
         tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
 
@@ -211,7 +211,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         tensor = effects.crease(tensor)
 
     if sin and rgb:
-        tensor = tf.sin(sin * tensor * simplex.random(time * .25))
+        tensor = tf.sin(sin * tensor)
 
     return tensor
 
