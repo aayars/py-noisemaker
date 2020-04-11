@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 import tempfile
 
@@ -22,9 +23,10 @@ import noisemaker.presets as presets
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(presets.EFFECTS_PRESETS)))
 @cli.name_option(default='ani.gif')
+@cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, clut, seed, effect_preset, name, preset_name):
+def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_frames, preset_name):
     if preset_name == 'random':
         preset_name = 'random-preset'
 
@@ -85,5 +87,7 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, preset_n
                 subprocess.check_call(['artmangler', effect_preset, filename, '--no-resize'] + common_params,
                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+            if save_frames:
+                shutil.copy(filename, save_frames)
 
         subprocess.check_call(['convert', '-delay', '5', f'{tmp}/*png', name])
