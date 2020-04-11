@@ -2152,7 +2152,7 @@ def mask_shape(mask):
     return shape
 
 
-def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=False, time=0.0, simplex_displacement=1.0):
+def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=False, time=0.0, speed=1.0):
     """
     Return a tuple of (pixel values, brightness) for the received ValueMask.
 
@@ -2176,7 +2176,7 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     uv_shape = [int(channel_shape[0] / shape[0]) or 1, int(channel_shape[1] / shape[1]) or 1]
 
     if uv_noise is None:
-        uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), displacement=simplex_displacement, as_np=True)
+        uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
 
     total = 0
 

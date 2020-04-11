@@ -8,7 +8,7 @@ from noisemaker.constants import PointDistribution
 import noisemaker.simplex as simplex
 
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0, time=0.0, simplex_displacement=1.0):
+def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0, time=0.0, speed=1.0):
     """
     """
 
@@ -66,7 +66,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
 
             next = point_func(freq=freq, distrib=distrib, corners=corners,
                               center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
-                              width=width, height=height, generation=generation, time=time, simplex_displacement=simplex_displacement)
+                              width=width, height=height, generation=generation, time=time, speed=speed)
 
             _x, _y = next
 
@@ -82,8 +82,8 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 active_set.add((x_point, y_point, generation + 1))
 
                 if drift:
-                    x_drift = simplex.random(time, displacement=simplex_displacement) * drift - drift * .5
-                    y_drift = simplex.random(time, displacement=simplex_displacement) * drift - drift * .5
+                    x_drift = simplex.random(time, speed=speed) * drift - drift * .5
+                    y_drift = simplex.random(time, speed=speed) * drift - drift * .5
 
                 else:
                     x_drift = 0
@@ -168,11 +168,11 @@ def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.
     return x, y
 
 
-def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, time=0.0, simplex_displacement=1.0, **kwargs):
+def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, time=0.0, speed=1.0, **kwargs):
     """
     """
 
-    kink = simplex.random(time, displacement=simplex_displacement) * 5.0 - 2.5
+    kink = simplex.random(time, speed=speed) * 5.0 - 2.5
 
     x = []
     y = []
@@ -190,7 +190,7 @@ def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width
     return x, y
 
 
-def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, time=0.0, simplex_displacement=1.0, **kwargs):
+def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, time=0.0, speed=1.0, **kwargs):
     """
     """
 
@@ -205,7 +205,7 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
-    kink = simplex.random(time, displacement=simplex_displacement) * 100 - 50
+    kink = simplex.random(time, speed=speed) * 100 - 50
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count

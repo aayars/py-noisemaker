@@ -59,11 +59,8 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, preset_n
     ):
         overrides['distrib'] = 'simplex'
 
-    if not kwargs.get('point_drift'):
-        overrides['point_drift'] = .5
-
-    if not kwargs.get('simplex_displacement'):
-        overrides['simplex_displacement'] = 0.125
+    if 'speed' not in kwargs:
+        overrides['speed'] = 0.25
 
     frames = 30
 

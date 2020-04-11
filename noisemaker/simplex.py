@@ -18,17 +18,17 @@ def get_seed():
     return _seed or _random.randint(1, 65536)
 
 
-def random(time, seed=None, displacement=1.0):
+def random(time, seed=None, speed=1.0):
     """Like random.random(), but returns a smooth periodic value over time."""
 
     two_pi_times_time = math.pi * 2 * time
-    z = math.cos(two_pi_times_time) * displacement
-    w = math.sin(two_pi_times_time) * displacement
+    z = math.cos(two_pi_times_time) * speed
+    w = math.sin(two_pi_times_time) * speed
 
     return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise2d(z, w) + 1.0) * .5
 
 
-def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0, as_np=False):
+def simplex(shape, time=0.0, square=False, seed=None, speed=1.0, as_np=False):
 
     """
     Return simplex noise values. Lives in its own module to avoid circular dependencies.
@@ -42,8 +42,8 @@ def simplex(shape, time=0.0, square=False, seed=None, displacement=1.0, as_np=Fa
     # h/t Etienne Jacob
     # https://necessarydisorder.wordpress.com/2017/11/15/drawing-from-noise-and-then-making-animated-loopy-gifs-from-there/
     two_pi_times_time = math.pi * 2 * time
-    z = math.cos(two_pi_times_time) * displacement
-    w = math.sin(two_pi_times_time) * displacement
+    z = math.cos(two_pi_times_time) * speed
+    w = math.sin(two_pi_times_time) * speed
 
     if len(shape) == 2:
         simplex = OpenSimplex(seed=seed)

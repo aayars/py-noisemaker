@@ -27,7 +27,7 @@ def set_seed(seed):
 
 
 def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
-           spline_order=3, wavelet=False, time=0.0, simplex_displacement=1.0):
+           spline_order=3, wavelet=False, time=0.0, speed=1.0):
     """
     """
 
@@ -73,10 +73,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
 
     elif distrib == ValueDistribution.simplex:
-        tensor = simplex.simplex(initial_shape, time=time, displacement=simplex_displacement)
+        tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
-    elif distrib == ValueDistribution.simplex_exp:
-        tensor = simplex.simplex(initial_shape, time=time, displacement=simplex_displacement, square=True)
+    elif distrib == ValueDistribution.speed:
+        tensor = simplex.simplex(initial_shape, time=time, speed=speed, square=True)
 
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
@@ -95,7 +95,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         channel_shape = freq + [1]
 
         mask_values, _ = masks.mask_values(mask, channel_shape, atlas=atlas, inverse=mask_inverse, time=time,
-                                           simplex_displacement=simplex_displacement)
+                                           speed=speed)
 
         tensor *= mask_values
 
@@ -114,7 +114,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
           rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
-          simplex_displacement=1.0, time=0.0, **post_process_args):
+          speed=1.0, time=0.0, **post_process_args):
     """
     Generate a single layer of scaled noise.
 
@@ -142,7 +142,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
     :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
     :param None|int|list[int] brightness_freq: Override frequency for brightness
-    :param float simplex_displacement: Displacement range for Z/W axis (simplex only)
+    :param float speed: Displacement range for Z/W axis (simplex only)
     :param float time: Time argument for Z/W axis (simplex only)
     :return: Tensor
 
@@ -153,22 +153,22 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         freq = effects.freq_for_shape(freq, shape)
 
     tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
-                    spline_order=spline_order, wavelet=wavelet, simplex_displacement=simplex_displacement, time=time)
+                    spline_order=spline_order, wavelet=wavelet, speed=speed, time=time)
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
 
-        tensor = effects.refract(tensor, shape, time=time, simplex_displacement=simplex_displacement,
+        tensor = effects.refract(tensor, shape, time=time, speed=speed,
                                  displacement=displacement, warp_freq=freq, spline_order=spline_order)
 
-    tensor = effects.post_process(tensor, shape, freq, time=time, simplex_displacement=simplex_displacement,
+    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
                                   spline_order=spline_order, rgb=rgb, **post_process_args)
 
     if shape[-1] == 3 and not rgb:
         if hue_distrib:
             h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
                                   mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet, time=time, simplex_displacement=simplex_displacement))
+                                  wavelet=wavelet, time=time, speed=speed))
 
         else:
             if hue_rotation is None:
@@ -179,7 +179,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         if saturation_distrib:
             s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
                                   mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet, time=time, simplex_displacement=simplex_displacement))
+                                  wavelet=wavelet, time=time, speed=speed))
 
         else:
             s = tensor[:, :, 1]
@@ -194,7 +194,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
                                   distrib=brightness_distrib or ValueDistribution.normal,
                                   corners=corners, mask=mask, mask_inverse=mask_inverse,
                                   spline_order=spline_order, wavelet=wavelet, time=time,
-                                  simplex_displacement=simplex_displacement))
+                                  speed=speed))
 
         else:
             v = tensor[:, :, 2]
@@ -203,7 +203,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             v = effects.crease(v)
 
         if sin:
-            v = effects.normalize(tf.sin(sin * v))
+            v = effects.normalize(tf.sin(sin * v * simplex.random(time * .25)))
 
         tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
 
@@ -211,7 +211,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         tensor = effects.crease(tensor)
 
     if sin and rgb:
-        tensor = tf.sin(sin * tensor)
+        tensor = tf.sin(sin * tensor * simplex.random(time * .25))
 
     return tensor
 
@@ -223,7 +223,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             reduce_max=False, time=0.0, simplex_displacement=1.0, **post_process_args):
+             reduce_max=False, time=0.0, speed=1.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -266,7 +266,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
     :param None|int|list[int] brightness_freq: Override frequency for HSV brightness
     :param bool reduce_max: If True, accumulate max values across all octaves
-    :param float simplex_displacement: Displacement range for Z/W axis (simplex only)
+    :param float speed: Displacement range for Z/W axis (simplex only)
     :param float time: Time argument for Z/W axis (simplex only)
     :return: Tensor
 
@@ -291,7 +291,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                      saturation_distrib=saturation_distrib, time=time, simplex_displacement=simplex_displacement,
+                      saturation_distrib=saturation_distrib, time=time, speed=speed,
                       )
 
         if reduce_max:
@@ -301,7 +301,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
 
     post_process_args['refract_extend_range'] = False
 
-    tensor = effects.post_process(tensor, shape, freq, time=time, simplex_displacement=simplex_displacement,
+    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
                                   ridges_hint=ridges and rgb, spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
