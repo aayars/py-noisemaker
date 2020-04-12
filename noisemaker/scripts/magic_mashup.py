@@ -62,7 +62,7 @@ def frames(ctx, input_dir, seed, name, save_frames):
 @cli.name_option(default="mashup.png")
 @click.pass_context
 def frame(ctx, input_dir, frame, seed, name):
-    random.seed(seed)
+    generators.set_seed(seed)
 
     shape = [512, 512, 3]
 
@@ -89,7 +89,7 @@ def frame(ctx, input_dir, frame, seed, name):
 
         collage_images.append(tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32))
 
-    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), time=frame/30.0, speed=0.025)
+    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), time=frame/30.0, speed=0.125, distrib="simplex")
 
     control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
 
