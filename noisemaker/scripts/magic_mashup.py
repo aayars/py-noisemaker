@@ -78,17 +78,12 @@ def frame(ctx, input_dir, frame, seed, name):
     for i in range(collage_count + 1):
         index = random.randint(0, len(dirnames) - 1)
 
-        try:
-            dirname = dirnames[index]
-        except Exception:
-            click.echo("Only have " + str(len(dirnames)) + " dirnames, index " + str(index) + " won't fucking work")
-            sys.exit(1)
+        dirname = dirnames[index]
 
         filenames = [f for f in sorted(os.listdir(os.path.join(input_dir, dirnames[index]))) if f.endswith('.png')]
 
         if not filenames:
-            click.echo("Couldn't find any images under " + os.path.join(input_dir, dirnames[index]))
-            sys.exit(1)
+            continue
 
         input_filename = os.path.join(dirnames[index], filenames[frame])
 
