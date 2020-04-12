@@ -85,7 +85,7 @@ def frame(ctx, input_dir, frame, seed, name):
         if not filenames:
             continue
 
-        input_filename = os.path.join(dirnames[index], filenames[frame])
+        input_filename = os.path.join(input_dir, dirnames[index], filenames[frame])
 
         collage_images.append(tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32))
 
