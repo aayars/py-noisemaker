@@ -425,7 +425,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_vhs": random.randint(0, 1),
     }),
 
-    "aesthetic": lambda: extend("be-kind-rewind", {
+    "aesthetic": lambda: extend("be-kind-rewind", "maybe-invert", {
         "corners": True,
         "deriv": random.randint(0, 1),
         "distrib": random_member(["column_index", "ones", "row_index"]),
