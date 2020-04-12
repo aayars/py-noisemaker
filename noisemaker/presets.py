@@ -44,8 +44,6 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "clouds": lambda: {
-        "post_brightness": .0625,
-        "post_contrast": 1.125,
         "with_clouds": True,
         "with_bloom": .25,
         "with_dither": .05,

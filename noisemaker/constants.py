@@ -320,6 +320,7 @@ class ValueMask(Enum):
     conv2d_sharpen = 807
     conv2d_sobel_x = 808
     conv2d_sobel_y = 809
+    conv2d_box_blur = 810
 
     rgb = 900
     rbggbr = 901
