@@ -245,6 +245,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_frame": True,
     },
 
+    "simple-frame": lambda: {
+        "with_simple_frame": True
+    },
+
     "sketch": lambda: {
         "with_grime": True,
         "with_fibers": True,

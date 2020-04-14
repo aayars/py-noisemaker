@@ -43,6 +43,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
                  angle=None,
+                 with_simple_frame=False,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -305,6 +306,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_lowpoly:
         tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq, time=time, speed=speed)
+
+    if with_simple_frame:
+        tensor = simple_frame(tensor, shape)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
@@ -2395,6 +2399,21 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     combined *= combined
 
     return combined * tf.ones(shape)
+
+
+def simple_frame(tensor, shape, brightness=0.0):
+    """
+    """
+
+    border = singularity(None, shape, dist_func=DistanceFunction.chebyshev)
+
+    border = tf.square(border)
+    border = tf.square(border)
+    border = tf.square(border)
+
+    border = posterize(border, 1)
+
+    return blend(tensor, tf.ones(shape) * brightness, border)
 
 
 def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0):
