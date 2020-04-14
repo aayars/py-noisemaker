@@ -16,6 +16,8 @@ class DistanceFunction(Enum):
 
     chebyshev = 3
 
+    triangular = 4
+
 
 class InterpolationType(Enum):
     """

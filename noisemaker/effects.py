@@ -1186,6 +1186,9 @@ def distance(a, b, func):
     elif func == DistanceFunction.chebyshev:
         dist = tf.maximum(tf.abs(a), tf.abs(b))
 
+    elif func == DistanceFunction.triangular:
+        dist = tf.maximum(tf.abs(a) - b * .5, b)
+
     else:
         raise ValueError("{0} isn't a distance function.".format(func))
 
@@ -1355,8 +1358,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         else:
             x, y, point_count = xy
 
-        x = tf.cast(tf.stack(x) / 2, tf.float32)
-        y = tf.cast(tf.stack(y) / 2, tf.float32)
+        x = tf.cast(tf.stack(x), tf.float32) / 2.0
+        y = tf.cast(tf.stack(y), tf.float32) / 2.0
 
     value_shape = [height, width, 1, 1]
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
@@ -1387,7 +1390,19 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
         y_diff += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
 
-    dist = distance(x_diff, y_diff, dist_func)
+    is_triangular = dist_func in (
+        DistanceFunction.triangular,
+        DistanceFunction.triangular.name,
+        DistanceFunction.triangular.value
+    )
+
+    if is_triangular:
+        # Keep it visually flipped "horizontal"-side-up
+        y_sign = -1.0 if inverse else 1.0
+
+        dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_func)
+    else:
+        dist = distance(x_diff, y_diff, dist_func)
 
     ###
     if diagram_type not in VoronoiDiagramType.flow_members():
@@ -1398,8 +1413,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
     # Seamless alg offset pixels by half image size. Move results slice back to starting points with `offset`:
     offset_kwargs = {
-        'x': half_width,
-        'y': half_height,
+        'x': 0.0 if is_triangular else half_width,
+        'y': 0.0 if is_triangular else half_height,
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
@@ -1480,7 +1495,16 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         out = regions_out
 
     if with_refract != 0.0:
-        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
+        refract_args = {}
+
+        if is_triangular:
+            refract_args["reference_y"] = tf.cos(out * math.pi * 2.0)
+            refract_args["reference_x"] = tf.sin(out * math.pi * 2.0)
+
+        else:
+            refract_args["reference_x"] = out
+
+        out = refract(tensor, original_shape, displacement=with_refract, **refract_args)
 
     if tensor is not None:
         out = blend(tensor, out, alpha)
@@ -2054,6 +2078,9 @@ def pop(tensor, shape):
 def offset(tensor, shape, x=0, y=0):
     """
     """
+
+    if x == 0 and y == 0:
+        return tensor
 
     x_index = row_index(shape)
     y_index = column_index(shape)
