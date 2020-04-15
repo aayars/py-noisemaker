@@ -2394,6 +2394,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333 + random.random() * .333,
         "voronoi_func": 4,
         "voronoi_refract": .333 + random.random() * .333,
+        "voronoi_refract_y_from_offset": False,
         "with_outline": 1,
         "with_voronoi": 2,
     },
