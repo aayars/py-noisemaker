@@ -21,12 +21,13 @@ import noisemaker.util as util
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
-                 refract_extend_range=False, clut=None, clut_horizontal=False, clut_range=0.5,
+                 refract_y_from_offset=False, refract_extend_range=False,
+                 clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
-                 posterize_levels=0,
+                 voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
@@ -54,6 +55,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int spline_order: Ortho spline point count (0=Constant, 1=Linear, 2=Cosine, 3=Bicubic)
     :param float reflect_range: Derivative distortion gradient.
     :param float refract_range: Self-distortion gradient.
+    :param float refract_y_from_offset: Derive Y offset values from offsetting the image.
     :param float reindex_range: Self-reindexing gradient.
     :param str clut: PNG or JPG color lookup table filename.
     :param float clut_horizontal: Preserve clut Y axis.
@@ -77,6 +79,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param DistanceFunction|int voronoi_func: Voronoi distance function
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float voronoi_refract: Domain warp input tensor against Voronoi
+    :param bool voronoi_refract_y_from_offset: Derive Y offsets from offsetting image
     :param bool voronoi_inverse: Inverse values for Voronoi 'range' types
     :param bool ridges_hint: Ridged multifractal hint for Voronoi
     :param DistanceFunction|int deriv: Derivative distance function
@@ -162,7 +165,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         if with_voronoi:
             input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
-                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy, input_dir=input_dir)
+                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy, input_dir=input_dir,
+                                   refract_y_from_offset=voronoi_refract_y_from_offset)
 
         if with_dla:
             input_tensor = blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
@@ -180,7 +184,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     extend_range = refract_extend_range and refract_range != 0 and reflect_range != 0
 
     if refract_range != 0:
-        tensor = refract(tensor, shape, displacement=refract_range, extend_range=extend_range)
+        tensor = refract(tensor, shape, displacement=refract_range, extend_range=extend_range,
+                         y_from_offset=refract_y_from_offset)
 
     if reflect_range != 0:
         tensor = refract(tensor, shape, displacement=reflect_range, from_derivative=True)
@@ -626,7 +631,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True, time=0.0, speed=1.0):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True, time=0.0, speed=1.0, y_from_offset=False):
     """
     Apply displacement from pixel values.
 
@@ -644,6 +649,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
     :param bool extend_range: Scale displacement values from -1..1 instead of 0..1
+    :param bool y_from_offset: If True, derive Y offsets from offsetting the image
     :return: Tensor
     """
 
@@ -675,9 +681,15 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
 
         else:
-            reference_y = reference_x
-            reference_x = tf.cos(reference_x * math.pi * 2.0)
-            reference_y = tf.sin(reference_y * math.pi * 2.0)
+            if y_from_offset:
+                # "the old way"
+                y0_index += int(height * .5)
+                x0_index += int(width * .5)
+                reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
+            else:
+                reference_y = reference_x
+                reference_x = tf.cos(reference_x * math.pi * 2.0)
+                reference_y = tf.sin(reference_y * math.pi * 2.0)
 
     quad_directional = extend_range and not from_derivative
 
@@ -1307,7 +1319,7 @@ def center_mask(center, edges, shape):
 
 
 def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False,
-            input_dir=None, image_count=None, collage_images=None):
+            input_dir=None, image_count=None, collage_images=None, refract_y_from_offset=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1499,7 +1511,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         out = regions_out
 
     if with_refract != 0.0:
-        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
+        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out,
+                      y_from_offset=refract_y_from_offset)
 
     if tensor is not None:
         out = blend(tensor, out, alpha)
