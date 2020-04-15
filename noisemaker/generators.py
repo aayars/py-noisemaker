@@ -219,8 +219,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
-             post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_deriv=False,
-             with_reverb=None, reverb_iterations=1,
+             post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
+             post_deriv=False, with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              reduce_max=False, time=0.0, speed=1.0, **post_process_args):
@@ -256,6 +256,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param float post_reindex_range: Reduced self-reindexing range (0..1+)
     :param float post_reflect_range: Reduced derivative-based distort range (0..1+)
     :param float post_refract_range: Reduced self-distort range (0..1+)
+    :param float post_refract_y_from_offset: Derive Y offsets from offset image
     :param bool post_deriv: Reduced derivatives
     :param bool rgb: Disable HSV
     :param float hue_range: HSV hue range
@@ -303,7 +304,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
 
     tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
                                   ridges_hint=ridges and rgb, spline_order=spline_order,
-                                  reindex_range=post_reindex_range, reflect_range=post_reflect_range, refract_range=post_refract_range,
+                                  reindex_range=post_reindex_range, reflect_range=post_reflect_range,
+                                  refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
                                   deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, rgb=rgb,
                                   **post_process_args)

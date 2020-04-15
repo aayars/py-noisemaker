@@ -857,7 +857,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": 1,
         "posterize_levels": random.randint(3, 5),
         "voronoi_alpha": 1,
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(2, 3),
         "with_voronoi": 1,
         "with_sobel": random.randint(1, 3),
