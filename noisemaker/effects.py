@@ -675,9 +675,9 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
 
         else:
-            y0_index += int(height * .5)
-            x0_index += int(width * .5)
-            reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
+            reference_y = reference_x
+            reference_x = tf.cos(reference_x * math.pi * 2.0)
+            reference_y = tf.sin(reference_y * math.pi * 2.0)
 
     quad_directional = extend_range and not from_derivative
 
@@ -1499,16 +1499,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         out = regions_out
 
     if with_refract != 0.0:
-        refract_args = {}
-
-        if is_triangular:
-            refract_args["reference_y"] = tf.cos(out * math.pi * 2.0)
-            refract_args["reference_x"] = tf.sin(out * math.pi * 2.0)
-
-        else:
-            refract_args["reference_x"] = out
-
-        out = refract(tensor, original_shape, displacement=with_refract, **refract_args)
+        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out)
 
     if tensor is not None:
         out = blend(tensor, out, alpha)
