@@ -46,7 +46,9 @@ import noisemaker.recipes as recipes
 @cli.post_reflect_option()
 @cli.reflect_option()
 @cli.post_refract_option()
+@cli.post_refract_y_from_offset_option()
 @cli.refract_option()
+@cli.refract_y_from_offset_option()
 @cli.ripple_option()
 @cli.ripple_freq_option()
 @cli.ripple_kink_option()
@@ -62,6 +64,7 @@ import noisemaker.recipes as recipes
 @cli.voronoi_nth_option()
 @cli.voronoi_alpha_option()
 @cli.voronoi_refract_option()
+@cli.voronoi_refract_y_from_offset_option()
 @cli.voronoi_inverse_option()
 @cli.dla_option()
 @cli.dla_padding_option()
@@ -115,20 +118,24 @@ import noisemaker.recipes as recipes
 @click.pass_context
 def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
          sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp,
-         warp_freq, reflect, refract, reindex, reverb, reverb_iterations,
-         post_reindex, post_reflect, post_refract, clut, clut_horizontal,
-         clut_range, ripple, ripple_freq, ripple_kink, worms, worms_density,
-         worms_duration, worms_stride, worms_stride_deviation, worms_alpha,
-         worms_kink, wormhole, wormhole_kink, wormhole_stride, sobel, outline,
-         normals, post_deriv, deriv, deriv_alpha, interp, distrib, corners,
-         mask, mask_inverse, glyph_map, glyph_map_colorize, glyph_map_zoom,
-         glyph_map_alpha, composite, composite_zoom, posterize, erosion_worms,
-         voronoi, voronoi_func, voronoi_nth, voronoi_alpha, voronoi_refract,
-         voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither, aberration,
-         light_leak, vignette, vignette_brightness, pop, convolve, shadow, bloom,
-         rgb, hue_range, hue_rotation, saturation, hue_distrib, saturation_distrib,
-         post_hue_rotation, post_saturation, brightness_distrib, input_dir, dla,
-         dla_padding, point_freq, point_distrib, point_corners, point_generations,
+         warp_freq, reflect, refract, refract_y_from_offset,
+         reindex, reverb, reverb_iterations, post_reindex,
+         post_reflect, post_refract, post_refract_y_from_offset,
+         clut, clut_horizontal, clut_range, ripple, ripple_freq,
+         ripple_kink, worms, worms_density, worms_duration,
+         worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
+         wormhole, wormhole_kink, wormhole_stride, sobel, outline,
+         normals, post_deriv, deriv, deriv_alpha, interp, distrib,
+         corners, mask, mask_inverse, glyph_map, glyph_map_colorize,
+         glyph_map_zoom, glyph_map_alpha, composite, composite_zoom,
+         posterize, erosion_worms, voronoi, voronoi_func, voronoi_nth,
+         voronoi_alpha, voronoi_refract, voronoi_refract_y_from_offset,
+         voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither,
+         aberration, light_leak, vignette, vignette_brightness,
+         pop, convolve, shadow, bloom, rgb, hue_range, hue_rotation,
+         saturation, hue_distrib, saturation_distrib, post_hue_rotation,
+         post_saturation, brightness_distrib, input_dir, dla, dla_padding,
+         point_freq, point_distrib, point_corners, point_generations,
          point_drift, density, seed, name):
 
     generators.set_seed(seed)
@@ -137,8 +144,10 @@ def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
 
     tensor = generators.multires(freq=freq, shape=shape, time=time, octaves=octaves, ridges=ridges, post_ridges=post_ridges, sin=sin, wavelet=wavelet,
                                  lattice_drift=lattice_drift, reflect_range=reflect, refract_range=refract, reindex_range=reindex,
+                                 refract_y_from_offset=refract_y_from_offset,
                                  with_reverb=reverb, reverb_iterations=reverb_iterations,
                                  post_reindex_range=post_reindex, post_reflect_range=post_reflect, post_refract_range=post_refract,
+                                 post_refract_y_from_offset=post_refract_y_from_offset,
                                  ripple_range=ripple, ripple_freq=ripple_freq, ripple_kink=ripple_kink,
                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
@@ -146,6 +155,7 @@ def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                  with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
                                  voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
+                                 voronoi_refract_y_from_offset=voronoi_refract_y_from_offset,
                                  with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_corners=point_corners,
                                  point_generations=point_generations, point_drift=point_drift,
                                  with_outline=outline, with_sobel=sobel, with_normal_map=normals, post_deriv=post_deriv, deriv=deriv, deriv_alpha=deriv_alpha,

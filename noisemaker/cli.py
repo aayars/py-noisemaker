@@ -26,6 +26,8 @@ INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
 
 NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
 
+Y_FROM_OFFSET_HINT = "Use offset X values for Y (instead of sin/cos)"
+
 
 def validate_more_than_one(allow_none=False):
     """
@@ -63,7 +65,7 @@ def validate_enum(cls):
 
 def bool_option(attr, **attrs):
     attrs.setdefault("is_flag", True)
-    attrs.setdefault("default", False)
+    attrs.setdefault("default", attrs.get("default", False))
 
     return option(attr, **attrs)
 
@@ -292,6 +294,12 @@ def post_refract_option(**attrs):
     return float_option("--post-refract", **attrs)
 
 
+def post_refract_y_from_offset_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Post-reduce refract: {0}".format(Y_FROM_OFFSET_HINT))
+
+    return bool_option("--post-refract-y-from-offset/--no-post-refract-y-from-offset", default=True, **attrs)
+
+
 def reflect_option(**attrs):
     attrs.setdefault("help", "Domain warping: Per-octave derivative-based displacement range {0}".format(ENTIRE_IMAGE_HINT))
 
@@ -302,6 +310,12 @@ def refract_option(**attrs):
     attrs.setdefault("help", "Domain warping: Per-octave self-displacement range {0}".format(ENTIRE_IMAGE_HINT))
 
     return float_option("--refract", **attrs)
+
+
+def refract_y_from_offset_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Per-octave refract: {0}".format(Y_FROM_OFFSET_HINT))
+
+    return bool_option("--refract-y-from-offset/--no-refract-y-from-offset", **attrs)
 
 
 def ripple_option(**attrs):
@@ -464,6 +478,12 @@ def voronoi_refract_option(**attrs):
     attrs.setdefault("help", "Voronoi: Domain warp input tensor {0}".format(ENTIRE_IMAGE_HINT))
 
     return float_option("--voronoi-refract", **attrs)
+
+
+def voronoi_refract_y_from_offset_option(**attrs):
+    attrs.setdefault("help", "Domain warping: Voronoi refract: {0}".format(Y_FROM_OFFSET_HINT))
+
+    return bool_option("--voronoi-refract-y-from-offset/--no-voronoi-refract-y-from-offset", default=True, **attrs)
 
 
 def voronoi_inverse_option(**attrs):
