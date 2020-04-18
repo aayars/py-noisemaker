@@ -8,7 +8,7 @@ from enum import Enum, EnumMeta
 
 import random
 
-from noisemaker.constants import PointDistribution, ValueDistribution, ValueMask
+from noisemaker.constants import DistanceFunction as df, PointDistribution, ValueDistribution, ValueMask
 
 import noisemaker.generators as generators
 import noisemaker.masks as masks
@@ -309,7 +309,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "voronoi": lambda: {
         "point_distrib": "random" if random.randint(0, 1) else random_member(PointDistribution),
         "point_freq": random.randint(4, 10),
-        "voronoi_func": random.randint(1, 4),
+        "voronoi_func": random_member(df.all()),
         "voronoi_inverse": random.randint(0, 1),
         "voronoi_nth": random.randint(0, 2),
         "with_voronoi": random.randint(1, 6),
@@ -690,7 +690,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_reflect_range": random.randint(2, 4) * .5,
         "post_saturation": .5,
         "voronoi_alpha": .333 + random.random() * .333,
-        "voronoi_func": random.randint(1, 4),
+        "voronoi_func": random_member(df.all()),
         "voronoi_nth": random.randint(0, 1),
         "with_density_map": True,
         "with_voronoi": 2,
@@ -800,7 +800,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": .25,
         "vignette_brightness": 0,
         "voronoi_alpha": .5,
-        "voronoi_func": 4,
+        "voronoi_func": df.triangular,
         "voronoi_nth": 4,
         "with_voronoi": 2,
         "with_vignette": .5,
@@ -811,7 +811,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": .5 + random.random(),
         "point_freq": random.randint(4, 6),
         "point_distrib": "h_hex",
-        "voronoi_func": 4,
+        "voronoi_func": df.triangular,
         "voronoi_inverse": True,
         "with_voronoi": 2,
     }),
@@ -968,7 +968,7 @@ _PRESETS = lambda: {  # noqa: E731
         "lattice_drift": 1,
         "point_freq": 10,
         "voronoi_alpha": .25 + random.random() * .25,
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 4, 101]),
         "voronoi_nth": random.randint(0, 3),
         "with_glowing_edges": .75 + random.random() * .25,
         "with_voronoi": 2,
@@ -1100,7 +1100,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(2, 10),
         "reverb_iterations": random.randint(2, 4),
         "voronoi_alpha": min(.75 + random.random() * .5, 1),
-        "voronoi_func": random.randint(1, 4),
+        "voronoi_func": random_member(df.all()),
         "voronoi_nth": random.randint(0, 3),
         "with_reverb": random.randint(4, 8),
         "with_voronoi": random.randint(1, 5),
@@ -1294,7 +1294,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(3, 6),
         "point_generations": 2,
         "spline_order": random.randint(0, 3),
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 3, 101]),
         "voronoi_inverse": True,
         "voronoi_alpha": .25 + random.random() * .5,
         "with_erosion_worms": True,
@@ -1419,7 +1419,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": .125 + random.random() * .125,
         "ridges": random.randint(0, 1),
         "voronoi_alpha": .75 + random.random() * .25,
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(0, 1),
         "with_voronoi": random.randint(1, 2),
     }),
@@ -1868,7 +1868,7 @@ _PRESETS = lambda: {  # noqa: E731
         "reverb_iterations": random.randint(1, 3),
         "spline_order": 0,
         "voronoi_alpha": .5 + random.random() * .5,
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 3, 101]),
         "with_reverb": random.randint(3, 6),
     }),
 
@@ -2237,7 +2237,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 2,
         "point_generations": random.randint(2, 3),
         "voronoi_alpha": .5 + random.random() * .5,
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(1, 3),
         "voronoi_refract": .73,
         "with_voronoi": 2,
@@ -2245,7 +2245,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "stackin-bricks": lambda: {
         "point_freq": 10,
-        "voronoi_func": 4,
+        "voronoi_func": df.triangular,
         "voronoi_inverse": True,
         "with_voronoi": 2,
     },
@@ -2277,7 +2277,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(5, 10),
         "point_corners": random.randint(0, 1),
         "point_distrib": random_member(PointDistribution.circular_members()),
-        "voronoi_func": random.randint(2, 4),
+        "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(0, 25),
         "with_voronoi": random.randint(1, 5),
     }),
@@ -2345,7 +2345,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "the-inward-spiral": lambda: {
         "point_freq": 1,
-        "voronoi_func": random.randint(1, 4),
+        "voronoi_func": random_member(df.all()),
         "with_voronoi": 2,
         "with_worms": random.randint(1, 5),
         "worms_alpha": 1,
@@ -2392,7 +2392,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(8, 10),
         "posterize_levels": 6,
         "voronoi_alpha": .333 + random.random() * .333,
-        "voronoi_func": 4,
+        "voronoi_func": random_member([df.octagram, df.triangular, df.hexagram]),
         "voronoi_refract": .333 + random.random() * .333,
         "voronoi_refract_y_from_offset": False,
         "with_outline": 1,

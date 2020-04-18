@@ -10,13 +10,35 @@ class DistanceFunction(Enum):
 
     none = 0
 
+    # These require absolute inputs
     euclidean = 1
-
     manhattan = 2
-
     chebyshev = 3
+    octagram = 4
 
-    triangular = 4
+    # These require signed inputs
+    triangular = 101
+    hexagram = 102
+
+    @classmethod
+    def all(cls):
+        return [m for m in cls if m != cls.none]
+
+    @classmethod
+    def absolute_members(cls):
+        return [m for m in cls if cls.is_absolute(m)]
+
+    @classmethod
+    def is_absolute(cls, member):
+        return member.value < cls.triangular.value
+
+    @classmethod
+    def signed_members(cls):
+        return [m for m in cls if cls.is_signed(m)]
+
+    @classmethod
+    def is_signed(cls, member):
+        return not cls.is_absolute(member)
 
 
 class InterpolationType(Enum):

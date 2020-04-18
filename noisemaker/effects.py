@@ -1202,8 +1202,17 @@ def distance(a, b, func):
     elif func == DistanceFunction.chebyshev:
         dist = tf.maximum(tf.abs(a), tf.abs(b))
 
+    elif func == DistanceFunction.octagram:
+        dist = tf.maximum((tf.abs(a) + tf.abs(b)) / math.sqrt(2), tf.maximum(tf.abs(a), tf.abs(b)))
+
     elif func == DistanceFunction.triangular:
         dist = tf.maximum(tf.abs(a) - b * .5, b)
+
+    elif func == DistanceFunction.hexagram:
+        dist = tf.maximum(
+            tf.maximum(tf.abs(a) - b * .5, b),
+            tf.maximum(tf.abs(a) - b * -.5, b * -1)
+        )
 
     else:
         raise ValueError("{0} isn't a distance function.".format(func))
@@ -1409,7 +1418,10 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     is_triangular = dist_func in (
         DistanceFunction.triangular,
         DistanceFunction.triangular.name,
-        DistanceFunction.triangular.value
+        DistanceFunction.triangular.value,
+        DistanceFunction.hexagram,
+        DistanceFunction.hexagram.name,
+        DistanceFunction.hexagram.value,
     )
 
     if is_triangular:
