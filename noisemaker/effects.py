@@ -1393,31 +1393,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
 
-    half_width = int(width * .5)
-    half_height = int(height * .5)
-
-    # Wrapping edges! Nearest neighbors might be actually be "wrapped around", on the opposite side of the image.
-    # Determine which direction is closer, and use the minimum.
-
-    # Subtracting the list of points from the index results in a new shape
-    # [y, x, value] - [point_count] -> [y, x, value, point_count]
-    x0_diff = x_index - x - half_width
-    x1_diff = x_index - x + half_width
-    y0_diff = y_index - y - half_height
-    y1_diff = y_index - y + half_height
-
-    x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff)) / width
-    y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff)) / height
-
-    # Not-wrapping edges!
-    # x_diff = (x_index - x) / width
-    # y_diff = (y_index - y) / height
-
-    if diagram_type in VoronoiDiagramType.flow_members():
-        # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
-        x_diff += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y_diff += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
-
     is_triangular = dist_func in (
         DistanceFunction.triangular,
         DistanceFunction.triangular.name,
@@ -1427,12 +1402,37 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         DistanceFunction.hexagram.value,
     )
 
+    if diagram_type in VoronoiDiagramType.flow_members():
+        # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
+        x += tf.random_normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y += tf.random_normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
+
     if is_triangular:
         # Keep it visually flipped "horizontal"-side-up
         y_sign = -1.0 if inverse else 1.0
 
         dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_func)
     else:
+        half_width = int(width * .5)
+        half_height = int(height * .5)
+
+        # Wrapping edges! Nearest neighbors might be actually be "wrapped around", on the opposite side of the image.
+        # Determine which direction is closer, and use the minimum.
+
+        # Subtracting the list of points from the index results in a new shape
+        # [y, x, value] - [point_count] -> [y, x, value, point_count]
+        x0_diff = x_index - x - half_width
+        x1_diff = x_index - x + half_width
+        y0_diff = y_index - y - half_height
+        y1_diff = y_index - y + half_height
+
+        x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff)) / width
+        y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff)) / height
+
+        # Not-wrapping edges!
+        # x_diff = (x_index - x) / width
+        # y_diff = (y_index - y) / height
+
         dist = distance(x_diff, y_diff, dist_func)
 
     ###
