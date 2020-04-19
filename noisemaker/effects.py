@@ -42,7 +42,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False,
-                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10,
+                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_func=DistanceFunction.euclidean,
                  angle=None,
                  with_simple_frame=False,
                  rgb=False, time=0.0, speed=1.0, **_):
@@ -141,6 +141,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_lowpoly: Low-poly art effect
     :param PointDistribution lowpoly_distrib: Point distribution for low-poly art effect
     :param int lowpoly_freq: Point frequency for low-poly art effect
+    :param DistanceFunction lowpoly_func: Low-poly effect distance function
     :param None|float angle: Rotation angle
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
@@ -313,7 +314,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = sketch(tensor, shape, time=time, speed=speed)
 
     if with_lowpoly:
-        tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq, time=time, speed=speed)
+        tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq,
+                         time=time, speed=speed, dist_func=lowpoly_func)
 
     if with_simple_frame:
         tensor = simple_frame(tensor, shape)
@@ -2438,13 +2440,13 @@ def simple_frame(tensor, shape, brightness=0.0):
     return blend(tensor, tf.ones(shape) * brightness, border)
 
 
-def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0):
+def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_func=DistanceFunction.euclidean):
     """Low-poly art style effect"""
 
     xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time, speed=speed)
 
-    distance = voronoi(tensor, shape, nth=1, xy=xy)
-    color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy)
+    distance = voronoi(tensor, shape, nth=1, xy=xy, dist_func=dist_func)
+    color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_func=dist_func)
 
     return normalize(blend(distance, color, .5))
 

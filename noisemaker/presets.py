@@ -359,6 +359,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
+    "1976": lambda: extend("dither", {
+        "point_freq": 2,
+        "post_saturation": .125 + random.random() * .0625,
+        "voronoi_func": df.triangular,
+        "with_voronoi": 4,
+    }),
+
     "1985": lambda: extend("spatter", {
         "freq": random.randint(15, 25),
         "reindex_range": .2 + random.random() * .1,
@@ -1538,6 +1545,10 @@ _PRESETS = lambda: {  # noqa: E731
     "lowpoly-regions": lambda: extend("lowpoly", {
         "with_voronoi": 4,
         "point_freq": random.randint(2, 3),
+    }),
+
+    "lowpoly-regions-tri": lambda: extend("lowpoly-regions", {
+        "lowpoly_func": df.triangular,
     }),
 
     "lsd": lambda: extend("density-map", "distressed", "invert", "random-hue", {
