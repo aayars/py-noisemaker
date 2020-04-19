@@ -575,7 +575,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "bit-by-bit": lambda: extend("bloom", "crt", "value-mask", {
-        "freq": 6 * random.randint(25, 125),
+        "freq": 6 * random.randint(15, 60),
         "mask": random_member(["binary", "hex", "numeric"]),
         "with_shadow": random.random(),
     }),
