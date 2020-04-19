@@ -35,7 +35,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
-                 with_light_leak=None, with_vignette=None, vignette_brightness=0.0,
+                 with_light_leak=None, with_vignette=None, vignette_brightness=0.0, with_vaseline=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
                  input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False,
@@ -281,6 +281,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_vignette:
         tensor = vignette(tensor, shape, brightness=vignette_brightness, alpha=with_vignette)
+
+    if with_vaseline:
+        tensor = vaseline(tensor, shape, alpha=with_vaseline)
 
     if with_normal_map:
         tensor = normal_map(tensor, shape)
@@ -2154,15 +2157,11 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
 
     leak = bloom(leak, shape, 1.0)
 
-    for _ in range(3):
-        leak = convolve(ValueMask.conv2d_blur, leak, shape)
-
     leak = 1 - ((1 - tensor) * (1 - leak))
 
     leak = center_mask(tensor, leak, shape)
-    leak = center_mask(tensor, leak, shape)
 
-    return blend(tensor, leak, alpha)
+    return vaseline(blend(tensor, leak, alpha), shape, alpha)
 
 
 def vignette(tensor, shape, brightness=0.0, alpha=1.0):
@@ -2172,17 +2171,24 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     tensor = normalize(tensor)
 
     #
-    blurred = _downsample(tensor, shape, [int(shape[0] * .01) or 1, int(shape[1] * .01) or 1, shape[2]])
-    blurred = resample(blurred, shape)
-
-    blurred = center_mask(tensor, blurred, shape)
-
-    tensor = blend(tensor, blurred, alpha)
+    blurred = vaseline(tensor, shape, alpha)
 
     #
     edges = center_mask(tensor, tf.ones(shape) * brightness, shape)
 
     return blend(tensor, edges, alpha)
+
+
+def vaseline(tensor, shape, alpha=1.0):
+    """
+    """
+
+    blurred = _downsample(tensor, shape, [int(shape[0] * .01) or 1, int(shape[1] * .01) or 1, shape[2]])
+    blurred = resample(blurred, shape)
+
+    blurred = center_mask(tensor, blurred, shape)
+
+    return blend(tensor, blurred, alpha)
 
 
 def shadow(tensor, shape, alpha=1.0, reference=None):

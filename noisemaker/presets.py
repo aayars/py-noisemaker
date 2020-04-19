@@ -129,7 +129,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_convolve": ["invert"],
     },
 
-    "light-leak": lambda: extend("bloom", random_member(["vignette-bright", "vignette-dark"]), {
+    "light-leak": lambda: extend("bloom", "vignette-bright", {
         "with_light_leak": .333 + random.random() * .333,
     }),
 
@@ -296,8 +296,12 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": "halftone",
     },
 
+    "vaseline": lambda: {
+        "with_vaseline": .75 + random.random() * .25,
+    },
+
     "vignette-bright": lambda: {
-        "with_vignette": .5 + random.random() * .5,
+        "with_vignette": .333 + random.random() * .333,
         "vignette_brightness": 1,
     },
 
