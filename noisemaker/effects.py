@@ -700,8 +700,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1).
     # Doesn't work with derivatives (and isn't needed), because derivatives are signed naturally.
-    x_offsets = value_map(reference_x, shape, extend_range=quad_directional) * displacement * width
-    y_offsets = value_map(reference_y, shape, extend_range=quad_directional) * displacement * height
+    x_offsets = value_map(reference_x, shape, extend_range=quad_directional, with_normalize=False) * displacement * width
+    y_offsets = value_map(reference_y, shape, extend_range=quad_directional, with_normalize=False) * displacement * height
     # If not using extended range (0..1 instead of -1..1), keep the value range consistent.
     if not quad_directional:
         x_offsets *= 2.0
@@ -758,7 +758,7 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
         # reference = derivative(reference, [shape[0], shape[1], 1], with_normalize=False)
 
     # Twist index, borrowed from worms. TODO merge me.
-    index = value_map(reference, shape) * 360.0 * math.radians(1) * kink * simplex.random(time, speed=speed)
+    index = value_map(reference, shape, with_normalize=False) * 360.0 * math.radians(1) * kink * simplex.random(time, speed=speed)
 
     reference_x = (tf.cos(index) * displacement * width) % width
     reference_y = (tf.sin(index) * displacement * height) % height
@@ -1062,7 +1062,7 @@ def normal_map(tensor, shape):
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
 
-def value_map(tensor, shape, keep_dims=False, extend_range=False):
+def value_map(tensor, shape, keep_dims=False, extend_range=False, with_normalize=True):
     """
     Create a grayscale value map from the given image Tensor by reducing the sum across channels.
 
@@ -1075,7 +1075,15 @@ def value_map(tensor, shape, keep_dims=False, extend_range=False):
     :return: Tensor of shape (height, width), or (height, width, channels) if keep_dims was True.
     """
 
-    return normalize(tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims), extend_range=extend_range)
+    tensor = tf.reduce_sum(tensor, len(shape) - 1, keep_dims=keep_dims)
+
+    if with_normalize:
+        tensor = normalize(tensor, extend_range=extend_range)
+
+    elif extend_range:
+        tensor = tensor * 2.0 - 1.0
+
+    return tensor
 
 
 def density_map(tensor, shape):
@@ -1451,7 +1459,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = resample(offset(tf.sqrt(normalize(dist[:, :, :, index])), shape, **offset_kwargs), original_shape)
+        range_slice = resample(offset(tf.sqrt(dist[:, :, :, index]), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
@@ -1469,7 +1477,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
 
         if diagram_type == VoronoiDiagramType.flow:
-            range_out = normalize(range_out)
+            range_out /= point_count
 
         else:
             range_out = density_map(range_out, original_shape)
