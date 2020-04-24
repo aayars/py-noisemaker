@@ -1459,7 +1459,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = resample(offset(tf.sqrt(dist[:, :, :, index]), shape, **offset_kwargs), original_shape)
+        range_slice = resample(offset(tf.sqrt(normalize(dist[:, :, :, index])), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice

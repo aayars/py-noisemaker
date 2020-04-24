@@ -2018,7 +2018,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(4, 6),
         "post_ridges": True,
         "ridges": True,
-        "speed": .0025,
+        "speed": .01,
         "voronoi_alpha": .25 + random.random() * .25,
         "warp_range": .25,
         "warp_octaves": 6,
