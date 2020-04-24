@@ -2439,9 +2439,7 @@ def simple_frame(tensor, shape, brightness=0.0):
 
     border = singularity(None, shape, dist_func=DistanceFunction.chebyshev)
 
-    border = tf.square(border)
-    border = tf.square(border)
-    border = tf.square(border)
+    border = blend(tf.zeros(shape), border, .75)
 
     border = posterize(border, 1)
 
