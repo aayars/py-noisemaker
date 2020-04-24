@@ -130,6 +130,7 @@ class ValueDistribution(Enum):
 
     simplex = 20
     simplex_exp = 21
+    simplex_sqrt = 22
 
 
 class ValueMask(Enum):
