@@ -622,7 +622,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "blockchain-stock-photo-background": lambda: extend("glitchin-out", "vignette-dark", "value-mask", {
-        "freq": random.randint(20, 30) * 15,
+        "freq": random.randint(10, 15) * 15,
         "mask": random_member(["truetype", "binary", "hex", "numeric", "bank_ocr"]),
     }),
 
