@@ -601,7 +601,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
                      ridges=True, octaves=6, spline_order=3)
 
     smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
-                         octaves=random.randint(1, 2), displacement=.5 + random.random() * .5,
+                         octaves=random.randint(1, 2), displacement=1.0 + random.random(),
                          spline_order=3, time=time, speed=speed)
 
     # Add spatter dots
@@ -616,7 +616,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
     # Remove some of it
     smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, time=time,
                                              speed=speed, distrib=ValueDistribution.simplex_exp,
-                                             ridges=True, octaves=3, spline_order=1) * .75)
+                                             ridges=True, octaves=3, spline_order=2))
 
     #
     if shape[2] == 3:

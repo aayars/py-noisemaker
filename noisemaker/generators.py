@@ -76,7 +76,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
     elif distrib == ValueDistribution.simplex_exp:
-        tensor = tf.pow(simplex.simplex(initial_shape, time=time, speed=speed), 3)
+        tensor = tf.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
 
     elif distrib == ValueDistribution.simplex_sqrt:
         tensor = tf.sqrt(simplex.simplex(initial_shape, time=time, speed=speed))
