@@ -78,9 +78,6 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif distrib == ValueDistribution.simplex_exp:
         tensor = tf.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
 
-    elif distrib == ValueDistribution.simplex_sqrt:
-        tensor = tf.sqrt(simplex.simplex(initial_shape, time=time, speed=speed))
-
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 

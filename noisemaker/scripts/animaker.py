@@ -54,12 +54,8 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_fra
     if distrib in (ValueDistribution.exp, 'exp'):
         overrides['distrib'] = 'simplex_exp'
 
-    elif distrib in (ValueDistribution.ones, 'ones'):
-        overrides['distrib'] = 'simplex_sqrt'
-
     elif distrib not in (
         ValueDistribution.simplex_exp, 'simplex_exp',
-        ValueDistribution.simplex_sqrt, 'simplex_sqrt',
         ValueDistribution.column_index, 'column_index',
         ValueDistribution.row_index, 'row_index',
     ):
