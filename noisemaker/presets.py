@@ -57,7 +57,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "corrupt": lambda: {
         "warp_freq": [random.randint(2, 4), random.randint(1, 3)],
         "warp_octaves": random.randint(2, 4),
-        "warp_range": .0125 + random.random() * .05,
+        "warp_range": .025 + random.random() * .1,
         "warp_interp": 0,
     },
 
