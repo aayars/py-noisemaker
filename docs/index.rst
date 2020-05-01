@@ -37,9 +37,9 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-    pip install tensorflow  # tensorflow==1.3.0 recommended, tensorflow-gpu requires cuda/cudnn
+    pip install tensorflow
 
-For subsequent activation of the virtual environment, run `source bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
+For subsequent activation of the virtual environment, run ``source bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
 
 Upgrading
 ~~~~~~~~~
@@ -68,7 +68,7 @@ To install noisemaker in a dev env:
     python setup.py develop
     python setup.py install_scripts
 
-For subsequent activation of the virtual environment, run `source venv/bin/activate` while in the `noisemaker` directory. To deactivate, run `deactivate`.
+For subsequent activation of the virtual environment, run ``source venv/bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
 
 Docker
 ~~~~~~
@@ -86,7 +86,7 @@ See :doc:`api` documentation.
 CLI
 ~~~
 
-Noisemaker includes several CLI entrypoints. For usage summary, run with `-h` or ``--help``.
+Noisemaker includes several CLI entrypoints. For usage summary, run with ``-h`` or ``--help``.
 
 -  `noisemaker`: Low-level CLI
 -  `artmaker`: Generate images from presets

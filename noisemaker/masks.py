@@ -2184,6 +2184,8 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     if uv_noise is None:
         uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
 
+        uv_noise = uv_noise * 2.0 - 1.0
+
     total = 0
 
     for y in range(channel_shape[0]):
@@ -2437,7 +2439,9 @@ def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
 
 @mask([15, 15, 1])
 def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
-    glyph = atlas[int(uv_noise[uv_y][uv_x] * (len(atlas) - 1))]
+    value = max(0, min(1, uv_noise[uv_y][uv_x]))
+
+    glyph = atlas[int(value * (len(atlas) - 1))]
 
     return glyph[y % shape[0]][x % shape[1]]
 
