@@ -66,7 +66,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
 
             next = point_func(freq=freq, distrib=distrib, corners=corners,
                               center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
-                              width=width, height=height, generation=generation, time=time, speed=speed)
+                              width=width, height=height, generation=generation, time=time, speed=speed * .1)
 
             _x, _y = next
 

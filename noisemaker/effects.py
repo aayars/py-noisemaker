@@ -1843,16 +1843,22 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     displacement_map = singularity(None, value_shape)
+    displacement_map = normalize(displacement_map)
 
     x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
 
     fader = singularity(None, value_shape, dist_func=DistanceFunction.chebyshev, inverse=True)
+    fader = normalize(fader)
 
     x *= fader
     y *= fader
 
-    warped = refract(tensor, shape, displacement=displacement * simplex.random(time, speed=speed), reference_x=x, reference_y=y)
+    warped = refract(tensor, shape,
+        displacement=displacement * 25 + simplex.random(time, speed=speed) * 10,
+        reference_x=x,
+        reference_y=y,
+        extend_range=False)
 
     return warped
 
