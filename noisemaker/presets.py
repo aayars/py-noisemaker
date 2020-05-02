@@ -1581,11 +1581,10 @@ _PRESETS = lambda: {  # noqa: E731
 
     "mcpaint": lambda: {
         "corners": True,
-        "distrib": random_member(["ones", "uniform"]),
-        "freq": random.randint(2, 8),
+        "distrib": random_member(["ones", "uniform", "normal"]),
+        "freq": random.randint(2, 4),
         "glyph_map_colorize": random.randint(0, 1),
         "glyph_map_zoom": random.randint(3, 6),
-        "mask": "mcpaint",
         "spline_order": 2,
         "with_glyph_map": "mcpaint",
     },
