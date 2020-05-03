@@ -487,14 +487,18 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "alien-transmission": lambda: extend("glitchin-out", "sobel", "value-mask", {
-        "freq": random.randint(125, 200),
-        "mask": random_member(vm.procedural_members()),
+        "mask": stash("alien-transmission-mask", random_member(vm.procedural_members())),
+        # offset by i * .5 for glitched texture lookup
+        "freq": [int(i * .5 + i * stash("alien-transmission-repeat", random.randint(20, 30)))
+            for i in masks.mask_shape(stash("alien-transmission-mask"))[0:2]],
     }),
 
     "analog-glitch": lambda: extend("value-mask", {
+        "mask": stash("analog-glitch-mask", random_member([vm.hex, vm.lcd, vm.fat_lcd])),
         "deriv": 2,
-        "freq": 13 * random.randint(10, 25),
-        "mask": random_member(["hex", "lcd", "fat_lcd"]),
+        # offset by i * .5 for glitched texture lookup
+        "freq": [i * .5 + i * stash("analog-glitch-repeat", random.randint(20, 30))
+            for i in masks.mask_shape(stash("analog-glitch-mask"))[0:2]],
     }),
 
     "anticounterfeit": lambda: extend("dither", "invert", "wormhole", {
@@ -594,14 +598,16 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "bit-by-bit": lambda: extend("bloom", "crt", "value-mask", {
-        "freq": 6 * random.randint(15, 60),
-        "mask": random_member(["binary", "hex", "numeric"]),
+        "mask": stash("bit-by-bit-mask", random_member([vm.binary, vm.hex, vm.numeric])),
+        "freq": [i * stash("bit-by-bit-repeat", random.randint(30, 60))
+            for i in masks.mask_shape(stash("bit-by-bit-mask"))[0:2]],
         "with_shadow": random.random(),
     }),
 
     "bitmask": lambda: extend("bloom", "multires-low", "value-mask", {
-        "freq": random.randint(13, 27),
-        "mask": random_member(vm.procedural_members()),
+        "mask": stash("bitmask-mask", random_member(vm.procedural_members())),
+        "freq": [i * stash("bitmask-repeat", random.randint(7, 15))
+            for i in masks.mask_shape(stash("bitmask-mask"))[0:2]],
         "ridges": True,
     }),
 
@@ -616,13 +622,14 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "blobby": lambda: extend("funhouse", "invert", "reverb", "outline", {
+        "mask": stash("blobby-mask", random_member(vm)),
         "deriv": random.randint(1, 3),
         "distrib": "uniform",
-        "freq": random.randint(6, 12) * 2,
+        "freq": [i * stash("blobby-repeat", random.randint(4, 8))
+            for i in masks.mask_shape(stash("blobby-mask"))[0:2]],
         "saturation": .25 + random.random() * .5,
         "hue_range": .25 + random.random() * .5,
         "hue_rotation": random.randint(0, 1) * random.random(),
-        "mask": random_member(vm),
         "spline_order": random.randint(2, 3),
         "warp_freq": random.randint(6, 12),
         "warp_interp": random.randint(1, 3),
@@ -1009,11 +1016,11 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "emu": lambda: {
-        "mask": set_stash("emu-mask", random_member(enum_range(vm.emoji_00, vm.emoji_26))),
+        "mask": stash("emu-mask", random_member(enum_range(vm.emoji_00, vm.emoji_26))),
         "distrib": "ones",
-        "freq": masks.mask_shape(get_stash("emu-mask"))[0:2],
-        "point_distrib": get_stash("emu-mask"),
-        "spline_order": 2,
+        "freq": masks.mask_shape(stash("emu-mask"))[0:2],
+        "point_distrib": stash("emu-mask"),
+        "spline_order": 0,
         "voronoi_alpha": .5,
         "voronoi_func": random_member(df.all()),
         "voronoi_refract": .125 + random.random() * .125,
@@ -2753,14 +2760,10 @@ def enum_range(a, b):
     return members
 
 
-def set_stash(key, value):
+def stash(key, value=None):
     global _STASH
-    _STASH[key] = value
-    return value
-
-
-def get_stash(key):
-    global _STASH
+    if value is not None:
+        _STASH[key] = value
     return _STASH[key]
 
 

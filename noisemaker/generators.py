@@ -199,7 +199,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         else:
             v = tensor[:, :, 2]
 
-        if ridges:
+        if ridges and spline_order:  # ridges don't work well when not interpolating values
             v = effects.crease(v)
 
         if sin:
@@ -207,7 +207,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
         tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
 
-    elif ridges:
+    elif ridges and spline_order:
         tensor = effects.crease(tensor)
 
     if sin and rgb:
