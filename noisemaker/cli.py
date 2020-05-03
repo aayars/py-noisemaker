@@ -501,7 +501,11 @@ def point_freq_option(default=3.0, **attrs):
 def point_distrib_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
 
-    return str_option("--point-distrib", type=click.Choice([m.name for m in PointDistribution]), default="random", **attrs)
+    return str_option("--point-distrib",
+            type=click.Choice(
+                [m.name for m in PointDistribution]
+                + [m.name for m in ValueMask.nonprocedural_members()]
+            ), default="random", **attrs)
 
 
 def point_corners_option(**attrs):

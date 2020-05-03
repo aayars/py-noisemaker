@@ -8,7 +8,12 @@ from enum import Enum, EnumMeta
 
 import random
 
-from noisemaker.constants import DistanceFunction as df, PointDistribution, ValueDistribution, ValueMask
+from noisemaker.constants import
+    DistanceFunction as df,
+    PointDistribution as pd,
+    ValueDistribution,
+    ValueMask as vm
+)
 
 import noisemaker.generators as generators
 import noisemaker.masks as masks
@@ -118,7 +123,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "glyph-map": lambda: {
         "glyph_map_colorize": random.randint(0, 1),
         "glyph_map_zoom": random.randint(1, 3),
-        "with_glyph_map": random_member(set(ValueMask.procedural_members()).intersection(masks.square_masks())),
+        "with_glyph_map": random_member(set(vm.procedural_members()).intersection(masks.square_masks())),
     },
 
     "grayscale": lambda: {
@@ -274,7 +279,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "subpixels": lambda: {
         "composite_zoom": random_member([2, 4, 8]),
-        "with_composite": random_member(ValueMask.rgb_members()),
+        "with_composite": random_member(vm.rgb_members()),
     },
 
     "swerve-h": lambda: {
@@ -311,7 +316,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "voronoi": lambda: {
-        "point_distrib": "random" if random.randint(0, 1) else random_member(PointDistribution),
+        "point_distrib": "random" if random.randint(0, 1) else random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 10),
         "voronoi_func": random_member(df.all()),
         "voronoi_inverse": random.randint(0, 1),
@@ -410,7 +415,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "acid-grid": lambda: extend("bloom", "funhouse", "sobel", "voronoid", {
         "lattice_drift": random.randint(0, 1),
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": 4,
         "point_generations": 2,
         "voronoi_alpha": .333 + random.random() * .333,
@@ -420,7 +425,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "acid-wash": lambda: extend("funhouse", "reverb", "symmetry", {
         "hue_range": 1,
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(6, 10),
         "post_ridges": True,
         "ridges": True,
@@ -480,7 +485,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "alien-transmission": lambda: extend("glitchin-out", "sobel", "value-mask", {
         "freq": random.randint(125, 200),
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
     }),
 
     "analog-glitch": lambda: extend("value-mask", {
@@ -593,7 +598,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "bitmask": lambda: extend("bloom", "multires-low", "value-mask", {
         "freq": random.randint(13, 27),
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
         "ridges": True,
     }),
 
@@ -614,7 +619,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": .25 + random.random() * .5,
         "hue_range": .25 + random.random() * .5,
         "hue_rotation": random.randint(0, 1) * random.random(),
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "spline_order": random.randint(2, 3),
         "warp_freq": random.randint(6, 12),
         "warp_interp": random.randint(1, 3),
@@ -634,7 +639,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "branewaves": lambda: extend("bloom", "value-mask", {
         "freq": random.randint(16, 24) * 2,
-        "mask": random_member(ValueMask.grid_members()),
+        "mask": random_member(vm.grid_members()),
         "ridges": True,
         "ripple_freq": 2,
         "ripple_kink": 1.5 + random.random() * 2,
@@ -729,7 +734,7 @@ _PRESETS = lambda: {  # noqa: E731
     "cell-worms": lambda: extend("bloom", "density-map", "multires-low", "random-hue", "voronoi", "worms", {
         "freq": random.randint(3, 7),
         "hue_range": .125 + random.random() * .875,
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(2, 4),
         "saturation": .125 + random.random() * .25,
         "voronoi_alpha": .75,
@@ -749,7 +754,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "circulent": lambda: extend("invert", "reverb", "symmetry", "voronoi", "wormhole", {
-        "point_distrib": random_member(["spiral"] + [m.name for m in PointDistribution.circular_members()]),
+        "point_distrib": random_member(["spiral"] + [m.name for m in pd.circular_members()]),
         "point_corners": True,
         "voronoi_alpha": .5 + random.random() * .5,
         "wormhole_kink": random.randint(3, 6),
@@ -852,7 +857,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_rotation": random.random(),
         "saturation": random.random(),
         "point_corners": random.randint(0, 1),
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_drift": random.randint(0, 1) * random.random(),
         "point_freq": 4,
         "point_generations": 2,
@@ -888,7 +893,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "defocus": lambda: extend("bloom", "multires", {
         "freq": 12,
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "sin": 10,
     }),
 
@@ -934,7 +939,7 @@ _PRESETS = lambda: {  # noqa: E731
     "dla-cells": lambda: extend("bloom", {
         "dla_padding": random.randint(2, 8),
         "hue_range": random.random() * 1.5,
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(2, 8),
         "voronoi_alpha": random.random(),
         "with_dla": .5 + random.random() * .5,
@@ -956,7 +961,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 22,
         "distrib": "uniform",
         "hue_range": random.random() * 2.5,
-        "mask": random_member([m.value for m in ValueMask if m.name != "chess"]),
+        "mask": random_member([m.value for m in vm if m.name != "chess"]),
         "with_worms": 3,
         "worms_alpha": .875,
         "worms_density": 188.07,
@@ -1005,7 +1010,7 @@ _PRESETS = lambda: {  # noqa: E731
         "distrib": random_member(["ones", "uniform"]),
         "freq": 12 * random.randint(1, 2),
         "hue_range": random.random(),
-        "mask": random_member([m.value for m in ValueMask if m.name != "chess"]),
+        "mask": random_member([m.value for m in vm if m.name != "chess"]),
         "ridges": True,
         "spline_order": random.randint(2, 3),
         "warp_freq": 2,
@@ -1107,7 +1112,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "fractile": lambda: extend("bloom", "symmetry", {
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": random.randint(2, 10),
         "reverb_iterations": random.randint(2, 4),
         "voronoi_alpha": min(.75 + random.random() * .5, 1),
@@ -1255,7 +1260,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "glyphic": lambda: extend("maybe-invert", "value-mask", {
         "freq": random.randint(3, 5),
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
         "octaves": random.randint(3, 5),
         "posterize_levels": 1,
         "reduce_max": True,
@@ -1301,7 +1306,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_rotation": random.random(),
         "saturation": random.random(),
         "point_corners": True,
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(3, 6),
         "point_generations": 2,
         "spline_order": random.randint(0, 3),
@@ -1448,7 +1453,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": 2,
         "warp_range": .0625 + random.random() * .125,
         "warp_octaves": 1,
-        "with_glyph_map": ValueMask.v_bar,
+        "with_glyph_map": vm.v_bar,
     }),
 
     "jovian-clouds": lambda: {
@@ -1562,7 +1567,7 @@ _PRESETS = lambda: {  # noqa: E731
         "edges": .25 + random.random() * .5,
         "freq": random_member([9, 12, 15, 18]),
         "hue_range": random.random() * .5,
-        "point_distrib": random_member([m.value for m in PointDistribution.grid_members()]),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": random_member([3, 6, 9]),
         "spline_order": 0,
         "voronoi_alpha": .25,
@@ -1608,7 +1613,7 @@ _PRESETS = lambda: {  # noqa: E731
     "misaligned": lambda: extend("multires", "outline", {
         "distrib": random_member(ValueDistribution),
         "freq": random.randint(12, 24),
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "spline_order": 0,
     }),
 
@@ -1652,7 +1657,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "nerdvana": lambda: extend("bloom", "density-map", "symmetry", {
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(5, 10),
         "reverb_ridges": False,
         "with_voronoi": 2,
@@ -1726,7 +1731,7 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": True,
         "speed": .025,
         "spline_order": 0,
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 8),
         "voronoi_refract": random.randint(8, 12) * .5,
         "with_voronoi": 6,
@@ -1748,7 +1753,7 @@ _PRESETS = lambda: {  # noqa: E731
         "distrib": "uniform",
         "freq": random.randint(3, 5),
         "hue_range": .333 + random.random() * .333,
-        "mask": random_member(ValueMask.grid_members()),
+        "mask": random_member(vm.grid_members()),
         "octaves": 8,
         "ripple_freq": random.randint(4, 6),
         "ripple_kink": .0625 + random.random() * .125,
@@ -1818,7 +1823,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "procedural-mask": lambda: extend("bloom", "crt", "value-mask", {
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
     }),
 
     "procedural-muck": lambda: extend("procedural-mask", {
@@ -1846,7 +1851,7 @@ _PRESETS = lambda: {  # noqa: E731
     "quilty": lambda: extend("bloom", "dither", {
         "freq": random.randint(2, 6),
         "saturation": random.random() * .5,
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": random.randint(3, 8),
         "spline_order": 0,
         "voronoi_func": random.randint(2, 3),
@@ -1861,7 +1866,7 @@ _PRESETS = lambda: {  # noqa: E731
     "rasteroids": lambda: extend("bloom", "crt", "sobel", {
         "distrib": random_member(["uniform", "ones"]),
         "freq": 6 * random.randint(2, 3),
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "spline_order": 0,
         "warp_freq": random.randint(3, 5),
         "warp_octaves": random.randint(3, 5),
@@ -1904,7 +1909,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "remember-logo": lambda: extend("crt", "density-map", "symmetry", {
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(3, 7),
         "voronoi_alpha": 1.0,
         "voronoi_nth": random.randint(0, 4),
@@ -1934,7 +1939,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "ridged-bubbles": lambda: extend("invert", "symmetry", {
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 10),
         "post_ridges": True,
         "reverb_iterations": random.randint(1, 4),
@@ -1982,7 +1987,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(3, 8),
         "hue_range": random.random(),
         "lattice_drift": 1,
-        "point_distrib": random_member([PointDistribution.random] + PointDistribution.circular_members()),
+        "point_distrib": random_member([pd.random] + pd.circular_members()),
         "point_freq": random.randint(2, 8),
         "post_ridges": random.randint(0, 1),
         "rgb": random.randint(0, 1),
@@ -2012,7 +2017,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "seether": lambda: extend("invert", "symmetry", {
         "hue_range": 1.0 + random.random(),
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(4, 6),
         "post_ridges": True,
         "ridges": True,
@@ -2037,7 +2042,7 @@ _PRESETS = lambda: {  # noqa: E731
     "shape-party": lambda: extend("invert", {
         "distrib": "ones",
         "freq": 23,
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
         "point_freq": 2,
         "posterize_levels": 1,
         "rgb": True,
@@ -2141,7 +2146,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "soft-cells": lambda: extend("bloom", {
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 8),
         "voronoi_alpha": .5 + random.random() * .5,
         "with_voronoi": 5,
@@ -2246,7 +2251,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "square-stripes": lambda: {
         "hue_range": random.random(),
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": 2,
         "point_generations": random.randint(2, 3),
         "voronoi_alpha": .5 + random.random() * .5,
@@ -2289,7 +2294,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": random.random(),
         "point_freq": random.randint(5, 10),
         "point_corners": random.randint(0, 1),
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(0, 25),
         "with_voronoi": random.randint(1, 5),
@@ -2303,7 +2308,7 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "symmetry-lowpoly": lambda: extend("lowpoly", "symmetry", {
-        "lowpoly_distrib": random_member(PointDistribution.circular_members()),
+        "lowpoly_distrib": random_member(pd.circular_members()),
         "lowpoly_freq": random.randint(4, 15),
     }),
 
@@ -2394,7 +2399,7 @@ _PRESETS = lambda: {  # noqa: E731
         "corners": True,
         "distrib": "ones",
         "freq": random.randint(2, 6),
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "with_worms": random.randint(1, 3),
         "worms_density": 500,
         "worms_kink": random.randint(5, 25),
@@ -2443,7 +2448,7 @@ _PRESETS = lambda: {  # noqa: E731
     "triblets": lambda: extend("bloom", "multires", {
         "distrib": "uniform",
         "freq": random.randint(3, 15) * 2,
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "hue_rotation": 0.875 + random.random() * .15,
         "saturation": .375 + random.random() * .15,
         "warp_octaves": random.randint(1, 2),
@@ -2506,7 +2511,7 @@ _PRESETS = lambda: {  # noqa: E731
     "unmasked": lambda: {
         "distrib": "uniform",
         "freq": random.randint(15, 30),
-        "mask": random_member(ValueMask.procedural_members()),
+        "mask": random_member(vm.procedural_members()),
         "octaves": random.randint(1, 2),
         "post_reindex_range": 1 + random.random() * 1.5,
         "sobel": 1,
@@ -2515,7 +2520,7 @@ _PRESETS = lambda: {  # noqa: E731
     "value-mask": lambda: {
         "distrib": "ones",
         "freq": 24 * random.randint(1, 8),
-        "mask": random_member(ValueMask),
+        "mask": random_member(vm),
         "spline_order": random.randint(0, 2),
     },
 
@@ -2555,11 +2560,11 @@ _PRESETS = lambda: {  # noqa: E731
 
     "wall-art": lambda: extend("glyphic", "lowpoly", {
         "angle": random.random() * 360.0,
-        "lowpoly_distrib": random_member(PointDistribution.grid_members()),
+        "lowpoly_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
     }),
 
     "warped-cells": lambda: extend("invert", {
-        "point_distrib": random_member(PointDistribution),
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(6, 10),
         "post_ridges": True,
         "voronoi_alpha": .333 + random.random() * .333,
@@ -2600,7 +2605,7 @@ _PRESETS = lambda: {  # noqa: E731
     "wild-hair": lambda: extend("multires", "erosion-worms", "voronoi", {
         "erosion_worms_density": 25,
         "erosion_worms_alpha": .125 + random.random() * .125,
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(5, 10),
         "saturation": 0,
         "voronoi_alpha": .5 + random.random() * .5,
@@ -2624,7 +2629,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": random.random(),
         "saturation": random.random(),
         "lattice_drift": random.random(),
-        "point_distrib": random_member(PointDistribution.grid_members()),
+        "point_distrib": random_member(pd.grid_members(), vm.nonprocedural_members()),
         "point_freq": random.randint(7, 10),
         "voronoi_alpha": 0.25 + random.random() * .5,
         "voronoi_nth": random.randint(1, 5),
@@ -2657,7 +2662,7 @@ _PRESETS = lambda: {  # noqa: E731
     "wooly-bully": lambda: {
         "hue_range": random.random() * 1.5,
         "point_corners": True,
-        "point_distrib": random_member(PointDistribution.circular_members()),
+        "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(2, 3),
         "point_generations": 2,
         "reverb_iterations": random.randint(1, 2),
@@ -2701,17 +2706,20 @@ def bake_presets(seed):
     PRESETS = _PRESETS()
 
 
-def random_member(collection):
-    # make sure order is deterministic
-    if isinstance(collection, EnumMeta):
-        collection = list(collection)
+def random_member(*collections):
+    collection = []
 
-    # maybe it's a list of enum members
-    elif isinstance(next(iter(collection), None), Enum):
-        collection = [s[1] for s in sorted([(m.name, m) for m in collection])]
+    for c in collections:
+        if isinstance(collection, EnumMeta):
+            collection += list(c)
 
-    else:
-        collection = sorted(collection)
+        # maybe it's a list of enum members
+        elif isinstance(next(iter(c), None), Enum):
+            collection += [s[1] for s in sorted([(m.name, m) for m in c])]
+
+        else:
+            # make sure order is deterministic
+            collection += sorted(c)
 
     return collection[random.randint(0, len(collection) - 1)]
 

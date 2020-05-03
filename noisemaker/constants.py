@@ -64,25 +64,25 @@ class PointDistribution(Enum):
     Point cloud distribution, used by Voronoi and DLA
     """
 
-    random = 0
+    random = 1000000
 
-    square = 1
+    square = 1000001
 
-    waffle = 2
+    waffle = 1000002
 
-    chess = 3
+    chess = 1000003
 
-    h_hex = 10
+    h_hex = 1000010
 
-    v_hex = 11
+    v_hex = 1000011
 
-    spiral = 50
+    spiral = 1000050
 
-    circular = 100
+    circular = 1000100
 
-    concentric = 101
+    concentric = 1000101
 
-    rotating = 102
+    rotating = 1000102
 
     @classmethod
     def grid_members(cls):
@@ -439,6 +439,10 @@ class ValueMask(Enum):
     @classmethod
     def is_rgb(cls, member):
         return member.value >= cls.rgb.value and member.value < cls.sparse.value
+
+    @classmethod
+    def nonprocedural_members(cls):
+        return [m for m in cls if not cls.is_procedural(m)]
 
     @classmethod
     def procedural_members(cls):

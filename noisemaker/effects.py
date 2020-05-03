@@ -106,7 +106,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_dla: Diffusion-limited aggregation alpha
     :param int dla_padding: DLA pixel padding
     :param int point_freq: Voronoi and DLA point frequency (freq * freq = count)
-    :param PointDistribution|int point_distrib: Voronoi and DLA point cloud distribution
+    :param PointDistribution|ValueMask|int point_distrib: Voronoi and DLA point cloud distribution
     :param bool point_corners: Pin Voronoi and DLA points to corners (False = pin to center)
     :param int point_generations: Penrose-ish generations. Keep it low, and keep freq low, or you will run OOM easily.
     :param float point_drift: Fudge point locations (1.0 = nearest neighbor)

@@ -3,8 +3,9 @@
 import math
 import random
 
-from noisemaker.constants import PointDistribution
+from noisemaker.constants import PointDistribution, ValueMask
 
+import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 
 
@@ -27,34 +28,68 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
         height = shape[0]
 
     if isinstance(distrib, int):
-        distrib = PointDistribution(distrib)
+        if distrib < 1000000:
+            distrib = PointDistribution(distrib)
+        else:
+            distrib = ValueMask(distrib)
 
     elif isinstance(distrib, str):
-        distrib = PointDistribution[distrib]
+        if any(d.name == distrib for d in PointDistribution):
+            distrib = PointDistribution[distrib]
+        else:
+            distrib = ValueMask[distrib]
+
+    if distrib in ValueMask.procedural_members():
+        raise Exception("Procedural ValueMask can't be used as a PointDistribution.")
 
     point_func = rand
-
-    if PointDistribution.is_grid(distrib):
-        point_func = square_grid
-
-    elif distrib == PointDistribution.spiral:
-        point_func = spiral
-
-    elif PointDistribution.is_circular(distrib):
-        point_func = circular
 
     range_x = width * .5
     range_y = height * .5
 
+    if isinstance(distrib, PointDistribution):
+        if PointDistribution.is_grid(distrib):
+            point_func = square_grid
+
+        elif distrib == PointDistribution.spiral:
+            point_func = spiral
+
+        elif PointDistribution.is_circular(distrib):
+            point_func = circular
+
+        if PointDistribution.is_grid(distrib):
+            active_set.add((0.0, 0.0, 1))
+
+        else:
+            active_set.add((range_y, range_x, 1))
+
+    else:
+        # Use a ValueMask as a PointDistribution!
+        mask = masks.Masks[distrib]
+        mask_shape = masks.mask_shape(distrib)
+
+        x_space = shape[1] / mask_shape[1]
+        y_space = shape[0] / mask_shape[0]
+
+        x_margin = x_space * .5
+        y_margin = y_space * .5
+
+        for _x in range(mask_shape[1]):
+            for _y in range(mask_shape[0]):
+                pixel = mask[_y][_x]
+
+                if isinstance(pixel, list):
+                    pixel = sum(p for p in pixel)
+
+                if pixel != 0:
+                    x.append(int(x_margin + _x * x_space))
+                    y.append(int(y_margin + _y * y_space))
+
+        return x, y
+
     #
     seen = set()
     active_set = set()
-
-    if PointDistribution.is_grid(distrib):
-        active_set.add((0.0, 0.0, 1))
-
-    else:
-        active_set.add((range_y, range_x, 1))
 
     seen.update(active_set)
 
@@ -64,11 +99,11 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
         if generation <= generations:
             multiplier = max(2 * (generation - 1), 1)
 
-            next = point_func(freq=freq, distrib=distrib, corners=corners,
-                              center_x=x_point, center_y=y_point, range_x=range_x / multiplier, range_y=range_y / multiplier,
-                              width=width, height=height, generation=generation, time=time, speed=speed * .1)
-
-            _x, _y = next
+            _x, _y = point_func(freq=freq, distrib=distrib, corners=corners,
+                center_x=x_point, center_y=y_point,
+                range_x=range_x / multiplier, range_y=range_y / multiplier,
+                width=width, height=height, generation=generation,
+                time=time, speed=speed * .1)
 
             for i in range(len(_x)):
                 x_point = _x[i]
