@@ -33,7 +33,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
                  ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
-                 point_freq=5, point_distrib=0, point_corners=False, point_generations=1, point_drift=0.0,
+                 point_freq=5, point_distrib=1000000, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0, with_vaseline=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,

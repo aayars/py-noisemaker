@@ -24,6 +24,9 @@ EFFECTS_PRESETS = {}
 
 PRESETS = {}
 
+# Stashed random values
+_STASH = {}
+
 # Use a lambda to permit re-eval with new seed
 _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "aberration": lambda: {
@@ -1004,6 +1007,19 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .125 + random.random() * .25,
         "with_voronoi": 1,
     }),
+
+    "emu": lambda: {
+        "mask": set_stash("emu-mask", random_member(enum_range(vm.emoji_00, vm.emoji_26))),
+        "distrib": "ones",
+        "freq": masks.mask_shape(get_stash("emu-mask"))[0:2],
+        "point_distrib": get_stash("emu-mask"),
+        "spline_order": 2,
+        "voronoi_alpha": .5,
+        "voronoi_func": random_member(df.all()),
+        "voronoi_refract": .125 + random.random() * .125,
+        "voronoi_refract_y_from_offset": False,
+        "with_voronoi": 1,
+    },
 
     "eyes": lambda: extend("invert", "outline", {
         "corners": True,
@@ -2705,6 +2721,8 @@ def bake_presets(seed):
     global PRESETS
     PRESETS = _PRESETS()
 
+    _STASH = {}
+
 
 def random_member(*collections):
     collection = []
@@ -2722,6 +2740,28 @@ def random_member(*collections):
             collection += sorted(c)
 
     return collection[random.randint(0, len(collection) - 1)]
+
+
+def enum_range(a, b):
+    enum_class = type(a)
+
+    members = []
+
+    for i in range(a.value, b.value + 1):
+        members.append(enum_class(i))
+
+    return members
+
+
+def set_stash(key, value):
+    global _STASH
+    _STASH[key] = value
+    return value
+
+
+def get_stash(key):
+    global _STASH
+    return _STASH[key]
 
 
 def extend(*args):

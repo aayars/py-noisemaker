@@ -28,7 +28,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
         height = shape[0]
 
     if isinstance(distrib, int):
-        if distrib < 1000000:
+        if any(d.value == distrib for d in PointDistribution):
             distrib = PointDistribution(distrib)
         else:
             distrib = ValueMask(distrib)
@@ -46,6 +46,10 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
 
     range_x = width * .5
     range_y = height * .5
+
+    #
+    seen = set()
+    active_set = set()
 
     if isinstance(distrib, PointDistribution):
         if PointDistribution.is_grid(distrib):
@@ -86,10 +90,6 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                     y.append(int(y_margin + _y * y_space))
 
         return x, y
-
-    #
-    seen = set()
-    active_set = set()
 
     seen.update(active_set)
 
