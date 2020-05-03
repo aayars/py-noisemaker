@@ -8,7 +8,7 @@ from enum import Enum, EnumMeta
 
 import random
 
-from noisemaker.constants import
+from noisemaker.constants import (
     DistanceFunction as df,
     PointDistribution as pd,
     ValueDistribution,
