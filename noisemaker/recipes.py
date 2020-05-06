@@ -190,9 +190,9 @@ def interference(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = [height, width, 1]
 
-    distortion = basic(2, value_shape, time=0.0, speed=speed, distribution=ValueDistribution.simplex, corners=True)
+    distortion = basic(2, value_shape, time=time, speed=speed, distribution=ValueDistribution.simplex, corners=True)
 
-    scan_noise = basic([2, 1], [2, 1, 1], time=0.0, speed=speed, distribution=ValueDistribution.simplex)
+    scan_noise = basic([2, 1], [2, 1, 1], time=time, speed=speed, distribution=ValueDistribution.simplex)
     scan_noise = tf.tile(scan_noise, [random.randint(32, 128), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape, spline_order=0)
     scan_noise = effects.refract(scan_noise, value_shape, 1, reference_x=distortion, reference_y=distortion)
