@@ -85,9 +85,16 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 if isinstance(pixel, list):
                     pixel = sum(p for p in pixel)
 
+                if drift:
+                    x_drift = simplex.random(time, speed=speed) * drift / freq * shape[1]
+                    y_drift = simplex.random(time, speed=speed) * drift / freq * shape[0]
+                else:
+                    x_drift = 0
+                    y_drift = 0
+
                 if pixel != 0:
-                    x.append(int(x_margin + _x * x_space))
-                    y.append(int(y_margin + _y * y_space))
+                    x.append(int(x_margin + _x * x_space + x_drift))
+                    y.append(int(y_margin + _y * y_space + y_drift))
 
         return x, y
 
@@ -117,8 +124,8 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
                 active_set.add((x_point, y_point, generation + 1))
 
                 if drift:
-                    x_drift = simplex.random(time, speed=speed) * drift - drift * .5
-                    y_drift = simplex.random(time, speed=speed) * drift - drift * .5
+                    x_drift = simplex.random(time, speed=speed) * drift
+                    y_drift = simplex.random(time, speed=speed) * drift
 
                 else:
                     x_drift = 0
