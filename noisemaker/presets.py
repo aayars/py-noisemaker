@@ -1306,6 +1306,20 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 6,
     }),
 
+    "grass": lambda: extend("dither", "multires", {
+        "freq": random.randint(6, 12),
+        "hue_rotation": .25 + random.random() * .05,
+        "lattice_drift": 1,
+        "saturation": .625 + random.random() * .25,
+        "with_worms": 4,
+        "worms_alpha": .9,
+        "worms_density": 50 + random.random() * 25,
+        "worms_duration": 1.125,
+        "worms_stride": .875,
+        "worms_stride_deviation": .125,
+        "worms_kink": .125 + random.random() * .5,
+    }),
+
     "gravy": lambda: extend("bloom", "value-mask", {
         "freq": 24 * random.randint(2, 6),
         "post_deriv": 2,
@@ -2494,20 +2508,6 @@ _PRESETS = lambda: {  # noqa: E731
     "truchet-maze": lambda: extend("value-mask", {
         "freq": 6 * random.randint(50, 100),
         "mask": "truchet_maze",
-    }),
-
-    "turf": lambda: extend("dither", "multires", {
-        "freq": random.randint(6, 12),
-        "hue_rotation": .25 + random.random() * .05,
-        "lattice_drift": 1,
-        "saturation": .625 + random.random() * .25,
-        "with_worms": 4,
-        "worms_alpha": .9,
-        "worms_density": 50 + random.random() * 25,
-        "worms_duration": 1.125,
-        "worms_stride": .875,
-        "worms_stride_deviation": .125,
-        "worms_kink": .125 + random.random() * .5,
     }),
 
     "twister": lambda: extend("wormhole", {

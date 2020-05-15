@@ -195,7 +195,7 @@ def interference(tensor, shape, time=0.0, speed=1.0):
     scan_noise = basic([2, 1], [2, 1, 1], time=time, speed=speed, distribution=ValueDistribution.simplex)
     scan_noise = tf.tile(scan_noise, [random.randint(32, 128), width, 1])
     scan_noise = effects.resample(scan_noise, value_shape, spline_order=0)
-    scan_noise = effects.refract(scan_noise, value_shape, 1, reference_x=distortion, reference_y=distortion)
+    scan_noise = effects.refract(scan_noise, value_shape, 1, reference_x=distortion)
 
     tensor = 1.0 - (1.0 - tensor) * scan_noise
 
@@ -277,9 +277,9 @@ def snow(tensor, shape, amount, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    static = basic([height, width], [height, width, 1], time=time, speed=speed,
+    static = basic([height, width], [height, width, 1], time=time*100, speed=speed,
                    distrib=ValueDistribution.simplex, spline_order=0)
-    static_limiter = basic([height, width], [height, width, 1], time=time, speed=speed,
+    static_limiter = basic([height, width], [height, width, 1], time=time*100, speed=speed,
                            distrib=ValueDistribution.simplex_exp, spline_order=0) * amount
 
     return effects.blend(tensor, static, static_limiter)
@@ -398,7 +398,9 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     mask = multires(5, value_shape, time=time, speed=speed,
-                    distrib=ValueDistribution.simplex_exp, octaves=8, refract_range=1.0, deriv=3, deriv_alpha=.5)
+                    distrib=ValueDistribution.simplex_exp, octaves=8,
+                    refract_range=1.0, refract_y_from_offset=True,
+                    deriv=3, deriv_alpha=.5)
 
     dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
 
