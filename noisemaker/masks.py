@@ -2184,8 +2184,6 @@ def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=Fal
     if uv_noise is None:
         uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
 
-        uv_noise = uv_noise * 2.0 - 1.0
-
     total = 0
 
     for y in range(channel_shape[0]):

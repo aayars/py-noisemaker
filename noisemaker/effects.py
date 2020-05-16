@@ -2237,7 +2237,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
     y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
 
-    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan)) * 2.0 - 1.0
+    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan), extend_range=True)
 
     down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
     up = tf.square(tf.maximum(shade * .5, 0.0))
