@@ -16,7 +16,7 @@ import noisemaker.simplex as simplex
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
-                 with_pre_spatter=False, with_spatter=False, with_clouds=False, time=0.0, speed=1.0, **_):
+                 with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, time=0.0, speed=1.0, **_):
     """
     Apply complex post-processing recipes.
 
@@ -41,6 +41,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_pre_spatter: Spatter mask (early pass)
     :param bool with_spatter: Spatter mask
     :param bool with_clouds: Cloud cover
+    :param None|float with_lens_warp: Lens warp effect
     :param float time: Input value for Z axis (simplex only)
     :return: Tensor
     """
@@ -71,6 +72,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_crt:
         tensor = crt(tensor, shape, time=time, speed=speed)
+
+    if with_lens_warp:
+        tensor = lens_warp(tensor, shape, displacement=with_lens_warp, time=time, speed=speed)
 
     if with_interference:
         tensor = interference(tensor, shape, time=time, speed=speed)
@@ -202,6 +206,22 @@ def interference(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+def lens_warp(tensor, shape, displacement=.125, time=0.0, speed=1.0):
+    """
+    """
+
+    value_shape = [shape[0], shape[1], 1]
+
+    # Fake CRT lens shape
+    mask = tf.pow(effects.singularity(None, value_shape), 5)  # obscure center pinch
+
+    # Displacement values multiplied by mask to make it wavy towards the edges
+    distortion_x = basic(2, value_shape, time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=2) * mask
+
+    return effects.refract(tensor, shape, displacement,
+                           reference_x=distortion_x, extend_range=False)
+
+
 def crt(tensor, shape, time=0.0, speed=1.0):
     """
     Apply vintage CRT snow and scanlines.
@@ -214,20 +234,11 @@ def crt(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = [height, width, 1]
 
-    # CRT lens shape
-    mask = tf.pow(effects.singularity(None, value_shape), 4)  # Power of 4 to obscure center pinch
-
-    # Displacement values to make it wavy towards the edges
-    distortion_x = basic(2, value_shape, time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=2) * mask
-    distortion_y = basic(2, value_shape, time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=2) * mask
-
     # Horizontal scanlines
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1], time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=0), [int(height * .125) or 1, width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
-    distortion_amount = .125
-    scan_noise = effects.refract(scan_noise, value_shape, distortion_amount,
-                                 reference_x=distortion_x, reference_y=distortion_y, extend_range=False)
+    scan_noise = lens_warp(scan_noise, value_shape)
 
     tensor = effects.normalize(effects.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
@@ -277,9 +288,10 @@ def snow(tensor, shape, amount, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    static = basic([height, width], [height, width, 1], time=time*100, speed=speed,
+    static = basic([height, width], [height, width, 1], time=time, speed=speed * 100,
                    distrib=ValueDistribution.simplex, spline_order=0)
-    static_limiter = basic([height, width], [height, width, 1], time=time*100, speed=speed,
+
+    static_limiter = basic([height, width], [height, width, 1], time=time, speed=speed * 100,
                            distrib=ValueDistribution.simplex_exp, spline_order=0) * amount
 
     return effects.blend(tensor, static, static_limiter)

@@ -30,7 +30,7 @@ _STASH = {}
 # Use a lambda to permit re-eval with new seed
 _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "aberration": lambda: {
-        "with_aberration": .01 + random.random() * .01,
+        "with_aberration": .0125 + random.random() * .0125,
     },
 
     "be-kind-rewind": lambda: extend("crt", {
@@ -93,6 +93,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     },
 
+    "expensive-lens": lambda: extend("aberration", "lens-warp", "light-leak", "vaseline", {
+        "with_vignette": .125 + random.random() * .125,
+    }),
+
     "extract-derivative": lambda: {
         "deriv": random.randint(1, 3),
     },
@@ -135,6 +139,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "invert": lambda: {
         "with_convolve": ["invert"],
+    },
+
+    "lens-warp": lambda: {
+        "with_lens_warp": .5,
     },
 
     "light-leak": lambda: extend("bloom", "vignette-bright", {
@@ -769,6 +777,11 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .5 + random.random() * .5,
         "wormhole_kink": random.randint(3, 6),
         "wormhole_stride": .05 + random.random() * .05,
+    }),
+
+    "classic-desktop": lambda: extend("basic", "expensive-lens", {
+        "hue_range": .333 + random.random() * .333,
+        "lattice_drift": random.random(),
     }),
 
     "conference": lambda: extend("sobel", "value-mask", {
@@ -2034,6 +2047,17 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": random.randint(6, 12) * .5,
         "with_shadow": 1.0,
         "with_voronoi": 6,
+    }),
+
+    "sblorp": lambda: extend("invert", {
+        "distrib": "ones",
+        "freq": random.randint(5, 9),
+        "lattice_drift": 1.25 + random.random() * 1.25,
+        "mask": "sparse",
+        "octaves": random.randint(2, 3),
+        "posterize_levels": 1,
+        "reduce_max": True,
+        "rgb": True,
     }),
 
     "scribbles": lambda: extend("dither", "sobel", {

@@ -1325,17 +1325,18 @@ def blend_layers(control, shape, feather=1.0, *layers):
     return blend(combined_layer_0, combined_layer_1, control_floor_fract)
 
 
-def center_mask(center, edges, shape):
+def center_mask(center, edges, shape, power=2):
     """
     Blend two image tensors from the center to the edges.
 
     :param Tensor center:
     :param Tensor edges:
     :param list[int] shape:
+    :param int power:
     :return: Tensor
     """
 
-    mask = tf.square(singularity(None, shape, dist_func=DistanceFunction.chebyshev))
+    mask = tf.pow(singularity(None, shape, dist_func=DistanceFunction.chebyshev), power)
 
     return blend(center, edges, mask)
 
@@ -2166,7 +2167,7 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
     """
     """
 
-    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], drift=1.0, shape=shape, time=time, speed=speed)
+    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], drift=.05, shape=shape, time=time, speed=speed)
 
     leak = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
     leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
@@ -2175,7 +2176,7 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
 
     leak = 1 - ((1 - tensor) * (1 - leak))
 
-    leak = center_mask(tensor, leak, shape)
+    leak = center_mask(tensor, leak, shape, 4)
 
     return vaseline(blend(tensor, leak, alpha), shape, alpha)
 
