@@ -656,12 +656,13 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "branewaves": lambda: extend("bloom", "value-mask", {
-        "freq": random.randint(16, 24) * 2,
-        "mask": random_member(vm.grid_members()),
+        "mask": stash('branewaves-mask', random_member(vm.grid_members())),
+        "freq": [int(i * stash("branewaves-repeat", random.randint(5, 10)))
+            for i in masks.mask_shape(stash("branewaves-mask"))[0:2]],
         "ridges": True,
         "ripple_freq": 2,
         "ripple_kink": 1.5 + random.random() * 2,
-        "ripple_range": .0375 + random.random() * .0375,
+        "ripple_range": .15 + random.random() * .15,
         "spline_order": random.randint(1, 3),
     }),
 
@@ -915,8 +916,9 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "defocus": lambda: extend("bloom", "multires", {
-        "freq": 12,
-        "mask": random_member(vm),
+        "mask": stash('defocus-mask', random_member(vm)),
+        "freq": [int(i * stash("defocus-repeat", random.randint(2, 4)))
+            for i in masks.mask_shape(stash("defocus-mask"))[0:2]],
         "sin": 10,
     }),
 
@@ -981,10 +983,11 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "ears": lambda: {
-        "freq": 22,
         "distrib": "uniform",
         "hue_range": random.random() * 2.5,
-        "mask": random_member([m.value for m in vm if m.name != "chess"]),
+        "mask": stash('ears-mask', random_member([m for m in vm if m.name != "chess"])),
+        "freq": [int(i * stash("ears-repeat", random.randint(3, 6)))
+            for i in masks.mask_shape(stash("ears-mask"))[0:2]],
         "with_worms": 3,
         "worms_alpha": .875,
         "worms_density": 188.07,
@@ -1044,9 +1047,10 @@ _PRESETS = lambda: {  # noqa: E731
     "eyes": lambda: extend("invert", "outline", {
         "corners": True,
         "distrib": random_member(["ones", "uniform"]),
-        "freq": 12 * random.randint(1, 2),
         "hue_range": random.random(),
-        "mask": random_member([m.value for m in vm if m.name != "chess"]),
+        "mask": stash('eyes-mask', random_member([m for m in vm if m.name != "chess"])),
+        "freq": [int(i * stash("eyes-repeat", random.randint(3, 6)))
+            for i in masks.mask_shape(stash("eyes-mask"))[0:2]],
         "ridges": True,
         "spline_order": random.randint(2, 3),
         "warp_freq": 2,
@@ -1171,20 +1175,22 @@ _PRESETS = lambda: {  # noqa: E731
 
     "funky-glyphs": lambda: {
         "distrib": random_member(["ones", "uniform"]),
-        "freq": 20 * random.randint(1, 3),
-        "mask": random_member([
-            "binary",
-            "numeric",
-            "hex",
-            "lcd",
-            "lcd_binary",
-            "fat_lcd",
-            "fat_lcd_binary",
-            "fat_lcd_numeric",
-            "fat_lcd_hex"
-        ]),
+        "mask": stash('funky-glyphs-mask', random_member([
+            vm.binary,
+            vm.numeric,
+            vm.hex,
+            vm.lcd,
+            vm.lcd_binary,
+            vm.fat_lcd,
+            vm.fat_lcd_binary,
+            vm.fat_lcd_numeric,
+            vm.fat_lcd_hex
+        ])),
+        "freq": [int(i * stash("funky-glyphs-repeat", random.randint(1, 6)))
+            for i in masks.mask_shape(stash("funky-glyphs-mask"))[0:2]],
         "octaves": random.randint(1, 2),
         "post_refract_range": .125 + random.random() * .125,
+        "post_refract_y_from_offset": True,
         "spline_order": random.randint(1, 3),
     },
 
@@ -1216,8 +1222,10 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "fat-led": lambda: extend("bloom", "value-mask", {
-        "freq": 10 * random.randint(25, 40),
-        "mask": random_member(["fat_lcd", "fat_lcd_binary", "fat_lcd_numeric", "fat_lcd_hex"]),
+        "mask": stash("fat-led-mask", random_member([
+            vm.fat_lcd, vm.fat_lcd_binary, vm.fat_lcd_numeric, vm.fat_lcd_hex])),
+        "freq": [int(i * stash("fat-led-repeat", random.randint(15, 30)))
+            for i in masks.mask_shape(stash("fat-led-mask"))[0:2]],
     }),
 
     "fuzzy-thorns": lambda: {
@@ -1295,8 +1303,8 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "glyphic": lambda: extend("maybe-invert", "value-mask", {
-        "freq": random.randint(3, 5),
-        "mask": random_member(vm.procedural_members()),
+        "mask": stash('glyphic-mask', random_member(vm.procedural_members())),
+        "freq": masks.mask_shape(stash("glyphic-mask"))[0:2],
         "octaves": random.randint(3, 5),
         "posterize_levels": 1,
         "reduce_max": True,
@@ -1662,8 +1670,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "misaligned": lambda: extend("multires", "outline", {
         "distrib": random_member(ValueDistribution),
-        "freq": random.randint(12, 24),
-        "mask": random_member(vm),
+        "mask": stash('misaligned-mask', random_member(vm)),
+        "freq": [int(i * stash("misaligned-repeat", random.randint(2, 4)))
+            for i in masks.mask_shape(stash("misaligned-mask"))[0:2]],
         "spline_order": 0,
     }),
 
@@ -1801,9 +1810,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "painterly": lambda: {
         "distrib": "uniform",
-        "freq": random.randint(3, 5),
         "hue_range": .333 + random.random() * .333,
-        "mask": random_member(vm.grid_members()),
+        "mask": stash('painterly-mask', random_member(vm.grid_members())),
+        "freq": masks.mask_shape(stash("painterly-mask"))[0:2],
         "octaves": 8,
         "ripple_freq": random.randint(4, 6),
         "ripple_kink": .0625 + random.random() * .125,
@@ -1873,7 +1882,9 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "procedural-mask": lambda: extend("bloom", "crt", "value-mask", {
-        "mask": random_member(vm.procedural_members()),
+        "mask": stash('procedural-mask-mask', random_member(vm.procedural_members())),
+        "freq": [int(i * stash("procedural-mask-repeat", random.randint(10, 20)))
+            for i in masks.mask_shape(stash("procedural-mask-mask"))[0:2]],
     }),
 
     "procedural-muck": lambda: extend("procedural-mask", {
@@ -2018,8 +2029,10 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "runes-of-arecibo": lambda: extend("value-mask", {
-        "freq": 30 * random.randint(3, 6),
-        "mask": random_member(['arecibo_num', 'arecibo_bignum']),
+        "mask": stash("runes-mask", random_member([
+           vm.arecibo_num, vm.arecibo_bignum, vm.arecibo_nucleotide])),
+        "freq": [int(i * stash("runes-repeat", random.randint(20, 40)))
+            for i in masks.mask_shape(stash("runes-mask"))[0:2]],
     }),
 
     "sands-of-time": lambda: {
@@ -2566,8 +2579,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "value-mask": lambda: {
         "distrib": "ones",
-        "freq": 24 * random.randint(1, 8),
-        "mask": random_member(vm),
+        "mask": stash('value-mask-mask', random_member(vm)),
+        "freq": [int(i * stash("value-mask-repeat", random.randint(2, 8)))
+            for i in masks.mask_shape(stash("value-mask-mask"))[0:2]],
         "spline_order": random.randint(0, 2),
     },
 
