@@ -142,7 +142,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "lens-warp": lambda: {
-        "with_lens_warp": .5,
+        "with_lens_warp": .25 + random.random() * .25,
     },
 
     "light-leak": lambda: extend("bloom", "vignette-bright", {

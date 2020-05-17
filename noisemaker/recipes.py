@@ -49,6 +49,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     if with_pre_spatter:
         tensor = spatter(tensor, shape, time=time, speed=speed)
 
+    if with_lens_warp:
+        tensor = lens_warp(tensor, shape, displacement=with_lens_warp, time=time, speed=speed)
+
     if with_nebula:
         tensor = nebula(tensor, shape, time=time, speed=speed)
 
@@ -72,9 +75,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_crt:
         tensor = crt(tensor, shape, time=time, speed=speed)
-
-    if with_lens_warp:
-        tensor = lens_warp(tensor, shape, displacement=with_lens_warp, time=time, speed=speed)
 
     if with_interference:
         tensor = interference(tensor, shape, time=time, speed=speed)
