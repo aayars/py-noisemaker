@@ -60,7 +60,7 @@ def simplex(shape, time=0.0, seed=None, speed=1.0, as_np=False):
                 for x in range(shape[1]):
                     tensor[y][x][c] = simplex.noise4d(x, y, z, w)
 
-    tensor += 1.0 * .5
+    tensor = (tensor + 1.0) * .5
 
     if not as_np:
         tensor = tf.stack(tensor)
