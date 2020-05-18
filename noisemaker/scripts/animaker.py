@@ -55,7 +55,7 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_fra
         overrides['distrib'] = 'simplex_exp'
 
     elif distrib not in (
-        ValueDistribution.ones, 'ones',
+        # ValueDistribution.ones, 'ones',
         ValueDistribution.simplex_exp, 'simplex_exp',
         ValueDistribution.column_index, 'column_index',
         ValueDistribution.row_index, 'row_index',
