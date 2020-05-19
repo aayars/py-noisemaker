@@ -238,7 +238,7 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     scan_noise = tf.tile(basic([2, 1], [2, 1, 1], time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=0), [int(height * .125) or 1, width, 1])
     scan_noise = effects.resample(scan_noise, value_shape)
 
-    scan_noise = lens_warp(scan_noise, value_shape)
+    scan_noise = lens_warp(scan_noise, value_shape, time=time, speed=speed)
 
     tensor = effects.normalize(effects.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
