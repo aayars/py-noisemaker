@@ -216,10 +216,13 @@ def lens_warp(tensor, shape, displacement=.125, time=0.0, speed=1.0):
     mask = tf.pow(effects.singularity(None, value_shape), 5)  # obscure center pinch
 
     # Displacement values multiplied by mask to make it wavy towards the edges
-    distortion_x = basic(2, value_shape, time=time, speed=speed, distrib=ValueDistribution.simplex, spline_order=2) * mask
+    distortion_x = (basic(2, value_shape,
+        time=time, speed=speed,
+        distrib=ValueDistribution.simplex,
+        spline_order=2
+    ) * 2.0 - 1.0) * mask
 
-    return effects.refract(tensor, shape, displacement,
-                           reference_x=distortion_x, extend_range=False)
+    return effects.refract(tensor, shape, displacement, reference_x=distortion_x)
 
 
 def crt(tensor, shape, time=0.0, speed=1.0):
