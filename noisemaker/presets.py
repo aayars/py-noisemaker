@@ -1044,6 +1044,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 1,
     },
 
+    "entities": lambda: {
+        "distrib": "simplex",
+        "freq": 6 * random.randint(4, 5) * 2,
+        "hue_range": 1.0 + random.random() * 3.0,
+        "mask": "invaders_square",
+        "refract_range": .075 + random.random() * .075,
+        "refract_y_from_offset": True,
+        "spline_order": 2,
+    },
+
     "eyes": lambda: extend("invert", "outline", {
         "corners": True,
         "distrib": random_member(["ones", "uniform"]),
@@ -1904,10 +1914,10 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "prophesy": lambda: extend("invert", "value-mask", {
-        "freq": 48,
+        "freq": 6 * random.randint(3, 4) * 2,
         "mask": "invaders_square",
         "octaves": 2,
-        "refract_range": .25,
+        "refract_range": .0625 + random.random() * .0625,
         "refract_y_from_offset": True,
         "saturation": .125 + random.random() * .075,
         "spline_order": 2,
