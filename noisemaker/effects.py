@@ -30,7 +30,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
-                 warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None,
+                 warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None, warp_map=None,
                  ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=1000000, point_corners=False, point_generations=1, point_drift=0.0,
@@ -97,6 +97,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int warp_octaves: Multi-res iteration count for warp
     :param int|None warp_interp: Override spline order for warp (None = use spline_order)
     :param int|None warp_freq: Override frequency for warp (None = use freq)
+    :param str|None warp_map: File with brightness values for warp (None = generate noise)
     :param float ripple_range: Ripple range
     :param float ripple_freq: Ripple frequency
     :param float ripple_kink: Ripple twistiness
@@ -209,7 +210,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else freq_for_shape(warp_freq, shape)
 
-        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp, time=time, speed=speed)
+        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp, warp_map=warp_map, time=time, speed=speed)
 
     if ripple_range:
         ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
@@ -1717,7 +1718,7 @@ def freq_for_shape(freq, shape):
         return [int(freq * height / width), freq]
 
 
-def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, time=0.0, speed=1.0):
+def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_map=None, time=0.0, speed=1.0):
     """
     Multi-octave warp effect
 
@@ -1732,6 +1733,7 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, time=0.
     :param int octaves:
     :param float displacement:
     :param int spline_order:
+    :param str|None warp_map:
     """
 
     for octave in range(1, octaves + 1):
@@ -1742,7 +1744,18 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, time=0.
         if base_freq[0] >= shape[0] or base_freq[1] >= shape[1]:
             break
 
-        tensor = refract(tensor, shape, displacement=displacement / multiplier, warp_freq=base_freq, spline_order=spline_order, time=time, speed=speed)
+        kwargs = {}
+
+        if warp_map is not None:
+            if isinstance(warp_map, str):
+                warp_map = tf.image.convert_image_dtype(util.load(warp_map), tf.float32)
+
+            kwargs["reference_x"] = warp_map
+        else:
+            kwargs["warp_freq"] = base_freq
+
+        tensor = refract(tensor, shape, displacement=displacement / multiplier,
+                         spline_order=spline_order, time=time, speed=speed, **kwargs)
 
     return tensor
 

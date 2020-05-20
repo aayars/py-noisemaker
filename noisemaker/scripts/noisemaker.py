@@ -43,6 +43,7 @@ import noisemaker.recipes as recipes
 @cli.warp_octaves_option()
 @cli.warp_interp_option()
 @cli.warp_freq_option()
+@cli.warp_map_option()
 @cli.post_reflect_option()
 @cli.reflect_option()
 @cli.post_refract_option()
@@ -118,7 +119,7 @@ import noisemaker.recipes as recipes
 @click.pass_context
 def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
          sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp,
-         warp_freq, reflect, refract, refract_y_from_offset,
+         warp_freq, warp_map, reflect, refract, refract_y_from_offset,
          reindex, reverb, reverb_iterations, post_reindex,
          post_reflect, post_refract, post_refract_y_from_offset,
          clut, clut_horizontal, clut_range, ripple, ripple_freq,
@@ -162,7 +163,7 @@ def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
                                  spline_order=interp, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
                                  with_glyph_map=glyph_map, glyph_map_colorize=glyph_map_colorize, glyph_map_zoom=glyph_map_zoom,
                                  glyph_map_alpha=glyph_map_alpha, with_composite=composite, composite_zoom=composite_zoom,
-                                 warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq,
+                                 warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq, warp_map=warp_map,
                                  posterize_levels=posterize, vortex_range=vortex,
                                  rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
                                  post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,

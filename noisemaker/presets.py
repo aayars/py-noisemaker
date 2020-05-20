@@ -1652,6 +1652,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": "mcpaint",
     },
 
+    "metaballs": lambda: {
+        "point_drift": 4,
+        "point_freq": 10,
+        "posterize_levels": 2,
+        "with_voronoi": 6,
+    },
+
     "midland": lambda: {
         "deriv": 1,
         "deriv_alpha": .25,
