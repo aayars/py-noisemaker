@@ -935,7 +935,7 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
 
     height, width, channels = shape
 
-    values = value_map(tensor, shape)
+    values = value_map(tensor, shape, with_normalize=False)
 
     degrees = values * 360.0 * math.radians(1) * kink
     # stride = values * height * input_stride
