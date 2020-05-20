@@ -2713,7 +2713,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "woahdude-octave-warp": lambda: extend("basic", "bloom", {
         "hue_range": random.random() * 3.0,
-        "speed": .025,
+        "speed": .05,
         "sin": random.randint(5, 15),
         "warp_range": random.randint(3, 5) * .5,
         "warp_octaves": 3,
