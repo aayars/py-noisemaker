@@ -2149,11 +2149,12 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "shatter": lambda: extend("basic", "maybe-invert", "outline", {
-        "point_freq": random.randint(3, 6),
-        "post_refract_range": random.randint(2, 4),
+        "point_freq": random.randint(3, 5),
+        "post_refract_range": 1.0 + random.random(),
+        "post_refract_y_from_offset": True,
         "posterize_levels": random.randint(4, 6),
         "rgb": random.randint(0, 1),
-        "speed": .025,
+        "speed": .05,
         "voronoi_func": random_member([1, 3]),
         "voronoi_inverse": random.randint(0, 1),
         "with_voronoi": 5,
@@ -2245,13 +2246,14 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "solar": lambda: extend("bloom", "multires", {
-        "freq": random.randint(20, 28),
+        "freq": random.randint(10, 14),
         "hue_range": .225 + random.random() * .05,
         "hue_rotation": .975,
         "reflect_range": .333 + random.random() * .16667,
         "refract_range": .333 + random.random() * .16667,
         "saturation": 4 + random.random() * 2.5,
         "sin": 3,
+        "speed": .05,
         "warp_range": .1 + random.random() * .05,
         "warp_freq": 2,
     }),
