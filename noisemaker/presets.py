@@ -1130,7 +1130,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "fossil-hunt": lambda: extend("dither", {
         "freq": random.randint(3, 5),
-        "refract_range": random.randint(3, 5),
+        "lattice_drift": 1.0,
+        "refract_range": random.randint(2, 4),
+        "refract_y_from_offset": True,
         "point_freq": 10,
         "posterize_levels": random.randint(3, 5),
         "post_saturation": .25,
