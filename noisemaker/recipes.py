@@ -206,7 +206,7 @@ def interference(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
-def lens_warp(tensor, shape, displacement=.125, time=0.0, speed=1.0):
+def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     """
     """
 
@@ -219,7 +219,8 @@ def lens_warp(tensor, shape, displacement=.125, time=0.0, speed=1.0):
     distortion_x = (basic(2, value_shape,
         time=time, speed=speed,
         distrib=ValueDistribution.simplex,
-        spline_order=2
+        spline_order=2,
+        lattice_drift=1.0,
     ) * 2.0 - 1.0) * mask
 
     return effects.refract(tensor, shape, displacement, reference_x=distortion_x)
