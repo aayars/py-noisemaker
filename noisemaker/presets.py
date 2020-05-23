@@ -2166,16 +2166,6 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
     }),
 
-    "shmootype": lambda: extend("value-mask", {
-        "freq": random.randint(4, 6) * 150,
-        "mask": "truetype",
-        "speed": .025,
-        "warp_freq": 3,
-        "warp_interp": 3,
-        "warp_octaves": 1,
-        "warp_range": 1,
-    }),
-
     "sideways": lambda: extend("bloom", "crt", "multires-low", "pixel-sort", {
         "freq": random.randint(6, 12),
         "distrib": "ones",
