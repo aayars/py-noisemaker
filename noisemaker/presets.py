@@ -786,7 +786,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "conference": lambda: extend("sobel", "value-mask", {
-        "freq": 5 * random.randint(15, 30),
+        "freq": 4 * random.randint(6, 12),
         "mask": "halftone",
         "spline_order": 2,
     }),
