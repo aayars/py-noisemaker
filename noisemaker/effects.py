@@ -671,7 +671,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_x is None:
         if from_derivative:
-            reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape)
+            reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
             reference_x = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
@@ -681,7 +681,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_y is None:
         if from_derivative:
-            reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape)
+            reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
             reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
