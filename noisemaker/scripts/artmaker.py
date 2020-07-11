@@ -61,5 +61,5 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, name, preset
 
     tensor = recipes.post_process(tensor, **kwargs)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, name)
