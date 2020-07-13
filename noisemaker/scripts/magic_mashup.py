@@ -95,7 +95,7 @@ def frame(ctx, input_dir, frame, seed, name):
 
     control = effects.convolve(effects.ValueMask.conv2d_blur, control, [512, 512, 1])
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
         tensor = effects.blend(tensor, base, .125 + random.random() * .125)
