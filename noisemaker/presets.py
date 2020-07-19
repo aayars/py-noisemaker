@@ -2693,6 +2693,7 @@ _PRESETS = lambda: {  # noqa: E731
         "posterize_levels": 3,
         "rgb": True,
         "ridges": True,
+        "spline_order": 2,
         "warp_octaves": 2,
         "warp_range": .025,
     }),
