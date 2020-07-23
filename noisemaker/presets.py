@@ -1734,6 +1734,17 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_density": 500,
     }),
 
+    "nausea": lambda: extend("ripples", "value-mask", {
+        "mask": stash('nausea-mask', random_member([vm.h_bar, vm.v_bar])),
+        "freq": [int(i * stash("nausea-repeat", random.randint(5, 10)))
+            for i in masks.mask_shape(stash("nausea-mask"))[0:2]],
+        "rgb": True,
+        "ripple_range": 2.5 + random.random(),
+        "ripple_freq": random.randint(3, 5),
+        "spline_order": 0,
+        "with_aberration": .05 + random.random() * .05,
+    }),
+
     "nerdvana": lambda: extend("bloom", "density-map", "symmetry", {
         "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(5, 10),
