@@ -1866,7 +1866,7 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     y *= fader
 
     warped = refract(tensor, shape,
-        displacement=displacement * 25 + simplex.random(time, speed=speed) * 25,
+        displacement=simplex.random(time, speed=speed) * 100 * displacement,
         reference_x=x,
         reference_y=y,
         extend_range=False)
