@@ -103,7 +103,7 @@ def _control():
     control = effects.convolve(constants.ValueMask.conv2d_sharpen, control, post_shape)
     control = effects.normalize(control)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(control, CONTROL_FILENAME)
 
 
@@ -147,7 +147,7 @@ def blended():
     combined = tf.image.adjust_contrast(combined, .75)
     combined = tf.image.adjust_saturation(combined, .625)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(combined, BLENDED_FILENAME)
 
 
@@ -180,5 +180,5 @@ def run_preset(preset_name, shape, filename, tensor=None):
 
     tensor = recipes.post_process(tensor, **kwargs)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, filename)

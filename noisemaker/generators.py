@@ -21,7 +21,7 @@ def set_seed(seed):
 
         np.random.seed(seed)
 
-        tf.set_random_seed(seed)
+        tf.random.set_seed(seed)
 
         simplex._seed = seed
 
@@ -52,10 +52,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = tf.ones(initial_shape) * .5
 
     elif distrib == ValueDistribution.normal:
-        tensor = tf.random_normal(initial_shape)
+        tensor = tf.random.normal(initial_shape)
 
     elif distrib == ValueDistribution.uniform:
-        tensor = tf.random_uniform(initial_shape)
+        tensor = tf.random.uniform(initial_shape)
 
     elif distrib == ValueDistribution.exp:
         tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
@@ -172,7 +172,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
         else:
             if hue_rotation is None:
-                hue_rotation = tf.random_normal([])
+                hue_rotation = tf.random.normal([])
 
             h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 

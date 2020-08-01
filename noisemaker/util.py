@@ -15,10 +15,10 @@ def save(tensor, name="noise.png"):
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
 
     if name.lower().endswith(".png"):
-        data = tf.image.encode_png(tensor).eval()
+        data = tf.image.encode_png(tensor).numpy()
 
     elif name.lower().endswith((".jpg", ".jpeg")):
-        data = tf.image.encode_jpeg(tensor).eval()
+        data = tf.image.encode_jpeg(tensor).numpy()
 
     else:
         raise ValueError("Filename should end with .png or .jpg")

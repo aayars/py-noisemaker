@@ -60,7 +60,7 @@ def render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, n
     max_height = 1024
     max_width = 1024
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         height, width, channels = tf.shape(tensor).eval()
 
         need_resample = False

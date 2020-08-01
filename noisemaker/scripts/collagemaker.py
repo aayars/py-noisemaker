@@ -80,7 +80,7 @@ def render(ctx, width, height, input_dir, voronoi_func, voronoi_nth, point_freq,
 
     tensor = effects.bloom(tensor, shape, alpha=.333 + random.random() * .333)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, name)
 
     print('mashup')
@@ -139,7 +139,7 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
     control = effects.convolve(effects.ValueMask.conv2d_blur, control, [height, width, 1])
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         # sort collage images by brightness
         collage_images = [j[1] for j in sorted([(tf.reduce_sum(i).eval(), i) for i in collage_images])]
 

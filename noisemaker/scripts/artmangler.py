@@ -65,5 +65,5 @@ def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filenam
     tensor = effects.post_process(tensor, **kwargs)
     tensor = recipes.post_process(tensor, **kwargs)
 
-    with tf.Session().as_default():
+    with tf.compat.v1.Session().as_default():
         save(tensor, name)
