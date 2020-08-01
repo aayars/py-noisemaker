@@ -2596,7 +2596,7 @@ _PRESETS = lambda: {  # noqa: E731
         "mask": random_member(vm.procedural_members()),
         "octaves": random.randint(1, 2),
         "post_reindex_range": 1 + random.random() * 1.5,
-        "sobel": 1,
+        "with_sobel": random.randint(0, 1),
     },
 
     "value-mask": lambda: {
