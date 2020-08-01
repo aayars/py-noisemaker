@@ -1471,7 +1471,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = range_slice
 
     if diagram_type in VoronoiDiagramType.flow_members():
-        range_out = tf.reduce_sum(tf.log(dist), 3)
+        range_out = tf.reduce_sum(tf.math.log(dist), 3)
 
         range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
 
