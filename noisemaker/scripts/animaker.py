@@ -24,9 +24,10 @@ import noisemaker.presets as presets
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(presets.EFFECTS_PRESETS)))
 @cli.name_option(default='ani.gif')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
+@cli.option('--frame-count', type=int, default=30, help="How many frames total")
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_frames, preset_name):
+def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_frames, frame_count, preset_name):
     if preset_name == 'random':
         preset_name = 'random-preset'
 
@@ -65,18 +66,20 @@ def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_fra
     if 'point_drift' not in kwargs:
         overrides['point_drift'] = 0.25
 
-    if 'speed' not in kwargs:
-        overrides['speed'] = 0.25
+    if 'speed' in kwargs:
+        # Adjust speed for length of clip. A "normal" length is 30 frames.
+        kwargs['speed'] *= frame_count / 30.0
 
-    frames = 30
+    else:
+        overrides['speed'] = 0.25 * (frame_count / 30.0)
 
     with tempfile.TemporaryDirectory() as tmp:
-        for i in range(frames):
+        for i in range(frame_count):
             filename = f'{tmp}/{i:04d}.png'
 
             common_params = ['--seed', str(seed or 1),
                              '--overrides', json.dumps(overrides),
-                             '--time', f'{i/frames:0.4f}',
+                             '--time', f'{i/frame_count:0.4f}',
                              '--name', filename]
 
             subprocess.check_call(['artmaker', preset_name,
