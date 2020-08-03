@@ -91,7 +91,7 @@ def frame(ctx, input_dir, frame, seed, name):
 
     base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), time=frame/30.0, speed=0.125, distrib="simplex")
 
-    control = effects.value_map(collage_images.pop(), shape, keep_dims=True)
+    control = effects.value_map(collage_images.pop(), shape, keepdims=True)
 
     control = effects.convolve(effects.ValueMask.conv2d_blur, control, [512, 512, 1])
 
