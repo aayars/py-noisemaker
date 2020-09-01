@@ -28,6 +28,6 @@ setup(name='noisemaker',
         "click==6.7",
         "Pillow==6.2.0",
         "wheel==0.26",  # Needed by TF
-        "opensimplex==0.2",
+        "opensimplex==0.3",
         ]
       )
