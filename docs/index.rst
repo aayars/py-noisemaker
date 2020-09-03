@@ -91,6 +91,7 @@ Noisemaker includes several CLI entrypoints. For usage summary, run with ``-h`` 
 -  `noisemaker`: Low-level CLI
 -  `artmaker`: Generate images from presets
 -  `artmangler`: Apply post-processing effects to images
+-  `animaker`: Wrapper for animations (requires ImageMagick)
 
 See also
 --------
