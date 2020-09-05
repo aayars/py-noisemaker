@@ -19,7 +19,6 @@ import noisemaker.presets as presets
 @cli.width_option()
 @cli.height_option()
 @cli.channels_option()
-@cli.clut_option()
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(presets.EFFECTS_PRESETS)))
 @cli.name_option(default='ani.gif')
@@ -27,7 +26,7 @@ import noisemaker.presets as presets
 @cli.option('--frame-count', type=int, default=30, help="How many frames total")
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, clut, seed, effect_preset, name, save_frames, frame_count, preset_name):
+def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, preset_name):
     if preset_name == 'random':
         preset_name = 'random-preset'
 
