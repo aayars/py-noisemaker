@@ -1944,6 +1944,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .5,
     }),
 
+    "puzzler": lambda: extend("basic", {
+        "point_distrib": random_member(pd, vm.nonprocedural_members()),
+        "point_freq": 10,
+        "speed": .025,
+        "with_voronoi": 4,
+        "with_wormhole": True,
+    }),
+
     "quilty": lambda: extend("bloom", "dither", {
         "freq": random.randint(2, 6),
         "saturation": random.random() * .5,
