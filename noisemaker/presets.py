@@ -2471,7 +2471,9 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "the-inward-spiral": lambda: {
+        "freq": random.randint(12, 24),
         "point_freq": 1,
+        "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * .125),
         "voronoi_func": random_member(df.all()),
         "with_voronoi": 2,
         "with_worms": random.randint(1, 5),
