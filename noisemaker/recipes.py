@@ -98,7 +98,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
         tensor = texture(tensor, shape, time=time, speed=speed)
 
     if with_ticker:
-        tensor = spooky_ticker(tensor, shape)
+        tensor = spooky_ticker(tensor, shape, time=time, speed=speed)
 
     if with_stray_hair:
         tensor = stray_hair(tensor, shape, time=time, speed=speed)
@@ -507,12 +507,12 @@ def watermark(tensor, shape, time=0.0, speed=1.0):
     return effects.blend(tensor, brightness, mask * .125)
 
 
-def spooky_ticker(tensor, shape):
+def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
     """
     """
 
     if random.random() > .75:
-        tensor = on_screen_display(tensor, shape)
+        tensor = on_screen_display(tensor, shape, time=time, speed=speed)
 
     _masks = [
         ValueMask.arecibo_nucleotide,
@@ -549,11 +549,15 @@ def spooky_ticker(tensor, shape):
 
         freq = [mask_shape[0], width]
 
-        this_mask = basic(freq, [mask_shape[0], width, 1], corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+        row_shape = [mask_shape[0], width, 1]
+        row_mask = basic(freq, row_shape, corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask, time=time, speed=speed)
 
-        this_mask = effects.resample(this_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+        if time != 0.0:  # Make the ticker tick!
+            row_mask = effects.offset(row_mask, row_shape, int(time*width), 0)
 
-        rendered_mask += tf.pad(this_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
+        row_mask = effects.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+
+        rendered_mask += tf.pad(row_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
 
         bottom_padding += mask_shape[0] * multiplier + 2
 
@@ -565,7 +569,7 @@ def spooky_ticker(tensor, shape):
     return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
 
-def on_screen_display(tensor, shape):
+def on_screen_display(tensor, shape, time=0.0, speed=1.0):
     glyph_count = random.randint(3, 6)
 
     _masks = [
@@ -586,9 +590,10 @@ def on_screen_display(tensor, shape):
 
     freq = [mask_shape[0], mask_shape[1] * glyph_count]
 
-    this_mask = basic(freq, [height, width, shape[2]], corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask)
+    row_mask = basic(freq, [height, width, shape[2]], corners=True, spline_order=0, distrib=ValueDistribution.ones,
+                     mask=mask, time=time, speed=speed)
 
-    rendered_mask = tf.pad(this_mask, tf.stack([[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]))
+    rendered_mask = tf.pad(row_mask, tf.stack([[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]))
 
     alpha = .5 + random.random() * .25
 

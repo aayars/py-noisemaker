@@ -199,7 +199,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
 
     if with_glyph_map:
-        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom, alpha=glyph_map_alpha)
+        tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom,
+                           alpha=glyph_map_alpha, time=time, speed=speed)
 
     if with_composite:
         tensor = glyph_map(tensor, shape, zoom=composite_zoom, mask=with_composite)
@@ -2256,7 +2257,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
 
 
-def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0):
+def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0.0, speed=1.0):
     """
     :param Tensor tensor:
     :param list[int] shape:

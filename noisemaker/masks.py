@@ -68,7 +68,7 @@ Masks = {
         [[0, 0, 0]] * 6,
     ],
 
-    ValueMask.zero: [
+    ValueMask.alphanum_0: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 1, 1, 0 ],
@@ -77,7 +77,7 @@ Masks = {
         [ 0, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.one: [
+    ValueMask.alphanum_1: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 0, 1, 0, 0, 0 ],
         [ 0, 1, 1, 0, 0, 0 ],
@@ -86,7 +86,7 @@ Masks = {
         [ 0, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.two: [
+    ValueMask.alphanum_2: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 0, 0, 0, 0, 1, 0 ],
@@ -95,7 +95,7 @@ Masks = {
         [ 1, 1, 1, 1, 1, 0 ]
     ],
 
-    ValueMask.three: [
+    ValueMask.alphanum_3: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 0, 0 ],
         [ 0, 0, 0, 0, 1, 0 ],
@@ -104,7 +104,7 @@ Masks = {
         [ 1, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.four: [
+    ValueMask.alphanum_4: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 0, 0, 1, 0, 0 ],
         [ 1, 0, 0, 1, 0, 0 ],
@@ -113,7 +113,7 @@ Masks = {
         [ 0, 0, 0, 1, 0, 0 ]
     ],
 
-    ValueMask.five: [
+    ValueMask.alphanum_5: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 0, 0 ],
@@ -122,7 +122,7 @@ Masks = {
         [ 1, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.six: [
+    ValueMask.alphanum_6: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 0, 0 ],
@@ -131,7 +131,7 @@ Masks = {
         [ 0, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.seven: [
+    ValueMask.alphanum_7: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 1, 0 ],
         [ 0, 0, 0, 0, 1, 0 ],
@@ -140,7 +140,7 @@ Masks = {
         [ 0, 1, 0, 0, 0, 0 ]
     ],
 
-    ValueMask.eight: [
+    ValueMask.alphanum_8: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 1, 0 ],
@@ -149,7 +149,7 @@ Masks = {
         [ 0, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.nine: [
+    ValueMask.alphanum_9: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 1, 0 ],
@@ -158,7 +158,7 @@ Masks = {
         [ 0, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.a: [
+    ValueMask.alphanum_a: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 1, 0 ],
@@ -167,7 +167,7 @@ Masks = {
         [ 1, 0, 0, 0, 1, 0 ]
     ],
 
-    ValueMask.b: [
+    ValueMask.alphanum_b: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 1, 0 ],
@@ -176,7 +176,7 @@ Masks = {
         [ 1, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.c: [
+    ValueMask.alphanum_c: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 0, 1, 1, 1, 1, 0 ],
         [ 1, 0, 0, 0, 0, 0 ],
@@ -185,7 +185,7 @@ Masks = {
         [ 0, 1, 1, 1, 1, 0 ]
     ],
 
-    ValueMask.d: [
+    ValueMask.alphanum_d: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 0, 0 ],
         [ 1, 0, 0, 0, 1, 0 ],
@@ -194,7 +194,7 @@ Masks = {
         [ 1, 1, 1, 1, 0, 0 ]
     ],
 
-    ValueMask.e: [
+    ValueMask.alphanum_e: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 1, 0 ],
         [ 1, 0, 0, 0, 0, 0 ],
@@ -203,7 +203,7 @@ Masks = {
         [ 1, 1, 1, 1, 1, 0 ]
     ],
 
-    ValueMask.f: [
+    ValueMask.alphanum_f: [
         [ 0, 0, 0, 0, 0, 0 ],
         [ 1, 1, 1, 1, 1, 0 ],
         [ 1, 0, 0, 0, 0, 0 ],
@@ -888,7 +888,7 @@ Masks = {
         [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
     ],
 
-    ValueMask.truchet_maze_00: [
+    ValueMask.truchet_lines_00: [
         [ 1, 0, 0, 0, 0, 0 ],
         [ 0, 1, 0, 0, 0, 0 ],
         [ 0, 0, 1, 0, 0, 0 ],
@@ -897,7 +897,7 @@ Masks = {
         [ 0, 0, 0, 0, 0, 1 ],
     ],
 
-    ValueMask.truchet_maze_01: [
+    ValueMask.truchet_lines_01: [
         [ 0, 0, 0, 0, 0, 1 ],
         [ 0, 0, 0, 0, 1, 0 ],
         [ 0, 0, 0, 1, 0, 0 ],
@@ -906,7 +906,7 @@ Masks = {
         [ 1, 0, 0, 0, 0, 0 ],
     ],
 
-    ValueMask.truchet_maze_02: [
+    ValueMask.truchet_curves_00: [
         [ 0, 0, 0, 1, 0, 0 ],
         [ 0, 0, 0, 1, 0, 0 ],
         [ 0, 0, 0, 0, 1, 1 ],
@@ -915,7 +915,7 @@ Masks = {
         [ 0, 0, 1, 0, 0, 0 ],
     ],
 
-    ValueMask.truchet_maze_03: [
+    ValueMask.truchet_curves_01: [
         [ 0, 0, 1, 0, 0, 0 ],
         [ 0, 0, 1, 0, 0, 0 ],
         [ 1, 1, 0, 0, 0, 0 ],
@@ -2138,7 +2138,7 @@ def mask_shape(mask):
     :param ValueMask mask:
     """
 
-    if mask in _mask_shapes:
+    if ValueMask.is_procedural(mask):
         shape = _mask_shapes[mask]
 
         if callable(shape):
@@ -2158,50 +2158,50 @@ def mask_shape(mask):
     return shape
 
 
-def mask_values(mask, channel_shape=None, uv_noise=None, atlas=None, inverse=False, time=0.0, speed=1.0):
+def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False, time=0.0, speed=1.0):
     """
     Return a tuple of (pixel values, brightness) for the received ValueMask.
 
     :param ValueMask mask:
-    :param list[int] channel_shape:
-    :param None|Tensor uv_noise:
-    :param None|list atlas:
-    :param bool inverse:
+    :param list[int] glyph_shape: The shape of the mask being rendered
+    :param None|Tensor uv_noise: Per-pixel noise values, shaped like glyph_shape
+    :param None|list atlas: A pre-rendered atlas of images (ie TrueType letters)
+    :param bool inverse: Return the inverse of the mask
     """
 
     shape = mask_shape(mask)
 
-    if channel_shape is None:
-        channel_shape = shape
+    if glyph_shape is None:
+        glyph_shape = shape
 
     if len(shape) == 3:
-        channel_shape[2] = shape[2]
+        glyph_shape[2] = shape[2]
 
     mask_values = []
 
-    uv_shape = [int(channel_shape[0] / shape[0]) or 1, int(channel_shape[1] / shape[1]) or 1]
+    uv_shape = [int(glyph_shape[0] / shape[0]) or 1, int(glyph_shape[1] / shape[1]) or 1]
 
     if uv_noise is None:
         uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
 
         # normalize() but it's numpy
-        floor = np.amin(uv_noise)
-        ceil = np.amax(uv_noise)
-        uv_noise = (uv_noise - floor) / (ceil - floor)
+        # floor = np.amin(uv_noise)
+        # ceil = np.amax(uv_noise)
+        # uv_noise = (uv_noise - floor) / (ceil - floor)
 
     total = 0
 
-    for y in range(channel_shape[0]):
-        uv_y = int((y / channel_shape[0]) * uv_shape[0])
+    for y in range(glyph_shape[0]):
+        uv_y = int((y / glyph_shape[0]) * uv_shape[0])
 
         mask_row = []
         mask_values.append(mask_row)
 
-        for x in range(channel_shape[1]):
-            uv_x = int((x / channel_shape[1]) * uv_shape[1])
+        for x in range(glyph_shape[1]):
+            uv_x = int((x / glyph_shape[1]) * uv_shape[1])
 
             if callable(Masks[mask]):
-                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas, channel_shape=channel_shape)
+                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas, glyph_shape=glyph_shape)
 
             else:
                 pixel = Masks[mask][y % shape[0]][x % shape[1]]
@@ -2238,9 +2238,7 @@ def square_masks():
     return square
 
 
-def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, min_value, max_value):
-    atlas = [Masks[g] for g in Masks if g.value >= min_value and g.value <= max_value]
-
+def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
     glyph_index = int(uv_noise[uv_y][uv_x] * (len(atlas)))
 
     glyph_index = min(max(glyph_index, 0), len(atlas) - 1)
@@ -2395,17 +2393,8 @@ def script(x, y, row, shape, **kwargs):
     return random.random() > .5
 
 
-@mask([6, 6, 1])
-def binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    glyph = Masks[ValueMask.zero] if uv_noise[uv_y][uv_x] < .5 else Masks[ValueMask.one]
-
-    return glyph[y % shape[0]][x % shape[1]]
-
-
 @mask([4, 4, 1])
-def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, **kwargs):
-    atlas = [Masks[g] for g in Masks if g.name.startswith("tromino_")]
-
+def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, atlas, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2431,13 +2420,18 @@ def tromino(x, y, row, shape, uv_x, uv_y, uv_noise, uv_shape, **kwargs):
 
 
 @mask([6, 6, 1])
-def numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.nine.value)
+def alphanum_binary(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.zero.value, ValueMask.f.value)
+def alphanum_numeric(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
+
+
+@mask([6, 6, 1])
+def alphanum_hex(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([15, 15, 1])
@@ -2450,38 +2444,38 @@ def truetype(x, y, row, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
 
 
 @mask([4, 4, 1])
-def halftone(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.halftone_0.value, ValueMask.halftone_9.value)
+def halftone(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 5, 1])
-def lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_9.value)
+def lcd(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 5, 1])
-def lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.lcd_0.value, ValueMask.lcd_1.value)
+def lcd_binary(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_z.value)
+def fat_lcd(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_binary(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_1.value)
+def fat_lcd_binary(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_numeric(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_9.value)
+def fat_lcd_numeric(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_hex(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.fat_lcd_0.value, ValueMask.fat_lcd_f.value)
+def fat_lcd_hex(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 3, 1])
@@ -2546,9 +2540,9 @@ def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
 
 
 @mask(lambda: [64, 64, 1])
-def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, channel_shape, **kwargs):
-    third_height = channel_shape[0] / 3
-    half_width = channel_shape[1] / 2
+def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, glyph_shape, **kwargs):
+    third_height = glyph_shape[0] / 3
+    half_width = glyph_shape[1] / 2
     dna_half_width = mask_shape(ValueMask.arecibo_dna)[1] * .5
 
     if x > half_width - dna_half_width and x < half_width + dna_half_width:
@@ -2569,28 +2563,28 @@ def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, channel_shape, **kwargs):
 
 
 @mask([6, 6, 1])
-def truchet_maze(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    masks = [
-        [ValueMask.truchet_maze_00.value, ValueMask.truchet_maze_01.value],
-        [ValueMask.truchet_maze_02.value, ValueMask.truchet_maze_03.value]
-    ][0 if uv_noise[0][0] < .5 else 1]
-
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, *masks)
+def truchet_lines(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def truchet_tile(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.truchet_tile_00.value, ValueMask.truchet_tile_03.value)
+def truchet_curves(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
+
+
+@mask([6, 6, 1])
+def truchet_tile(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 8, 1])
-def mcpaint(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.mcpaint_00.value, ValueMask.mcpaint_40.value)
+def mcpaint(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([13, 13, 1])
-def emoji(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.emoji_00.value, ValueMask.emoji_26.value)
+def emoji(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([24, 1, 1])
@@ -2604,8 +2598,8 @@ def bar_code_short(*args, **kwargs):
 
 
 @mask([8, 7, 1])
-def bank_ocr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
-    return _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, ValueMask.bank_ocr_0.value, ValueMask.bank_ocr_9.value)
+def bank_ocr(**kwargs):
+    return _glyph_from_atlas_range(**kwargs)
 
 
 @mask(lambda: [random.randint(25, 50)] * 2 + [1])

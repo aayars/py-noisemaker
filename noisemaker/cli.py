@@ -187,7 +187,7 @@ def mask_inverse_option(**attrs):
 def glyph_map_option(**attrs):
     attrs.setdefault("help", "Mask: Glyph map brightness atlas mask")
 
-    choices = set(m.name for m in masks.square_masks())
+    choices = sorted(m.name for m in masks.square_masks())
 
     return str_option("--glyph-map", type=click.Choice(choices), **attrs)
 

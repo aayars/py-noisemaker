@@ -148,22 +148,22 @@ class ValueMask(Enum):
     h_tri = 12
     v_tri = 13
 
-    zero = 20
-    one = 21
-    two = 22
-    three = 23
-    four = 24
-    five = 25
-    six = 26
-    seven = 27
-    eight = 28
-    nine = 29
-    a = 30
-    b = 31
-    c = 32
-    d = 33
-    e = 34
-    f = 35
+    alphanum_0 = 20
+    alphanum_1 = 21
+    alphanum_2 = 22
+    alphanum_3 = 23
+    alphanum_4 = 24
+    alphanum_5 = 25
+    alphanum_6 = 26
+    alphanum_7 = 27
+    alphanum_8 = 28
+    alphanum_9 = 29
+    alphanum_a = 30
+    alphanum_b = 31
+    alphanum_c = 32
+    alphanum_d = 33
+    alphanum_e = 34
+    alphanum_f = 35
 
     tromino_i = 40
     tromino_l = 41
@@ -229,10 +229,11 @@ class ValueMask(Enum):
     fat_lcd_y = 104
     fat_lcd_z = 105
 
-    truchet_maze_00 = 110
-    truchet_maze_01 = 111
-    truchet_maze_02 = 112
-    truchet_maze_03 = 113
+    truchet_lines_00 = 110
+    truchet_lines_01 = 111
+
+    truchet_curves_00 = 112
+    truchet_curves_01 = 113
 
     truchet_tile_00 = 120
     truchet_tile_01 = 121
@@ -376,13 +377,11 @@ class ValueMask(Enum):
 
     white_bear = 1009
 
-    binary = 1010
+    tromino = 1010
 
-    tromino = 1011
-
-    numeric = 1012
-
-    hex = 1013
+    alphanum_binary = 1011
+    alphanum_numeric = 1012
+    alphanum_hex = 1013
 
     truetype = 1020
 
@@ -402,8 +401,9 @@ class ValueMask(Enum):
     arecibo_dna = 1033
     arecibo = 1034
 
-    truchet_maze = 1040
-    truchet_tile = 1041
+    truchet_lines = 1040
+    truchet_curves = 1041
+    truchet_tile = 1042
 
     mcpaint = 1050
 

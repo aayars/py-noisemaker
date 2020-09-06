@@ -1,6 +1,8 @@
 """Low-level value noise generators for Noisemaker"""
 
 import random
+import re
+import string
 
 import numpy as np
 import tensorflow as tf
@@ -92,9 +94,25 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
             if not atlas:
                 mask = ValueMask.numeric  # Fall back to canned values
 
-        channel_shape = freq + [1]
+        elif ValueMask.is_procedural(mask):
+            base_name = re.sub(r'_[a-z]+$', '', mask.name)
 
-        mask_values, _ = masks.mask_values(mask, channel_shape, atlas=atlas, inverse=mask_inverse, time=time,
+            if mask.name.endswith("_binary"):
+                atlas = [masks.Masks[ValueMask[f"{base_name}_0"]], masks.Masks[ValueMask[f"{base_name}_1"]]]
+
+            elif mask.name.endswith("_numeric"):
+                atlas = [masks.Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
+
+            elif mask.name.endswith("_hex"):
+                atlas = [masks.Masks[g] for g in masks.Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
+
+            else:
+                atlas = [masks.Masks[g] for g in masks.Masks
+                             if g.name.startswith(f"{mask.name}_") and not callable(masks.Masks[g])]
+
+        glyph_shape = freq + [1]
+
+        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse, time=time,
                                            speed=speed)
 
         tensor *= mask_values
