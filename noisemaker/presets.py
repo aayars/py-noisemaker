@@ -1531,7 +1531,9 @@ _PRESETS = lambda: {  # noqa: E731
 
     "jovian-clouds": lambda: {
         "point_freq": 10,
-        "voronoi_refract": 1,
+        "post_saturation": .125,
+        "voronoi_refract": 5,
+        "with_shadow": 1.0,
         "with_voronoi": 6,
         "with_worms": 4,
         "worms_density": 500,
