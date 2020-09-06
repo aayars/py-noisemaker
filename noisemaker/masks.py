@@ -2221,6 +2221,10 @@ def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False
     return mask_values, total
 
 
+def uv_random(uv_noise, uv_x, uv_y):
+    return (uv_noise[uv_y][uv_x] + random.random()) % 1.0
+
+
 def square_masks():
     """Return a list of square ValueMasks."""
 
@@ -2247,13 +2251,13 @@ def _glyph_from_atlas_range(x, y, shape, uv_x, uv_y, uv_noise, atlas, **kwargs):
 
 
 @mask([10, 10, 1])
-def sparse(**kwargs):
-    return 1 if random.random() < .15 else 0
+def sparse(uv_noise, uv_x, uv_y, **kwargs):
+    return uv_random(uv_noise, uv_x, uv_y) < .15
 
 
 @mask([10, 10, 1])
-def sparser(**kwargs):
-    return 1 if random.random() < .05 else 0
+def sparser(uv_noise, uv_x, uv_y, **kwargs):
+    return uv_random(uv_noise, uv_x, uv_y) < .05
 
 
 @mask(lambda: [random.randint(5, 7), random.randint(6, 12), 1])
@@ -2271,7 +2275,7 @@ def white_bear(**kwargs):
     return _invaders(**kwargs)
 
 
-def _invaders(x, y, row, shape, **kwargs):
+def _invaders(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
     height = shape[0]
     width = shape[1]
@@ -2283,22 +2287,22 @@ def _invaders(x, y, row, shape, **kwargs):
         return row[x - int(((x % width) - width / 2) * 2)]
 
     else:
-        return random.randint(0, 1)
+        return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
 @mask([6, 4, 1])
-def matrix(x, y, row, shape, **kwargs):
+def matrix(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     height = shape[0]
     width = shape[1]
 
     if y % height == 0 or x % width == 0:
         return 0
 
-    return random.randint(0, 1)
+    return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
 @mask(lambda: [random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1])
-def letters(x, y, row, shape, **kwargs):
+def letters(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
     width = shape[1]
@@ -2313,13 +2317,13 @@ def letters(x, y, row, shape, **kwargs):
         return 0
 
     if x % 2 == 0 or y % 2 == 0:
-        return random.random() > .25
+        return uv_random(uv_noise, uv_x, uv_y) > .25
 
-    return random.random() > .75
+    return uv_random(uv_noise, uv_x, uv_y) > .75
 
 
 @mask([14, 8, 1])
-def iching(x, y, row, shape, **kwargs):
+def iching(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -2338,11 +2342,11 @@ def iching(x, y, row, shape, **kwargs):
     if x % 2 == 0:
         return row[x - 1]
 
-    return random.randint(0, 1)
+    return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
 @mask(lambda: [random.randint(4, 6) * 2] * 2 + [1])
-def ideogram(x, y, row, shape, **kwargs):
+def ideogram(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -2355,11 +2359,11 @@ def ideogram(x, y, row, shape, **kwargs):
     if all(n % 2 == 1 for n in (x % width, y % height)):
         return 0
 
-    return random.random() > .5
+    return uv_random(uv_noise, uv_x, uv_y) > .5
 
 
 @mask(lambda: [random.randint(7, 9), random.randint(12, 24), 1])
-def script(x, y, row, shape, **kwargs):
+def script(x, y, row, shape, uv_noise, uv_y, uv_x, **kwargs):
     height = shape[0]
     width = shape[1]
 
@@ -2373,10 +2377,10 @@ def script(x, y, row, shape, **kwargs):
         return 0
 
     if y_step in (1, 3, 6):
-        return random.random() > .25
+        return uv_random(uv_noise, uv_x, uv_y) > .25
 
     if y_step in (2, 4, 5):
-        return random.random() > .9
+        return uv_random(uv_noise, uv_x, uv_y) > .9
 
     if x_step == 0:
         return 0
@@ -2390,7 +2394,7 @@ def script(x, y, row, shape, **kwargs):
     if y_step == height - 1:
         return 0
 
-    return random.random() > .5
+    return uv_random(uv_noise, uv_x, uv_y) > .5
 
 
 @mask([4, 4, 1])
@@ -2479,7 +2483,7 @@ def fat_lcd_hex(**kwargs):
 
 
 @mask([6, 3, 1])
-def arecibo_num(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+def arecibo_num(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2489,7 +2493,7 @@ def arecibo_num(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     if tex_y == shape[0] - 2:
         return 1 if tex_x == 1 else 0
 
-    return random.randint(0, 1)
+    return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
 @mask([6, 5, 1])
@@ -2498,7 +2502,7 @@ def arecibo_bignum(*args, **kwargs):
 
 
 @mask([6, 6, 1])
-def arecibo_nucleotide(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+def arecibo_nucleotide(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2511,7 +2515,7 @@ def arecibo_nucleotide(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
     if tex_y < shape[0] - 3 and tex_x > shape[1] - 2:
         return 0
 
-    return random.randint(0, 1)
+    return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
 _ARECIBO_DNA_TEMPLATE = [
@@ -2530,13 +2534,13 @@ _ARECIBO_DNA_TEMPLATE = [
 
 
 @mask([11, 17, 1])
-def arecibo_dna(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+def arecibo_dna(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
     value = _ARECIBO_DNA_TEMPLATE[tex_y][tex_x]
 
-    return random.randint(0, 1) if value == -1 else value
+    return uv_random(uv_noise, uv_x, uv_y) < .5 if value == -1 else value
 
 
 @mask(lambda: [64, 64, 1])
@@ -2603,7 +2607,7 @@ def bank_ocr(**kwargs):
 
 
 @mask(lambda: [random.randint(25, 50)] * 2 + [1])
-def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
+def fake_qr(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     x = x % shape[1]
     y = y % shape[1]
 
@@ -2631,6 +2635,6 @@ def fake_qr(x, y, row, shape, uv_x, uv_y, uv_noise, **kwargs):
             or (y > 8 and y < shape[0] - 8) \
             or (x >= shape[1] - 8 and y >= shape[0] - 8):
 
-        return random.randint(0, 1)
+        return uv_random(uv_noise, uv_x, uv_y) < .5
 
     return 0
