@@ -2690,6 +2690,12 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
+    "wiggler": lambda: extend("ears", {
+        "lattice_drift": 1.0,
+        "hue_range": .125 + random.random() * .25,
+        "mask": None,
+    }),
+
     "wild-hair": lambda: extend("multires", "erosion-worms", "voronoi", {
         "erosion_worms_density": 25,
         "erosion_worms_alpha": .125 + random.random() * .125,
