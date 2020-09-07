@@ -148,6 +148,12 @@ def octaves_option(**attrs):
     return int_option("--octaves", type=click.IntRange(1, 10), default=1, **attrs)
 
 
+def reduce_max_option(**attrs):
+    attrs.setdefault("help", "Blend maximum per-octave values, instead of adding")
+
+    return bool_option("--reduce-max/--no-reduce-max", default=False, **attrs)
+
+
 def ridges_option(**attrs):
     attrs.setdefault("help", "Per-octave \"crease\" at midpoint values: abs(noise * 2 - 1)")
 

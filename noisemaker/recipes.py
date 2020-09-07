@@ -16,7 +16,8 @@ import noisemaker.simplex as simplex
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
-                 with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, time=0.0, speed=1.0, **_):
+                 with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None,
+                 time=0.0, speed=1.0, **_):
     """
     Apply complex post-processing recipes.
 
@@ -42,6 +43,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_spatter: Spatter mask
     :param bool with_clouds: Cloud cover
     :param None|float with_lens_warp: Lens warp effect
+    :param None|float with_tint: Color tint effect alpha amount
     :param float time: Input value for Z axis (simplex only)
     :return: Tensor
     """
@@ -51,6 +53,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_lens_warp:
         tensor = lens_warp(tensor, shape, displacement=with_lens_warp, time=time, speed=speed)
+
+    if with_tint:
+        tensor = tint(tensor, shape, alpha=with_tint, time=time, speed=speed)
 
     if with_nebula:
         tensor = nebula(tensor, shape, time=time, speed=speed)
@@ -694,3 +699,17 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
     tensor = effects.shadow(tensor, shape, alpha=.5)
 
     return tensor
+
+
+def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
+    """
+    """
+
+    color = basic(2, shape, time=time, speed=speed, distribution=ValueDistribution.simplex)
+    color = tf.image.rgb_to_hsv([color])[0]
+
+    colorized = tf.stack([color[:, :, 0], color[:, :, 1], tf.image.rgb_to_hsv([tensor])[0][:, :, 2]], 2)
+
+    colorized = tf.image.hsv_to_rgb([colorized])[0]
+
+    return effects.blend(tensor, colorized, alpha)

@@ -312,6 +312,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": "halftone",
     },
 
+    "tint": lambda: {
+        "with_tint": .333 + random.random() * .333,
+    },
+
     "vaseline": lambda: {
         "with_vaseline": .75 + random.random() * .25,
     },
@@ -988,6 +992,17 @@ _PRESETS = lambda: {  # noqa: E731
 
     "domain-warp": lambda: extend("multires-ridged", {
         "post_refract_range": .25 + random.random() * .25,
+    }),
+
+    "dropout": lambda: extend("maybe-invert", {
+        "distrib": "ones",
+        "freq": [random.randint(4, 6), random.randint(2, 4)],
+        "mask": "dropout",
+        "octaves": random.randint(5, 6),
+        "post_deriv": 1,
+        "reduce_max": True,
+        "rgb": True,
+        "spline_order": 0,
     }),
 
     "ears": lambda: {
@@ -2338,6 +2353,18 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": random.randint(1, 3),
         "wormhole_kink": random.randint(5, 20),
         "wormhole_stride": random.random() * .05,
+    }),
+
+    "splash": lambda: extend("aberration", "bloom", "tint", "vaseline", {
+        "distrib": "ones",
+        "freq": 3,
+        "lattice_drift": 1,
+        "mask": "dropout",
+        "octaves": 6,
+        "post_deriv": 3,
+        "reduce_max": True,
+        "rgb": True,
+        "spline_order": 3,
     }),
 
     "splork": lambda: {

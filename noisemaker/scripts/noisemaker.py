@@ -19,6 +19,7 @@ import noisemaker.recipes as recipes
 @cli.channels_option()
 @cli.time_option()
 @cli.octaves_option()
+@cli.reduce_max_option()
 @cli.ridges_option()
 @cli.post_ridges_option()
 @cli.convolve_option()
@@ -117,9 +118,10 @@ import noisemaker.recipes as recipes
 @cli.seed_option()
 @cli.name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
-         sin, wavelet, lattice_drift, vortex, warp, warp_octaves, warp_interp,
-         warp_freq, warp_map, reflect, refract, refract_y_from_offset,
+def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
+         ridges, post_ridges, sin, wavelet, lattice_drift, vortex,
+         warp, warp_octaves, warp_interp, warp_freq, warp_map,
+         reflect, refract, refract_y_from_offset,
          reindex, reverb, reverb_iterations, post_reindex,
          post_reflect, post_refract, post_refract_y_from_offset,
          clut, clut_horizontal, clut_range, ripple, ripple_freq,
@@ -143,7 +145,8 @@ def main(ctx, freq, width, height, channels, time, octaves, ridges, post_ridges,
 
     shape = [height, width, channels]
 
-    tensor = generators.multires(freq=freq, shape=shape, time=time, octaves=octaves, ridges=ridges, post_ridges=post_ridges, sin=sin, wavelet=wavelet,
+    tensor = generators.multires(freq=freq, shape=shape, time=time, octaves=octaves, reduce_max=reduce_max,
+                                 ridges=ridges, post_ridges=post_ridges, sin=sin, wavelet=wavelet,
                                  lattice_drift=lattice_drift, reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                  refract_y_from_offset=refract_y_from_offset,
                                  with_reverb=reverb, reverb_iterations=reverb_iterations,

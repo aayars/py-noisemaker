@@ -416,6 +416,8 @@ class ValueMask(Enum):
 
     fake_qr = 1080
 
+    dropout = 1100
+
     @classmethod
     def conv2d_members(cls):
         return [m for m in cls if cls.is_conv2d(m)]

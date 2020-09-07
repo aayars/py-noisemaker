@@ -2260,6 +2260,11 @@ def sparser(uv_noise, uv_x, uv_y, **kwargs):
     return uv_random(uv_noise, uv_x, uv_y) < .05
 
 
+@mask([10, 10, 1])
+def dropout(uv_noise, uv_x, uv_y, **kwargs):
+    return uv_random(uv_noise, uv_x, uv_y) < .25
+
+
 @mask(lambda: [random.randint(5, 7), random.randint(6, 12), 1])
 def invaders(**kwargs):
     return _invaders(**kwargs)
