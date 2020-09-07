@@ -726,7 +726,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     return blend(x_y0, x_y1, y_fract)
 
 
-def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3, time=0.0, speed=1.0):
+def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=2, time=0.0, speed=1.0):
     """
     Apply displacement from pixel radian values.
 
@@ -753,16 +753,16 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
     value_shape = [shape[0], shape[1], 1]
 
     if reference is None:
-        reference = resample(tf.random.uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
-        # reference = derivative(reference, [shape[0], shape[1], 1], with_normalize=False)
+        # reference = resample(tf.random.uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
+        reference = resample(normalize(simplex.simplex([freq[0], freq[1], 1], time=time, speed=speed)), value_shape, spline_order=spline_order)
 
-    # Twist index, borrowed from worms. TODO merge me.
+    # Twist index, borrowed from worms. TODO refactor me?
     index = value_map(reference, shape, with_normalize=False) * 360.0 * math.radians(1) * kink * simplex.random(time, speed=speed)
 
     reference_x = (tf.cos(index) * displacement * width) % width
     reference_y = (tf.sin(index) * displacement * height) % height
 
-    # Bilinear interpolation of midpoints, borrowed from refract(). TODO merge me
+    # Bilinear interpolation of midpoints, borrowed from refract(). TODO refactor me?
     x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
     x1_offsets = (x0_offsets + 1) % width
     y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height

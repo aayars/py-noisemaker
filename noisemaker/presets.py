@@ -241,8 +241,8 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "ripples": lambda: {
         "ripple_freq": random.randint(2, 3),
-        "ripple_kink": .25 + random.random() * 1.25,
-        "ripple_range": .0625 + random.random() * .25,
+        "ripple_kink": random.randint(3, 18),
+        "ripple_range": .025 + random.random() * .1,
     },
 
     "scanline-error": lambda: {
@@ -412,6 +412,13 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
         "with_voronoi": 2 if random.randint(0, 1) else random.randint(1, 5),
     }),
+
+    "acid": lambda: {
+        "freq": random.randint(10, 15),
+        "octaves": 8,
+        "post_reindex_range": 1.25 + random.random() * 1.25,
+        "rgb": True,
+    },
 
     "acid-droplets": lambda: extend("bloom", "density-map", "multires-low", "random-hue", {
         "freq": random.randint(12, 18),
@@ -1451,24 +1458,6 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": 1,
     }),
 
-    "i-dream-of-tweegee": lambda: {
-        "reindex_range": 2,
-        "point_corners": True,
-        "point_freq": 2,
-        "point_distrib": "square",
-        "post_reindex_range": 2,
-        "rgb": True,
-        "voronoi_alpha": .625,
-        "with_voronoi": 4,
-    },
-
-    "i-heart-tweegee": lambda: {
-        "freq": random.randint(12, 20),
-        "octaves": 8,
-        "post_reindex_range": 2.5 + random.random() * 2.5,
-        "rgb": True,
-    },
-
     "i-made-an-art": lambda: extend("distressed", "outline", {
         "spline_order": 0,
         "lattice_drift": random.randint(5, 10),
@@ -1530,15 +1519,17 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "jovian-clouds": lambda: {
-        "point_freq": 10,
-        "post_saturation": .125,
-        "voronoi_refract": 5,
+        "point_freq": random.randint(8, 10),
+        "post_saturation": .125 + random.random() * .25,
+        "voronoi_alpha": .175 + random.random() * .25,
+        "voronoi_refract": 5.0 + random.random() * 3.0,
         "with_shadow": 1.0,
         "with_voronoi": 6,
         "with_worms": 4,
+        "worms_alpha": .175 + random.random() * .25,
         "worms_density": 500,
-        "worms_duration": 0.5,
-        "worms_kink": 96,
+        "worms_duration": 2.0,
+        "worms_kink": 192,
     },
 
     "just-refracts-maam": lambda: extend("basic", {
@@ -1952,6 +1943,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_wormhole": True,
     }),
 
+    "quadrants": lambda: extend("basic", {
+        "freq": 2,
+        "post_reindex_range": 2,
+        "rgb": True,
+        "spline_order": random.randint(2, 3),
+        "voronoi_alpha": .625,
+    }),
+
     "quilty": lambda: extend("bloom", "dither", {
         "freq": random.randint(2, 6),
         "saturation": random.random() * .5,
@@ -2061,12 +2060,9 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": random.randint(0, 1),
     }),
 
-    "ripple-effect": lambda: extend("basic", "bloom", {
+    "ripple-effect": lambda: extend("basic", "bloom", "ripples", {
         "lattice_drift": 1,
         "ridges": random.randint(0, 1),
-        "ripple_freq": random.randint(2, 3),
-        "ripple_kink": random.randint(3, 18),
-        "ripple_range": .025 + random.random() * .1,
         "sin": 3,
         "with_shadow": .5 + random.random() * .25,
     }),
