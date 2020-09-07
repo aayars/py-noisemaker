@@ -1944,7 +1944,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .5,
     }),
 
-    "puzzler": lambda: extend("basic", {
+    "puzzler": lambda: extend("basic", "maybe-invert", {
         "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": 10,
         "speed": .025,
