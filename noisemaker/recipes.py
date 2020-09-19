@@ -527,14 +527,14 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
         ValueMask.bar_code_short,
         ValueMask.emoji,
         ValueMask.fat_lcd_hex,
-        ValueMask.hex,
+        ValueMask.alphanum_hex,
         ValueMask.iching,
         ValueMask.ideogram,
         ValueMask.invaders,
         ValueMask.lcd,
         ValueMask.letters,
         ValueMask.matrix,
-        ValueMask.numeric,
+        ValueMask.alphanum_numeric,
         ValueMask.script,
         ValueMask.white_bear,
     ]
@@ -579,8 +579,8 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 
     _masks = [
         ValueMask.bank_ocr,
-        ValueMask.hex,
-        ValueMask.numeric,
+        ValueMask.alphanum_hex,
+        ValueMask.alphanum_numeric,
     ]
 
     mask = _masks[random.randint(0, len(_masks) - 1)]

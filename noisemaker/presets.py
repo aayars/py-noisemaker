@@ -30,7 +30,7 @@ _STASH = {}
 # Use a lambda to permit re-eval with new seed
 _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "aberration": lambda: {
-        "with_aberration": .0125 + random.random() * .0125,
+        "with_aberration": .015 + random.random() * .015,
     },
 
     "be-kind-rewind": lambda: extend("crt", {
