@@ -513,7 +513,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "analog-glitch": lambda: extend("value-mask", {
-        "mask": stash("analog-glitch-mask", random_member([vm.hex, vm.lcd, vm.fat_lcd])),
+        "mask": stash("analog-glitch-mask", random_member([vm.alphanum_hex, vm.lcd, vm.fat_lcd])),
         "deriv": 2,
         # offset by i * .5 for glitched texture lookup
         "freq": [i * .5 + i * stash("analog-glitch-repeat", random.randint(20, 30))
@@ -617,7 +617,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "bit-by-bit": lambda: extend("bloom", "crt", "value-mask", {
-        "mask": stash("bit-by-bit-mask", random_member([vm.binary, vm.hex, vm.numeric])),
+        "mask": stash("bit-by-bit-mask", random_member([vm.alphanum_binary, vm.alphanum_hex, vm.alphanum_numeric])),
         "freq": [i * stash("bit-by-bit-repeat", random.randint(30, 60))
             for i in masks.mask_shape(stash("bit-by-bit-mask"))[0:2]],
         "with_shadow": random.random(),
@@ -1211,9 +1211,9 @@ _PRESETS = lambda: {  # noqa: E731
     "funky-glyphs": lambda: {
         "distrib": random_member(["ones", "uniform"]),
         "mask": stash('funky-glyphs-mask', random_member([
-            vm.binary,
-            vm.numeric,
-            vm.hex,
+            vm.alphanum_binary,
+            vm.alphanum_numeric,
+            vm.alphanum_hex,
             vm.lcd,
             vm.lcd_binary,
             vm.fat_lcd,
