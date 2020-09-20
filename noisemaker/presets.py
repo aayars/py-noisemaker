@@ -176,12 +176,11 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_normal_map": True,
     },
 
-    "octave-warp": lambda: extend("bloom", {
+    "octave-warp": lambda: {
         "warp_freq": random.randint(2, 3),
-        "warp_range": 4.0 + random.random() * 2.0,
-        "warp_octaves": random.randint(4, 5),
-        "with_shadow": random.random(),
-    }),
+        "warp_octaves": 3,
+        "warp_range": 3.0 + random.random(),
+    },
 
     "one-art-please": lambda: extend("dither", "light-leak", {
         "post_contrast": 1.25,
@@ -317,7 +316,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "vaseline": lambda: {
-        "with_vaseline": .5 + random.random() * .25,
+        "with_vaseline": .625 + random.random() * .25,
     },
 
     "vignette-bright": lambda: {
@@ -1702,6 +1701,11 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_stride": .0005,
     }),
 
+    "molten-glass": lambda: extend("bloom", "lens", "woahdude-octave-warp", {
+        "post_contrast": 1.5,
+        "with_shadow": 1.0,
+    }),
+
     "multires": lambda: {
         "octaves": random.randint(4, 8),
     },
@@ -2765,11 +2769,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 1,
     },
 
-    "woahdude-octave-warp": lambda: extend("basic", "bloom", "octave-warp", {
+    "woahdude-octave-warp": lambda: extend("basic", "octave-warp", {
         "hue_range": random.random() * 3.0,
         "speed": .05,
         "sin": random.randint(5, 15),
-        "with_shadow": random.random(),
     }),
 
     "wooly-bully": lambda: {
