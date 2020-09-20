@@ -1963,7 +1963,7 @@ def bloom(tensor, shape, alpha=.5):
     blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
     blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
     blurred = resample(blurred, shape)
-    blurred = offset(blurred, shape, x=int(shape[1] * -.005), y=int(shape[0] * -.005))
+    blurred = offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
     return blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
 
@@ -2211,12 +2211,7 @@ def vaseline(tensor, shape, alpha=1.0):
     """
     """
 
-    blurred = _downsample(tensor, shape, [int(shape[0] * .01) or 1, int(shape[1] * .01) or 1, shape[2]])
-    blurred = resample(blurred, shape)
-
-    blurred = center_mask(tensor, blurred, shape)
-
-    return blend(tensor, blurred, alpha)
+    return blend(tensor, center_mask(tensor, bloom(tensor, shape, 1.0), shape), alpha)
 
 
 def shadow(tensor, shape, alpha=1.0, reference=None):

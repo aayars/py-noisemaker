@@ -93,10 +93,6 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     },
 
-    "expensive-lens": lambda: extend("aberration", "lens-warp", "light-leak", "vaseline", {
-        "with_vignette": .125 + random.random() * .125,
-    }),
-
     "extract-derivative": lambda: {
         "deriv": random.randint(1, 3),
     },
@@ -140,6 +136,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "invert": lambda: {
         "with_convolve": ["invert"],
     },
+
+    "lens": lambda: extend("aberration", "vaseline", "tint", "snow", {
+        "with_vignette": .125 + random.random() * .125,
+    }),
 
     "lens-warp": lambda: {
         "with_lens_warp": .25 + random.random() * .25,
@@ -317,7 +317,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "vaseline": lambda: {
-        "with_vaseline": .75 + random.random() * .25,
+        "with_vaseline": .5 + random.random() * .25,
     },
 
     "vignette-bright": lambda: {
@@ -925,7 +925,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": 5,
         "reduce_max": True,
         "refract_range": 0.25,
-        "warp_range": .125,
+        "warp_range": .05,
     }),
 
     "defocus": lambda: extend("bloom", "multires", {
@@ -1093,18 +1093,6 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": 1,
     }),
 
-    "fake-fractal-flame": lambda: extend("aberration", "bloom", "density-map", "multires-low", "random-hue", {
-        "hue_range": random.random(),
-        "post_saturation": .25 + random.random() * .25,
-        "ridges": True,
-        "speed": .05,
-        "with_shadow": .75 + random.random() * .25,
-        "with_worms": 5,
-        "worms_alpha": .975 + random.random() * .025,
-        "worms_density": 1500,
-        "worms_stride": random.randint(150, 350),
-    }),
-
     "fast-eddies": lambda: extend("bloom", "density-map", {
         "hue_range": .25 + random.random() * .75,
         "hue_rotation": random.random(),
@@ -1165,25 +1153,22 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 2,
     }),
 
-    "fractal-forms": lambda: extend("basic", "bloom", "density-map", "multires-low", {
-        "hue_range": random.random() * 3,
-        "saturation": .05,
-        "speed": .05,
-        "with_shadow": .5 + random.random() * .5,
-        "with_worms": 4,
-        "worms_alpha": .9 + random.random() * .1,
-        "worms_density": random.randint(750, 1500),
+    "fractal-forms": lambda: extend("fractal-seed", {
         "worms_kink": random.randint(256, 512),
     }),
 
-    "fractal-smoke": lambda: extend("basic", "bloom", "density-map", "multires-low", {
-        "hue_range": random.random() * 3,
-        "saturation": .05,
+    "fractal-seed": lambda: extend("aberration", "basic", "bloom", "density-map", "multires-low", "random-hue", {
+        "hue_range": random.random() * random.randint(1, 3),
+        "post_saturation": random_member([.05, .25 + random.random() * .25]),
+        "ridges": random.randint(0, 1),
         "speed": .05,
         "with_shadow": .5 + random.random() * .5,
-        "with_worms": 4,
+        "with_worms": random.randint(4, 5),
         "worms_alpha": .9 + random.random() * .1,
         "worms_density": random.randint(750, 1500),
+    }),
+
+    "fractal-smoke": lambda: extend("fractal-seed", {
         "worms_stride": random.randint(128, 256),
     }),
 
