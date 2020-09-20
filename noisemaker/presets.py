@@ -2240,6 +2240,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
         "voronoi_alpha": .5 + random.random() * .333,
         "voronoi_refract": random.randint(3, 5) * .5,
+        "voronoi_refract_y_from_offset": True,
         "warp_range": .0375 + random.random() * .0375,
         "with_voronoi": 2,
     },
