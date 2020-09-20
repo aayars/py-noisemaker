@@ -726,7 +726,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     return blend(x_y0, x_y1, y_fract)
 
 
-def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=2, time=0.0, speed=1.0):
+def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3, time=0.0, speed=1.0):
     """
     Apply displacement from pixel radian values.
 

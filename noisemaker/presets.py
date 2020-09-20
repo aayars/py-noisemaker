@@ -462,6 +462,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 4,
         "mask": "white_bear",
         "rgb": random.randint(0, 1),
+        "spline_order": 0,
         "with_vhs": random.randint(0, 1),
     }),
 
@@ -1747,11 +1748,12 @@ _PRESETS = lambda: {  # noqa: E731
 
     "nausea": lambda: extend("ripples", "value-mask", {
         "mask": stash('nausea-mask', random_member([vm.h_bar, vm.v_bar])),
-        "freq": [int(i * stash("nausea-repeat", random.randint(5, 10)))
+        "freq": [int(i * stash("nausea-repeat", random.randint(5, 8)))
             for i in masks.mask_shape(stash("nausea-mask"))[0:2]],
         "rgb": True,
-        "ripple_range": 2.5 + random.random(),
-        "ripple_freq": random.randint(3, 5),
+        "ripple_kink": 1.25 + random.random() * 1.25,
+        "ripple_freq": random.randint(2, 3),
+        "ripple_range": 1.25 + random.random(),
         "spline_order": 0,
         "with_aberration": .05 + random.random() * .05,
     }),
