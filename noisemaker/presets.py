@@ -177,9 +177,9 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "octave-warp": lambda: extend("bloom", {
-        "warp_range": random.randint(3, 5) * .5,
-        "warp_octaves": 3,
-        "warp_freq": random.randint(2, 4),
+        "warp_freq": random.randint(2, 3),
+        "warp_range": 4.0 + random.random() * 2.0,
+        "warp_octaves": random.randint(4, 5),
         "with_shadow": random.random(),
     }),
 
@@ -2765,12 +2765,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": 1,
     },
 
-    "woahdude-octave-warp": lambda: extend("basic", "bloom", {
+    "woahdude-octave-warp": lambda: extend("basic", "bloom", "octave-warp", {
         "hue_range": random.random() * 3.0,
         "speed": .05,
         "sin": random.randint(5, 15),
-        "warp_range": random.randint(3, 5) * .5,
-        "warp_octaves": 3,
         "with_shadow": random.random(),
     }),
 
