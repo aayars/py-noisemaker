@@ -177,6 +177,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "octave-warp": lambda: {
+        "speed": .0125,
         "warp_freq": random.randint(2, 3),
         "warp_octaves": 3,
         "warp_range": 3.0 + random.random(),
@@ -2771,7 +2772,6 @@ _PRESETS = lambda: {  # noqa: E731
 
     "woahdude-octave-warp": lambda: extend("basic", "octave-warp", {
         "hue_range": random.random() * 3.0,
-        "speed": .05,
         "sin": random.randint(5, 15),
     }),
 
