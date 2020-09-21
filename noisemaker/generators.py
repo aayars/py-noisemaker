@@ -28,7 +28,8 @@ def set_seed(seed):
         simplex._seed = seed
 
 
-def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False,
+def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
+           mask=None, mask_inverse=False, mask_static=False,
            spline_order=3, wavelet=False, time=0.0, speed=1.0):
     """
     """
@@ -112,8 +113,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         glyph_shape = freq + [1]
 
-        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse, time=time,
-                                           speed=speed)
+        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
+                                           time=0 if mask_static else time, speed=speed)
 
         tensor *= mask_values
 
@@ -129,8 +130,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
 
 def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
-          distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, lattice_drift=0.0,
-          rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+          distrib=ValueDistribution.normal, corners=False,mask=None, mask_inverse=False, mask_static=False,
+          lattice_drift=0.0, rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           speed=1.0, time=0.0, **post_process_args):
     """
@@ -151,6 +152,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param bool corners: If True, pin values to corners instead of image center
     :param None|ValueMask mask:
     :param bool mask_inverse:
+    :param bool mask_static: If True, don't animate the mask
     :param float lattice_drift: Push away from underlying lattice
     :param bool rgb: Disable HSV
     :param float hue_range: HSV hue range
@@ -170,7 +172,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    tensor = values(freq, shape, distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse,
+    tensor = values(freq, shape, distrib=distrib, corners=corners,
+                    mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
                     spline_order=spline_order, wavelet=wavelet, speed=speed, time=time)
 
     if lattice_drift:
@@ -185,8 +188,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     if shape[-1] == 3 and not rgb:
         if hue_distrib:
             h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet, time=time, speed=speed))
+                                  mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
+                                  spline_order=spline_order, wavelet=wavelet, time=time, speed=speed))
 
         else:
             if hue_rotation is None:
@@ -196,8 +199,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
         if saturation_distrib:
             s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, spline_order=spline_order,
-                                  wavelet=wavelet, time=time, speed=speed))
+                                  mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
+                                  spline_order=spline_order, wavelet=wavelet, time=time, speed=speed))
 
         else:
             s = tensor[:, :, 1]
@@ -210,7 +213,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
             v = tf.squeeze(values(brightness_freq or freq, [shape[0], shape[1], 1],
                                   distrib=brightness_distrib or ValueDistribution.normal,
-                                  corners=corners, mask=mask, mask_inverse=mask_inverse,
+                                  corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
                                   spline_order=spline_order, wavelet=wavelet, time=time,
                                   speed=speed))
 
@@ -236,7 +239,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 
 def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
-             mask=None, mask_inverse=False, deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
+             mask=None, mask_inverse=False, mask_static=False,
+             deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
              post_deriv=False, with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
@@ -267,6 +271,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param bool corners: If True, pin values to corners instead of image center
     :param None|ValueMask mask:
     :param bool mask_inverse:
+    :param bool mask_static: If True, don't animate the mask
     :param bool deriv: Extract derivatives from noise
     :param DistanceFunction|int deriv_func: Derivative distance function
     :param float deriv_alpha: Derivative alpha blending amount
@@ -308,7 +313,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       refract_y_from_offset=post_process_args.get("refract_y_from_offset", False),
-                      distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
+                      distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
+                      deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
                       saturation_distrib=saturation_distrib, time=time, speed=speed,
