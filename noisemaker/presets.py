@@ -142,6 +142,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     }),
 
     "lens-warp": lambda: {
+        "speed": .05,
         "with_lens_warp": .25 + random.random() * .25,
     },
 
@@ -794,7 +795,7 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_stride": .05 + random.random() * .05,
     }),
 
-    "classic-desktop": lambda: extend("basic", "expensive-lens", {
+    "classic-desktop": lambda: extend("basic", "lens-warp", {
         "hue_range": .333 + random.random() * .333,
         "lattice_drift": random.random(),
     }),
