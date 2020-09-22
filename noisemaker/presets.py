@@ -1603,6 +1603,15 @@ _PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     }),
 
+    "lost-in-it": lambda: {
+        "distrib": "ones",
+        "freq": random.randint(36, 48) * 2,
+        "mask": random_member(["h_bar", "v_bar"]),
+        "ripple_freq": random.randint(3, 4),
+        "ripple_range": 1.0 + random.random() * .5,
+        "octaves": 3,
+    },
+
     "lowland": lambda: {
         "deriv": 1,
         "deriv_alpha": .5,
