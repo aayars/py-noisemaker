@@ -494,7 +494,7 @@ def watermark(tensor, shape, time=0.0, speed=1.0):
     value_shape = [int(shape[0] * .5), int(shape[1] * .5), 1]
     value_shape = [shape[0], shape[1], 1]
 
-    mask = basic(240, value_shape, spline_order=0, distrib=ValueDistribution.ones, mask="numeric")
+    mask = basic(240, value_shape, spline_order=0, distrib=ValueDistribution.ones, mask="alphanum_numeric")
 
     mask = crt(mask, value_shape)
 

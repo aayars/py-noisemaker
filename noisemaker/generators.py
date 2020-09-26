@@ -93,7 +93,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
             atlas = load_glyphs([15, 15, 1])
 
             if not atlas:
-                mask = ValueMask.numeric  # Fall back to canned values
+                mask = ValueMask.alphanum_numeric  # Fall back to canned values
 
         elif ValueMask.is_procedural(mask):
             base_name = re.sub(r'_[a-z]+$', '', mask.name)
