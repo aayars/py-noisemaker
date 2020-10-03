@@ -166,5 +166,5 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return MagicMock()
 
-MOCK_MODULES = ['numpy', 'tensorflow', 'skimage.transform', 'skimage.util']
+MOCK_MODULES = ['PIL', 'numpy', 'opensimplex', 'tensorflow', 'skimage.transform', 'skimage.util']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
