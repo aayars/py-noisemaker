@@ -21,7 +21,7 @@ import noisemaker.util as util
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
-                 refract_y_from_offset=False, refract_extend_range=False,
+                 refract_y_from_offset=False, refract_signed_range=False,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
@@ -30,7 +30,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
-                 warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None, warp_map=None,
+                 warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None, warp_map=None, warp_signed_range=True,
                  ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
                  vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=1000000, point_corners=False, point_generations=1, point_drift=0.0,
@@ -183,10 +183,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     # Using refract and reflect together exposes unpleasant edge artifacting along
     # the natural edge where negative and positive offset values meet. It's normally
     # invisible to the human eye, but becomes obvious after extracting derivatives.
-    extend_range = refract_extend_range and refract_range != 0 and reflect_range != 0
+    signed_range = refract_signed_range and refract_range != 0 and reflect_range != 0
 
     if refract_range != 0:
-        tensor = refract(tensor, shape, displacement=refract_range, extend_range=extend_range,
+        tensor = refract(tensor, shape, displacement=refract_range, signed_range=signed_range,
                          y_from_offset=refract_y_from_offset)
 
     if reflect_range != 0:
@@ -211,7 +211,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else freq_for_shape(warp_freq, shape)
 
-        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp, warp_map=warp_map, time=time, speed=speed)
+        tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp,
+                      warp_map=warp_map, signed_range=warp_signed_range, time=time, speed=speed)
 
     if ripple_range:
         ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
@@ -394,12 +395,12 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     return blend(tensor, out, alpha)
 
 
-def normalize(tensor, extend_range=False):
+def normalize(tensor, signed_range=False):
     """
     Squeeze the given Tensor into a range between 0 and 1.
 
     :param Tensor tensor: An image tensor.
-    :param bool extend_range: Use a range between -1 and 1.
+    :param bool signed_range: Use a range between -1 and 1.
     :return: Tensor
     """
 
@@ -408,7 +409,7 @@ def normalize(tensor, extend_range=False):
 
     values = (tensor - floor) / (ceil - floor)
 
-    if extend_range:
+    if signed_range:
         values = values * 2.0 - 1.0
 
     return values
@@ -635,7 +636,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, extend_range=True, time=0.0, speed=1.0, y_from_offset=False):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, signed_range=True, time=0.0, speed=1.0, y_from_offset=False):
     """
     Apply displacement from pixel values.
 
@@ -652,7 +653,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     :param list[int] warp_freq: If given, generate new reference_x and reference_y noise with this base frequency.
     :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
-    :param bool extend_range: Scale displacement values from -1..1 instead of 0..1
+    :param bool signed_range: Scale displacement values from -1..1 instead of 0..1
     :param bool y_from_offset: If True, derive Y offsets from offsetting the image
     :return: Tensor
     """
@@ -672,7 +673,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(normalize(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed)), shape, spline_order=spline_order)
+            reference_x = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -682,7 +683,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(normalize(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed)), shape, spline_order=spline_order)
+            reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
 
         else:
             if y_from_offset:
@@ -695,12 +696,12 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
                 reference_x = tf.cos(reference_x * math.pi * 2.0)
                 reference_y = tf.sin(reference_y * math.pi * 2.0)
 
-    quad_directional = extend_range and not from_derivative
+    quad_directional = signed_range and not from_derivative
 
     # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1).
     # Doesn't work with derivatives (and isn't needed), because derivatives are signed naturally.
-    x_offsets = value_map(reference_x, shape, extend_range=quad_directional, with_normalize=False) * displacement * width
-    y_offsets = value_map(reference_y, shape, extend_range=quad_directional, with_normalize=False) * displacement * height
+    x_offsets = value_map(reference_x, shape, signed_range=quad_directional, with_normalize=False) * displacement * width
+    y_offsets = value_map(reference_y, shape, signed_range=quad_directional, with_normalize=False) * displacement * height
     # If not using extended range (0..1 instead of -1..1), keep the value range consistent.
     if not quad_directional:
         x_offsets *= 2.0
@@ -1061,7 +1062,7 @@ def normal_map(tensor, shape):
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
 
-def value_map(tensor, shape, keepdims=False, extend_range=False, with_normalize=True):
+def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=True):
     """
     Create a grayscale value map from the given image Tensor by reducing the sum across channels.
 
@@ -1070,16 +1071,16 @@ def value_map(tensor, shape, keepdims=False, extend_range=False, with_normalize=
     :param Tensor tensor:
     :param list[int] shape:
     :param bool keepdims: If True, don't collapse the channel dimension.
-    :param bool extend_range: If True, use an extended value range between -1 and 1.
+    :param bool signed_range: If True, use an extended value range between -1 and 1.
     :return: Tensor of shape (height, width), or (height, width, channels) if keepdims was True.
     """
 
     tensor = tf.reduce_sum(tensor, len(shape) - 1, keepdims=keepdims)
 
     if with_normalize:
-        tensor = normalize(tensor, extend_range=extend_range)
+        tensor = normalize(tensor, signed_range=signed_range)
 
-    elif extend_range:
+    elif signed_range:
         tensor = tensor * 2.0 - 1.0
 
     return tensor
@@ -1716,7 +1717,7 @@ def freq_for_shape(freq, shape):
         return [int(freq * height / width), freq]
 
 
-def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_map=None, time=0.0, speed=1.0):
+def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_map=None, signed_range=True, time=0.0, speed=1.0):
     """
     Multi-octave warp effect
 
@@ -1732,6 +1733,9 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_ma
     :param float displacement:
     :param int spline_order:
     :param str|None warp_map:
+    :param bool signed_range:
+    :param float time:
+    :param float speed:
     """
 
     for octave in range(1, octaves + 1):
@@ -1753,7 +1757,7 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_ma
             kwargs["warp_freq"] = base_freq
 
         tensor = refract(tensor, shape, displacement=displacement / multiplier,
-                         spline_order=spline_order, time=time, speed=speed, **kwargs)
+                         spline_order=spline_order, signed_range=signed_range, time=time, speed=speed, **kwargs)
 
     return tensor
 
@@ -1870,7 +1874,7 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
         displacement=simplex.random(time, speed=speed) * 100 * displacement,
         reference_x=x,
         reference_y=y,
-        extend_range=False)
+        signed_range=False)
 
     return warped
 
@@ -2244,7 +2248,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
     y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
 
-    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan), extend_range=True)
+    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan), signed_range=True)
 
     down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
     up = tf.square(tf.maximum(shade * .5, 0.0))

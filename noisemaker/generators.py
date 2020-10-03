@@ -325,7 +325,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         else:
             tensor += layer / multiplier
 
-    post_process_args['refract_extend_range'] = False
+    post_process_args['refract_signed_range'] = False
     post_process_args.pop("refract_y_from_offset", None)
 
     tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,

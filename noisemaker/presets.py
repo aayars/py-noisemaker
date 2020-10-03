@@ -108,10 +108,11 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "funhouse": lambda: {
+        "warp_signed_range": False,
         "warp_interp": 3,
         "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
         "warp_octaves": random.randint(1, 4),
-        "warp_range": .125 + random.random() * .25,
+        "warp_range": .25 + random.random() * .5,
     },
 
     "glitchin-out": lambda: extend("bloom", "corrupt", "crt", {
@@ -1320,7 +1321,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_reflect_range": random.randint(1, 2) * .5,
         "post_refract_range": random.randint(1, 2) * .5,
         "post_refract_y_from_offset": True,
-        "refract_extend_range": False,
+        "refract_signed_range": False,
         "reflect_range": random.randint(1, 2) * .125,
         "refract_range": random.randint(1, 2) * .125,
         "refract_y_from_offset": True,
