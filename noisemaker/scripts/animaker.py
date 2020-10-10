@@ -6,6 +6,7 @@ import tempfile
 import click
 
 from noisemaker.constants import ValueDistribution
+from noisemaker.util import magick
 
 import noisemaker.cli as cli
 import noisemaker.presets as presets
@@ -93,4 +94,4 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
             if save_frames:
                 shutil.copy(filename, save_frames)
 
-        subprocess.check_call(['convert', '-delay', '5', f'{tmp}/*png', name])
+        magick(f'{tmp}/*png', name)

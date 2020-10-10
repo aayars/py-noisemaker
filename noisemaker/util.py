@@ -1,5 +1,7 @@
 """Utility functions for Noisemaker."""
 
+import subprocess
+
 import tensorflow as tf
 
 
@@ -41,3 +43,20 @@ def load(filename, channels=None):
 
         elif filename.lower().endswith((".jpg", ".jpeg")):
             return tf.image.decode_jpeg(fh.read(), channels=channels)
+
+
+def magick(glob, name):
+    """
+    Shell out to ImageMagick's "convert" (im6) or "magick" (im7) commands for GIF composition, depending on what's available.
+
+    :param str glob: Frame filename glob pattern
+    :param str name: Filename
+    """
+
+    common_params = ['-delay', '5', glob, name]
+
+    try:
+        return subprocess.check_call(['magick'] + common_params)
+
+    except FileNotFoundError:
+        return subprocess.check_call(['convert'] + common_params)

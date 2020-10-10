@@ -50,7 +50,7 @@ def frames(ctx, input_dir, seed, name, save_frames):
             if save_frames:
                 shutil.copy(filename, save_frames)
 
-        subprocess.check_call(['convert', '-delay', '5', f'{tmp}/*png', name])
+        util.magick(f'{tmp}/*png', name)
 
     print('magic-mashup')
 
