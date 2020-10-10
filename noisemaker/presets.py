@@ -1752,6 +1752,10 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_density": 500,
     }),
 
+    "mycelium": lambda: extend("fractal-seed", "funhouse", random_member(["defocus", "hex-machine"]), {
+        "with_worms": 5,
+    }),
+
     "nausea": lambda: extend("ripples", "value-mask", {
         "mask": stash('nausea-mask', random_member([vm.h_bar, vm.v_bar])),
         "freq": [int(i * stash("nausea-repeat", random.randint(5, 8)))
