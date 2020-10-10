@@ -13,6 +13,9 @@ import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.util as util
 
+DEFAULT_WIDTH = 512
+DEFAULT_HEIGHT = 512
+
 
 @click.group(help="""
         Magic Mashup - Animated collage tool
@@ -28,8 +31,10 @@ def main():
 @cli.int_option('--seed', required=True)
 @cli.name_option(default="mashup.png")
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
+@cli.width_option(default=DEFAULT_WIDTH)
+@cli.height_option(default=DEFAULT_HEIGHT)
 @click.pass_context
-def frames(ctx, input_dir, seed, name, save_frames):
+def frames(ctx, input_dir, seed, name, save_frames, width, height):
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(30):
             filename = f'{tmp}/{i:04d}.png'
@@ -38,6 +43,8 @@ def frames(ctx, input_dir, seed, name, save_frames):
                 '--input-dir', input_dir,
                 '--frame', str(i),
                 '--seed', str(seed),
+                '--width', str(width),
+                '--height', str(height),
                 '--name', filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             subprocess.check_call(['artmangler', 'crt', filename,
@@ -60,11 +67,13 @@ def frames(ctx, input_dir, seed, name, save_frames):
 @cli.int_option('--frame', required=True)
 @cli.int_option('--seed', required=True)
 @cli.name_option(default="mashup.png")
+@cli.width_option(default=DEFAULT_WIDTH)
+@cli.height_option(default=DEFAULT_HEIGHT)
 @click.pass_context
-def frame(ctx, input_dir, frame, seed, name):
+def frame(ctx, input_dir, frame, seed, name, width, height):
     generators.set_seed(seed)
 
-    shape = [512, 512, 3]
+    shape = [height, width, 3]
 
     dirnames = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
 
@@ -93,7 +102,7 @@ def frame(ctx, input_dir, frame, seed, name):
 
     control = effects.value_map(collage_images.pop(), shape, keepdims=True)
 
-    control = effects.convolve(effects.ValueMask.conv2d_blur, control, [512, 512, 1])
+    control = effects.convolve(effects.ValueMask.conv2d_blur, control, [shape[0], shape[1], 1])
 
     with tf.compat.v1.Session().as_default():
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
