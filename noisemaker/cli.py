@@ -118,16 +118,16 @@ def freq_option(**attrs):
     return int_option("--freq", default=3, callback=validate_more_than_one(), **attrs)
 
 
-def width_option(**attrs):
+def width_option(default=1024, **attrs):
     attrs.setdefault("help", "Output width, in pixels")
 
-    return int_option("--width", default=1024, **attrs)
+    return int_option("--width", default=default, **attrs)
 
 
-def height_option(**attrs):
+def height_option(default=1024, **attrs):
     attrs.setdefault("help", "Output height, in pixels")
 
-    return int_option("--height", default=1024, **attrs)
+    return int_option("--height", default=default, **attrs)
 
 
 def channels_option(**attrs):
