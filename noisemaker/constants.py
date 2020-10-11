@@ -484,9 +484,6 @@ class VoronoiDiagramType(Enum):
     #: Density-mapped flow diagram
     density = 7
 
-    #: Stitched collage based on indexed regions
-    collage = 8
-
     @classmethod
     def flow_members(cls):
         return [cls.flow, cls.density]

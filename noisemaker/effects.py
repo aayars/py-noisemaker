@@ -32,12 +32,12 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None, warp_map=None, warp_signed_range=True,
                  ripple_range=0.0, ripple_freq=None, ripple_kink=1.0,
-                 vortex_range=0.0, with_pop=False, with_aberration=None, with_dla=0.0, dla_padding=2,
+                 vortex_range=0.0, with_aberration=None, with_dla=0.0, dla_padding=2,
                  point_freq=5, point_distrib=1000000, point_corners=False, point_generations=1, point_drift=0.0,
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0, with_vaseline=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
-                 input_dir=None, with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
+                 with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False,
                  with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
@@ -101,7 +101,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float ripple_range: Ripple range
     :param float ripple_freq: Ripple frequency
     :param float ripple_kink: Ripple twistiness
-    :param bool with_pop: Pop art filter
     :param float|None with_aberration: Chromatic aberration distance
     :param float|None with_bloom: Bloom alpha
     :param bool with_dla: Diffusion-limited aggregation alpha
@@ -121,7 +120,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|float post_saturation: Adjust saturation (0 - 1)
     :param None|float post_brightness: Adjust brightness
     :param None|float post_contrast: Adjust contrast
-    :param None|str input_dir: Input directory containing .png and/or .jpg images, for collage functions.
     :param bool with_crease: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
     :param None|int with_jpeg_decimate: Conv2D feedback + JPEG encode/decode iteration count
@@ -167,7 +165,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         if with_voronoi:
             input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
-                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy, input_dir=input_dir,
+                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy,
                                    refract_y_from_offset=voronoi_refract_y_from_offset)
 
         if with_dla:
@@ -267,9 +265,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_reverb:
         tensor = reverb(tensor, shape, with_reverb, iterations=reverb_iterations, ridges=reverb_ridges)
-
-    if with_pop:
-        tensor = pop(tensor, shape)
 
     if with_aberration:
         tensor = aberration(tensor, shape, displacement=with_aberration, time=time, speed=speed)
@@ -1342,7 +1337,7 @@ def center_mask(center, edges, shape, power=2):
 
 
 def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False,
-            input_dir=None, image_count=None, collage_images=None, refract_y_from_offset=True):
+            image_count=None, refract_y_from_offset=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1362,9 +1357,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     :param bool inverse: Invert range brightness values (does not affect hue)
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
-    :param str input_dir: Input directory containing .jpg and/or .png images, if using collage mode
-    :param None|int image_count: Give an explicit image count for collages (Optional)
-    :param None|list[Tensor] collage_images: Give an explicit list of collage image tensors (Optional)
     :return: Tensor
     """
 
@@ -1373,9 +1365,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
     elif isinstance(diagram_type, str):
         diagram_type = VoronoiDiagramType[diagram_type]
-
-    if diagram_type == VoronoiDiagramType.collage and not input_dir and not collage_images:
-        raise ValueError("--input-dir containing .jpg/.png images must be specified, when using collage mode.")
 
     original_shape = shape
 
@@ -1400,7 +1389,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         x = tf.cast(tf.stack(x), tf.float32) / 2.0
         y = tf.cast(tf.stack(y), tf.float32) / 2.0
 
-    value_shape = [height, width, 1, 1]
+    value_shape = [height, width, 1]
+
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
 
@@ -1423,6 +1413,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         y_sign = -1.0 if inverse else 1.0
 
         dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_func)
+
     else:
         half_width = int(width * .5)
         half_height = int(height * .5)
@@ -1460,28 +1451,24 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = resample(offset(tf.sqrt(normalize(dist[:, :, :, index])), shape, **offset_kwargs), original_shape)
+        range_slice = resample(offset(tf.expand_dims(tf.sqrt(normalize(dist[:, :, index])), -1), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
 
-    if diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions, VoronoiDiagramType.collage):
-        regions_slice = offset(indices[:, :, :, index], shape, **offset_kwargs)
+    if diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions):
+        regions_slice = offset(indices[:, :, index], shape, **offset_kwargs)
 
     ###
     if diagram_type == VoronoiDiagramType.range:
         range_out = range_slice
 
     if diagram_type in VoronoiDiagramType.flow_members():
-        range_out = tf.reduce_sum(tf.math.log(dist), 3)
+        dist = tf.expand_dims(dist, -1)
+
+        range_out = tf.reduce_sum(tf.math.log(dist), 2)
 
         range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
-
-        if diagram_type == VoronoiDiagramType.flow:
-            range_out /= point_count
-
-        else:
-            range_out = density_map(range_out, original_shape)
 
         if inverse:
             range_out = 1.0 - range_out
@@ -1501,30 +1488,6 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         spline_order = 0 if diagram_type == VoronoiDiagramType.color_regions else 3
 
         regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
-
-    if diagram_type == VoronoiDiagramType.collage:
-        filenames = [f for f in os.listdir(input_dir) if f.endswith(".png") or f.endswith(".jpg")]
-
-        freq = int(max(math.sqrt(point_count), 1))
-
-        collage_count = image_count or freq
-        collage_height = int(max(shape[0] / freq, 1))
-        collage_width = int(max(shape[1] / freq, 1))
-        collage_shape = [collage_height, collage_width, shape[2]]
-
-        if not collage_images:
-            collage_images = []
-
-            for i in range(collage_count):
-                index = i if image_count else random.randint(0, len(filenames) - 1)
-
-                collage_input = tf.image.convert_image_dtype(util.load(os.path.join(input_dir, filenames[index])), dtype=tf.float32)
-                collage_images.append(_downsample(resample(collage_input, shape), shape, collage_shape))
-
-        out = tf.gather_nd(collage_images,
-                           tf.stack([regions_slice[:, :, 0] % collage_count, column_index(shape) % collage_height, row_index(shape) % collage_width], 2))
-
-        out = resample(out, original_shape)
 
     ###
     if diagram_type == VoronoiDiagramType.range_regions:
@@ -2102,32 +2065,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     out = convolve(ValueMask.conv2d_blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
 
     return out * tensor
-
-
-def pop(tensor, shape):
-    """
-    Pop art filter
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    """
-
-    images = []
-
-    freq = random.randint(1, 3) * 2
-
-    ref = _downsample(resample(tensor, shape), shape, [int(shape[0] / (freq * 2)), int(shape[1] / (freq * 2)), shape[2]])
-
-    for i in range(freq * freq):
-        image = posterize(ref, random.randint(3, 6))
-        image = image % tf.random.normal([3], mean=.5, stddev=.25)
-        images.append(image)
-
-    x, y = point_cloud(freq, distrib=PointDistribution.square, shape=shape, corners=True)
-
-    out = voronoi(None, shape, diagram_type=VoronoiDiagramType.collage, xy=(x, y, len(x)), nth=random.randint(0, 3), collage_images=images, image_count=4)
-
-    return outline(out, shape, sobel_func=1)
 
 
 def offset(tensor, shape, x=0, y=0):

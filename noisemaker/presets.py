@@ -209,10 +209,6 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "pixel-sort-angled-darkest": lambda: extend("pixel-sort-angled", "pixel-sort-darkest"),
 
-    "pop-art": lambda: {
-        "with_pop": True
-    },
-
     "posterize-outline": lambda: extend("outline", {
         "posterize_levels": random.randint(3, 7),
     }),

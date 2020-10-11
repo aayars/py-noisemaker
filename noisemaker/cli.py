@@ -731,7 +731,7 @@ def density_map_option(**attrs):
 
 
 def input_dir_option(**attrs):
-    attrs.setdefault("help", "Input directory containing .jpg and/or .png images, for collage functions")
+    attrs.setdefault("help", "Input directory containing .jpg and/or .png images")
 
     return str_option("--input-dir", type=click.Path(exists=True, file_okay=False, resolve_path=True), **attrs)
 
