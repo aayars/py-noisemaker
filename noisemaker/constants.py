@@ -482,11 +482,11 @@ class VoronoiDiagramType(Enum):
     flow = 6
 
     #: Density-mapped flow diagram
-    density = 7
+    color_flow = 7
 
     @classmethod
     def flow_members(cls):
-        return [cls.flow, cls.density]
+        return [cls.flow, cls.color_flow]
 
     @classmethod
     def is_flow_member(cls, member):

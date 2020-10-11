@@ -797,6 +797,12 @@ _PRESETS = lambda: {  # noqa: E731
         "lattice_drift": random.random(),
     }),
 
+    "color-flow": lambda: extend("basic-voronoi", {
+        "freq": 64,
+        "hue_range": 5,
+        "with_voronoi": 7,
+    }),
+
     "conference": lambda: extend("sobel", "value-mask", {
         "freq": 4 * random.randint(6, 12),
         "mask": "halftone",

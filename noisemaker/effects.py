@@ -399,10 +399,20 @@ def normalize(tensor, signed_range=False):
     :return: Tensor
     """
 
-    floor = tf.reduce_min(tensor)
-    ceil = tf.reduce_max(tensor)
+    floor = float(tf.reduce_min(tensor))
+    if floor == math.inf or floor == -math.inf or floor == math.nan:  # Avoid GIGO
+        raise ValueError(f"Input tensor contains {floor}, check caller for shenanigans")
 
-    values = (tensor - floor) / (ceil - floor)
+    ceil = float(tf.reduce_max(tensor))
+    if ceil == math.inf or ceil == -math.inf or ceil == math.nan:  # Avoid GIGO
+        raise ValueError(f"Input tensor contains {ceil}, check caller for shenanigans")
+
+    if floor == ceil:  # Avoid divide by zero
+        raise ValueError(f"Input tensor min and max are each {floor}, check caller for shenanigans")
+
+    delta = ceil - floor
+
+    values = (tensor - floor) / delta
 
     if signed_range:
         values = values * 2.0 - 1.0
@@ -1464,9 +1474,20 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         range_out = range_slice
 
     if diagram_type in VoronoiDiagramType.flow_members():
+        dist = tf.math.log(dist)
+
+        # Brutal hack to try to avoid infinities. Math, how does it work
+        dist = tf.minimum(10, dist)
+        dist = tf.maximum(-10, dist)
+
         dist = tf.expand_dims(dist, -1)
 
-        range_out = tf.reduce_sum(tf.math.log(dist), 2)
+        if diagram_type == VoronoiDiagramType.color_flow:
+            colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
+            colors = tf.reshape(colors, [1, 1, point_count, shape[2]])
+            dist = 1.0 - ((1.0 - normalize(dist)) * colors)
+
+        range_out = tf.math.reduce_sum(dist, 2) / point_count
 
         range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
 
