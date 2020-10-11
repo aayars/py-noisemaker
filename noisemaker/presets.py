@@ -1753,6 +1753,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "mycelium": lambda: extend("fractal-seed", "funhouse", random_member(["defocus", "hex-machine"]), {
+        "mask_static": True,
         "with_worms": 5,
     }),
 
