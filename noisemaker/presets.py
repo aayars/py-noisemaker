@@ -280,6 +280,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     }),
 
     "spatter": lambda: {
+        "speed": .05,
         "with_spatter": True,
     },
 
