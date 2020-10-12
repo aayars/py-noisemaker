@@ -330,7 +330,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "voronoi": lambda: {
-        "point_distrib": "random" if random.randint(0, 1) else random_member(pd, vm.nonprocedural_members()),
+        "point_distrib": pd.random if random.randint(0, 1) else random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 10),
         "voronoi_func": random_member(df.all()),
         "voronoi_inverse": random.randint(0, 1),
@@ -1722,6 +1722,13 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_stride": .0005,
     }),
 
+    "molded-plastic": lambda: extend("color-flow", {
+        "point_distribution": pd.random,
+        "post_refract_range": random.randint(25, 30),
+        "voronoi_func": 1,
+        "voronoi_inverse": True,
+    }),
+
     "molten-glass": lambda: extend("bloom", "lens", "woahdude-octave-warp", {
         "post_contrast": 1.5,
         "with_shadow": 1.0,
@@ -1911,7 +1918,7 @@ _PRESETS = lambda: {  # noqa: E731
         "deriv": random.randint(1, 3),
         "deriv_alpha": .333 + random.random() * .333,
         "hue_rotation": .575,
-        "point_distrib": "random",
+        "point_distrib": pd.random,
         "refract_range": .075 + random.random() * .075,
         "saturation": .125 + random.random() * .075,
         "voronoi_alpha": .75,
