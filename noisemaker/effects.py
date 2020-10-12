@@ -1346,8 +1346,8 @@ def center_mask(center, edges, shape, power=2):
     return blend(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False, xy=None, ridges_hint=False,
-            image_count=None, refract_y_from_offset=True):
+def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False,
+            xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1815,7 +1815,7 @@ def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
     return blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
 
 
-def singularity(tensor, shape, diagram_type=1, **kwargs):
+def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
     """
     Return the range diagram for a single voronoi point, approximately centered.
 
