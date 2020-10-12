@@ -2815,6 +2815,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
         "sin": 100,
         "voronoi_alpha": 0.875,
+        "voronoi_refract": .333 + random.random() * .333,
         "with_voronoi": voronoi.range,
     },
 
