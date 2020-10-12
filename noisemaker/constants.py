@@ -464,25 +464,25 @@ class VoronoiDiagramType(Enum):
     none = 0
 
     #: Normalized neighbor distances
-    range = 1
+    range = 11
 
     #: Normalized neighbor distances blended with input Tensor
-    color_range = 2
+    color_range = 12
 
     #: Indexed regions
-    regions = 3
+    regions = 21
 
     #: Color-mapped regions
-    color_regions = 4
+    color_regions = 22
 
     #: Colorized neighbor distances blended with color-mapped regions
-    range_regions = 5
+    range_regions = 31
 
     #: Edgeless voronoi. Natural logarithm of reduced distance sums.
-    flow = 6
+    flow = 41
 
     #: Density-mapped flow diagram
-    color_flow = 7
+    color_flow = 42
 
     @classmethod
     def flow_members(cls):

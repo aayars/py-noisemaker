@@ -12,7 +12,8 @@ from noisemaker.constants import (
     DistanceFunction as df,
     PointDistribution as pd,
     ValueDistribution,
-    ValueMask as vm
+    ValueMask as vm,
+    VoronoiDiagramType as voronoi
 )
 
 import noisemaker.generators as generators
@@ -161,7 +162,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "mosaic": lambda: extend("bloom", "voronoi", {
         "voronoi_alpha": .75 + random.random() * .25,
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "nebula": lambda: {
@@ -334,12 +335,12 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member(df.all()),
         "voronoi_inverse": random.randint(0, 1),
         "voronoi_nth": random.randint(0, 2),
-        "with_voronoi": random.randint(1, 6),
+        "with_voronoi": random_member([t for t in voronoi if t != voronoi.none]),
     },
 
     "voronoid": lambda: extend("voronoi", {
         "voronoi_refract": .25 + random.random() * .25,
-        "with_voronoi": random_member([1, 3, 6]),
+        "with_voronoi": random_member([voronoi.range, voronoi.regions, voronoi.flow]),
     }),
 
     "vortex": lambda: {
@@ -374,14 +375,14 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .5 + random.random() * .5,
         "with_bloom": False,
         "with_reverb": False,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "1976": lambda: extend("dither", {
         "point_freq": 2,
         "post_saturation": .125 + random.random() * .0625,
         "voronoi_func": df.triangular,
-        "with_voronoi": 4,
+        "with_voronoi": voronoi.color_regions,
     }),
 
     "1985": lambda: extend("spatter", {
@@ -391,7 +392,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "voronoi_func": 3,
         "voronoi_refract": .2 + random.random() * .1,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     }),
 
     "2001": lambda: extend("aberration", "bloom", "invert", "value-mask", {
@@ -412,7 +413,8 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "voronoi_alpha": 0.5 + random.random() * .5,
         "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
-        "with_voronoi": 2 if random.randint(0, 1) else random.randint(1, 5),
+        "with_voronoi": voronoi.color_range if random.randint(0, 1) \
+            else random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
     }),
 
     "acid": lambda: {
@@ -441,7 +443,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_generations": 2,
         "voronoi_alpha": .333 + random.random() * .333,
         "voronoi_func": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "acid-wash": lambda: extend("funhouse", "reverb", "symmetry", {
@@ -454,7 +456,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333 + random.random() * .333,
         "warp_octaves": 8,
         "with_shadow": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "activation-signal": lambda: extend("glitchin-out", "value-mask", {
@@ -502,7 +504,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 0.125 + random.random() * .125,
         "voronoi_refract": 0.125 + random.random() * .125,
         "with_shadow": .333,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "alien-transmission": lambda: extend("glitchin-out", "sobel", "value-mask", {
@@ -525,7 +527,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 1,
         "voronoi_refract": .5,
         "with_fibers": True,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "with_watermark": True,
         "wormhole_kink": 6,
     }),
@@ -561,13 +563,13 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(2, 4),
-        "with_voronoi": random.randint(1, 5),
+        "with_voronoi": random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
     }),
 
     "bad-map": lambda: extend("splork", {
         "freq": random.randint(30, 50),
         "mask": "grid",
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     }),
 
     "basic": lambda: {
@@ -581,7 +583,7 @@ _PRESETS = lambda: {  # noqa: E731
     "basic-voronoi-refract": lambda: extend("basic", {
         "hue-range": .25 + random.random() * .5,
         "voronoi_refract": .5 + random.random() * .5,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     }),
 
     "band-together": lambda: {
@@ -687,7 +689,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": random.randint(0, 1) * random.random() * .5,
         "warp_octaves": 1,
         "warp_range": random.random() * .25,
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "broken": lambda: extend("dither", "multires-low", {
@@ -721,7 +723,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .625 + random.random() * .25,
         "with_density_map": True,
         "with_shadow": 1.0,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "celebrate": lambda: extend("distressed", {
@@ -740,7 +742,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member(df.all()),
         "voronoi_nth": random.randint(0, 1),
         "with_density_map": True,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "cell-refract": lambda: {
@@ -750,7 +752,7 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": random.randint(0, 1),
         "ridges": True,
         "voronoi_refract": random.randint(8, 12) * .5,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     },
 
     "cell-refract-2": lambda: extend("bloom", "density-map", "voronoi", {
@@ -759,7 +761,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": random.randint(1, 3),
         "post_saturation": .5,
         "voronoi_alpha": .333 + random.random() * .333,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "cell-worms": lambda: extend("bloom", "density-map", "multires-low", "random-hue", "voronoi", "worms", {
@@ -781,7 +783,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
         "voronoi_alpha": .95,
         "with_density_map": True,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "circulent": lambda: extend("invert", "reverb", "symmetry", "voronoi", "wormhole", {
@@ -800,7 +802,7 @@ _PRESETS = lambda: {  # noqa: E731
     "color-flow": lambda: extend("basic-voronoi", {
         "freq": 64,
         "hue_range": 5,
-        "with_voronoi": 7,
+        "with_voronoi": voronoi.color_flow,
     }),
 
     "conference": lambda: extend("sobel", "value-mask", {
@@ -861,7 +863,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .5,
         "voronoi_func": df.triangular,
         "voronoi_nth": 4,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_vignette": .5,
     }),
 
@@ -872,7 +874,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": "h_hex",
         "voronoi_func": df.triangular,
         "voronoi_inverse": True,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "cubic": lambda: extend("basic", "bloom", "outline", {
@@ -880,14 +882,14 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(3, 5),
         "voronoi_alpha": 0.25 + random.random() * .5,
         "voronoi_nth": random.randint(2, 8),
-        "with_voronoi": random.randint(1, 2),
+        "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
     }),
 
     "cyclic-dilation": lambda: {
-        "with_voronoi": 2,
-        "post_reindex_range": random.randint(4, 6),
         "freq": random.randint(24, 48),
         "hue_range": .25 + random.random() * 1.25,
+        "post_reindex_range": random.randint(4, 6),
+        "with_voronoi": voronoi.color_range,
     },
 
     "deadbeef": lambda: extend("bloom", "corrupt", "value-mask", {
@@ -908,7 +910,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": random.randint(0, 15),
         "voronoi_alpha": .5 + random.random() * .5,
         "sin": random.random() * 2,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     }),
 
     "death-star-plans": lambda: extend("crt", {
@@ -918,7 +920,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 1,
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(2, 3),
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
         "with_sobel": random.randint(1, 3),
     }),
 
@@ -988,7 +990,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(2, 8),
         "voronoi_alpha": random.random(),
         "with_dla": .5 + random.random() * .5,
-        "with_voronoi": random.randint(0, 1) * random.randint(1, 5),
+        "with_voronoi": random_member(voronoi),
     }),
 
     "dla-forest": lambda: extend("bloom", {
@@ -1044,7 +1046,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member([2, 4, 101]),
         "voronoi_nth": random.randint(0, 3),
         "with_glowing_edges": .75 + random.random() * .25,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_worms": 5,
         "worms_alpha": .666 + random.random() * .333,
         "worms_density": 1000,
@@ -1059,7 +1061,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": random.randint(0, 2),
         "voronoi_func": random.randint(2, 3),
         "voronoi_refract": .125 + random.random() * .25,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     }),
 
     "emu": lambda: {
@@ -1072,7 +1074,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member(df.all()),
         "voronoi_refract": .125 + random.random() * .125,
         "voronoi_refract_y_from_offset": False,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     },
 
     "entities": lambda: {
@@ -1111,7 +1113,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .5 + random.random() * .5,
         "voronoi_refract": 1.0,
         "with_shadow": .75 + random.random() * .25,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "with_worms": 4,
         "worms_alpha": .5 + random.random() * .5,
         "worms_density": 1000,
@@ -1124,7 +1126,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 2,
         "lattice_drift": 1,
         "voronoi_refract": .5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "wormhole_stride": .05,
         "wormhole_kink": 4,
     }),
@@ -1133,7 +1135,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 2,
         "voronoi_func": 2,
         "voronoi_nth": random.randint(1, 3),
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     },
 
     "flowbie": lambda: extend("basic", "bloom", "wormhole", {
@@ -1157,7 +1159,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_saturation": .25,
         "voronoi_alpha": .5,
         "with_outline": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "fractal-forms": lambda: extend("fractal-seed", {
@@ -1187,7 +1189,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member(df.all()),
         "voronoi_nth": random.randint(0, 3),
         "with_reverb": random.randint(4, 8),
-        "with_voronoi": random.randint(1, 5),
+        "with_voronoi": random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
     }),
 
     "fundamentals": lambda: extend("density-map", {
@@ -1198,7 +1200,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(3, 5),
         "voronoi_refract": .0625 + random.random() * .0625,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "funky-glyphs": lambda: {
@@ -1242,7 +1244,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(8, 10),
         "spline_order": random.randint(1, 3),
         "voronoi_alpha": 0.5 * random.random() * .5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "with_worms": random.randint(1, 4),
         "worms_density": 64,
         "worms_duration": 1,
@@ -1262,7 +1264,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_generations": 2,
         "voronoi_inverse": True,
         "voronoi_nth": random.randint(6, 12),
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_worms": random.randint(1, 3),
         "worms_density": 500,
         "worms_duration": 1.22,
@@ -1298,7 +1300,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": .5 + random.random() * .25,
         "voronoi_inverse": random.randint(0, 1),
         "with_reverb": random.randint(3, 5),
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "globules": lambda: extend("multires-low", {
@@ -1355,7 +1357,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 0,
         "voronoi_alpha": .25 + random.random() * .75,
         "voronoi_refract": random.random() * 2,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "grass": lambda: extend("dither", "multires", {
@@ -1403,7 +1405,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_inverse": True,
         "voronoi_alpha": .25 + random.random() * .5,
         "with_erosion_worms": True,
-        "with_voronoi": random_member([1, 6]),
+        "with_voronoi": random_member([m for m in voronoi if m != voronoi.none]),
     }),
 
     "halt-catch-fire": lambda: extend("glitchin-out", "multires-low", {
@@ -1435,7 +1437,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": .333,
         "voronoi_alpha": .5,
         "voronoi_nth": 3,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "hotel-carpet": lambda: extend("basic", "carpet", "dither", "ripples", {
@@ -1487,7 +1489,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_fibers": True,
         "with_grime": True,
         "with_scratches": random.randint(0, 1),
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "interference": lambda: extend("symmetry", {
@@ -1509,7 +1511,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .75 + random.random() * .25,
         "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(0, 1),
-        "with_voronoi": random.randint(1, 2),
+        "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
     }),
 
     "jorts": lambda: extend("dither", {
@@ -1534,7 +1536,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .175 + random.random() * .25,
         "voronoi_refract": 5.0 + random.random() * 3.0,
         "with_shadow": 1.0,
-        "with_voronoi": 6,
+        "with_voronoi": vornoi.flow,
         "with_worms": 4,
         "worms_alpha": .175 + random.random() * .25,
         "worms_density": 500,
@@ -1555,7 +1557,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(6, 10),
         "voronoi_alpha": .125 + random.random() * .25,
         "with_shadow": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_worms": 1,
         "worms_alpha": .666 + random.random() * .333,
         "worms_density": 1000,
@@ -1573,7 +1575,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_octaves": 2,
         "warp_range": .125 + random.random() * .0625,
         "with_glowing_edges": 1,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "lattice-noise": lambda: extend("density-map", {
@@ -1629,11 +1631,11 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333,
         "voronoi_inverse": True,
         "voronoi_nth": 0,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "lowpoly-regions": lambda: extend("lowpoly", {
-        "with_voronoi": 4,
+        "with_voronoi": voronoi.color_regions,
         "point_freq": random.randint(2, 3),
     }),
 
@@ -1656,7 +1658,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random_member([3, 6, 9]),
         "spline_order": 0,
         "voronoi_alpha": .25,
-        "with_voronoi": random.randint(0, 1) * 4,
+        "with_voronoi": voronoi.color_regions if random.randint(0, 1) else voronoi.none,
     }),
 
     "magic-smoke": lambda: extend("basic", {
@@ -1683,7 +1685,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_drift": 4,
         "point_freq": 10,
         "posterize_levels": 2,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     },
 
     "midland": lambda: {
@@ -1699,7 +1701,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .125,
         "voronoi_alpha": .5,
         "voronoi_nth": 1,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     },
 
     "misaligned": lambda: extend("multires", "outline", {
@@ -1715,7 +1717,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(1, 3),
         "saturation": 0,
         "with_density_map": True,
-        "with_voronoi": random.randint(0, 1),
+        "with_voronoi": voronoi.range if random.randint(0, 1) else voronoi.none,
         "wormhole_kink": 128,
         "wormhole_stride": .0005,
     }),
@@ -1741,7 +1743,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": random.randint(8, 10),
         "reverb_ridges": False,
         "with_reverb": 2,
-        "with_voronoi": random_member([0, 1, 6]),
+        "with_voronoi": random_member([voronoi.none, voronoi.range, voronoi.flow]),
         "with_worms": 1,
         "worms_density": 1000,
     },
@@ -1775,7 +1777,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member(pd.circular_members()),
         "point_freq": random.randint(5, 10),
         "reverb_ridges": False,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_reverb": 2,
         "voronoi_nth": 1,
     }),
@@ -1784,7 +1786,7 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": 1,
         "posterize_levels": 24,
         "with_sobel": 1,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "wormhole_stride": 0.25,
     }),
 
@@ -1814,7 +1816,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_interp": 3,
         "warp_octaves": 1,
         "warp_range": .0375 + random.random() * .0375,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "numberwang": lambda: extend("bloom", "value-mask", {
@@ -1849,7 +1851,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 8),
         "voronoi_refract": random.randint(8, 12) * .5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     },
 
     "oracle": lambda: extend("maybe-invert", "snow", "value-mask", {
@@ -1889,7 +1891,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333 + random.random() * .333,
         "voronoi_refract": .75 + random.random() * .5,
         "with_shadow": .333 + random.random() * .333,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "plaid": lambda: extend("dither", "multires-low", {
@@ -1916,7 +1918,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": 1,
         "voronoi_nth": 2,
         "with_shadow": .5 + random.random() * .25,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "political-map": lambda: extend("bloom", "dither", "outline", {
@@ -1969,7 +1971,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": 10,
         "speed": .025,
-        "with_voronoi": 4,
+        "with_voronoi": voronoi.color_regions,
         "with_wormhole": True,
     }),
 
@@ -1990,7 +1992,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(0, 4),
         "voronoi_refract": random.randint(1, 3) * .5,
-        "with_voronoi": random.randint(1, 2),
+        "with_voronoi": random_member([voronoi.regions, voronoi.color_regions]),
     }),
 
     "random-preset": lambda:
@@ -2030,7 +2032,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_reflect_range": random.randint(480, 960),
         "sin": random.random() * 10.0,
         "voronoi_alpha": .5 + random.random() * .5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "regional": lambda: extend("glyph-map", "voronoi", {
@@ -2038,7 +2040,7 @@ _PRESETS = lambda: {  # noqa: E731
         "glyph_map_zoom": random.randint(2, 4),
         "hue_range": .25 + random.random(),
         "voronoi_nth": 0,
-        "with_voronoi": 4,
+        "with_voronoi": voronoi.color_regions,
     }),
 
     "remember-logo": lambda: extend("crt", "density-map", "symmetry", {
@@ -2048,7 +2050,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": random.randint(0, 4),
         "post_deriv": 2,
         "with_vignette": .25 + random.random() * .25,
-        "with_voronoi": 3,
+        "with_voronoi": voronoi.regions,
     }),
 
     "rgb-shadows": lambda: {
@@ -2080,7 +2082,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333 + random.random() * .333,
         "with_density_map": random.randint(0, 1),
         "with_reverb": random.randint(2, 4),
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_regions,
     }),
 
     "ridged-ridges": lambda: extend("multires-ridged", {
@@ -2128,7 +2130,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .5 + random.random() * .5,
         "voronoi_refract": random.randint(6, 12) * .5,
         "with_shadow": 1.0,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "sblorp": lambda: extend("invert", {
@@ -2171,7 +2173,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_glowing_edges": 1,
         "with_reverb": 1,
         "with_shadow": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_regions,
     }),
 
     "seether-reflect": lambda: extend("seether", {
@@ -2195,7 +2197,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .125 + random.random() * .25,
         "with_aberration": .075 + random.random() * .075,
         "with_bloom": .075 + random.random() * .075,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.regions,
     }),
 
     "shatter": lambda: extend("basic", "maybe-invert", "outline", {
@@ -2207,7 +2209,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .05,
         "voronoi_func": random_member([1, 3]),
         "voronoi_inverse": random.randint(0, 1),
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "shmoo": lambda: extend("invert", "distressed", "outline", {
@@ -2249,7 +2251,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 3,
         "voronoi_nth": 1,
         "voronoi_refract": 12.5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "wormhole_stride": 0.01,
     }),
 
@@ -2265,7 +2267,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": random.randint(3, 5) * .5,
         "voronoi_refract_y_from_offset": True,
         "warp_range": .0375 + random.random() * .0375,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_regions,
     },
 
     "smoke-on-the-water": lambda: extend("bloom", "dither", "shadows", {
@@ -2275,7 +2277,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ridges": 1,
         "voronoi_alpha": .5,
         "voronoi_inverse": True,
-        "with_voronoi": random.randint(1, 2),
+        "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
         "with_worms": 5,
         "worms_density": 1000,
     }),
@@ -2284,7 +2286,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member(pd, vm.nonprocedural_members()),
         "point_freq": random.randint(4, 8),
         "voronoi_alpha": .5 + random.random() * .5,
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "soften": lambda: extend("bloom", {
@@ -2314,7 +2316,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_refract_range": random.randint(4, 6),
         "voronoi_inverse": True,
         "with_shadow": 1.0,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "with_worms": 5,
         "worms_alpha": .5 + random.random() * .45,
         "worms_density": 500,
@@ -2326,7 +2328,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_inverse": True,
         "warp_range": .5 + random.random() * .5,
         "with_shadow": .75 + random.random() * .25,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
         "with_worms": 4,
         "worms_alpha": .75,
         "worms_density": 1500,
@@ -2355,7 +2357,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 10,
         "reverb_iterations": random.randint(1, 4),
         "with_reverb": random.randint(0, 6),
-        "with_voronoi": random.randint(1, 2),
+        "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
         "with_worms": random.randint(1, 4),
         "worms_density": 500,
         "worms_duration": 1,
@@ -2394,7 +2396,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": 3,
         "voronoi_nth": 1,
         "voronoi_refract": .125,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "square-stripes": lambda: {
@@ -2406,14 +2408,14 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(1, 3),
         "voronoi_refract": .73,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "stackin-bricks": lambda: {
         "point_freq": 10,
         "voronoi_func": df.triangular,
         "voronoi_inverse": True,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "star-cloud": lambda: extend("bloom", "sobel", {
@@ -2424,7 +2426,7 @@ _PRESETS = lambda: {  # noqa: E731
         "reflect_range": random.random() + 2.5,
         "spline_order": 2,
         "voronoi_refract": random.randint(2, 4) * .5,
-        "with_voronoi": 6,
+        "with_voronoi": voronoi.flow,
     }),
 
     "starfield": lambda: extend("aberration", "dither", "bloom", "multires-low", "nebula", {
@@ -2446,7 +2448,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member(pd.circular_members()),
         "voronoi_func": random_member([2, 3, 101]),
         "voronoi_nth": random.randint(0, 25),
-        "with_voronoi": random.randint(1, 5),
+        "with_voronoi": random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
     }),
 
     "subpixelator": lambda: extend("basic", "funhouse", "subpixels"),
@@ -2489,7 +2491,7 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": random.randint(0, 1),
         "spline_order": 0,
         "vortex_range": random.randint(8, 25),
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "the-arecibo-response": lambda: extend("snow", "value-mask", {
@@ -2515,7 +2517,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 1,
         "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * .125),
         "voronoi_func": random_member(df.all()),
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_worms": random.randint(1, 5),
         "worms_alpha": 1,
         "worms_duration": random.randint(1, 4),
@@ -2566,7 +2568,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .333 + random.random() * .333,
         "voronoi_refract_y_from_offset": False,
         "with_outline": 1,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     },
 
     "triangular": lambda: extend("multires", "sobel", {
@@ -2589,7 +2591,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": random.randint(2, 4),
         "warp_octaves": random.randint(2, 4),
         "warp_range": 0.025 + random.random() * .005,
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
         "with_worms": 3,
         "worms_alpha": .75 + random.random() * .25,
         "worms_density": 750,
@@ -2672,7 +2674,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_drift": .25 + random.random() * .75,
         "post_deriv": 1,
         "spline_order": 0,
-        "with_voronoi": 4,
+        "with_voronoi": voronoi.color_regions,
     }),
 
     "velcro": lambda: extend("wormhole", {
@@ -2709,7 +2711,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_ridges": True,
         "voronoi_alpha": .333 + random.random() * .333,
         "warp_range": .25 + random.random() * .25,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "warped-grid": lambda: extend("aberration", "bloom", "sobel", "value-mask", {
@@ -2739,7 +2741,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_reindex_range": 2,
         "reindex_range": 2,
         "voronoi_alpha": .75 + random.random() * .125,
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "wiggler": lambda: extend("ears", {
@@ -2756,7 +2758,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": 0,
         "voronoi_alpha": .5 + random.random() * .5,
         "voronoi_nth": 1,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
         "with_shadow": .75 + random.random() * .25,
     }),
 
@@ -2783,7 +2785,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": random.randint(1, 5),
         "warp_octaves": random.randint(1, 3),
         "warp_range": random.randint(0, 1) * random.random() * .25,
-        "with_voronoi": 5,
+        "with_voronoi": voronoi.range_regions,
     }),
 
     "woahdude-voronoi-refract": lambda: {
@@ -2794,8 +2796,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
         "sin": 100,
         "voronoi_alpha": 0.875,
-        "voronoi_refract": .5,
-        "with_voronoi": 1,
+        "with_voronoi": voronoi.range,
     },
 
     "woahdude-octave-warp": lambda: extend("basic", "octave-warp", {
@@ -2815,7 +2816,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_nth": random.randint(1, 3),
         "voronoi_alpha": .5 + random.random() * .5,
         "with_reverb": random.randint(0, 2),
-        "with_voronoi": 2,
+        "with_voronoi": voronoi.color_range,
         "with_worms": 4,
         "worms_alpha": .75 + random.random() * .25,
         "worms_density": 250 + random.random() * 250,

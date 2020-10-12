@@ -1485,6 +1485,8 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
         if diagram_type == VoronoiDiagramType.color_flow:
             colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
             colors = tf.reshape(colors, [1, 1, point_count, shape[2]])
+            if ridges_hint:
+                colors = tf.abs(colors * 2 - 1)
             dist = 1.0 - ((1.0 - normalize(dist)) * colors)
 
         range_out = tf.math.reduce_sum(dist, 2) / point_count
@@ -1495,6 +1497,7 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
             range_out = 1.0 - range_out
 
     if diagram_type in (VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
+        # range_out = regions_out * range_slice
         range_out = blend(tensor * range_slice, range_slice, range_slice)
 
     if diagram_type == VoronoiDiagramType.regions:
@@ -1519,6 +1522,9 @@ def voronoi(tensor, shape, diagram_type=1, density=.1, nth=0, dist_func=1, alpha
 
     elif diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions):
         out = regions_out
+
+    if diagram_type == VoronoiDiagramType.regions:
+        out = tf.expand_dims(out, -1)
 
     if with_refract != 0.0:
         out = refract(tensor, original_shape, displacement=with_refract, reference_x=out,

@@ -10,19 +10,28 @@ import noisemaker.masks as masks
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
+def show_values(enum_class):
+    out = []
+
+    for member in enum_class:
+        out.append(f"{member.value}={member.name}")
+
+    return f"({', '.join(out)})"
+
+
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
 
 # Boilerplate help strings
 
 ALPHA_BLENDING_HINT = "alpha blending amount (0.0 = 0%, 1.0 = 100%)"
 
-DISTANCE_HINT = "(1=Euclidean, 2=Manhattan, 3=Chebyshev)"
+DISTANCE_HINT = show_values(DistanceFunction)
 
 ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
 
 FREQ_HINT = "(must be >= 2)"
 
-INTERPOLATION_HINT = "(0=constant, 1=linear, 2=cosine, 3=bicubic)"
+INTERPOLATION_HINT = show_values(InterpolationType)
 
 NEAREST_NEIGHBOR_HINT = "(1.0 = as far as nearest neighbor)"
 
@@ -385,7 +394,7 @@ def clut_horizontal_option(**attrs):
 
 
 def worms_option(**attrs):
-    attrs.setdefault("help", "Iterative \"worm\" field flow (1=Obedient, 2=Crosshatch, 3=Unruly, 4=Chaotic)")
+    attrs.setdefault("help", f"Iterative \"worm\" field flow {show_values(WormBehavior)}")
 
     return int_option("--worms", callback=validate_enum(WormBehavior), **attrs)
 
@@ -463,7 +472,7 @@ def dla_padding_option(**attrs):
 
 
 def voronoi_option(**attrs):
-    attrs.setdefault("help", "Generate a Voronoi diagram (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow, 7=Collage)")
+    attrs.setdefault("help", f"Generate a Voronoi diagram {show_values(VoronoiDiagramType)}")
 
     return int_option("--voronoi", callback=validate_enum(VoronoiDiagramType), **attrs)
 
