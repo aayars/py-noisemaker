@@ -70,10 +70,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
         tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     elif distrib == ValueDistribution.column_index:
-        tensor = tf.expand_dims(tf.cast(effects.normalize(effects.column_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(effects.normalize(tf.cast(effects.column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
 
     elif distrib == ValueDistribution.row_index:
-        tensor = tf.expand_dims(tf.cast(effects.normalize(effects.row_index(initial_shape)), tf.float32), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(effects.normalize(tf.cast(effects.row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
 
     elif distrib == ValueDistribution.simplex:
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
