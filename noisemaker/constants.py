@@ -432,7 +432,7 @@ class ValueMask(Enum):
 
     @classmethod
     def is_grid(cls, member):
-        return member.value < cls.zero.value
+        return member.value < cls.alphanum_0.value
 
     @classmethod
     def rgb_members(cls):
