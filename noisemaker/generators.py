@@ -180,7 +180,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         displacement = lattice_drift / min(freq[0], freq[1])
 
         tensor = effects.refract(tensor, shape, time=time, speed=speed,
-                                 displacement=displacement, warp_freq=freq, spline_order=spline_order)
+                                 displacement=displacement, warp_freq=freq, spline_order=spline_order,
+                                 signed_range=False)
 
     tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
                                   spline_order=spline_order, rgb=rgb, **post_process_args)

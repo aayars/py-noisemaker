@@ -1723,7 +1723,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "molded-plastic": lambda: extend("color-flow", {
-        "point_distribution": pd.random,
+        "point_distrib": pd.random,
         "post_refract_range": random.randint(25, 30),
         "voronoi_func": 1,
         "voronoi_inverse": True,
@@ -2219,6 +2219,18 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.range_regions,
     }),
 
+    "shimmer": lambda: {
+        "deriv": 1,
+        "freq": random.randint(4, 8),
+        "hue_range": random.randint(2, 4),
+        "lattice_drift": 1,
+        "point_freq": 10,
+        "post_refract_range": random.randint(4, 6),
+        "ridges": True,
+        "voronoi_alpha": .975 + random.random() * .025,
+        "with_voronoi": voronoi.color_flow,
+    },
+
     "shmoo": lambda: extend("invert", "distressed", "outline", {
         "freq": random.randint(4, 6),
         "hue_range": 2 + random.random(),
@@ -2360,7 +2372,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "spiral-in-spiral": lambda: {
-        "point_distrib": "spiral" if random.randint(0, 1) else "rotating",
+        "point_distrib": pd.spiral if random.randint(0, 1) else pd.rotating,
         "point_freq": 10,
         "reverb_iterations": random.randint(1, 4),
         "with_reverb": random.randint(0, 6),
