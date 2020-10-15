@@ -1088,6 +1088,15 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 2,
     },
 
+    "entity": lambda: extend("entities", {
+        "corners": True,
+        "distrib": "ones",
+        "freq": 6,
+        "refract_y_from_offset": False,
+        "speed": .05,
+        "with_sobel": 1,
+    }),
+
     "eyes": lambda: extend("invert", "outline", {
         "corners": True,
         "distrib": random_member(["ones", "uniform"]),
