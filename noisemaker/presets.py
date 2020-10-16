@@ -721,6 +721,7 @@ _PRESETS = lambda: {  # noqa: E731
     "bubble-multiverse": lambda: extend("bloom", "random-hue", {
         "point_freq": 10,
         "post_refract_range": .125 + random.random() * .05,
+        "speed": .05,
         "voronoi_refract": .625 + random.random() * .25,
         "with_density_map": True,
         "with_shadow": 1.0,
