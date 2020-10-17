@@ -6,10 +6,10 @@ import tempfile
 import click
 
 from noisemaker.constants import ValueDistribution
-from noisemaker.util import magick
 
 import noisemaker.cli as cli
 import noisemaker.presets as presets
+import noisemaker.util as util
 
 
 @click.command(help="""
@@ -25,9 +25,10 @@ import noisemaker.presets as presets
 @cli.name_option(default='ani.gif')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=30, help="How many frames total")
+@cli.option('--watermark', type=str)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, preset_name):
+def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, watermark, preset_name):
     if preset_name == 'random':
         preset_name = 'random-preset'
 
@@ -94,4 +95,7 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
             if save_frames:
                 shutil.copy(filename, save_frames)
 
-        magick(f'{tmp}/*png', name)
+            if watermark:
+                util.watermark(watermark, filename)
+
+        util.magick(f'{tmp}/*png', name)

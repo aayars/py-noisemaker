@@ -60,3 +60,23 @@ def magick(glob, name):
 
     except FileNotFoundError:
         return subprocess.check_call(['convert'] + common_params)
+
+
+def watermark(text, filename):
+    """
+    Annotate an image.
+
+    :param text:
+    :param filename:
+    """
+
+    return subprocess.check_call(['mood',
+                                  '--filename', filename,
+                                  '--text', text,
+                                  '--font', 'LiberationSans-Bold',
+                                  '--font-size', '12',
+                                  '--no-rect',
+                                  '--bottom',
+                                  '--right'],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+

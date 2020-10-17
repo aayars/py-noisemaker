@@ -23,6 +23,7 @@ setup(name='noisemaker',
         noisemaker=noisemaker.scripts.noisemaker:main
         worldmaker=noisemaker.scripts.worldmaker:main
         crop=noisemaker.scripts.crop:main
+        mood=noisemaker.scripts.mood:main
         ''',
 
       install_requires=[

@@ -29,12 +29,13 @@ def main():
 @main.command()
 @cli.input_dir_option(required=True)
 @cli.int_option('--seed', required=True)
-@cli.name_option(default="mashup.png")
+@cli.name_option(default="mashup.gif")
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.width_option(default=DEFAULT_WIDTH)
 @cli.height_option(default=DEFAULT_HEIGHT)
+@cli.option('--watermark', type=str)
 @click.pass_context
-def frames(ctx, input_dir, seed, name, save_frames, width, height):
+def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(30):
             filename = f'{tmp}/{i:04d}.png'
@@ -56,6 +57,9 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height):
 
             if save_frames:
                 shutil.copy(filename, save_frames)
+
+            if watermark:
+                util.watermark(watermark, filename)
 
         util.magick(f'{tmp}/*png', name)
 
