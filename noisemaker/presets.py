@@ -2571,7 +2571,7 @@ _PRESETS = lambda: {  # noqa: E731
         "mask_static": True,
         "octaves": random.randint(1, 3),
         "reflect_range": random.randint(0, 1) * random.random() * 2,
-        "spline_order": random.randint(1, 3),
+        "spline_order": random.randint(0, 3),
         "with_worms": 1,
         "worms_alpha": 1,
         "worms_density": .25,
