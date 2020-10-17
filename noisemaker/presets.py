@@ -918,6 +918,7 @@ _PRESETS = lambda: {  # noqa: E731
     "death-star-plans": lambda: extend("crt", {
         "point_freq": random.randint(3, 4),
         "post_refract_range": 1,
+        "post_refract_y_from_offset": True,
         "posterize_levels": random.randint(3, 5),
         "voronoi_alpha": 1,
         "voronoi_func": random.randint(2, 3),
