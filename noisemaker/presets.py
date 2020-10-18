@@ -1306,6 +1306,8 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": 2,
     }),
 
+    "game-over-man": lambda: extend("galalaga", "glitchin-out", "lens"),
+
     "glass-onion": lambda: {
         "point_freq": random.randint(3, 6),
         "post_deriv": random.randint(1, 3),
