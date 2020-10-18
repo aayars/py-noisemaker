@@ -2483,7 +2483,7 @@ def kaliedo(tensor, shape, sides):
     y_index = normalize(tf.cast(column_index(shape), tf.float32)) - .5
 
     # distance from any pixel to center
-    r = tf.squeeze(singularity(None, shape))
+    r = tf.squeeze(singularity(None, [height, width, 1]))
 
     # cartesian to polar coordinates
     a = tf.math.atan2(y_index, x_index)
