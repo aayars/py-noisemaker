@@ -2014,7 +2014,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_func": random.randint(2, 3),
         "voronoi_nth": random.randint(0, 4),
         "voronoi_refract": random.randint(1, 3) * .5,
-        "with_voronoi": random_member([voronoi.regions, voronoi.color_regions]),
+        "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
     }),
 
     "random-preset": lambda:
@@ -2219,7 +2219,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .125 + random.random() * .25,
         "with_aberration": .075 + random.random() * .075,
         "with_bloom": .075 + random.random() * .075,
-        "with_voronoi": voronoi.regions,
+        "with_voronoi": voronoi.range,
     }),
 
     "shatter": lambda: extend("basic", "maybe-invert", "outline", {
