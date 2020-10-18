@@ -1113,7 +1113,7 @@ def density_map(tensor, shape):
 
     # values = value_map(tensor, shape, keepdims=True)
     # values = tf.minimum(tf.maximum(tensor, 0.0), 1.0)  # TODO: Get this to work with HDR data
-    values = tensor
+    values = normalize(tensor)
 
     # https://stackoverflow.com/a/34143927
     binned_values = tf.cast(tf.reshape(values * (bins - 1), [-1]), tf.int32)
