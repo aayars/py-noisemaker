@@ -2101,7 +2101,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .333 + random.random() * .333,
         "with_density_map": random.randint(0, 1),
         "with_reverb": random.randint(2, 4),
-        "with_voronoi": voronoi.color_regions,
+        "with_voronoi": voronoi.color_range,
     }),
 
     "ridged-ridges": lambda: extend("multires-ridged", {
