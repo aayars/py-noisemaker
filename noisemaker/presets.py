@@ -1655,10 +1655,11 @@ _PRESETS = lambda: {  # noqa: E731
         "lowpoly_func": df.triangular,
     }),
 
-    "lsd": lambda: extend("density-map", "distressed", "invert", "random-hue", {
-        "brightness_distrib": "mids",
-        "freq": random.randint(8, 16),
+    "lsd": lambda: extend("density-map", "invert", "random-hue", "refract-domain-warp", {
+        "brightness_distrib": "ones",
+        "freq": random.randint(4, 6),
         "hue_range": random.randint(3, 6),
+        "speed": .025,
     }),
 
     "magic-squares": lambda: extend("bloom", "dither", "multires-low", {
