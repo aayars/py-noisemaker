@@ -661,7 +661,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "blockchain-stock-photo-background": lambda: extend("glitchin-out", "vignette-dark", "value-mask", {
         "freq": random.randint(10, 15) * 15,
-        "mask": random_member(["truetype", "binary", "hex", "numeric", "bank_ocr"]),
+        "mask": random_member(["truetype", "alphanum_binary", "alphanum_hex", "alphanum_numeric", "bank_ocr"]),
     }),
 
     "branemelt": lambda: extend("multires", {
@@ -896,7 +896,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "deadbeef": lambda: extend("bloom", "corrupt", "value-mask", {
         "freq": 6 * random.randint(9, 24),
-        "mask": "hex",
+        "mask": "alphanum_hex",
     }),
 
     "deadlock": lambda: extend("outline", {
@@ -1843,7 +1843,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "numberwang": lambda: extend("bloom", "value-mask", {
         "freq": 6 * random.randint(15, 30),
-        "mask": "numeric",
+        "mask": "alphanum_numeric",
         "warp_range": .25 + random.random() * .75,
         "warp_freq": random.randint(2, 4),
         "warp_interp": 3,
@@ -2508,7 +2508,7 @@ _PRESETS = lambda: {  # noqa: E731
         "post_saturation": 2,
         "spline_order": 1,
         "with_glyph_map": random_member([
-            random_member(["binary", "numeric", "hex"]),
+            random_member(["alphanum_binary", "alphanum_numeric", "alphanum_hex"]),
             "truetype",
             "ideogram",
             "invaders_square",
