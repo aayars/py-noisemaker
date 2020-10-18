@@ -44,7 +44,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_func=DistanceFunction.euclidean,
                  angle=None,
-                 with_simple_frame=False,
+                 with_simple_frame=False, with_kaliedo=None,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -314,6 +314,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_simple_frame:
         tensor = simple_frame(tensor, shape)
+
+    if with_kaliedo:
+        tensor = kaliedo(tensor, shape, with_kaliedo)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
@@ -1523,6 +1526,9 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     elif diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions):
         out = regions_out
 
+    else:
+        raise Exception(f"Not sure what to do with diagram type {diagram_type}")
+
     if diagram_type == VoronoiDiagramType.regions:
         out = tf.expand_dims(out, -1)
 
@@ -2459,6 +2465,38 @@ def square_crop_and_resize(tensor, shape, length=1024):
         tensor = resample(tensor, [length, length, channels])
 
     return tensor
+
+
+def kaliedo(tensor, shape, sides):
+    """
+    Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
+
+    :param Tensor tensor:
+    :param list[int] shape:
+    :param int sides: Number of sides
+    """
+
+    height, width, channels = shape
+
+    # indices offset to center
+    x_index = normalize(tf.cast(row_index(shape), tf.float32)) - .5
+    y_index = normalize(tf.cast(column_index(shape), tf.float32)) - .5
+
+    # distance from any pixel to center
+    r = tf.squeeze(singularity(None, shape))
+
+    # cartesian to polar coordinates
+    a = tf.math.atan2(y_index, x_index)
+
+    # repeat side according to angle
+    ma = tf.math.floormod(a, math.pi * 2.0 / sides)
+    ma = tf.math.abs(ma - math.pi / sides)
+
+    # polar to cartesian coordinates
+    x_index = tf.cast(r * width * tf.math.sin(ma), tf.int32)
+    y_index = tf.cast(r * height * tf.math.cos(ma), tf.int32)
+
+    return tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
 
 
 def shape_from_file(filename):

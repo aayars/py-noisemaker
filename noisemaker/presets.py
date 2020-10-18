@@ -139,6 +139,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_convolve": ["invert"],
     },
 
+    "kaliedo": lambda: {
+        "with_kaliedo": random.randint(5, 32),
+    },
+
     "lens": lambda: extend("aberration", "vaseline", "tint", "snow", {
         "with_vignette": .125 + random.random() * .125,
     }),
