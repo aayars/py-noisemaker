@@ -1892,6 +1892,18 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": 0,
     }),
 
+    "oxidize": lambda: {
+        "freq": 2,
+        "hue_range": .875 + random.random() * .25,
+        "lattice_drift": 1,
+        "octaves": 8,
+        "post_refract_range": .075 + random.random() * .075,
+        "post_saturation": .5,
+        "speed": .05,
+        "reduce_max": True,
+        "with_shadow": 1,
+    },
+
     "painterly": lambda: {
         "distrib": "uniform",
         "hue_range": .333 + random.random() * .333,
