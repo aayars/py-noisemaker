@@ -1022,6 +1022,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_distrib": random_member([pd.square, pd.waffle]),
         "point_freq": 4,
         "post_refract_range": .075 + random.random() * .075,
+        "speed": .025,
         "voronoi_refract": .075 + random.random() * .075,
         "with_kaleido": 4,
         "with_voronoi": voronoi.range,
