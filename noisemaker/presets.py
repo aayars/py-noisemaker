@@ -140,8 +140,9 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "kaleido": lambda: {
-        "with_kaleido": random.randint(5, 32),
         "kaleido_dist_func": random_member(df.all()),
+        "point_freq": 1,
+        "with_kaleido": random.randint(5, 32),
     },
 
     "lens": lambda: extend("aberration", "vaseline", "tint", "snow", {
@@ -160,6 +161,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "lowpoly": lambda: {
         "with_lowpoly": True,
     },
+
+    "mad-multiverse": lambda: extend("kaleido", "voronoi", {
+        "with_voronoi": 0,
+    }),
 
     "maybe-invert": lambda: {
         "with_convolve": [] if random.randint(0, 1) else ["invert"],

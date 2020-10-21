@@ -151,7 +151,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     tensor = normalize(tensor)
 
-    if with_voronoi or with_dla:
+    if with_voronoi or with_dla or with_kaleido:
         multiplier = max(2 * (point_generations - 1), 1)
 
         tiled_shape = [int(shape[0] / multiplier), int(shape[1] / multiplier), shape[2]]
@@ -319,7 +319,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = simple_frame(tensor, shape)
 
     if with_kaleido:
-        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func)
+        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
@@ -2471,13 +2471,15 @@ def square_crop_and_resize(tensor, shape, length=1024):
     return tensor
 
 
-def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean):
+def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
     :param Tensor tensor:
     :param list[int] shape:
     :param int sides: Number of sides
+    :param DistanceFunction dist_func:
+    :param xy: Optional list of (x, y) tuple coordinates for points
     """
 
     height, width, channels = shape
@@ -2487,7 +2489,13 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean):
     y_index = normalize(tf.cast(column_index(shape), tf.float32)) - .5
 
     # distance from any pixel to center
-    r = tf.squeeze(singularity(None, [height, width, 1], dist_func=dist_func))
+    if xy:
+        r = voronoi(None, [height, width, 1], dist_func=dist_func, xy=xy)
+
+    else:
+        r = singularity(None, [height, width, 1], dist_func=dist_func)
+
+    r = tf.squeeze(r)
 
     # cartesian to polar coordinates
     a = tf.math.atan2(y_index, x_index)
