@@ -139,8 +139,9 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_convolve": ["invert"],
     },
 
-    "kaliedo": lambda: {
-        "with_kaliedo": random.randint(5, 32),
+    "kaleido": lambda: {
+        "with_kaleido": random.randint(5, 32),
+        "kaleido_dist_func": random_member(df.all()),
     },
 
     "lens": lambda: extend("aberration", "vaseline", "tint", "snow", {

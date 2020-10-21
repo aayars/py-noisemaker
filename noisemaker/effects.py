@@ -26,7 +26,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
-                 with_voronoi=0, voronoi_nth=0, voronoi_func=1, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
+                 with_voronoi=0, voronoi_nth=0, voronoi_func=DistanceFunction.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
@@ -44,7 +44,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_func=DistanceFunction.euclidean,
                  angle=None,
-                 with_simple_frame=False, with_kaliedo=None,
+                 with_simple_frame=False, with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -142,6 +142,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param int lowpoly_freq: Point frequency for low-poly art effect
     :param DistanceFunction lowpoly_func: Low-poly effect distance function
     :param None|float angle: Rotation angle
+    :param None|bool with_simple_frame:
+    :param None|int with_kaleido: Number of kaleido sides
+    :param None|DistanceFunction kaleido_dist_func: Kaleido center distance function
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -315,8 +318,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_simple_frame:
         tensor = simple_frame(tensor, shape)
 
-    if with_kaliedo:
-        tensor = kaliedo(tensor, shape, with_kaliedo)
+    if with_kaleido:
+        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
@@ -985,7 +988,7 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(_downsample(tensor, shape, [int(height * .5), int(width * .5), channels]), shape))
 
 
-def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
+def derivative(tensor, shape, dist_func=DistanceFunction.euclidean, with_normalize=True, alpha=1.0):
     """
     Extract a derivative from the given noise.
 
@@ -1015,7 +1018,7 @@ def derivative(tensor, shape, dist_func=1, with_normalize=True, alpha=1.0):
     return blend(tensor, out, alpha)
 
 
-def sobel_operator(tensor, shape, dist_func=1):
+def sobel_operator(tensor, shape, dist_func=DistanceFunction.euclidean):
     """
     Apply a sobel operator.
 
@@ -1349,7 +1352,8 @@ def center_mask(center, edges, shape, power=2):
     return blend(center, edges, mask)
 
 
-def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0, dist_func=1, alpha=1.0, with_refract=0.0, inverse=False,
+def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
+            dist_func=DistanceFunction.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
             xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
@@ -1363,7 +1367,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
-    :param DistanceFunction|int dist_func: Voronoi distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :param DistanceFunction|int dist_func: Voronoi distance function
     :param bool regions: Assign colors to control points (memory intensive)
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float with_refract: Domain warp input tensor against resulting voronoi
@@ -2467,7 +2471,7 @@ def square_crop_and_resize(tensor, shape, length=1024):
     return tensor
 
 
-def kaliedo(tensor, shape, sides):
+def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
@@ -2483,7 +2487,7 @@ def kaliedo(tensor, shape, sides):
     y_index = normalize(tf.cast(column_index(shape), tf.float32)) - .5
 
     # distance from any pixel to center
-    r = tf.squeeze(singularity(None, [height, width, 1]))
+    r = tf.squeeze(singularity(None, [height, width, 1], dist_func=dist_func))
 
     # cartesian to polar coordinates
     a = tf.math.atan2(y_index, x_index)
@@ -2496,7 +2500,7 @@ def kaliedo(tensor, shape, sides):
     x_index = tf.cast(r * width * tf.math.sin(ma), tf.int32)
     y_index = tf.cast(r * height * tf.math.cos(ma), tf.int32)
 
-    return tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
+    return tf.gather_nd(tensor, tf.stack([y_index % height, x_index % width], 2))
 
 
 def shape_from_file(filename):
