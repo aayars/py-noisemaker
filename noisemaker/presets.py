@@ -1013,6 +1013,20 @@ _PRESETS = lambda: {  # noqa: E731
         "with_reverb": random.randint(3, 6),
     }),
 
+    "dmt": lambda: extend("random-hue", {
+        "brightness_distrib": "ones",
+        "dist_func": random_member(df.all()),
+        "freq": 4,
+        "hue_range": 3.5 + random.random() * 2.0,
+        "kaleido_dist_func": random_member(df.all()),
+        "point_distrib": random_member([pd.square, pd.waffle]),
+        "point_freq": 4,
+        "post_refract_range": .075 + random.random() * .075,
+        "voronoi_refract": .075 + random.random() * .075,
+        "with_kaleido": 4,
+        "with_voronoi": voronoi.range,
+    }),
+
     "domain-warp": lambda: extend("multires-ridged", {
         "post_refract_range": .25 + random.random() * .25,
     }),

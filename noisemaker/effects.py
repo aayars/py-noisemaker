@@ -247,6 +247,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_density_map:
         tensor = density_map(tensor, shape)
 
+    if with_kaleido:
+        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy)
+
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel, rgb)
 
@@ -317,9 +320,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_simple_frame:
         tensor = simple_frame(tensor, shape)
-
-    if with_kaleido:
-        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy)
 
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
