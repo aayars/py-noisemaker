@@ -28,7 +28,7 @@ setup(name='noisemaker',
 
       install_requires=[
         "click==7.1.2",
-        "Pillow==8.0.0",
+        "Pillow==8.0.1",
         "wheel==0.35.1",  # Needed by TF
         "opensimplex==0.3",
         ]
