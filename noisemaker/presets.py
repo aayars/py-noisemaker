@@ -140,6 +140,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "kaleido": lambda: {
+        "kaleido_blend_edges": random.randint(0, 1),
         "kaleido_dist_func": random_member(df.all()),
         "point_freq": 1,
         "with_kaleido": random.randint(5, 32),

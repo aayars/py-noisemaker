@@ -44,7 +44,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_convolve=None, with_shadow=None, with_sketch=False,
                  with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_func=DistanceFunction.euclidean,
                  angle=None,
-                 with_simple_frame=False, with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean,
+                 with_simple_frame=False,
+                 with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean, kaleido_blend_edges=True,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -145,6 +146,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|bool with_simple_frame:
     :param None|int with_kaleido: Number of kaleido sides
     :param None|DistanceFunction kaleido_dist_func: Kaleido center distance function
+    :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -248,7 +250,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = density_map(tensor, shape)
 
     if with_kaleido:
-        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy)
+        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy,
+                         blend_edges=kaleido_blend_edges)
 
     if with_sobel:
         tensor = sobel(tensor, shape, with_sobel, rgb)
@@ -2471,7 +2474,7 @@ def square_crop_and_resize(tensor, shape, length=1024):
     return tensor
 
 
-def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None):
+def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None, blend_edges=True):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
@@ -2479,21 +2482,27 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None)
     :param list[int] shape:
     :param int sides: Number of sides
     :param DistanceFunction dist_func:
-    :param xy: Optional list of (x, y) tuple coordinates for points
+    :param xy: Optional (x, y) coordinates for points
+    :param bool blend_edges: Blend with original edge indices
     """
 
     height, width, channels = shape
 
+    x_identity = tf.cast(row_index(shape), tf.float32)
+    y_identity = tf.cast(column_index(shape), tf.float32)
+
     # indices offset to center
-    x_index = normalize(tf.cast(row_index(shape), tf.float32)) - .5
-    y_index = normalize(tf.cast(column_index(shape), tf.float32)) - .5
+    x_index = normalize(tf.cast(x_identity, tf.float32)) - .5
+    y_index = normalize(tf.cast(y_identity, tf.float32)) - .5
+
+    value_shape = [height, width, 1]
 
     # distance from any pixel to center
     if xy:
-        r = voronoi(None, [height, width, 1], dist_func=dist_func, xy=xy)
+        r = voronoi(None, value_shape, dist_func=dist_func, xy=xy)
 
     else:
-        r = singularity(None, [height, width, 1], dist_func=dist_func)
+        r = singularity(None, value_shape, dist_func=dist_func)
 
     r = tf.squeeze(r)
 
@@ -2505,8 +2514,20 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None)
     ma = tf.math.abs(ma - math.pi / sides)
 
     # polar to cartesian coordinates
-    x_index = tf.cast(r * width * tf.math.sin(ma), tf.int32)
-    y_index = tf.cast(r * height * tf.math.cos(ma), tf.int32)
+    x_index = r * width * tf.math.sin(ma)
+    y_index = r * height * tf.math.cos(ma)
+
+    if blend_edges:
+        # fade to original image edges
+        fader = normalize(singularity(None, value_shape, dist_func=DistanceFunction.chebyshev))
+        fader = tf.squeeze(fader)  # conform to index shape
+        fader = tf.math.pow(fader, 5)
+
+        x_index = blend(x_index, x_identity, fader)
+        y_index = blend(y_index, y_identity, fader)
+
+    x_index = tf.cast(x_index, tf.int32)
+    y_index = tf.cast(y_index, tf.int32)
 
     return tf.gather_nd(tensor, tf.stack([y_index % height, x_index % width], 2))
 
