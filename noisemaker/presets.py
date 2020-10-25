@@ -146,7 +146,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_kaleido": random.randint(5, 32),
     },
 
-    "lens": lambda: extend("aberration", "vaseline", "tint", "snow", {
+    "lens": lambda: extend("aberration", "vaseline", "tint", {
         "with_vignette": .125 + random.random() * .125,
     }),
 
@@ -1014,7 +1014,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_reverb": random.randint(3, 6),
     }),
 
-    "dmt": lambda: extend("random-hue", {
+    "dmt": lambda: {
         "brightness_distrib": "ones",
         "dist_func": random_member(df.all()),
         "freq": 4,
@@ -1027,7 +1027,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_refract": .075 + random.random() * .075,
         "with_kaleido": 4,
         "with_voronoi": voronoi.range,
-    }),
+    },
 
     "domain-warp": lambda: extend("multires-ridged", {
         "post_refract_range": .25 + random.random() * .25,
@@ -1123,6 +1123,13 @@ _PRESETS = lambda: {  # noqa: E731
         "refract_y_from_offset": False,
         "speed": .05,
         "with_sobel": 1,
+    }),
+
+    "explore": lambda: extend("dmt", "kaleido", "lens", {
+        "hue_range": .75 + random.random() * .75,
+        "brightness_distrib": None,
+        "post_refract_range": .75 + random.random() * .75,
+        "with_kaleido": random.randint(3, 18),
     }),
 
     "eyes": lambda: extend("invert", "outline", {
@@ -1656,6 +1663,15 @@ _PRESETS = lambda: {  # noqa: E731
         "ripple_range": 1.0 + random.random() * .5,
         "octaves": 3,
     },
+
+    "lotus": lambda: extend("dmt", "kaleido", {
+        "brightness_distrib": None,
+        "hue_range": .75 + random.random() * .75,
+        "kaleido_blend_edges": False,
+        "kaleido_dist_func": df.euclidean,
+        "post_reflect_range": 10.0 + random.random() * 10.0,
+        "with_kaleido": 18,
+    }),
 
     "lowland": lambda: {
         "deriv": 1,

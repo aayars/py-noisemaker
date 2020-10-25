@@ -2510,7 +2510,8 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None,
     a = tf.math.atan2(y_index, x_index)
 
     # repeat side according to angle
-    ma = tf.math.floormod(a, math.pi * 2.0 / sides)
+    # rotate by 90 degrees because vertical symmetry is more pleasing to me
+    ma = tf.math.floormod(a + math.radians(90), math.pi * 2.0 / sides)
     ma = tf.math.abs(ma - math.pi / sides)
 
     # polar to cartesian coordinates
