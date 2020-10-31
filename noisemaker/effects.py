@@ -155,6 +155,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     tensor = normalize(tensor)
 
+    if with_wobble:
+        tensor = wobble(tensor, shape, time=time, speed=speed)
+
     if with_voronoi or with_dla or with_kaleido:
         multiplier = max(2 * (point_generations - 1), 1)
 
@@ -183,9 +186,6 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         else:
             tensor = expand_tile(input_tensor, tiled_shape, shape)
-
-    if with_wobble:
-        tensor = wobble(tensor, shape, time=time, speed=speed)
 
     # Keep values between 0 and 1 if we're reflecting and refracting, because math?
     # Using refract and reflect together exposes unpleasant edge artifacting along

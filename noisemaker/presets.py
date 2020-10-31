@@ -2197,7 +2197,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_stride": random.randint(128, 256),
     },
 
-    "satori": lambda: extend("bloom", {
+    "satori": lambda: extend("bloom", "wobble", {
         "freq": random.randint(3, 8),
         "hue_range": random.random(),
         "lattice_drift": 1,
