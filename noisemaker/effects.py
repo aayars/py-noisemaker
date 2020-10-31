@@ -46,6 +46,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  angle=None,
                  with_simple_frame=False,
                  with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean, kaleido_blend_edges=True,
+                 with_wobble=False,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -147,6 +148,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|int with_kaleido: Number of kaleido sides
     :param None|DistanceFunction kaleido_dist_func: Kaleido center distance function
     :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
+    :param bool with_wobble: Move entire image around
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -181,6 +183,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         else:
             tensor = expand_tile(input_tensor, tiled_shape, shape)
+
+    if with_wobble:
+        tensor = wobble(tensor, shape, time=time, speed=speed)
 
     # Keep values between 0 and 1 if we're reflecting and refracting, because math?
     # Using refract and reflect together exposes unpleasant edge artifacting along
@@ -2118,6 +2123,17 @@ def offset(tensor, shape, x=0, y=0):
     y_index = column_index(shape)
 
     return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
+
+
+def wobble(tensor, shape, time=0.0, speed=1.0):
+    """
+    Move the entire image around
+    """
+
+    x_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[1], tf.int32)
+    y_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[0], tf.int32)
+
+    return offset(tensor, shape, x=x_offset, y=y_offset)
 
 
 def reverb(tensor, shape, octaves, iterations=1, ridges=True):

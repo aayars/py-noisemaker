@@ -139,12 +139,12 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_convolve": ["invert"],
     },
 
-    "kaleido": lambda: {
+    "kaleido": lambda: extend("wobble", {
         "kaleido_blend_edges": random.randint(0, 1),
         "kaleido_dist_func": random_member(df.all()),
         "point_freq": 1,
         "with_kaleido": random.randint(5, 32),
-    },
+    }),
 
     "lens": lambda: extend("aberration", "vaseline", "tint", {
         "with_vignette": .125 + random.random() * .125,
@@ -357,6 +357,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "vortex": lambda: {
         "vortex_range": random.randint(16, 48),
+    },
+
+    "wobble": lambda: {
+        "with_wobble": True,
     },
 
     "wormhole": lambda: {

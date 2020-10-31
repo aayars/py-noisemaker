@@ -26,9 +26,10 @@ import noisemaker.util as util
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=30, help="How many frames total")
 @cli.option('--watermark', type=str)
+@cli.option('--overrides', type=str, help='A JSON dictionary containing preset overrides')
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, watermark, preset_name):
+def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, watermark, overrides, preset_name):
     if preset_name == 'random':
         preset_name = 'random-preset'
 
@@ -48,9 +49,13 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     else:
         print(preset_name)
 
-    # Override defaults to animate better
-    overrides = {}
+    if overrides:
+        overrides = json.loads(overrides)
 
+    else:
+        overrides = {}
+
+    # Override defaults to animate better
     distrib = kwargs.get('distrib')
 
     if distrib in (ValueDistribution.exp, 'exp'):
