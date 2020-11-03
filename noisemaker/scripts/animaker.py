@@ -66,6 +66,8 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
         ValueDistribution.simplex_exp, 'simplex_exp',
         ValueDistribution.column_index, 'column_index',
         ValueDistribution.row_index, 'row_index',
+        ValueDistribution.fastnoise, 'fastnoise',
+        ValueDistribution.fastnoise_exp, 'fastnoise_exp',
     ):
         overrides['distrib'] = 'simplex'
 

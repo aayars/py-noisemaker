@@ -174,7 +174,7 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
 
     # Generate scan noise
     scan_noise = basic([int(height * .5) + 1, int(width * .05) + 1], [height, width, 1], time=time,
-                       speed=speed, spline_order=1, distrib=ValueDistribution.simplex)
+                       speed=speed, spline_order=1, distrib=ValueDistribution.fastnoise)
 
     # Create horizontal offsets
     grad = basic([int(random.random() * 10) + 5, 1], [height, width, 1], time=time,
@@ -288,7 +288,7 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = [height, width, 1]
     error_line = tf.maximum(basic([int(height * .75), 1], value_shape, time=time,
-                                  speed=speed, distrib=ValueDistribution.simplex_exp) - .5, 0)
+                                  speed=speed, distrib=ValueDistribution.fastnoise_exp) - .5, 0)
     error_swerve = tf.maximum(basic([int(height * .01), 1], value_shape, time=time,
                                     speed=speed, distrib=ValueDistribution.simplex_exp) - .5, 0)
 
@@ -297,7 +297,7 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
     error_swerve *= 2
 
     white_noise = basic([int(height * .75), 1], value_shape, time=time,
-                        speed=speed, distrib=ValueDistribution.simplex)
+                        speed=speed, distrib=ValueDistribution.fastnoise)
     white_noise = effects.blend(0, white_noise, error_swerve)
 
     error = error_line + white_noise
@@ -315,10 +315,10 @@ def snow(tensor, shape, amount, time=0.0, speed=1.0):
     height, width, channels = shape
 
     static = basic([height, width], [height, width, 1], time=time, speed=speed * 100,
-                   distrib=ValueDistribution.simplex, spline_order=0)
+                   distrib=ValueDistribution.fastnoise, spline_order=0)
 
     static_limiter = basic([height, width], [height, width, 1], time=time, speed=speed * 100,
-                           distrib=ValueDistribution.simplex_exp, spline_order=0) * amount
+                           distrib=ValueDistribution.fastnoise_exp, spline_order=0) * amount
 
     return effects.blend(tensor, static, static_limiter)
 
@@ -330,7 +330,7 @@ def dither(tensor, shape, amount, time=0.0, speed=1.0):
     height, width, channels = shape
 
     white_noise = basic([height, width], [height, width, 1], time=time, speed=speed,
-                        distrib=ValueDistribution.simplex)
+                        distrib=ValueDistribution.fastnoise)
 
     return effects.blend(tensor, white_noise, amount)
 
@@ -365,7 +365,7 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
                      )
 
         brightness = basic(128, shape, time=time, speed=speed,
-                           distrib=ValueDistribution.simplex, saturation=2.0)
+                           distrib=ValueDistribution.fastnoise, saturation=2.0)
 
         tensor = effects.blend(tensor, brightness, mask * .5)
 
@@ -443,11 +443,11 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
 
     specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, time=time,
-                   speed=speed, distrib=ValueDistribution.simplex_exp, refract_range=.1)
+                   speed=speed, distrib=ValueDistribution.fastnoise, refract_range=.1)
     specks = 1.0 - tf.sqrt(effects.normalize(tf.maximum(specks - .5, 0.0)))
 
     dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape, time=time,
-                          speed=speed, distrib=ValueDistribution.simplex), .125) * specks
+                                       speed=speed, distrib=ValueDistribution.fastnoise), .125) * specks
 
     return effects.blend(tensor, dusty, mask)
 
@@ -459,7 +459,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
     half_value_shape = [half_shape[0], half_shape[1], 1]
 
-    noise = multires(64, half_value_shape, time=time, speed=speed, distrib=ValueDistribution.simplex, octaves=8)
+    noise = multires(64, half_value_shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise, octaves=8)
 
     black = tf.zeros(half_value_shape)
     white = tf.ones(half_value_shape)
@@ -499,7 +499,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     noise = multires(64, value_shape, time=time, speed=speed,
-                     distrib=ValueDistribution.simplex, octaves=8, ridges=True)
+                     distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
 
     return tensor * (tf.ones(value_shape) * .95 + effects.shadow(noise, value_shape, 1.0) * .05)
 
@@ -655,7 +655,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
     smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, time=time,
-                                       speed=speed, distrib=ValueDistribution.simplex_exp,
+                                       speed=speed, distrib=ValueDistribution.fastnoise_exp,
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
     # Remove some of it

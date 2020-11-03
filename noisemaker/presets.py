@@ -1088,7 +1088,7 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "eat-static": lambda: extend("be-kind-rewind", "scanline-error", {
-        "distrib": distrib.simplex,
+        "distrib": distrib.fastnoise,
         "freq": 512,
         "saturation": 0,
         "speed": 2.0,
@@ -1192,6 +1192,13 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_density": 1000,
         "worms_duration": 6,
         "worms_kink": random.randint(125, 375),
+    }),
+
+    "fat-led": lambda: extend("bloom", "value-mask", {
+        "mask": stash("fat-led-mask", random_member([
+            vm.fat_lcd, vm.fat_lcd_binary, vm.fat_lcd_numeric, vm.fat_lcd_hex])),
+        "freq": [int(i * stash("fat-led-repeat", random.randint(15, 30)))
+            for i in masks.mask_shape(stash("fat-led-mask"))[0:2]],
     }),
 
     "figments": lambda: extend("bloom", "funhouse", "multires-low", "wormhole", {
@@ -1324,13 +1331,6 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_duration": 1,
         "worms_kink": 25,
     },
-
-    "fat-led": lambda: extend("bloom", "value-mask", {
-        "mask": stash("fat-led-mask", random_member([
-            mask.fat_lcd, mask.fat_lcd_binary, mask.fat_lcd_numeric, mask.fat_lcd_hex])),
-        "freq": [int(i * stash("fat-led-repeat", random.randint(15, 30)))
-            for i in masks.mask_shape(stash("fat-led-mask"))[0:2]],
-    }),
 
     "fuzzy-thorns": lambda: {
         "point_freq": random.randint(2, 4),

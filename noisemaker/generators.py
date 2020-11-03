@@ -10,6 +10,7 @@ import tensorflow as tf
 from noisemaker.constants import ValueDistribution, ValueMask
 
 import noisemaker.effects as effects
+import noisemaker.fastnoise as fastnoise
 import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 
@@ -79,52 +80,60 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
     elif distrib == ValueDistribution.simplex_exp:
-        tensor = tf.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
+        tensor = tf.math.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
+
+    elif distrib == ValueDistribution.fastnoise:
+        tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
+
+    elif distrib == ValueDistribution.fastnoise_exp:
+        tensor = tf.math.pow(fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed), 4)
 
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 
-    if mask:
-        atlas = None
+    # Skip the below post-processing for fastnoise, since it's generated at a different size.
+    if distrib not in (ValueDistribution.fastnoise, ValueDistribution.fastnoise_exp):
+        if mask:
+            atlas = None
 
-        if mask == ValueMask.truetype:
-            from noisemaker.glyphs import load_glyphs
+            if mask == ValueMask.truetype:
+                from noisemaker.glyphs import load_glyphs
 
-            atlas = load_glyphs([15, 15, 1])
+                atlas = load_glyphs([15, 15, 1])
 
-            if not atlas:
-                mask = ValueMask.alphanum_numeric  # Fall back to canned values
+                if not atlas:
+                    mask = ValueMask.alphanum_numeric  # Fall back to canned values
 
-        elif ValueMask.is_procedural(mask):
-            base_name = re.sub(r'_[a-z]+$', '', mask.name)
+            elif ValueMask.is_procedural(mask):
+                base_name = re.sub(r'_[a-z]+$', '', mask.name)
 
-            if mask.name.endswith("_binary"):
-                atlas = [masks.Masks[ValueMask[f"{base_name}_0"]], masks.Masks[ValueMask[f"{base_name}_1"]]]
+                if mask.name.endswith("_binary"):
+                    atlas = [masks.Masks[ValueMask[f"{base_name}_0"]], masks.Masks[ValueMask[f"{base_name}_1"]]]
 
-            elif mask.name.endswith("_numeric"):
-                atlas = [masks.Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
+                elif mask.name.endswith("_numeric"):
+                    atlas = [masks.Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
 
-            elif mask.name.endswith("_hex"):
-                atlas = [masks.Masks[g] for g in masks.Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
+                elif mask.name.endswith("_hex"):
+                    atlas = [masks.Masks[g] for g in masks.Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
 
-            else:
-                atlas = [masks.Masks[g] for g in masks.Masks
-                             if g.name.startswith(f"{mask.name}_") and not callable(masks.Masks[g])]
+                else:
+                    atlas = [masks.Masks[g] for g in masks.Masks
+                                 if g.name.startswith(f"{mask.name}_") and not callable(masks.Masks[g])]
 
-        glyph_shape = freq + [1]
+            glyph_shape = freq + [1]
 
-        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
-                                           time=0 if mask_static else time, speed=speed)
+            mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
+                                               time=0 if mask_static else time, speed=speed)
 
-        tensor *= mask_values
+            tensor *= mask_values
 
-    if wavelet:
-        tensor = effects.wavelet(tensor, initial_shape)
+        if wavelet:
+            tensor = effects.wavelet(tensor, initial_shape)
 
-    tensor = effects.resample(tensor, shape, spline_order=spline_order)
+        tensor = effects.resample(tensor, shape, spline_order=spline_order)
 
-    if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-        tensor = effects.offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
+        if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
+            tensor = effects.offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
 
     return tensor
 
