@@ -46,7 +46,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  angle=None,
                  with_simple_frame=False,
                  with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean, kaleido_blend_edges=True,
-                 with_wobble=False,
+                 with_wobble=None,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -148,7 +148,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|int with_kaleido: Number of kaleido sides
     :param None|DistanceFunction kaleido_dist_func: Kaleido center distance function
     :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
-    :param bool with_wobble: Move entire image around
+    :param None|float with_wobble: Move entire image around
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -156,7 +156,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     tensor = normalize(tensor)
 
     if with_wobble:
-        tensor = wobble(tensor, shape, time=time, speed=speed)
+        tensor = wobble(tensor, shape, time=time, speed=speed * with_wobble)
 
     if with_voronoi or with_dla or with_kaleido:
         multiplier = max(2 * (point_generations - 1), 1)

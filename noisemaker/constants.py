@@ -30,7 +30,7 @@ class DistanceFunction(Enum):
 
     @classmethod
     def is_absolute(cls, member):
-        return member.value < cls.triangular.value
+        return member != cls.none and member.value < cls.triangular.value
 
     @classmethod
     def signed_members(cls):
@@ -38,7 +38,7 @@ class DistanceFunction(Enum):
 
     @classmethod
     def is_signed(cls, member):
-        return not cls.is_absolute(member)
+        return member != cls.none and not cls.is_absolute(member)
 
 
 class InterpolationType(Enum):

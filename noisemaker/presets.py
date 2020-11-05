@@ -360,7 +360,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "wobble": lambda: {
-        "with_wobble": True,
+        "with_wobble": .75 + random.random() * .75,
     },
 
     "wormhole": lambda: {
@@ -822,6 +822,20 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_flow,
     }),
 
+    "concentric": lambda: extend("wobble", {
+        "distrib": "ones",
+        "freq": 2,
+        "mask": "h_bar",
+        "point_drift": 0,
+        "point_freq": random.randint(1, 2),
+        "rgb": True,
+        "speed": .75,
+        "spline_order": 0,
+        "voronoi_func": random_member(df.absolute_members()),
+        "voronoi_refract": random.randint(8, 16),
+        "with_voronoi": voronoi.range,
+    }),
+
     "conference": lambda: extend("sobel", "value-mask", {
         "freq": 4 * random.randint(6, 12),
         "mask": "halftone",
@@ -1020,7 +1034,6 @@ _PRESETS = lambda: {  # noqa: E731
 
     "dmt": lambda: {
         "brightness_distrib": "ones",
-        "dist_func": random_member(df.all()),
         "freq": 4,
         "hue_range": 3.5 + random.random() * 2.0,
         "kaleido_dist_func": random_member(df.all()),
@@ -1028,6 +1041,7 @@ _PRESETS = lambda: {  # noqa: E731
         "point_freq": 4,
         "post_refract_range": .075 + random.random() * .075,
         "speed": .025,
+        "voronoi_func": random_member(df.all()),
         "voronoi_refract": .075 + random.random() * .075,
         "with_kaleido": 4,
         "with_voronoi": voronoi.range,
@@ -2207,6 +2221,7 @@ _PRESETS = lambda: {  # noqa: E731
         "rgb": random.randint(0, 1),
         "ridges": True,
         "sin": random.random() * 2.5,
+        "speed": .05,
         "voronoi_alpha": .5 + random.random() * .5,
         "voronoi_refract": random.randint(6, 12) * .5,
         "with_shadow": 1.0,
