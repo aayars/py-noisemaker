@@ -1,4 +1,4 @@
-# Cosine palette collection. h/t to @rustysniper1 on Twitter
+# Cosine palette collection. Thanks to @rustysniper1 on Twitter for putting this together.
 # https://iquilezles.org/www/articles/palettes/palettes.htm
 PALETTES = {
     '70s Tshirt': {

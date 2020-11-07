@@ -174,6 +174,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_convolve": [] if coin_flip() else ["invert"],
     },
 
+    "maybe-palette": lambda: {
+        "with_palette": random_member(PALETTES) if coin_flip() else None,
+    },
+
     "mosaic": lambda: extend("bloom", "voronoi", {
         "voronoi_alpha": .75 + random.random() * .25,
         "with_voronoi": voronoi.range_regions,
@@ -595,10 +599,9 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.range,
     }),
 
-    "basic": lambda: {
+    "basic": lambda: extend("maybe-palette", {
         "freq": random.randint(2, 4),
-        "with_palette": random_member(PALETTES) if coin_flip() else None,
-    },
+    }),
 
     "basic-lowpoly": lambda: extend("basic", "lowpoly"),
 
@@ -619,7 +622,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .25 + random.random() * .25,
     },
 
-    "benny-lava": lambda: extend("distressed", {
+    "benny-lava": lambda: extend("distressed", "maybe-palette", {
         "distrib": distrib.column_index,
         "posterize_levels": 1,
         "warp_range": 1 + random.random() * .5,
@@ -752,7 +755,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.flow,
     }),
 
-    "celebrate": lambda: extend("distressed", {
+    "celebrate": lambda: extend("distressed", "maybe-palette", {
         "brightness_distrib": distrib.ones,
         "hue_range": 1,
         "posterize_levels": random.randint(3, 5),
@@ -1358,7 +1361,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": mask.invaders_square,
     }),
 
-    "game-show": lambda: extend("be-kind-rewind", {
+    "game-show": lambda: extend("be-kind-rewind", "maybe-palette", {
         "distrib": distrib.normal,
         "freq": random.randint(8, 16) * 2,
         "mask": random_member([mask.h_tri, mask.v_tri]),
@@ -1881,7 +1884,7 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_stride": 0.25,
     }),
 
-    "neon-plasma": lambda: extend("basic", "multires", {
+    "neon-plasma": lambda: extend("multires", {
         "lattice_drift": coin_flip(),
         "ridges": True,
     }),
@@ -2220,7 +2223,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_stride": random.randint(128, 256),
     },
 
-    "satori": lambda: extend("bloom", "wobble", {
+    "satori": lambda: extend("bloom", "maybe-palette", "wobble", {
         "freq": random.randint(3, 8),
         "hue_range": random.random(),
         "lattice_drift": 1,
@@ -2328,7 +2331,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_flow,
     },
 
-    "shmoo": lambda: extend("invert", "distressed", "outline", {
+    "shmoo": lambda: extend("invert", "distressed", "maybe-palette", "outline", {
         "freq": random.randint(4, 6),
         "hue_range": 2 + random.random(),
         "post_saturation": .5 + random.random() * .25,
@@ -2348,7 +2351,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .5 + random.random() * .5,
     }),
 
-    "sine-here-please": lambda: extend("basic", "multires", {
+    "sine-here-please": lambda: extend("multires", {
         "sin": 25 + random.random() * 200,
         "with_shadow": 1,
     }),
@@ -2459,7 +2462,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": interp.constant,
     }),
 
-    "spiral-clouds": lambda: extend("basic", "multires", "wormhole", {
+    "spiral-clouds": lambda: extend("multires", "wormhole", {
         "lattice_drift": 1.0,
         "saturation-distrib": distrib.ones,
         "shadow": 1,
@@ -2569,11 +2572,10 @@ _PRESETS = lambda: {  # noqa: E731
 
     "subpixelator": lambda: extend("basic", "funhouse", "subpixels"),
 
-    "symmetry": lambda: {
+    "symmetry": lambda: extend("maybe-palette", {
         "corners": True,
         "freq": 2,
-        "with_palette": random_member(PALETTES) if coin_flip() else None,
-    },
+    }),
 
     "symmetry-lowpoly": lambda: extend("lowpoly", "symmetry", {
         "lowpoly_distrib": random_member(point.circular_members()),
@@ -2774,13 +2776,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_sobel": coin_flip(),
     },
 
-    "value-mask": lambda: {
+    "value-mask": lambda: extend("maybe-palette", {
         "distrib": distrib.ones,
         "mask": stash('value-mask-mask', random_member(mask)),
         "freq": [int(i * stash("value-mask-repeat", random.randint(2, 8)))
             for i in masks.mask_shape(stash("value-mask-mask"))[0:2]],
         "spline_order": random_member([m for m in interp if m != interp.bicubic]),
-    },
+    }),
 
     "vectoroids": lambda: extend("crt", {
         "freq": 25,
