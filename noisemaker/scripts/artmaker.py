@@ -23,18 +23,17 @@ import noisemaker.recipes as recipes
 @cli.clut_option()
 @cli.seed_option()
 @cli.option('--overrides', type=str, help='A JSON dictionary containing preset overrides')
+@cli.option('--settings', is_flag=True, help='Just print the preset settings and exit')
 @cli.name_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, time, clut, seed, overrides, name, preset_name):
+def main(ctx, width, height, channels, time, clut, seed, overrides, settings, name, preset_name):
     presets.bake_presets(seed)
 
     if preset_name == 'random':
         preset_name = 'random-preset'
 
     kwargs = presets.preset(preset_name)
-
-    print(kwargs['name'])
 
     kwargs['shape'] = [height, width, channels]
     kwargs['time'] = time
@@ -55,7 +54,27 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, name, preset
     if overrides:
         kwargs.update(json.loads(overrides))
 
-    # print(json.dumps(kwargs, sort_keys=True, indent=4, default=str))
+    if settings:
+        for key, value in sorted(kwargs.items()):
+            if key in {'name', 'shape', 'time'}:
+                continue
+
+            if key in {'ridges', 'with_convolve'} and not value:
+                continue
+
+            if key == 'octaves' and value == 1:
+                continue
+
+            if isinstance(value, float):
+                value = f'{value:.02f}'
+
+            print(f'{key}: {value}')
+
+        import sys
+        sys.exit()
+
+    else:
+        print(kwargs['name'])
 
     tensor = generators.multires(**kwargs)
 

@@ -31,5 +31,9 @@ setup(name='noisemaker',
         "Pillow==8.0.1",
         "wheel==0.35.1",  # Needed by TF
         "opensimplex==0.3",
-        ]
-      )
+        ],
+
+      setup_requires=["pytest-runner"],
+      tests_require=["pytest==6.1.2"],
+
+)
