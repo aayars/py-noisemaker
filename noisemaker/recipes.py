@@ -447,7 +447,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     black = tf.zeros(half_value_shape)
     white = tf.ones(half_value_shape)
 
-    mask = effects.singularity(None, half_value_shape, 1, dist_func=DistanceFunction.chebyshev, inverse=True)
+    mask = effects.singularity(None, half_value_shape, 1, dist_metric=DistanceMetric.chebyshev, inverse=True)
     mask = effects.normalize(mask + noise * .005)
     mask = effects.blend_layers(tf.sqrt(mask), half_value_shape, 0.0125, white, black, black, black)
 

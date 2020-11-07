@@ -11,7 +11,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.constants import DistanceFunction, PointDistribution, ValueMask, VoronoiDiagramType, WormBehavior
+from noisemaker.constants import DistanceMetric, PointDistribution, ValueMask, VoronoiDiagramType, WormBehavior
 from noisemaker.glyphs import load_glyphs
 from noisemaker.points import point_cloud
 
@@ -26,7 +26,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
-                 with_voronoi=0, voronoi_nth=0, voronoi_func=DistanceFunction.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
+                 with_voronoi=0, voronoi_nth=0, voronoi_metric=DistanceMetric.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
@@ -42,10 +42,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False,
-                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_func=DistanceFunction.euclidean,
+                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_metric=DistanceMetric.euclidean,
                  angle=None,
                  with_simple_frame=False,
-                 with_kaleido=None, kaleido_dist_func=DistanceFunction.euclidean, kaleido_blend_edges=True,
+                 with_kaleido=None, kaleido_dist_metric=DistanceMetric.euclidean, kaleido_blend_edges=True,
                  with_wobble=None,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
@@ -69,8 +69,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float worms_stride_deviation: Per-worm travel distance deviation
     :param float worms_alpha: Fade worms (0..1)
     :param float worms_kink: Worm twistiness
-    :param DistanceFunction|int sobel: Sobel operator distance function
-    :param DistanceFunction|int outline: Outlines distance function (multiply)
+    :param DistanceMetric|int sobel: Sobel operator distance metric
+    :param DistanceMetric|int outline: Outlines distance metric (multiply)
     :param bool with_normal_map: Create a tangent-space normal map
     :param bool with_wormhole: Wormhole effect. What is this?
     :param float wormhole_kink: Wormhole kinkiness, if you're into that.
@@ -78,14 +78,14 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param float wormhole_alpha: Wormhole alpha blending
     :param VoronoiDiagramType|int with_voronoi: Voronoi diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param int voronoi_nth: Voronoi Nth nearest
-    :param DistanceFunction|int voronoi_func: Voronoi distance function
+    :param DistanceMetric|int voronoi_metric: Voronoi distance metric
     :param float voronoi_alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float voronoi_refract: Domain warp input tensor against Voronoi
     :param bool voronoi_refract_y_from_offset: Derive Y offsets from offsetting image
     :param bool voronoi_inverse: Inverse values for Voronoi 'range' types
     :param bool ridges_hint: Ridged multifractal hint for Voronoi
-    :param DistanceFunction|int deriv: Derivative distance function
-    :param float deriv_alpha: Derivative distance function alpha blending amount
+    :param DistanceMetric|int deriv: Derivative distance metric
+    :param float deriv_alpha: Derivative alpha blending amount
     :param float posterize_levels: Posterize levels
     :param bool with_erosion_worms: Erosion worms
     :param float erosion_worms_density: Default: 50
@@ -142,11 +142,11 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param bool with_lowpoly: Low-poly art effect
     :param PointDistribution lowpoly_distrib: Point distribution for low-poly art effect
     :param int lowpoly_freq: Point frequency for low-poly art effect
-    :param DistanceFunction lowpoly_func: Low-poly effect distance function
+    :param DistanceMetric lowpoly_metric: Low-poly effect distance metric
     :param None|float angle: Rotation angle
     :param None|bool with_simple_frame:
     :param None|int with_kaleido: Number of kaleido sides
-    :param None|DistanceFunction kaleido_dist_func: Kaleido center distance function
+    :param None|DistanceMetric kaleido_dist_metric: Kaleido center distance metric
     :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
     :param None|float with_wobble: Move entire image around
     :param bool rgb: Using RGB mode? Hint for some effects.
@@ -174,7 +174,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         input_tensor = resample(tensor, tiled_shape)
 
         if with_voronoi:
-            input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_func=voronoi_func, inverse=voronoi_inverse,
+            input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_metric=voronoi_metric, inverse=voronoi_inverse,
                                    nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy,
                                    refract_y_from_offset=voronoi_refract_y_from_offset)
 
@@ -255,7 +255,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = density_map(tensor, shape)
 
     if with_kaleido:
-        tensor = kaleido(tensor, shape, with_kaleido, dist_func=kaleido_dist_func, xy=xy,
+        tensor = kaleido(tensor, shape, with_kaleido, dist_metric=kaleido_dist_metric, xy=xy,
                          blend_edges=kaleido_blend_edges)
 
     if with_sobel:
@@ -272,7 +272,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = shadow(tensor, shape, with_shadow)
 
     if with_outline:
-        tensor = outline(tensor, shape, sobel_func=with_outline)
+        tensor = outline(tensor, shape, sobel_metric=with_outline)
 
     if with_glowing_edges:
         tensor = glowing_edges(tensor, shape, alpha=with_glowing_edges)
@@ -324,7 +324,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_lowpoly:
         tensor = lowpoly(tensor, shape, distrib=lowpoly_distrib, freq=lowpoly_freq,
-                         time=time, speed=speed, dist_func=lowpoly_func)
+                         time=time, speed=speed, dist_metric=lowpoly_metric)
 
     if with_simple_frame:
         tensor = simple_frame(tensor, shape)
@@ -996,7 +996,7 @@ def wavelet(tensor, shape):
     return normalize(tensor - resample(_downsample(tensor, shape, [int(height * .5), int(width * .5), channels]), shape))
 
 
-def derivative(tensor, shape, dist_func=DistanceFunction.euclidean, with_normalize=True, alpha=1.0):
+def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normalize=True, alpha=1.0):
     """
     Extract a derivative from the given noise.
 
@@ -1007,7 +1007,7 @@ def derivative(tensor, shape, dist_func=DistanceFunction.euclidean, with_normali
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int dist_func: Derivative distance function
+    :param DistanceMetric|int dist_metric: Derivative distance metric
     :param bool with_normalize:
     :return: Tensor
     """
@@ -1015,7 +1015,7 @@ def derivative(tensor, shape, dist_func=DistanceFunction.euclidean, with_normali
     x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
-    out = distance(x, y, dist_func)
+    out = distance(x, y, dist_metric)
 
     if with_normalize:
         out = normalize(out)
@@ -1026,7 +1026,7 @@ def derivative(tensor, shape, dist_func=DistanceFunction.euclidean, with_normali
     return blend(tensor, out, alpha)
 
 
-def sobel_operator(tensor, shape, dist_func=DistanceFunction.euclidean):
+def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
     """
     Apply a sobel operator.
 
@@ -1037,7 +1037,7 @@ def sobel_operator(tensor, shape, dist_func=DistanceFunction.euclidean):
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int dist_func: Sobel distance function
+    :param DistanceMetric|int dist_metric: Sobel distance metric
     :return: Tensor
     """
 
@@ -1046,7 +1046,7 @@ def sobel_operator(tensor, shape, dist_func=DistanceFunction.euclidean):
     x = convolve(ValueMask.conv2d_sobel_x, tensor, shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_sobel_y, tensor, shape, with_normalize=False)
 
-    out = tf.abs(normalize(distance(x, y, dist_func)) * 2 - 1)
+    out = tf.abs(normalize(distance(x, y, dist_metric)) * 2 - 1)
 
     fudge = -1
 
@@ -1184,14 +1184,14 @@ def conv_feedback(tensor, shape, iterations=50, alpha=.5):
     return blend(tensor, resample(up + (1.0 - down), shape), alpha)
 
 
-def morph(a, b, g, dist_func=DistanceFunction.euclidean, spline_order=1):
+def morph(a, b, g, dist_metric=DistanceMetric.euclidean, spline_order=1):
     """
-    Linear or cosine interpolation using a specified distance function
+    Linear or cosine interpolation using a specified distance metric
 
     :param Tensor a:
     :param Tensor b:
     :param float|Tensor g: Blending gradient a to b (0..1)
-    :param DistanceFunction|int|str dist_func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :param DistanceMetric|int|str dist_metric: Distance metric
     :param int spline_order: 1=Linear, 2=Cosine
     """
 
@@ -1206,48 +1206,48 @@ def morph(a, b, g, dist_func=DistanceFunction.euclidean, spline_order=1):
 
     x, y = component_func(a, b, g)
 
-    return distance(x, y, dist_func)
+    return distance(x, y, dist_metric)
 
 
-def distance(a, b, func):
+def distance(a, b, metric):
     """
-    Compute the distance from a to b, using the specified function.
+    Compute the distance from a to b, using the specified metric.
 
     :param Tensor a:
     :param Tensor b:
-    :param DistanceFunction|int|str func: Distance function (1=Euclidean, 2=Manhattan, 3=Chebyshev)
+    :param DistanceMetric|int|str metric: Distance metric
     :return: Tensor
     """
 
-    if isinstance(func, int):
-        func = DistanceFunction(func)
+    if isinstance(metric, int):
+        metric = DistanceMetric(metric)
 
-    elif isinstance(func, str):
-        func = DistanceFunction[func]
+    elif isinstance(metric, str):
+        metric = DistanceMetric[metric]
 
-    if func == DistanceFunction.euclidean:
+    if metric == DistanceMetric.euclidean:
         dist = tf.sqrt(a * a + b * b)
 
-    elif func == DistanceFunction.manhattan:
+    elif metric == DistanceMetric.manhattan:
         dist = tf.abs(a) + tf.abs(b)
 
-    elif func == DistanceFunction.chebyshev:
+    elif metric == DistanceMetric.chebyshev:
         dist = tf.maximum(tf.abs(a), tf.abs(b))
 
-    elif func == DistanceFunction.octagram:
+    elif metric == DistanceMetric.octagram:
         dist = tf.maximum((tf.abs(a) + tf.abs(b)) / math.sqrt(2), tf.maximum(tf.abs(a), tf.abs(b)))
 
-    elif func == DistanceFunction.triangular:
+    elif metric == DistanceMetric.triangular:
         dist = tf.maximum(tf.abs(a) - b * .5, b)
 
-    elif func == DistanceFunction.hexagram:
+    elif metric == DistanceMetric.hexagram:
         dist = tf.maximum(
             tf.maximum(tf.abs(a) - b * .5, b),
             tf.maximum(tf.abs(a) - b * -.5, b * -1)
         )
 
     else:
-        raise ValueError("{0} isn't a distance function.".format(func))
+        raise ValueError("{0} isn't a distance metric.".format(metric))
 
     return dist
 
@@ -1355,13 +1355,13 @@ def center_mask(center, edges, shape, power=2):
     :return: Tensor
     """
 
-    mask = tf.pow(singularity(None, shape, dist_func=DistanceFunction.chebyshev), power)
+    mask = tf.pow(singularity(None, shape, dist_metric=DistanceMetric.chebyshev), power)
 
     return blend(center, edges, mask)
 
 
 def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
-            dist_func=DistanceFunction.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
+            dist_metric=DistanceMetric.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
             xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
@@ -1375,7 +1375,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
     :param float nth: Plot Nth nearest neighbor, or -Nth farthest
-    :param DistanceFunction|int dist_func: Voronoi distance function
+    :param DistanceMetric|int dist_metric: Voronoi distance metric
     :param bool regions: Assign colors to control points (memory intensive)
     :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
     :param float with_refract: Domain warp input tensor against resulting voronoi
@@ -1419,13 +1419,13 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
     y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
 
-    is_triangular = dist_func in (
-        DistanceFunction.triangular,
-        DistanceFunction.triangular.name,
-        DistanceFunction.triangular.value,
-        DistanceFunction.hexagram,
-        DistanceFunction.hexagram.name,
-        DistanceFunction.hexagram.value,
+    is_triangular = dist_metric in (
+        DistanceMetric.triangular,
+        DistanceMetric.triangular.name,
+        DistanceMetric.triangular.value,
+        DistanceMetric.hexagram,
+        DistanceMetric.hexagram.name,
+        DistanceMetric.hexagram.value,
     )
 
     if diagram_type in VoronoiDiagramType.flow_members():
@@ -1437,7 +1437,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
         # Keep it visually flipped "horizontal"-side-up
         y_sign = -1.0 if inverse else 1.0
 
-        dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_func)
+        dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_metric)
 
     else:
         half_width = int(width * .5)
@@ -1460,7 +1460,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
         # x_diff = (x_index - x) / width
         # y_diff = (y_index - y) / height
 
-        dist = distance(x_diff, y_diff, dist_func)
+        dist = distance(x_diff, y_diff, dist_metric)
 
     ###
     if diagram_type not in VoronoiDiagramType.flow_members():
@@ -1770,30 +1770,30 @@ def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_ma
     return tensor
 
 
-def sobel(tensor, shape, dist_func=1, rgb=False):
+def sobel(tensor, shape, dist_metric=1, rgb=False):
     """
     Colorized sobel edges.
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int dist_func: Sobel distance function
+    :param DistanceMetric|int dist_metric: Sobel distance metric
     :param bool rgb:
     """
 
     if rgb:
-        return sobel_operator(tensor, shape, dist_func)
+        return sobel_operator(tensor, shape, dist_metric)
 
     else:
-        return outline(tensor, shape, dist_func, True)
+        return outline(tensor, shape, dist_metric, True)
 
 
-def outline(tensor, shape, sobel_func=1, invert=False):
+def outline(tensor, shape, sobel_metric=1, invert=False):
     """
     Superimpose sobel operator results (cartoon edges)
 
     :param Tensor tensor:
     :param list[int] shape:
-    :param DistanceFunction|int sobel_func: Sobel distance function
+    :param DistanceMetric|int sobel_metric: Sobel distance metric
     """
 
     height, width, channels = shape
@@ -1802,7 +1802,7 @@ def outline(tensor, shape, sobel_func=1, invert=False):
 
     values = value_map(tensor, shape, keepdims=True)
 
-    edges = sobel_operator(values, value_shape, dist_func=sobel_func)
+    edges = sobel_operator(values, value_shape, dist_metric=sobel_metric)
 
     if invert:
         edges = 1 - edges
@@ -1810,7 +1810,7 @@ def outline(tensor, shape, sobel_func=1, invert=False):
     return edges * tensor
 
 
-def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
+def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0):
     """
     """
 
@@ -1822,7 +1822,7 @@ def glowing_edges(tensor, shape, sobel_func=2, alpha=1.0):
 
     edges = posterize(edges, random.randint(3, 5))
 
-    edges = 1.0 - sobel_operator(edges, value_shape, dist_func=sobel_func)
+    edges = 1.0 - sobel_operator(edges, value_shape, dist_metric=sobel_metric)
 
     edges = tf.minimum(edges * 8, 1.0) * tf.minimum(tensor * 1.25, 1.0)
 
@@ -1840,9 +1840,9 @@ def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
     :param Tensor tensor:
     :param list[int] shape:
     :param VoronoiDiagramType|int diagram_type:
-    :param DistanceFunction|int dist_func:
+    :param DistanceMetric|int dist_metric:
 
-    Additional kwargs will be sent to the `voronoi` function.
+    Additional kwargs will be sent to the `voronoi` metric.
     """
 
     x, y = point_cloud(1, PointDistribution.square, shape)
@@ -1872,7 +1872,7 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
 
-    fader = singularity(None, value_shape, dist_func=DistanceFunction.chebyshev, inverse=True)
+    fader = singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev, inverse=True)
     fader = normalize(fader)
 
     x *= fader
@@ -2241,7 +2241,7 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
     x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
     y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
 
-    shade = normalize(morph(x, y, grad, dist_func=DistanceFunction.manhattan), signed_range=True)
+    shade = normalize(morph(x, y, grad, dist_metric=DistanceMetric.manhattan), signed_range=True)
 
     down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
     up = tf.square(tf.maximum(shade * .5, 0.0))
@@ -2447,7 +2447,7 @@ def simple_frame(tensor, shape, brightness=0.0):
     """
     """
 
-    border = singularity(None, shape, dist_func=DistanceFunction.chebyshev)
+    border = singularity(None, shape, dist_metric=DistanceMetric.chebyshev)
 
     border = blend(tf.zeros(shape), border, .55)
 
@@ -2456,13 +2456,13 @@ def simple_frame(tensor, shape, brightness=0.0):
     return blend(tensor, tf.ones(shape) * brightness, border)
 
 
-def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_func=DistanceFunction.euclidean):
+def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_metric=DistanceMetric.euclidean):
     """Low-poly art style effect"""
 
     xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time, speed=speed)
 
-    distance = voronoi(tensor, shape, nth=1, xy=xy, dist_func=dist_func)
-    color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_func=dist_func)
+    distance = voronoi(tensor, shape, nth=1, xy=xy, dist_metric=dist_metric)
+    color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_metric=dist_metric)
 
     return normalize(blend(distance, color, .5))
 
@@ -2490,14 +2490,14 @@ def square_crop_and_resize(tensor, shape, length=1024):
     return tensor
 
 
-def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None, blend_edges=True):
+def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
     :param Tensor tensor:
     :param list[int] shape:
     :param int sides: Number of sides
-    :param DistanceFunction dist_func:
+    :param DistanceMetric dist_metric:
     :param xy: Optional (x, y) coordinates for points
     :param bool blend_edges: Blend with original edge indices
     """
@@ -2515,10 +2515,10 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None,
 
     # distance from any pixel to center
     if xy:
-        r = voronoi(None, value_shape, dist_func=dist_func, xy=xy)
+        r = voronoi(None, value_shape, dist_metric=dist_metric, xy=xy)
 
     else:
-        r = singularity(None, value_shape, dist_func=dist_func)
+        r = singularity(None, value_shape, dist_metric=dist_metric)
 
     r = tf.squeeze(r)
 
@@ -2536,7 +2536,7 @@ def kaleido(tensor, shape, sides, dist_func=DistanceFunction.euclidean, xy=None,
 
     if blend_edges:
         # fade to original image edges
-        fader = normalize(singularity(None, value_shape, dist_func=DistanceFunction.chebyshev))
+        fader = normalize(singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev))
         fader = tf.squeeze(fader)  # conform to index shape
         fader = tf.math.pow(fader, 5)
 

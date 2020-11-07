@@ -62,7 +62,7 @@ import noisemaker.recipes as recipes
 @cli.clut_range_option()
 @cli.clut_horizontal_option()
 @cli.voronoi_option()
-@cli.voronoi_func_option()
+@cli.voronoi_metric_option()
 @cli.voronoi_nth_option()
 @cli.voronoi_alpha_option()
 @cli.voronoi_refract_option()
@@ -131,7 +131,7 @@ def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
          normals, post_deriv, deriv, deriv_alpha, interp, distrib,
          corners, mask, mask_inverse, glyph_map, glyph_map_colorize,
          glyph_map_zoom, glyph_map_alpha, composite, composite_zoom,
-         posterize, erosion_worms, voronoi, voronoi_func, voronoi_nth,
+         posterize, erosion_worms, voronoi, voronoi_metric, voronoi_nth,
          voronoi_alpha, voronoi_refract, voronoi_refract_y_from_offset,
          voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither,
          aberration, light_leak, vignette, vignette_brightness,
@@ -157,7 +157,7 @@ def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
                                  with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
                                  worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_alpha=worms_alpha, worms_kink=worms_kink,
                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
-                                 with_voronoi=voronoi, voronoi_func=voronoi_func, voronoi_nth=voronoi_nth,
+                                 with_voronoi=voronoi, voronoi_metric=voronoi_metric, voronoi_nth=voronoi_nth,
                                  voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
                                  voronoi_refract_y_from_offset=voronoi_refract_y_from_offset,
                                  with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_corners=point_corners,

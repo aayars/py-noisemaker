@@ -2,7 +2,7 @@
 
 import click
 
-from noisemaker.constants import DistanceFunction, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior
+from noisemaker.constants import DistanceMetric, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior
 
 import noisemaker.masks as masks
 
@@ -25,7 +25,7 @@ CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_wi
 
 ALPHA_BLENDING_HINT = "alpha blending amount (0.0 = 0%, 1.0 = 100%)"
 
-DISTANCE_HINT = show_values(DistanceFunction)
+DISTANCE_HINT = show_values(DistanceMetric)
 
 ENTIRE_IMAGE_HINT = "(1.0 = height/width of entire image)"
 
@@ -477,10 +477,10 @@ def voronoi_option(**attrs):
     return int_option("--voronoi", callback=validate_enum(VoronoiDiagramType), **attrs)
 
 
-def voronoi_func_option(**attrs):
-    attrs.setdefault("help", "Voronoi: Distance function {0}".format(DISTANCE_HINT))
+def voronoi_metric_option(**attrs):
+    attrs.setdefault("help", "Voronoi: Distance metric {0}".format(DISTANCE_HINT))
 
-    return int_option("--voronoi-func", callback=validate_enum(DistanceFunction), default=1, **attrs)
+    return int_option("--voronoi-metric", callback=validate_enum(DistanceMetric), default=1, **attrs)
 
 
 def voronoi_nth_option(**attrs):
@@ -550,13 +550,13 @@ def point_drift_option(**attrs):
 def sobel_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator {0}".format(DISTANCE_HINT))
 
-    return int_option("--sobel", callback=validate_enum(DistanceFunction), **attrs)
+    return int_option("--sobel", callback=validate_enum(DistanceMetric), **attrs)
 
 
 def outline_option(**attrs):
     attrs.setdefault("help", "Post-processing: Apply Sobel operator, and multiply {0}".format(DISTANCE_HINT))
 
-    return int_option("--outline", callback=validate_enum(DistanceFunction), **attrs)
+    return int_option("--outline", callback=validate_enum(DistanceMetric), **attrs)
 
 
 def normals_option(**attrs):
@@ -568,13 +568,13 @@ def normals_option(**attrs):
 def post_deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract post-reduce rate of change {0}".format(DISTANCE_HINT))
 
-    return int_option("--post-deriv", callback=validate_enum(DistanceFunction), **attrs)
+    return int_option("--post-deriv", callback=validate_enum(DistanceMetric), **attrs)
 
 
 def deriv_option(**attrs):
     attrs.setdefault("help", "Derivatives: Extract per-octave rate of change {0}".format(DISTANCE_HINT))
 
-    return int_option("--deriv", callback=validate_enum(DistanceFunction), **attrs)
+    return int_option("--deriv", callback=validate_enum(DistanceMetric), **attrs)
 
 
 def deriv_alpha_option(**attrs):

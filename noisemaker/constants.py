@@ -3,9 +3,9 @@
 from enum import Enum
 
 
-class DistanceFunction(Enum):
+class DistanceMetric(Enum):
     """
-    Specify the distance function used in various operations, such as Voronoi cells, derivatives, and sobel operators.
+    Specify the distance metric used in various operations, such as Voronoi cells, derivatives, and sobel operators.
     """
 
     none = 0
@@ -513,3 +513,7 @@ class WormBehavior(Enum):
     chaotic = 4
 
     random = 5
+
+    @classmethod
+    def all(cls):
+        return [m for m in cls if m != cls.none]

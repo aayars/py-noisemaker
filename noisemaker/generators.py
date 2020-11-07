@@ -241,7 +241,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
 def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, mask_static=False,
-             deriv=False, deriv_func=0, deriv_alpha=1.0, lattice_drift=0.0,
+             deriv=False, deriv_metric=0, deriv_alpha=1.0, lattice_drift=0.0,
              post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
              post_deriv=False, with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
@@ -274,7 +274,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param bool mask_inverse:
     :param bool mask_static: If True, don't animate the mask
     :param bool deriv: Extract derivatives from noise
-    :param DistanceFunction|int deriv_func: Derivative distance function
+    :param DistanceFunction|int deriv_metric: Derivative distance metric
     :param float deriv_alpha: Derivative alpha blending amount
     :param float lattice_drift: Push away from underlying lattice
     :param float post_reindex_range: Reduced self-reindexing range (0..1+)
@@ -315,7 +315,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       refract_y_from_offset=post_process_args.get("refract_y_from_offset", False),
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                      deriv=deriv, deriv_func=deriv_func, deriv_alpha=deriv_alpha,
+                      deriv=deriv, deriv_metric=deriv_metric, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
                       saturation_distrib=saturation_distrib, time=time, speed=speed,
@@ -334,7 +334,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range,
                                   refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_func=deriv_func, with_crease=post_ridges, rgb=rgb,
+                                  deriv=post_deriv, deriv_metric=deriv_metric, with_crease=post_ridges, rgb=rgb,
                                   **post_process_args)
 
     return tensor

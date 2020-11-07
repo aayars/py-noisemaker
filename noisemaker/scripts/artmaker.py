@@ -1,3 +1,5 @@
+from enum import Enum
+
 import json
 
 import click
@@ -67,6 +69,9 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
 
             if isinstance(value, float):
                 value = f'{value:.02f}'
+
+            if isinstance(value, Enum):
+                value = value.name
 
             print(f'{key}: {value}')
 
