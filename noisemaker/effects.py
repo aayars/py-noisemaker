@@ -11,13 +11,23 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.constants import DistanceMetric, PointDistribution, ValueMask, VoronoiDiagramType, WormBehavior
+from noisemaker.constants import (
+    DistanceMetric,
+    InterpolationType,
+    PointDistribution,
+    ValueMask,
+    VoronoiDiagramType,
+    WormBehavior
+)
 from noisemaker.glyphs import load_glyphs
+from noisemaker.palettes import PALETTES as palettes
 from noisemaker.points import point_cloud
 
 import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 import noisemaker.util as util
+
+TWO_PI = math.pi * 2.0
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
@@ -46,7 +56,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  angle=None,
                  with_simple_frame=False,
                  with_kaleido=None, kaleido_dist_metric=DistanceMetric.euclidean, kaleido_blend_edges=True,
-                 with_wobble=None,
+                 with_wobble=None, with_palette=None,
                  rgb=False, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
@@ -149,6 +159,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :param None|DistanceMetric kaleido_dist_metric: Kaleido center distance metric
     :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
     :param None|float with_wobble: Move entire image around
+    :param None|str with_palette: Apply named cosine palette
     :param bool rgb: Using RGB mode? Hint for some effects.
     :return: Tensor
     """
@@ -158,7 +169,10 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_wobble:
         tensor = wobble(tensor, shape, time=time, speed=speed * with_wobble)
 
-    if with_voronoi or with_dla or with_kaleido:
+    if with_palette:
+        tensor = palette(tensor, shape, with_palette)
+
+    if (with_voronoi and with_voronoi != VoronoiDiagramType.none) or with_dla or with_kaleido:
         multiplier = max(2 * (point_generations - 1), 1)
 
         tiled_shape = [int(shape[0] / multiplier), int(shape[1] / multiplier), shape[2]]
@@ -173,7 +187,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
         input_tensor = resample(tensor, tiled_shape)
 
-        if with_voronoi:
+        if with_voronoi and with_voronoi != VoronoiDiagramType.none:
             input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_metric=voronoi_metric, inverse=voronoi_inverse,
                                    nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy,
                                    refract_y_from_offset=voronoi_refract_y_from_offset)
@@ -444,6 +458,12 @@ def resample(tensor, shape, spline_order=3):
     :return: Tensor
     """
 
+    if isinstance(spline_order, int):
+        spline_order = InterpolationType(spline_order)
+
+    elif isinstance(spline_order, str):
+        spline_order = InterpolationType[metric]
+
     input_shape = tf.shape(tensor)
 
     # Blown up row and column indices. These map into input tensor, producing a big blocky version.
@@ -459,7 +479,7 @@ def resample(tensor, shape, spline_order=3):
     resized = defaultdict(dict)
     resized[1][1] = tf.gather_nd(tensor, resized_index_trunc)
 
-    if spline_order == 0:
+    if spline_order == InterpolationType.constant:
         return resized[1][1]
 
     # Resized neighbors
@@ -484,19 +504,19 @@ def resample(tensor, shape, spline_order=3):
 
             resized[y][x] = _gather_scaled_offset(tensor, input_columns[y], input_rows[x], resized_index_trunc)
 
-    if spline_order == 1:
+    if spline_order == InterpolationType.linear:
         y1 = blend(resized[1][1], resized[1][2], resized_row_index_fract)
         y2 = blend(resized[2][1], resized[2][2], resized_row_index_fract)
 
         return blend(y1, y2, resized_col_index_fract)
 
-    if spline_order == 2:
+    if spline_order == InterpolationType.cosine:
         y1 = blend_cosine(resized[1][1], resized[1][2], resized_row_index_fract)
         y2 = blend_cosine(resized[2][1], resized[2][2], resized_row_index_fract)
 
         return blend_cosine(y1, y2, resized_col_index_fract)
 
-    if spline_order == 3:
+    if spline_order == InterpolationType.bicubic:
         # Extended neighborhood for bicubic
         points = []
 
@@ -712,8 +732,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
                 reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
             else:
                 reference_y = reference_x
-                reference_x = tf.cos(reference_x * math.pi * 2.0)
-                reference_y = tf.sin(reference_y * math.pi * 2.0)
+                reference_x = tf.cos(reference_x * TWO_PI)
+                reference_y = tf.sin(reference_y * TWO_PI)
 
     quad_directional = signed_range and not from_derivative
 
@@ -2527,7 +2547,7 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
 
     # repeat side according to angle
     # rotate by 90 degrees because vertical symmetry is more pleasing to me
-    ma = tf.math.floormod(a + math.radians(90), math.pi * 2.0 / sides)
+    ma = tf.math.floormod(a + math.radians(90), TWO_PI / sides)
     ma = tf.math.abs(ma - math.pi / sides)
 
     # polar to cartesian coordinates
@@ -2547,6 +2567,24 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
     y_index = tf.cast(y_index, tf.int32)
 
     return tf.gather_nd(tensor, tf.stack([y_index % height, x_index % width], 2))
+
+
+def palette(tensor, shape, name):
+    """
+    Another approach to image coloration
+    https://iquilezles.org/www/articles/palettes/palettes.htm
+    """
+
+    channel_shape = [shape[0], shape[1], 3]
+
+    p = palettes[name]
+
+    offset = p["offset"] * tf.ones(channel_shape)
+    amp = p["amp"] * tf.ones(channel_shape)
+    freq = p["freq"] * tf.ones(channel_shape)
+    phase = p["phase"] * tf.ones(channel_shape)
+
+    return offset + amp * tf.math.cos(TWO_PI * (freq * value_map(tensor, shape, keepdims=True) + phase))
 
 
 def shape_from_file(filename):

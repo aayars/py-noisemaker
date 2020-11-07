@@ -17,6 +17,7 @@ from noisemaker.constants import (
     VoronoiDiagramType as voronoi,
     WormBehavior as worms,
 )
+from noisemaker.palettes import PALETTES
 
 import noisemaker.generators as generators
 import noisemaker.masks as masks
@@ -207,6 +208,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "outline": lambda: {
         "with_outline": random.randint(1, 3),
+    },
+
+    "palette": lambda: {
+        "with_palette": random_member(PALETTES),
     },
 
     "pixel-sort": lambda: {
@@ -592,6 +597,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "basic": lambda: {
         "freq": random.randint(2, 4),
+        "with_palette": random_member(PALETTES) if coin_flip() else None,
     },
 
     "basic-lowpoly": lambda: extend("basic", "lowpoly"),
@@ -1812,13 +1818,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": 1.0,
     }),
 
-    "multires": lambda: {
+    "multires": lambda: extend("basic", {
         "octaves": random.randint(4, 8),
-    },
+    }),
 
-    "multires-low": lambda: {
+    "multires-low": lambda: extend("basic", {
         "octaves": random.randint(2, 4),
-    },
+    }),
 
     "multires-ridged": lambda: extend("multires", {
         "ridges": True
@@ -2566,6 +2572,7 @@ _PRESETS = lambda: {  # noqa: E731
     "symmetry": lambda: {
         "corners": True,
         "freq": 2,
+        "with_palette": random_member(PALETTES) if coin_flip() else None,
     },
 
     "symmetry-lowpoly": lambda: extend("lowpoly", "symmetry", {
