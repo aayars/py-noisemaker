@@ -16,7 +16,7 @@ import noisemaker.simplex as simplex
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
-                 with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None,
+                 with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None, with_degauss=False,
                  time=0.0, speed=1.0, **_):
     """
     Apply complex post-processing recipes.
@@ -44,6 +44,7 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_clouds: Cloud cover
     :param None|float with_lens_warp: Lens warp effect
     :param None|float with_tint: Color tint effect alpha amount
+    :param None|float with_degauss: CRT degauss effect
     :param float time: Input value for Z axis (simplex only)
     :return: Tensor
     """
@@ -80,6 +81,9 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_crt:
         tensor = crt(tensor, shape, time=time, speed=speed)
+
+    if with_degauss:
+        tensor = degauss(tensor, shape, displacement=with_degauss, time=time, speed=speed)
 
     if with_interference:
         tensor = interference(tensor, shape, time=time, speed=speed)
@@ -229,6 +233,19 @@ def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     ) * 2.0 - 1.0) * mask
 
     return effects.refract(tensor, shape, displacement, reference_x=distortion_x)
+
+
+def degauss(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
+    """
+    """
+
+    channel_shape = [shape[0], shape[1], 1]
+
+    red = lens_warp(tf.expand_dims(tensor[:, :, 0], -1), channel_shape, displacement=displacement, time=time, speed=speed)
+    green = lens_warp(tf.expand_dims(tensor[:, :, 1], -1), channel_shape, displacement=displacement, time=time, speed=speed)
+    blue = lens_warp(tf.expand_dims(tensor[:, :, 2], -1), channel_shape, displacement=displacement, time=time, speed=speed)
+
+    return tf.stack([tf.squeeze(red), tf.squeeze(green), tf.squeeze(blue)], 2)
 
 
 def crt(tensor, shape, time=0.0, speed=1.0):

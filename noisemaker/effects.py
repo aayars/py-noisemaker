@@ -2353,7 +2353,7 @@ def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, speed=1.0):
     """
 
     if angled:
-        angle = simplex.random(time, seed=random.randint(1, 65536), speed=speed) if isinstance(angled, bool) else angled
+        angle = random.random() if isinstance(angled, bool) else angled
 
     else:
         angle = False

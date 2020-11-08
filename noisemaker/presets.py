@@ -77,6 +77,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_crt": True,
     }),
 
+    "degauss": lambda: extend("crt", {
+        "with_degauss": .0625 + random.random() * .03125,
+    }),
+
     "density-map": lambda: extend("invert", "dither", {
         "with_density_map": True,
     }),
@@ -155,7 +159,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "lens-warp": lambda: {
         "speed": .05,
-        "with_lens_warp": .25 + random.random() * .25,
+        "with_lens_warp": .125 + random.random() * .125,
     },
 
     "light-leak": lambda: extend("bloom", "vignette-bright", {
@@ -803,16 +807,6 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .75 + random.random() * .25,
         "worms_density": 1500,
         "worms_kink": random.randint(16, 32),
-    }),
-
-    "chiral": lambda: extend("sobel", "symmetry", "voronoi", {
-        "point_freq": 1,
-        "post_reindex_range": .05,
-        "post_refract_range": random.randint(18, 36),
-        "speed": .025,
-        "voronoi_alpha": .95,
-        "with_density_map": True,
-        "with_voronoi": voronoi.flow,
     }),
 
     "circulent": lambda: extend("invert", "reverb", "symmetry", "voronoi", "wormhole", {
@@ -2613,6 +2607,12 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.range_regions,
     }),
 
+    "terra-terribili": lambda: extend("multires-ridged", "palette", {
+        "hue_range": .5 + random.random() * .5,
+        "lattice_drift": 1.0,
+        "with_shadow": 1.0,
+    }),
+
     "the-arecibo-response": lambda: extend("snow", "value-mask", {
         "freq": random.randint(42, 210),
         "mask": mask.arecibo,
@@ -2842,8 +2842,9 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": interp.constant,
         "warp_interp": random_member([m for m in interp if m != interp.constant]),
         "warp_freq": random.randint(2, 4),
-        "warp_range": .125 + random.random() * .375,
+        "warp_range": .25 + random.random() * .75,
         "warp_octaves": 1,
+        "with_palette": None,
     }),
 
     "watercolor": lambda: {
