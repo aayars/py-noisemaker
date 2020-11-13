@@ -236,6 +236,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "pixel-sort-angled-darkest": lambda: extend("pixel-sort-angled", "pixel-sort-darkest"),
 
+    "polar": lambda: extend("kaleido", {
+        "with_kaleido": 1,
+    }),
+
     "posterize-outline": lambda: extend("outline", {
         "posterize_levels": random.randint(3, 7),
     }),
@@ -2244,6 +2248,14 @@ _PRESETS = lambda: {  # noqa: E731
         "posterize_levels": 1,
         "reduce_max": True,
         "rgb": True,
+    }),
+
+    "sbup": lambda: extend("distressed", "falsetto", "palette", {
+        "distrib": distrib.ones,
+        "freq": 3,
+        "mask": mask.square,
+        "posterize_levels": random.randint(1, 2),
+        "warp_range": 1.5 + random.random(),
     }),
 
     "scribbles": lambda: extend("dither", "sobel", {
