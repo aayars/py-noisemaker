@@ -1196,7 +1196,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "fat-led": lambda: extend("bloom", "value-mask", {
         "mask": stash("fat-led-mask", random_member([
-            vm.fat_lcd, vm.fat_lcd_binary, vm.fat_lcd_numeric, vm.fat_lcd_hex])),
+            mask.fat_lcd, mask.fat_lcd_binary, mask.fat_lcd_numeric, mask.fat_lcd_hex])),
         "freq": [int(i * stash("fat-led-repeat", random.randint(15, 30)))
             for i in masks.mask_shape(stash("fat-led-mask"))[0:2]],
     }),
