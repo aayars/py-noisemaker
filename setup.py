@@ -31,7 +31,7 @@ setup(name='noisemaker',
         "Pillow==8.0.1",
         "wheel==0.35.1",  # Needed by TF
         "opensimplex==0.3",
-        "pyfastnoisesimd=0.4.1",
+        "pyfastnoisesimd==0.4.1",
         ],
 
       setup_requires=["pytest-runner"],
