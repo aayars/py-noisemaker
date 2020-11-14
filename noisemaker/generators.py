@@ -7,7 +7,7 @@ import string
 import numpy as np
 import tensorflow as tf
 
-from noisemaker.constants import ValueDistribution, ValueMask
+from noisemaker.constants import OctaveBlending, ValueDistribution, ValueMask
 
 import noisemaker.effects as effects
 import noisemaker.fastnoise as fastnoise
@@ -56,7 +56,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
         tensor = tf.ones(initial_shape) * .5
 
     elif distrib == ValueDistribution.normal:
-        tensor = tf.random.normal(initial_shape)
+        tensor = tf.random.normal(initial_shape, mean=0.5, stddev=0.25)
+        tensor = tf.math.minimum(tf.math.maximum(tensor, 0.0), 1.0)
 
     elif distrib == ValueDistribution.uniform:
         tensor = tf.random.uniform(initial_shape)
@@ -125,7 +126,14 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
             mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
                                                time=0 if mask_static else time, speed=speed)
 
-            tensor *= mask_values
+            if shape[2] == 2:
+                tensor = tf.stack([tensor[:, :, 0], tf.stack(mask_values)[:, :, 0]], 2)
+
+            elif shape[2] == 4:
+                tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], tf.stack(mask_values)[:, :, 0]], 2)
+
+            else:
+                tensor *= mask_values
 
         if wavelet:
             tensor = effects.wavelet(tensor, initial_shape)
@@ -195,7 +203,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
                                   spline_order=spline_order, rgb=rgb, **post_process_args)
 
-    if shape[-1] == 3 and not rgb:
+    if shape[-1] >= 3 and not rgb:
         if hue_distrib:
             h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
                                   mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
@@ -236,7 +244,14 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
         if sin:
             v = effects.normalize(tf.sin(sin * v))
 
+        # Preserve the alpha channel before conversion to RGB
+        if shape[2] == 4:
+            a = tensor[:, :, 3]
+
         tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
+
+        if shape[2] == 4:
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], a], 2)
 
     elif ridges and spline_order:
         tensor = effects.crease(tensor)
@@ -255,7 +270,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              post_deriv=False, with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             reduce_max=False, time=0.0, speed=1.0, **post_process_args):
+             octave_blending=OctaveBlending.falloff, time=0.0, speed=1.0, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -299,7 +314,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
     :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
     :param None|int|list[int] brightness_freq: Override frequency for HSV brightness
-    :param bool reduce_max: If True, accumulate max values across all octaves
+    :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
     :param float speed: Displacement range for Z/W axis (simplex only)
     :param float time: Time argument for Z/W axis (simplex only)
     :return: Tensor
@@ -307,10 +322,25 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
-    tensor = tf.zeros(shape)
+    # Normalize input
 
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
+
+    if isinstance(octave_blending, int):
+        octave_blending = OctaveBlending(octave_blending)
+
+    elif isinstance(octave_blending, str):
+        octave_blending = OctaveBlending[octave_blending]
+
+    original_shape = shape.copy()
+
+    if octave_blending == OctaveBlending.alpha and shape[2] in (1, 3):  # Make sure there's an alpha channel
+        shape[2] += 1
+
+    # Make some noise
+
+    tensor = tf.zeros(shape)
 
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
@@ -330,10 +360,28 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       saturation_distrib=saturation_distrib, time=time, speed=speed,
                       )
 
-        if reduce_max:
+        if octave_blending == OctaveBlending.reduce_max:
             tensor = tf.maximum(tensor, layer)
-        else:
+
+        elif octave_blending == OctaveBlending.alpha:
+            a = tf.expand_dims(layer[:, :, -1], -1)
+
+            tensor = (tensor * (1.0 - a)) + layer * a
+
+        else:  # falloff
             tensor += layer / multiplier
+
+    # If the original shape did not include an alpha channel, reduce masked values to 0 (black)
+    if octave_blending == OctaveBlending.alpha and original_shape[2] in (1, 3):
+        a = tensor[:, :, -1]
+
+        if original_shape[2] == 1:
+            tensor = tf.expand_dims(tensor[:, :, 0] * a, -1)
+
+        elif original_shape[2] == 3:
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2) * tf.expand_dims(a, -1)
+
+        shape = original_shape
 
     post_process_args['refract_signed_range'] = False
     post_process_args.pop("refract_y_from_offset", None)

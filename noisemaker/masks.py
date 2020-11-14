@@ -2557,18 +2557,18 @@ def arecibo(x, y, row, shape, uv_x, uv_y, uv_noise, glyph_shape, **kwargs):
     if x > half_width - dna_half_width and x < half_width + dna_half_width:
         dna_x = int(x - half_width - dna_half_width)
 
-        return arecibo_dna(dna_x, y, row, mask_shape(ValueMask.arecibo_dna), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_dna(dna_x, y, row, mask_shape(ValueMask.arecibo_dna), uv_noise, uv_x, uv_y, **kwargs)
 
     if x > half_width - (dna_half_width + 2) and x < half_width + dna_half_width + 1:
         return 0
 
     if y < third_height:
-        return arecibo_num(x, y, row, mask_shape(ValueMask.arecibo_num), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_num(x, y, row, mask_shape(ValueMask.arecibo_num), uv_noise, uv_x, uv_y, **kwargs)
 
     if y < third_height * 2:
-        return arecibo_nucleotide(x, y, row, mask_shape(ValueMask.arecibo_nucleotide), uv_x, uv_y, uv_noise, **kwargs)
+        return arecibo_nucleotide(x, y, row, mask_shape(ValueMask.arecibo_nucleotide), uv_noise, uv_x, uv_y, **kwargs)
 
-    return arecibo_bignum(x, y, row, mask_shape(ValueMask.arecibo_bignum), uv_x, uv_y, uv_noise, **kwargs)
+    return arecibo_bignum(x, y, row, mask_shape(ValueMask.arecibo_bignum), uv_noise, uv_x, uv_y, **kwargs)
 
 
 @mask([6, 6, 1])

@@ -11,6 +11,7 @@ import random
 from noisemaker.constants import (
     DistanceMetric as distance,
     InterpolationType as interp,
+    OctaveBlending as blend,
     PointDistribution as point,
     ValueDistribution as distrib,
     ValueMask as mask,
@@ -973,11 +974,19 @@ _PRESETS = lambda: {  # noqa: E731
         "mask": mask.sparser,
         "mask_static": True,
         "lattice_drift": 1,
+        "octave_blending": blend.reduce_max,
         "octaves": 5,
-        "reduce_max": True,
         "refract_range": 0.25,
         "warp_range": .05,
     }),
+
+    "deeper": lambda: {
+        "distrib": distrib.exp,
+        "hue_range": 1.0,
+        "lattice_drift": 1,
+        "octave_blending": blend.alpha,
+        "octaves": 8,
+    },
 
     "defocus": lambda: extend("bloom", "multires", {
         "mask": stash('defocus-mask', random_member(mask)),
@@ -1065,9 +1074,9 @@ _PRESETS = lambda: {  # noqa: E731
         "distrib": distrib.ones,
         "freq": [random.randint(4, 6), random.randint(2, 4)],
         "mask": mask.dropout,
+        "octave_blending": blend.reduce_max,
         "octaves": random.randint(5, 6),
         "post_deriv": distance.euclidean,
-        "reduce_max": True,
         "rgb": True,
         "spline_order": interp.constant,
     }),
@@ -1414,9 +1423,9 @@ _PRESETS = lambda: {  # noqa: E731
     "glyphic": lambda: extend("maybe-invert", "value-mask", {
         "mask": stash('glyphic-mask', random_member(mask.procedural_members())),
         "freq": masks.mask_shape(stash("glyphic-mask"))[0:2],
+        "octave_blending": blend.reduce_max,
         "octaves": random.randint(3, 5),
         "posterize_levels": 1,
-        "reduce_max": True,
         "saturation": 0,
         "spline_order": interp.cosine,
     }),
@@ -1684,6 +1693,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     }),
 
+    "look-up": lambda: {
+        "distrib": distrib.fastnoise_exp,
+        "hue_range": 10,
+        "octave_blending": blend.alpha,
+        "octaves": 8,
+        "ridges": True,
+    },
+
     "lost-in-it": lambda: {
         "distrib": distrib.ones,
         "freq": random.randint(36, 48) * 2,
@@ -1922,6 +1939,16 @@ _PRESETS = lambda: {  # noqa: E731
         "with_false_color": True
     }),
 
+    "octave-blend": lambda: {
+        "corners": True,
+        "distrib": random_member([distrib.ones, distrib.uniform]),
+        "freq": random.randint(2, 5),
+        "mask": random_member(mask.procedural_members()),
+        "octave_blending": blend.alpha,
+        "octaves": random.randint(4, 7),
+        "spline_order": random_member(interp),
+    },
+
     "octave-rings": lambda: extend("sobel", {
         "corners": True,
         "distrib": distrib.ones,
@@ -1963,11 +1990,11 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 2,
         "hue_range": .875 + random.random() * .25,
         "lattice_drift": 1,
+        "octave_blending": blend.reduce_max,
         "octaves": 8,
         "post_refract_range": .075 + random.random() * .075,
         "post_saturation": .5,
         "speed": .05,
-        "reduce_max": True,
         "with_shadow": 1,
     },
 
@@ -2244,9 +2271,9 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(5, 9),
         "lattice_drift": 1.25 + random.random() * 1.25,
         "mask": mask.sparse,
+        "octave_blending": blend.reduce_max,
         "octaves": random.randint(2, 3),
         "posterize_levels": 1,
-        "reduce_max": True,
         "rgb": True,
     }),
 
@@ -2505,9 +2532,9 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 3,
         "lattice_drift": 1,
         "mask": mask.dropout,
+        "octave_blending": blend.reduce_max,
         "octaves": 6,
         "post_deriv": distance.chebyshev,
-        "reduce_max": True,
         "rgb": True,
         "spline_order": interp.bicubic,
     }),
@@ -2867,6 +2894,16 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_octaves": 8,
         "with_fibers": True,
         "with_texture": True,
+    },
+
+    "what-do-they-want": lambda: {
+        "corners": True,
+        "distrib": distrib.ones,
+        "freq": random.randint(1, 2) * 6,
+        "octave_blending": blend.alpha,
+        "octaves": 4,
+        "mask": random_member([mask.invaders_square, mask.matrix]),
+        "with_sobel": 101,
     },
 
     "whatami": lambda: extend("invert", {

@@ -19,7 +19,7 @@ import noisemaker.recipes as recipes
 @cli.channels_option()
 @cli.time_option()
 @cli.octaves_option()
-@cli.reduce_max_option()
+@cli.octave_blending_option()
 @cli.ridges_option()
 @cli.post_ridges_option()
 @cli.convolve_option()
@@ -119,7 +119,7 @@ import noisemaker.recipes as recipes
 @cli.seed_option()
 @cli.name_option()
 @click.pass_context
-def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
+def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          ridges, post_ridges, sin, wavelet, lattice_drift, vortex,
          warp, warp_octaves, warp_interp, warp_freq, warp_map,
          reflect, refract, refract_y_from_offset,
@@ -146,7 +146,7 @@ def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
 
     shape = [height, width, channels]
 
-    tensor = generators.multires(freq=freq, shape=shape, time=time, octaves=octaves, reduce_max=reduce_max,
+    tensor = generators.multires(freq=freq, shape=shape, time=time, octaves=octaves, octave_blending=octave_blending,
                                  ridges=ridges, post_ridges=post_ridges, sin=sin, wavelet=wavelet,
                                  lattice_drift=lattice_drift, reflect_range=reflect, refract_range=refract, reindex_range=reindex,
                                  refract_y_from_offset=refract_y_from_offset,

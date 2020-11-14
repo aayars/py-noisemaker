@@ -5,6 +5,7 @@ import click
 from noisemaker.constants import (
     DistanceMetric,
     InterpolationType,
+    OctaveBlending,
     PointDistribution,
     ValueDistribution,
     ValueMask,
@@ -167,10 +168,10 @@ def octaves_option(**attrs):
     return int_option("--octaves", type=click.IntRange(1, 10), default=1, **attrs)
 
 
-def reduce_max_option(**attrs):
-    attrs.setdefault("help", "Blend maximum per-octave values, instead of adding")
+def octave_blending_option(**attrs):
+    attrs.setdefault("help", "Blending mode for flattening per-octave values")
 
-    return bool_option("--reduce-max/--no-reduce-max", default=False, **attrs)
+    return str_option("--octave-blending", type=click.Choice([m.name for m in OctaveBlending]), default=OctaveBlending.falloff.name, **attrs)
 
 
 def ridges_option(**attrs):
@@ -188,7 +189,7 @@ def post_ridges_option(**attrs):
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
 
-    return str_option("--distrib", type=click.Choice([m.name for m in ValueDistribution]), default="normal", **attrs)
+    return str_option("--distrib", type=click.Choice([m.name for m in ValueDistribution]), default=ValueDistribution.normal.name, **attrs)
 
 
 def corners_option(**attrs):

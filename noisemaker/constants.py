@@ -521,3 +521,16 @@ class WormBehavior(Enum):
     @classmethod
     def all(cls):
         return [m for m in cls if m != cls.none]
+
+
+class OctaveBlending(Enum):
+    """Specify the mode for flattening octaves."""
+
+    # Traditional Perlinesque octave-over-octave persistence falloff
+    falloff = 0
+
+    # Take the maximum of each layer
+    reduce_max = 10
+
+    # Overlay each layer using the layer's alpha channel
+    alpha = 20
