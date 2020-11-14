@@ -934,6 +934,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     },
 
+    "dark-matter": lambda: {
+        "distrib": distrib.exp,
+        "lattice_drift": 1,
+        "octave_blending": blend.alpha,
+        "octaves": 5,
+        "reflect_range": random.randint(20, 30),
+    },
+
     "deadbeef": lambda: extend("bloom", "corrupt", "value-mask", {
         "freq": 6 * random.randint(9, 24),
         "mask": mask.alphanum_hex,
