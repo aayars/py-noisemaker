@@ -115,6 +115,7 @@ import noisemaker.recipes as recipes
 @cli.input_dir_option()
 @cli.wavelet_option()
 @cli.density_map_option()
+@cli.palette_option()
 @cli.seed_option()
 @cli.name_option()
 @click.pass_context
@@ -139,7 +140,7 @@ def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
          saturation, hue_distrib, saturation_distrib, post_hue_rotation,
          post_saturation, brightness_distrib, input_dir, dla, dla_padding,
          point_freq, point_distrib, point_corners, point_generations,
-         point_drift, density, seed, name):
+         point_drift, density, palette, seed, name):
 
     generators.set_seed(seed)
 
@@ -172,7 +173,7 @@ def main(ctx, freq, width, height, channels, time, octaves, reduce_max,
                                  post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
                                  saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,
-                                 with_convolve=convolve, with_shadow=shadow)
+                                 with_convolve=convolve, with_shadow=shadow, with_palette=palette)
 
     tensor = recipes.post_process(tensor, shape=shape, freq=freq, time=time,
                                   with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)

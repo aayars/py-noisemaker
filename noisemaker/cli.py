@@ -2,7 +2,17 @@
 
 import click
 
-from noisemaker.constants import DistanceMetric, InterpolationType, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType, WormBehavior
+from noisemaker.constants import (
+    DistanceMetric,
+    InterpolationType,
+    PointDistribution,
+    ValueDistribution,
+    ValueMask,
+    VoronoiDiagramType,
+    WormBehavior
+)
+
+from noisemaker.palettes import PALETTES as palettes
 
 import noisemaker.masks as masks
 
@@ -373,6 +383,12 @@ def reverb_iterations_option(**attrs):
     attrs.setdefault("help", "Reverb: Re-reverberate N times")
 
     return int_option("--reverb-iterations", type=click.IntRange(1, 4), default=1, **attrs)
+
+
+def palette_option(**attrs):
+    attrs.setdefault("help", "Apply named cosine palette")
+
+    return str_option('--palette', type=click.Choice(sorted(palettes)), **attrs)
 
 
 def clut_option(**attrs):
