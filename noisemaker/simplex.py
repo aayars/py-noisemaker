@@ -15,6 +15,11 @@ def get_seed():
     """
 
     global _seed
+
+    # increment the global seed on each use so we're not repeating values across subsequent calls
+    if _seed:
+        _seed += 1
+
     return _seed or _random.randint(1, 65536)
 
 

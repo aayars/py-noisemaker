@@ -1949,7 +1949,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .25 + random.random() * .25,
     }),
 
-    "noodler": lambda: extend("multires-alpha", "palette", {
+    "noodler": lambda: extend("multires-alpha", "maybe-palette", {
         "distrib": distrib.uniform,
         "lattice_drift": 0,
         "mask": mask.sparse,
@@ -2827,6 +2827,10 @@ _PRESETS = lambda: {  # noqa: E731
     "truchet-maze": lambda: extend("value-mask", {
         "freq": 6 * random.randint(50, 100),
         "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
+    }),
+
+    "truffula-spores": lambda: extend("multires-alpha", {
+        "with_worms": worms.obedient,
     }),
 
     "twister": lambda: extend("wormhole", {
