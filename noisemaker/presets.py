@@ -1949,6 +1949,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_shadow": .25 + random.random() * .25,
     }),
 
+    "noodler": lambda: extend("multires-alpha", "palette", {
+        "distrib": distrib.uniform,
+        "lattice_drift": 0,
+        "mask": mask.sparse,
+        "octaves": 5,
+        "reindex_range": 3.0 + random.random() * 2.5,
+    }),
+
     "now": lambda: extend("multires-low", "outline", {
         "freq": random.randint(3, 10),
         "hue_range": random.random(),
