@@ -453,6 +453,14 @@ _PRESETS = lambda: {  # noqa: E731
             else random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
     }),
 
+    "abyssal-echoes": lambda: extend("multires-alpha", {
+        "distrib": distrib.exp,
+        "octaves": 5,
+        "post_hue_rotation": random.random(),
+        "reflect_range": random.randint(20, 30),
+        "rgb": True,
+    }),
+
     "acid": lambda: {
         "freq": random.randint(10, 15),
         "octaves": 8,
@@ -630,6 +638,17 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": 2,
         "with_shadow": .25 + random.random() * .25,
     },
+
+    "beneath-the-surface": lambda: extend("bloom", "multires-alpha", {
+        "distrib": distrib.exp,
+        "freq": 3,
+        "hue_range": 4,
+        "lattice_drift": 1,
+        "octaves": 5,
+        "reflect_range": 15,
+        "ridges": True,
+        "with_shadow": .5,
+    }),
 
     "benny-lava": lambda: extend("distressed", "maybe-palette", {
         "distrib": distrib.column_index,
@@ -934,13 +953,10 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     },
 
-    "dark-matter": lambda: {
-        "distrib": distrib.exp,
-        "lattice_drift": 1,
-        "octave_blending": blend.alpha,
+    "dark-matter": lambda: extend("multires-alpha", {
         "octaves": 5,
         "reflect_range": random.randint(20, 30),
-    },
+    }),
 
     "deadbeef": lambda: extend("bloom", "corrupt", "value-mask", {
         "freq": 6 * random.randint(9, 24),
@@ -988,13 +1004,10 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_range": .05,
     }),
 
-    "deeper": lambda: {
-        "distrib": distrib.exp,
+    "deeper": lambda: extend("multires-alpha", {
         "hue_range": 1.0,
-        "lattice_drift": 1,
-        "octave_blending": blend.alpha,
         "octaves": 8,
-    },
+    }),
 
     "defocus": lambda: extend("bloom", "multires", {
         "mask": stash('defocus-mask', random_member(mask)),
@@ -1387,15 +1400,13 @@ _PRESETS = lambda: {  # noqa: E731
 
     "game-over-man": lambda: extend("galalaga", "glitchin-out", "lens"),
 
-    "glass-darkly": lambda: {
+    "glass-darkly": lambda: extend("multires-alpha", {
         "distrib": distrib.lognormal,
         "octaves": 8,
-        "octave_blending": blend.alpha,
-        "lattice_drift": 1,
         "post_hue_rotation": .1 + random.random() * .05,
         "post_reflect_range": .95 + random.random() * .1,
         "rgb": True,
-    },
+    }),
 
     "glass-onion": lambda: {
         "point_freq": random.randint(3, 6),
@@ -1711,13 +1722,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     }),
 
-    "look-up": lambda: {
+    "look-up": lambda: extend("multires-alpha", {
         "distrib": distrib.fastnoise_exp,
         "hue_range": 10,
-        "octave_blending": blend.alpha,
+        "lattice_drift": 0,
         "octaves": 8,
         "ridges": True,
-    },
+    }),
 
     "lost-in-it": lambda: {
         "distrib": distrib.ones,
@@ -1859,6 +1870,14 @@ _PRESETS = lambda: {  # noqa: E731
         "octaves": random.randint(4, 8),
     }),
 
+    "multires-alpha": lambda: extend("multires", {
+        "distrib": distrib.exp,
+        "lattice_drift": 1,
+        "octave_blending": blend.alpha,
+        "octaves": 5,
+        "with_palette": None,
+    }),
+
     "multires-low": lambda: extend("basic", {
         "octaves": random.randint(2, 4),
     }),
@@ -1957,15 +1976,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_false_color": True
     }),
 
-    "octave-blend": lambda: {
+    "octave-blend": lambda: extend("multires-alpha", {
         "corners": True,
         "distrib": random_member([distrib.ones, distrib.uniform]),
         "freq": random.randint(2, 5),
+        "lattice_drift": 0,
         "mask": random_member(mask.procedural_members()),
-        "octave_blending": blend.alpha,
-        "octaves": random.randint(4, 7),
-        "spline_order": random_member(interp),
-    },
+        "spline_order": interp.constant,
+    }),
 
     "octave-rings": lambda: extend("sobel", {
         "corners": True,
