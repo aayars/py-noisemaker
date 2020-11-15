@@ -303,7 +303,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "snow": lambda: {
-        "with_snow": .5 + random.random() * .5,
+        "with_snow": .333 + random.random() * .333,
     },
 
     "sobel": lambda: extend("maybe-invert", {
