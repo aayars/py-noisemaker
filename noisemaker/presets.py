@@ -640,14 +640,12 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "beneath-the-surface": lambda: extend("bloom", "multires-alpha", {
-        "distrib": distrib.exp,
         "freq": 3,
-        "hue_range": 4,
-        "lattice_drift": 1,
+        "hue_range": 2.0 + random.random() * 2.0,
         "octaves": 5,
-        "reflect_range": 15,
+        "reflect_range": 10.0 + random.random() * 5.0,
         "ridges": True,
-        "with_shadow": .5,
+        "with_shadow": .333 + random.random() * .333,
     }),
 
     "benny-lava": lambda: extend("distressed", "maybe-palette", {
