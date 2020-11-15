@@ -1387,6 +1387,16 @@ _PRESETS = lambda: {  # noqa: E731
 
     "game-over-man": lambda: extend("galalaga", "glitchin-out", "lens"),
 
+    "glass-darkly": lambda: {
+        "distrib": distrib.lognormal,
+        "octaves": 8,
+        "octave_blending": blend.alpha,
+        "lattice_drift": 1,
+        "post_hue_rotation": .1 + random.random() * .05,
+        "post_reflect_range": .95 + random.random() * .1,
+        "rgb": True,
+    },
+
     "glass-onion": lambda: {
         "point_freq": random.randint(3, 6),
         "post_deriv": random_member(distance.absolute_members()),
@@ -3015,6 +3025,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_density": 500,
         "worms_kink": 1.0 + random.random() * 4.0,
         "worms_stride": 8.0 + random.random() * 4.0,
+        "with_palette": None,
     }),
 
 }

@@ -29,10 +29,7 @@ def random(time, seed=None, speed=1.0):
 
 
 def simplex(shape, time=0.0, seed=None, speed=1.0, as_np=False):
-
-    """
-    Return simplex noise values. Lives in its own module to avoid circular dependencies.
-    """
+    """Return simplex noise values. Lives in its own module to avoid circular dependencies."""
 
     tensor = np.empty(shape, dtype=np.float32)
 

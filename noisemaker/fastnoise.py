@@ -5,8 +5,6 @@ import numpy as np
 import pyfastnoisesimd as fn
 import tensorflow as tf
 
-import noisemaker.effects as effects
-
 
 def fastnoise(shape, freq, time=0.0, seed=None, speed=1.0, as_np=False):
     tensor = np.empty(shape, dtype=np.float32)
