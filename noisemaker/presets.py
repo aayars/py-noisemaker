@@ -1181,6 +1181,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_sobel": 1,
     }),
 
+    "escape-velocity": lambda: extend("multires-low", {
+        "distrib": random_member([distrib.lognormal, distrib.exp, distrib.uniform]),
+        "erosion_worms_contraction": .2 + random.random() * .1,
+        "erosion_worms_iterations": random.randint(625, 1125),
+        "rgb": coin_flip(),
+        "with_erosion_worms": True,
+    }),
+
     "explore": lambda: extend("dmt", "kaleido", "lens", {
         "hue_range": .75 + random.random() * .75,
         "brightness_distrib": None,
