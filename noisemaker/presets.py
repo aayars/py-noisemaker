@@ -2146,6 +2146,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": interp.cosine,
         "posterize_levels": random.randint(4, 8),
         "with_convolve": ["emboss"],
+        "with_palette": None,
         "with_shadow": .5,
     }),
 
@@ -2515,13 +2516,15 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "soup": lambda: extend("bloom", "density-map", {
-        "point_freq": random.randint(2, 4),
-        "post_refract_range": random.randint(4, 6),
+        "freq": random.randint(2, 3),
+        "point_freq": random.randint(2, 3),
+        "post_refract_range": random.randint(2, 3),
+        "post_refract_y_from_offset": True,
         "voronoi_inverse": True,
         "with_shadow": 1.0,
         "with_voronoi": voronoi.flow,
         "with_worms": worms.random,
-        "worms_alpha": .5 + random.random() * .45,
+        "worms_alpha": .875 + random.random() * .125,
         "worms_density": 500,
         "worms_kink": 4.0 + random.random() * 2.0,
     }),
@@ -2653,6 +2656,19 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_metric": random_member([distance.manhattan, distance.chebyshev, distance.triangular]),
         "voronoi_nth": random.randint(0, 25),
         "with_voronoi": random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
+    }),
+
+    "string-theory": lambda: extend("multires-low", "lens", {
+        "erosion_worms_alpha": .875 + random.random() * .125,
+        "erosion_worms_contraction": 4.0 + random.random() * 2.0,
+        "erosion_worms_density": .25 + random.random() * .125,
+        "erosion_worms_iterations": random.randint(1250, 2500),
+        "octaves": random.randint(2, 4),
+        "rgb": True,
+        "ridges": False,
+        "with_bloom": .125 + random.random() * .0625,
+        "with_erosion_worms": True,
+        "with_palette": None,
     }),
 
     "subpixelator": lambda: extend("basic", "funhouse", "subpixels"),
