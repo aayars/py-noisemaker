@@ -12,7 +12,7 @@ output/noise.png`).
 Make sure your output directory exists (`mkdir output`). To generate basic noise, run:
 
 ```
-    docker run -v output:/output aayars/py-noisemaker \
+    docker run -v `pwd`/output:/output aayars/py-noisemaker \
         noisemaker --name output/noise.png
 ```
 
