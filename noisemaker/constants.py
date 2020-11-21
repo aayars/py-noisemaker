@@ -130,6 +130,7 @@ class ValueDistribution(Enum):
 
     simplex = 20
     simplex_exp = 21
+    simplex_pow_inv_1 = 22
 
     # use fastnoise for high-frequency animated noise. it doesn't loop but nobody will know
     fastnoise = 100

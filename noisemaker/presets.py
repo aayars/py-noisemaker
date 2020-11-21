@@ -216,7 +216,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     }),
 
     "outline": lambda: {
-        "with_outline": random.randint(1, 3),
+        "with_outline": distance.euclidean,
     },
 
     "palette": lambda: {
@@ -307,7 +307,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "sobel": lambda: extend("maybe-invert", {
-        "with_sobel": random.randint(1, 3),
+        "with_sobel": random_member(distance)
     }),
 
     "spatter": lambda: {
@@ -691,7 +691,7 @@ _PRESETS = lambda: {  # noqa: E731
         "posterize_levels": 3,
         "rgb": True,
         "voronoi_refract": .5 + random.random() * 1.25,
-        "with_sobel": 1,
+        "with_sobel": distance.euclidean,
         "warp_octaves": random.randint(1, 4),
         "warp_range": random.randint(0, 1) * random.random(),
     }),
@@ -986,7 +986,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_metric": random_member([distance.manhattan, distance.chebyshev]),
         "voronoi_nth": random.randint(2, 3),
         "with_voronoi": voronoi.range,
-        "with_sobel": random.randint(1, 3),
+        "with_sobel": random_member(distance),
     }),
 
     "deep-field": lambda: extend("multires", "funhouse", {
@@ -1178,7 +1178,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 6,
         "refract_y_from_offset": False,
         "speed": .05,
-        "with_sobel": 1,
+        "with_sobel": distance.euclidean,
     }),
 
     "escape-velocity": lambda: extend("multires-low", {
@@ -1274,7 +1274,7 @@ _PRESETS = lambda: {  # noqa: E731
         "posterize_levels": random.randint(3, 5),
         "post_saturation": .25,
         "voronoi_alpha": .5,
-        "with_outline": 1,
+        "with_outline": distance.euclidean,
         "with_voronoi": voronoi.color_range,
     }),
 
@@ -1819,6 +1819,17 @@ _PRESETS = lambda: {  # noqa: E731
         "with_glyph_map": mask.mcpaint,
     },
 
+    "melting-layers": lambda: {
+        "corners": True,
+        "distrib": distrib.ones,
+        "mask": random_member(mask.procedural_members()),
+        "octave_blending": blend.alpha,
+        "octaves": 5,
+        "refract_range": .1 + random.random() * .05,
+        "with_density_map": True,
+        "with_outline": distance.euclidean,
+    },
+
     "metaballs": lambda: {
         "point_drift": 4,
         "point_freq": 10,
@@ -1938,7 +1949,7 @@ _PRESETS = lambda: {  # noqa: E731
     "neon-cambrian": lambda: extend("aberration", "bloom", "wormhole", {
         "hue_range": 1,
         "posterize_levels": 24,
-        "with_sobel": 1,
+        "with_sobel": distance.euclidean,
         "with_voronoi": voronoi.flow,
         "wormhole_stride": 0.25,
     }),
@@ -2793,7 +2804,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_metric": random_member([distance.octagram, distance.triangular, distance.hexagram]),
         "voronoi_refract": .333 + random.random() * .333,
         "voronoi_refract_y_from_offset": False,
-        "with_outline": 1,
+        "with_outline": distance.euclidean,
         "with_voronoi": voronoi.color_range,
     },
 
@@ -2973,7 +2984,7 @@ _PRESETS = lambda: {  # noqa: E731
         "octave_blending": blend.alpha,
         "octaves": 4,
         "mask": random_member([mask.invaders_square, mask.matrix]),
-        "with_sobel": 101,
+        "with_sobel": distance.triangular,
     },
 
     "whatami": lambda: extend("invert", {

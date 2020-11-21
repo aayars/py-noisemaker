@@ -443,11 +443,11 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
 
     specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, time=time,
-                   speed=speed, distrib=ValueDistribution.fastnoise, refract_range=.1)
+                   mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.fastnoise_exp, refract_range=.1)
     specks = 1.0 - tf.sqrt(effects.normalize(tf.maximum(specks - .5, 0.0)))
 
     dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape, time=time,
-                                       speed=speed, distrib=ValueDistribution.fastnoise), .125) * specks
+                                       mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.fastnoise_exp), .125) * specks
 
     return effects.blend(tensor, dusty, mask)
 
@@ -655,7 +655,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
     smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, time=time,
-                                       speed=speed, distrib=ValueDistribution.fastnoise_exp,
+                                       speed=speed, distrib=ValueDistribution.simplex_exp,
                                        post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
 
     # Remove some of it

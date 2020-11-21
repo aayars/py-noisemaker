@@ -83,6 +83,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
     elif distrib == ValueDistribution.simplex_exp:
         tensor = tf.math.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
 
+    elif distrib == ValueDistribution.simplex_pow_inv_1:
+        tensor = tf.math.pow(simplex.simplex(initial_shape, time=time, speed=speed), -1)
+
     elif distrib == ValueDistribution.fastnoise:
         tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
 

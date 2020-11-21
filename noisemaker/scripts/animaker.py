@@ -61,6 +61,9 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     if distrib in (ValueDistribution.exp, 'exp'):
         overrides['distrib'] = 'simplex_exp'
 
+    if distrib in (ValueDistribution.lognormal, 'lognormal'):
+        overrides['distrib'] = 'simplex_pow_inv_1'
+
     elif distrib not in (
         # ValueDistribution.ones, 'ones',
         ValueDistribution.simplex_exp, 'simplex_exp',
