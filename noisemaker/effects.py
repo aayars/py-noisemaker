@@ -52,7 +52,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
                  with_convolve=None, with_shadow=None, with_sketch=False,
-                 with_lowpoly=False, lowpoly_distrib=0, lowpoly_freq=10, lowpoly_metric=DistanceMetric.euclidean,
+                 with_lowpoly=False, lowpoly_distrib=1000000, lowpoly_freq=10, lowpoly_metric=DistanceMetric.euclidean,
                  angle=None,
                  with_simple_frame=False,
                  with_kaleido=None, kaleido_dist_metric=DistanceMetric.euclidean, kaleido_blend_edges=True,
