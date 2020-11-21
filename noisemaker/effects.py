@@ -244,7 +244,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if vortex_range:
         tensor = vortex(tensor, shape, displacement=vortex_range, time=time, speed=speed)
 
-    if deriv:
+    if deriv and deriv != DistanceMetric.none:
         tensor = derivative(tensor, shape, deriv, alpha=deriv_alpha)
 
     if with_crease:
@@ -272,7 +272,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = kaleido(tensor, shape, with_kaleido, dist_metric=kaleido_dist_metric, xy=xy,
                          blend_edges=kaleido_blend_edges)
 
-    if with_sobel:
+    if with_sobel and with_sobel != DistanceMetric.none:
         tensor = sobel(tensor, shape, with_sobel, rgb)
 
     if with_convolve:
@@ -285,7 +285,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_shadow:
         tensor = shadow(tensor, shape, with_shadow)
 
-    if with_outline:
+    if with_outline and with_outline != DistanceMetric.none:
         tensor = outline(tensor, shape, sobel_metric=with_outline)
 
     if with_glowing_edges:
