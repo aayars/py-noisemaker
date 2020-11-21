@@ -78,7 +78,7 @@ def highland():
 def _control():
     shape = [SMALL_Y, SMALL_X, 1]
 
-    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, refract_range=.5)
+    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, refract_range=.5, refract_y_from_offset=True)
 
     erode_kwargs = {
         "alpha": .025,
