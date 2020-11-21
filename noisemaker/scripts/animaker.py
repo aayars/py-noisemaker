@@ -108,4 +108,15 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
             if watermark:
                 util.watermark(watermark, filename)
 
-        util.magick(f'{tmp}/*png', name)
+        if name.endswith(".mp4"):
+            # when you want something done right
+            subprocess.check_call(['ffmpeg',
+                                   '-framerate', '30',
+                                   '-i', f'{tmp}/%04d.png',
+                                   '-c:v', 'libx264',  # because this is what twitter wants
+                                   '-pix_fmt', 'yuv420p',  # because this is what twitter wants
+                                   '-b:v', '26214400',  # maximum allowed bitrate on twitter
+                                   name])
+
+        else:
+            util.magick(f'{tmp}/*png', name)
