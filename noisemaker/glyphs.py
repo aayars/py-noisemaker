@@ -5,22 +5,20 @@ import random
 
 from PIL import Image, ImageDraw, ImageFont
 
+from noisemaker.util import get_noisemaker_dir
+
 
 def load_fonts():
     """
     Finds all TrueType fonts in your ~/.noisemaker/fonts directory.
     """
 
-    if "NOISEMAKER_DIR" in os.environ:
-        noisemaker_dir = os.path.join(os.environ["NOISEMAKER_DIR"], "fonts")
+    fonts_dir = os.path.join(get_noisemaker_dir(), "fonts")
 
-    else:
-        noisemaker_dir = os.path.join(os.path.expanduser("~"), ".noisemaker", "fonts")
-
-    if not os.path.exists(noisemaker_dir):
+    if not os.path.exists(fonts_dir):
         return []
 
-    return [os.path.join(noisemaker_dir, f) for f in os.listdir(noisemaker_dir) if f.endswith(".ttf")]
+    return [os.path.join(fonts_dir, f) for f in os.listdir(fonts_dir) if f.endswith(".ttf")]
 
 
 def load_glyphs(shape):

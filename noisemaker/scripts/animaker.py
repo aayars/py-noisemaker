@@ -93,14 +93,14 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
                              '--time', f'{i/frame_count:0.4f}',
                              '--name', filename]
 
-            subprocess.check_call(['artmaker', preset_name,
-                                   '--height', str(height),
-                                   '--width', str(width)] + common_params,
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            util.check_call(['artmaker', preset_name,
+                             '--height', str(height),
+                             '--width', str(width)] + common_params,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             if effect_preset:
-                subprocess.check_call(['artmangler', effect_preset, filename, '--no-resize'] + common_params,
-                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                util.check_call(['artmangler', effect_preset, filename, '--no-resize'] + common_params,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             if save_frames:
                 shutil.copy(filename, save_frames)
@@ -110,13 +110,13 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
 
         if name.endswith(".mp4"):
             # when you want something done right
-            subprocess.check_call(['ffmpeg',
-                                   '-framerate', '30',
-                                   '-i', f'{tmp}/%04d.png',
-                                   '-c:v', 'libx264',  # because this is what twitter wants
-                                   '-pix_fmt', 'yuv420p',  # because this is what twitter wants
-                                   '-b:v', '26214400',  # maximum allowed bitrate on twitter
-                                   name])
+            util.check_call(['ffmpeg',
+                             '-framerate', '30',
+                             '-i', f'{tmp}/%04d.png',
+                             '-c:v', 'libx264',  # because this is what twitter wants
+                             '-pix_fmt', 'yuv420p',  # because this is what twitter wants
+                             '-b:v', '26214400',  # maximum allowed bitrate on twitter
+                             name])
 
         else:
             util.magick(f'{tmp}/*png', name)

@@ -11,6 +11,7 @@ from noisemaker.util import magick
 
 import noisemaker.cli as cli
 import noisemaker.presets as presets
+import noisemaker.util as util
 
 
 @click.command(help="""
@@ -76,8 +77,8 @@ def main(ctx, seed, name, save_frames, frame_count, input_dir, preset_name):
                              '--time', f'{i/frame_count:0.4f}',
                              '--name', filename]
 
-            subprocess.check_call(['artmangler', preset_name, os.path.join(input_dir, filenames[i]), '--no-resize'] + common_params,
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            util.check_call(['artmangler', preset_name, os.path.join(input_dir, filenames[i]), '--no-resize'] + common_params,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             if save_frames:
                 shutil.copy(filename, save_frames)

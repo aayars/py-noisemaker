@@ -40,7 +40,7 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
         for i in range(30):
             filename = f'{tmp}/{i:04d}.png'
 
-            subprocess.check_call(['magic-mashup', 'frame',
+            util.check_call(['magic-mashup', 'frame',
                 '--input-dir', input_dir,
                 '--frame', str(i),
                 '--seed', str(seed),
@@ -48,7 +48,7 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
                 '--height', str(height),
                 '--name', filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            subprocess.check_call(['artmangler', 'crt', filename,
+            util.check_call(['artmangler', 'crt', filename,
                 '--no-resize',
                 '--seed', str(seed),
                 '--overrides', '{"distrib": "simplex", "speed": 0.25}',

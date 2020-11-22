@@ -28,10 +28,11 @@ setup(name='noisemaker',
 
       install_requires=[
         "click==7.1.2",
-        "Pillow==8.0.1",
-        "wheel==0.35.1",  # Needed by TF
+        "loguru==0.5.3",
         "opensimplex==0.3",
+        "Pillow==8.0.1",
         "pyfastnoisesimd==0.4.1",
+        "wheel==0.35.1",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],

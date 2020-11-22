@@ -1,6 +1,9 @@
 """Utility functions for Noisemaker."""
 
+import os
 import subprocess
+
+from loguru import logger as default_logger
 
 import tensorflow as tf
 
@@ -56,10 +59,10 @@ def magick(glob, name):
     common_params = ['-delay', '5', glob, name]
 
     try:
-        return subprocess.check_call(['magick'] + common_params)
+        return check_call(['magick'] + common_params)
 
     except FileNotFoundError:
-        return subprocess.check_call(['convert'] + common_params)
+        return check_call(['convert'] + common_params)
 
 
 def watermark(text, filename):
@@ -70,13 +73,39 @@ def watermark(text, filename):
     :param filename:
     """
 
-    return subprocess.check_call(['mood',
-                                  '--filename', filename,
-                                  '--text', text,
-                                  '--font', 'LiberationSans-Bold',
-                                  '--font-size', '12',
-                                  '--no-rect',
-                                  '--bottom',
-                                  '--right'],
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return check_call(['mood',
+                       '--filename', filename,
+                       '--text', text,
+                       '--font', 'LiberationSans-Bold',
+                       '--font-size', '12',
+                       '--no-rect',
+                       '--bottom',
+                       '--right'],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+
+def check_call(command, **kwargs):
+    try:
+        result = subprocess.check_call(command, **kwargs)
+
+    except subprocess.CalledProcessError as e:
+        logger.error(e)
+        raise
+
+    except Exception as e:
+        logger.error(f"Command '{command}' failed to execute: {e}")
+        raise
+
+
+
+def get_noisemaker_dir():
+    return os.environ.get('NOISEMAKER_DIR', os.path.join(os.path.expanduser("~"), '.noisemaker'))
+
+
+_LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')
+
+os.makedirs(_LOGS_DIR, exist_ok=True)
+
+logger = default_logger
+logger.remove(0)  # Remove loguru's default STDERR log handler
+logger.add(os.path.join(_LOGS_DIR, "noisemaker.log"), retention="7 days")
