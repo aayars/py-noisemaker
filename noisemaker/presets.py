@@ -2471,7 +2471,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "slimer": lambda: {
-        "freq": random.randint(3, 4),
+        "freq": random.randint(2, 3),
         "hue_range": .5,
         "point_freq": random.randint(1, 3),
         "post_reindex_range": .25 + random.random() * .333,
@@ -2479,7 +2479,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ripple_range": .0125 + random.random() * .016667,
         "speed": .025,
         "voronoi_alpha": .5 + random.random() * .333,
-        "voronoi_refract": random.randint(3, 5) * .5,
+        "voronoi_refract": random.randint(3, 5) * .2,
         "voronoi_refract_y_from_offset": True,
         "warp_range": .0375 + random.random() * .0375,
         "with_voronoi": voronoi.color_range,
