@@ -108,6 +108,7 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
         if name.endswith(".mp4"):
             # when you want something done right
             util.check_call(['ffmpeg',
+                             '-y',  # overwrite existing
                              '-framerate', '30',
                              '-i', f'{tmp}/%04d.png',
                              '-c:v', 'libx264',  # because this is what twitter wants
