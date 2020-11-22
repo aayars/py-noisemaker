@@ -203,7 +203,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "octave-warp": lambda: {
-        "speed": .0125,
+        "speed": .0333,
         "warp_freq": random.randint(2, 3),
         "warp_octaves": 3,
         "warp_range": 3.0 + random.random(),
@@ -2027,7 +2027,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": random.randint(2, 5) * 2,
         "mask": mask.chess,
         "rgb": True,
-        "speed": .025,
+        "speed": .05,
         "spline_order": interp.constant,
         "point_distrib": random_member(point, mask.nonprocedural_members()),
         "point_freq": random.randint(4, 8),
