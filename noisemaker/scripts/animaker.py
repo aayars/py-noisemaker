@@ -1,6 +1,5 @@
 import json
 import shutil
-import subprocess
 import tempfile
 
 import click
@@ -95,12 +94,10 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
 
             util.check_call(['artmaker', preset_name,
                              '--height', str(height),
-                             '--width', str(width)] + common_params,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                             '--width', str(width)] + common_params)
 
             if effect_preset:
-                util.check_call(['artmangler', effect_preset, filename, '--no-resize'] + common_params,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                util.check_call(['artmangler', effect_preset, filename, '--no-resize'] + common_params)
 
             if save_frames:
                 shutil.copy(filename, save_frames)

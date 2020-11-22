@@ -1,7 +1,6 @@
 import json
 import os
 import shutil
-import subprocess
 import tempfile
 
 import click
@@ -77,8 +76,7 @@ def main(ctx, seed, name, save_frames, frame_count, input_dir, preset_name):
                              '--time', f'{i/frame_count:0.4f}',
                              '--name', filename]
 
-            util.check_call(['artmangler', preset_name, os.path.join(input_dir, filenames[i]), '--no-resize'] + common_params,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            util.check_call(['artmangler', preset_name, os.path.join(input_dir, filenames[i]), '--no-resize'] + common_params)
 
             if save_frames:
                 shutil.copy(filename, save_frames)

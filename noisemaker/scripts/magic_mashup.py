@@ -1,7 +1,6 @@
 import os
 import random
 import shutil
-import subprocess
 import sys
 import tempfile
 
@@ -46,14 +45,14 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
                 '--seed', str(seed),
                 '--width', str(width),
                 '--height', str(height),
-                '--name', filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                '--name', filename])
 
             util.check_call(['artmangler', 'crt', filename,
                 '--no-resize',
                 '--seed', str(seed),
                 '--overrides', '{"distrib": "simplex", "speed": 0.25}',
                 '--time', str(i / 30.0),
-                '--name', filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                '--name', filename])
 
             if save_frames:
                 shutil.copy(filename, save_frames)

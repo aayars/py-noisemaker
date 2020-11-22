@@ -80,16 +80,16 @@ def watermark(text, filename):
                        '--font-size', '12',
                        '--no-rect',
                        '--bottom',
-                       '--right'],
-                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       '--right'])
 
 
-def check_call(command, **kwargs):
+def check_call(command):
     try:
-        result = subprocess.check_call(command, **kwargs)
+        result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        result.check_returncode()
 
     except subprocess.CalledProcessError as e:
-        logger.error(e)
+        logger.error(f"{e}: {e.output.strip()}")
         raise
 
     except Exception as e:

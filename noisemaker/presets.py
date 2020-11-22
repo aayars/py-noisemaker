@@ -3170,8 +3170,9 @@ def extend(*args):
 
         settings.update(these_settings)
 
-    # Convert to a JSON-friendly type
-    settings['with_convolve'] = list(settings['with_convolve'])
+    del(settings['name'])  # Let the preset() function populate the resolved name
+
+    settings['with_convolve'] = list(settings['with_convolve'])  # Convert to a JSON-friendly type
 
     return settings
 
