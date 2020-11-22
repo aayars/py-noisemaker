@@ -3153,21 +3153,22 @@ def extend(*args):
     settings = {}
 
     settings['with_convolve'] = set()
+    settings['tags'] = set()
 
     while args:
         arg = args.popleft()
 
         if isinstance(arg, str):
             these_settings = preset(arg)
+            settings['tags'].add(arg)
 
         else:
             these_settings = arg
 
+        settings['tags'].update(these_settings.pop('tags', set()))
         settings['with_convolve'].update(these_settings.pop('with_convolve', set()))
 
         settings.update(these_settings)
-
-    del(settings['name'])
 
     # Convert to a JSON-friendly type
     settings['with_convolve'] = list(settings['with_convolve'])
@@ -3193,6 +3194,19 @@ def preset(name):
         settings["name"] = name
 
     return settings
+
+
+def preset_by_tag(tag):
+    presets = []
+
+    for name in list(PRESETS) + list(EFFECTS_PRESETS):
+        if tag in preset(name).get('tags', set()):
+            presets.append(name)
+
+    if not presets:
+        return None
+
+    return presets[random.randint(0, len(presets) - 1)]
 
 
 bake_presets(None)
