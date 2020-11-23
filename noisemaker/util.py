@@ -1,5 +1,8 @@
 """Utility functions for Noisemaker."""
 
+from enum import Enum
+
+import json
 import os
 import subprocess
 
@@ -59,10 +62,13 @@ def magick(glob, name):
     common_params = ['-delay', '5', glob, name]
 
     try:
-        return check_call(['magick'] + common_params)
+        return check_call(['magick'] + common_params, quiet=True)
 
     except FileNotFoundError:
         return check_call(['convert'] + common_params)
+
+    except Exception as e:
+        log_subprocess_error(e)  # Try to only log non-pathological errors from `magick`
 
 
 def watermark(text, filename):
@@ -83,23 +89,39 @@ def watermark(text, filename):
                        '--right'])
 
 
-def check_call(command):
+def check_call(command, quiet=False):
     try:
-        result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        result.check_returncode()
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"{e}: {e.output.strip()}")
-        raise
+        subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
 
     except Exception as e:
-        logger.error(f"Command '{command}' failed to execute: {e}")
+        if not quiet:
+            log_subprocess_error(e)
+
         raise
 
+
+def log_subprocess_error(e):
+    if instance(e, subprocess.CalledProcessError):
+        logger.error(f"{e}: {e.output.strip()}")
+
+    else:
+        logger.error(f"Command '{command}' failed to execute: {e}")
 
 
 def get_noisemaker_dir():
     return os.environ.get('NOISEMAKER_DIR', os.path.join(os.path.expanduser("~"), '.noisemaker'))
+
+
+def dumps(kwargs):
+    out = {}
+
+    for k, v in kwargs.items():
+        if isinstance(v, Enum):
+            out[k] = str(v)
+        else:
+            out[k] = v
+
+    return json.dumps(out, indent=4, sort_keys=True)
 
 
 _LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')

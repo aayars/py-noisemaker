@@ -3,7 +3,7 @@ import json
 import click
 import tensorflow as tf
 
-from noisemaker.util import save, load
+from noisemaker.util import logger, dumps, load, save
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
@@ -62,8 +62,19 @@ def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filenam
     if overrides:
         kwargs.update(json.loads(overrides))
 
-    tensor = effects.post_process(tensor, **kwargs)
-    tensor = recipes.post_process(tensor, **kwargs)
+    try:
+        tensor = effects.post_process(tensor, **kwargs)
+
+    except Exception as e:
+        logger.error(f"effects.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
+        raise
+
+    try:
+        tensor = recipes.post_process(tensor, **kwargs)
+
+    except Exception as e:
+        logger.error(f"recipes.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
+        raise
 
     with tf.compat.v1.Session().as_default():
         save(tensor, name)

@@ -5,7 +5,7 @@ import json
 import click
 import tensorflow as tf
 
-from noisemaker.util import save
+from noisemaker.util import logger, dumps, save
 
 import noisemaker.cli as cli
 import noisemaker.generators as generators
@@ -81,9 +81,19 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
     else:
         print(kwargs['name'])
 
-    tensor = generators.multires(**kwargs)
+    try:
+        tensor = generators.multires(**kwargs)
 
-    tensor = recipes.post_process(tensor, **kwargs)
+    except Exception as e:
+        logger.error(f"generators.multires() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
+        raise
+
+    try:
+        tensor = recipes.post_process(tensor, **kwargs)
+
+    except Exception as e:
+        logger.error(f"recipes.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
+        raise
 
     with tf.compat.v1.Session().as_default():
         save(tensor, name)
