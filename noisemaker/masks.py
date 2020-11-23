@@ -1,6 +1,7 @@
 """Value masks for Noisemaker. Used when generating value noise or glyph maps."""
 
 import random
+import re
 
 import numpy as np
 
@@ -2156,6 +2157,32 @@ def mask_shape(mask):
         shape = [height, width, channels]
 
     return shape
+
+
+def get_atlas(mask):
+    atlas = None
+
+    if mask == ValueMask.truetype:
+        from noisemaker.glyphs import load_glyphs
+
+        atlas = load_glyphs([15, 15, 1])
+
+    elif ValueMask.is_procedural(mask):
+        base_name = re.sub(r'_[a-z]+$', '', mask.name)
+
+        if mask.name.endswith("_binary"):
+            atlas = [Masks[ValueMask[f"{base_name}_0"]], Masks[ValueMask[f"{base_name}_1"]]]
+
+        elif mask.name.endswith("_numeric"):
+            atlas = [Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
+
+        elif mask.name.endswith("_hex"):
+            atlas = [Masks[g] for g in Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
+
+        else:
+            atlas = [Masks[g] for g in Masks if g.name.startswith(f"{mask.name}_") and not callable(Masks[g])]
+
+    return atlas
 
 
 def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False, time=0.0, speed=1.0):

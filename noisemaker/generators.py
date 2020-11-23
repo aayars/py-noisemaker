@@ -1,7 +1,6 @@
 """Low-level value noise generators for Noisemaker"""
 
 import random
-import re
 import string
 
 import numpy as np
@@ -98,31 +97,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
     # Skip the below post-processing for fastnoise, since it's generated at a different size.
     if distrib not in (ValueDistribution.fastnoise, ValueDistribution.fastnoise_exp):
         if mask:
-            atlas = None
-
-            if mask == ValueMask.truetype:
-                from noisemaker.glyphs import load_glyphs
-
-                atlas = load_glyphs([15, 15, 1])
-
-                if not atlas:
-                    mask = ValueMask.alphanum_numeric  # Fall back to canned values
-
-            elif ValueMask.is_procedural(mask):
-                base_name = re.sub(r'_[a-z]+$', '', mask.name)
-
-                if mask.name.endswith("_binary"):
-                    atlas = [masks.Masks[ValueMask[f"{base_name}_0"]], masks.Masks[ValueMask[f"{base_name}_1"]]]
-
-                elif mask.name.endswith("_numeric"):
-                    atlas = [masks.Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
-
-                elif mask.name.endswith("_hex"):
-                    atlas = [masks.Masks[g] for g in masks.Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
-
-                else:
-                    atlas = [masks.Masks[g] for g in masks.Masks
-                                 if g.name.startswith(f"{mask.name}_") and not callable(masks.Masks[g])]
+            atlas = masks.get_atlas(mask)
 
             glyph_shape = freq + [1]
 

@@ -2298,7 +2298,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0
         levels = 100
         for i in range(levels):
             # Generate some glyphs.
-            glyph, brightness = masks.mask_values(mask, glyph_shape, uv_noise=np.ones(glyph_shape) * i / levels)
+            glyph, brightness = masks.mask_values(mask, glyph_shape, uv_noise=np.ones(glyph_shape) * i / levels, atlas=masks.get_atlas(mask))
 
             glyphs.append(glyph)
             sums.append(brightness)
