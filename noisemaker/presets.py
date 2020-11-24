@@ -1578,7 +1578,7 @@ _PRESETS = lambda: {  # noqa: E731
     "hydraulic-flow": lambda: extend("basic", "bloom", "dither", "maybe-invert", "multires", {
         "deriv": random_member([distance.none, distance.euclidean]),
         "deriv_alpha": .25 + random.random() * .25,
-        "distrib": random_member([m for m in distance if m not in (distrib.ones, distrib.mids)]),
+        "distrib": random_member([m for m in distrib if m not in (distrib.ones, distrib.mids)]),
         "erosion_worms_alpha": .125 + random.random() * .125,
         "erosion_worms_contraction": .75 + random.random() * .5,
         "erosion_worms_density": random.randint(5, 250),
