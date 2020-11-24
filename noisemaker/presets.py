@@ -3173,7 +3173,7 @@ def extend(*args):
     del(settings['name'])  # Let the preset() function populate the resolved name
 
     settings['with_convolve'] = list(settings['with_convolve'])  # Convert to a JSON-friendly type
-    settings['tags'] = list(settings['tags'])
+    settings['tags'] = sorted(settings['tags'])
 
     return settings
 

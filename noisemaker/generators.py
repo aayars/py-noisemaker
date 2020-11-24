@@ -1,7 +1,6 @@
 """Low-level value noise generators for Noisemaker"""
 
 import random
-import string
 
 import numpy as np
 import tensorflow as tf

@@ -10,6 +10,7 @@ from PIL import Image
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 from noisemaker.constants import (
     DistanceMetric,
@@ -2353,7 +2354,7 @@ def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, speed=1.0):
     """
 
     if angled:
-        angle = random.random() if isinstance(angled, bool) else angled
+        angle = random.random() * 360.0 if isinstance(angled, bool) else angled
 
     else:
         angle = False
@@ -2376,7 +2377,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
         padded = tf.image.resize_with_crop_or_pad(tensor, want_length, want_length)
 
-        rotated = tf.contrib.image.rotate(padded, angle, 'BILINEAR')
+        rotated = tfa.image.rotate(padded, math.radians(angle), 'BILINEAR')
 
     else:
         padded_shape = shape
@@ -2397,7 +2398,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
     if angle:
         # Rotate back to original orientation
-        sorted_channels = tf.contrib.image.rotate(sorted_channels, -angle, 'BILINEAR')
+        sorted_channels = tfa.image.rotate(sorted_channels, math.radians(-angle), 'BILINEAR')
 
         # Crop to original size
         sorted_channels = tf.image.resize_with_crop_or_pad(sorted_channels, height, width)
@@ -2425,7 +2426,7 @@ def rotate(tensor, shape, angle=None):
 
     padded = expand_tile(tensor, shape, padded_shape)
 
-    rotated = tf.contrib.image.rotate(padded, angle, 'BILINEAR')
+    rotated = tfa.image.rotate(padded, math.radians(angle), 'BILINEAR')
 
     return tf.image.resize_with_crop_or_pad(rotated, height, width)
 
