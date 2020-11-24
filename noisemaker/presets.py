@@ -275,6 +275,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "ripple_range": .025 + random.random() * .1,
     },
 
+    "rotate": lambda: {
+        "angle": random.random() * 360.0,
+    },
+
     "scanline-error": lambda: {
         "with_scan_error": True,
     },
@@ -2941,8 +2945,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_reverb": random.randint(3, 5),
     }),
 
-    "wall-art": lambda: extend("glyphic", "lowpoly", {
-        "angle": random.random() * 360.0,
+    "wall-art": lambda: extend("glyphic", "lowpoly", "rotate", {
         "lowpoly_distrib": random_member(point.grid_members(), mask.nonprocedural_members()),
     }),
 
