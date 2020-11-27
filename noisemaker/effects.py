@@ -2455,6 +2455,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
 
     outline = 1.0 - derivative(values, value_shape)
     outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
+    outline = tf.image.adjust_contrast(outline, .25)
     outline = normalize(outline)
 
     values = vignette(values, value_shape, 1.0, .875)
@@ -2462,7 +2463,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=125, duration=.5, stride=1, stride_deviation=.25, alpha=1.0)
     crosshatch = normalize(crosshatch)
 
-    combined = blend(crosshatch, outline, .625)
+    combined = blend(crosshatch, outline, .75)
     combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time, speed=speed)
     combined *= combined
 
