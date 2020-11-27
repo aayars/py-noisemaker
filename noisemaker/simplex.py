@@ -26,7 +26,7 @@ def get_seed():
 def random(time, seed=None, speed=1.0):
     """Like random.random(), but returns a smooth periodic value over time."""
 
-    two_pi_times_time = math.pi * 2 * time
+    two_pi_times_time = math.tau * time
     z = math.cos(two_pi_times_time) * speed
     w = math.sin(two_pi_times_time) * speed
 
@@ -43,7 +43,7 @@ def simplex(shape, time=0.0, seed=None, speed=1.0, as_np=False):
 
     # h/t Etienne Jacob
     # https://necessarydisorder.wordpress.com/2017/11/15/drawing-from-noise-and-then-making-animated-loopy-gifs-from-there/
-    two_pi_times_time = math.pi * 2 * time
+    two_pi_times_time = math.tau * time
     z = math.cos(two_pi_times_time) * speed
     w = math.sin(two_pi_times_time) * speed
 

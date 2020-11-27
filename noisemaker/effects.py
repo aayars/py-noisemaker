@@ -28,8 +28,6 @@ import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 import noisemaker.util as util
 
-TWO_PI = math.pi * 2.0
-
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
                  refract_y_from_offset=False, refract_signed_range=False,
@@ -735,8 +733,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
                 reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
             else:
                 reference_y = reference_x
-                reference_x = tf.cos(reference_x * TWO_PI)
-                reference_y = tf.sin(reference_y * TWO_PI)
+                reference_x = tf.cos(reference_x * math.tau)
+                reference_y = tf.sin(reference_y * math.tau)
 
     quad_directional = signed_range and not from_derivative
 
@@ -800,7 +798,7 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
         reference = resample(normalize(simplex.simplex([freq[0], freq[1], 1], time=time, speed=speed)), value_shape, spline_order=spline_order)
 
     # Twist index, borrowed from worms. TODO refactor me?
-    index = value_map(reference, shape, with_normalize=False) * TWO_PI * kink * simplex.random(time, speed=speed)
+    index = value_map(reference, shape, with_normalize=False) * math.tau * kink * simplex.random(time, speed=speed)
 
     reference_x = (tf.cos(index) * displacement * width) % width
     reference_y = (tf.sin(index) * displacement * height) % height
@@ -910,7 +908,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     rots = {
         WormBehavior.obedient: lambda n:
-            tf.ones([n]) * random.random() * TWO_PI,
+            tf.ones([n]) * random.random() * math.tau,
 
         WormBehavior.crosshatch: lambda n:
             rots[WormBehavior.obedient](n) + (tf.floor(tf.random.uniform([n]) * 100) % 4) * math.radians(90),
@@ -919,7 +917,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             rots[WormBehavior.obedient](n) + tf.random.uniform([n]) * .25 - .125,
 
         WormBehavior.chaotic: lambda n:
-            tf.random.uniform([n]) * TWO_PI,
+            tf.random.uniform([n]) * math.tau,
 
         WormBehavior.random: lambda _:
             tf.reshape(tf.stack([
@@ -932,7 +930,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     worms_rot = rots[behavior](count)
 
-    index = value_map(tensor, shape) * TWO_PI * kink
+    index = value_map(tensor, shape) * math.tau * kink
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
@@ -981,7 +979,7 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
 
     values = value_map(tensor, shape, with_normalize=False)
 
-    degrees = values * TWO_PI * kink
+    degrees = values * math.tau * kink
     # stride = values * height * input_stride
     stride = height * input_stride
 
@@ -2554,7 +2552,7 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
 
     # repeat side according to angle
     # rotate by 90 degrees because vertical symmetry is more pleasing to me
-    ma = tf.math.floormod(a + math.radians(90), TWO_PI / sides)
+    ma = tf.math.floormod(a + math.radians(90), math.tau / sides)
     ma = tf.math.abs(ma - math.pi / sides)
 
     # polar to cartesian coordinates
@@ -2591,7 +2589,7 @@ def palette(tensor, shape, name):
     freq = p["freq"] * tf.ones(channel_shape)
     phase = p["phase"] * tf.ones(channel_shape)
 
-    return offset + amp * tf.math.cos(TWO_PI * (freq * value_map(tensor, shape, keepdims=True) + phase))
+    return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) + phase))
 
 
 def shape_from_file(filename):
