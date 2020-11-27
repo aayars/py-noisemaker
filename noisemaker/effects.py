@@ -1193,7 +1193,7 @@ def conv_feedback(tensor, shape, iterations=50, alpha=.5):
 
     half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
 
-    convolved = offset(_downsample(tensor, shape, half_shape), half_shape, x=iterations * -3, y=iterations * -3)
+    convolved = _downsample(tensor, shape, half_shape)
 
     for i in range(iterations):
         convolved = convolve(ValueMask.conv2d_blur, convolved, half_shape)
