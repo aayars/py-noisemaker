@@ -519,9 +519,11 @@ class WormBehavior(Enum):
 
     random = 5
 
+    meandering = 10  # like chaotic, but changes smoothly over time
+
     @classmethod
     def all(cls):
-        return [m for m in cls if m != cls.none]
+        return [m for m in cls if m not in (cls.none, cls.meandering)]  # exclude meandering because it's slow
 
 
 class OctaveBlending(Enum):

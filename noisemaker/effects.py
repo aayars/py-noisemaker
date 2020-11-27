@@ -256,7 +256,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_worms:
         tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
                        stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink,
-                       drunkenness=worms_drunkenness)
+                       drunkenness=worms_drunkenness, time=time, speed=speed)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride, alpha=wormhole_alpha)
@@ -865,7 +865,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, colors=None):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, colors=None, time=0.0, speed=1.0):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -883,9 +883,11 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :param float stride_deviation: Per-worm travel distance deviation
     :param float alpha: Fade worms (0..1)
     :param float kink: Make your worms twist.
+    :param float drunkenness: Randomly fudge angle at each step (1.0 = 360 degrees)
     :param Tensor colors: Optional starting colors, if not from `tensor`.
     :return: Tensor
     """
+
 
     height, width, channels = shape
 
@@ -926,6 +928,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
                 rots[WormBehavior.unruly](quarter_count),
                 rots[WormBehavior.chaotic](quarter_count),
             ]), [count]),
+
+        WormBehavior.meandering: lambda n:
+            tf.stack([simplex.random(time, speed=speed) for _ in range(n)]) * math.tau
     }
 
     worms_rot = rots[behavior](count)
@@ -941,7 +946,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     # Make worms!
     for i in range(iterations):
         if drunkenness:
-            worms_rot += (rots[WormBehavior.chaotic](count) - math.pi) * drunkenness
+            worms_rot += (rots[WormBehavior.meandering](count) - math.pi) * drunkenness
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
@@ -1515,7 +1520,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     if diagram_type in VoronoiDiagramType.flow_members():
         dist = tf.math.log(dist)
 
-        # Brutal hack to try to avoid infinities. Math, how does it work
+        # Clamp to avoid infinities
         dist = tf.minimum(10, dist)
         dist = tf.maximum(-10, dist)
 
@@ -1526,6 +1531,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
             colors = tf.reshape(colors, [1, 1, point_count, shape[2]])
             if ridges_hint:
                 colors = tf.abs(colors * 2 - 1)
+            # normalize() can make animation twitchy. TODO: figure out a way to do this without normalize
             dist = 1.0 - ((1.0 - normalize(dist)) * colors)
 
         range_out = tf.math.reduce_sum(dist, 2) / point_count

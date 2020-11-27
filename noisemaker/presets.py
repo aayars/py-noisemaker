@@ -1281,6 +1281,23 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_stride": .25 + random.random() * .25,
     }),
 
+    "flux-capacitor": lambda: extend("bloom", "worms", "symmetry", "vignette-dark", {
+        "point_freq": 1,
+        "post_contrast": 5,
+        "speed": .333,
+        "voronoi_alpha": 1.0,
+        "voronoi_inverse": True,
+        "voronoi_metric": distance.triangular,
+        "with_voronoi": voronoi.color_range,
+        "with_worms": worms.meandering,
+        "worms_alpha": .175,
+        "worms_density": .25,
+        "worms_drunkenness": .125,
+        "worms_duration": 10,
+        "worms_stride": 1,
+        "worms_stride_deviation": 0,
+    }),
+
     "fossil-hunt": lambda: extend("dither", {
         "freq": random.randint(3, 5),
         "lattice_drift": 1.0,
@@ -1552,14 +1569,14 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "heartburn": lambda: extend("vignette-dark", {
-        "freq": 16,
+        "freq": random.randint(12, 18),
+        "octaves": random.randint(1, 3),
         "point_freq": 1,
-        "post_contrast": 12.5,
+        "post_contrast": 10 + random.random() * 5.0,
         "ridges": True,
         "voronoi_alpha": 0.9625,
         "voronoi_inverse": True,
         "voronoi_metric": random_member(distance.all()),
-        "voronoi_nth": 1,
         "with_bloom": 0.25,
         "with_voronoi": 42,
     }),

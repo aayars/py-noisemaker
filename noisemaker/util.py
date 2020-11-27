@@ -101,7 +101,7 @@ def check_call(command, quiet=False):
 
 
 def log_subprocess_error(e):
-    if instance(e, subprocess.CalledProcessError):
+    if isinstance(e, subprocess.CalledProcessError):
         logger.error(f"{e}: {e.output.strip()}")
 
     else:
