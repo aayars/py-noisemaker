@@ -573,6 +573,7 @@ _PRESETS = lambda: {  # noqa: E731
     "anticounterfeit": lambda: extend("dither", "invert", "wormhole", {
         "freq": 2,
         "point_freq": 1,
+        "speed": .025,
         "voronoi_refract": .5,
         "with_fibers": True,
         "with_voronoi": voronoi.flow,
@@ -838,6 +839,7 @@ _PRESETS = lambda: {  # noqa: E731
     "circulent": lambda: extend("invert", "reverb", "symmetry", "voronoi", "wormhole", {
         "point_distrib": random_member([point.spiral] + point.circular_members()),
         "point_corners": True,
+        "speed": .025,
         "voronoi_alpha": .5 + random.random() * .5,
         "wormhole_kink": random.randint(3, 6),
         "wormhole_stride": .05 + random.random() * .05,
@@ -1254,6 +1256,7 @@ _PRESETS = lambda: {  # noqa: E731
         "freq": 2,
         "hue_range": 2,
         "lattice_drift": 1,
+        "speed": .025,
         "voronoi_refract": .5,
         "with_voronoi": voronoi.flow,
         "wormhole_stride": .05,
