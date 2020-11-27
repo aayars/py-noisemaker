@@ -311,7 +311,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "sobel": lambda: extend("maybe-invert", {
-        "with_sobel": random_member(distance)
+        "with_sobel": random_member(distance.all())
     }),
 
     "spatter": lambda: {
@@ -396,11 +396,11 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "worms": lambda: {
         "with_worms": random_member(worms.all()),
         "worms_alpha": .75 + random.random() * .25,
-        "worms_density": 500,
-        "worms_duration": 1,
-        "worms_kink": 2.5,
-        "worms_stride": 2.5,
-        "worms_stride_deviation": 2.5,
+        "worms_density": random.randint(250, 500),
+        "worms_duration": .5 + random.random(),
+        "worms_kink": 1.0 + random.random() * 1.5,
+        "worms_stride": random.random() + .5,
+        "worms_stride_deviation": random.random() + .5,
     },
 
 }
@@ -899,6 +899,15 @@ _PRESETS = lambda: {  # noqa: E731
         "with_density_map": True,
     }),
 
+    "cosmic-thread": lambda: extend("bloom", {
+        "rgb": True,
+        "with_worms": random_member(worms.all()),
+        "worms_alpha": .925,
+        "worms_density": .125,
+        "worms_drunkenness": .125,
+        "worms_duration": 125,
+    }),
+
     "crooked": lambda: extend("glitchin-out", "starfield", "pixel-sort-angled"),
 
     "crop-spirals": lambda: {
@@ -990,7 +999,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_metric": random_member([distance.manhattan, distance.chebyshev]),
         "voronoi_nth": random.randint(2, 3),
         "with_voronoi": voronoi.range,
-        "with_sobel": random_member(distance),
+        "with_sobel": random_member(distance.all()),
     }),
 
     "deep-field": lambda: extend("multires", "funhouse", {
@@ -1537,6 +1546,19 @@ _PRESETS = lambda: {  # noqa: E731
         "hue_range": .05,
         "lattice_drift": 1,
         "spline_order": interp.constant,
+    }),
+
+    "heartburn": lambda: extend("vignette-dark", {
+        "freq": 16,
+        "point_freq": 1,
+        "post_contrast": 12.5,
+        "ridges": True,
+        "voronoi_alpha": 0.9625,
+        "voronoi_inverse": True,
+        "voronoi_metric": random_member(distance.all()),
+        "voronoi_nth": 1,
+        "with_bloom": 0.25,
+        "with_voronoi": 42,
     }),
 
     "hex-machine": lambda: extend("multires", {

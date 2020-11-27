@@ -35,7 +35,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  refract_y_from_offset=False, refract_signed_range=False,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_alpha=.5, worms_kink=1.0, with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
+                 worms_alpha=.5, worms_kink=1.0, worms_drunkenness=0.0,
+                 with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_metric=DistanceMetric.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
                  voronoi_refract_y_from_offset=True, posterize_levels=0,
@@ -256,7 +257,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
 
     if with_worms:
         tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
-                       stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink)
+                       stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink,
+                       drunkenness=worms_drunkenness)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride, alpha=wormhole_alpha)
@@ -798,7 +800,7 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
         reference = resample(normalize(simplex.simplex([freq[0], freq[1], 1], time=time, speed=speed)), value_shape, spline_order=spline_order)
 
     # Twist index, borrowed from worms. TODO refactor me?
-    index = value_map(reference, shape, with_normalize=False) * 360.0 * math.radians(1) * kink * simplex.random(time, speed=speed)
+    index = value_map(reference, shape, with_normalize=False) * TWO_PI * kink * simplex.random(time, speed=speed)
 
     reference_x = (tf.cos(index) * displacement * width) % width
     reference_y = (tf.sin(index) * displacement * height) % height
@@ -865,7 +867,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, colors=None):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, colors=None):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -908,16 +910,16 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     rots = {
         WormBehavior.obedient: lambda n:
-            tf.ones([n]) * random.random() * 360.0,
+            tf.ones([n]) * random.random() * TWO_PI,
 
         WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(tf.random.normal([n]) * 100) % 4) * 90,
+            rots[WormBehavior.obedient](n) + (tf.floor(tf.random.uniform([n]) * 100) % 4) * math.radians(90),
 
         WormBehavior.unruly: lambda n:
-            rots[WormBehavior.obedient](n) + tf.random.normal([n]) * .25 - .125,
+            rots[WormBehavior.obedient](n) + tf.random.uniform([n]) * .25 - .125,
 
         WormBehavior.chaotic: lambda n:
-            tf.random.normal([n]) * 360.0,
+            tf.random.uniform([n]) * TWO_PI,
 
         WormBehavior.random: lambda _:
             tf.reshape(tf.stack([
@@ -930,7 +932,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     worms_rot = rots[behavior](count)
 
-    index = value_map(tensor, shape) * 360.0 * math.radians(1) * kink
+    index = value_map(tensor, shape) * TWO_PI * kink
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
@@ -940,13 +942,16 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     # Make worms!
     for i in range(iterations):
+        if drunkenness:
+            worms_rot += (rots[WormBehavior.chaotic](count) - math.pi) * drunkenness
+
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
         exposure = 1 - abs(1 - i / (iterations - 1) * 2)  # Makes linear gradient [ 0 .. 1 .. 0 ]
 
         out += tf.scatter_nd(worm_positions, colors * exposure, scatter_shape)
 
-        next_position = tf.gather_nd(index, worm_positions) + (worms_rot - 45.0)
+        next_position = tf.gather_nd(index, worm_positions) + worms_rot
 
         worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
         worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
@@ -976,7 +981,7 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
 
     values = value_map(tensor, shape, with_normalize=False)
 
-    degrees = values * 360.0 * math.radians(1) * kink
+    degrees = values * TWO_PI * kink
     # stride = values * height * input_stride
     stride = height * input_stride
 
