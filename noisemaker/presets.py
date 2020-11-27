@@ -1623,6 +1623,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "is-this-anything": lambda: extend("soup", {
         "point_freq": 1,
+        "post_refract_range": .125 + random.random() * .0625,
         "voronoi_alpha": .875,
         "voronoi_metric": random_member(distance.absolute_members()),
     }),
@@ -2533,7 +2534,7 @@ _PRESETS = lambda: {  # noqa: E731
     "soup": lambda: extend("bloom", "density-map", {
         "freq": random.randint(2, 3),
         "point_freq": random.randint(2, 3),
-        "post_refract_range": random.randint(2, 3),
+        "post_refract_range": .5 + random.random() * .25,
         "post_refract_y_from_offset": True,
         "voronoi_inverse": True,
         "with_shadow": 1.0,
