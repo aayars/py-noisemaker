@@ -170,7 +170,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
         tensor = wobble(tensor, shape, time=time, speed=speed * with_wobble)
 
     if with_palette:
-        tensor = palette(tensor, shape, with_palette)
+        tensor = palette(tensor, shape, with_palette, time=time)
 
     if (with_voronoi and with_voronoi != VoronoiDiagramType.none) or with_dla or with_kaleido:
         multiplier = max(2 * (point_generations - 1), 1)
@@ -2580,7 +2580,7 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
     return tf.gather_nd(tensor, tf.stack([y_index % height, x_index % width], 2))
 
 
-def palette(tensor, shape, name):
+def palette(tensor, shape, name, time=0.0):
     """
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
@@ -2593,7 +2593,7 @@ def palette(tensor, shape, name):
     offset = p["offset"] * tf.ones(channel_shape)
     amp = p["amp"] * tf.ones(channel_shape)
     freq = p["freq"] * tf.ones(channel_shape)
-    phase = p["phase"] * tf.ones(channel_shape)
+    phase = p["phase"] * tf.ones(channel_shape) + time
 
     return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) + phase))
 
