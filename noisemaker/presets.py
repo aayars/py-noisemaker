@@ -2915,6 +2915,8 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "truchet-maze": lambda: extend("value-mask", {
+        "angle": random_member([0, 45]),
+        "corners": True,
         "freq": 6 * random.randint(50, 100),
         "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
     }),
