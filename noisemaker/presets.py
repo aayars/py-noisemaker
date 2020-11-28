@@ -117,11 +117,11 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "funhouse": lambda: {
-        "warp_signed_range": False,
-        "warp_interp": interp.bicubic,
         "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
+        "warp_interp": interp.bicubic,
         "warp_octaves": random.randint(1, 4),
         "warp_range": .25 + random.random() * .5,
+        "warp_signed_range": False,
     },
 
     "glitchin-out": lambda: extend("bloom", "corrupt", "crt", {
@@ -1014,7 +1014,10 @@ _PRESETS = lambda: {  # noqa: E731
         "octave_blending": blend.reduce_max,
         "octaves": 5,
         "refract_range": 0.25,
-        "warp_range": .05,
+        "warp_freq": [2, 2],
+        "warp_range": .025,
+        "warp_signed_range": True,
+        "with_palette": None,
     }),
 
     "deeper": lambda: extend("multires-alpha", {
@@ -1782,11 +1785,14 @@ _PRESETS = lambda: {  # noqa: E731
         "with_erosion_worms": True,
     }),
 
-    "look-up": lambda: extend("multires-alpha", {
-        "distrib": distrib.fastnoise_exp,
-        "hue_range": 10,
+    "look-up": lambda: extend("bloom", "multires-alpha", {
+        "distrib": distrib.simplex_exp,
+        "hue_range": .333 + random.random() * .333,
         "lattice_drift": 0,
         "octaves": 8,
+        "post_brightness": -.05,
+        "post_contrast": 3,
+        "post_saturation": .5,
         "ridges": True,
     }),
 
