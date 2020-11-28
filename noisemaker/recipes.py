@@ -4,7 +4,7 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import PointDistribution, ValueDistribution, ValueMask
+from noisemaker.constants import DistanceMetric, PointDistribution, ValueDistribution, ValueMask
 from noisemaker.generators import basic, multires
 from noisemaker.points import point_cloud
 
