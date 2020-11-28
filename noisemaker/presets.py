@@ -1661,11 +1661,6 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.flow,
     }),
 
-    "interference": lambda: extend("symmetry", {
-        "sin": random.randint(250, 500),
-        "with_interference": True
-    }),
-
     "is-this-anything": lambda: extend("soup", {
         "point_freq": 1,
         "post_refract_range": .125 + random.random() * .0625,

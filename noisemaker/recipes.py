@@ -14,7 +14,7 @@ import noisemaker.simplex as simplex
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
-                 with_nebula=False, with_false_color=False, with_interference=False, with_frame=False, with_scratches=False, with_fibers=False,
+                 with_nebula=False, with_false_color=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
                  with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None, with_degauss=False,
                  time=0.0, speed=1.0, **_):
@@ -33,7 +33,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
     :param bool with_frame: Shitty instant camera effect
     :param bool with_nebula: Add clouds
     :param bool with_false_color: Swap colors with basic noise
-    :param bool with_interference: CRT-like moire effect
     :param bool with_watermark: Stylized digital watermark effect
     :param bool with_ticker: With spooky ticker effect
     :param bool with_scratches: Scratched film effect
@@ -84,9 +83,6 @@ def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, 
 
     if with_degauss:
         tensor = degauss(tensor, shape, displacement=with_degauss, time=time, speed=speed)
-
-    if with_interference:
-        tensor = interference(tensor, shape, time=time, speed=speed)
 
     if with_watermark:
         tensor = watermark(tensor, shape, time=time, speed=speed)
@@ -191,26 +187,6 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     identity = tf.stack([effects.column_index(shape), x_index], 2)
 
     tensor = tf.gather_nd(tensor, identity)
-
-    return tensor
-
-
-def interference(tensor, shape, time=0.0, speed=1.0):
-    """
-    """
-
-    height, width, channels = shape
-
-    value_shape = [height, width, 1]
-
-    distortion = basic(2, value_shape, time=time, speed=speed, distribution=ValueDistribution.simplex, corners=True)
-
-    scan_noise = basic([2, 1], [2, 1, 1], time=time, speed=speed, distribution=ValueDistribution.simplex)
-    scan_noise = tf.tile(scan_noise, [random.randint(32, 128), width, 1])
-    scan_noise = effects.resample(scan_noise, value_shape, spline_order=0)
-    scan_noise = effects.refract(scan_noise, value_shape, 1, reference_x=distortion)
-
-    tensor = 1.0 - (1.0 - tensor) * scan_noise
 
     return tensor
 
