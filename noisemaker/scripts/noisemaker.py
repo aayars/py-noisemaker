@@ -80,6 +80,7 @@ import noisemaker.recipes as recipes
 @cli.wormhole_kink_option()
 @cli.worms_option()
 @cli.worms_density_option()
+@cli.worms_drunkenness_option()
 @cli.worms_duration_option()
 @cli.worms_stride_option()
 @cli.worms_stride_deviation_option()
@@ -126,7 +127,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          reindex, reverb, reverb_iterations, post_reindex,
          post_reflect, post_refract, post_refract_y_from_offset,
          clut, clut_horizontal, clut_range, ripple, ripple_freq,
-         ripple_kink, worms, worms_density, worms_duration,
+         ripple_kink, worms, worms_density, worms_drunkenness, worms_duration,
          worms_stride, worms_stride_deviation, worms_alpha, worms_kink,
          wormhole, wormhole_kink, wormhole_stride, sobel, outline,
          normals, post_deriv, deriv, deriv_alpha, interp, distrib,
@@ -155,7 +156,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
                                  post_refract_y_from_offset=post_refract_y_from_offset,
                                  ripple_range=ripple, ripple_freq=ripple_freq, ripple_kink=ripple_kink,
                                  clut=clut, clut_horizontal=clut_horizontal, clut_range=clut_range,
-                                 with_worms=worms, worms_density=worms_density, worms_duration=worms_duration,
+                                 with_worms=worms, worms_density=worms_density, worms_drunkenness=worms_drunkenness, worms_duration=worms_duration,
                                  worms_stride=worms_stride, worms_stride_deviation=worms_stride_deviation, worms_alpha=worms_alpha, worms_kink=worms_kink,
                                  with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                  with_voronoi=voronoi, voronoi_metric=voronoi_metric, voronoi_nth=voronoi_nth,

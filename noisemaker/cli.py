@@ -422,6 +422,12 @@ def worms_density_option(**attrs):
     return float_option("--worms-density", default=4.0, **attrs)
 
 
+def worms_drunkenness_option(**attrs):
+    attrs.setdefault("help", "Worms: Drunkenness amount (meander at each step)")
+
+    return float_option("--worms-drunkenness", default=0.0, **attrs)
+
+
 def worms_duration_option(**attrs):
     attrs.setdefault("help", "Worms: Iteration multiplier (larger is more costly)")
 

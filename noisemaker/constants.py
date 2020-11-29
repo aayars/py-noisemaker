@@ -523,7 +523,7 @@ class WormBehavior(Enum):
 
     @classmethod
     def all(cls):
-        return [m for m in cls if m not in (cls.none, cls.meandering)]  # exclude meandering because it's slow
+        return [m for m in cls if m != cls.none]
 
 
 class OctaveBlending(Enum):

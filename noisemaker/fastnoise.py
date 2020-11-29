@@ -16,7 +16,7 @@ def fastnoise(shape, freq, time=0.0, seed=None, speed=1.0, as_np=False):
     generator.noiseType = fn.NoiseType.Simplex
     generator.fractal.octaves = 1
 
-    start = [0, 0, int(time * min(shape[0], shape[1]) * speed)]
+    start = [0, 0, int(min(shape[0], shape[1]) * speed * time)]
 
     channel_shape = [shape[0], shape[1], 1]
 

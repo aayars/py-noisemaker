@@ -9,6 +9,7 @@ import random
 from PIL import Image
 
 import numpy as np
+import pyfastnoisesimd as fn
 import tensorflow as tf
 import tensorflow_addons as tfa
 
@@ -888,6 +889,8 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :return: Tensor
     """
 
+    if isinstance(behavior, int):
+        behavior = WormBehavior(behavior)
 
     height, width, channels = shape
 
@@ -901,8 +904,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     colors = tf.gather_nd(color_source, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
 
-    if isinstance(behavior, int):
-        behavior = WormBehavior(behavior)
+    # For the benefit of drunk or meandering worms
+    fastgen = fn.Noise()
+    fastgen.frequency = count * .1
 
     quarter_count = int(count * .25)
 
@@ -929,8 +933,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
                 rots[WormBehavior.chaotic](quarter_count),
             ]), [count]),
 
+        # Chaotic, changing over time
         WormBehavior.meandering: lambda n:
-            tf.stack([simplex.random(time, speed=speed) for _ in range(n)]) * math.tau
+            (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed)]))) * 2.0 - 1.0) * math.pi
     }
 
     worms_rot = rots[behavior](count)
@@ -946,7 +951,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     # Make worms!
     for i in range(iterations):
         if drunkenness:
-            worms_rot += (rots[WormBehavior.meandering](count) - math.pi) * drunkenness
+            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(i * speed * 25)]))) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 

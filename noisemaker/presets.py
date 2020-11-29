@@ -1679,6 +1679,13 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": random_member([voronoi.range, voronoi.color_range]),
     }),
 
+    "its-the-fuzz": lambda: extend("bloom", "multires-low", "muppet-skin", "palette", {
+        "lattice_drift": 1.0,
+        "with_worms": random_member([worms.obedient, worms.unruly]),
+        "worms_alpha": .9 + random.random() * .1,
+        "worms_drunkenness": .125 + random.random() * .0625,
+    }),
+
     "jorts": lambda: extend("dither", {
         "freq": [128,512],
         "glyph_map_alpha": .125 + random.random() * .25,
