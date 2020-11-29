@@ -951,7 +951,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     # Make worms!
     for i in range(iterations):
         if drunkenness:
-            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(i * speed * 25)]))) * 2.0 - 1.0) * drunkenness * math.pi
+            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed + i * speed * 10)]))) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
