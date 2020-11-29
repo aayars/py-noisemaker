@@ -113,7 +113,8 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
                              '-i', f'{tmp}/%04d.png',
                              '-c:v', 'libx264',  # because this is what twitter wants
                              '-pix_fmt', 'yuv420p',  # because this is what twitter wants
-                             '-b:v', '60000000',  # maximum allowed bitrate on twitter
+                             '-b:v', '2000000',  # maximum allowed bitrate for 720x720 (2048k), minus some encoder overhead
+                             '-s', '720x720',  # a twitter-recommended size
                              name])
 
         else:
