@@ -763,6 +763,19 @@ _PRESETS = lambda: {  # noqa: E731
         "with_glowing_edges": 1,
     }),
 
+    "bubble-chamber": lambda: extend("tint", {
+        "distrib": distrib.exp,
+        "post_contrast": 3 + random.random() * 2.0,
+        "with_bloom": .5 + random.random() * .25,
+        "with_snow": .125 + random.random() * .0625,
+        "with_worms": worms.random,
+        "worms_alpha": .75,
+        "worms_density": .25 + random.random() * .125,
+        "worms_drunken_spin": True,
+        "worms_drunkenness": .1 + random.random() * .05,
+        "worms_stride_deviation": 5.0 + random.random() * 5.0,
+    }),
+
     "bubble-machine": lambda: extend("maybe-invert", "outline", "wormhole", {
         "corners": True,
         "distrib": distrib.uniform,

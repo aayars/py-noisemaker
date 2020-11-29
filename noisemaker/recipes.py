@@ -698,7 +698,7 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     """
     """
 
-    color = basic(2, shape, time=time, speed=speed, distribution=ValueDistribution.simplex, corners=True)
+    color = basic(2, shape, time=time, speed=speed, distribution=ValueDistribution.simplex, corners=True, hue_range=.25 + random.random() * .5)
     color = tf.image.rgb_to_hsv([color])[0]
 
     colorized = tf.stack([color[:, :, 0], color[:, :, 1], tf.image.rgb_to_hsv([tensor])[0][:, :, 2]], 2)

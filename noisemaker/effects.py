@@ -34,7 +34,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
                  refract_y_from_offset=False, refract_signed_range=False,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
-                 worms_alpha=.5, worms_kink=1.0, worms_drunkenness=0.0,
+                 worms_alpha=.5, worms_kink=1.0, worms_drunkenness=0.0, worms_drunken_spin=False,
                  with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
                  with_voronoi=0, voronoi_nth=0, voronoi_metric=DistanceMetric.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
@@ -257,7 +257,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if with_worms:
         tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
                        stride=worms_stride, stride_deviation=worms_stride_deviation, alpha=worms_alpha, kink=worms_kink,
-                       drunkenness=worms_drunkenness, time=time, speed=speed)
+                       drunkenness=worms_drunkenness, drunken_spin=worms_drunken_spin, time=time, speed=speed)
 
     if with_wormhole:
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride, alpha=wormhole_alpha)
@@ -866,7 +866,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
-def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, colors=None, time=0.0, speed=1.0):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, drunken_spin=False, colors=None, time=0.0, speed=1.0):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -885,6 +885,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :param float alpha: Fade worms (0..1)
     :param float kink: Make your worms twist.
     :param float drunkenness: Randomly fudge angle at each step (1.0 = 360 degrees)
+    :param bool drunken_spin: Worms are so drunk they're spinning. Someone hit the brakes!
     :param Tensor colors: Optional starting colors, if not from `tensor`.
     :return: Tensor
     """
@@ -895,6 +896,14 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     height, width, channels = shape
 
     count = int(max(width, height) * density)
+
+    if drunkenness:  # Get nearest power of 2, otherwise fastnoise will probably dump core
+        c = 2
+
+        while c < count:
+            c *= 2
+
+        count = c
 
     worms_y = tf.random.uniform([count]) * (height - 1)
     worms_x = tf.random.uniform([count]) * (width - 1)
@@ -948,10 +957,16 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
 
+    if drunken_spin:
+        start = int(min(shape[0], shape[1]) * time * speed)  # Just keep spinning in one direction over time
+
     # Make worms!
     for i in range(iterations):
         if drunkenness:
-            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed + i * speed * 10)]))) * 2.0 - 1.0) * drunkenness * math.pi
+            if not drunken_spin:
+                start = int(min(shape[0], shape[1]) * time * speed + i * speed * 10)  # Wobbling here and there
+
+            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[start]))) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
