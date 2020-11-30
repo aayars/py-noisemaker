@@ -7,7 +7,6 @@ import string
 import numpy as np
 
 from noisemaker.constants import ValueMask
-from noisemaker.simplex import simplex
 
 
 #: Hard-coded masks
@@ -2210,6 +2209,7 @@ def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False
     uv_shape = [int(glyph_shape[0] / shape[0]) or 1, int(glyph_shape[1] / shape[1]) or 1]
 
     if uv_noise is None:
+        from noisemaker.simplex import simplex
         uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
 
         # normalize() but it's numpy
