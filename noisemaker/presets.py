@@ -20,7 +20,6 @@ from noisemaker.constants import (
 )
 from noisemaker.palettes import PALETTES
 
-import noisemaker.generators as generators
 import noisemaker.masks as masks
 
 
@@ -3165,9 +3164,7 @@ _PRESETS = lambda: {  # noqa: E731
 
 
 # Call after setting seed
-def bake_presets(seed):
-    generators.set_seed(seed)
-
+def bake_presets():
     global EFFECTS_PRESETS
     EFFECTS_PRESETS = _EFFECTS_PRESETS()
 
@@ -3281,4 +3278,4 @@ def preset_by_tag(tag):
     return presets[random.randint(0, len(presets) - 1)]
 
 
-bake_presets(None)
+bake_presets()

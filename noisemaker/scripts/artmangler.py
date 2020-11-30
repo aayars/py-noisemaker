@@ -25,7 +25,8 @@ import noisemaker.recipes as recipes
 @click.argument('input_filename')
 @click.pass_context
 def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filename):
-    presets.bake_presets(seed)
+    generators.set_seed(seed)
+    presets.bake_presets()
 
     input_shape = effects.shape_from_file(input_filename)
 

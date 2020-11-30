@@ -32,9 +32,6 @@ BLENDED_FILENAME = "worldmaker/blended.png"
 FINAL_FILENAME = "worldmaker/worldmaker.png"
 
 
-presets.bake_presets(None)
-
-
 @click.group()
 def main():
     pass

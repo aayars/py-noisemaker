@@ -30,7 +30,8 @@ import noisemaker.recipes as recipes
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, time, clut, seed, overrides, settings, name, preset_name):
-    presets.bake_presets(seed)
+    generators.set_seed(seed)
+    presets.bake_presets()
 
     if preset_name == 'random':
         preset_name = 'random-preset'
