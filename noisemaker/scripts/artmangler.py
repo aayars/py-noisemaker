@@ -7,6 +7,7 @@ from noisemaker.util import logger, dumps, load, save
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
+import noisemaker.generators as generators
 import noisemaker.presets as presets
 import noisemaker.recipes as recipes
 
