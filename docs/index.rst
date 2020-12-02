@@ -1,9 +1,19 @@
+.. Noisemaker documentation master file, created by
+   sphinx-quickstart on Mon Nov 30 19:51:34 2020.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
 Noisemaker
 ==========
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   :hidden:
+
+   api
+   cli
+
 
 **Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3`_ and `TensorFlow`_.
 
@@ -86,12 +96,9 @@ See :doc:`api` documentation.
 CLI
 ~~~
 
-Noisemaker includes several CLI entrypoints. For usage summary, run with ``-h`` or ``--help``.
+See :doc:`cli` documentation.
 
--  `noisemaker`: Low-level CLI
--  `artmaker`: Generate images from presets
--  `artmangler`: Apply post-processing effects to images
--  `animaker`: Wrapper for animations (requires ImageMagick)
+
 
 See also
 --------
@@ -106,6 +113,7 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
+* :ref:`search`
 
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
@@ -116,3 +124,5 @@ Indices and tables
 .. _`Wikipedia: Perlin noise`: https://en.wikipedia.org/wiki/Perlin_noise
 .. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
 .. _`Wikipedia: Worley noise`: https://en.wikipedia.org/wiki/Worley_noise
+
+

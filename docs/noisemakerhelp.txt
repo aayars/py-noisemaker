@@ -1,0 +1,381 @@
+Usage: noisemaker [OPTIONS]
+
+  Noisemaker - Visual noise generator
+
+  https://github.com/aayars/py-noisemaker
+
+Options:
+  --freq INTEGER                  Minimum noise frequency (must be >= 2)
+                                  [default: 3]
+
+  --width INTEGER                 Output width, in pixels  [default: 1024]
+  --height INTEGER                Output height, in pixels  [default: 1024]
+  --channels INTEGER RANGE        Color channel count (1=gray, 2=gray+alpha,
+                                  3=HSV/RGB, 4=RGB+alpha)  [range: 1-4]
+                                  [default: 3]
+
+  --time FLOAT                    Time value for Z axis (simplex only)
+  --octaves INTEGER RANGE         Octave count: Number of multi-res layers
+                                  [range: 1-10]  [default: 1]
+
+  --octave-blending [falloff|reduce_max|alpha]
+                                  Blending mode for flattening per-octave
+                                  values  [default: falloff]
+
+  --ridges                        Per-octave "crease" at midpoint values:
+                                  abs(noise * 2 - 1)
+
+  --post-ridges                   Post-reduce "crease" at midpoint values:
+                                  abs(noise * 2 - 1)
+
+  --convolve [blur|deriv_x|deriv_y|edges|emboss|invert|rand|sharpen|sobel_x|sobel_y|box_blur]
+                                  Convolution kernel: May be specified
+                                  multiple times
+
+  --deriv INTEGER                 Derivatives: Extract per-octave rate of
+                                  change (0=none, 1=euclidean, 2=manhattan,
+                                  3=chebyshev, 4=octagram, 101=triangular,
+                                  102=hexagram)
+
+  --deriv-alpha FLOAT             Derivatives: Per-octave alpha blending
+                                  amount (0.0 = 0%, 1.0 = 100%)  [default:
+                                  1.0]
+
+  --post-deriv INTEGER            Derivatives: Extract post-reduce rate of
+                                  change (0=none, 1=euclidean, 2=manhattan,
+                                  3=chebyshev, 4=octagram, 101=triangular,
+                                  102=hexagram)
+
+  --interp INTEGER                Interpolation type (0=constant, 1=linear,
+                                  2=cosine, 3=bicubic)  [default: 3]
+
+  --sin FLOAT                     Apply sin function to noise basis
+  --distrib [normal|uniform|exp|laplace|lognormal|ones|mids|column_index|row_index|simplex
+            |simplex_exp|simplex_pow_inv_1|fastnoise|fastnoise_exp]
+                                  Value distribution  [default: normal]
+  --corners                       Value distribution: Pin pixels to corners,
+                                  instead of image center.
+
+  --mask [square|waffle|chess|grid|h_bar|v_bar|h_hex|v_hex|h_tri|v_tri|alphanum_0|alphanum_1
+         |alphanum_2|alphanum_3|alphanum_4|alphanum_5|alphanum_6|alphanum_7|alphanum_8
+         |alphanum_9|alphanum_a|alphanum_b|alphanum_c|alphanum_d|alphanum_e|alphanum_f|tromino_i
+         |tromino_l|tromino_o|tromino_s|halftone_0|halftone_1|halftone_2|halftone_3|halftone_4
+         |halftone_5|halftone_6|halftone_7|halftone_8|halftone_9|lcd_0|lcd_1|lcd_2|lcd_3|lcd_4
+         |lcd_5|lcd_6|lcd_7|lcd_8|lcd_9|fat_lcd_0|fat_lcd_1|fat_lcd_2|fat_lcd_3|fat_lcd_4|fat_lcd_5
+         |fat_lcd_6|fat_lcd_7|fat_lcd_8|fat_lcd_9|fat_lcd_a|fat_lcd_b|fat_lcd_c|fat_lcd_d|fat_lcd_e
+         |fat_lcd_f|fat_lcd_g|fat_lcd_h|fat_lcd_i|fat_lcd_j|fat_lcd_k|fat_lcd_l|fat_lcd_m|fat_lcd_n
+         |fat_lcd_o|fat_lcd_p|fat_lcd_q|fat_lcd_r|fat_lcd_s|fat_lcd_t|fat_lcd_u|fat_lcd_v|fat_lcd_w
+         |fat_lcd_x|fat_lcd_y|fat_lcd_z|truchet_lines_00|truchet_lines_01|truchet_curves_00
+         |truchet_curves_01|truchet_tile_00|truchet_tile_01|truchet_tile_02|truchet_tile_03|mcpaint_00
+         |mcpaint_01|mcpaint_02|mcpaint_03|mcpaint_04|mcpaint_05|mcpaint_06|mcpaint_07|mcpaint_08
+         |mcpaint_09|mcpaint_10|mcpaint_11|mcpaint_12|mcpaint_13|mcpaint_14|mcpaint_15|mcpaint_16
+         |mcpaint_17|mcpaint_18|mcpaint_19|mcpaint_20|mcpaint_21|mcpaint_22|mcpaint_23|mcpaint_24
+         |mcpaint_25|mcpaint_26|mcpaint_27|mcpaint_28|mcpaint_29|mcpaint_30|mcpaint_31|mcpaint_32
+         |mcpaint_33|mcpaint_34|mcpaint_35|mcpaint_36|mcpaint_37|mcpaint_38|mcpaint_39|mcpaint_40
+         |emoji_00|emoji_01|emoji_02|emoji_03|emoji_04|emoji_05|emoji_06|emoji_07|emoji_08|emoji_09
+         |emoji_10|emoji_11|emoji_12|emoji_13|emoji_14|emoji_15|emoji_16|emoji_17|emoji_18|emoji_19
+         |emoji_20|emoji_21|emoji_22|emoji_23|emoji_24|emoji_25|emoji_26|emoji_27|bank_ocr_0
+         |bank_ocr_1|bank_ocr_2|bank_ocr_3|bank_ocr_4|bank_ocr_5|bank_ocr_6|bank_ocr_7|bank_ocr_8
+         |bank_ocr_9|conv2d_blur|conv2d_deriv_x|conv2d_deriv_y|conv2d_edges|conv2d_emboss
+         |conv2d_invert|conv2d_rand|conv2d_sharpen|conv2d_sobel_x|conv2d_sobel_y|conv2d_box_blur|rgb
+         |rbggbr|rggb|rgbgr|roygbiv|rainbow|ace|nb|trans|sparse|sparser|invaders|invaders_square
+         |matrix|letters|ideogram|iching|script|white_bear|tromino|alphanum_binary|alphanum_numeric
+         |alphanum_hex|truetype|halftone|lcd|lcd_binary|fat_lcd|fat_lcd_binary|fat_lcd_numeric
+         |fat_lcd_hex|arecibo_num|arecibo_bignum|arecibo_nucleotide|arecibo_dna|arecibo|truchet_lines
+         |truchet_curves|truchet_tile|mcpaint|emoji|bar_code|bar_code_short|bank_ocr|fake_qr|dropout]
+                                  Value distribution: Hot pixel mask
+  --mask-inverse                  Mask: Invert hot pixels
+  --glyph-map [ace|alphanum_0|alphanum_1|alphanum_2|alphanum_3|alphanum_4|alphanum_5|alphanum_6
+              |alphanum_7|alphanum_8|alphanum_9|alphanum_a|alphanum_b|alphanum_binary|alphanum_c
+              |alphanum_d|alphanum_e|alphanum_f|alphanum_hex|alphanum_numeric|arecibo_nucleotide
+              |chess|conv2d_blur|conv2d_box_blur|conv2d_deriv_x|conv2d_deriv_y|conv2d_edges
+              |conv2d_emboss|conv2d_invert|conv2d_rand|conv2d_sharpen|conv2d_sobel_x
+              |conv2d_sobel_y|dropout|emoji|emoji_00|emoji_01|emoji_02|emoji_03|emoji_04|emoji_05
+              |emoji_06|emoji_07|emoji_08|emoji_09|emoji_10|emoji_11|emoji_12|emoji_13|emoji_14
+              |emoji_15|emoji_16|emoji_17|emoji_18|emoji_19|emoji_20|emoji_21|emoji_22|emoji_23
+              |emoji_24|emoji_25|emoji_26|emoji_27|fat_lcd|fat_lcd_0|fat_lcd_1|fat_lcd_2|fat_lcd_3
+              |fat_lcd_4|fat_lcd_5|fat_lcd_6|fat_lcd_7|fat_lcd_8|fat_lcd_9|fat_lcd_a|fat_lcd_b
+              |fat_lcd_binary|fat_lcd_c|fat_lcd_d|fat_lcd_e|fat_lcd_f|fat_lcd_g|fat_lcd_h
+              |fat_lcd_hex|fat_lcd_i|fat_lcd_j|fat_lcd_k|fat_lcd_l|fat_lcd_m|fat_lcd_n
+              |fat_lcd_numeric|fat_lcd_o|fat_lcd_p|fat_lcd_q|fat_lcd_r|fat_lcd_s|fat_lcd_t
+              |fat_lcd_u|fat_lcd_v|fat_lcd_w|fat_lcd_x|fat_lcd_y|fat_lcd_z|grid|h_bar|halftone
+              |halftone_0|halftone_1|halftone_2|halftone_3|halftone_4|halftone_5|halftone_6
+              |halftone_7|halftone_8|halftone_9|invaders_square|mcpaint|mcpaint_00|mcpaint_01
+              |mcpaint_02|mcpaint_03|mcpaint_04|mcpaint_05|mcpaint_06|mcpaint_07|mcpaint_08
+              |mcpaint_09|mcpaint_10|mcpaint_11|mcpaint_12|mcpaint_13|mcpaint_14|mcpaint_15
+              |mcpaint_16|mcpaint_17|mcpaint_18|mcpaint_19|mcpaint_20|mcpaint_21|mcpaint_22
+              |mcpaint_23|mcpaint_24|mcpaint_25|mcpaint_26|mcpaint_27|mcpaint_28|mcpaint_29
+              |mcpaint_30|mcpaint_31|mcpaint_32|mcpaint_33|mcpaint_34|mcpaint_35|mcpaint_36
+              |mcpaint_37|mcpaint_38|mcpaint_39|mcpaint_40|nb|rainbow|rbggbr|rgb|rgbgr|rggb
+              |roygbiv|sparse|sparser|square|trans|tromino|tromino_i|tromino_l|tromino_o
+              |tromino_s|truchet_curves|truchet_curves_00|truchet_curves_01|truchet_lines
+              |truchet_lines_00|truchet_lines_01|truchet_tile|truchet_tile_00|truchet_tile_01
+              |truchet_tile_02|truchet_tile_03|truetype|v_bar|waffle|white_bear]
+                                  Mask: Glyph map brightness atlas mask
+  --glyph-map-colorize            Glyph map: Colorize exploded pixels
+  --glyph-map-zoom FLOAT          Glyph map: Exploded pixel zoom factor
+                                  [default: 4.0]
+
+  --glyph-map-alpha FLOAT         Glyph map: Output alpha blending amount (0.0
+                                  = 0%, 1.0 = 100%)  [default: 1.0]
+
+  --composite [rgb|rbggbr|rggb|rgbgr|roygbiv|rainbow|ace|nb|trans]
+                                  Mask: Composite video effect mask
+  --composite-zoom FLOAT          Composite video effect: Exploded pixel zoom
+                                  factor  [default: 2.0]
+
+  --lattice-drift FLOAT           Domain warping: Lattice deform range (1.0 =
+                                  as far as nearest neighbor)
+
+  --vortex FLOAT                  Vortex tiling amount
+  --warp FLOAT                    Octave Warp: Orthogonal displacement range
+                                  (1.0 = height/width of entire image)
+
+  --warp-octaves INTEGER RANGE    Octave Warp: Octave count for --warp
+                                  [range: 1-10]  [default: 3]
+
+  --warp-interp INTEGER           Octave Warp: Interpolation type (0=constant,
+                                  1=linear, 2=cosine, 3=bicubic)
+
+  --warp-freq INTEGER             Octave Warp: Override --freq for warp
+                                  frequency (must be >= 2)
+
+  --warp-map FILE                 Octave Warp: Filename of image with
+                                  brightness values
+
+  --post-reflect FLOAT            Domain warping: Post-reduce derivative-based
+                                  displacement range (1.0 = height/width of
+                                  entire image)
+
+  --reflect FLOAT                 Domain warping: Per-octave derivative-based
+                                  displacement range (1.0 = height/width of
+                                  entire image)
+
+  --post-refract FLOAT            Domain warping: Post-reduce self-
+                                  displacement range (1.0 = height/width of
+                                  entire image)
+
+  --post-refract-y-from-offset / --no-post-refract-y-from-offset
+                                  Domain warping: Post-reduce refract: Use
+                                  offset X values for Y (instead of sin/cos)
+                                  [default: True]
+
+  --refract FLOAT                 Domain warping: Per-octave self-displacement
+                                  range (1.0 = height/width of entire image)
+
+  --refract-y-from-offset / --no-refract-y-from-offset
+                                  Domain warping: Per-octave refract: Use
+                                  offset X values for Y (instead of sin/cos)
+
+  --ripple FLOAT                  Ripple effect: Displacement range (1.0 =
+                                  height/width of entire image)
+
+  --ripple-freq INTEGER           Ripple effect: Override --freq for ripple
+                                  frequency (must be >= 2)  [default: 3]
+
+  --ripple-kink FLOAT             Ripple effect: Ripple amplitude  [default:
+                                  1.0]
+
+  --reindex FLOAT                 Color re-indexing range (1.0 = height/width
+                                  of entire image)
+
+  --post-reindex FLOAT            Post-reduce color re-indexing range (1.0 =
+                                  height/width of entire image)
+
+  --reverb INTEGER RANGE          Post-reduce tiled octave count  [range:
+                                  1-10]
+
+  --reverb-iterations INTEGER RANGE
+                                  Reverb: Re-reverberate N times  [range: 1-4]
+                                  [default: 1]
+
+  --clut FILE                     Color lookup table (path to PNG or JPEG
+                                  image)
+
+  --clut-range FLOAT              CLUT: Maximum pixel gather distance (1.0 =
+                                  height/width of entire image)  [default:
+                                  0.5]
+
+  --clut-horizontal               CLUT: Preserve vertical axis
+  --voronoi INTEGER               Generate a Voronoi diagram (0=none,
+                                  11=range, 12=color_range, 21=regions,
+                                  22=color_regions, 31=range_regions, 41=flow,
+                                  42=color_flow)
+
+  --voronoi-metric INTEGER        Voronoi: Distance metric (0=none,
+                                  1=euclidean, 2=manhattan, 3=chebyshev,
+                                  4=octagram, 101=triangular, 102=hexagram)
+                                  [default: 1]
+
+  --voronoi-nth INTEGER           Voronoi: Plot Nth nearest, or -Nth farthest
+  --voronoi-alpha FLOAT           Voronoi: Basis alpha blending amount (0.0 =
+                                  0%, 1.0 = 100%)  [default: 1.0]
+
+  --voronoi-refract FLOAT         Voronoi: Domain warp input tensor (1.0 =
+                                  height/width of entire image)
+
+  --voronoi-refract-y-from-offset / --no-voronoi-refract-y-from-offset
+                                  Domain warping: Voronoi refract: Use offset
+                                  X values for Y (instead of sin/cos)
+                                  [default: True]
+
+  --voronoi-inverse               Voronoi: Inverse range
+  --dla FLOAT                     Diffusion-limited aggregation (DLA) alpha
+                                  blending amount (0.0 = 0%, 1.0 = 100%)
+
+  --dla-padding INTEGER           DLA: Pixel padding (smaller is slower)
+                                  [default: 2]
+
+  --point-freq INTEGER RANGE      Voronoi/DLA: Approximate lengthwise point
+                                  cloud frequency (freq * freq = count)
+                                  [range: 1-10]  [default: 3.0]
+
+  --point-distrib [random|square|waffle|chess|h_hex|v_hex|spiral|circular|concentric|rotating
+                  |square|waffle|chess|grid|h_bar|v_bar|h_hex|v_hex|h_tri|v_tri|alphanum_0
+                  |alphanum_1|alphanum_2|alphanum_3|alphanum_4|alphanum_5|alphanum_6|alphanum_7
+                  |alphanum_8|alphanum_9|alphanum_a|alphanum_b|alphanum_c|alphanum_d|alphanum_e
+                  |alphanum_f|tromino_i|tromino_l|tromino_o|tromino_s|halftone_0|halftone_1
+                  |halftone_2|halftone_3|halftone_4|halftone_5|halftone_6|halftone_7|halftone_8
+                  |halftone_9|lcd_0|lcd_1|lcd_2|lcd_3|lcd_4|lcd_5|lcd_6|lcd_7|lcd_8|lcd_9
+                  |fat_lcd_0|fat_lcd_1|fat_lcd_2|fat_lcd_3|fat_lcd_4|fat_lcd_5|fat_lcd_6
+                  |fat_lcd_7|fat_lcd_8|fat_lcd_9|fat_lcd_a|fat_lcd_b|fat_lcd_c|fat_lcd_d
+                  |fat_lcd_e|fat_lcd_f|fat_lcd_g|fat_lcd_h|fat_lcd_i|fat_lcd_j|fat_lcd_k
+                  |fat_lcd_l|fat_lcd_m|fat_lcd_n|fat_lcd_o|fat_lcd_p|fat_lcd_q|fat_lcd_r
+                  |fat_lcd_s|fat_lcd_t|fat_lcd_u|fat_lcd_v|fat_lcd_w|fat_lcd_x|fat_lcd_y
+                  |fat_lcd_z|truchet_lines_00|truchet_lines_01|truchet_curves_00|truchet_curves_01
+                  |truchet_tile_00|truchet_tile_01|truchet_tile_02|truchet_tile_03|mcpaint_00
+                  |mcpaint_01|mcpaint_02|mcpaint_03|mcpaint_04|mcpaint_05|mcpaint_06|mcpaint_07
+                  |mcpaint_08|mcpaint_09|mcpaint_10|mcpaint_11|mcpaint_12|mcpaint_13|mcpaint_14
+                  |mcpaint_15|mcpaint_16|mcpaint_17|mcpaint_18|mcpaint_19|mcpaint_20|mcpaint_21
+                  |mcpaint_22|mcpaint_23|mcpaint_24|mcpaint_25|mcpaint_26|mcpaint_27|mcpaint_28
+                  |mcpaint_29|mcpaint_30|mcpaint_31|mcpaint_32|mcpaint_33|mcpaint_34|mcpaint_35
+                  |mcpaint_36|mcpaint_37|mcpaint_38|mcpaint_39|mcpaint_40|emoji_00|emoji_01
+                  |emoji_02|emoji_03|emoji_04|emoji_05|emoji_06|emoji_07|emoji_08|emoji_09|emoji_10
+                  |emoji_11|emoji_12|emoji_13|emoji_14|emoji_15|emoji_16|emoji_17|emoji_18|emoji_19
+                  |emoji_20|emoji_21|emoji_22|emoji_23|emoji_24|emoji_25|emoji_26|emoji_27|bank_ocr_0
+                  |bank_ocr_1|bank_ocr_2|bank_ocr_3|bank_ocr_4|bank_ocr_5|bank_ocr_6|bank_ocr_7
+                  |bank_ocr_8|bank_ocr_9|conv2d_blur|conv2d_deriv_x|conv2d_deriv_y|conv2d_edges
+                  |conv2d_emboss|conv2d_invert|conv2d_rand|conv2d_sharpen|conv2d_sobel_x
+                  |conv2d_sobel_y|conv2d_box_blur|rgb|rbggbr|rggb|rgbgr|roygbiv|rainbow|ace|nb|trans]
+                                  Voronoi/DLA: Point cloud distribution
+                                  [default: random]
+
+  --point-corners                 Voronoi/DLA: Pin diagram to corners, instead
+                                  of image center.
+
+  --point-generations INTEGER RANGE
+                                  Voronoi/DLA: Penrose-ish generations. When
+                                  using, keep --point-freq below ~3 to avoid
+                                  OOM  [range: 1-3]  [default: 1]
+
+  --point-drift FLOAT             Voronoi/DLA: Point drift range (1.0 = as far
+                                  as nearest neighbor)
+
+  --wormhole                      Non-iterative per-pixel field flow
+  --wormhole-stride FLOAT         Wormhole: Max per-pixel displacement range
+                                  (1.0 = height/width of entire image)
+                                  [default: 0.1]
+
+  --wormhole-kink FLOAT           Wormhole: Per-pixel rotation range (1.0 =
+                                  360 degrees)  [default: 1.0]
+
+  --worms INTEGER                 Iterative "worm" field flow (0=none,
+                                  1=obedient, 2=crosshatch, 3=unruly,
+                                  4=chaotic, 5=random, 10=meandering)
+
+  --worms-density FLOAT           Worms: Density multiplier (larger is more
+                                  costly)  [default: 4.0]
+
+  --worms-drunkenness FLOAT       Worms: Drunkenness amount (meander at each
+                                  step)
+
+  --worms-duration FLOAT          Worms: Iteration multiplier (larger is more
+                                  costly)  [default: 4.0]
+
+  --worms-stride FLOAT            Worms: Mean pixel displacement per iteration
+                                  [default: 1.0]
+
+  --worms-stride-deviation FLOAT  Worms: Per-worm random stride variance
+  --worms-kink FLOAT              Worms: Rotation range (1.0 = 360 degrees)
+                                  [default: 1.0]
+
+  --worms-alpha FLOAT             Worms: Output alpha blending amount (0.0 =
+                                  0%, 1.0 = 100%)  [default: 0.875]
+
+  --erosion-worms                 Experimental erosion worms (Does not use
+                                  worms settings)
+
+  --sobel INTEGER                 Post-processing: Apply Sobel operator
+                                  (0=none, 1=euclidean, 2=manhattan,
+                                  3=chebyshev, 4=octagram, 101=triangular,
+                                  102=hexagram)
+
+  --outline INTEGER               Post-processing: Apply Sobel operator, and
+                                  multiply (0=none, 1=euclidean, 2=manhattan,
+                                  3=chebyshev, 4=octagram, 101=triangular,
+                                  102=hexagram)
+
+  --normals                       Post-processing: Generate a tangent-space
+                                  normal map
+
+  --posterize INTEGER             Post-processing: Posterize levels (per
+                                  channel)
+
+  --bloom FLOAT                   Post-processing: Bloom alpha blending amount
+                                  (0.0 = 0%, 1.0 = 100%)
+
+  --glitch / --no-glitch          Glitch effects: Bit-shit
+  --vhs / --no-vhs                Glitch effects: VHS tracking
+  --crt / --no-crt                Glitch effects: CRT scanline
+  --scan-error / --no-scan-error  Glitch effects: Analog scanline error
+  --snow FLOAT                    Glitch effects: Analog broadcast snow
+                                  (0.0=off, 1.0=saturated)
+
+  --dither FLOAT                  Glitch effects: Per-pixel brightness jitter
+  --aberration FLOAT              Glitch effects: Chromatic aberration
+                                  distance (e.g. .0075)
+
+  --light-leak FLOAT              Art effects: Light leak
+  --vignette FLOAT                Art effects: Vignette alpha blending amount
+                                  (0.0 = 0%, 1.0 = 100%)
+
+  --vignette-brightness FLOAT     Art effects: Vignette edge brightness (0-1)
+  --pop                           Art effects: Pop art
+  --shadow FLOAT                  Shadow alpha blending amount (0.0 = 0%, 1.0
+                                  = 100%)
+
+  --rgb                           Use RGB noise basis instead of HSV
+  --hue-range FLOAT               HSV: Hue range (0..1+)  [default: 0.25]
+  --hue-rotation FLOAT            HSV: Hue rotation (0..1)
+  --post-hue-rotation FLOAT       HSV: Post-reduce hue rotation (-0.5 .. 0.5)
+  --saturation FLOAT              HSV: Saturation (0..1+)  [default: 1.0]
+  --hue-distrib [normal|uniform|exp|laplace|lognormal|ones|mids|column_index|row_index|simplex
+                |simplex_exp|simplex_pow_inv_1|fastnoise|fastnoise_exp]
+                                  HSV: Override value distribution for hue
+  --saturation-distrib [normal|uniform|exp|laplace|lognormal|ones|mids|column_index|row_index
+                       |simplex|simplex_exp|simplex_pow_inv_1|fastnoise|fastnoise_exp]
+                                  HSV: Override value distribution for
+                                  saturation
+
+  --post-saturation FLOAT         HSV: Post-reduce saturation
+  --brightness-distrib [normal|uniform|exp|laplace|lognormal|ones|mids|column_index|row_index
+                       |simplex|simplex_exp|simplex_pow_inv_1|fastnoise|fastnoise_exp]
+                                  HSV: Override value distribution for
+                                  brightness
+
+  --input-dir DIRECTORY           Input directory containing .jpg and/or .png
+                                  images
+
+  --wavelet                       Wavelets: What are they even?
+  --density                       Map values to color density histogram
+  --palette [70s-tshirt|blue-brown|blue-green|blue-green-2|blue-orange|blue-white-orange|burnt-cyan
+            |cyan|cyan-red|dark-blue|dark-purple|dealer-hat|grayscale|green-purple|jungle|neon
+            |pastels|pink-blue|pink-blue-2|purple-pink|rainbow|rainbow-2|rainbow-3|red-blue-2
+            |red-green|red-orange-purple|sherbet|sherbet-2|spectro|spectro-2|spectro-3
+            |spectro-double|sunburn|toxic|vaporwave|vibrant|white-orange-blue|yellow-rainbow]
+                                  Apply named cosine palette
+  --seed INTEGER                  Random seed. Might not affect all things.
+  --name FILE                     Filename for image output (should end with
+                                  .png or .jpg)  [default: noise.png]
+
+  -h, --help                      Show this message and exit.

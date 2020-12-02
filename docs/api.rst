@@ -1,9 +1,6 @@
 Noisemaker API
 ==============
 
-.. toctree::
-    :maxdepth: 4
-
 Images are float32 tensors (0..1 range), with shape (height, width, channels). Most functions assume seamlessly tiled noise.
 
 This is a pre-1.0 API, and may receive backwards incompatible changes.
@@ -41,7 +38,7 @@ noisemaker.recipes
     :show-inheritance:
 
 noisemaker.constants
-------------------
+--------------------
 
 .. automodule:: noisemaker.constants
     :members:
@@ -49,7 +46,7 @@ noisemaker.constants
     :show-inheritance:
 
 noisemaker.util
-------------------
+---------------
 
 .. automodule:: noisemaker.util
     :members:
