@@ -55,7 +55,7 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
         overrides = {}
 
     # Override defaults to animate better
-    distrib = kwargs.get('distrib')
+    distrib = overrides.get('distrib', kwargs.get('distrib'))
 
     if distrib in (ValueDistribution.exp, 'exp'):
         overrides['distrib'] = 'simplex_exp'
@@ -76,12 +76,10 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     if 'point_drift' not in kwargs:
         overrides['point_drift'] = 0.25
 
-    if 'speed' in kwargs:
-        # Adjust speed for length of clip. A "normal" length is 30 frames.
-        kwargs['speed'] *= frame_count / 30.0
+    speed = overrides.get("speed", kwargs.get("speed", 0.25))
 
-    else:
-        overrides['speed'] = 0.25 * (frame_count / 30.0)
+    # Adjust speed for length of clip. A "normal" length is 30 frames.
+    overrides['speed'] = speed * (frame_count / 30.0)
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
