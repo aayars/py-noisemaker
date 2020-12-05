@@ -464,7 +464,7 @@ def resample(tensor, shape, spline_order=3):
         spline_order = InterpolationType(spline_order)
 
     elif isinstance(spline_order, str):
-        spline_order = InterpolationType[metric]
+        spline_order = InterpolationType[spline_order]
 
     input_shape = tf.shape(tensor)
 
@@ -2616,6 +2616,19 @@ def palette(tensor, shape, name, time=0.0):
     phase = p["phase"] * tf.ones(channel_shape) + time
 
     return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) + phase))
+
+
+def periodic_value(time, value):
+    """
+    Coerce the received value to animate smoothly between time values 0 and 1 by applying a sine function and scaling the result.
+
+    :param float time:
+    :param float|Tensor value:
+    """
+
+    # h/t Etienne Jacob again
+    # https://bleuje.github.io/tutorial2/
+    return (tf.sin((time - value) * math.tau) + 1.0) * 0.5
 
 
 def shape_from_file(filename):

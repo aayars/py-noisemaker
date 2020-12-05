@@ -57,20 +57,26 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     # Override defaults to animate better
     distrib = overrides.get('distrib', kwargs.get('distrib'))
 
-    if distrib in (ValueDistribution.exp, 'exp'):
+    if distrib and isinstance(distrib, int):
+        distrib = ValueDistribution(distrib)
+
+    elif distrib and isinstance(distrib, str):
+        distrib = ValueDistribution[distrib]
+
+    if distrib == ValueDistribution.exp:
         overrides['distrib'] = 'simplex_exp'
 
-    if distrib in (ValueDistribution.lognormal, 'lognormal'):
+    if distrib  == ValueDistribution.lognormal:
         overrides['distrib'] = 'simplex_pow_inv_1'
 
     elif distrib not in (
-        # ValueDistribution.ones, 'ones',
-        ValueDistribution.simplex_exp, 'simplex_exp',
-        ValueDistribution.column_index, 'column_index',
-        ValueDistribution.row_index, 'row_index',
-        ValueDistribution.fastnoise, 'fastnoise',
-        ValueDistribution.fastnoise_exp, 'fastnoise_exp',
-    ):
+        # ValueDistribution.ones,
+        ValueDistribution.simplex_exp,
+        ValueDistribution.column_index,
+        ValueDistribution.row_index,
+        ValueDistribution.fastnoise,
+        ValueDistribution.fastnoise_exp,
+    ) and not ValueDistribution.is_periodic(distrib):
         overrides['distrib'] = 'simplex'
 
     if 'point_drift' not in kwargs:

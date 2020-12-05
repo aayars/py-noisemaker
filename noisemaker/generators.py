@@ -1,5 +1,6 @@
 """Low-level value noise generators for Noisemaker"""
 
+import math
 import random
 
 import numpy as np
@@ -47,6 +48,14 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
     elif isinstance(mask, str):
         mask = ValueMask[mask]
 
+    if ValueDistribution.is_periodic(distrib):
+        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
+        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
+        # this animates the different parts of the image at different rates, instead of ping-ponging everything back and forth.
+        #
+        # get the periodic uniform noise, and scale it to speed:
+        scaled_time = effects.periodic_value(time, tf.random.uniform(initial_shape)) * speed
+
     if distrib == ValueDistribution.ones:
         tensor = tf.ones(initial_shape)
 
@@ -75,20 +84,29 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
     elif distrib == ValueDistribution.row_index:
         tensor = tf.expand_dims(effects.normalize(tf.cast(effects.row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
 
-    elif distrib == ValueDistribution.simplex:
+    elif ValueDistribution.is_simplex(distrib):
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
-    elif distrib == ValueDistribution.simplex_exp:
-        tensor = tf.math.pow(simplex.simplex(initial_shape, time=time, speed=speed), 4)
+        if distrib == ValueDistribution.simplex_exp:
+            tensor = tf.math.pow(tensor, 4)
 
-    elif distrib == ValueDistribution.simplex_pow_inv_1:
-        tensor = tf.math.pow(simplex.simplex(initial_shape, time=time, speed=speed), -1)
+        elif distrib == ValueDistribution.simplex_pow_inv_1:
+            tensor = tf.math.pow(tensor, -1)
 
-    elif distrib == ValueDistribution.fastnoise:
+    elif ValueDistribution.is_fastnoise(distrib):
         tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
 
-    elif distrib == ValueDistribution.fastnoise_exp:
-        tensor = tf.math.pow(fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed), 4)
+        if distrib == ValueDistribution.fastnoise_exp:
+            tensor = tf.math.pow(tensor, 4)
+
+    elif ValueDistribution.is_periodic(distrib):
+        tensor = effects.periodic_value(scaled_time, tf.random.uniform(initial_shape))
+
+        if distrib == ValueDistribution.periodic_exp:
+            tensor = tf.math.pow(tensor, 4)
+
+        elif distrib == ValueDistribution.periodic_pow_inv_1:
+            tensor = tf.math.pow(tensor, -1)
 
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))

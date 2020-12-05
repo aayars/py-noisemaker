@@ -128,13 +128,31 @@ class ValueDistribution(Enum):
 
     row_index = 11
 
+    # animated loops via the infamous 4d donut approach
     simplex = 20
     simplex_exp = 21
     simplex_pow_inv_1 = 22
 
-    # use fastnoise for high-frequency animated noise. it doesn't loop but nobody will know
+    @classmethod
+    def is_simplex(cls, member):
+        return member and (member.value >= 20) and (member.value < 100)
+
+    # fastnoise for high-frequency animated noise. it doesn't loop, but nobody will know
     fastnoise = 100
     fastnoise_exp = 101
+
+    @classmethod
+    def is_fastnoise(cls, member):
+        return member and (member.value >= 100) and (member.value < 1000)
+
+    # animated loops via a periodic function
+    periodic_uniform = 1000
+    periodic_exp = 1001
+    periodic_pow_inv_1 = 1002
+
+    @classmethod
+    def is_periodic(cls, member):
+        return member and (member.value >= 1000)
 
 
 class ValueMask(Enum):
