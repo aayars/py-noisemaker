@@ -2330,7 +2330,8 @@ def palette(tensor, shape, name, time=0.0):
     freq = p["freq"] * tf.ones(channel_shape)
     phase = p["phase"] * tf.ones(channel_shape) + time
 
-    return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) + phase))
+    # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
+    return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) * .875 + phase))
 
 
 def glitch(tensor, shape, time=0.0, speed=1.0):
