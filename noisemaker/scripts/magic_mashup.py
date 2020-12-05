@@ -11,6 +11,7 @@ import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.util as util
+import noisemaker.value as value
 
 DEFAULT_WIDTH = 512
 DEFAULT_HEIGHT = 512
@@ -40,19 +41,19 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
             filename = f'{tmp}/{i:04d}.png'
 
             util.check_call(['magic-mashup', 'frame',
-                '--input-dir', input_dir,
-                '--frame', str(i),
-                '--seed', str(seed),
-                '--width', str(width),
-                '--height', str(height),
-                '--name', filename])
+                             '--input-dir', input_dir,
+                             '--frame', str(i),
+                             '--seed', str(seed),
+                             '--width', str(width),
+                             '--height', str(height),
+                             '--name', filename])
 
             util.check_call(['artmangler', 'crt', filename,
-                '--no-resize',
-                '--seed', str(seed),
-                '--overrides', '{"distrib": "simplex", "speed": 0.25}',
-                '--time', str(i / 30.0),
-                '--name', filename])
+                             '--no-resize',
+                             '--seed', str(seed),
+                             '--overrides', '{"distrib": "simplex", "speed": 0.25}',
+                             '--time', str(i / 30.0),
+                             '--name', filename])
 
             if save_frames:
                 shutil.copy(filename, save_frames)
@@ -74,7 +75,7 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
 @cli.height_option(default=DEFAULT_HEIGHT)
 @click.pass_context
 def frame(ctx, input_dir, frame, seed, name, width, height):
-    generators.set_seed(seed)
+    value.set_seed(seed)
 
     shape = [height, width, 3]
 
@@ -92,12 +93,12 @@ def frame(ctx, input_dir, frame, seed, name, width, height):
 
         dirname = dirnames[index]
 
-        filenames = [f for f in sorted(os.listdir(os.path.join(input_dir, dirnames[index]))) if f.endswith('.png')]
+        filenames = [f for f in sorted(os.listdir(os.path.join(input_dir, dirname))) if f.endswith('.png')]
 
         if not filenames:
             continue
 
-        input_filename = os.path.join(input_dir, dirnames[index], filenames[frame])
+        input_filename = os.path.join(input_dir, dirname, filenames[frame])
 
         collage_images.append(tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32))
 
@@ -110,7 +111,7 @@ def frame(ctx, input_dir, frame, seed, name, width, height):
     with tf.compat.v1.Session().as_default():
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-        tensor = effects.blend(tensor, base, .125 + random.random() * .125)
+        tensor = value.blend(tensor, base, .125 + random.random() * .125)
 
         tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
         tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)

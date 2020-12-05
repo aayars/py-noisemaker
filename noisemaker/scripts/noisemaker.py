@@ -6,6 +6,7 @@ from noisemaker.util import save
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.recipes as recipes
+import noisemaker.value as value
 
 
 @click.command(help="""
@@ -143,7 +144,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          point_freq, point_distrib, point_corners, point_generations,
          point_drift, density, palette, seed, name):
 
-    generators.set_seed(seed)
+    value.set_seed(seed)
 
     shape = [height, width, channels]
 

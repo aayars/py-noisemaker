@@ -1,148 +1,15 @@
-"""Low-level value noise generators for Noisemaker"""
+"""Noise generation interface for Noisemaker"""
 
-import math
-import random
-
-import numpy as np
 import tensorflow as tf
 
-from noisemaker.constants import OctaveBlending, ValueDistribution, ValueMask
+from noisemaker.constants import InterpolationType, OctaveBlending, ValueDistribution
 
 import noisemaker.effects as effects
-import noisemaker.fastnoise as fastnoise
-import noisemaker.masks as masks
-import noisemaker.simplex as simplex
+import noisemaker.value as value
 
 
-def set_seed(seed):
-    """
-    """
-
-    if seed is not None:
-        random.seed(seed)
-
-        np.random.seed(seed)
-
-        tf.random.set_seed(seed)
-
-        simplex._seed = seed
-
-
-def values(freq, shape, distrib=ValueDistribution.normal, corners=False,
-           mask=None, mask_inverse=False, mask_static=False,
-           spline_order=3, wavelet=False, time=0.0, speed=1.0):
-    """
-    """
-
-    initial_shape = freq + [shape[-1]]
-
-    if isinstance(distrib, int):
-        distrib = ValueDistribution(distrib)
-
-    elif isinstance(distrib, str):
-        distrib = ValueDistribution[distrib]
-
-    if isinstance(mask, int):
-        mask = ValueMask(mask)
-
-    elif isinstance(mask, str):
-        mask = ValueMask[mask]
-
-    if ValueDistribution.is_periodic(distrib):
-        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
-        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
-        # this animates the different parts of the image at different rates, instead of ping-ponging everything back and forth.
-        #
-        # get the periodic uniform noise, and scale it to speed:
-        scaled_time = effects.periodic_value(time, tf.random.uniform(initial_shape)) * speed
-
-    if distrib == ValueDistribution.ones:
-        tensor = tf.ones(initial_shape)
-
-    elif distrib == ValueDistribution.mids:
-        tensor = tf.ones(initial_shape) * .5
-
-    elif distrib == ValueDistribution.normal:
-        tensor = tf.random.normal(initial_shape, mean=0.5, stddev=0.25)
-        tensor = tf.math.minimum(tf.math.maximum(tensor, 0.0), 1.0)
-
-    elif distrib == ValueDistribution.uniform:
-        tensor = tf.random.uniform(initial_shape)
-
-    elif distrib == ValueDistribution.exp:
-        tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.laplace:
-        tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.lognormal:
-        tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.column_index:
-        tensor = tf.expand_dims(effects.normalize(tf.cast(effects.column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
-
-    elif distrib == ValueDistribution.row_index:
-        tensor = tf.expand_dims(effects.normalize(tf.cast(effects.row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
-
-    elif ValueDistribution.is_simplex(distrib):
-        tensor = simplex.simplex(initial_shape, time=time, speed=speed)
-
-        if distrib == ValueDistribution.simplex_exp:
-            tensor = tf.math.pow(tensor, 4)
-
-        elif distrib == ValueDistribution.simplex_pow_inv_1:
-            tensor = tf.math.pow(tensor, -1)
-
-    elif ValueDistribution.is_fastnoise(distrib):
-        tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
-
-        if distrib == ValueDistribution.fastnoise_exp:
-            tensor = tf.math.pow(tensor, 4)
-
-    elif ValueDistribution.is_periodic(distrib):
-        tensor = effects.periodic_value(scaled_time, tf.random.uniform(initial_shape))
-
-        if distrib == ValueDistribution.periodic_exp:
-            tensor = tf.math.pow(tensor, 4)
-
-        elif distrib == ValueDistribution.periodic_pow_inv_1:
-            tensor = tf.math.pow(tensor, -1)
-
-    else:
-        raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
-
-    # Skip the below post-processing for fastnoise, since it's generated at a different size.
-    if distrib not in (ValueDistribution.fastnoise, ValueDistribution.fastnoise_exp):
-        if mask:
-            atlas = masks.get_atlas(mask)
-
-            glyph_shape = freq + [1]
-
-            mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
-                                               time=0 if mask_static else time, speed=speed)
-
-            if shape[2] == 2:
-                tensor = tf.stack([tensor[:, :, 0], tf.stack(mask_values)[:, :, 0]], 2)
-
-            elif shape[2] == 4:
-                tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], tf.stack(mask_values)[:, :, 0]], 2)
-
-            else:
-                tensor *= mask_values
-
-        if wavelet:
-            tensor = effects.wavelet(tensor, initial_shape)
-
-        tensor = effects.resample(tensor, shape, spline_order=spline_order)
-
-        if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-            tensor = effects.offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
-
-    return tensor
-
-
-def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
-          distrib=ValueDistribution.normal, corners=False,mask=None, mask_inverse=False, mask_static=False,
+def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
+          distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, mask_static=False,
           lattice_drift=0.0, rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           speed=1.0, time=0.0, **post_process_args):
@@ -158,7 +25,6 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
     :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param float sin: Apply sin function to noise basis
-    :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
@@ -184,9 +50,20 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     if isinstance(freq, int):
         freq = effects.freq_for_shape(freq, shape)
 
-    tensor = values(freq, shape, distrib=distrib, corners=corners,
-                    mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                    spline_order=spline_order, wavelet=wavelet, speed=speed, time=time)
+    common_value_params = {
+        "corners": corners,
+        "mask": mask,
+        "mask_inverse": mask_inverse,
+        "mask_static": mask_static,
+        "speed": speed,
+        "spline_order": spline_order,
+        "time": time,
+    }
+
+    tensor = value.values(freq=freq, shape=shape, distrib=distrib, **common_value_params)
+
+    # Use 1 channel for per-channel noise generation, if any
+    common_value_params["shape"] = [shape[0], shape[1], 1]
 
     if lattice_drift:
         displacement = lattice_drift / min(freq[0], freq[1])
@@ -195,14 +72,11 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
                                  displacement=displacement, warp_freq=freq, spline_order=spline_order,
                                  signed_range=False)
 
-    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
-                                  spline_order=spline_order, rgb=rgb, **post_process_args)
+    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, rgb=rgb, **post_process_args)
 
     if shape[-1] >= 3 and not rgb:
         if hue_distrib:
-            h = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=hue_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                                  spline_order=spline_order, wavelet=wavelet, time=time, speed=speed))
+            h = tf.squeeze(value.values(freq=freq, distrib=hue_distrib, **common_value_params))
 
         else:
             if hue_rotation is None:
@@ -211,9 +85,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
         if saturation_distrib:
-            s = tf.squeeze(values(freq, [shape[0], shape[1], 1], distrib=saturation_distrib, corners=corners,
-                                  mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                                  spline_order=spline_order, wavelet=wavelet, time=time, speed=speed))
+            s = tf.squeeze(value.values(freq=freq, distrib=saturation_distrib, **common_value_params))
 
         else:
             s = tensor[:, :, 1]
@@ -224,11 +96,8 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             if isinstance(brightness_freq, int):
                 brightness_freq = effects.freq_for_shape(brightness_freq, shape)
 
-            v = tf.squeeze(values(brightness_freq or freq, [shape[0], shape[1], 1],
-                                  distrib=brightness_distrib or ValueDistribution.normal,
-                                  corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                                  spline_order=spline_order, wavelet=wavelet, time=time,
-                                  speed=speed))
+            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.normal,
+                                        **common_value_params))
 
         else:
             v = tensor[:, :, 2]
@@ -237,7 +106,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
             v = effects.crease(v)
 
         if sin:
-            v = effects.normalize(tf.sin(sin * v))
+            v = value.normalize(tf.sin(sin * v))
 
         # Preserve the alpha channel before conversion to RGB
         if shape[2] == 4:
@@ -257,7 +126,7 @@ def basic(freq, shape, ridges=False, sin=0.0, wavelet=False, spline_order=3,
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, wavelet=False, spline_order=3,
+def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
              reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, mask_static=False,
              deriv=False, deriv_metric=0, deriv_alpha=1.0, lattice_drift=0.0,
@@ -280,7 +149,6 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param bool ridges: Per-octave "crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool post_ridges: Post-reduce "crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param float sin: Apply sin function to noise basis
-    :param bool wavelet: Maybe not wavelets this time?
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param float reflect_range: Per-octave derivative-based distort range (0..1+)
     :param float refract_range: Per-octave self-distort range (0..1+)
@@ -345,7 +213,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = basic(base_freq, shape, ridges=ridges, sin=sin, wavelet=wavelet, spline_order=spline_order,
+        layer = basic(base_freq, shape, ridges=ridges, sin=sin, spline_order=spline_order,
                       reflect_range=reflect_range / multiplier, refract_range=refract_range / multiplier, reindex_range=reindex_range / multiplier,
                       refract_y_from_offset=post_process_args.get("refract_y_from_offset", False),
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,

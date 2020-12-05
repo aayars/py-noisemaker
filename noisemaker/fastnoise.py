@@ -1,4 +1,3 @@
-import math
 import random
 
 import numpy as np
@@ -6,7 +5,7 @@ import pyfastnoisesimd as fn
 import tensorflow as tf
 
 
-def fastnoise(shape, freq, time=0.0, seed=None, speed=1.0, as_np=False):
+def fastnoise(shape, freq, time=0.0, seed=None, speed=1.0):
     tensor = np.empty(shape, dtype=np.float32)
 
     seed = seed or random.randint(1, 65536)
@@ -24,7 +23,4 @@ def fastnoise(shape, freq, time=0.0, seed=None, speed=1.0, as_np=False):
         generator.seed = seed + channel
         tensor[:, :, channel] = tf.squeeze((generator.genAsGrid(channel_shape, start=start) + 1.0) * 0.5)
 
-    if not as_np:
-        tensor = tf.stack(tensor)
-
-    return tensor
+    return tf.stack(tensor)

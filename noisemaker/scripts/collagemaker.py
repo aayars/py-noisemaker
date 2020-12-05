@@ -9,8 +9,8 @@ from noisemaker.util import save
 import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
-import noisemaker.points as points
 import noisemaker.util as util
+import noisemaker.value as value
 
 
 @click.group(help="""
@@ -55,7 +55,7 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
         if retro_upscale:
             input_shape = [input_shape[0] * 2, input_shape[1] * 2, input_shape[2]]
 
-            collage_input = effects.resample(collage_input, input_shape, spline_order=0)
+            collage_input = value.resample(collage_input, input_shape, spline_order=0)
 
         collage_input = effects.square_crop_and_resize(collage_input, input_shape, 1024)
 
@@ -81,7 +81,7 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-        tensor = effects.blend(tensor, base, .125 + random.random() * .125)
+        tensor = value.blend(tensor, base, .125 + random.random() * .125)
 
         tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
         tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)

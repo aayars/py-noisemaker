@@ -62,13 +62,15 @@ def magick(glob, name):
     common_params = ['-delay', '5', glob, name]
 
     try:
-        return check_call(['magick'] + common_params, quiet=True)
+        command = 'magick'
+        return check_call([command] + common_params, quiet=True)
 
     except FileNotFoundError:
-        return check_call(['convert'] + common_params)
+        command = 'convert'
+        return check_call([command] + common_params)
 
     except Exception as e:
-        log_subprocess_error(e)  # Try to only log non-pathological errors from `magick`
+        log_subprocess_error(command, e)  # Try to only log non-pathological errors from `magick`
 
 
 def watermark(text, filename):
@@ -95,12 +97,12 @@ def check_call(command, quiet=False):
 
     except Exception as e:
         if not quiet:
-            log_subprocess_error(e)
+            log_subprocess_error(command, e)
 
         raise
 
 
-def log_subprocess_error(e):
+def log_subprocess_error(command, e):
     if isinstance(e, subprocess.CalledProcessError):
         logger.error(f"{e}: {e.output.strip()}")
 

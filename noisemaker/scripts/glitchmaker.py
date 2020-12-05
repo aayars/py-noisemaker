@@ -8,6 +8,7 @@ from noisemaker.util import save, load
 import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.recipes as recipes
+import noisemaker.value as value
 
 
 @click.group(help="""
@@ -78,7 +79,7 @@ def render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, n
         shape = [height, width, channels]
 
         if need_resample:
-            tensor = effects.resample(tensor, shape)
+            tensor = value.resample(tensor, shape)
 
         tensor = effects.post_process(tensor, shape=shape, freq=freq, with_bloom=bloom, with_aberration=aberration)
 

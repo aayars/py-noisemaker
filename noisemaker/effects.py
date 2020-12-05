@@ -1,9 +1,6 @@
 """Low-level effects library for Noisemaker"""
 
-from collections import defaultdict
-
 import math
-import os
 import random
 
 from PIL import Image
@@ -17,6 +14,7 @@ from noisemaker.constants import (
     DistanceMetric,
     InterpolationType,
     PointDistribution,
+    ValueDistribution,
     ValueMask,
     VoronoiDiagramType,
     WormBehavior
@@ -28,10 +26,11 @@ from noisemaker.points import point_cloud
 import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 import noisemaker.util as util
+import noisemaker.value as value
 
 
-def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
-                 refract_y_from_offset=False, refract_signed_range=False,
+def post_process(tensor, shape, freq, ridges_hint=False, spline_order=InterpolationType.bicubic,
+                 reflect_range=0.0, refract_range=0.0, reindex_range=0.0, refract_y_from_offset=False, refract_signed_range=False,
                  clut=None, clut_horizontal=False, clut_range=0.5,
                  with_worms=None, worms_density=4.0, worms_duration=4.0, worms_stride=1.0, worms_stride_deviation=.05,
                  worms_alpha=.5, worms_kink=1.0, worms_drunkenness=0.0, worms_drunken_spin=False,
@@ -165,7 +164,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     :return: Tensor
     """
 
-    tensor = normalize(tensor)
+    tensor = value.normalize(tensor)
 
     if with_wobble:
         tensor = wobble(tensor, shape, time=time, speed=speed * with_wobble)
@@ -182,19 +181,20 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
             x, y = point_cloud(1, PointDistribution.square, shape)
 
         else:
-            x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations, drift=point_drift, time=time, speed=speed)
+            x, y = point_cloud(point_freq, distrib=point_distrib, shape=tiled_shape, corners=point_corners, generations=point_generations,
+                               drift=point_drift, time=time, speed=speed)
 
         xy = (x, y, len(x))
 
-        input_tensor = resample(tensor, tiled_shape)
+        input_tensor = value.resample(tensor, tiled_shape)
 
         if with_voronoi and with_voronoi != VoronoiDiagramType.none:
-            input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_metric=voronoi_metric, inverse=voronoi_inverse,
-                                   nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract, xy=xy,
-                                   refract_y_from_offset=voronoi_refract_y_from_offset)
+            input_tensor = voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_metric=voronoi_metric,
+                                   inverse=voronoi_inverse, nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract,
+                                   xy=xy, refract_y_from_offset=voronoi_refract_y_from_offset)
 
         if with_dla:
-            input_tensor = blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
+            input_tensor = value.blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
 
         if point_generations == 1:
             tensor = input_tensor
@@ -348,7 +348,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=3, reflect
     if angle is not None:
         tensor = rotate(tensor, shape, angle)
 
-    tensor = normalize(tensor)
+    tensor = value.normalize(tensor)
 
     return tensor
 
@@ -402,14 +402,14 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
 
     out = tf.tile(tensor, [2, 2, 1])  # Tile 2x2
 
-    out = offset(out, double_shape, half_width, half_height)
+    out = value.offset(out, double_shape, half_width, half_height)
 
     out = tf.nn.depthwise_conv2d([out], kernel_values, [1, 1, 1, 1], "VALID")[0]
 
     out = tf.image.resize_with_crop_or_pad(out, height, width)
 
     if with_normalize:
-        out = normalize(out)
+        out = value.normalize(out)
 
     if kernel == ValueMask.conv2d_edges:
         out = tf.abs(out - .5) * 2
@@ -417,144 +417,7 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     if alpha == 1.0:
         return out
 
-    return blend(tensor, out, alpha)
-
-
-def normalize(tensor, signed_range=False):
-    """
-    Squeeze the given Tensor into a range between 0 and 1.
-
-    :param Tensor tensor: An image tensor.
-    :param bool signed_range: Use a range between -1 and 1.
-    :return: Tensor
-    """
-
-    floor = float(tf.reduce_min(tensor))
-    if floor == math.inf or floor == -math.inf or floor == math.nan:  # Avoid GIGO
-        raise ValueError(f"Input tensor contains {floor}, check caller for shenanigans")
-
-    ceil = float(tf.reduce_max(tensor))
-    if ceil == math.inf or ceil == -math.inf or ceil == math.nan:  # Avoid GIGO
-        raise ValueError(f"Input tensor contains {ceil}, check caller for shenanigans")
-
-    if floor == ceil:  # Avoid divide by zero
-        raise ValueError(f"Input tensor min and max are each {floor}, check caller for shenanigans")
-
-    delta = ceil - floor
-
-    values = (tensor - floor) / delta
-
-    if signed_range:
-        values = values * 2.0 - 1.0
-
-    return values
-
-
-def resample(tensor, shape, spline_order=3):
-    """
-    Resize an image tensor to the specified shape.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :return: Tensor
-    """
-
-    if isinstance(spline_order, int):
-        spline_order = InterpolationType(spline_order)
-
-    elif isinstance(spline_order, str):
-        spline_order = InterpolationType[spline_order]
-
-    input_shape = tf.shape(tensor)
-
-    # Blown up row and column indices. These map into input tensor, producing a big blocky version.
-    resized_row_index = tf.cast(row_index(shape), tf.float32) * (tf.cast(input_shape[1], tf.float32) / shape[1])   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
-    resized_col_index = tf.cast(column_index(shape), tf.float32) * (tf.cast(input_shape[0], tf.float32) / shape[0])
-
-    # Map to input indices as int
-    resized_row_index_trunc = tf.floor(resized_row_index)
-    resized_col_index_trunc = tf.floor(resized_col_index)
-    resized_index_trunc = tf.cast(tf.stack([resized_col_index_trunc, resized_row_index_trunc], 2), tf.int32)
-
-    # Resized original
-    resized = defaultdict(dict)
-    resized[1][1] = tf.gather_nd(tensor, resized_index_trunc)
-
-    if spline_order == InterpolationType.constant:
-        return resized[1][1]
-
-    # Resized neighbors
-    input_rows = defaultdict(dict)
-    input_columns = defaultdict(dict)
-
-    input_rows[1] = row_index(input_shape)
-    input_columns[1] = column_index(input_shape)
-
-    input_rows[2] = (input_rows[1] + 1) % input_shape[1]
-    input_columns[2] = (input_columns[1] + 1) % input_shape[0]
-
-    # Create fractional diffs (how much to blend with each neighbor)
-    value_shape = [shape[0], shape[1], 1]
-    resized_row_index_fract = tf.reshape(resized_row_index - resized_row_index_trunc, value_shape)  # 0, 0.5, 1, 1.5 -> 0, .5, 0, .5
-    resized_col_index_fract = tf.reshape(resized_col_index - resized_col_index_trunc, value_shape)
-
-    for x in range(1, 3):
-        for y in range(1, 3):
-            if x == 1 and y == 1:
-                continue
-
-            resized[y][x] = _gather_scaled_offset(tensor, input_columns[y], input_rows[x], resized_index_trunc)
-
-    if spline_order == InterpolationType.linear:
-        y1 = blend(resized[1][1], resized[1][2], resized_row_index_fract)
-        y2 = blend(resized[2][1], resized[2][2], resized_row_index_fract)
-
-        return blend(y1, y2, resized_col_index_fract)
-
-    if spline_order == InterpolationType.cosine:
-        y1 = blend_cosine(resized[1][1], resized[1][2], resized_row_index_fract)
-        y2 = blend_cosine(resized[2][1], resized[2][2], resized_row_index_fract)
-
-        return blend_cosine(y1, y2, resized_col_index_fract)
-
-    if spline_order == InterpolationType.bicubic:
-        # Extended neighborhood for bicubic
-        points = []
-
-        for y in range(0, 4):
-            if y not in input_columns:
-                input_columns[y] = (input_columns[1] + (y - 1)) % input_shape[0]
-
-            for x in range(0, 4):
-                if x not in input_rows:
-                    input_rows[x] = (input_rows[1] + (x - 1)) % input_shape[1]
-
-                resized[y][x] = _gather_scaled_offset(tensor, input_columns[y], input_rows[x], resized_index_trunc)
-
-            points.append(blend_cubic(resized[y][0], resized[y][1], resized[y][2], resized[y][3], resized_row_index_fract))
-
-        args = points + [resized_col_index_fract]
-
-        return blend_cubic(*args)
-
-
-def _downsample(tensor, shape, new_shape):
-    """ Proportional downsample """
-
-    kernel_shape = [int(max(shape[0] / new_shape[0], 1)), int(max(shape[1] / new_shape[1], 1)), shape[2], 1]
-
-    kernel = tf.ones(kernel_shape)
-
-    out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
-
-    return resample(out, new_shape)
-
-
-def _gather_scaled_offset(tensor, input_column_index, input_row_index, output_index):
-    """ Helper function for resample(). Apply index offset to input tensor, return output_index values gathered post-offset. """
-
-    return tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_column_index, input_row_index], 2)), output_index)
+    return value.blend(tensor, out, alpha)
 
 
 def crease(tensor):
@@ -626,13 +489,13 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
         v = y - tf.floor(y)
 
         sparse_values = tf.squeeze(tf.gather_nd(values, index))
-        g_x = blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
-        g_y = blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
+        g_x = value.blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
+        g_y = value.blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
         length = distance(g_x, g_y, 1) * contraction
 
-        x_dir = blend(x_dir, g_x / length, inertia)
-        y_dir = blend(y_dir, g_y / length, inertia)
+        x_dir = value.blend(x_dir, g_x / length, inertia)
+        y_dir = value.blend(y_dir, g_y / length, inertia)
 
         # step
         x = (x + x_dir) % width
@@ -644,9 +507,9 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
         out = 1.0 - out
 
     if xy_blend:
-        tensor = blend(shadow(tensor, shape), reindex(tensor, shape, 1), xy_blend * values)
+        tensor = value.blend(shadow(tensor, shape), reindex(tensor, shape, 1), xy_blend * values)
 
-    return blend(tensor, out, alpha)
+    return value.blend(tensor, out, alpha)
 
 
 def reindex(tensor, shape, displacement=.5):
@@ -677,7 +540,8 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=3, from_derivative=False, signed_range=True, time=0.0, speed=1.0, y_from_offset=False):
+def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=InterpolationType.bicubic,
+            from_derivative=False, signed_range=True, time=0.0, speed=1.0, y_from_offset=False):
     """
     Apply displacement from pixel values.
 
@@ -701,20 +565,21 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     height, width, channels = shape
 
-    x0_index = row_index(shape)
-    y0_index = column_index(shape)
+    x0_index = value.row_index(shape)
+    y0_index = value.column_index(shape)
 
     warp_shape = None
 
     if warp_freq:
-        warp_shape = [warp_freq[0], warp_freq[1], 1]
+        warp_shape = [height, width, 1]
 
     if reference_x is None:
         if from_derivative:
             reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
+            reference_x = value.values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
+                                       time=time, speed=speed, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -724,7 +589,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = resample(simplex.simplex(warp_shape, time=time, seed=random.randint(1, 65536), speed=speed), shape, spline_order=spline_order)
+            reference_y = value.values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
+                                       time=time, speed=speed, spline_order=spline_order)
 
         else:
             if y_from_offset:
@@ -762,13 +628,13 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     x_fract = tf.reshape(x_offsets - tf.floor(x_offsets), [height, width, 1])
     y_fract = tf.reshape(y_offsets - tf.floor(y_offsets), [height, width, 1])
 
-    x_y0 = blend(x0_y0, x1_y0, x_fract)
-    x_y1 = blend(x0_y1, x1_y1, x_fract)
+    x_y0 = value.blend(x0_y0, x1_y0, x_fract)
+    x_y1 = value.blend(x0_y1, x1_y1, x_fract)
 
-    return blend(x_y0, x_y1, y_fract)
+    return value.blend(x_y0, x_y1, y_fract)
 
 
-def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=3, time=0.0, speed=1.0):
+def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
     Apply displacement from pixel radian values.
 
@@ -789,14 +655,13 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
 
     height, width, channels = shape
 
-    x0_index = row_index(shape)
-    y0_index = column_index(shape)
+    x0_index = value.row_index(shape)
+    y0_index = value.column_index(shape)
 
     value_shape = [shape[0], shape[1], 1]
 
     if reference is None:
-        # reference = resample(tf.random.uniform([freq[0], freq[1], 1]), value_shape, spline_order=spline_order)
-        reference = resample(normalize(simplex.simplex([freq[0], freq[1], 1], time=time, speed=speed)), value_shape, spline_order=spline_order)
+        reference = value.values(freq=freq, shape=value_shape, distrib=ValueDistribution.periodic_uniform, spline_order=spline_order)
 
     # Twist index, borrowed from worms. TODO refactor me?
     index = value_map(reference, shape, with_normalize=False) * math.tau * kink * simplex.random(time, speed=speed)
@@ -818,10 +683,10 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
     x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
     y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
 
-    x_y0 = blend(x0_y0, x1_y0, x_fract)
-    x_y1 = blend(x0_y1, x1_y1, x_fract)
+    x_y0 = value.blend(x0_y0, x1_y0, x_fract)
+    x_y1 = value.blend(x0_y1, x1_y1, x_fract)
 
-    return blend(x_y0, x_y1, y_fract)
+    return value.blend(x_y0, x_y1, y_fract)
 
 
 def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
@@ -849,24 +714,25 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
 
     reference = value_map(tensor, shape) * displacement
 
-    x_index = (row_index(shape) + tf.cast(reference * (width - 1), tf.int32)) % width
+    x_index = (value.row_index(shape) + tf.cast(reference * (width - 1), tf.int32)) % width
 
     if horizontal:
-        y_index = column_index(shape)
+        y_index = value.column_index(shape)
 
     else:
-        y_index = (column_index(shape) + tf.cast(reference * (height - 1), tf.int32)) % height
+        y_index = (value.column_index(shape) + tf.cast(reference * (height - 1), tf.int32)) % height
 
     index = tf.stack([y_index, x_index], 2)
 
-    clut = resample(tf.image.convert_image_dtype(clut, tf.float32, saturate=True), shape)
+    clut = value.resample(tf.image.convert_image_dtype(clut, tf.float32, saturate=True), shape)
 
     output = tf.gather_nd(clut, index)
 
     return output
 
 
-def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0, drunkenness=0.0, drunken_spin=False, colors=None, time=0.0, speed=1.0):
+def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0,
+          drunkenness=0.0, drunken_spin=False, colors=None, time=0.0, speed=1.0):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -944,7 +810,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
         # Chaotic, changing over time
         WormBehavior.meandering: lambda n:
-            (normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed)]))) * 2.0 - 1.0) * math.pi
+            (value.normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed)]))) * 2.0 - 1.0) * math.pi
     }
 
     worms_rot = rots[behavior](count)
@@ -966,7 +832,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             if not drunken_spin:
                 start = int(min(shape[0], shape[1]) * time * speed + i * speed * 10)  # Wobbling here and there
 
-            worms_rot += (normalize(tf.stack(fastgen.genAsGrid([count], start=[start]))) * 2.0 - 1.0) * drunkenness * math.pi
+            worms_rot += (value.normalize(tf.stack(fastgen.genAsGrid([count], start=[start]))) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
@@ -981,7 +847,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     out = tf.image.convert_image_dtype(out, tf.float32, saturate=True)
 
-    return blend(tensor, tf.sqrt(normalize(out)), alpha)
+    return value.blend(tensor, tf.sqrt(value.normalize(out)), alpha)
 
 
 def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
@@ -1008,8 +874,8 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
     # stride = values * height * input_stride
     stride = height * input_stride
 
-    x_index = tf.cast(row_index(shape), tf.float32)
-    y_index = tf.cast(column_index(shape), tf.float32)
+    x_index = tf.cast(value.row_index(shape), tf.float32)
+    y_index = tf.cast(value.column_index(shape), tf.float32)
 
     x_offset = (tf.cos(degrees) + 1) * stride
     y_offset = (tf.sin(degrees) + 1) * stride
@@ -1019,30 +885,9 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
 
     luminosity = tf.square(tf.reshape(values, [height, width, 1]))
 
-    out = normalize(tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor)))
+    out = value.normalize(tf.scatter_nd(offset_index(y, height, x, width), tensor * luminosity, tf.shape(tensor)))
 
-    return blend(tensor, tf.sqrt(out), alpha)
-
-
-def wavelet(tensor, shape):
-    """
-    Convert regular noise into 2-D wavelet noise.
-
-    Completely useless. Maybe useful if Noisemaker supports higher dimensions later.
-
-    .. image:: images/wavelet.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor: An image tensor.
-    :param list[int] shape:
-    :return: Tensor
-    """
-
-    height, width, channels = shape
-
-    return normalize(tensor - resample(_downsample(tensor, shape, [int(height * .5), int(width * .5), channels]), shape))
+    return value.blend(tensor, tf.sqrt(out), alpha)
 
 
 def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normalize=True, alpha=1.0):
@@ -1067,12 +912,12 @@ def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normali
     out = distance(x, y, dist_metric)
 
     if with_normalize:
-        out = normalize(out)
+        out = value.normalize(out)
 
     if alpha == 1.0:
         return out
 
-    return blend(tensor, out, alpha)
+    return value.blend(tensor, out, alpha)
 
 
 def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
@@ -1095,11 +940,11 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
     x = convolve(ValueMask.conv2d_sobel_x, tensor, shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_sobel_y, tensor, shape, with_normalize=False)
 
-    out = tf.abs(normalize(distance(x, y, dist_metric)) * 2 - 1)
+    out = tf.abs(value.normalize(distance(x, y, dist_metric)) * 2 - 1)
 
     fudge = -1
 
-    out = offset(out, shape, x=fudge, y=fudge)
+    out = value.offset(out, shape, x=fudge, y=fudge)
 
     return out
 
@@ -1122,10 +967,10 @@ def normal_map(tensor, shape):
 
     reference = value_map(tensor, shape, keepdims=True)
 
-    x = normalize(1 - convolve(ValueMask.conv2d_sobel_x, reference, [height, width, 1]))
-    y = normalize(convolve(ValueMask.conv2d_sobel_y, reference, [height, width, 1]))
+    x = value.normalize(1 - convolve(ValueMask.conv2d_sobel_x, reference, [height, width, 1]))
+    y = value.normalize(convolve(ValueMask.conv2d_sobel_y, reference, [height, width, 1]))
 
-    z = 1 - tf.abs(normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
+    z = 1 - tf.abs(value.normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
@@ -1146,7 +991,7 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
     tensor = tf.reduce_sum(tensor, len(shape) - 1, keepdims=keepdims)
 
     if with_normalize:
-        tensor = normalize(tensor, signed_range=signed_range)
+        tensor = value.normalize(tensor, signed_range=signed_range)
 
     elif signed_range:
         tensor = tensor * 2.0 - 1.0
@@ -1173,7 +1018,7 @@ def density_map(tensor, shape):
 
     # values = value_map(tensor, shape, keepdims=True)
     # values = tf.minimum(tf.maximum(tensor, 0.0), 1.0)  # TODO: Get this to work with HDR data
-    values = normalize(tensor)
+    values = value.normalize(tensor)
 
     # https://stackoverflow.com/a/34143927
     binned_values = tf.cast(tf.reshape(values * (bins - 1), [-1]), tf.int32)
@@ -1182,7 +1027,7 @@ def density_map(tensor, shape):
 
     out = tf.gather(counts, tf.cast(values[:, :] * (bins - 1), tf.int32))
 
-    return tf.ones(shape) * normalize(tf.cast(out, tf.float32))
+    return tf.ones(shape) * value.normalize(tf.cast(out, tf.float32))
 
 
 def jpeg_decimate(tensor, shape, iterations=25):
@@ -1218,44 +1063,19 @@ def conv_feedback(tensor, shape, iterations=50, alpha=.5):
 
     half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
 
-    convolved = _downsample(tensor, shape, half_shape)
+    convolved = value.proportional_downsample(tensor, shape, half_shape)
 
     for i in range(iterations):
         convolved = convolve(ValueMask.conv2d_blur, convolved, half_shape)
         convolved = convolve(ValueMask.conv2d_sharpen, convolved, half_shape)
 
-    convolved = normalize(convolved)
+    convolved = value.normalize(convolved)
 
     up = tf.maximum((convolved - .5) * 2, 0.0)
 
     down = tf.minimum(convolved * 2, 1.0)
 
-    return blend(tensor, resample(up + (1.0 - down), shape), alpha)
-
-
-def morph(a, b, g, dist_metric=DistanceMetric.euclidean, spline_order=1):
-    """
-    Linear or cosine interpolation using a specified distance metric
-
-    :param Tensor a:
-    :param Tensor b:
-    :param float|Tensor g: Blending gradient a to b (0..1)
-    :param DistanceMetric|int|str dist_metric: Distance metric
-    :param int spline_order: 1=Linear, 2=Cosine
-    """
-
-    if spline_order not in (1, 2):
-        raise ValueError("Can't interpolate with spline order {0}".format(spline_order))
-
-    elif spline_order == 1:
-        component_func = _linear_components
-
-    elif spline_order == 2:
-        component_func = _cosine_components
-
-    x, y = component_func(a, b, g)
-
-    return distance(x, y, dist_metric)
+    return value.blend(tensor, value.resample(up + (1.0 - down), shape), alpha)
 
 
 def distance(a, b, metric):
@@ -1301,82 +1121,16 @@ def distance(a, b, metric):
     return dist
 
 
-def _linear_components(a, b, g):
-    return a * (1 - g), b * g
-
-
-def blend(a, b, g):
-    """
-    Blend a and b values with linear interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param float|Tensor g: Blending gradient a to b (0..1)
-    :return Tensor:
-    """
-
-    return sum(_linear_components(a, b, g))
-
-
-def _cosine_components(a, b, g):
-    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
-
-    g2 = (1 - tf.cos(g * math.pi)) / 2
-
-    return a * (1 - g2), b * g2
-
-
-def blend_cosine(a, b, g):
-    """
-    Blend a and b values with cosine interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param float|Tensor g: Blending gradient a to b (0..1)
-    :return Tensor:
-    """
-
-    return sum(_cosine_components(a, b, g))
-
-
-def _cubic_components(a, b, c, d, g):
-    # This guy is great http://paulbourke.net/miscellaneous/interpolation/
-
-    g2 = g * g
-
-    a0 = d - c - a + b
-    a1 = a - b - a0
-    a2 = c - a
-    a3 = b
-
-    return a0 * g * g2, a1 * g2, a2 * g + a3
-
-
-def blend_cubic(a, b, c, d, g):
-    """
-    Blend b and c values with bi-cubic interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param Tensor c:
-    :param Tensor d:
-    :param float|Tensor g: Blending gradient b to c (0..1)
-    :return Tensor:
-    """
-
-    return sum(_cubic_components(a, b, c, d, g))
-
-
 def blend_layers(control, shape, feather=1.0, *layers):
     layer_count = len(layers)
 
-    control = normalize(control)
+    control = value.normalize(control)
 
     control *= layer_count
     control_floor = tf.cast(control, tf.int32)
 
-    x_index = row_index(shape)
-    y_index = column_index(shape)
+    x_index = value.row_index(shape)
+    y_index = value.column_index(shape)
 
     layers = tf.stack(list(layers) + [layers[-1]])
     layer_count += 1
@@ -1390,7 +1144,7 @@ def blend_layers(control, shape, feather=1.0, *layers):
     control_floor_fract = control - tf.floor(control)
     control_floor_fract = tf.minimum(tf.maximum(control_floor_fract - (1.0 - feather), 0.0) / feather, 1.0)
 
-    return blend(combined_layer_0, combined_layer_1, control_floor_fract)
+    return value.blend(combined_layer_0, combined_layer_1, control_floor_fract)
 
 
 def center_mask(center, edges, shape, power=2):
@@ -1406,7 +1160,7 @@ def center_mask(center, edges, shape, power=2):
 
     mask = tf.pow(singularity(None, shape, dist_metric=DistanceMetric.chebyshev), power)
 
-    return blend(center, edges, mask)
+    return value.blend(center, edges, mask)
 
 
 def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
@@ -1465,8 +1219,8 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
 
     value_shape = [height, width, 1]
 
-    x_index = tf.cast(tf.reshape(row_index(shape), value_shape), tf.float32)
-    y_index = tf.cast(tf.reshape(column_index(shape), value_shape), tf.float32)
+    x_index = tf.cast(tf.reshape(value.row_index(shape), value_shape), tf.float32)
+    y_index = tf.cast(tf.reshape(value.column_index(shape), value_shape), tf.float32)
 
     is_triangular = dist_metric in (
         DistanceMetric.triangular,
@@ -1525,13 +1279,13 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = resample(offset(tf.expand_dims(tf.sqrt(normalize(dist[:, :, index])), -1), shape, **offset_kwargs), original_shape)
+        range_slice = value.resample(value.offset(tf.expand_dims(tf.sqrt(value.normalize(dist[:, :, index])), -1), shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
 
     if diagram_type in (VoronoiDiagramType.regions, VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions):
-        regions_slice = offset(indices[:, :, index], shape, **offset_kwargs)
+        regions_slice = value.offset(indices[:, :, index], shape, **offset_kwargs)
 
     ###
     if diagram_type == VoronoiDiagramType.range:
@@ -1552,21 +1306,21 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
             if ridges_hint:
                 colors = tf.abs(colors * 2 - 1)
             # normalize() can make animation twitchy. TODO: figure out a way to do this without normalize
-            dist = 1.0 - ((1.0 - normalize(dist)) * colors)
+            dist = 1.0 - ((1.0 - value.normalize(dist)) * colors)
 
         range_out = tf.math.reduce_sum(dist, 2) / point_count
 
-        range_out = resample(offset(range_out, shape, **offset_kwargs), original_shape)
+        range_out = value.resample(value.offset(range_out, shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_out = 1.0 - range_out
 
     if diagram_type in (VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
         # range_out = regions_out * range_slice
-        range_out = blend(tensor * range_slice, range_slice, range_slice)
+        range_out = value.blend(tensor * range_slice, range_slice, range_slice)
 
     if diagram_type == VoronoiDiagramType.regions:
-        regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape, spline_order=0)
+        regions_out = value.resample(tf.cast(regions_slice, tf.float32), original_shape, spline_order=InterpolationType.constant)
 
     if diagram_type in (VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions):
         colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
@@ -1576,11 +1330,11 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
 
         spline_order = 0 if diagram_type == VoronoiDiagramType.color_regions else 3
 
-        regions_out = resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
+        regions_out = value.resample(tf.reshape(tf.gather(colors, regions_slice), shape), original_shape, spline_order=spline_order)
 
     ###
     if diagram_type == VoronoiDiagramType.range_regions:
-        out = blend(regions_out, range_out, tf.square(range_out))
+        out = value.blend(regions_out, range_out, tf.square(range_out))
 
     elif diagram_type in [VoronoiDiagramType.range, VoronoiDiagramType.color_range] + VoronoiDiagramType.flow_members():
         out = range_out
@@ -1599,7 +1353,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
                       y_from_offset=refract_y_from_offset)
 
     if tensor is not None:
-        out = blend(tensor, out, alpha)
+        out = value.blend(tensor, out, alpha)
 
     return out
 
@@ -1638,12 +1392,12 @@ def inner_tile(tensor, shape, freq):
 
     small_shape = [int(shape[0] / freq[0]), int(shape[1] / freq[1]), shape[2]]
 
-    y_index = tf.tile(column_index(small_shape) * freq[0], [freq[0], freq[0]])
-    x_index = tf.tile(row_index(small_shape) * freq[1], [freq[0], freq[0]])
+    y_index = tf.tile(value.column_index(small_shape) * freq[0], [freq[0], freq[0]])
+    x_index = tf.tile(value.row_index(small_shape) * freq[1], [freq[0], freq[0]])
 
     tiled = tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
 
-    tiled = resample(tiled, shape, spline_order=1)
+    tiled = value.resample(tiled, shape, spline_order=InterpolationType.linear)
 
     return tiled
 
@@ -1663,74 +1417,10 @@ def expand_tile(tensor, input_shape, output_shape, with_offset=True):
         x_offset = 0
         y_offset = 0
 
-    x_index = (x_offset + row_index(output_shape)) % input_width
-    y_index = (y_offset + column_index(output_shape)) % input_height
+    x_index = (x_offset + value.row_index(output_shape)) % input_width
+    y_index = (y_offset + value.column_index(output_shape)) % input_height
 
     return tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
-
-
-def row_index(shape):
-    """
-    Generate an X index for the given tensor.
-
-    .. code-block:: python
-
-      [
-        [ 0, 1, 2, ... width-1 ],
-        [ 0, 1, 2, ... width-1 ],
-        ... (x height)
-      ]
-
-    .. image:: images/row_index.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param list[int] shape:
-    :return: Tensor of shape (height, width)
-    """
-
-    height = shape[0]
-    width = shape[1]
-
-    row_identity = tf.cumsum(tf.ones([width], dtype=tf.int32), exclusive=True)
-    row_identity = tf.reshape(tf.tile(row_identity, [height]), [height, width])
-
-    return row_identity
-
-
-def column_index(shape):
-    """
-    Generate a Y index for the given tensor.
-
-    .. code-block:: python
-
-      [
-        [ 0, 0, 0, ... ],
-        [ 1, 1, 1, ... ],
-        [ n, n, n, ... ],
-        ...
-        [ height-1, height-1, height-1, ... ]
-      ]
-
-    .. image:: images/column_index.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param list[int] shape:
-    :return: Tensor of shape (height, width)
-    """
-
-    height = shape[0]
-    width = shape[1]
-
-    column_identity = tf.ones([width], dtype=tf.int32)
-    column_identity = tf.tile(column_identity, [height])
-    column_identity = tf.reshape(column_identity, [height, width])
-    column_identity = tf.cumsum(column_identity, exclusive=True)
-
-    return column_identity
 
 
 def offset_index(y_index, height, x_index, width):
@@ -1775,7 +1465,7 @@ def freq_for_shape(freq, shape):
         return [int(freq * height / width), freq]
 
 
-def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=3, warp_map=None, signed_range=True, time=0.0, speed=1.0):
+def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=InterpolationType.bicubic, warp_map=None, signed_range=True, time=0.0, speed=1.0):
     """
     Multi-octave warp effect
 
@@ -1878,9 +1568,9 @@ def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0):
 
     edges = bloom(edges, shape, alpha=.5)
 
-    edges = normalize(edges + convolve(ValueMask.conv2d_blur, edges, shape))
+    edges = value.normalize(edges + convolve(ValueMask.conv2d_blur, edges, shape))
 
-    return blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
+    return value.blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
 
 
 def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
@@ -1917,22 +1607,20 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     displacement_map = singularity(None, value_shape)
-    displacement_map = normalize(displacement_map)
+    displacement_map = value.normalize(displacement_map)
 
     x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
     y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
 
     fader = singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev, inverse=True)
-    fader = normalize(fader)
+    fader = value.normalize(fader)
 
     x *= fader
     y *= fader
 
     warped = refract(tensor, shape,
-        displacement=simplex.random(time, speed=speed) * 100 * displacement,
-        reference_x=x,
-        reference_y=y,
-        signed_range=False)
+                     displacement=simplex.random(time, speed=speed) * 100 * displacement,
+                     reference_x=x, reference_y=y, signed_range=False)
 
     return warped
 
@@ -1956,8 +1644,8 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
     if channels != 3:  # aye cannit doit
         return tensor
 
-    x_index = row_index(shape)
-    y_index = column_index(shape)
+    x_index = value.row_index(shape)
+    y_index = value.column_index(shape)
 
     x_index_float = tf.cast(x_index, tf.float32)
 
@@ -1967,7 +1655,7 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
 
     mask = tf.pow(tf.squeeze(singularity(None, [shape[0], shape[1], 1])), 3)
 
-    gradient = normalize(x_index_float)
+    gradient = value.normalize(x_index_float)
 
     shift = random.random() * .1 - .05
     tensor = tf.image.adjust_hue(tensor, shift)
@@ -1992,14 +1680,14 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
         # Left and right image sides
         if i == 0:
             # Left (red)
-            offset_x_index = blend(offset_x_index, x_index_float, gradient)
+            offset_x_index = value.blend(offset_x_index, x_index_float, gradient)
 
         elif i == 2:
             # Right (blue)
-            offset_x_index = blend(x_index_float, offset_x_index, gradient)
+            offset_x_index = value.blend(x_index_float, offset_x_index, gradient)
 
         # Fade effect towards center
-        offset_x_index = tf.cast(blend_cosine(x_index_float, offset_x_index, mask), tf.int32)
+        offset_x_index = tf.cast(value.blend_cosine(x_index_float, offset_x_index, mask), tf.int32)
 
         separated.append(tf.gather_nd(tensor[:, :, i], tf.stack([y_index, offset_x_index], 2)))
 
@@ -2023,11 +1711,11 @@ def bloom(tensor, shape, alpha=.5):
     height, width, channels = shape
 
     blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
-    blurred = _downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
-    blurred = resample(blurred, shape)
-    blurred = offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
+    blurred = value.proportional_downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
+    blurred = value.resample(blurred, shape)
+    blurred = value.offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
-    return blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
+    return value.blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
 
 
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
@@ -2162,19 +1850,6 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     return out * tensor
 
 
-def offset(tensor, shape, x=0, y=0):
-    """
-    """
-
-    if x == 0 and y == 0:
-        return tensor
-
-    x_index = row_index(shape)
-    y_index = column_index(shape)
-
-    return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
-
-
 def wobble(tensor, shape, time=0.0, speed=1.0):
     """
     Move the entire image around
@@ -2183,7 +1858,7 @@ def wobble(tensor, shape, time=0.0, speed=1.0):
     x_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[1], tf.int32)
     y_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[0], tf.int32)
 
-    return offset(tensor, shape, x=x_offset, y=y_offset)
+    return value.offset(tensor, shape, x=x_offset, y=y_offset)
 
 
 def reverb(tensor, shape, octaves, iterations=1, ridges=True):
@@ -2216,16 +1891,17 @@ def reverb(tensor, shape, octaves, iterations=1, ridges=True):
             if not all(octave_shape):
                 break
 
-            out += expand_tile(_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
+            out += expand_tile(value.proportional_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
 
-    return normalize(out)
+    return value.normalize(out)
 
 
 def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
     """
     """
 
-    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)], drift=.05, shape=shape, time=time, speed=speed)
+    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)],
+                       drift=.05, shape=shape, time=time, speed=speed)
 
     leak = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
     leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
@@ -2236,29 +1912,25 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
 
     leak = center_mask(tensor, leak, shape, 4)
 
-    return vaseline(blend(tensor, leak, alpha), shape, alpha)
+    return vaseline(value.blend(tensor, leak, alpha), shape, alpha)
 
 
 def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     """
     """
 
-    tensor = normalize(tensor)
+    tensor = value.normalize(tensor)
 
-    #
-    blurred = vaseline(tensor, shape, alpha)
-
-    #
     edges = center_mask(tensor, tf.ones(shape) * brightness, shape)
 
-    return blend(tensor, edges, alpha)
+    return value.blend(tensor, edges, alpha)
 
 
 def vaseline(tensor, shape, alpha=1.0):
     """
     """
 
-    return blend(tensor, center_mask(tensor, bloom(tensor, shape, 1.0), shape), alpha)
+    return value.blend(tensor, center_mask(tensor, bloom(tensor, shape, 1.0), shape), alpha)
 
 
 def shadow(tensor, shape, alpha=1.0, reference=None):
@@ -2278,25 +1950,18 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
 
     height, width, channels = shape
 
-    if reference is None:
-        reference = value_map(tensor, shape, keepdims=True)
-
-    else:
-        reference = value_map(reference, shape, keepdims=True)
+    reference = value_map(reference or tensor, shape, keepdims=True)
 
     value_shape = [height, width, 1]
 
-    grad = random.random()
+    x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape)
+    y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape)
 
-    x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape, with_normalize=True)
-    y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape, with_normalize=True)
+    shade = value.normalize(distance(x, y, DistanceMetric.euclidean))
 
-    shade = normalize(morph(x, y, grad, dist_metric=DistanceMetric.manhattan), signed_range=True)
+    shaded = (1.0 - ((1.0 - tensor) * (1.0 - (shade * .5)))) * shade
 
-    down = tf.sqrt(tf.minimum(shade + 1.0, 1.0))
-    up = tf.square(tf.maximum(shade * .5, 0.0))
-
-    return blend(tensor, tensor * down * (1.0 - (1.0 - up) * (1.0 - tensor)), alpha)
+    return value.blend(tensor, shaded, alpha)
 
 
 def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0.0, speed=1.0):
@@ -2344,31 +2009,30 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0
 
     # Generate a value map, multiply by len(glyphs) to create glyph index offsets
     value_shape = [height, width, 1]
-    uv_noise = _downsample(value_map(tensor, in_shape, keepdims=True), value_shape, uv_shape)
+    uv_noise = value.proportional_downsample(value_map(tensor, in_shape, keepdims=True), value_shape, uv_shape)
 
     approx_shape = [glyph_shape[0] * uv_shape[0], glyph_shape[1] * uv_shape[1], 1]
 
-    uv_noise = resample(uv_noise, approx_shape, spline_order=0)
+    uv_noise = value.resample(uv_noise, approx_shape, spline_order=InterpolationType.constant)
 
-    x_index = row_index(approx_shape) % glyph_shape[1]
-    y_index = column_index(approx_shape) % glyph_shape[0]
+    x_index = value.row_index(approx_shape) % glyph_shape[1]
+    y_index = value.column_index(approx_shape) % glyph_shape[0]
 
     glyph_count = len(glyphs)
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
-    resample_order = 1 if mask == ValueMask.truetype else 0
-
-    out = resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=resample_order)
+    spline_order = InterpolationType.linear if mask == ValueMask.truetype else InterpolationType.constant
+    out = value.resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=spline_order)
 
     if not colorize:
         return out * tf.ones(shape)
 
-    out *= resample(_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=0)
+    out *= value.resample(value.proportional_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=InterpolationType.constant)
 
     if alpha == 1.0:
         return out
 
-    return blend(tensor, out, alpha)
+    return value.blend(tensor, out, alpha)
 
 
 def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, speed=1.0):
@@ -2417,13 +2081,13 @@ def _pixel_sort(tensor, shape, angle, darkest):
     x_index = tf.expand_dims(tf.argmax(value_map(rotated, padded_shape), axis=1, output_type=tf.int32), -1)
 
     # Add offset index to row index
-    x_index = (row_index(padded_shape) - tf.tile(x_index, [1, padded_shape[1]])) % padded_shape[1]
+    x_index = (value.row_index(padded_shape) - tf.tile(x_index, [1, padded_shape[1]])) % padded_shape[1]
 
     # Sort pixels
     sorted_channels = [tf.nn.top_k(rotated[:, :, c], padded_shape[1])[0] for c in range(padded_shape[2])]
 
     # Apply offset
-    sorted_channels = tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([column_index(padded_shape), x_index], 2))
+    sorted_channels = tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([value.column_index(padded_shape), x_index], 2))
 
     if angle:
         # Rotate back to original orientation
@@ -2431,7 +2095,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
         # Crop to original size
         sorted_channels = tf.image.resize_with_crop_or_pad(sorted_channels, height, width)
- 
+
     # Blend with source image
     tensor = tf.maximum(tensor, sorted_channels)
 
@@ -2480,14 +2144,14 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     outline = 1.0 - derivative(values, value_shape)
     outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
     outline = tf.image.adjust_contrast(outline, .25)
-    outline = normalize(outline)
+    outline = value.normalize(outline)
 
     values = vignette(values, value_shape, 1.0, .875)
 
     crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=125, duration=.5, stride=1, stride_deviation=.25, alpha=1.0)
-    crosshatch = normalize(crosshatch)
+    crosshatch = value.normalize(crosshatch)
 
-    combined = blend(crosshatch, outline, .75)
+    combined = value.blend(crosshatch, outline, .75)
     combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time, speed=speed)
     combined *= combined
 
@@ -2500,11 +2164,11 @@ def simple_frame(tensor, shape, brightness=0.0):
 
     border = singularity(None, shape, dist_metric=DistanceMetric.chebyshev)
 
-    border = blend(tf.zeros(shape), border, .55)
+    border = value.blend(tf.zeros(shape), border, .55)
 
     border = posterize(border, 1)
 
-    return blend(tensor, tf.ones(shape) * brightness, border)
+    return value.blend(tensor, tf.ones(shape) * brightness, border)
 
 
 def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_metric=DistanceMetric.euclidean):
@@ -2515,7 +2179,7 @@ def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_metric=
     distance = voronoi(tensor, shape, nth=1, xy=xy, dist_metric=dist_metric)
     color = voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_metric=dist_metric)
 
-    return normalize(blend(distance, color, .5))
+    return value.normalize(value.blend(distance, color, .5))
 
 
 def square_crop_and_resize(tensor, shape, length=1024):
@@ -2536,7 +2200,7 @@ def square_crop_and_resize(tensor, shape, length=1024):
         tensor = tf.image.resize_with_crop_or_pad(tensor, have_length, have_length)
 
     if length != have_length:
-        tensor = resample(tensor, [length, length, channels])
+        tensor = value.resample(tensor, [length, length, channels])
 
     return tensor
 
@@ -2555,12 +2219,12 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
 
     height, width, channels = shape
 
-    x_identity = tf.cast(row_index(shape), tf.float32)
-    y_identity = tf.cast(column_index(shape), tf.float32)
+    x_identity = tf.cast(value.row_index(shape), tf.float32)
+    y_identity = tf.cast(value.column_index(shape), tf.float32)
 
     # indices offset to center
-    x_index = normalize(tf.cast(x_identity, tf.float32)) - .5
-    y_index = normalize(tf.cast(y_identity, tf.float32)) - .5
+    x_index = value.normalize(tf.cast(x_identity, tf.float32)) - .5
+    y_index = value.normalize(tf.cast(y_identity, tf.float32)) - .5
 
     value_shape = [height, width, 1]
 
@@ -2587,12 +2251,12 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
 
     if blend_edges:
         # fade to original image edges
-        fader = normalize(singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev))
+        fader = value.normalize(singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev))
         fader = tf.squeeze(fader)  # conform to index shape
         fader = tf.math.pow(fader, 5)
 
-        x_index = blend(x_index, x_identity, fader)
-        y_index = blend(y_index, y_identity, fader)
+        x_index = value.blend(x_index, x_identity, fader)
+        y_index = value.blend(y_index, y_identity, fader)
 
     x_index = tf.cast(x_index, tf.int32)
     y_index = tf.cast(y_index, tf.int32)
@@ -2616,19 +2280,6 @@ def palette(tensor, shape, name, time=0.0):
     phase = p["phase"] * tf.ones(channel_shape) + time
 
     return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) + phase))
-
-
-def periodic_value(time, value):
-    """
-    Coerce the received value to animate smoothly between time values 0 and 1 by applying a sine function and scaling the result.
-
-    :param float time:
-    :param float|Tensor value:
-    """
-
-    # h/t Etienne Jacob again
-    # https://bleuje.github.io/tutorial2/
-    return (tf.sin((time - value) * math.tau) + 1.0) * 0.5
 
 
 def shape_from_file(filename):

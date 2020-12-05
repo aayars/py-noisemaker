@@ -11,6 +11,7 @@ import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.presets as presets
 import noisemaker.recipes as recipes
+import noisemaker.value as value
 
 
 @click.command(help="""
@@ -30,7 +31,7 @@ import noisemaker.recipes as recipes
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(presets.PRESETS)))
 @click.pass_context
 def main(ctx, width, height, channels, time, clut, seed, overrides, settings, name, preset_name):
-    generators.set_seed(seed)
+    value.set_seed(seed)
     presets.bake_presets()
 
     if preset_name == 'random':
@@ -58,23 +59,23 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
         kwargs.update(json.loads(overrides))
 
     if settings:
-        for key, value in sorted(kwargs.items()):
-            if key in {'name', 'shape', 'time'}:
+        for k, v in sorted(kwargs.items()):
+            if k in {'name', 'shape', 'time'}:
                 continue
 
-            if key in {'ridges', 'with_convolve'} and not value:
+            if k in {'ridges', 'with_convolve'} and not v:
                 continue
 
-            if key == 'octaves' and value == 1:
+            if k == 'octaves' and v == 1:
                 continue
 
-            if isinstance(value, float):
-                value = f'{value:.02f}'
+            if isinstance(v, float):
+                v = f'{v:.02f}'
 
-            if isinstance(value, Enum):
-                value = value.name
+            if isinstance(v, Enum):
+                v = v.name
 
-            print(f'{key}: {value}')
+            print(f'{k}: {v}')
 
         import sys
         sys.exit()

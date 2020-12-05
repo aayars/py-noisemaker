@@ -5,6 +5,7 @@ from noisemaker.util import load, save
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
+import noisemaker.value as value
 
 
 @click.command(help="""
@@ -24,7 +25,7 @@ def main(ctx, name, retro_upscale, input_filename):
     if retro_upscale:
         shape = [shape[0] * 2, shape[1] * 2, shape[2]]
 
-        tensor = effects.resample(tensor, shape, spline_order=0)
+        tensor = value.resample(tensor, shape, spline_order=0)
 
     tensor = effects.square_crop_and_resize(tensor, shape, 1024)
 

@@ -2229,7 +2229,9 @@ def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False
             uv_x = int((x / glyph_shape[1]) * uv_shape[1])
 
             if callable(Masks[mask]):
-                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas, glyph_shape=glyph_shape)
+                pixel = Masks[mask](x=x, y=y, row=mask_row, shape=shape,
+                                    uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape,
+                                    atlas=atlas, glyph_shape=glyph_shape)
 
             else:
                 pixel = Masks[mask][y % shape[0]][x % shape[1]]

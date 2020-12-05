@@ -546,10 +546,10 @@ def point_distrib_option(**attrs):
     attrs.setdefault("help", "Voronoi/DLA: Point cloud distribution")
 
     return str_option("--point-distrib",
-            type=click.Choice(
-                [m.name for m in PointDistribution]
-                + [m.name for m in ValueMask.nonprocedural_members()]
-            ), default="random", **attrs)
+                      type=click.Choice(
+                          [m.name for m in PointDistribution]
+                          + [m.name for m in ValueMask.nonprocedural_members()]
+                      ), default="random", **attrs)
 
 
 def point_corners_option(**attrs):
@@ -661,7 +661,7 @@ def aberration_option(**attrs):
 
 
 def light_leak_option(**attrs):
-    attrs.setdefault("help", "Art effects: Light leak".format(ALPHA_BLENDING_HINT))
+    attrs.setdefault("help", "Art effects: Light leak {0}".format(ALPHA_BLENDING_HINT))
 
     return float_option("--light-leak", **attrs)
 

@@ -4,12 +4,12 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import DistanceMetric, PointDistribution, ValueDistribution, ValueMask, VoronoiDiagramType
+from noisemaker.constants import DistanceMetric, ValueDistribution, ValueMask, VoronoiDiagramType
 from noisemaker.generators import basic, multires
-from noisemaker.points import point_cloud
 
 import noisemaker.effects as effects
 import noisemaker.masks as masks
+import noisemaker.value as value
 
 
 def post_process(tensor, freq=3, shape=None, with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
@@ -127,11 +127,11 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    tensor = effects.normalize(tensor)
+    tensor = value.normalize(tensor)
 
     base = multires(2, shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform, octaves=random.randint(2, 5),
                     spline_order=0, refract_range=random.random())
-    stylized = effects.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
+    stylized = value.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
 
     jpegged = effects.color_map(base, stylized, shape, horizontal=True, displacement=2.5)
 
@@ -140,17 +140,17 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
 
     # Offset a single color channel
     separated = [stylized[:, :, i] for i in range(channels)]
-    x_index = (effects.row_index(shape) + random.randint(1, width)) % width
-    index = tf.cast(tf.stack([effects.column_index(shape), x_index], 2), tf.int32)
+    x_index = (value.row_index(shape) + random.randint(1, width)) % width
+    index = tf.cast(tf.stack([value.column_index(shape), x_index], 2), tf.int32)
 
     channel = random.randint(0, channels - 1)
-    separated[channel] = effects.normalize(tf.gather_nd(separated[channel], index) % random.random())
+    separated[channel] = value.normalize(tf.gather_nd(separated[channel], index) % random.random())
 
     stylized = tf.stack(separated, 2)
 
-    combined = effects.blend(tf.multiply(stylized, 1.0), jpegged, base)
-    combined = effects.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
-    combined = effects.blend(combined, effects.pixel_sort(combined, shape), 1.0 - base)
+    combined = value.blend(tf.multiply(stylized, 1.0), jpegged, base)
+    combined = value.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
+    combined = value.blend(combined, effects.pixel_sort(combined, shape), 1.0 - base)
 
     combined = tf.image.adjust_contrast(combined, 1.75)
 
@@ -178,13 +178,13 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     grad = tf.maximum(grad - .5, 0)
     grad = tf.minimum(grad * 2, 1)
 
-    x_index = effects.row_index(shape)
+    x_index = value.row_index(shape)
     x_index -= tf.squeeze(tf.cast(scan_noise * width * tf.square(grad), tf.int32))
     x_index = x_index % width
 
-    tensor = effects.blend(tensor, scan_noise, grad)
+    tensor = value.blend(tensor, scan_noise, grad)
 
-    identity = tf.stack([effects.column_index(shape), x_index], 2)
+    identity = tf.stack([value.column_index(shape), x_index], 2)
 
     tensor = tf.gather_nd(tensor, identity)
 
@@ -201,12 +201,8 @@ def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     mask = tf.pow(effects.singularity(None, value_shape), 5)  # obscure center pinch
 
     # Displacement values multiplied by mask to make it wavy towards the edges
-    distortion_x = (basic(2, value_shape,
-        time=time, speed=speed,
-        distrib=ValueDistribution.periodic_uniform,
-        spline_order=2,
-        lattice_drift=1.0,
-    ) * 2.0 - 1.0) * mask
+    distortion_x = (basic(2, value_shape, distrib=ValueDistribution.periodic_uniform,
+                          time=time, speed=speed, spline_order=2, lattice_drift=1.0) * 2.0 - 1.0) * mask
 
     return effects.refract(tensor, shape, displacement, reference_x=distortion_x)
 
@@ -237,12 +233,14 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     value_shape = [height, width, 1]
 
     # Horizontal scanlines
-    scan_noise = tf.tile(basic([2, 1], [2, 1, 1], time=time, speed=speed, distrib=ValueDistribution.periodic_uniform, spline_order=0), [int(height * .125) or 1, width, 1])
-    scan_noise = effects.resample(scan_noise, value_shape)
+    scan_noise = tf.tile(basic([2, 1], [2, 1, 1], time=time, speed=speed, distrib=ValueDistribution.periodic_uniform,
+                               spline_order=0), [int(height * .125) or 1, width, 1])
+
+    scan_noise = value.resample(scan_noise, value_shape)
 
     scan_noise = lens_warp(scan_noise, value_shape, time=time, speed=speed)
 
-    tensor = effects.normalize(effects.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
+    tensor = value.normalize(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
     if channels == 3:
         tensor = effects.aberration(tensor, shape, .0075 + random.random() * .0075)
@@ -274,12 +272,12 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
 
     white_noise = basic([int(height * .75), 1], value_shape, time=time,
                         speed=speed, distrib=ValueDistribution.fastnoise)
-    white_noise = effects.blend(0, white_noise, error_swerve)
+    white_noise = value.blend(0, white_noise, error_swerve)
 
     error = error_line + white_noise
 
-    y_index = effects.column_index(shape)
-    x_index = (effects.row_index(shape) - tf.cast(effects.value_map(error, value_shape) * width * .025, tf.int32)) % width
+    y_index = value.column_index(shape)
+    x_index = (value.row_index(shape) - tf.cast(effects.value_map(error, value_shape) * width * .025, tf.int32)) % width
 
     return tf.minimum(tf.gather_nd(tensor, tf.stack([y_index, x_index], 2)) + error_line * white_noise * 4, 1)
 
@@ -296,7 +294,7 @@ def snow(tensor, shape, amount, time=0.0, speed=1.0):
     static_limiter = basic([height, width], [height, width, 1], time=time, speed=speed * 100,
                            distrib=ValueDistribution.fastnoise_exp, spline_order=0) * amount
 
-    return effects.blend(tensor, static, static_limiter)
+    return value.blend(tensor, static, static_limiter)
 
 
 def dither(tensor, shape, amount, time=0.0, speed=1.0):
@@ -308,7 +306,7 @@ def dither(tensor, shape, amount, time=0.0, speed=1.0):
     white_noise = basic([height, width], [height, width, 1], time=time, speed=speed,
                         distrib=ValueDistribution.fastnoise)
 
-    return effects.blend(tensor, white_noise, amount)
+    return value.blend(tensor, white_noise, amount)
 
 
 def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, speed=1.0, **basic_kwargs):
@@ -317,7 +315,7 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, spee
 
     clut = basic(2, shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform, **basic_kwargs)
 
-    return effects.normalize(effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
+    return value.normalize(effects.color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
 
 
 def fibers(tensor, shape, time=0.0, speed=1.0):
@@ -343,7 +341,7 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
         brightness = basic(128, shape, time=time, speed=speed,
                            distrib=ValueDistribution.fastnoise, saturation=2.0)
 
-        tensor = effects.blend(tensor, brightness, mask * .5)
+        tensor = value.blend(tensor, brightness, mask * .5)
 
     return tensor
 
@@ -402,7 +400,7 @@ def stray_hair(tensor, shape, time=0.0, speed=1.0):
     brightness = basic(32, value_shape, time=time, speed=speed,
                        distrib=ValueDistribution.periodic_uniform)
 
-    return effects.blend(tensor, brightness * .333, mask * .666)
+    return value.blend(tensor, brightness * .333, mask * .666)
 
 
 def grime(tensor, shape, time=0.0, speed=1.0):
@@ -416,16 +414,16 @@ def grime(tensor, shape, time=0.0, speed=1.0):
                     refract_range=1.0, refract_y_from_offset=True,
                     deriv=3, deriv_alpha=.5)
 
-    dusty = effects.blend(tensor, .25, tf.square(mask) * .125)
+    dusty = value.blend(tensor, .25, tf.square(mask) * .125)
 
     specks = basic([int(shape[0] * .25), int(shape[1] * .25)], value_shape, time=time,
                    mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.fastnoise_exp, refract_range=.1)
-    specks = 1.0 - tf.sqrt(effects.normalize(tf.maximum(specks - .5, 0.0)))
+    specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - .5, 0.0)))
 
-    dusty = effects.blend(dusty, basic([shape[0], shape[1]], value_shape, time=time,
-                                       mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.fastnoise_exp), .125) * specks
+    dusty = value.blend(dusty, basic([shape[0], shape[1]], value_shape, mask=ValueMask.sparse,
+                                     time=time, speed=speed, distrib=ValueDistribution.fastnoise_exp), .125) * specks
 
-    return effects.blend(tensor, dusty, mask)
+    return value.blend(tensor, dusty, mask)
 
 
 def frame(tensor, shape, time=0.0, speed=1.0):
@@ -441,10 +439,10 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     white = tf.ones(half_value_shape)
 
     mask = effects.singularity(None, half_value_shape, VoronoiDiagramType.range, dist_metric=DistanceMetric.chebyshev, inverse=True)
-    mask = effects.normalize(mask + noise * .005)
+    mask = value.normalize(mask + noise * .005)
     mask = effects.blend_layers(tf.sqrt(mask), half_value_shape, 0.0125, white, black, black, black)
 
-    faded = effects._downsample(tensor, shape, half_shape)
+    faded = value.proportional_downsample(tensor, shape, half_shape)
     faded = tf.image.adjust_brightness(faded, .1)
     faded = tf.image.adjust_contrast(faded, .75)
     faded = effects.light_leak(faded, half_shape, .125)
@@ -452,14 +450,14 @@ def frame(tensor, shape, time=0.0, speed=1.0):
 
     edge_texture = white * .9 + effects.shadow(noise, half_value_shape, 1.0) * .1
 
-    out = effects.blend(faded, edge_texture, mask)
+    out = value.blend(faded, edge_texture, mask)
     out = effects.aberration(out, half_shape, .00666)
     out = grime(out, half_shape)
 
     out = tf.image.adjust_saturation(out, .5)
     out = tf.image.random_hue(out, .05)
 
-    out = effects.resample(out, shape)
+    out = value.resample(out, shape)
 
     out = scratches(out, shape)
 
@@ -502,7 +500,7 @@ def watermark(tensor, shape, time=0.0, speed=1.0):
     brightness = basic(16, value_shape, time=time, speed=speed,
                        distrib=ValueDistribution.periodic_uniform)
 
-    return effects.blend(tensor, brightness, mask * .125)
+    return value.blend(tensor, brightness, mask * .125)
 
 
 def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
@@ -551,9 +549,9 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
         row_mask = basic(freq, row_shape, corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask, time=time, speed=speed)
 
         if time != 0.0:  # Make the ticker tick!
-            row_mask = effects.offset(row_mask, row_shape, int(time*width), 0)
+            row_mask = value.offset(row_mask, row_shape, int(time*width), 0)
 
-        row_mask = effects.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+        row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
 
         rendered_mask += tf.pad(row_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
 
@@ -562,9 +560,9 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
     alpha = .5 + random.random() * .25
 
     # shadow
-    tensor = effects.blend(tensor, tensor * 1.0 - effects.offset(rendered_mask, shape, -1, -1), alpha * .333)
+    tensor = value.blend(tensor, tensor * 1.0 - value.offset(rendered_mask, shape, -1, -1), alpha * .333)
 
-    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
+    return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
 
 def on_screen_display(tensor, shape, time=0.0, speed=1.0):
@@ -595,7 +593,7 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 
     alpha = .5 + random.random() * .25
 
-    return effects.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
+    return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
 
 def nebula(tensor, shape, time=0.0, speed=1.0):
@@ -646,7 +644,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
     else:
         splash = tf.zeros(shape)
 
-    return effects.blend_layers(effects.normalize(smear), shape, .005, tensor, splash)
+    return effects.blend_layers(value.normalize(smear), shape, .005, tensor, splash)
 
 
 def clouds(tensor, shape, time=0.0, speed=1.0):
@@ -675,7 +673,7 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     combined = effects.blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
 
-    shadow = effects.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
+    shadow = value.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
     shadow = tf.minimum(shadow * 2.5, 1.0)
 
     for _ in range(3):
@@ -683,11 +681,11 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     post_shape = [shape[0], shape[1], 1]
 
-    shadow = effects.resample(shadow, post_shape)
-    combined = effects.resample(combined, post_shape)
+    shadow = value.resample(shadow, post_shape)
+    combined = value.resample(combined, post_shape)
 
-    tensor = effects.blend(tensor, tf.zeros(shape), shadow * .75)
-    tensor = effects.blend(tensor, tf.ones(shape), combined)
+    tensor = value.blend(tensor, tf.zeros(shape), shadow * .75)
+    tensor = value.blend(tensor, tf.ones(shape), combined)
 
     tensor = effects.shadow(tensor, shape, alpha=.5)
 
@@ -705,4 +703,4 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
 
     colorized = tf.image.hsv_to_rgb([colorized])[0]
 
-    return effects.blend(tensor, colorized, alpha)
+    return value.blend(tensor, colorized, alpha)

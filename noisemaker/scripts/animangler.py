@@ -27,7 +27,7 @@ import noisemaker.util as util
 @click.pass_context
 def main(ctx, seed, name, save_frames, frame_count, input_dir, preset_name):
     if preset_name == 'random':
-       preset_name = 'random-effect'
+        preset_name = 'random-effect'
 
     kwargs = presets.preset(preset_name)
 

@@ -116,10 +116,10 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     },
 
     "funhouse": lambda: {
-        "warp_freq": [random.randint(2, 4), random.randint(1, 4)],
+        "warp_freq": [random.randint(2, 3), random.randint(1, 3)],
         "warp_interp": interp.bicubic,
         "warp_octaves": random.randint(1, 4),
-        "warp_range": .25 + random.random() * .5,
+        "warp_range": .25 + random.random() * .125,
         "warp_signed_range": False,
     },
 
@@ -453,7 +453,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": 0.5 + random.random() * .5,
         "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
         "with_voronoi": voronoi.color_range if coin_flip() \
-            else random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),
+            else random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),  # noqa E131
     }),
 
     "abyssal-echoes": lambda: extend("multires-alpha", {
@@ -1699,7 +1699,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "jorts": lambda: extend("dither", {
-        "freq": [128,512],
+        "freq": [128, 512],
         "glyph_map_alpha": .125 + random.random() * .25,
         "glyph_map_zoom": 2,
         "glyph_map_colorize": True,
@@ -3171,6 +3171,7 @@ def bake_presets():
     global PRESETS
     PRESETS = _PRESETS()
 
+    global _STASH
     _STASH = {}
 
 

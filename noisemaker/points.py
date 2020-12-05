@@ -107,10 +107,10 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
             multiplier = max(2 * (generation - 1), 1)
 
             _x, _y = point_func(freq=freq, distrib=distrib, corners=corners,
-                center_x=x_point, center_y=y_point,
-                range_x=range_x / multiplier, range_y=range_y / multiplier,
-                width=width, height=height, generation=generation,
-                time=time, speed=speed * .1)
+                                center_x=x_point, center_y=y_point,
+                                range_x=range_x / multiplier, range_y=range_y / multiplier,
+                                width=width, height=height, generation=generation,
+                                time=time, speed=speed * .1)
 
             for i in range(len(_x)):
                 x_point = _x[i]

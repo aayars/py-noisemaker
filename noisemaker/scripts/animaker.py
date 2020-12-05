@@ -33,7 +33,7 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
         preset_name = 'random-preset'
 
     if effect_preset == 'random':
-       effect_preset = 'random-effect'
+        effect_preset = 'random-effect'
 
     kwargs = presets.preset(preset_name)
 
@@ -66,7 +66,7 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     if distrib == ValueDistribution.exp:
         overrides['distrib'] = 'periodic_exp'
 
-    elif distrib  == ValueDistribution.lognormal:
+    elif distrib == ValueDistribution.lognormal:
         overrides['distrib'] = 'simplex_pow_inv_1'
 
     elif distrib not in (

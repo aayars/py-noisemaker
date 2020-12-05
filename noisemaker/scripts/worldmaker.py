@@ -1,6 +1,3 @@
-import json
-import random
-
 import click
 import tensorflow as tf
 
@@ -11,6 +8,7 @@ import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.presets as presets
 import noisemaker.recipes as recipes
+import noisemaker.value as value
 
 SMALL_X = 512
 SMALL_Y = 256
@@ -90,7 +88,7 @@ def _control():
         control = effects.convolve(constants.ValueMask.conv2d_blur, control, shape)
 
     post_shape = [LARGE_Y, LARGE_X, 1]
-    control = effects.resample(control, post_shape)
+    control = value.resample(control, post_shape)
 
     iterations = 2
     for i in range(iterations):
@@ -98,7 +96,7 @@ def _control():
         control = effects.convolve(constants.ValueMask.conv2d_blur, control, post_shape)
 
     control = effects.convolve(constants.ValueMask.conv2d_sharpen, control, post_shape)
-    control = effects.normalize(control)
+    control = value.normalize(control)
 
     with tf.compat.v1.Session().as_default():
         save(control, CONTROL_FILENAME)
@@ -118,7 +116,7 @@ def blended():
     control = tf.image.convert_image_dtype(load(CONTROL_FILENAME), tf.float32)
 
     water = tf.ones(shape) * tf.stack([.05, .175, .625])
-    water = effects.blend(water, water + control, .125)
+    water = value.blend(water, water + control, .125)
 
     low = tf.image.convert_image_dtype(load(LOW_FILENAME), tf.float32)
     mid = tf.image.convert_image_dtype(load(MID_FILENAME), tf.float32)
@@ -136,10 +134,10 @@ def blended():
     combined_land_0 = effects.shadow(combined_land, shape, alpha=0.5)
     combined_land_1 = effects.shadow(combined_land, shape, alpha=0.5, reference=control)
 
-    combined_land = effects.blend(combined_land_0, combined_land_1, .5)
+    combined_land = value.blend(combined_land_0, combined_land_1, .5)
 
     combined = effects.blend_layers(control, shape, .01, water, combined_land, combined_land, combined_land)
-    combined = effects.blend(combined_land, combined, .625)
+    combined = value.blend(combined_land, combined, .625)
 
     combined = tf.image.adjust_contrast(combined, .75)
     combined = tf.image.adjust_saturation(combined, .625)
