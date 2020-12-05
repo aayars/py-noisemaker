@@ -10,7 +10,6 @@ from noisemaker.util import logger, dumps, save
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.presets as presets
-import noisemaker.recipes as recipes
 import noisemaker.value as value
 
 
@@ -88,13 +87,6 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
 
     except Exception as e:
         logger.error(f"generators.multires() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
-        raise
-
-    try:
-        tensor = recipes.post_process(tensor, **kwargs)
-
-    except Exception as e:
-        logger.error(f"recipes.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
         raise
 
     with tf.compat.v1.Session().as_default():

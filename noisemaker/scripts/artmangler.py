@@ -3,12 +3,11 @@ import json
 import click
 import tensorflow as tf
 
-from noisemaker.util import logger, dumps, load, save
+from noisemaker.util import logger, dumps, load, save, shape_from_file
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.presets as presets
-import noisemaker.recipes as recipes
 import noisemaker.value as value
 
 
@@ -29,7 +28,7 @@ def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filenam
     value.set_seed(seed)
     presets.bake_presets()
 
-    input_shape = effects.shape_from_file(input_filename)
+    input_shape = shape_from_file(input_filename)
 
     input_shape[2] = min(input_shape[2], 3)
 
@@ -69,13 +68,6 @@ def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filenam
 
     except Exception as e:
         logger.error(f"effects.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
-        raise
-
-    try:
-        tensor = recipes.post_process(tensor, **kwargs)
-
-    except Exception as e:
-        logger.error(f"recipes.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
         raise
 
     with tf.compat.v1.Session().as_default():

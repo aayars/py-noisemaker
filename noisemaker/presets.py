@@ -1,6 +1,6 @@
 """Presets library for artmaker/artmangler scripts.
 
-Presets may contain any keyword arg accepted by :func:`~noisemaker.effects.post_process()` or :func:`~noisemaker.recipes.post_process()`.
+Presets may contain any keyword arg accepted by :func:`~noisemaker.effects.post_process()`
 """
 
 from collections import deque

@@ -1,7 +1,7 @@
 import click
 import tensorflow as tf
 
-from noisemaker.util import load, save
+from noisemaker.util import load, save, shape_from_file
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
@@ -18,7 +18,7 @@ import noisemaker.value as value
 @click.argument('input_filename')
 @click.pass_context
 def main(ctx, name, retro_upscale, input_filename):
-    shape = effects.shape_from_file(input_filename)
+    shape = shape_from_file(input_filename)
 
     tensor = tf.image.convert_image_dtype(load(input_filename, channels=3), tf.float32)
 

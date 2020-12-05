@@ -4,12 +4,11 @@ import random
 import click
 import tensorflow as tf
 
-from noisemaker.util import save
+from noisemaker.util import load, save, shape_from_file
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
-import noisemaker.util as util
 import noisemaker.value as value
 
 
@@ -48,9 +47,9 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
         input_filename = os.path.join(input_dir, filenames[index])
 
-        collage_input = tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32)
+        collage_input = tf.image.convert_image_dtype(load(input_filename, channels=3), dtype=tf.float32)
 
-        input_shape = effects.shape_from_file(input_filename)
+        input_shape = shape_from_file(input_filename)
 
         if retro_upscale:
             input_shape = [input_shape[0] * 2, input_shape[1] * 2, input_shape[2]]
@@ -64,9 +63,9 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
 
     if control_filename:
-        control = tf.image.convert_image_dtype(util.load(control_filename, channels=1), dtype=tf.float32)
+        control = tf.image.convert_image_dtype(load(control_filename, channels=1), dtype=tf.float32)
 
-        control = effects.square_crop_and_resize(control, effects.shape_from_file(control_filename), 1024)
+        control = effects.square_crop_and_resize(control, shape_from_file(control_filename), 1024)
 
         control = effects.value_map(control, shape, keepdims=True)
 

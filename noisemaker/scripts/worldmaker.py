@@ -7,7 +7,6 @@ import noisemaker.constants as constants
 import noisemaker.effects as effects
 import noisemaker.generators as generators
 import noisemaker.presets as presets
-import noisemaker.recipes as recipes
 import noisemaker.value as value
 
 SMALL_X = 512
@@ -172,8 +171,6 @@ def run_preset(preset_name, shape, filename, tensor=None):
 
     if tensor is None:
         tensor = generators.multires(**kwargs)
-
-    tensor = recipes.post_process(tensor, **kwargs)
 
     with tf.compat.v1.Session().as_default():
         save(tensor, filename)

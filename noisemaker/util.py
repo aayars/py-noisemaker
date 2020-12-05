@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 
+from PIL import Image
 from loguru import logger as default_logger
 
 import tensorflow as tf
@@ -124,6 +125,18 @@ def dumps(kwargs):
             out[k] = v
 
     return json.dumps(out, indent=4, sort_keys=True)
+
+
+def shape_from_file(filename):
+    """
+    Get image dimensions from a file, using PIL, to avoid adding to the TensorFlow graph.
+    """
+
+    image = Image.open(filename)
+
+    input_width, input_height = image.size
+
+    return [input_height, input_width, len(image.getbands())]
 
 
 _LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')

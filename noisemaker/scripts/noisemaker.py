@@ -5,7 +5,6 @@ from noisemaker.util import save
 
 import noisemaker.cli as cli
 import noisemaker.generators as generators
-import noisemaker.recipes as recipes
 import noisemaker.value as value
 
 
@@ -175,10 +174,8 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
                                  post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
                                  saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                  with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,
-                                 with_convolve=convolve, with_shadow=shadow, with_palette=palette)
-
-    tensor = recipes.post_process(tensor, shape=shape, freq=freq, time=time,
-                                  with_glitch=glitch, with_vhs=vhs, with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+                                 with_convolve=convolve, with_shadow=shadow, with_palette=palette, with_glitch=glitch, with_vhs=vhs,
+                                 with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
 
     with tf.compat.v1.Session().as_default():
         save(tensor, name)
