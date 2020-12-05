@@ -4,8 +4,8 @@ import random
 
 import tensorflow as tf
 
-from noisemaker.constants import DistanceMetric, ValueDistribution, ValueMask, VoronoiDiagramType
-from noisemaker.generators import basic, multires
+from noisemaker.constants import DistanceMetric, InterpolationType, ValueDistribution, ValueMask, VoronoiDiagramType
+from noisemaker.generators import basic
 
 import noisemaker.effects as effects
 import noisemaker.masks as masks
@@ -129,8 +129,11 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
 
     tensor = value.normalize(tensor)
 
-    base = multires(2, shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform, octaves=random.randint(2, 5),
-                    spline_order=0, refract_range=random.random())
+    base = value.simple_multires(2, shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform,
+                                 octaves=random.randint(2, 5), spline_order=0)
+
+    base = effects.refract(base, shape, random.random())
+
     stylized = value.normalize(effects.color_map(base, tensor, shape, horizontal=True, displacement=2.5))
 
     jpegged = effects.color_map(base, stylized, shape, horizontal=True, displacement=2.5)
@@ -409,10 +412,11 @@ def grime(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = [shape[0], shape[1], 1]
 
-    mask = multires(5, value_shape, time=time, speed=speed,
-                    distrib=ValueDistribution.periodic_exp, octaves=8,
-                    refract_range=1.0, refract_y_from_offset=True,
-                    deriv=3, deriv_alpha=.5)
+    mask = value.simple_multires(freq=5, shape=value_shape, time=time, speed=speed,
+                                 distrib=ValueDistribution.periodic_exp, octaves=8)
+
+    mask = effects.refract(mask, shape, 1.0, y_from_offset=True)
+    mask = effects.derivative(mask, shape, DistanceMetric.chebyshev, alpha=0.5)
 
     dusty = value.blend(tensor, .25, tf.square(mask) * .125)
 
@@ -433,7 +437,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
     half_value_shape = [half_shape[0], half_shape[1], 1]
 
-    noise = multires(64, half_value_shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise, octaves=8)
+    noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise, octaves=8)
 
     black = tf.zeros(half_value_shape)
     white = tf.ones(half_value_shape)
@@ -472,8 +476,8 @@ def texture(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = [shape[0], shape[1], 1]
 
-    noise = multires(64, value_shape, time=time, speed=speed,
-                     distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
+    noise = value.simple_multires(64, value_shape, time=time, speed=speed,
+                                  distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
 
     return tensor * (tf.ones(value_shape) * .95 + effects.shadow(noise, value_shape, 1.0) * .05)
 
@@ -597,11 +601,11 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 
 
 def nebula(tensor, shape, time=0.0, speed=1.0):
-    overlay = multires(random.randint(2, 4), shape, time=time, speed=speed,
-                       distrib=ValueDistribution.periodic_exp, ridges=True, octaves=6)
+    overlay = value.simple_multires(random.randint(2, 4), shape, time=time, speed=speed,
+                                    distrib=ValueDistribution.periodic_exp, ridges=True, octaves=6)
 
-    overlay -= multires(random.randint(2, 4), shape, time=time, speed=speed,
-                        distrib=ValueDistribution.periodic_uniform, ridges=True, octaves=4)
+    overlay -= value.simple_multires(random.randint(2, 4), shape, time=time, speed=speed,
+                                     distrib=ValueDistribution.periodic_uniform, ridges=True, octaves=4)
 
     overlay = tf.maximum(overlay, 0)
 
@@ -615,27 +619,35 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     # Generate a smear
-    smear = multires(random.randint(2, 4), value_shape, time=time,
-                     speed=speed, distrib=ValueDistribution.simplex_exp,
-                     ridges=True, octaves=6, spline_order=3)
+    smear = value.simple_multires(random.randint(2, 4), value_shape, time=time,
+                                  speed=speed, distrib=ValueDistribution.simplex_exp,
+                                  ridges=True, octaves=6, spline_order=3)
 
     smear = effects.warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
                          octaves=random.randint(1, 2), displacement=1.0 + random.random(),
                          spline_order=3, time=time, speed=speed)
 
     # Add spatter dots
-    smear = tf.maximum(smear, multires(random.randint(25, 50), value_shape, time=time,
-                                       speed=speed, distrib=ValueDistribution.simplex_exp,
-                                       post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
+    spatter = value.simple_multires(random.randint(25, 50), value_shape, time=time,
+                                    speed=speed, distrib=ValueDistribution.simplex_exp,
+                                    octaves=4, spline_order=InterpolationType.linear)
 
-    smear = tf.maximum(smear, multires(random.randint(200, 250), value_shape, time=time,
-                                       speed=speed, distrib=ValueDistribution.simplex_exp,
-                                       post_brightness=-.25, post_contrast=4, octaves=4, spline_order=1))
+    spatter = effects.post_process(spatter, shape, None, post_brightness=-.25, post_contrast=4)
+
+    smear = tf.maximum(smear, spatter)
+
+    spatter = value.simple_multires(random.randint(200, 250), value_shape, time=time,
+                                    speed=speed, distrib=ValueDistribution.simplex_exp,
+                                    octaves=4, spline_order=InterpolationType.linear)
+
+    spatter = effects.post_process(spatter, shape, None, post_brightness=-.25, post_contrast=4)
+
+    smear = tf.maximum(smear, spatter)
 
     # Remove some of it
-    smear = tf.maximum(0.0, smear - multires(random.randint(2, 3), value_shape, time=time,
-                                             speed=speed, distrib=ValueDistribution.simplex_exp,
-                                             ridges=True, octaves=3, spline_order=2))
+    smear = tf.maximum(0.0, smear - value.simple_multires(random.randint(2, 3), value_shape, time=time,
+                                                          speed=speed, distrib=ValueDistribution.simplex_exp,
+                                                          ridges=True, octaves=3, spline_order=2))
 
     #
     if shape[2] == 3:
@@ -652,21 +664,10 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     pre_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, 1]
 
-    control_kwargs = {
-        "freq": random.randint(2, 4),
-        "lattice_drift": 1,
-        "octaves": 8,
-        "ridges": True,
-        "speed": speed,
-        "shape": pre_shape,
-        "time": time,
-        "warp_freq": 3,
-        "warp_range": .125,
-        "warp_octaves": 2,
-        "distrib": ValueDistribution.periodic_uniform,
-    }
+    control = value.simple_multires(freq=random.randint(2, 4), shape=pre_shape, distrib=ValueDistribution.periodic_uniform,
+                                    octaves=8, ridges=True, time=time, speed=speed)
 
-    control = multires(**control_kwargs)
+    control = effects.warp(control, pre_shape, freq=3, displacement=.125, octaves=2)
 
     layer_0 = tf.ones(pre_shape)
     layer_1 = tf.zeros(pre_shape)

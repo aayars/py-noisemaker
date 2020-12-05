@@ -48,7 +48,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     """
 
     if isinstance(freq, int):
-        freq = effects.freq_for_shape(freq, shape)
+        freq = value.freq_for_shape(freq, shape)
 
     common_value_params = {
         "corners": corners,
@@ -94,7 +94,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
         if brightness_distrib or brightness_freq:
             if isinstance(brightness_freq, int):
-                brightness_freq = effects.freq_for_shape(brightness_freq, shape)
+                brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
             v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.normal,
                                         **common_value_params))
@@ -103,7 +103,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
             v = tensor[:, :, 2]
 
         if ridges and spline_order:  # ridges don't work well when not interpolating values
-            v = effects.crease(v)
+            v = value.ridge(v)
 
         if sin:
             v = value.normalize(tf.sin(sin * v))
@@ -118,7 +118,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
             tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], a], 2)
 
     elif ridges and spline_order:
-        tensor = effects.crease(tensor)
+        tensor = value.ridge(tensor)
 
     if sin and rgb:
         tensor = tf.sin(sin * tensor)
@@ -188,7 +188,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     # Normalize input
 
     if isinstance(freq, int):
-        freq = effects.freq_for_shape(freq, shape)
+        freq = value.freq_for_shape(freq, shape)
 
     if isinstance(octave_blending, int):
         octave_blending = OctaveBlending(octave_blending)
@@ -254,7 +254,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range,
                                   refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_metric=deriv_metric, with_crease=post_ridges, rgb=rgb,
+                                  deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, rgb=rgb,
                                   **post_process_args)
 
     return tensor

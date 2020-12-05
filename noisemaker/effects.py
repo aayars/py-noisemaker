@@ -47,7 +47,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                  with_bloom=None, with_reverb=None, reverb_iterations=1, reverb_ridges=True,
                  with_light_leak=None, with_vignette=None, vignette_brightness=0.0, with_vaseline=0.0,
                  post_hue_rotation=None, post_saturation=None, post_brightness=None, post_contrast=None,
-                 with_crease=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
+                 with_ridge=False, with_jpeg_decimate=None, with_conv_feedback=None, conv_feedback_alpha=.5,
                  with_density_map=False,
                  with_glyph_map=None, glyph_map_colorize=True, glyph_map_zoom=1.0, glyph_map_alpha=1.0,
                  with_composite=None, composite_zoom=4.0, with_sort=False, sort_angled=False, sort_darkest=False,
@@ -132,7 +132,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     :param None|float post_saturation: Adjust saturation (0 - 1)
     :param None|float post_brightness: Adjust brightness
     :param None|float post_contrast: Adjust contrast
-    :param bool with_crease: Crease at midpoint values
+    :param bool with_ridge: Crease at midpoint values
     :param None|float with_shadow: Sobel-based shading alpha
     :param None|int with_jpeg_decimate: Conv2D feedback + JPEG encode/decode iteration count
     :param None|int with_conv_feedback: Conv2D feedback iterations
@@ -232,13 +232,13 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         if warp_interp is None:
             warp_interp = spline_order
 
-        warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else freq_for_shape(warp_freq, shape)
+        warp_freq = freq if warp_freq is None else warp_freq if isinstance(warp_freq, list) else value.freq_for_shape(warp_freq, shape)
 
         tensor = warp(tensor, shape, warp_freq, displacement=warp_range, octaves=warp_octaves, spline_order=warp_interp,
                       warp_map=warp_map, signed_range=warp_signed_range, time=time, speed=speed)
 
     if ripple_range:
-        ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else freq_for_shape(ripple_freq, shape)
+        ripple_freq = freq if ripple_freq is None else ripple_freq if isinstance(ripple_freq, list) else value.freq_for_shape(ripple_freq, shape)
 
         tensor = ripple(tensor, shape, ripple_freq, displacement=ripple_range, kink=ripple_kink, time=time, speed=speed)
 
@@ -248,8 +248,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     if deriv and deriv != DistanceMetric.none:
         tensor = derivative(tensor, shape, deriv, alpha=deriv_alpha)
 
-    if with_crease:
-        tensor = crease(tensor)
+    if with_ridge:
+        tensor = value.ridge(tensor)
 
     if posterize_levels:
         tensor = posterize(tensor, posterize_levels)
@@ -420,22 +420,6 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     return value.blend(tensor, out, alpha)
 
 
-def crease(tensor):
-    """
-    Create a "crease" (ridge) at midpoint values. 1 - abs(n * 2 - 1)
-
-    .. image:: images/crease.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor: An image tensor.
-    :return: Tensor
-    """
-
-    return 1.0 - tf.abs(tensor * 2 - 1)
-
-
 def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False):
     """
     WIP hydraulic erosion effect.
@@ -492,7 +476,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
         g_x = value.blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = value.blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
-        length = distance(g_x, g_y, 1) * contraction
+        length = distance(g_x, g_y, InterpolationType.euclidean) * contraction
 
         x_dir = value.blend(x_dir, g_x / length, inertia)
         y_dir = value.blend(y_dir, g_y / length, inertia)
@@ -1388,7 +1372,7 @@ def inner_tile(tensor, shape, freq):
     """
 
     if isinstance(freq, int):
-        freq = freq_for_shape(freq, shape)
+        freq = value.freq_for_shape(freq, shape)
 
     small_shape = [int(shape[0] / freq[0]), int(shape[1] / freq[1]), shape[2]]
 
@@ -1442,27 +1426,6 @@ def offset_index(y_index, height, x_index, width):
         ], 2)
 
     return tf.cast(index, tf.int32)
-
-
-def freq_for_shape(freq, shape):
-    """
-    Given a base frequency as int, generate noise frequencies for each spatial dimension.
-
-    :param int freq: Base frequency
-    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
-    """
-
-    height = shape[0]
-    width = shape[1]
-
-    if height == width:
-        return [freq, freq]
-
-    elif height < width:
-        return [freq, int(freq * width / height)]
-
-    else:
-        return [int(freq * height / width), freq]
 
 
 def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=InterpolationType.bicubic, warp_map=None, signed_range=True, time=0.0, speed=1.0):

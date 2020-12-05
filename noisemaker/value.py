@@ -34,6 +34,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     """
     """
 
+    if isinstance(freq, int):
+        freq = freq_for_shape(freq, shape)
+
     initial_shape = freq + [shape[-1]]
 
     if isinstance(distrib, int):
@@ -365,10 +368,7 @@ def offset(tensor, shape, x=0, y=0):
     if x == 0 and y == 0:
         return tensor
 
-    x_index = row_index(shape)
-    y_index = column_index(shape)
-
-    return tf.gather_nd(tensor, tf.stack([(y_index + y) % shape[0], (x_index + x) % shape[1]], 2))
+    return tf.gather_nd(tensor, tf.stack([(column_index(shape) + y) % shape[0], (row_index(shape) + x) % shape[1]], 2))
 
 
 def _linear_components(a, b, g):
@@ -435,3 +435,68 @@ def blend_cubic(a, b, c, d, g):
     """
 
     return sum(_cubic_components(a, b, c, d, g))
+
+
+def freq_for_shape(freq, shape):
+    """
+    Given a base frequency as int, generate noise frequencies for each spatial dimension.
+
+    :param int freq: Base frequency
+    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
+    """
+
+    height = shape[0]
+    width = shape[1]
+
+    if height == width:
+        return [freq, freq]
+
+    elif height < width:
+        return [freq, int(freq * width / height)]
+
+    else:
+        return [int(freq * height / width), freq]
+
+
+def ridge(tensor):
+    """
+    Create a "ridge" at midpoint values. 1 - abs(n * 2 - 1)
+
+    .. image:: images/crease.jpg
+       :width: 1024
+       :height: 256
+       :alt: Noisemaker example output (CC0)
+
+    :param Tensor tensor: An image tensor.
+    :return: Tensor
+    """
+
+    return 1.0 - tf.abs(tensor * 2 - 1)
+
+
+def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
+                    ridges=False, mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0):
+    """Generate multi-octave value noise. Unlike generators.multires, this function does not apply post-processing effects."""
+
+    if isinstance(freq, int):
+        freq = freq_for_shape(freq, shape)
+
+    tensor = tf.zeros(shape)
+
+    for octave in range(1, octaves + 1):
+        multiplier = 2 ** octave
+
+        base_freq = [int(f * .5 * multiplier) for f in freq]
+
+        if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
+            break
+
+        layer = values(freq=base_freq, shape=shape, spline_order=spline_order, distrib=distrib, corners=corners,
+                       mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, time=time, speed=speed)
+
+        if ridges:
+            layer = ridge(layer)
+
+        tensor += layer / multiplier
+
+    return normalize(tensor)
