@@ -1622,8 +1622,8 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "hotel-carpet": lambda: extend("basic", "carpet", "dither", "ripples", {
-        "ripple_kink": .25 + random.random() * .25,
-        "ripple_range": .5 + random.random() * .25,
+        "ripple_kink": .5 + random.random() * .25,
+        "ripple_range": .666 + random.random() * .333,
         "spline_order": interp.constant,
     }),
 
