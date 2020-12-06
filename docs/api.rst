@@ -13,6 +13,14 @@ noisemaker.generators
     :undoc-members:
     :show-inheritance:
 
+noisemaker.value
+----------------
+
+.. automodule:: noisemaker.value
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 noisemaker.effects
 ------------------
 
@@ -25,14 +33,6 @@ noisemaker.presets
 ------------------
 
 .. automodule:: noisemaker.presets
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-noisemaker.recipes
-------------------
-
-.. automodule:: noisemaker.recipes
     :members:
     :undoc-members:
     :show-inheritance:
