@@ -138,6 +138,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
             tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
 
+    if distrib not in (ValueDistribution.ones, ValueDistribution.mids):
+        # I wish we didn't have to do this, but values out of the 0..1 range screw all kinds of things up
+        tensor = normalize(tensor)
+
     return tensor
 
 

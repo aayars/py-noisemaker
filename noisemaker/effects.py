@@ -2610,8 +2610,8 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     mask = value.simple_multires(freq=5, shape=value_shape, time=time, speed=speed,
                                  distrib=ValueDistribution.periodic_exp, octaves=8)
 
-    mask = refract(mask, shape, 1.0, y_from_offset=True)
-    mask = derivative(mask, shape, DistanceMetric.chebyshev, alpha=0.5)
+    mask = refract(mask, value_shape, 1.0, y_from_offset=True)
+    mask = derivative(mask, value_shape, DistanceMetric.chebyshev, alpha=0.5)
 
     dusty = value.blend(tensor, .25, tf.square(mask) * .125)
 

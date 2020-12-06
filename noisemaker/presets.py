@@ -2330,7 +2330,7 @@ _PRESETS = lambda: {  # noqa: E731
         "corners": True,
         "distrib": distrib.column_index,
         "freq": random.randint(6, 12),
-        "hue_range": .5 + random.random(),
+        "hue_range": .9,
         "saturation_distrib": distrib.ones,
         "spline_order": interp.constant,
     }),
