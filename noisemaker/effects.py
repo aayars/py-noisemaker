@@ -1,5 +1,6 @@
 """Low-level effects library for Noisemaker"""
 
+import inspect
 import math
 import random
 
@@ -25,6 +26,8 @@ import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 import noisemaker.util as util
 import noisemaker.value as value
+
+EFFECTS = {}
 
 
 def post_process(tensor, shape, freq, ridges_hint=False, spline_order=InterpolationType.bicubic,
@@ -285,9 +288,9 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         tensor = wormhole(tensor, shape, wormhole_kink, wormhole_stride, alpha=wormhole_alpha)
 
     if with_erosion_worms:
-        tensor = erode(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
-                       contraction=erosion_worms_contraction, alpha=erosion_worms_alpha, inverse=erosion_worms_inverse,
-                       xy_blend=erosion_worms_xy_blend)
+        tensor = erosion_worms(tensor, shape, density=erosion_worms_density, iterations=erosion_worms_iterations,
+                               contraction=erosion_worms_contraction, alpha=erosion_worms_alpha, inverse=erosion_worms_inverse,
+                               xy_blend=erosion_worms_xy_blend)
 
     if with_density_map:
         tensor = density_map(tensor, shape)
@@ -441,8 +444,53 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     return tensor
 
 
+def effect(*args):
+    """Function decorator for declaring composable effects."""
+
+    def decorator_fn(func):
+        argspec = inspect.getfullargspec(func)
+
+        params = argspec.args
+        # All effects respond to "tensor", "shape". Removing these non-keyword args should make params the same length as defaults.
+        params.remove("tensor")
+        params.remove("shape")
+
+        if params and len(params) != len(argspec.defaults):
+            raise ValueError(f'Expected {len(argspec.defaults)} keyword params to "{func.__name__}", but got {len(params)}.')
+
+        # Register effect name and params
+        name = args[0] if args else func.__name__
+        EFFECTS[name] = dict((params[i], argspec.defaults[i]) for i in range(len(params)))
+        EFFECTS[name]["func"] = func
+
+        return func
+
+    return decorator_fn
+
+
+def _apply_effect(tensor, shape, name, time=0.0, speed=1.0, **kwargs):
+    """Apply a composable effect to the given tensor."""
+
+    if name not in EFFECTS:
+        raise ValueError(f'"{name}" is not a registered effect name.')
+
+    params = EFFECTS[name].copy()
+
+    for k, v in kwargs.items():
+        if k not in params:
+            raise ValueError(f'Effect "{name}" does not have a parameter named "{k}"')
+
+        params[k] = v
+
+    if "time" in params:
+        params["time"] = time
+        params["speed"] = speed
+
+    params["func"](tensor, shape, **params)
+
+
 def _conform_kernel_to_tensor(kernel, tensor, shape):
-    """ Re-shape a convolution kernel to match the given tensor's color dimensions. """
+    """Re-shape a convolution kernel to match the given tensor's color dimensions."""
 
     values, _ = masks.mask_values(kernel)
 
@@ -508,7 +556,8 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
     return value.blend(tensor, out, alpha)
 
 
-def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False):
+@effect()
+def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False):
     """
     WIP hydraulic erosion effect.
     """
@@ -564,7 +613,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
         g_x = value.blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = value.blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
 
-        length = distance(g_x, g_y, InterpolationType.euclidean) * contraction
+        length = distance(g_x, g_y, DistanceMetric.euclidean) * contraction
 
         x_dir = value.blend(x_dir, g_x / length, inertia)
         y_dir = value.blend(y_dir, g_y / length, inertia)
@@ -584,6 +633,7 @@ def erode(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, 
     return value.blend(tensor, out, alpha)
 
 
+@effect()
 def reindex(tensor, shape, displacement=.5):
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
@@ -612,6 +662,7 @@ def reindex(tensor, shape, displacement=.5):
     return tensor
 
 
+@effect()
 def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=InterpolationType.bicubic,
             from_derivative=False, signed_range=True, time=0.0, speed=1.0, y_from_offset=False):
     """
@@ -706,7 +757,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     return value.blend(x_y0, x_y1, y_fract)
 
 
-def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
+@effect()
+def ripple(tensor, shape, freq=2, displacement=1.0, kink=1.0, reference=None, spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
     Apply displacement from pixel radian values.
 
@@ -761,7 +813,8 @@ def ripple(tensor, shape, freq, displacement=1.0, kink=1.0, reference=None, spli
     return value.blend(x_y0, x_y1, y_fract)
 
 
-def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
+@effect()
+def color_map(tensor, shape, clut=None, horizontal=False, displacement=.5):
     """
     Apply a color map to an image tensor.
 
@@ -773,8 +826,8 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
        :alt: Noisemaker example output (CC0)
 
     :param Tensor tensor:
-    :param Tensor|str clut: An image tensor or filename (png/jpg only) to use as a color palette
     :param list[int] shape:
+    :param Tensor|str clut: An image tensor or filename (png/jpg only) to use as a color palette
     :param bool horizontal: Scan horizontally
     :param float displacement: Gather distance for clut
     """
@@ -803,6 +856,7 @@ def color_map(tensor, clut, shape, horizontal=False, displacement=.5):
     return output
 
 
+@effect()
 def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0,
           drunkenness=0.0, drunken_spin=False, colors=None, time=0.0, speed=1.0):
     """
@@ -922,7 +976,8 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     return value.blend(tensor, tf.sqrt(value.normalize(out)), alpha)
 
 
-def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
+@effect()
+def wormhole(tensor, shape, kink=1.0, input_stride=1.0, alpha=1.0):
     """
     Apply per-pixel field flow. Non-iterative.
 
@@ -962,6 +1017,7 @@ def wormhole(tensor, shape, kink, input_stride, alpha=1.0):
     return value.blend(tensor, tf.sqrt(out), alpha)
 
 
+@effect()
 def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normalize=True, alpha=1.0):
     """
     Extract a derivative from the given noise.
@@ -992,6 +1048,7 @@ def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normali
     return value.blend(tensor, out, alpha)
 
 
+@effect("sobel")
 def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
     """
     Apply a sobel operator.
@@ -1021,6 +1078,7 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
     return out
 
 
+@effect()
 def normal_map(tensor, shape):
     """
     Generate a tangent-space normal map.
@@ -1071,6 +1129,7 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
     return tensor
 
 
+@effect()
 def density_map(tensor, shape):
     """
     Create a binned pixel value density map.
@@ -1102,6 +1161,7 @@ def density_map(tensor, shape):
     return tf.ones(shape) * value.normalize(tf.cast(out, tf.float32))
 
 
+@effect()
 def jpeg_decimate(tensor, shape, iterations=25):
     """
     Destroy an image with the power of JPEG
@@ -1123,6 +1183,7 @@ def jpeg_decimate(tensor, shape, iterations=25):
     return jpegged
 
 
+@effect()
 def conv_feedback(tensor, shape, iterations=50, alpha=.5):
     """
     Conv2d feedback loop
@@ -1235,6 +1296,7 @@ def center_mask(center, edges, shape, power=2):
     return value.blend(center, edges, mask)
 
 
+@effect()
 def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
             dist_metric=DistanceMetric.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
             xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True):
@@ -1430,7 +1492,8 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     return out
 
 
-def posterize(tensor, levels):
+@effect()
+def posterize(tensor, shape, levels=9):
     """
     Reduce the number of color levels per channel.
 
@@ -1516,7 +1579,8 @@ def offset_index(y_index, height, x_index, width):
     return tf.cast(index, tf.int32)
 
 
-def warp(tensor, shape, freq, octaves=5, displacement=1, spline_order=InterpolationType.bicubic, warp_map=None, signed_range=True, time=0.0, speed=1.0):
+@effect()
+def warp(tensor, shape, freq=2, octaves=5, displacement=1, spline_order=InterpolationType.bicubic, warp_map=None, signed_range=True, time=0.0, speed=1.0):
     """
     Multi-octave warp effect
 
@@ -1578,6 +1642,7 @@ def sobel(tensor, shape, dist_metric=1, rgb=False):
         return outline(tensor, shape, dist_metric, True)
 
 
+@effect()
 def outline(tensor, shape, sobel_metric=1, invert=False):
     """
     Superimpose sobel operator results (cartoon edges)
@@ -1601,6 +1666,7 @@ def outline(tensor, shape, sobel_metric=1, invert=False):
     return edges * tensor
 
 
+@effect()
 def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0):
     """
     """
@@ -1641,6 +1707,7 @@ def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
     return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
 
 
+@effect()
 def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     """
     Vortex tiling effect
@@ -1676,6 +1743,7 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     return warped
 
 
+@effect()
 def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
     """
     Chromatic aberration
@@ -1748,6 +1816,7 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
     return tf.image.adjust_hue(tensor, -shift)
 
 
+@effect()
 def bloom(tensor, shape, alpha=.5):
     """
     Bloom effect
@@ -1769,6 +1838,7 @@ def bloom(tensor, shape, alpha=.5):
     return value.blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
 
 
+@effect()
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     """
     Diffusion-limited aggregation. Slow.
@@ -1901,6 +1971,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
     return out * tensor
 
 
+@effect()
 def wobble(tensor, shape, time=0.0, speed=1.0):
     """
     Move the entire image around
@@ -1912,7 +1983,8 @@ def wobble(tensor, shape, time=0.0, speed=1.0):
     return value.offset(tensor, shape, x=x_offset, y=y_offset)
 
 
-def reverb(tensor, shape, octaves, iterations=1, ridges=True):
+@effect()
+def reverb(tensor, shape, octaves=2, iterations=1, ridges=True):
     """
     Multi-octave "reverberation" of input image tensor
 
@@ -1947,6 +2019,7 @@ def reverb(tensor, shape, octaves, iterations=1, ridges=True):
     return value.normalize(out)
 
 
+@effect()
 def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
     """
     """
@@ -1966,6 +2039,7 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
     return vaseline(value.blend(tensor, leak, alpha), shape, alpha)
 
 
+@effect()
 def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     """
     """
@@ -1977,6 +2051,7 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
     return value.blend(tensor, edges, alpha)
 
 
+@effect()
 def vaseline(tensor, shape, alpha=1.0):
     """
     """
@@ -1984,6 +2059,7 @@ def vaseline(tensor, shape, alpha=1.0):
     return value.blend(tensor, center_mask(tensor, bloom(tensor, shape, 1.0), shape), alpha)
 
 
+@effect()
 def shadow(tensor, shape, alpha=1.0, reference=None):
     """
     Convolution-based self-shadowing effect.
@@ -2010,11 +2086,24 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
 
     shade = value.normalize(distance(x, y, DistanceMetric.euclidean))
 
-    shaded = (1.0 - ((1.0 - tensor) * (1.0 - (shade * .5)))) * shade
+    shade = convolve(ValueMask.conv2d_sharpen, shade, value_shape, alpha=.5)
 
-    return value.blend(tensor, shaded, alpha)
+    # Ramp values to not be so imposing visually
+    highlight = tf.math.square(shade)
+
+    # Darken and brighten original pixel values
+    shade = (1.0 - ((1.0 - tensor) * (1.0 - highlight))) * shade
+
+    # Limit effect to just the brightness channel
+    tensor = tf.image.rgb_to_hsv([tensor])[0]
+
+    tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1],
+                       value.blend(tensor[:, :, 2], tf.image.rgb_to_hsv([shade])[0][:, :, 2], alpha)], 2)
+
+    return tf.image.hsv_to_rgb([tensor])[0]
 
 
+@effect()
 def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0.0, speed=1.0):
     """
     :param Tensor tensor:
@@ -2086,6 +2175,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0
     return value.blend(tensor, out, alpha)
 
 
+@effect()
 def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, speed=1.0):
     """
     Pixel sort effect
@@ -2156,6 +2246,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
     return tensor
 
 
+@effect()
 def rotate(tensor, shape, angle=None):
     """Rotate the image. This breaks seamless edges."""
 
@@ -2175,6 +2266,7 @@ def rotate(tensor, shape, angle=None):
     return tf.image.resize_with_crop_or_pad(rotated, height, width)
 
 
+@effect()
 def sketch(tensor, shape, time=0.0, speed=1.0):
     """
     Pencil sketch effect
@@ -2209,6 +2301,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     return combined * tf.ones(shape)
 
 
+@effect()
 def simple_frame(tensor, shape, brightness=0.0):
     """
     """
@@ -2222,6 +2315,7 @@ def simple_frame(tensor, shape, brightness=0.0):
     return value.blend(tensor, tf.ones(shape) * brightness, border)
 
 
+@effect()
 def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_metric=DistanceMetric.euclidean):
     """Low-poly art style effect"""
 
@@ -2256,7 +2350,8 @@ def square_crop_and_resize(tensor, shape, length=1024):
     return tensor
 
 
-def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True):
+@effect()
+def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
@@ -2315,7 +2410,8 @@ def kaleido(tensor, shape, sides, dist_metric=DistanceMetric.euclidean, xy=None,
     return tf.gather_nd(tensor, tf.stack([y_index % height, x_index % width], 2))
 
 
-def palette(tensor, shape, name, time=0.0):
+@effect()
+def palette(tensor, shape, name=None, time=0.0):
     """
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
@@ -2334,6 +2430,7 @@ def palette(tensor, shape, name, time=0.0):
     return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) * .875 + phase))
 
 
+@effect()
 def glitch(tensor, shape, time=0.0, speed=1.0):
     """
     Apply a glitch effect.
@@ -2378,6 +2475,7 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
     return combined
 
 
+@effect()
 def vhs(tensor, shape, time=0.0, speed=1.0):
     """
     Apply a bad VHS tracking effect.
@@ -2412,6 +2510,7 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+@effect()
 def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     """
     """
@@ -2428,6 +2527,7 @@ def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     return refract(tensor, shape, displacement, reference_x=distortion_x)
 
 
+@effect()
 def degauss(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     """
     """
@@ -2441,6 +2541,7 @@ def degauss(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     return tf.stack([tf.squeeze(red), tf.squeeze(green), tf.squeeze(blue)], 2)
 
 
+@effect()
 def crt(tensor, shape, time=0.0, speed=1.0):
     """
     Apply vintage CRT snow and scanlines.
@@ -2476,6 +2577,7 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+@effect()
 def scanline_error(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2504,7 +2606,8 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
     return tf.minimum(tf.gather_nd(tensor, tf.stack([y_index, x_index], 2)) + error_line * white_noise * 4, 1)
 
 
-def snow(tensor, shape, amount, time=0.0, speed=1.0):
+@effect()
+def snow(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
     """
     """
 
@@ -2514,12 +2617,13 @@ def snow(tensor, shape, amount, time=0.0, speed=1.0):
                           distrib=ValueDistribution.fastnoise, spline_order=0)
 
     static_limiter = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100,
-                                  distrib=ValueDistribution.fastnoise_exp, spline_order=0) * amount
+                                  distrib=ValueDistribution.fastnoise_exp, spline_order=0) * alpha
 
     return value.blend(tensor, static, static_limiter)
 
 
-def dither(tensor, shape, amount, time=0.0, speed=1.0):
+@effect()
+def dither(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
     """
     """
 
@@ -2528,9 +2632,10 @@ def dither(tensor, shape, amount, time=0.0, speed=1.0):
     white_noise = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed,
                                distrib=ValueDistribution.fastnoise)
 
-    return value.blend(tensor, white_noise, amount)
+    return value.blend(tensor, white_noise, alpha)
 
 
+@effect()
 def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, speed=1.0):
     """
     """
@@ -2540,6 +2645,7 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, spee
     return value.normalize(color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
 
 
+@effect()
 def fibers(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2559,6 +2665,7 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+@effect()
 def scratches(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2585,6 +2692,7 @@ def scratches(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+@effect()
 def stray_hair(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2601,6 +2709,7 @@ def stray_hair(tensor, shape, time=0.0, speed=1.0):
     return value.blend(tensor, brightness * .333, mask * .666)
 
 
+@effect()
 def grime(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2627,6 +2736,7 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     return value.blend(tensor, dusty, mask)
 
 
+@effect()
 def frame(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2667,6 +2777,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     return out
 
 
+@effect()
 def texture(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2679,6 +2790,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     return tensor * (tf.ones(value_shape) * .95 + shadow(noise, value_shape, 1.0) * .05)
 
 
+@effect()
 def watermark(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2701,6 +2813,7 @@ def watermark(tensor, shape, time=0.0, speed=1.0):
     return value.blend(tensor, brightness, mask * .125)
 
 
+@effect()
 def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2764,6 +2877,7 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
     return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
 
+@effect()
 def on_screen_display(tensor, shape, time=0.0, speed=1.0):
     glyph_count = random.randint(3, 6)
 
@@ -2795,6 +2909,7 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
     return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
 
+@effect()
 def nebula(tensor, shape, time=0.0, speed=1.0):
     overlay = value.simple_multires(random.randint(2, 4), shape, time=time, speed=speed,
                                     distrib=ValueDistribution.periodic_exp, ridges=True, octaves=6)
@@ -2807,6 +2922,7 @@ def nebula(tensor, shape, time=0.0, speed=1.0):
     return tf.maximum(tensor, overlay * .25)
 
 
+@effect()
 def spatter(tensor, shape, time=0.0, speed=1.0):
     """
     """
@@ -2854,6 +2970,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
     return blend_layers(value.normalize(smear), shape, .005, tensor, splash)
 
 
+@effect()
 def clouds(tensor, shape, time=0.0, speed=1.0):
     """Top-down cloud cover effect"""
 
@@ -2888,6 +3005,7 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
     return tensor
 
 
+@effect()
 def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     """
     """

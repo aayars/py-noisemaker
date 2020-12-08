@@ -83,7 +83,7 @@ def _control():
 
     iterations = 5
     for i in range(iterations):
-        control = effects.erode(control, shape, **erode_kwargs)
+        control = effects.erosion_worms(control, shape, **erode_kwargs)
         control = effects.convolve(constants.ValueMask.conv2d_blur, control, shape)
 
     post_shape = [LARGE_Y, LARGE_X, 1]
@@ -91,7 +91,7 @@ def _control():
 
     iterations = 2
     for i in range(iterations):
-        control = effects.erode(control, post_shape, **erode_kwargs)
+        control = effects.erosion_worms(control, post_shape, **erode_kwargs)
         control = effects.convolve(constants.ValueMask.conv2d_blur, control, post_shape)
 
     control = effects.convolve(constants.ValueMask.conv2d_sharpen, control, post_shape)
@@ -125,10 +125,10 @@ def blended():
     # blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high)
-    combined_land = effects.erode(combined_land, shape, xy_blend=.5, **erode_kwargs)
+    combined_land = effects.erosion_worms(combined_land, shape, xy_blend=.5, **erode_kwargs)
     combined_land = tf.image.adjust_brightness(combined_land, .15)
     combined_land = tf.image.adjust_contrast(combined_land, 1.5)
-    combined_land = effects.erode(combined_land, shape, **erode_kwargs)
+    combined_land = effects.erosion_worms(combined_land, shape, **erode_kwargs)
 
     combined_land_0 = effects.shadow(combined_land, shape, alpha=0.5)
     combined_land_1 = effects.shadow(combined_land, shape, alpha=0.5, reference=control)
