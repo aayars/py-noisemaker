@@ -51,14 +51,6 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     elif isinstance(mask, str):
         mask = ValueMask[mask]
 
-    if ValueDistribution.is_periodic(distrib):
-        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
-        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
-        # this animates the different parts of the image at different rates, instead of ping-ponging everything back and forth.
-        #
-        # get the periodic uniform noise, and scale it to speed:
-        scaled_time = periodic_value(time, tf.random.uniform(initial_shape)) * speed
-
     if distrib == ValueDistribution.ones:
         tensor = tf.ones(initial_shape)
 
@@ -97,12 +89,20 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
             tensor = tf.math.pow(tensor, -1)
 
     elif ValueDistribution.is_fastnoise(distrib):
+
         tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
 
         if distrib == ValueDistribution.fastnoise_exp:
             tensor = tf.math.pow(tensor, 4)
 
     elif ValueDistribution.is_periodic(distrib):
+        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
+        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
+        # this animates the different parts of the image at different rates, instead of ping-ponging everything back and forth.
+        #
+        # get the periodic uniform noise, and scale it to speed:
+        scaled_time = periodic_value(time, tf.random.uniform(initial_shape)) * speed
+
         tensor = periodic_value(scaled_time, tf.random.uniform(initial_shape))
 
         if distrib == ValueDistribution.periodic_exp:
