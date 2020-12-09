@@ -244,7 +244,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         tensor = reindex(tensor, shape, displacement=reindex_range)
 
     if clut:
-        tensor = color_map(tensor, clut, shape, horizontal=clut_horizontal, displacement=clut_range)
+        tensor = color_map(tensor, shape, clut=clut, horizontal=clut_horizontal, displacement=clut_range)
 
     if with_glyph_map:
         tensor = glyph_map(tensor, shape, mask=with_glyph_map, colorize=glyph_map_colorize, zoom=glyph_map_zoom,
@@ -486,7 +486,7 @@ def _apply_effect(tensor, shape, name, time=0.0, speed=1.0, **kwargs):
         params["time"] = time
         params["speed"] = speed
 
-    params["func"](tensor, shape, **params)
+    return params["func"](tensor, shape, **params)
 
 
 def _conform_kernel_to_tensor(kernel, tensor, shape):
