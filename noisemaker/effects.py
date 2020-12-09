@@ -277,7 +277,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         tensor = value.ridge(tensor)
 
     if posterize_levels:
-        tensor = posterize(tensor, posterize_levels)
+        tensor = posterize(tensor, shape, posterize_levels)
 
     if with_worms:
         tensor = worms(tensor, shape, behavior=with_worms, density=worms_density, duration=worms_duration,
@@ -1677,7 +1677,7 @@ def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0):
 
     edges = value_map(tensor, shape, keepdims=True)
 
-    edges = posterize(edges, random.randint(3, 5))
+    edges = posterize(edges, value_shape, random.randint(3, 5))
 
     edges = 1.0 - sobel_operator(edges, value_shape, dist_metric=sobel_metric)
 
@@ -2313,7 +2313,7 @@ def simple_frame(tensor, shape, brightness=0.0):
 
     border = value.blend(tf.zeros(shape), border, .55)
 
-    border = posterize(border, 1)
+    border = posterize(border, shape, 1)
 
     return value.blend(tensor, tf.ones(shape) * brightness, border)
 

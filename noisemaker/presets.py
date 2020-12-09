@@ -2464,11 +2464,11 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_flow,
     },
 
-    "shmoo": lambda: extend("invert", "distressed", "maybe-palette", "outline", {
+    "shmoo": lambda: extend("invert", "distressed", "outline", {
         "freq": random.randint(4, 6),
         "hue_range": 2 + random.random(),
         "post_saturation": .5 + random.random() * .25,
-        "posterize_levels": random.randint(3, 5),
+        "posterize_levels": random.randint(1, 5),
         "rgb": coin_flip(),
         "speed": .025,
     }),
