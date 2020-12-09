@@ -2077,7 +2077,10 @@ def shadow(tensor, shape, alpha=1.0, reference=None):
 
     height, width, channels = shape
 
-    reference = value_map(reference or tensor, shape, keepdims=True)
+    if reference is None:
+        reference = tensor
+
+    reference = value_map(reference, shape, keepdims=True)
 
     value_shape = [height, width, 1]
 
