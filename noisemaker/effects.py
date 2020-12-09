@@ -2452,9 +2452,9 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
 
     base = refract(base, shape, random.random())
 
-    stylized = value.normalize(color_map(base, tensor, shape, horizontal=True, displacement=2.5))
+    stylized = value.normalize(color_map(base, shape, clut=tensor, horizontal=True, displacement=2.5))
 
-    jpegged = color_map(base, stylized, shape, horizontal=True, displacement=2.5)
+    jpegged = color_map(base, shape, clut=stylized, horizontal=True, displacement=2.5)
 
     if channels in (1, 3):
         jpegged = jpeg_decimate(jpegged, shape)
@@ -2645,7 +2645,7 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, spee
 
     clut = value.values(freq=2, shape=shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
 
-    return value.normalize(color_map(tensor, clut, shape, horizontal=horizontal, displacement=displacement))
+    return value.normalize(color_map(tensor, shape, clut=clut, horizontal=horizontal, displacement=displacement))
 
 
 @effect()
