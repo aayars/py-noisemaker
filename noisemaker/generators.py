@@ -12,7 +12,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, mask_static=False,
           lattice_drift=0.0, rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
-          speed=1.0, time=0.0, **post_process_args):
+          speed=1.0, time=0.0, octave_effects=None, **post_process_args):
     """
     Generate a single layer of scaled noise.
 
@@ -72,7 +72,12 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
                                  displacement=displacement, warp_freq=freq, spline_order=spline_order,
                                  signed_range=False)
 
-    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, rgb=rgb, **post_process_args)
+    if octave_effects is not None:
+        for effect in octave_effects:
+            tensor = effect(tensor=tensor, shape=shape, time=time, speed=speed)
+
+    else:
+        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, rgb=rgb, **post_process_args)
 
     if shape[-1] >= 3 and not rgb:
         if hue_distrib:
@@ -134,7 +139,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
              post_deriv=False, with_reverb=None, reverb_iterations=1,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             octave_blending=OctaveBlending.falloff, time=0.0, speed=1.0, **post_process_args):
+             octave_blending=OctaveBlending.falloff, time=0.0, speed=1.0, octave_effects=None, post_effects=None, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -180,6 +185,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
     :param float speed: Displacement range for Z/W axis (simplex only)
     :param float time: Time argument for Z/W axis (simplex only)
+    :param list[callable] octave_effects: A list of composer lambdas to invoke per-octave, rather than calling post_process.
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
@@ -220,7 +226,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                       deriv=deriv, deriv_metric=deriv_metric, deriv_alpha=deriv_alpha,
                       lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
                       hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                      saturation_distrib=saturation_distrib, time=time, speed=speed,
+                      saturation_distrib=saturation_distrib, time=time, speed=speed, octave_effects=octave_effects,
                       )
 
         if octave_blending == OctaveBlending.reduce_max:
@@ -249,12 +255,17 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     post_process_args['refract_signed_range'] = False
     post_process_args.pop("refract_y_from_offset", None)
 
-    tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
-                                  ridges_hint=ridges and rgb, spline_order=spline_order,
-                                  reindex_range=post_reindex_range, reflect_range=post_reflect_range,
-                                  refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
-                                  with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, rgb=rgb,
-                                  **post_process_args)
+    if post_effects is not None:
+        for effect in post_effects:
+            tensor = effect(tensor=tensor, shape=shape, time=time, speed=speed)
+
+    else:
+        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
+                                      ridges_hint=ridges and rgb, spline_order=spline_order,
+                                      reindex_range=post_reindex_range, reflect_range=post_reflect_range,
+                                      refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
+                                      with_reverb=with_reverb, reverb_iterations=reverb_iterations,
+                                      deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, rgb=rgb,
+                                      **post_process_args)
 
     return tensor

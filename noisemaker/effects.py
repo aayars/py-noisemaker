@@ -451,6 +451,11 @@ def effect(*args):
         argspec = inspect.getfullargspec(func)
 
         params = argspec.args
+
+        for param in ["time", "speed"]:
+            if param not in params:
+                raise ValueError(f'{func.__name__}() needs to accept a "{param}" keyword arg. Please add it to the function signature.')
+
         # All effects respond to "tensor", "shape". Removing these non-keyword args should make params the same length as defaults.
         params.remove("tensor")
         params.remove("shape")
@@ -466,27 +471,6 @@ def effect(*args):
         return func
 
     return decorator_fn
-
-
-def _apply_effect(tensor, shape, name, time=0.0, speed=1.0, **kwargs):
-    """Apply a composable effect to the given tensor."""
-
-    if name not in EFFECTS:
-        raise ValueError(f'"{name}" is not a registered effect name.')
-
-    params = EFFECTS[name].copy()
-
-    for k, v in kwargs.items():
-        if k not in params:
-            raise ValueError(f'Effect "{name}" does not have a parameter named "{k}"')
-
-        params[k] = v
-
-    if "time" in params:
-        params["time"] = time
-        params["speed"] = speed
-
-    return params["func"](tensor, shape, **params)
 
 
 def _conform_kernel_to_tensor(kernel, tensor, shape):
@@ -557,7 +541,7 @@ def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
 
 
 @effect()
-def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False):
+def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False, time=0.0, speed=1.0):
     """
     WIP hydraulic erosion effect.
     """
@@ -634,7 +618,7 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alp
 
 
 @effect()
-def reindex(tensor, shape, displacement=.5):
+def reindex(tensor, shape, displacement=.5, time=0.0, speed=1.0):
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
 
@@ -814,7 +798,7 @@ def ripple(tensor, shape, freq=2, displacement=1.0, kink=1.0, reference=None, sp
 
 
 @effect()
-def color_map(tensor, shape, clut=None, horizontal=False, displacement=.5):
+def color_map(tensor, shape, clut=None, horizontal=False, displacement=.5, time=0.0, speed=1.0):
     """
     Apply a color map to an image tensor.
 
@@ -977,7 +961,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
 
 @effect()
-def wormhole(tensor, shape, kink=1.0, input_stride=1.0, alpha=1.0):
+def wormhole(tensor, shape, kink=1.0, input_stride=1.0, alpha=1.0, time=0.0, speed=1.0):
     """
     Apply per-pixel field flow. Non-iterative.
 
@@ -1018,7 +1002,7 @@ def wormhole(tensor, shape, kink=1.0, input_stride=1.0, alpha=1.0):
 
 
 @effect()
-def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normalize=True, alpha=1.0):
+def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normalize=True, alpha=1.0, time=0.0, speed=1.0):
     """
     Extract a derivative from the given noise.
 
@@ -1049,7 +1033,7 @@ def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normali
 
 
 @effect("sobel")
-def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
+def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean, time=0.0, speed=1.0):
     """
     Apply a sobel operator.
 
@@ -1079,7 +1063,7 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean):
 
 
 @effect()
-def normal_map(tensor, shape):
+def normal_map(tensor, shape, time=0.0, speed=1.0):
     """
     Generate a tangent-space normal map.
 
@@ -1130,7 +1114,7 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
 
 
 @effect()
-def density_map(tensor, shape):
+def density_map(tensor, shape, time=0.0, speed=1.0):
     """
     Create a binned pixel value density map.
 
@@ -1162,7 +1146,7 @@ def density_map(tensor, shape):
 
 
 @effect()
-def jpeg_decimate(tensor, shape, iterations=25):
+def jpeg_decimate(tensor, shape, iterations=25, time=0.0, speed=1.0):
     """
     Destroy an image with the power of JPEG
 
@@ -1184,7 +1168,7 @@ def jpeg_decimate(tensor, shape, iterations=25):
 
 
 @effect()
-def conv_feedback(tensor, shape, iterations=50, alpha=.5):
+def conv_feedback(tensor, shape, iterations=50, alpha=.5, time=0.0, speed=1.0):
     """
     Conv2d feedback loop
 
@@ -1299,7 +1283,7 @@ def center_mask(center, edges, shape, power=2):
 @effect()
 def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
             dist_metric=DistanceMetric.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
-            xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True):
+            xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True, time=0.0, speed=1.0):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1493,7 +1477,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
 
 
 @effect()
-def posterize(tensor, shape, levels=9):
+def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
     """
     Reduce the number of color levels per channel.
 
@@ -1643,7 +1627,7 @@ def sobel(tensor, shape, dist_metric=1, rgb=False):
 
 
 @effect()
-def outline(tensor, shape, sobel_metric=1, invert=False):
+def outline(tensor, shape, sobel_metric=1, invert=False, time=0.0, speed=1.0):
     """
     Superimpose sobel operator results (cartoon edges)
 
@@ -1667,7 +1651,7 @@ def outline(tensor, shape, sobel_metric=1, invert=False):
 
 
 @effect()
-def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0):
+def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0, time=0.0, speed=1.0):
     """
     """
 
@@ -1817,7 +1801,7 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
 
 
 @effect()
-def bloom(tensor, shape, alpha=.5):
+def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
     """
     Bloom effect
 
@@ -1839,7 +1823,7 @@ def bloom(tensor, shape, alpha=.5):
 
 
 @effect()
-def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None):
+def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, time=0.0, speed=1.0):
     """
     Diffusion-limited aggregation. Slow.
 
@@ -1984,7 +1968,7 @@ def wobble(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def reverb(tensor, shape, octaves=2, iterations=1, ridges=True):
+def reverb(tensor, shape, octaves=2, iterations=1, ridges=True, time=0.0, speed=1.0):
     """
     Multi-octave "reverberation" of input image tensor
 
@@ -2040,7 +2024,7 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
 
 
 @effect()
-def vignette(tensor, shape, brightness=0.0, alpha=1.0):
+def vignette(tensor, shape, brightness=0.0, alpha=1.0, time=0.0, speed=1.0):
     """
     """
 
@@ -2052,7 +2036,7 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0):
 
 
 @effect()
-def vaseline(tensor, shape, alpha=1.0):
+def vaseline(tensor, shape, alpha=1.0, time=0.0, speed=1.0):
     """
     """
 
@@ -2060,7 +2044,7 @@ def vaseline(tensor, shape, alpha=1.0):
 
 
 @effect()
-def shadow(tensor, shape, alpha=1.0, reference=None):
+def shadow(tensor, shape, alpha=1.0, reference=None, time=0.0, speed=1.0):
     """
     Convolution-based self-shadowing effect.
 
@@ -2250,7 +2234,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
 
 @effect()
-def rotate(tensor, shape, angle=None):
+def rotate(tensor, shape, angle=None, time=0.0, speed=1.0):
     """Rotate the image. This breaks seamless edges."""
 
     height, width, channels = shape
@@ -2305,7 +2289,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def simple_frame(tensor, shape, brightness=0.0):
+def simple_frame(tensor, shape, brightness=0.0, time=0.0, speed=1.0):
     """
     """
 
@@ -2354,7 +2338,7 @@ def square_crop_and_resize(tensor, shape, length=1024):
 
 
 @effect()
-def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True):
+def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True, time=0.0, speed=1.0):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
@@ -2414,7 +2398,7 @@ def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=Non
 
 
 @effect()
-def palette(tensor, shape, name=None, time=0.0):
+def palette(tensor, shape, name=None, time=0.0, speed=1.0):
     """
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
