@@ -10,6 +10,8 @@ from noisemaker.util import logger, save
 
 DEFAULT_SHAPE = [1024, 1024, 3]
 
+ALLOWED_KEYS = ['extends', 'settings', 'generator', 'octaves', 'post']
+
 # PRESETS = {
 #     # "settings", "generator", "octaves", and "post" are wrapped in lambda to enable re-evaluation if/when the seed value changes.
 #     # For additional examples, see test/test_composer.py
@@ -45,6 +47,13 @@ class Preset:
         """
 
         self.name = preset_name
+
+        if preset_name not in presets:
+            raise ValueError(f"Preset named \"{preset_name}\" was not found among the provided presets.")
+
+        for key in presets[preset_name]:
+            if key not in ALLOWED_KEYS:
+                raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
 
         # The "settings" dict provides overridable args to generator, octaves, and post
         self.settings = settings or _rollup(preset_name, 'settings', {}, presets, None)
@@ -95,25 +104,25 @@ def _rollup(preset_name, key, default, presets, settings):
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
     child_data = presets[preset_name].get(key, default)
 
-    if key == 'settings':
-        child_data = child_data()
-    elif callable(child_data):
-        child_data = child_data(settings)
+    if callable(child_data):
+        if key == 'settings':
+            child_data = child_data()
+        else:
+            child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset {preset_name} key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
     for base_preset_name in evaluated_kwargs.get('extends', []):
-        # Evaluate this particular key using the resolved "settings" dictionary
-        print(f"Evaluating {base_preset_name} {key}")
-
         # Data to be merged; just need to know how to merge it, based on type.
         # parent_data = type(self)(base_preset_name, presets, self.settings)._rollup(key, default, presets)
         parent_data = _rollup(base_preset_name, key, default, presets, settings)
 
-        # Evaluate this particular key using the resolved "settings" dictionary
         if callable(parent_data):
-            parent_data = parent_data(settings)
+            if key == 'settings':
+                parent_data = parent_data()
+            else:
+                parent_data = parent_data(settings)
         else:
             parent_data = parent_data.copy()
 
