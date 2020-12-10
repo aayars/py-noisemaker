@@ -106,7 +106,7 @@ def frame(ctx, input_dir, frame, seed, name, width, height):
 
     control = effects.value_map(collage_images.pop(), shape, keepdims=True)
 
-    control = effects.convolve(effects.ValueMask.conv2d_blur, control, [shape[0], shape[1], 1])
+    control = effects.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[shape[0], shape[1], 1])
 
     with tf.compat.v1.Session().as_default():
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)

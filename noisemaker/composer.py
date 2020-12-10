@@ -41,6 +41,7 @@ ALLOWED_KEYS = ['extends', 'settings', 'generator', 'octaves', 'post']
 #     # ...
 # }
 
+
 class Preset:
     def __init__(self, preset_name, presets, settings=None):
         """
@@ -49,7 +50,7 @@ class Preset:
         self.name = preset_name
 
         if preset_name not in presets:
-            raise ValueError(f"Preset named \"{preset_name}\" was not found among the provided presets.")
+            raise ValueError(f"Preset named \"{preset_name}\" was not found among the available presets.")
 
         for key in presets[preset_name]:
             if key not in ALLOWED_KEYS:
@@ -111,9 +112,12 @@ def _rollup(preset_name, key, default, presets, settings):
             child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
-        raise ValueError(f"Preset {preset_name} key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
+        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
     for base_preset_name in evaluated_kwargs.get('extends', []):
+        if base_preset_name not in presets:
+            raise ValueError(f"Preset \"{preset_name}\" parent \"{base_preset_name}\" was not found among the available presets.")
+
         # Data to be merged; just need to know how to merge it, based on type.
         # parent_data = type(self)(base_preset_name, presets, self.settings)._rollup(key, default, presets)
         parent_data = _rollup(base_preset_name, key, default, presets, settings)

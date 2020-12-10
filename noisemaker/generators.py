@@ -256,8 +256,8 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     post_process_args.pop("refract_y_from_offset", None)
 
     if post_effects is not None:
-        for effect in post_effects:
-            tensor = effect(tensor=tensor, shape=shape, time=time, speed=speed)
+        for effect_or_preset in post_effects:
+            tensor = apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     else:
         tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
@@ -269,3 +269,17 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
                                       **post_process_args)
 
     return tensor
+
+
+def apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
+    """
+    """
+
+    if callable(effect_or_preset):
+        return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
+
+    else:  # Is a Preset
+        for e_or_p in effect_or_preset.post_effects:
+            tensor = apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
+
+        return tensor

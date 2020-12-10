@@ -307,7 +307,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
             if isinstance(kernel, str):
                 kernel = ValueMask['conv2d_{}'.format(kernel)]
 
-            tensor = convolve(kernel, tensor, shape)
+            tensor = convolve(kernel=kernel, tensor=tensor, shape=shape)
 
     if with_shadow:
         tensor = shadow(tensor, shape, with_shadow)
@@ -493,17 +493,18 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
     return temp
 
 
-def convolve(kernel, tensor, shape, with_normalize=True, alpha=1.0):
+@effect()
+def convolve(tensor, shape, kernel=None, with_normalize=True, alpha=1.0, time=0.0, speed=1.0):
     """
     Apply a convolution kernel to an image tensor.
 
     .. code-block:: python
 
-       image = convolve(ValueMask.conv2d_shadow, image)
+       image = convolve(image, shape, ValueMask.conv2d_shadow)
 
-    :param ValueMask kernel: See conv2d_* members in ValueMask enum
     :param Tensor tensor: An image tensor.
     :param list[int] shape:
+    :param ValueMask kernel: See conv2d_* members in ValueMask enum
     :param bool with_normalize: Normalize output (True)
     :paral float alpha: Alpha blending amount
     :return: Tensor
@@ -569,7 +570,7 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alp
 
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
-    values = value_map(convolve(ValueMask.conv2d_blur, tensor, shape), shape, keepdims=True)
+    values = value_map(convolve(kernel=ValueMask.conv2d_blur, tensor=tensor, shape=shape), shape, keepdims=True)
 
     x_index = tf.cast(x, tf.int32)
     y_index = tf.cast(y, tf.int32)
@@ -682,7 +683,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_x is None:
         if from_derivative:
-            reference_x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
+            reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
             reference_x = value.values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
@@ -693,7 +694,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     if reference_y is None:
         if from_derivative:
-            reference_y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
+            reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
             reference_y = value.values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
@@ -1018,8 +1019,8 @@ def derivative(tensor, shape, dist_metric=DistanceMetric.euclidean, with_normali
     :return: Tensor
     """
 
-    x = convolve(ValueMask.conv2d_deriv_x, tensor, shape, with_normalize=False)
-    y = convolve(ValueMask.conv2d_deriv_y, tensor, shape, with_normalize=False)
+    x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
+    y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
     out = distance(x, y, dist_metric)
 
@@ -1048,10 +1049,10 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean, time=0.0
     :return: Tensor
     """
 
-    tensor = convolve(ValueMask.conv2d_blur, tensor, shape)
+    tensor = convolve(kernel=ValueMask.conv2d_blur, tensor=tensor, shape=shape)
 
-    x = convolve(ValueMask.conv2d_sobel_x, tensor, shape, with_normalize=False)
-    y = convolve(ValueMask.conv2d_sobel_y, tensor, shape, with_normalize=False)
+    x = convolve(kernel=ValueMask.conv2d_sobel_x, tensor=tensor, shape=shape, with_normalize=False)
+    y = convolve(kernel=ValueMask.conv2d_sobel_y, tensor=tensor, shape=shape, with_normalize=False)
 
     out = tf.abs(value.normalize(distance(x, y, dist_metric)) * 2 - 1)
 
@@ -1081,8 +1082,10 @@ def normal_map(tensor, shape, time=0.0, speed=1.0):
 
     reference = value_map(tensor, shape, keepdims=True)
 
-    x = value.normalize(1 - convolve(ValueMask.conv2d_sobel_x, reference, [height, width, 1]))
-    y = value.normalize(convolve(ValueMask.conv2d_sobel_y, reference, [height, width, 1]))
+    value_shape = [height, width, 1]
+
+    x = value.normalize(1 - convolve(kernel=ValueMask.conv2d_sobel_x, tensor=reference, shape=value_shape))
+    y = value.normalize(convolve(kernel=ValueMask.conv2d_sobel_y, tensor=reference, shape=value_shape))
 
     z = 1 - tf.abs(value.normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
 
@@ -1183,8 +1186,8 @@ def conv_feedback(tensor, shape, iterations=50, alpha=.5, time=0.0, speed=1.0):
     convolved = value.proportional_downsample(tensor, shape, half_shape)
 
     for i in range(iterations):
-        convolved = convolve(ValueMask.conv2d_blur, convolved, half_shape)
-        convolved = convolve(ValueMask.conv2d_sharpen, convolved, half_shape)
+        convolved = convolve(kernel=ValueMask.conv2d_blur, tensor=convolved, shape=half_shape)
+        convolved = convolve(kernel=ValueMask.conv2d_sharpen, tensor=convolved, shape=half_shape)
 
     convolved = value.normalize(convolved)
 
@@ -1585,6 +1588,9 @@ def warp(tensor, shape, freq=2, octaves=5, displacement=1, spline_order=Interpol
     :param float speed:
     """
 
+    if isinstance(freq, int):
+        freq = value.freq_for_shape(freq, shape)
+
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
 
@@ -1669,7 +1675,7 @@ def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0, time=0.0, speed=1.0)
 
     edges = bloom(edges, shape, alpha=.5)
 
-    edges = value.normalize(edges + convolve(ValueMask.conv2d_blur, edges, shape))
+    edges = value.normalize(edges + convolve(kernel=ValueMask.conv2d_blur, tensor=edges, shape=shape))
 
     return value.blend(tensor, 1.0 - ((1.0 - edges) * (1.0 - tensor)), alpha)
 
@@ -1711,8 +1717,8 @@ def vortex(tensor, shape, displacement=64.0, time=0.0, speed=1.0):
     displacement_map = singularity(None, value_shape)
     displacement_map = value.normalize(displacement_map)
 
-    x = convolve(ValueMask.conv2d_deriv_x, displacement_map, value_shape, with_normalize=False)
-    y = convolve(ValueMask.conv2d_deriv_y, displacement_map, value_shape, with_normalize=False)
+    x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=displacement_map, shape=value_shape, with_normalize=False)
+    y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=displacement_map, shape=value_shape, with_normalize=False)
 
     fader = singularity(None, value_shape, dist_metric=DistanceMetric.chebyshev, inverse=True)
     fader = value.normalize(fader)
@@ -1950,7 +1956,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, time=
     # hot = tf.ones([count, channels])
     hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
 
-    out = convolve(ValueMask.conv2d_blur, tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape)
+    out = convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape=shape)
 
     return out * tensor
 
@@ -2068,12 +2074,12 @@ def shadow(tensor, shape, alpha=1.0, reference=None, time=0.0, speed=1.0):
 
     value_shape = [height, width, 1]
 
-    x = convolve(ValueMask.conv2d_sobel_x, reference, value_shape)
-    y = convolve(ValueMask.conv2d_sobel_y, reference, value_shape)
+    x = convolve(kernel=ValueMask.conv2d_sobel_x, tensor=reference, shape=value_shape)
+    y = convolve(kernel=ValueMask.conv2d_sobel_y, tensor=reference, shape=value_shape)
 
     shade = value.normalize(distance(x, y, DistanceMetric.euclidean))
 
-    shade = convolve(ValueMask.conv2d_sharpen, shade, value_shape, alpha=.5)
+    shade = convolve(kernel=ValueMask.conv2d_sharpen, tensor=shade, shape=value_shape, alpha=.5)
 
     # Ramp values to not be so imposing visually
     highlight = tf.math.square(shade)
@@ -2973,18 +2979,18 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     combined = blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
 
-    shadow = value.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
-    shadow = tf.minimum(shadow * 2.5, 1.0)
+    shaded = value.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
+    shaded = tf.minimum(shaded * 2.5, 1.0)
 
     for _ in range(3):
-        shadow = convolve(ValueMask.conv2d_blur, shadow, pre_shape)
+        shaded = convolve(kernel=ValueMask.conv2d_blur, tensor=shaded, shape=pre_shape)
 
     post_shape = [shape[0], shape[1], 1]
 
-    shadow = value.resample(shadow, post_shape)
+    shaded = value.resample(shaded, post_shape)
     combined = value.resample(combined, post_shape)
 
-    tensor = value.blend(tensor, tf.zeros(shape), shadow * .75)
+    tensor = value.blend(tensor, tf.zeros(shape), shaded * .75)
     tensor = value.blend(tensor, tf.ones(shape), combined)
 
     tensor = shadow(tensor, shape, alpha=.5)
@@ -3011,3 +3017,29 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     colorized = tf.image.hsv_to_rgb([colorized])[0]
 
     return value.blend(tensor, colorized, alpha)
+
+
+@effect()
+def adjust_hue(tensor, shape, amount=.25, time=0.0, speed=1.0):
+    if amount not in (1.0, 0.0, None) and shape[2] == 3:
+        tensor = tf.image.adjust_hue(tensor, amount)
+
+    return tensor
+
+
+@effect()
+def adjust_saturation(tensor, shape, amount=.75, time=0.0, speed=1.0):
+    if shape[2] == 3:
+        tensor = tf.image.adjust_saturation(tensor, amount)
+
+    return tensor
+
+
+@effect()
+def adjust_brightness(tensor, shape, amount=.125, time=0.0, speed=1.0):
+    return tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, amount), 1.0), -1.0)
+
+
+@effect()
+def adjust_contrast(tensor, shape, amount=1.25, time=0.0, speed=1.0):
+    return tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, amount), 1.0), 0.0)

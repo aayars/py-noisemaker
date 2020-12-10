@@ -84,7 +84,7 @@ def _control():
     iterations = 5
     for i in range(iterations):
         control = effects.erosion_worms(control, shape, **erode_kwargs)
-        control = effects.convolve(constants.ValueMask.conv2d_blur, control, shape)
+        control = effects.convolve(kernel=constants.ValueMask.conv2d_blur, tensor=control, shape=shape)
 
     post_shape = [LARGE_Y, LARGE_X, 1]
     control = value.resample(control, post_shape)
@@ -92,9 +92,9 @@ def _control():
     iterations = 2
     for i in range(iterations):
         control = effects.erosion_worms(control, post_shape, **erode_kwargs)
-        control = effects.convolve(constants.ValueMask.conv2d_blur, control, post_shape)
+        control = effects.convolve(kernel=constants.ValueMask.conv2d_blur, tensor=control, shape=post_shape)
 
-    control = effects.convolve(constants.ValueMask.conv2d_sharpen, control, post_shape)
+    control = effects.convolve(kernel=constants.ValueMask.conv2d_sharpen, tensor=control, shape=post_shape)
     control = value.normalize(control)
 
     with tf.compat.v1.Session().as_default():

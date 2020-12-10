@@ -16,6 +16,7 @@ setup(name='noisemaker',
         animaker=noisemaker.scripts.animaker:main
         animangler=noisemaker.scripts.animangler:main
         artmaker=noisemaker.scripts.artmaker:main
+        artmaker-new=noisemaker.scripts.artmaker_new:main
         artmangler=noisemaker.scripts.artmangler:main
         collagemaker=noisemaker.scripts.collagemaker:main
         glitchmaker=noisemaker.scripts.glitchmaker:main
