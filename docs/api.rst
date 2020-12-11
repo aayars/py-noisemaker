@@ -52,3 +52,19 @@ noisemaker.util
     :members:
     :undoc-members:
     :show-inheritance:
+
+noisemaker.presets
+------------------
+
+.. automodule:: noisemaker.presets
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+noisemaker.new_presets
+----------------------
+
+.. automodule:: noisemaker.new_presets
+    :members:
+    :undoc-members:
+    :show-inheritance:

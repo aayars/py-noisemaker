@@ -1,3 +1,5 @@
+"""Presets for artmaker-new."""
+
 import functools
 import random
 
@@ -13,6 +15,7 @@ from noisemaker.constants import (
 from noisemaker.palettes import PALETTES
 from noisemaker.presets import coin_flip, random_member
 
+#: A dictionary of presets for use with the artmaker-new script.
 PRESETS = {
     "aberration": {
         "post": lambda settings: [Effect("aberration", displacement=.025 + random.random() * .0125)]

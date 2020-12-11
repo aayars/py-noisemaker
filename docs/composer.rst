@@ -24,56 +24,143 @@ The current solution attempts to be flexible and highly composable. Composer Pre
 
 Effects and presets are intended to be combined with and riff off each other, but repetition in code is distateful, especially when we have to copy settings around. To minimize copied settings, Composer Presets may "extend" parent presets, and/or refer to other presets inline.
 
-The lineage of ancestor presets is modeled in each preset's "extends" list, which is a flat list of preset names.
+To "extend" means using ("inheriting") those presets as a foundation to build on top of -- using the settings and effects from the parent presets as a starting point, without needing to copy-paste everything in. Not having a parent means starting from a blank slate, with all default generator parameters and no effects.
+
+The lineage of ancestor presets is modeled in each preset's ``extends`` list, which is a flat list of preset names.
+
+.. code-block:: python
+
+    PRESETS = {
+        "just-an-example": {
+            # A list of parent preset names, if any:
+            "extends": ["first-parent", "second-parent", ...]
+        },
+
+        # ...
+    }
 
 2) What are the meaningful variables?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each preset may need to reuse values, or tweak a value which was already set by a parent. To facilitate this, presets have an optional bank of settings which may be plugged in and overridden as needed.
 
-Reusable settings are modeled in each preset's "settings" dictionary. Extending a preset inherits this dictionary, allowing preset authors to override or add key/value pairs. This is a free-form dictionary, and authors may stash any arbitrary values they need here.
+Reusable settings are modeled in each preset's ``settings`` dictionary. Extending a preset inherits this dictionary, allowing preset authors to override or add key/value pairs. This is a free-form dictionary, and authors may stash any arbitrary values they need here.
+
+.. code-block:: python
+
+    PRESETS = {
+        "just-an-example": {
+            # "settings" is a free-form dictionary of global args which may be
+            # referenced throughout the preset and its descendants. It is wrapped
+            # in a lambda to permit re-evaluation after changing random seeds.
+            "settings": lambda: {
+                "your-special-variable": random.random(),
+                "another-special-variable": random.randint(2, 4),
+                # ...
+            }
+        },
+
+        # ...
+    }
 
 3) What are the noise generation parameters?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's "generator" dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with "settings", extending a preset inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike "settings", the keys found in this dictionary are strictly validated and must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`_.
+Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's ``generator`` dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with ``settings``, extending a preset inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike ``settings``, the keys found in this dictionary are not free-form, but must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`_.
+
+.. code-block:: python
+
+    PRESETS = {
+        "just-an-example": {
+            # A strictly validated dictionary of keyword args to send to
+            # noisemaker.generators.multires():
+            "generator": lambda settings: {
+                "freq": settings["base_freq"],
+                "octaves": random.randint(4, 8),
+                "ridges": True,
+                # ...
+            },
+
+        },
+
+        # ...
+    }
 
 4) Which effects should be applied to each octave?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Preset authors should be able to specify a list of effects which get applied to each octave of noise. Historically, the per-octave effects in Noisemaker were constrained by hard-coded logic. In Composer Presets, authors may specify an arbitrary list of effects.
 
-Per-octave effects are modeled in each preset's "octaves" list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects.
+Per-octave effects are modeled in each preset's ``octaves`` list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects.
+
+.. code-block:: python
+
+    PRESETS = {
+        "just-an-example": {
+            # A list of per-octave effects, to apply in order:
+            "octaves": lambda settings: [
+                Effect("your-effect-name", **args),  # Effect() returns a callable
+                                                     # effect function
+                # ...
+            ],
+
+        },
+
+        # ...
+    }
 
 5) Which effects should be applied after flattening layers?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Similar to how per-octave effects were originally implemented, post effects in Noisemaker were hard-coded and inflexible. Composer Presets aim to break this pattern by enabling preset authors to specify an ordered list of "final pass" effects.
 
-Post-reduce effects are modeled in each preset's "post" section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros.
-
-Putting It All Together
------------------------
+Post-reduce effects are modeled in each preset's ``post`` section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros.
 
 .. code-block:: python
 
     PRESETS = {
-        # "settings", "generator", "octaves", and "post" are wrapped in lambda to
-        # enable re-evaluation if/when the seed value changes. For additional examples,
-        # see noisemaker/new_presets.py and test/test_composer.py
+        "just-an-example": {
+            # A list of post-reduce effects, to apply in order:
+            "post": lambda settings: [
+                Effect("your-other-effect-name", **args),
+                Effect("your-other-effect-name-2", **args),
+                Preset("another-preset-entirely")  # Unroll the "post" steps from
+                                                   # another preset entirely
+                # ...
+            ]
+        },
+
+        # ...
+    }
+
+Putting It All Together
+-----------------------
+
+The following contrived example illustrates a preset containing each of the above described sections. For concrete examples, see noisemaker/new_presets.py and test/test_composer.py.
+
+Note that ``settings``, ``generator``, ``octaves``, and ``post`` are wrapped inside ``lambda``. This enables re-evaluation of presets if/when the random number generator seed is changed.
+
+.. code-block:: python
+
+    PRESETS = {
         "just-an-example": {
             # A list of parent preset names, if any:
-            "extends": ["your-parent", "your-other-parent", ...],
+            "extends": ["first-parent", "second-parent", ...],
 
-            # A free-form dictionary of global args which may be referred to throughout
+            # A free-form dictionary of global args which may be referenced throughout
             # the preset and its descendants:
             "settings": lambda: {
+                "your-special-variable": random.random(),
+                "another-special-variable": random.randint(2, 4),
                 # ...
             },
 
             # A strictly validated dictionary of keyword args to send to
             # noisemaker.generators.multires():
             "generator": lambda settings: {
+                "freq": settings["base_freq"],
+                "octaves": random.randint(4, 8),
+                "ridges": True,
                 # ...
             },
 
@@ -91,7 +178,7 @@ Putting It All Together
                 Preset("another-preset-entirely")  # Unroll the "post" steps from
                                                    # another preset entirely
                 # ...
-            ],
+            ]
         },
 
         # ...
