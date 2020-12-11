@@ -83,10 +83,10 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
         print(kwargs['name'])
 
     try:
-        tensor = generators.multires(**kwargs)
+        tensor = generators.multires_old(**kwargs)
 
     except Exception as e:
-        logger.error(f"generators.multires() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
+        logger.error(f"generators.multires_old() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
         raise
 
     with tf.compat.v1.Session().as_default():

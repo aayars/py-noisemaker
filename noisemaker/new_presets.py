@@ -5,6 +5,7 @@ from noisemaker.composer import Effect, Preset
 from noisemaker.constants import (
     DistanceMetric as distance,
     InterpolationType as interp,
+    PointDistribution as point,
     ValueMask as mask,
     VoronoiDiagramType as voronoi,
     WormBehavior as worms,
@@ -144,7 +145,7 @@ PRESETS = {
     },
 
     "grayscale": {
-        "post": lambda settings: [Effect("adjust_saturation", 0)]
+        "post": lambda settings: [Effect("adjust_saturation", amount=0)]
     },
 
     "invert": {
@@ -195,13 +196,15 @@ PRESETS = {
         "post": lambda settings: [] if coin_flip() else [Preset("invert")]
     },
 
-    "maybe-palette": lambda: {
+    "maybe-palette": {
         "post": lambda settings: [] if coin_flip() else [Preset("palette")]
     },
 
     "mosaic": {
         "extends": ["bloom", "voronoi"],
-        "post": lambda settings: [Effect("voronoi", alpha=.75 + random.random() * .25)]
+        "settings": lambda: {
+            "voronoi_alpha": .75 + random.random() * .25
+        }
     },
 
     "nebula": {
@@ -218,8 +221,8 @@ PRESETS = {
     },
 
     "octave-warp": {
-        "settings": {
-            "speed": .0333,
+        "settings": lambda: {
+            "speed": .025 + random.random() * .0125
         },
         "post": lambda settings: [Effect("warp", displacement=3.0 + random.random(), freq=random.randint(2, 3), octaves=3)]
     },
@@ -234,7 +237,7 @@ PRESETS = {
     },
 
     "outline": {
-        "post": lambda settings: [Effect("outline", dist_metric=distance.euclidean)]
+        "post": lambda settings: [Effect("outline", sobel_metric=distance.euclidean)]
     },
 
     "palette": {
@@ -247,18 +250,18 @@ PRESETS = {
 
     "polar": {
         "extends": ["kaleido"],
-        "settings": {
+        "settings": lambda: {
             "sides": 1
         },
     },
 
     "posterize-outline": {
         "extends": ["outline"],
-        "post": lambda settings: Effect("posterize", levels=random.randint(3, 7))
+        "post": lambda settings: [Effect("posterize", levels=random.randint(3, 7))]
     },
 
     "random-hue": {
-        "post": lambda settings: [Effect("adjust_rotation", amount=random.random())]
+        "post": lambda settings: [Effect("adjust_hue", amount=random.random())]
     },
 
     "reflect-domain-warp": {
@@ -328,8 +331,8 @@ PRESETS = {
     },
 
     "spatter": {
-        "settings": {
-            "speed": .05,
+        "settings": lambda: {
+            "speed": .0333 + random.random() * .016667
         },
         "post": lambda settings: [Effect("spatter")]
     },
@@ -339,7 +342,7 @@ PRESETS = {
     },
 
     "subpixels": {
-        "post": lambda settings: [Effect("composite", zoom=random_member([2, 4, 8]))]
+        "post": lambda settings: [Effect("glyph_map", mask=random_member(mask.rgb_members()), zoom=random_member([2, 4, 8]))]
     },
 
     "swerve-h": {
@@ -418,7 +421,7 @@ PRESETS = {
     },
 
     "wormhole": {
-        "post": lambda settings: [Effect("wormhole", kink=.5 + random.random(), stride=.025 + random.random() * .05)]
+        "post": lambda settings: [Effect("wormhole", kink=.5 + random.random(), input_stride=.025 + random.random() * .05)]
     },
 
     "worms": {

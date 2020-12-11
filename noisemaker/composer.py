@@ -21,12 +21,12 @@ ALLOWED_KEYS = ['extends', SETTINGS_KEY, 'generator', 'octaves', 'post']
 #         # A list of parent preset names, if any:
 #        "extends": [],
 #
-#         # A dictionary of global args which may be referred to within the preset:
+#         # A free-form dictionary of global args which may be referred to throughout the preset or its descendants:
 #         "settings": lambda: {
-#             TODO: Find a good reason to have this or get rid of it
+#            # ...
 #         },
 #
-#         # A dictionary of keyword args to feed to noisemaker.generators.multires():
+#         # A strictly validated dictionary of keyword args to feed to noisemaker.generators.multires():
 #         "generator": lambda settings: {
 #         },
 #
@@ -54,10 +54,15 @@ class Preset:
 
         self.name = preset_name
 
-        if preset_name not in presets:
+        prototype = presets.get(preset_name)
+
+        if prototype is None:
             raise ValueError(f"Preset named \"{preset_name}\" was not found among the available presets.")
 
-        for key in presets[preset_name]:
+        if not isinstance(prototype, dict):
+            raise ValueError(f"Preset \"{preset_name}\" should be a dict, not \"{type(prototype)}\"")
+
+        for key in prototype:
             if key not in ALLOWED_KEYS:
                 raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
 
@@ -110,16 +115,14 @@ def _rollup(preset_name, key, default, presets, settings):
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
     child_data = presets[preset_name].get(key, default)
 
-    if not child_data:
-        return default
+    if child_data:
+        if not callable(child_data):
+            raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
 
-    if not callable(child_data):
-        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
-
-    if key == SETTINGS_KEY:
-        child_data = child_data()
-    else:
-        child_data = child_data(settings)
+        if key == SETTINGS_KEY:
+            child_data = child_data()
+        else:
+            child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")

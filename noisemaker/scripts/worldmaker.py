@@ -72,7 +72,7 @@ def highland():
 def _control():
     shape = [SMALL_Y, SMALL_X, 1]
 
-    control = generators.multires(shape=shape, freq=FREQ, octaves=OCTAVES, refract_range=.5, refract_y_from_offset=True)
+    control = generators.multires_old(shape=shape, freq=FREQ, octaves=OCTAVES, refract_range=.5, refract_y_from_offset=True)
 
     erode_kwargs = {
         "alpha": .025,
@@ -121,7 +121,7 @@ def blended():
     mid = tf.image.convert_image_dtype(load(MID_FILENAME), tf.float32)
     high = tf.image.convert_image_dtype(load(HIGH_FILENAME), tf.float32)
 
-    # blend_control = generators.multires(shape=shape, freq=FREQ * 4, ridges=True, octaves=4)
+    # blend_control = generators.multires_old(shape=shape, freq=FREQ * 4, ridges=True, octaves=4)
     # blend_control = 1.0 - effects.value_map(blend_control, shape, keep_dims=True) * .5
 
     combined_land = effects.blend_layers(control, shape, 1.0, low, low, mid, high)
@@ -170,7 +170,7 @@ def run_preset(preset_name, shape, filename, tensor=None):
     kwargs['post_brightness'] = .125
 
     if tensor is None:
-        tensor = generators.multires(**kwargs)
+        tensor = generators.multires_old(**kwargs)
 
     with tf.compat.v1.Session().as_default():
         save(tensor, filename)
