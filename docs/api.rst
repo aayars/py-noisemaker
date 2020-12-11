@@ -29,10 +29,10 @@ noisemaker.effects
     :undoc-members:
     :show-inheritance:
 
-noisemaker.presets
-------------------
+noisemaker.composer
+-------------------
 
-.. automodule:: noisemaker.presets
+.. automodule:: noisemaker.composer
     :members:
     :undoc-members:
     :show-inheritance:

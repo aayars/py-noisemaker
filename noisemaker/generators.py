@@ -131,15 +131,17 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
-             reflect_range=0.0, refract_range=0.0, reindex_range=0.0, distrib=ValueDistribution.normal, corners=False,
-             mask=None, mask_inverse=False, mask_static=False,
-             deriv=False, deriv_metric=0, deriv_alpha=1.0, lattice_drift=0.0,
-             post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
-             post_deriv=False, with_reverb=None, reverb_iterations=1,
+def multires(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
+             distrib=ValueDistribution.normal, corners=False,
+             mask=None, mask_inverse=False, mask_static=False, octave_effects=None, post_effects=None, time=0.0, speed=1.0,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             octave_blending=OctaveBlending.falloff, time=0.0, speed=1.0, octave_effects=None, post_effects=None, **post_process_args):
+             octave_blending=OctaveBlending.falloff,
+
+             post_ridges=False, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
+             deriv=False, deriv_metric=0, deriv_alpha=1.0, lattice_drift=0.0,
+             post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
+             post_deriv=False, with_reverb=None, reverb_iterations=1, **post_process_args):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -257,7 +259,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
 
     if post_effects is not None:
         for effect_or_preset in post_effects:
-            tensor = apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
+            tensor = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     else:
         tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
@@ -271,15 +273,14 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, post_ridges=False, sin
     return tensor
 
 
-def apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
-    """
-    """
+def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
+    """Helper function to either invoke a post effect or unroll a preset."""
 
     if callable(effect_or_preset):
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
 
-    else:  # Is a Preset
+    else:  # Is a Preset. Unroll me.
         for e_or_p in effect_or_preset.post_effects:
-            tensor = apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
+            tensor = _apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
 
         return tensor

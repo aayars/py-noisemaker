@@ -19,11 +19,14 @@ ALLOWED_KEYS = ['extends', 'settings', 'generator', 'octaves', 'post']
 #         # A list of parent preset names, if any:
 #        "extends": [],
 #
-#         # A dictionary of global args which may be re-used within the preset:
-#         "settings": lambda: {},
+#         # A dictionary of global args which may be referred to within the preset:
+#         "settings": lambda: {
+#             TODO: Find a good reason to have this or get rid of it
+#         },
 #
-#         # A dictionary of args to feed to the noise basis generator function:
-#         "generator": lambda settings: {},
+#         # A dictionary of keyword args to feed to noisemaker.generators.multires():
+#         "generator": lambda settings: {
+#         },
 #
 #         # A list of per-octave effects, to apply in order:
 #         "octaves": lambda settings: [

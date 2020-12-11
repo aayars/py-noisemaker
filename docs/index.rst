@@ -88,16 +88,20 @@ Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_!
 Usage
 -----
 
-API
-~~~
-
-See :doc:`api` documentation.
-
 CLI
 ~~~
 
 See :doc:`cli` documentation.
 
+High-level API: Noisemaker Composer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+See :doc:`composer` documentation.
+
+Low-level API
+~~~~~~~~~~~~~
+
+See :doc:`api` documentation.
 
 
 See also

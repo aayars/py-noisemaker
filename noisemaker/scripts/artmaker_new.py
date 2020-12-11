@@ -29,8 +29,6 @@ def main(ctx, width, height, channels, time, clut, seed, name, preset_name):
 
     shape = [height, width, channels]
 
-    print(preset_name)
-
     try:
         preset.render(shape=shape, name=name)
 
