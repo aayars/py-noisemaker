@@ -26,10 +26,14 @@ PRESETS = {
     },
 
     "carpet": {
-        "post": lambda settings: [
-            Effect("worms", alpha=.4, density=250, duration=.75, stride=.5, stride_deviation=.25),
-            Effect("grime"),
-        ]
+        "extends": ["worms"],
+        "settings": lambda: {
+            "worms_alpha": .25 + random.random() * .25,
+            "worms_behavior": worms.chaotic,
+            "worms_stride": .333 + random.random() * .333,
+            "worms_stride_deviation": .25
+        },
+        "post": lambda settings: [Effect("grime")]
     },
 
     "clouds": {
@@ -71,11 +75,17 @@ PRESETS = {
     },
 
     "derivative-octaves": {
-        "octaves": lambda settings: [Effect("derivative", dist_metric=random_member(distance.absolute_members()))]
+        "settings": lambda: {
+            "dist_metric": random_member(distance.absolute_members())
+        },
+        "octaves": lambda settings: [Effect("derivative", dist_metric=settings["dist_metric"])]
     },
 
     "derivative-post": {
-        "post": lambda settings: [Effect("derivative", dist_metric=random_member(distance.absolute_members()))]
+        "settings": lambda: {
+            "dist_metric": random_member(distance.absolute_members())
+        },
+        "post": lambda settings: [Effect("derivative", dist_metric=settings["dist_metric"])]
     },
 
     "desaturate": {
@@ -143,12 +153,16 @@ PRESETS = {
 
     "kaleido": {
         "extends": ["wobble"],
+        "settings": lambda: {
+            "point_freq": 1,
+            "sides": random.randint(5, 32)
+        },
         "post": lambda settings: [
             Effect("kaleido",
                    blend_edges=coin_flip(),
                    dist_metric=random_member(distance.all()),
-                   point_freq=1,
-                   sides=random.randint(5, 32))
+                   point_freq=settings["point_freq"],
+                   sides=settings["sides"])
         ]
     },
 
@@ -171,21 +185,19 @@ PRESETS = {
     },
 
     "mad-multiverse": {
-        # XXX TODO figure out how voronoi settings get overridden
-        "settings": {
-            "diagram_type": voronoi.none
+        "extends": ["kaleido"],
+        "settings": lambda: {
+            "point_freq": random.randint(3, 6),
         },
-        "extends": ["kaleido", "voronoi"],
     },
 
-    # XXX TODO figure out how to conditionally include an effect
-    # "maybe-invert": {
-        # "with_convolve": [] if coin_flip() else ["invert"],
-    # },
+    "maybe-invert": {
+        "post": lambda settings: [] if coin_flip() else [Preset("invert")]
+    },
 
-    # "maybe-palette": lambda: {
-        # "with_palette": random_member(PALETTES) if coin_flip() else None,
-    # },
+    "maybe-palette": lambda: {
+        "post": lambda settings: [] if coin_flip() else [Preset("palette")]
+    },
 
     "mosaic": {
         "extends": ["bloom", "voronoi"],
@@ -206,7 +218,6 @@ PRESETS = {
     },
 
     "octave-warp": {
-        # XXX TODO figure out how presets will overrides speed
         "settings": {
             "speed": .0333,
         },
@@ -235,7 +246,6 @@ PRESETS = {
     },
 
     "polar": {
-        # XXX Figure out how to override this
         "extends": ["kaleido"],
         "settings": {
             "sides": 1
@@ -246,10 +256,6 @@ PRESETS = {
         "extends": ["outline"],
         "post": lambda settings: Effect("posterize", levels=random.randint(3, 7))
     },
-
-    # XXX Are we still gonna do this?
-    # "random-effect": lambda:
-        # preset(random_member([m for m in EFFECTS_PRESETS if m != "random-effect"])),
 
     "random-hue": {
         "post": lambda settings: [Effect("adjust_rotation", amount=random.random())]
@@ -317,14 +323,14 @@ PRESETS = {
     },
 
     "sobel": {
-        # XXX figure out conditional extends
-        # extend("maybe-invert", {
+        "extends": ["maybe-invert"],
         "post": lambda settings: [Effect("sobel", dist_metric=random_member(distance.all()))]
     },
 
     "spatter": {
-        # XXX figure out overriding speed
-        # "speed": .05,
+        "settings": {
+            "speed": .05,
+        },
         "post": lambda settings: [Effect("spatter")]
     },
 
@@ -377,19 +383,21 @@ PRESETS = {
     },
 
     "voronoi": {
-        # XXX TODO figure this shit out
-        # "point_distrib": point.random if coin_flip() else random_member(point, mask.nonprocedural_members()),
-        # "point_freq": random.randint(4, 10),
-        "settings": {
+        "settings": lambda: {
+            "voronoi_diagram_type": random_member([t for t in voronoi if t != voronoi.none]),
+            "voronoi_point_freq": random.randint(4, 10),
+            "voronoi_point_distrib": point.random if coin_flip() else random_member(point, mask.nonprocedural_members()),
             "voronoi_refract": 0
         },
         "post": lambda settings: [
             Effect("voronoi", 
-                   diagram_type=random_member([t for t in voronoi if t != voronoi.none]),
+                   diagram_type=settings["voronoi_diagram_type"],
                    dist_metric=random_member(distance.all()),
                    inverse=coin_flip(),
                    nth=random.randint(0, 2),
-                   refract=settings['voronoi_refract'])
+                   point_distrib=settings["voronoi_point_distrib"],
+                   point_freq=settings["voronoi_point_freq"],
+                   with_refract=settings["voronoi_refract"])
         ]
     },
 
@@ -414,15 +422,24 @@ PRESETS = {
     },
 
     "worms": {
+        "settings": lambda: {
+            "worms_alpha": .75 + random.random() * .25,
+            "worms_behavior": random_member(worms.all()),
+            "worms_density": random.randint(250, 500),
+            "worms_duration": .5 + random.random(),
+            "worms_kink": 1.0 + random.random() * 1.5,
+            "worms_stride": .75 + random.random() * .5,
+            "worms_stride_deviation": random.random() + .5
+        },
         "post": lambda settings: [
             Effect("worms",
-                   alpha=.75 + random.random() * .25,
-                   behavior=random_member(worms.all()),
-                   density=random.randint(250, 500),
-                   duration=.5 + random.random(),
-                   kink=1.0 + random.random() * 1.5,
-                   stride=random.random() + .5,
-                   stride_deviation=random.random() + .5)
+                   alpha=settings["worms_alpha"],
+                   behavior=settings["worms_behavior"],
+                   density=settings["worms_density"],
+                   duration=settings["worms_duration"],
+                   kink=settings["worms_kink"],
+                   stride=settings["worms_stride"],
+                   stride_deviation=settings["worms_stride_deviation"])
         ]
     },
 

@@ -1284,9 +1284,10 @@ def center_mask(center, edges, shape, power=2):
 
 
 @effect()
-def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nth=0,
+def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             dist_metric=DistanceMetric.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
-            xy=None, ridges_hint=False, image_count=None, refract_y_from_offset=True, time=0.0, speed=1.0):
+            xy=None, ridges_hint=False, refract_y_from_offset=True, time=0.0, speed=1.0,
+            point_freq=3, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
@@ -1322,10 +1323,14 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, density=.1, nt
     height, width, channels = shape
 
     if xy is None:
-        point_count = int(min(width, height) * density)
+        if point_freq == 1:
+            x, y = point_cloud(point_freq, PointDistribution.square, shape)
 
-        x = tf.random.uniform([point_count]) * width
-        y = tf.random.uniform([point_count]) * height
+        else:
+            x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations,
+                               drift=point_drift, time=time, speed=speed)
+
+        point_count = point_freq * point_freq
 
     else:
         if len(xy) == 2:
@@ -2344,7 +2349,8 @@ def square_crop_and_resize(tensor, shape, length=1024):
 
 
 @effect()
-def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True, time=0.0, speed=1.0):
+def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True, time=0.0, speed=1.0,
+            point_freq=1, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
 
@@ -2368,11 +2374,10 @@ def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=Non
     value_shape = [height, width, 1]
 
     # distance from any pixel to center
-    if xy:
-        r = voronoi(None, value_shape, dist_metric=dist_metric, xy=xy)
-
-    else:
-        r = singularity(None, value_shape, dist_metric=dist_metric)
+    r = voronoi(None, value_shape, dist_metric=dist_metric, xy=xy,
+                point_freq=point_freq, point_generations=point_generations,
+                point_distrib=point_distrib, point_drift=point_drift,
+                point_corners=point_corners)
 
     r = tf.squeeze(r)
 

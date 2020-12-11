@@ -10,7 +10,9 @@ from noisemaker.util import logger, save
 
 DEFAULT_SHAPE = [1024, 1024, 3]
 
-ALLOWED_KEYS = ['extends', 'settings', 'generator', 'octaves', 'post']
+SETTINGS_KEY = 'settings'
+
+ALLOWED_KEYS = ['extends', SETTINGS_KEY, 'generator', 'octaves', 'post']
 
 # PRESETS = {
 #     # "settings", "generator", "octaves", and "post" are wrapped in lambda to enable re-evaluation if/when the seed value changes.
@@ -60,7 +62,7 @@ class Preset:
                 raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
 
         # The "settings" dict provides overridable args to generator, octaves, and post
-        self.settings = settings or _rollup(preset_name, 'settings', {}, presets, None)
+        self.settings = settings or _rollup(preset_name, SETTINGS_KEY, {}, presets, None)
 
         # These args will be sent to generators.multires() to create the noise basis
         self.generator_kwargs = _rollup(preset_name, 'generator', {}, presets, self.settings)
@@ -108,25 +110,30 @@ def _rollup(preset_name, key, default, presets, settings):
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
     child_data = presets[preset_name].get(key, default)
 
-    if callable(child_data):
-        if key == 'settings':
-            child_data = child_data()
-        else:
-            child_data = child_data(settings)
+    if not child_data:
+        return default
+
+    if not callable(child_data):
+        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
+
+    if key == SETTINGS_KEY:
+        child_data = child_data()
+    else:
+        child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
     for base_preset_name in evaluated_kwargs.get('extends', []):
         if base_preset_name not in presets:
-            raise ValueError(f"Preset \"{preset_name}\" parent \"{base_preset_name}\" was not found among the available presets.")
+            raise ValueError(f"Preset \"{preset_name}\"'s parent named \"{base_preset_name}\" was not found among the available presets.")
 
         # Data to be merged; just need to know how to merge it, based on type.
         # parent_data = type(self)(base_preset_name, presets, self.settings)._rollup(key, default, presets)
         parent_data = _rollup(base_preset_name, key, default, presets, settings)
 
         if callable(parent_data):
-            if key == 'settings':
+            if key == SETTINGS_KEY:
                 parent_data = parent_data()
             else:
                 parent_data = parent_data(settings)
