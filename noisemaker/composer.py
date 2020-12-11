@@ -1,4 +1,4 @@
-"""Extremely high-level interface for composable noise presets."""
+"""Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
 from functools import partial
 
@@ -13,38 +13,6 @@ DEFAULT_SHAPE = [1024, 1024, 3]
 SETTINGS_KEY = 'settings'
 
 ALLOWED_KEYS = ['extends', SETTINGS_KEY, 'generator', 'octaves', 'post']
-
-# PRESETS = {
-#     # "settings", "generator", "octaves", and "post" are wrapped in lambda to enable re-evaluation if/when the seed value changes.
-#     # For additional examples, see test/test_composer.py
-#     "just-an-example": {
-#         # A list of parent preset names, if any:
-#        "extends": [],
-#
-#         # A free-form dictionary of global args which may be referred to throughout the preset or its descendants:
-#         "settings": lambda: {
-#            # ...
-#         },
-#
-#         # A strictly validated dictionary of keyword args to feed to noisemaker.generators.multires():
-#         "generator": lambda settings: {
-#         },
-#
-#         # A list of per-octave effects, to apply in order:
-#         "octaves": lambda settings: [
-#             # Effect(effect_name, args),  # Effect() returns a callable effect function
-#             # ...
-#         ],
-#
-#         # A list of post-reduce effects, to apply in order:
-#         "post": lambda settings: [
-#             # Effect(effect_name, args),
-#             # ...
-#         ],
-#     },
-#
-#     # ...
-# }
 
 
 class Preset:

@@ -36,7 +36,7 @@ Reusable settings are modeled in each preset's "settings" dictionary. Extending 
 3) What are the noise generation parameters?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's "generator" dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with "settings", extending a preset inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike "settings", the keys found in this dictionary are strictly validated and must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`
+Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's "generator" dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with "settings", extending a preset inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike "settings", the keys found in this dictionary are strictly validated and must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`_.
 
 4) Which effects should be applied to each octave?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,3 +51,48 @@ Per-octave effects are modeled in each preset's "octaves" list, which specifies 
 Similar to how per-octave effects were originally implemented, post effects in Noisemaker were hard-coded and inflexible. Composer Presets aim to break this pattern by enabling preset authors to specify an ordered list of "final pass" effects.
 
 Post-reduce effects are modeled in each preset's "post" section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros.
+
+Putting It All Together
+-----------------------
+
+.. code-block:: python
+
+    PRESETS = {
+        # "settings", "generator", "octaves", and "post" are wrapped in lambda to
+        # enable re-evaluation if/when the seed value changes. For additional examples,
+        # see noisemaker/new_presets.py and test/test_composer.py
+        "just-an-example": {
+            # A list of parent preset names, if any:
+            "extends": ["your-parent", "your-other-parent", ...],
+
+            # A free-form dictionary of global args which may be referred to throughout
+            # the preset and its descendants:
+            "settings": lambda: {
+                # ...
+            },
+
+            # A strictly validated dictionary of keyword args to send to
+            # noisemaker.generators.multires():
+            "generator": lambda settings: {
+                # ...
+            },
+
+            # A list of per-octave effects, to apply in order:
+            "octaves": lambda settings: [
+                Effect("your-effect-name", **args),  # Effect() returns a callable
+                                                     # effect function
+                # ...
+            ],
+
+            # A list of post-reduce effects, to apply in order:
+            "post": lambda settings: [
+                Effect("your-other-effect-name", **args),
+                Effect("your-other-effect-name-2", **args),
+                Preset("another-preset-entirely")  # Unroll the "post" steps from
+                                                   # another preset entirely
+                # ...
+            ],
+        },
+
+        # ...
+    }

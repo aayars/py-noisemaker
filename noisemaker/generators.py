@@ -244,14 +244,7 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
                  post_reindex_range=0.0, post_reflect_range=0.0, post_refract_range=0.0, post_refract_y_from_offset=True,
                  post_deriv=False, with_reverb=None, reverb_iterations=1, **post_process_args):
     """
-    Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
-
     This method is deprecated. Please use multires() instead.
-
-    .. image:: images/multires.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
 
     :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
