@@ -5,6 +5,7 @@ from noisemaker.composer import Effect, Preset
 from noisemaker.constants import (
     DistanceMetric as distance,
     InterpolationType as interp,
+    OctaveBlending as blend,
     PointDistribution as point,
     ValueDistribution as distrib,
     ValueMask,
@@ -93,8 +94,35 @@ PRESETS = {
         ]
     },
 
+    "2d-chess": {
+        "extends": ["value-mask", "voronoi"],
+        "settings": lambda: {
+            "voronoi_alpha": 0.5 + random.random() * .5,
+            "voronoi_diagram_type": voronoi.color_range if coin_flip() \
+                else random_member([m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),  # noqa E131
+            "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
+            "voronoi_point_corners": True,
+            "voronoi_point_distrib": point.square,
+            "voronoi_dist_metric": random_member(distance.absolute_members()),
+            "voronoi_point_freq": 8,
+        },
+        "generator": lambda settings: {
+            "corners": True,
+            "freq": 8,
+            "mask": ValueMask.chess,
+            "spline_order": interp.constant,
+        }
+    },
+
     "aberration": {
         "post": lambda settings: [Effect("aberration", displacement=.025 + random.random() * .0125)]
+    },
+
+    "basic": {
+        "extends": ["maybe-palette"],
+        "generator": lambda settings: {
+            "freq": random.randint(2, 4),
+        }
     },
 
     "be-kind-rewind": {
@@ -288,6 +316,43 @@ PRESETS = {
             "voronoi_alpha": .75 + random.random() * .25
         },
         "post": lambda settings: [Preset("bloom")]
+    },
+
+    "multires": {
+        "extends": ["basic"],
+        "generator": lambda settings: {
+            "octaves": random.randint(4, 8)
+        }
+    },
+
+    "multires-alpha": {
+        "extends": ["multires"],
+        "settings": lambda: {
+            "palette_name": None
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.exp,
+            "lattice_drift": 1,
+            "octave_blending": blend.alpha,
+            "octaves": 5,
+        },
+        "post": lambda settings: [
+            Effect("normalize")
+        ]
+    },
+
+    "multires-low": {
+        "extends": ["basic"],
+        "generator": lambda settings: {
+            "octaves": random.randint(2, 4)
+        }
+    },
+
+    "multires-ridged": {
+        "extends": ["multires"],
+        "generator": lambda settings: {
+            "ridges": True
+        }
     },
 
     "nebula": {
@@ -539,6 +604,7 @@ PRESETS = {
             "voronoi_dist_metric": random_member(distance.all()),
             "voronoi_inverse": coin_flip(),
             "voronoi_nth": random.randint(0, 2),
+            "voronoi_point_corners": False,
             "voronoi_point_distrib": point.random if coin_flip() else random_member(point, ValueMask.nonprocedural_members()),
             "voronoi_point_drift": 0.0,
             "voronoi_point_freq": random.randint(4, 10),
@@ -551,6 +617,7 @@ PRESETS = {
                    dist_metric=settings["voronoi_dist_metric"],
                    inverse=settings["voronoi_inverse"],
                    nth=settings["voronoi_nth"],
+                   point_corners=settings["voronoi_point_corners"],
                    point_distrib=settings["voronoi_point_distrib"],
                    point_drift=settings["voronoi_point_drift"],
                    point_freq=settings["voronoi_point_freq"],
