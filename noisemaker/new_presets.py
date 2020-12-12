@@ -1,5 +1,3 @@
-"""Presets for artmaker-new."""
-
 import functools
 import random
 
@@ -8,15 +6,93 @@ from noisemaker.constants import (
     DistanceMetric as distance,
     InterpolationType as interp,
     PointDistribution as point,
-    ValueMask as mask,
+    ValueDistribution as distrib,
+    ValueMask,
     VoronoiDiagramType as voronoi,
     WormBehavior as worms,
 )
 from noisemaker.palettes import PALETTES
 from noisemaker.presets import coin_flip, random_member
 
+import noisemaker.masks as masks
+
 #: A dictionary of presets for use with the artmaker-new script.
 PRESETS = {
+    "1969": {
+        "extends": ["symmetry", "voronoi"],
+        "settings": lambda: {
+            "palette_name": None,
+            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_dist_metric": distance.euclidean,
+            "voronoi_point_corners": True,
+            "voronoi_point_distrib": point.circular,
+            "voronoi_point_freq": random.randint(3, 5) * 2,
+            "voronoi_nth": random.randint(1, 3),
+        },
+        "generator": lambda settings: {
+            "rgb": True,
+        },
+        "post": lambda settings: [
+            Effect("normalize"),
+            Preset("posterize-outline"),
+            Preset("distressed")
+        ]
+    },
+
+    "1976": {
+        "extends": ["voronoi"],
+        "settings": lambda: {
+            "voronoi_point_freq": 2,
+            "voronoi_dist_metric": distance.triangular,
+            "voronoi_diagram_type": voronoi.color_regions,
+            "voronoi_nth": 0
+        },
+        "post": lambda settings: [
+            Preset("dither"),
+            Effect("adjust_saturation", amount=.25 + random.random() * .125)
+        ]
+    },
+
+    "1985": {
+        "extends": ["reindex", "voronoi"],
+        "settings": lambda: {
+            "reindex_range": .2 + random.random() * .1,
+            "voronoi_diagram_type": voronoi.range,
+            "voronoi_dist_metric": distance.chebyshev,
+            "voronoi_nth": 0,
+            "voronoi_point_distrib": point.random,
+            "voronoi_refract": .2 + random.random() * .1
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(10, 15),
+            "spline_order": interp.constant
+        },
+        "post": lambda settings: [
+            Effect("palette", name="neon"),
+            Preset("random-hue"),
+            Effect("spatter"),
+            Preset("be-kind-rewind")
+        ]
+    },
+
+    "2001": {
+        "extends": ["value-mask"],
+        "settings": lambda: {
+            "vignette_alpha": .75 + random.random() * .25
+        },
+        "generator": lambda settings: {
+            "freq": 13 * random.randint(10, 20),
+            "mask": ValueMask.bank_ocr
+        },
+        "post": lambda settings: [
+            Preset("invert"),
+            Effect("posterize", levels=random.randint(1, 2)),
+            Preset("vignette-bright", settings=settings),
+            Preset("aberration"),
+        ]
+    },
+
     "aberration": {
         "post": lambda settings: [Effect("aberration", displacement=.025 + random.random() * .0125)]
     },
@@ -75,7 +151,7 @@ PRESETS = {
     },
 
     "density-map": {
-        "post": lambda settings: [Effect("density_map"), Effect("convolve", kernel=mask.conv2d_invert), Preset("dither")]
+        "post": lambda settings: [Effect("density_map"), Effect("convolve", kernel=ValueMask.conv2d_invert), Preset("dither")]
     },
 
     "derivative-octaves": {
@@ -114,7 +190,7 @@ PRESETS = {
                    iterations=random.randint(25, 100)),
         ]
     },
-    
+
     "falsetto": {
         "post": lambda settings: [Effect("false_color")]
     },
@@ -135,8 +211,8 @@ PRESETS = {
     },
 
     "glitchin-out": {
-        "extends": ["bloom", "corrupt", "crt"],
-        "post": lambda settings: [Effect("glitch")]
+        "extends": ["corrupt", "crt"],
+        "post": lambda settings: [Effect("glitch"), Preset("bloom")]
     },
 
     "glowing-edges": {
@@ -152,7 +228,7 @@ PRESETS = {
     },
 
     "invert": {
-        "post": lambda settings: [Effect("convolve", kernel=mask.conv2d_invert)]
+        "post": lambda settings: [Effect("convolve", kernel=ValueMask.conv2d_invert)]
     },
 
     "kaleido": {
@@ -180,8 +256,8 @@ PRESETS = {
     },
 
     "light-leak": {
-        "extends": ["bloom", "vignette-bright"],
-        "post": lambda settings: [Effect("light_leak", alpha=.333 + random.random() * .333)]
+        "extends": ["vignette-bright"],
+        "post": lambda settings: [Effect("light_leak", alpha=.333 + random.random() * .333), Preset("bloom")]
     },
 
     "lowpoly": {
@@ -200,23 +276,52 @@ PRESETS = {
     },
 
     "maybe-palette": {
-        "post": lambda settings: [] if coin_flip() else [Preset("palette")]
+        "settings": lambda: {
+            "palette_name": random_member(PALETTES)
+        },
+        "post": lambda settings: [] if coin_flip() else [Effect("palette", name=settings["palette_name"])]
     },
 
     "mosaic": {
-        "extends": ["bloom", "voronoi"],
+        "extends": ["voronoi"],
         "settings": lambda: {
             "voronoi_alpha": .75 + random.random() * .25
-        }
+        },
+        "post": lambda settings: [Preset("bloom")]
     },
 
     "nebula": {
         "post": lambda settings: [Effect("nebula")]
     },
 
+    "nerdvana": {
+        "extends": ["symmetry", "voronoi"],
+        "settings": lambda: {
+            "palette_name": None,
+            "reverb_octaves": 2,
+            "reverb_ridges": False,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_dist_metric": distance.euclidean,
+            "voronoi_point_distrib": random_member(point.circular_members()),
+            "voronoi_point_freq": random.randint(5, 10),
+            "voronoi_nth": 1,
+        },
+        "post": lambda settings: [
+            Effect("normalize"),
+            Preset("density-map"),
+            Preset("reverb", settings=settings),
+            Preset("bloom"),   # XXX Need a way for a final final pass. Bloom almost always comes last
+        ]
+    },
+
     "noirmaker": {
-        "extends": ["bloom", "dither", "grayscale", "light-leak", "vignette-dark"],
-        "post": lambda settings: [Effect("adjust_contrast", amount=5)]
+        "extends": ["dither", "grayscale"],
+        "post": lambda settings: [
+            Effect("light_leak", alpha=.333 + random.random() * .333),
+            Preset("bloom"),
+            Preset("vignette-dark"),
+            Effect("adjust_contrast", amount=5)
+        ]
     },
 
     "normals": {
@@ -244,7 +349,10 @@ PRESETS = {
     },
 
     "palette": {
-        "post": lambda settings: [Effect("palette", name=random_member(PALETTES))]
+        "settings": lambda: {
+            "palette_name": random_member(PALETTES)
+        },
+        "post": lambda settings: [Effect("palette", name=settings["palette_name"])]
     },
 
     "pixel-sort": {
@@ -259,8 +367,7 @@ PRESETS = {
     },
 
     "posterize-outline": {
-        "extends": ["outline"],
-        "post": lambda settings: [Effect("posterize", levels=random.randint(3, 7))]
+        "post": lambda settings: [Effect("posterize", levels=random.randint(3, 7)), Preset("outline")]
     },
 
     "random-hue": {
@@ -276,16 +383,29 @@ PRESETS = {
     },
 
     "reindex": {
-        "post": lambda settings: [Effect("reindex", displacement=.125 + random.random() * 2.5)]
+        "settings": lambda: {
+            "reindex_range": .125 + random.random() * 2.5
+        },
+        "octaves": lambda settings: [Effect("reindex", displacement=settings["reindex_range"])]
     },
 
     "reverb": {
-        "post": lambda settings: [Effect("reverb", iterations=random.randint(1, 4), octaves=random.randint(3, 6))]
+        "settings": lambda: {
+            "reverb_iterations": random.randint(1, 4),
+            "reverb_ridges": True,
+            "reverb_octaves": random.randint(3, 6)
+        },
+        "post": lambda settings: [
+            Effect("reverb",
+                   iterations=settings["reverb_iterations"],
+                   octaves=settings["reverb_octaves"],
+                   ridges=settings["reverb_ridges"])
+        ]
     },
 
     "ripples": {
         "post": lambda settings: [
-            Effect("ripple", 
+            Effect("ripple",
                    displacement=.025 + random.random() * .1,
                    freq=random.randint(2, 3),
                    kink=random.randint(3, 18))
@@ -345,12 +465,20 @@ PRESETS = {
     },
 
     "subpixels": {
-        "post": lambda settings: [Effect("glyph_map", mask=random_member(mask.rgb_members()), zoom=random_member([2, 4, 8]))]
+        "post": lambda settings: [Effect("glyph_map", mask=random_member(ValueMask.rgb_members()), zoom=random_member([2, 4, 8]))]
+    },
+
+    "symmetry": {
+        "extends": ["maybe-palette"],
+        "generator": lambda settings: {
+            "corners": True,
+            "freq": 2,
+        },
     },
 
     "swerve-h": {
         "post": lambda settings: [
-            Effect("warp", 
+            Effect("warp",
                    displacement=.5 + random.random() * .5,
                    freq=[random.randint(2, 5), 1],
                    octaves=1,
@@ -360,7 +488,7 @@ PRESETS = {
 
     "swerve-v": {
         "post": lambda settings: [
-            Effect("warp", 
+            Effect("warp",
                    displacement=.5 + random.random() * .5,
                    freq=[1, random.randint(2, 5)],
                    octaves=1,
@@ -376,12 +504,28 @@ PRESETS = {
         "post": lambda settings: [Effect("tint", alpha=.333 + random.random() * .333)]
     },
 
+    "value-mask": {
+        "settings": lambda: {
+            "value-mask-mask": random_member(ValueMask),
+            "value-mask-repeat": random.randint(2, 8)
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.ones,
+            "freq": [int(i * settings["value-mask-repeat"]) for i in masks.mask_shape(settings["value-mask-mask"])[0:2]],
+            "mask": settings["value-mask-mask"],
+            "spline_order": random_member([m for m in interp if m != interp.bicubic])
+        }
+    },
+
     "vaseline": {
         "post": lambda settings: [Effect("vaseline", alpha=.625 + random.random() * .25)]
     },
 
     "vignette-bright": {
-        "post": lambda settings: [Effect("vignette", alpha=.333 + random.random() * .333, brightness=1)]
+        "settings": lambda: {
+            "vignette_alpha": .333 + random.random() * .333
+        },
+        "post": lambda settings: [Effect("vignette", alpha=settings["vignette_alpha"], brightness=1)]
     },
 
     "vignette-dark": {
@@ -390,18 +534,25 @@ PRESETS = {
 
     "voronoi": {
         "settings": lambda: {
+            "voronoi_alpha": 1.0,
             "voronoi_diagram_type": random_member([t for t in voronoi if t != voronoi.none]),
+            "voronoi_dist_metric": random_member(distance.all()),
+            "voronoi_inverse": coin_flip(),
+            "voronoi_nth": random.randint(0, 2),
+            "voronoi_point_distrib": point.random if coin_flip() else random_member(point, ValueMask.nonprocedural_members()),
+            "voronoi_point_drift": 0.0,
             "voronoi_point_freq": random.randint(4, 10),
-            "voronoi_point_distrib": point.random if coin_flip() else random_member(point, mask.nonprocedural_members()),
             "voronoi_refract": 0
         },
         "post": lambda settings: [
-            Effect("voronoi", 
+            Effect("voronoi",
+                   alpha=settings["voronoi_alpha"],
                    diagram_type=settings["voronoi_diagram_type"],
-                   dist_metric=random_member(distance.all()),
-                   inverse=coin_flip(),
-                   nth=random.randint(0, 2),
+                   dist_metric=settings["voronoi_dist_metric"],
+                   inverse=settings["voronoi_inverse"],
+                   nth=settings["voronoi_nth"],
                    point_distrib=settings["voronoi_point_distrib"],
+                   point_drift=settings["voronoi_point_drift"],
                    point_freq=settings["voronoi_point_freq"],
                    with_refract=settings["voronoi_refract"])
         ]
@@ -417,7 +568,6 @@ PRESETS = {
     "vortex": {
         "post": lambda settings: [Effect("vortex", displacement=random.randint(16, 48))]
     },
-
 
     "wobble": {
         "post": lambda settings: [Effect("wobble")]

@@ -1330,7 +1330,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations,
                                drift=point_drift, time=time, speed=speed)
 
-        point_count = point_freq * point_freq
+        point_count = len(x)
 
     else:
         if len(xy) == 2:
@@ -1828,6 +1828,7 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
     blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
     blurred = value.proportional_downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
     blurred = value.resample(blurred, shape)
+
     blurred = value.offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
     return value.blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
@@ -1989,6 +1990,9 @@ def reverb(tensor, shape, octaves=2, iterations=1, ridges=True, time=0.0, speed=
     :param int iterations: Re-reverberate N times. Gratuitous!
     :param bool ridges: abs(tensor * 2 - 1) -- False to not do that.
     """
+
+    if not octaves:
+        return tensor
 
     height, width, channels = shape
 
@@ -2415,6 +2419,9 @@ def palette(tensor, shape, name=None, time=0.0, speed=1.0):
     https://iquilezles.org/www/articles/palettes/palettes.htm
     """
 
+    if not name:
+        return tensor
+
     channel_shape = [shape[0], shape[1], 3]
 
     p = palettes[name]
@@ -2425,7 +2432,7 @@ def palette(tensor, shape, name=None, time=0.0, speed=1.0):
     phase = p["phase"] * tf.ones(channel_shape) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
-    return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True) * .875 + phase))
+    return offset + amp * tf.math.cos(math.tau * (freq * value_map(tensor, shape, keepdims=True, with_normalize=False) * .875 + phase))
 
 
 @effect()
@@ -3048,3 +3055,8 @@ def adjust_brightness(tensor, shape, amount=.125, time=0.0, speed=1.0):
 @effect()
 def adjust_contrast(tensor, shape, amount=1.25, time=0.0, speed=1.0):
     return tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, amount), 1.0), 0.0)
+
+
+@effect()
+def normalize(tensor, shape, time=0.0, speed=1.0):
+    return value.normalize(tensor)

@@ -26,7 +26,7 @@ Effects and presets are intended to be combined with and riff off each other, bu
 
 To "extend" means using ("inheriting") those presets as a foundation to build on top of -- using the settings and effects from the parent presets as a starting point, without needing to copy-paste everything in. Not having a parent means starting from a blank slate, with all default generator parameters and no effects.
 
-The lineage of ancestor presets is modeled in each preset's ``extends`` list, which is a flat list of preset names.
+The lineage of ancestor presets is modeled in each preset's ``extends`` list, which is a flat list of preset names. The presets should be listed in the order to be applied.
 
 .. code-block:: python
 
@@ -91,7 +91,7 @@ Noisemaker's noise generator has several parameters, and these simply need to li
 
 Preset authors should be able to specify a list of effects which get applied to each octave of noise. Historically, the per-octave effects in Noisemaker were constrained by hard-coded logic. In Composer Presets, authors may specify an arbitrary list of effects.
 
-Per-octave effects are modeled in each preset's ``octaves`` list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects.
+Per-octave effects are modeled in each preset's ``octaves`` list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects. Effects should be listed in the order to be applied.
 
 .. code-block:: python
 
@@ -114,7 +114,7 @@ Per-octave effects are modeled in each preset's ``octaves`` list, which specifie
 
 Similar to how per-octave effects were originally implemented, post effects in Noisemaker were hard-coded and inflexible. Composer Presets aim to break this pattern by enabling preset authors to specify an ordered list of "final pass" effects.
 
-Post-reduce effects are modeled in each preset's ``post`` section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros.
+Post-reduce effects are modeled in each preset's ``post`` section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros. Effects and referenced presets should be listed in the order to be applied.
 
 .. code-block:: python
 

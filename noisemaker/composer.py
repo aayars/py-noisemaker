@@ -35,7 +35,10 @@ class Preset:
                 raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
 
         # The "settings" dict provides overridable args to generator, octaves, and post
-        self.settings = settings or _rollup(preset_name, SETTINGS_KEY, {}, presets, None)
+        self.settings = _rollup(preset_name, SETTINGS_KEY, {}, presets, None)
+
+        if settings:  # Inline overrides from caller
+            self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
         self.generator_kwargs = _rollup(preset_name, 'generator', {}, presets, self.settings)

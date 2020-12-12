@@ -125,7 +125,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=4, ridges=False, spline_order=InterpolationType.bicubic,
+def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
              distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0,
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
@@ -198,7 +198,7 @@ def multires(freq=3, shape=None, octaves=4, ridges=False, spline_order=Interpola
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners,
+        layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners, distrib=distrib,
                       mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift, rgb=rgb,
                       hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
                       brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
