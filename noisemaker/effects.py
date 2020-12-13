@@ -2952,34 +2952,34 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
     value_shape = [shape[0], shape[1], 1]
 
     # Generate a smear
-    smear = value.simple_multires(random.randint(2, 4), value_shape, time=time,
+    smear = value.simple_multires(random.randint(3, 6), value_shape, time=time,
                                   speed=speed, distrib=ValueDistribution.simplex_exp,
-                                  ridges=True, octaves=6, spline_order=3)
+                                  octaves=6, spline_order=3)
 
     smear = warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
                  octaves=random.randint(1, 2), displacement=1.0 + random.random(),
                  spline_order=3, time=time, speed=speed)
 
     # Add spatter dots
-    spatter = value.simple_multires(random.randint(25, 50), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.simplex_exp,
+    spatter = value.simple_multires(random.randint(32, 64), value_shape, time=time,
+                                    speed=speed, distrib=ValueDistribution.periodic_exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
-    spatter = post_process(spatter, shape, None, post_brightness=-.25, post_contrast=4)
+    spatter = post_process(spatter, shape, None, post_brightness=-1.0, post_contrast=4)
 
     smear = tf.maximum(smear, spatter)
 
-    spatter = value.simple_multires(random.randint(200, 250), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.simplex_exp,
+    spatter = value.simple_multires(random.randint(150, 200), value_shape, time=time,
+                                    speed=speed, distrib=ValueDistribution.periodic_exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
-    spatter = post_process(spatter, shape, None, post_brightness=-.25, post_contrast=4)
+    spatter = post_process(spatter, shape, None, post_brightness=-1.25, post_contrast=4)
 
     smear = tf.maximum(smear, spatter)
 
     # Remove some of it
     smear = tf.maximum(0.0, smear - value.simple_multires(random.randint(2, 3), value_shape, time=time,
-                                                          speed=speed, distrib=ValueDistribution.simplex_exp,
+                                                          speed=speed, distrib=ValueDistribution.periodic_exp,
                                                           ridges=True, octaves=3, spline_order=2))
 
     #
