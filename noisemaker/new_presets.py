@@ -20,7 +20,7 @@ import noisemaker.masks as masks
 #: A dictionary of presets for use with the artmaker-new script.
 PRESETS = {
     "1969": {
-        "extends": ["symmetry", "voronoi"],
+        "extends": ["symmetry", "voronoi", "posterize-outline", "distressed"],
         "settings": lambda: {
             "palette_name": None,
             "voronoi_alpha": .5 + random.random() * .5,
@@ -34,11 +34,6 @@ PRESETS = {
         "generator": lambda settings: {
             "rgb": True,
         },
-        "post": lambda settings: [
-            Effect("normalize"),
-            Preset("posterize-outline"),
-            Preset("distressed")
-        ]
     },
 
     "1976": {
@@ -79,19 +74,14 @@ PRESETS = {
     },
 
     "2001": {
-        "extends": ["analog-glitch"],
+        "extends": ["analog-glitch", "invert", "posterize", "vignette-bright", "aberration"],
         "settings": lambda: {
             "mask": mask.bank_ocr,
             "mask_repeat": random.randint(9, 12),
             "vignette_alpha": .75 + random.random() * .25,
+            "posterize_levels": random.randint(1, 2),
             "spline_order": interp.cosine,
         },
-        "post": lambda settings: [
-            Preset("invert"),
-            Effect("posterize", levels=random.randint(1, 2)),
-            Preset("vignette-bright", settings=settings),
-            Preset("aberration"),
-        ]
     },
 
     "2d-chess": {
@@ -119,7 +109,7 @@ PRESETS = {
     },
 
     "abyssal-echoes": {
-        "extends": ["multires-alpha"],
+        "extends": ["multires-alpha", "desaturate", "random-hue"],
         "generator": lambda settings: {
             "rgb": True,
         },
@@ -129,17 +119,17 @@ PRESETS = {
                    from_derivative=True,
                    y_from_offset=False)
         ],
-        "post": lambda settings: [Preset("random-hue")]
     },
 
     "acid": {
+        "extends": ["reindex"],
         "generator": lambda settings: {
             "freq": random.randint(10, 15),
             "octaves": 8,
+            "reindex_range": 1.25 + random.random() * 1.25,
             "rgb": True,
         },
         "post": lambda settings: [
-            Effect("reindex", displacement=1.25 + random.random() * 1.25),
             Effect("normalize")
         ]
     },
@@ -188,7 +178,7 @@ PRESETS = {
     },
 
     "activation-signal": {
-        "extends": ["value-mask", "glitchin-out"],
+        "extends": ["value-mask", "maybe-palette", "glitchin-out"],
         "generator": lambda settings: {
             "freq": 4,
             "mask": mask.white_bear,
@@ -223,7 +213,8 @@ PRESETS = {
     },
 
     "alien-terrain-worms": {
-        "extends": ["multires-ridged", "invert", "voronoi", "derivative-octaves", "invert", "erosion-worms", "bloom", "shadow", "dither"],
+        "extends": ["multires-ridged", "invert", "voronoi", "derivative-octaves", "invert",
+                    "erosion-worms", "bloom", "shadow", "dither", "boost-contrast", "desaturate"],
         "settings": lambda: {
             "deriv_alpha": .25 + random.random() * .125,
             "dist_metric": distance.euclidean,
@@ -244,10 +235,6 @@ PRESETS = {
             "hue_rotation": .875,
             "hue_range": .25 + random.random() * .25,
         },
-        "post": lambda settings: [
-            Effect("adjust_contrast", amount=1.25),
-            Preset("desaturate")
-        ]
     },
 
     "alien-transmission": {
@@ -289,7 +276,7 @@ PRESETS = {
         },
         "post": lambda settings: [
             Effect("adjust_hue", amount=-.125),
-            Effect("adjust_contrast", amount=1.25),
+            Preset("boost_contrast"),
             Preset("dither"),
         ],
     },
@@ -407,8 +394,7 @@ PRESETS = {
         "post": lambda settings: [
             Effect("ridge"),
             Preset("shadow"),
-            Effect("normalize"),
-            Effect("adjust_contrast", amount=1.25),
+            Preset("boost-contrast"),
         ]
     },
 
@@ -460,21 +446,25 @@ PRESETS = {
     },
 
     "blockchain-stock-photo-background": {
-        "extends": ["value-mask", "glitchin-out"],
+        "extends": ["value-mask", "glitchin-out", "rotate", "vignette-dark"],
         "settings": lambda: {
+            "angle": random.randint(5, 35),
             "vignette_alpha": 1.0,
             "mask": random_member([mask.alphanum_binary, mask.alphanum_hex,
                                    mask.alphanum_numeric, mask.bank_ocr]),
             "mask_repeat": random.randint(20, 40),
         },
-        "post": lambda settings: [
-            Effect("rotate", angle=random.randint(5, 35)),
-            Preset("vignette-dark", settings=settings)
-        ]
     },
 
     "bloom": {
         "post": lambda settings: [Effect("bloom", alpha=.25 + random.random() * .125)]
+    },
+
+    "boost-contrast": {
+        "settings": lambda: {
+            "contrast": 1.25 + random.random() * .25
+        },
+        "post": lambda settings: [Effect("adjust_contrast", amount=settings["contrast"])]
     },
 
     "branemelt": {
@@ -545,8 +535,9 @@ PRESETS = {
     },
 
     "bubble-chamber": {
-        "extends": ["worms", "tint"],
+        "extends": ["worms", "tint", "boost-contrast", "bloom", "snow"],
         "settings": lambda: {
+            "contrast": 3 + random.random() * 1.5,
             "palette_name": None,
             "worms_alpha": .875,
             "worms_behavior": worms.chaotic,
@@ -561,11 +552,6 @@ PRESETS = {
             "hue_range": 2,
             "distrib": distrib.exp,
         },
-        "post": lambda settings: [
-            Effect("adjust_contrast", amount=3 + random.random() * 1.5),
-            Preset("bloom"),
-            Preset("snow"),
-        ]
     },
 
     "bubble-machine": {
@@ -639,7 +625,7 @@ PRESETS = {
             Effect("texture"),
             Preset("shadow", settings=settings),
             Effect("adjust_brightness", amount=-.125),
-            Effect("adjust_contrast", amount=1.25),
+            Preset("boost-contrast"),
             Effect("bloom", alpha=1.0)
         ],
     },
@@ -778,7 +764,7 @@ PRESETS = {
             "posterize_levels": 1,
         },
         "generator": lambda settings: {
-            "mask": settings['mask'],
+            "mask": settings["mask"],
             "freq": masks.mask_shape(settings["mask"])[0:2],
             "octave_blending": blend.reduce_max,
             "octaves": random.randint(3, 5),
@@ -897,7 +883,7 @@ PRESETS = {
     },
 
     "nerdvana": {
-        "extends": ["symmetry", "voronoi"],
+        "extends": ["symmetry", "voronoi", "density-map", "reverb", "bloom"],
         "settings": lambda: {
             "palette_name": None,
             "reverb_octaves": 2,
@@ -908,12 +894,6 @@ PRESETS = {
             "voronoi_point_freq": random.randint(5, 10),
             "voronoi_nth": 1,
         },
-        "post": lambda settings: [
-            Effect("normalize"),
-            Preset("density-map"),
-            Preset("reverb", settings=settings),
-            Preset("bloom"),   # XXX Need a way for a final final pass. Bloom almost always comes last
-        ]
     },
 
     "noirmaker": {
@@ -938,9 +918,8 @@ PRESETS = {
     },
 
     "one-art-please": {
-        "extends": ["dither", "light-leak"],
+        "extends": ["dither", "light-leak", "boost-contrast"],
         "post": lambda settings: [
-            Effect("adjust_contrast", amount=1.25),
             Effect("adjust_saturation", amount=.75),
             Effect("texture")
         ]
@@ -1040,14 +1019,17 @@ PRESETS = {
         },
         "post": lambda settings: [
             Effect("ripple",
-                   displacement=settings['ripples_range'],
-                   freq=settings['ripples_freq'],
-                   kink=settings['ripples_kink'])
+                   displacement=settings["ripples_range"],
+                   freq=settings["ripples_freq"],
+                   kink=settings["ripples_kink"])
         ]
     },
 
     "rotate": {
-        "post": lambda settings: [Effect("rotate", angle=random.random() * 360.0)]
+        "settings": lambda: {
+            "angle": random.random() * 360.0
+        },
+        "post": lambda settings: [Effect("rotate", angle=settings["angle"])]
     },
 
     "scanline-error": {
