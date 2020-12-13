@@ -1431,13 +1431,12 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             colors = tf.reshape(colors, [1, 1, point_count, shape[2]])
             if ridges_hint:
                 colors = tf.abs(colors * 2 - 1)
+
             # normalize() can make animation twitchy. TODO: figure out a way to do this without normalize
-            dist = 1.0 - ((1.0 - value.normalize(dist)) * colors)
+            range_out = value.normalize(tf.math.reduce_mean(1.0 - (1.0 - value.normalize(dist * colors)), 2))
 
-        range_out = tf.math.reduce_sum(dist, 2)
-
-        # TODO: figure out how to get this into a range closer to 0 and 1 without having to normalize()
-        range_out = value.normalize(range_out)
+        else:  # flow
+            range_out = tf.math.reduce_mean(dist, 2)
 
         range_out = value.resample(value.offset(range_out, shape, **offset_kwargs), original_shape)
 
