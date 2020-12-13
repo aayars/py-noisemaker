@@ -1434,7 +1434,10 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             # normalize() can make animation twitchy. TODO: figure out a way to do this without normalize
             dist = 1.0 - ((1.0 - value.normalize(dist)) * colors)
 
-        range_out = tf.math.reduce_sum(dist, 2) / point_count
+        range_out = tf.math.reduce_sum(dist, 2)
+
+        # TODO: figure out how to get this into a range closer to 0 and 1 without having to normalize()
+        range_out = value.normalize(range_out)
 
         range_out = value.resample(value.offset(range_out, shape, **offset_kwargs), original_shape)
 
@@ -1472,7 +1475,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
         raise Exception(f"Not sure what to do with diagram type {diagram_type}")
 
     if diagram_type == VoronoiDiagramType.regions:
-        out = tf.expand_dims(out, -1)
+        out = tf.expand_dims(out, -1) / point_count
 
     if with_refract != 0.0:
         out = refract(tensor, original_shape, displacement=with_refract, reference_x=out,
@@ -2096,13 +2099,27 @@ def shadow(tensor, shape, alpha=1.0, reference=None, time=0.0, speed=1.0):
     # Darken and brighten original pixel values
     shade = (1.0 - ((1.0 - tensor) * (1.0 - highlight))) * shade
 
-    # Limit effect to just the brightness channel
-    tensor = tf.image.rgb_to_hsv([tensor])[0]
+    if channels == 1:
+        tensor = value.blend(tensor, shade, alpha)
+    elif channels == 2:
+        tensor = tf.stack([value.blend(tensor[:, :, 0], shade, alpha), tensor[:, :, 1]], 2)
+    elif channels in (3, 4):
+        if channels == 4:
+            a = tensor[:, :, 0]
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
 
-    tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1],
-                       value.blend(tensor[:, :, 2], tf.image.rgb_to_hsv([shade])[0][:, :, 2], alpha)], 2)
+        # Limit effect to just the brightness channel
+        tensor = tf.image.rgb_to_hsv([tensor])[0]
 
-    return tf.image.hsv_to_rgb([tensor])[0]
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1],
+                           value.blend(tensor[:, :, 2], tf.image.rgb_to_hsv([shade])[0][:, :, 2], alpha)], 2)
+
+        tensor = tf.image.hsv_to_rgb([tensor])[0]
+
+        if channels == 4:
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], a], 2)
+
+    return tensor
 
 
 @effect()
@@ -2318,7 +2335,7 @@ def simple_frame(tensor, shape, brightness=0.0, time=0.0, speed=1.0):
 
 
 @effect()
-def lowpoly(tensor, shape, distrib=0, freq=10, time=0.0, speed=1.0, dist_metric=DistanceMetric.euclidean):
+def lowpoly(tensor, shape, distrib=PointDistribution.random, freq=10, time=0.0, speed=1.0, dist_metric=DistanceMetric.euclidean):
     """Low-poly art style effect"""
 
     xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time, speed=speed)
@@ -2764,7 +2781,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     faded = light_leak(faded, half_shape, .125)
     faded = vignette(faded, half_shape, 0.05, .75)
 
-    edge_texture = white * .9 + shadow(noise, half_value_shape, 1.0) * .1
+    edge_texture = white * .9 + shadow(noise, half_value_shape, alpha=1.0) * .1
 
     out = value.blend(faded, edge_texture, mask)
     out = aberration(out, half_shape, .00666)
@@ -2792,7 +2809,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
                                   distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape) * .95 + shadow(noise, value_shape, 1.0) * .05)
+    return tensor * (tf.ones(value_shape) * .9 + shadow(noise, value_shape, 1.0) * .1)
 
 
 @effect()
@@ -3049,7 +3066,7 @@ def adjust_saturation(tensor, shape, amount=.75, time=0.0, speed=1.0):
 
 @effect()
 def adjust_brightness(tensor, shape, amount=.125, time=0.0, speed=1.0):
-    return tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, amount), 1.0), -1.0)
+    return tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, amount), 1.0), 0.0)
 
 
 @effect()
@@ -3060,3 +3077,25 @@ def adjust_contrast(tensor, shape, amount=1.25, time=0.0, speed=1.0):
 @effect()
 def normalize(tensor, shape, time=0.0, speed=1.0):
     return value.normalize(tensor)
+
+
+@effect()
+def ridge(tensor, shape, time=0.0, speed=1.0):
+    return value.ridge(tensor)
+
+
+@effect()
+def sine(tensor, shape, displacement=1.0, time=0.0, speed=1.0):
+    channels = shape[2]
+
+    if channels == 1:
+        return tf.sin(tensor * displacement)
+
+    elif channels == 2:
+        return tf.stack([tf.sin(tensor[:, :, 0] * displacement), tensor[:, :, 1]], 2)
+
+    elif channels == 3:
+        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * displacement)], 2)
+
+    elif channels == 4:
+        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * displacement), tensor[:, :, 3]], 2)

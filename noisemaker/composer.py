@@ -49,6 +49,9 @@ class Preset:
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _rollup(preset_name, 'post', [], presets, self.settings)
 
+    def __str__(self):
+        return f"<Preset \"{self.name}\">"
+
     def render(self, shape=DEFAULT_SHAPE, name="art.png"):
         """Render the preset to an image file."""
 
@@ -84,26 +87,26 @@ def _rollup(preset_name, key, default, presets, settings):
 
     # child_data represents the current preset's *evaluated* kwargs. The lambdas have been evaluated as per whatever the
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
-    child_data = presets[preset_name].get(key, default)
+    if key == SETTINGS_KEY:
+        child_data = evaluated_kwargs.get(key, lambda: default)
+    else:
+        child_data = evaluated_kwargs.get(key, lambda _: default)
 
-    if child_data:
-        if not callable(child_data):
-            raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
-
-        if key == SETTINGS_KEY:
-            child_data = child_data()
-        else:
-            child_data = child_data(settings)
+    if not callable(child_data):
+        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
+    elif key == SETTINGS_KEY:
+        child_data = child_data()
+    else:
+        child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
-    for base_preset_name in evaluated_kwargs.get('extends', []):
+    for base_preset_name in reversed(evaluated_kwargs.get('extends', [])):
         if base_preset_name not in presets:
             raise ValueError(f"Preset \"{preset_name}\"'s parent named \"{base_preset_name}\" was not found among the available presets.")
 
         # Data to be merged; just need to know how to merge it, based on type.
-        # parent_data = type(self)(base_preset_name, presets, self.settings)._rollup(key, default, presets)
         parent_data = _rollup(base_preset_name, key, default, presets, settings)
 
         if callable(parent_data):
