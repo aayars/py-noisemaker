@@ -2945,7 +2945,7 @@ def nebula(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def spatter(tensor, shape, time=0.0, speed=1.0):
+def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     """
     """
 
@@ -2983,7 +2983,7 @@ def spatter(tensor, shape, time=0.0, speed=1.0):
                                                           ridges=True, octaves=3, spline_order=2))
 
     #
-    if shape[2] == 3:
+    if color and shape[2] == 3:
         splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
 
     else:

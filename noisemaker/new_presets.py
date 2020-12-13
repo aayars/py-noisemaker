@@ -460,6 +460,14 @@ PRESETS = {
         "post": lambda settings: [Effect("bloom", alpha=.25 + random.random() * .125)]
     },
 
+    "blotto": {
+        "generator": lambda settings: {
+            "distrib": distrib.ones,
+            "rgb": coin_flip(),
+        },
+        "post": lambda settings: [Effect("spatter", color=False), Preset("maybe-palette")]
+    },
+
     "boost-contrast": {
         "settings": lambda: {
             "contrast": 1.25 + random.random() * .25
