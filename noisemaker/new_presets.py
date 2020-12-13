@@ -929,6 +929,13 @@ PRESETS = {
         "post": lambda settings: [Effect("outline", sobel_metric=distance.euclidean)]
     },
 
+    "paintball-party": {
+        "extends": ["spatter"] * random.randint(5, 7) + ["bloom"],
+        "generator": lambda settings: {
+            "distrib": distrib.zeros,
+        }
+    },
+
     "palette": {
         "settings": lambda: {
             "palette_name": random_member(PALETTES)

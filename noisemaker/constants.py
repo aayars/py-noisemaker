@@ -124,6 +124,8 @@ class ValueDistribution(Enum):
 
     mids = 6
 
+    zeros = 7
+
     column_index = 10
 
     row_index = 11
