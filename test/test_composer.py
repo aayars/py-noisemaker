@@ -28,7 +28,7 @@ PRESETS = {
     },
 
     "test-child": {
-        "extends": ["test-parent"],
+        "layers": ["test-parent"],
 
         "settings": lambda: {
             "freq": 5,
@@ -36,7 +36,7 @@ PRESETS = {
     },
 
     "test-grandchild": {
-        "extends": ["test-child"],
+        "layers": ["test-child"],
 
         "settings": lambda: {
             "sides": 25,
@@ -51,8 +51,8 @@ PRESETS = {
         ]
     },
 
-    "test-invalid-extends": {
-        "extends": ["does-not-exist"],
+    "test-invalid-layers": {
+        "layers": ["does-not-exist"],
     },
 
 }
@@ -124,8 +124,8 @@ class TestComposer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             preset.render(shape=SHAPE, name=os.path.join(temp, "art.jpg"))
 
-    def test_invalid_extends(self):
+    def test_invalid_layers(self):
         """An invalid parent preset name raises an exception at preset creation time."""
 
         with self.assertRaises(ValueError):
-            preset = Preset("test-invalid-extends", PRESETS)
+            preset = Preset("test-invalid-layers", PRESETS)

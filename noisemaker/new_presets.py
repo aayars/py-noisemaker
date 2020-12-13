@@ -216,7 +216,7 @@ PRESETS = {
 
     "alien-terrain-worms": {
         "layers": ["multires-ridged", "invert", "voronoi", "derivative-octaves", "invert",
-                    "erosion-worms", "bloom", "shadow", "dither", "contrast", "desaturate"],
+                   "erosion-worms", "bloom", "shadow", "dither", "contrast", "desaturate"],
         "settings": lambda: {
             "deriv_alpha": .25 + random.random() * .125,
             "dist_metric": distance.euclidean,
@@ -528,7 +528,7 @@ PRESETS = {
     },
 
     "broken": {
-        "layers": ["multires-low", "reindex", "posterize", "glowing-edges", "dither", "desaturate"],
+        "layers": ["multires-low", "reindex-octaves", "posterize", "glowing-edges", "dither", "desaturate"],
         "settings": lambda: {
             "posterize_levels": 3,
             "reindex_range": random.randint(3, 4),
@@ -548,7 +548,6 @@ PRESETS = {
             "palette_name": None,
             "worms_alpha": .875,
             "worms_behavior": worms.chaotic,
-            "worms_stride_deviation": 0,
             "worms_density": .25 + random.random() * .125,
             "worms_drunken_spin": True,
             "worms_drunkenness": .1 + random.random() * .05,
@@ -617,7 +616,7 @@ PRESETS = {
 
     "cell-reflect": {
         "layers": ["voronoi", "reflect-post", "derivative-post", "density-map", "maybe-invert",
-                    "bloom", "dither", "desaturate"],
+                   "bloom", "dither", "desaturate"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
             "palette_name": None,
@@ -701,7 +700,7 @@ PRESETS = {
     },
 
     "concentric": {
-        "layers": ["voronoi", "maybe-palette", "wobble"],
+        "layers": ["voronoi", "contrast", "maybe-palette", "wobble"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
             "speed": .75,
@@ -758,7 +757,7 @@ PRESETS = {
     },
 
     "corner-case": {
-        "layers": ["multires-ridged", "desaturate", "dither"], #, "bloom"],
+        "layers": ["multires-ridged", "desaturate", "dither"],
         "generator": lambda settings: {
             "corners": True,
             "lattice_drift": coin_flip(),
@@ -833,27 +832,59 @@ PRESETS = {
         }
     },
 
-    "crop-spirals": lambda: {
-        "distrib": distrib.laplace,
-        "freq": random.randint(4, 6) * 2,
-        "hue_range": 1,
-        "saturation": .75,
-        "mask": random_member([mask.h_hex, mask.v_hex]),
-        "reindex_range": .1 + random.random() * .1,
-        "spline_order": interp.cosine,
-        "with_reverb": random.randint(2, 4),
-        "with_worms": worms.unruly,
-        "worms_alpha": .9 + random.random() * .1,
-        "worms_density": 500,
-        "worms_duration": 1,
-        "worms_kink": 2 + random.random(),
-        "worms_stride": .333 + random.random() * .333,
-        "worms_stride_deviation": .04 + random.random() * .04,
-    },
-
     "crt": {
         "layers": ["scanline-error", "snow"],
         "post": lambda settings: [Effect("crt")]
+    },
+
+    "crystallize": {
+        "layers": ["voronoi", "vignette-bright", "bloom", "desaturate"],
+        "settings": lambda: {
+            "dist_metric": distance.triangular,
+            "voronoi_point_freq": 4,
+            "voronoi_alpha": .5,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_nth": 4,
+        }
+    },
+
+    "cubert": {
+        "layers": ["voronoi", "crt", "bloom"],
+        "settings": lambda: {
+            "dist_metric": distance.triangular,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_inverse": True,
+            "voronoi_point_freq": random.randint(4, 6),
+            "voronoi_point_distrib": point.h_hex,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(4, 6),
+            "hue_range": .5 + random.random(),
+        }
+    },
+
+    "cubic": {
+        "layers": ["basic-voronoi", "outline", "bloom"],
+        "settings": lambda: {
+            "voronoi_alpha": 0.25 + random.random() * .5,
+            "voronoi_nth": random.randint(2, 8),
+            "voronoi_point_distrib": point.concentric,
+            "voronoi_point_freq": random.randint(3, 5),
+            "voronoi_diagram_type": random_member([voronoi.range, voronoi.color_range]),
+        }
+    },
+
+    "cyclic-dilation": {
+        "layers": ["voronoi", "reindex-post"],
+        "settings": lambda: {
+            "reindex_range": random.randint(4, 6),
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_point_corners": True,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(24, 48),
+            "hue_range": .25 + random.random() * 1.25,
+        }
     },
 
     "degauss": {

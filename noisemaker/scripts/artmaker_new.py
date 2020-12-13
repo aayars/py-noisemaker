@@ -1,5 +1,4 @@
 import random
-import click
 
 import click
 
