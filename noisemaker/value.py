@@ -485,7 +485,7 @@ def ridge(tensor):
 
 def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
                     ridges=False, mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0):
-    """Generate multi-octave value noise. Unlike generators.multires, this function does not apply post-processing effects."""
+    """Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects."""
 
     if isinstance(freq, int):
         freq = freq_for_shape(freq, shape)

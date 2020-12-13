@@ -2677,7 +2677,7 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
     for i in range(4):
         mask = value.values(freq=4, shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
 
-        mask = worms(mask, shape, behavior=WormBehavior.Chaotic, alpha=1, density=.05 + random.random() * .00125,
+        mask = worms(mask, shape, behavior=WormBehavior.chaotic, alpha=1, density=.05 + random.random() * .00125,
                      duration=1, kink=random.randint(5, 10), stride=.75, stride_deviation=.125, time=time, speed=speed)
 
         brightness = value.values(freq=128, shape=shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise)
@@ -2933,15 +2933,23 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 
 @effect()
 def nebula(tensor, shape, time=0.0, speed=1.0):
-    overlay = value.simple_multires(random.randint(2, 4), shape, time=time, speed=speed,
+    value_shape = [shape[0], shape[1], 1]
+
+    overlay = value.simple_multires([random.randint(3, 4), 1], value_shape, time=time, speed=speed,
                                     distrib=ValueDistribution.periodic_exp, ridges=True, octaves=6)
 
-    overlay -= value.simple_multires(random.randint(2, 4), shape, time=time, speed=speed,
+    overlay -= value.simple_multires([random.randint(2, 4), 1], value_shape, time=time, speed=speed,
                                      distrib=ValueDistribution.periodic_uniform, ridges=True, octaves=4)
 
-    overlay = tf.maximum(overlay, 0)
+    overlay *= .125
 
-    return tf.maximum(tensor, overlay * .25)
+    overlay = rotate(overlay, value_shape, angle=random.randint(-15, 15), time=time, speed=speed)
+
+    tensor *= 1.0 - overlay
+
+    tensor += tint(tf.maximum(overlay * tf.ones(shape), 0), shape, alpha=1.0, time=time, speed=1.0)
+
+    return tensor
 
 
 @effect()

@@ -12,7 +12,7 @@ DEFAULT_SHAPE = [1024, 1024, 3]
 
 SETTINGS_KEY = 'settings'
 
-ALLOWED_KEYS = ['extends', SETTINGS_KEY, 'generator', 'octaves', 'post']
+ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post']
 
 
 class Preset:
@@ -102,7 +102,7 @@ def _rollup(preset_name, key, default, presets, settings):
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
-    for base_preset_name in reversed(evaluated_kwargs.get('extends', [])):
+    for base_preset_name in reversed(evaluated_kwargs.get('layers', [])):
         if base_preset_name not in presets:
             raise ValueError(f"Preset \"{preset_name}\"'s parent named \"{base_preset_name}\" was not found among the available presets.")
 

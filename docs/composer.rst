@@ -22,18 +22,18 @@ The current solution attempts to be flexible and highly composable. Composer Pre
 1) Which presets are being built on?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Effects and presets are intended to be combined with and riff off each other, but repetition in code is distateful, especially when we have to copy settings around. To minimize copied settings, Composer Presets may "extend" parent presets, and/or refer to other presets inline.
+Effects and presets are intended to be combined with and riff off each other, but repetition in code is distateful, especially when we have to copy settings around. To minimize copied settings, Composer Presets may "layer" parent presets, and/or refer to other presets inline.
 
-To "extend" means using ("inheriting") those presets as a foundation to build on top of -- using the settings and effects from the parent presets as a starting point, without needing to copy-paste everything in. Not having a parent means starting from a blank slate, with all default generator parameters and no effects.
+Layering in this way means inheriting from those presets as a starting point, without needing to copy-paste everything in. A preset with no layers defined will be starting from a blank slate, with all default generator parameters and no effects.
 
-The lineage of ancestor presets is modeled in each preset's ``extends`` list, which is a flat list of preset names. The presets should be listed in the order to be applied.
+The lineage of ancestor presets is modeled in each preset's ``layers`` list, which is a flat list of preset names. The presets should be listed in the order to be applied.
 
 .. code-block:: python
 
     PRESETS = {
         "just-an-example": {
             # A list of parent preset names, if any:
-            "extends": ["first-parent", "second-parent", ...]
+            "layers": ["first-parent", "second-parent", ...]
         },
 
         # ...
@@ -44,7 +44,7 @@ The lineage of ancestor presets is modeled in each preset's ``extends`` list, wh
 
 Each preset may need to reuse values, or tweak a value which was already set by a parent. To facilitate this, presets have an optional bank of settings which may be plugged in and overridden as needed.
 
-Reusable settings are modeled in each preset's ``settings`` dictionary. Extending a preset inherits this dictionary, allowing preset authors to override or add key/value pairs. This is a free-form dictionary, and authors may stash any arbitrary values they need here.
+Reusable settings are modeled in each preset's ``settings`` dictionary. Layering inherits this dictionary, allowing preset authors to override or add key/value pairs. This is a free-form dictionary, and authors may stash any arbitrary values they need here.
 
 .. code-block:: python
 
@@ -66,7 +66,7 @@ Reusable settings are modeled in each preset's ``settings`` dictionary. Extendin
 3) What are the noise generation parameters?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's ``generator`` dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with ``settings``, extending a preset inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike ``settings``, the keys found in this dictionary are not free-form, but must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`_.
+Noisemaker's noise generator has several parameters, and these simply need to live somewhere. Noise generator parameters are modeled in each preset's ``generator`` dictionary. Generator parameters may be defined in this dictionary, or can be fed in from settings. Just as with ``settings``, layering inherits this dictionary, enabling preset authors to override or add key/value pairs. Unlike ``settings``, the keys found in this dictionary are not free-form, but must be valid parameters to `noisemaker.generators.multires <api.html#noisemaker.generators.multires>`_.
 
 .. code-block:: python
 
@@ -91,7 +91,7 @@ Noisemaker's noise generator has several parameters, and these simply need to li
 
 Preset authors should be able to specify a list of effects which get applied to each octave of noise. Historically, the per-octave effects in Noisemaker were constrained by hard-coded logic. In Composer Presets, authors may specify an arbitrary list of effects.
 
-Per-octave effects are modeled in each preset's ``octaves`` list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects. Effects should be listed in the order to be applied.
+Per-octave effects are modeled in each preset's ``octaves`` list, which specifies parameterized effects functions. Per-octave effect parameters may be defined in this list, or can be fed in from settings. Layering inherits this list, allowing authors to append additional effects. Effects should be listed in the order to be applied.
 
 .. code-block:: python
 
@@ -114,7 +114,7 @@ Per-octave effects are modeled in each preset's ``octaves`` list, which specifie
 
 Similar to how per-octave effects were originally implemented, post effects in Noisemaker were hard-coded and inflexible. Composer Presets aim to break this pattern by enabling preset authors to specify an ordered list of "final pass" effects.
 
-Post-reduce effects are modeled in each preset's ``post`` section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Extending a preset inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros. Effects and referenced presets should be listed in the order to be applied.
+Post-reduce effects are modeled in each preset's ``post`` section, which is a flat list of parameterized effects functions and presets. Post-processing effect parameters may be defined in this list, or can be fed in from settings. Layering inherits this list, allowing authors to append additional effects and inline presets. A preset's post-processing list can contain effects as well as links to other presets, enabling powerful expression of nested macros. Effects and referenced presets should be listed in the order to be applied.
 
 .. code-block:: python
 
@@ -145,7 +145,7 @@ Note that ``settings``, ``generator``, ``octaves``, and ``post`` are wrapped ins
     PRESETS = {
         "just-an-example": {
             # A list of parent preset names, if any:
-            "extends": ["first-parent", "second-parent", ...],
+            "layers": ["first-parent", "second-parent", ...],
 
             # A free-form dictionary of global args which may be referenced throughout
             # the preset and its descendants:
