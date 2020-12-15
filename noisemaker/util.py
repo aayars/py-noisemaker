@@ -144,5 +144,5 @@ _LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')
 os.makedirs(_LOGS_DIR, exist_ok=True)
 
 logger = default_logger
-logger.remove(0)  # Remove loguru's default STDERR log handler
+# logger.remove(0)  # Remove loguru's default STDERR log handler
 logger.add(os.path.join(_LOGS_DIR, "noisemaker.log"), retention="7 days")

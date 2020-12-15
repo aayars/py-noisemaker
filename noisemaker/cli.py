@@ -774,7 +774,14 @@ def seed_option(**attrs):
     return int_option("--seed", default=None, **attrs)
 
 
+# XXX Get rid of me
 def name_option(default=None, **attrs):
     attrs.setdefault("help", "Filename for image output (should end with .png or .jpg)")
 
     return str_option("--name", type=click.Path(dir_okay=False), default=default or "noise.png", **attrs)
+
+
+def filename_option(default=None, **attrs):
+    attrs.setdefault("help", "Filename for image output (should end with .png or .jpg)")
+
+    return str_option("--filename", type=click.Path(dir_okay=False), default=default or "noise.png", **attrs)

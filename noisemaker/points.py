@@ -145,7 +145,7 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     return (x, y)
 
 
-def rand(freq=2.0, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0, height=1.0, **kwargs):
+def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0, height=1.0, **kwargs):
     """
     """
 

@@ -1,6 +1,9 @@
 """Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
+from collections import UserDict
 from functools import partial
+
+import json
 
 import tensorflow as tf
 
@@ -13,6 +16,9 @@ DEFAULT_SHAPE = [1024, 1024, 3]
 SETTINGS_KEY = 'settings'
 
 ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post']
+
+# Don't raise an exception if the following keys are unused in settings
+UNUSED_OKAY = ['speed', 'palette_name']
 
 
 class Preset:
@@ -35,7 +41,7 @@ class Preset:
                 raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
 
         # The "settings" dict provides overridable args to generator, octaves, and post
-        self.settings = _rollup(preset_name, SETTINGS_KEY, {}, presets, None)
+        self.settings = SettingsDict(_rollup(preset_name, SETTINGS_KEY, {}, presets, None))
 
         if settings:  # Inline overrides from caller
             self.settings.update(settings)
@@ -49,11 +55,23 @@ class Preset:
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _rollup(preset_name, 'post', [], presets, self.settings)
 
+        # Make sure there's no dangling settings keys
+        try:
+            self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
+
+        except UnusedKeys as e:
+            raise UnusedKeys(f"Preset \"{preset_name}\": {e}")
+
     def __str__(self):
         return f"<Preset \"{self.name}\">"
 
     def render(self, shape=DEFAULT_SHAPE, name="art.png"):
         """Render the preset to an image file."""
+
+        logger.debug("Rendering noise: "
+                     + json.dumps(self.__dict__,
+                                  default=lambda v: dict(v) if isinstance(v, SettingsDict) else str(v),
+                                  indent=4))
 
         try:
             tensor = multires(shape=shape, octave_effects=self.octave_effects, post_effects=self.post_effects, **self.generator_kwargs)
@@ -125,3 +143,37 @@ def _rollup(preset_name, key, default, presets, settings):
             raise ValueError(f"Not sure how to roll up data of type {type(parent_data)} (key: \"{key}\")")
 
     return child_data
+
+
+class UnusedKeys(Exception):
+    pass
+
+
+class SettingsDict(UserDict):
+    """dict, but it makes sure the caller eats everything on their plate."""
+
+    def __init__(self, *args, **kwargs):
+        self.__accessed__ = {}
+
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, key):
+        self.__accessed__[key] = True
+
+        return super().__getitem__(key)
+
+    def was_accessed(self, key):
+        return key in self.__accessed__
+
+    def raise_if_unaccessed(self, unused_okay=None):
+        keys = []
+
+        for key in self:
+            if not self.was_accessed(key) and (unused_okay is None or key not in unused_okay):
+                keys.append(key)
+
+        if keys:
+            if len(keys) == 1:
+                raise UnusedKeys(f"Settings key \"{keys[0]}\" was set, but never accessed.")
+            else:
+                raise UnusedKeys(f"Settings keys {keys} were set, but never accessed.")

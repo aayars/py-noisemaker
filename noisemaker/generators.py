@@ -73,14 +73,8 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
                                  warp_freq=freq, spline_order=spline_order, signed_range=False)
 
     if octave_effects is not None:  # New way
-        for effect in octave_effects:
-            # Falloff with each octave for displacement effects, otherwise it's way too noisy
-            if "displacement" in effect.keywords:
-                kwargs = dict(effect.keywords)  # Be sure to copy, otherwise it modifies the original
-                kwargs["displacement"] /= 2 ** octave
-                effect = partial(effect.func, **kwargs)
-
-            tensor = effect(tensor=tensor, shape=shape, time=time, speed=speed)
+        for effect_or_preset in octave_effects:
+            tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave)
 
     else:  # Old way
         tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, rgb=rgb, **post_process_args)
@@ -377,12 +371,28 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
 
 def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
     """Helper function to either invoke a post effect or unroll a preset."""
-
     if callable(effect_or_preset):
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
 
     else:  # Is a Preset. Unroll me.
         for e_or_p in effect_or_preset.post_effects:
             tensor = _apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
+
+        return tensor
+
+
+def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave):
+    """Helper function to either invoke a octave effect or unroll a preset."""
+    if callable(effect_or_preset):
+        if "displacement" in effect_or_preset.keywords:
+            kwargs = dict(effect_or_preset.keywords)  # Be sure to copy, otherwise it modifies the original
+            kwargs["displacement"] /= 2 ** octave
+            effect_or_preset = partial(effect_or_preset.func, **kwargs)
+
+        return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
+
+    else:  # Is a Preset. Unroll me.
+        for e_or_p in effect_or_preset.octave_effects:
+            tensor = _apply_octave_effect_or_preset(e_or_p, tensor, shape, time, speed, octave)
 
         return tensor

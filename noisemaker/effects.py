@@ -664,7 +664,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     :param Tensor reference_x: An optional horizontal displacement map.
     :param Tensor reference_y: An optional vertical displacement map.
     :param list[int] warp_freq: If given, generate new reference_x and reference_y noise with this base frequency.
-    :param int spline_order: Ortho offset spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+    :param int spline_order: Interpolation for warp effect only. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
     :param bool signed_range: Scale displacement values from -1..1 instead of 0..1
     :param bool y_from_offset: If True, derive Y offsets from offsetting the image
@@ -1405,7 +1405,9 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
-        range_slice = value.resample(value.offset(tf.expand_dims(tf.sqrt(value.normalize(dist[:, :, index])), -1), shape, **offset_kwargs), original_shape)
+        range_slice = value.normalize(dist[:, :, index])
+        range_slice = tf.expand_dims(tf.sqrt(range_slice), -1)
+        range_slice = value.resample(value.offset(range_slice, shape, **offset_kwargs), original_shape)
 
         if inverse:
             range_slice = 1.0 - range_slice
@@ -1837,7 +1839,7 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 
 
 @effect()
-def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, time=0.0, speed=1.0):
+def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha=1.0, time=0.0, speed=1.0):
     """
     Diffusion-limited aggregation. Slow.
 
@@ -1874,8 +1876,8 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, time=
     half_height = int(height * scale)
 
     if xy is None:
-        seed_count = int(half_height * seed_density) or 1
-        x, y = point_cloud(int(math.sqrt(seed_count)), distrib=PointDistribution.random, shape=shape)
+        seed_count = int(math.sqrt(int(half_height * seed_density) or 1))
+        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape)
 
     else:
         x, y, seed_count = xy
@@ -1966,7 +1968,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, time=
 
     out = convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape=shape)
 
-    return out * tensor
+    return value.blend(tensor, out * tensor, alpha)
 
 
 @effect()
@@ -2010,12 +2012,14 @@ def reverb(tensor, shape, octaves=2, iterations=1, ridges=True, time=0.0, speed=
         for octave in range(1, octaves + 1):
             multiplier = 2 ** octave
 
-            octave_shape = [int(width / multiplier), int(height / multiplier), channels]
+            octave_shape = [int(height / octaves) or 1, int(width / octaves) or 1, channels]
 
             if not all(octave_shape):
                 break
 
-            out += expand_tile(value.proportional_downsample(reference, shape, octave_shape), octave_shape, shape) / multiplier
+            layer = value.proportional_downsample(reference, shape, octave_shape)
+
+            out += expand_tile(layer, octave_shape, shape) / multiplier
 
     return value.normalize(out)
 

@@ -21,23 +21,29 @@ import noisemaker.value as value
 @cli.time_option()
 @cli.clut_option()
 @cli.seed_option()
-@cli.name_option(default='art.png')
+@cli.filename_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(PRESETS)))
 @click.pass_context
-def main(ctx, width, height, channels, time, clut, seed, name, preset_name):
+def main(ctx, width, height, channels, time, clut, seed, filename, preset_name):
+    if not seed:
+        seed = random.randint(1, 2**32)
+
     value.set_seed(seed)
 
     if preset_name == "random":
         preset_name = list(PRESETS)[random.randint(0, len(PRESETS) - 1)]
 
-    print(preset_name)
+    print(f"{preset_name} (seed: {seed})")
 
     preset = Preset(preset_name, PRESETS)
+
+    if not preset.generator_kwargs:
+        logger.warning(f"{preset_name} doesn't have any generator args. This might be kind of boring.")
 
     shape = [height, width, channels]
 
     try:
-        preset.render(shape=shape, name=name)
+        preset.render(shape=shape, name=filename)
 
     except Exception as e:
         logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
