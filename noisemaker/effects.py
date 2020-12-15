@@ -2012,7 +2012,7 @@ def reverb(tensor, shape, octaves=2, iterations=1, ridges=True, time=0.0, speed=
         for octave in range(1, octaves + 1):
             multiplier = 2 ** octave
 
-            octave_shape = [int(height / octaves) or 1, int(width / octaves) or 1, channels]
+            octave_shape = [int(height / multiplier) or 1, int(width / multiplier) or 1, channels]
 
             if not all(octave_shape):
                 break
