@@ -1438,7 +1438,11 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             range_out = value.normalize(tf.math.reduce_mean(1.0 - (1.0 - value.normalize(dist * colors)), 2))
 
         else:  # flow
-            range_out = tf.math.reduce_mean(dist, 2)
+            # This is dicey as hell. Try to get range_out into a reasonable range.
+            # Difficulty level: Without using normalize()
+            range_out = (tf.math.reduce_mean(dist, 2) + 1.75) / 1.45
+            # print(tf.reduce_min(range_out))
+            # print(tf.reduce_max(range_out))
 
         range_out = value.resample(value.offset(range_out, shape, **offset_kwargs), original_shape)
 
@@ -2126,7 +2130,8 @@ def shadow(tensor, shape, alpha=1.0, reference=None, time=0.0, speed=1.0):
 
 
 @effect()
-def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0.0, speed=1.0):
+def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0,
+              spline_order=InterpolationType.constant, time=0.0, speed=1.0):
     """
     :param Tensor tensor:
     :param list[int] shape:
@@ -2175,7 +2180,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0
 
     approx_shape = [glyph_shape[0] * uv_shape[0], glyph_shape[1] * uv_shape[1], 1]
 
-    uv_noise = value.resample(uv_noise, approx_shape, spline_order=InterpolationType.constant)
+    uv_noise = value.resample(uv_noise, approx_shape, spline_order=spline_order)
 
     x_index = value.row_index(approx_shape) % glyph_shape[1]
     y_index = value.column_index(approx_shape) % glyph_shape[0]
@@ -2183,13 +2188,13 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0, time=0
     glyph_count = len(glyphs)
     z_index = tf.cast(uv_noise[:, :, 0] * glyph_count, tf.int32) % glyph_count
 
-    spline_order = InterpolationType.linear if mask == ValueMask.truetype else InterpolationType.constant
+    spline_order = InterpolationType.cosine if mask == ValueMask.truetype else spline_order
     out = value.resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=spline_order)
 
     if not colorize:
         return out * tf.ones(shape)
 
-    out *= value.resample(value.proportional_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=InterpolationType.constant)
+    out *= value.resample(value.proportional_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=spline_order)
 
     if alpha == 1.0:
         return out
@@ -2812,7 +2817,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
                                   distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape) * .9 + shadow(noise, value_shape, 1.0) * .1)
+    return tensor * (tf.ones(value_shape) * .75 + shadow(noise, value_shape, 1.0) * .25)
 
 
 @effect()

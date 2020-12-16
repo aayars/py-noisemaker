@@ -366,7 +366,7 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
                                   deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, rgb=rgb,
                                   **post_process_args)
 
-    return tensor
+    return value.normalize(tensor)
 
 
 def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):

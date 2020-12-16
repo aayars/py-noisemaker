@@ -37,9 +37,6 @@ def main(ctx, width, height, channels, time, clut, seed, filename, preset_name):
 
     preset = Preset(preset_name, PRESETS)
 
-    if not preset.generator_kwargs:
-        logger.warning(f"{preset_name} doesn't have any generator args. This might be kind of boring.")
-
     shape = [height, width, channels]
 
     try:
