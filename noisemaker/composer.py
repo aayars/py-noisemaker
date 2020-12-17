@@ -13,14 +13,14 @@ from noisemaker.effects import EFFECTS
 from noisemaker.generators import multires
 from noisemaker.util import logger, save
 
-DEFAULT_SHAPE = [1024, 1024, 3]
+DEFAULT_SHAPE = [1024, 2048, 3]
 
-SETTINGS_KEY = 'settings'
+SETTINGS_KEY = "settings"
 
-ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post']
+ALLOWED_KEYS = ["layers", SETTINGS_KEY, "generator", "octaves", "post"]
 
 # Don't raise an exception if the following keys are unused in settings
-UNUSED_OKAY = ['speed', 'palette_name']
+UNUSED_OKAY = ["speed", "palette_name"]
 
 _STASH = {}
 
@@ -51,13 +51,13 @@ class Preset:
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs = _rollup(preset_name, 'generator', {}, presets, self.settings)
+        self.generator_kwargs = _rollup(preset_name, "generator", {}, presets, self.settings)
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects = _rollup(preset_name, 'octaves', [], presets, self.settings)
+        self.octave_effects = _rollup(preset_name, "octaves", [], presets, self.settings)
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects = _rollup(preset_name, 'post', [], presets, self.settings)
+        self.post_effects = _rollup(preset_name, "post", [], presets, self.settings)
 
         # Make sure there's no dangling settings keys
         try:
@@ -68,6 +68,12 @@ class Preset:
 
     def __str__(self):
         return f"<Preset \"{self.name}\">"
+
+    def is_generator(self):
+        return self.generator_kwargs or "voronoi" in self.settings
+
+    def is_effect(self):
+        return not self.is_generator() or self.settings.get("voronoi_refract")
 
     def render(self, shape=DEFAULT_SHAPE, name="art.png"):
         """Render the preset to an image file."""
@@ -124,7 +130,7 @@ def _rollup(preset_name, key, default, presets, settings):
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
 
-    for base_preset_name in reversed(evaluated_kwargs.get('layers', [])):
+    for base_preset_name in reversed(evaluated_kwargs.get("layers", [])):
         if base_preset_name not in presets:
             raise ValueError(f"Preset \"{preset_name}\"'s parent named \"{base_preset_name}\" was not found among the available presets.")
 

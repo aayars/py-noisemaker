@@ -1669,6 +1669,21 @@ PRESETS = {
         ]
     },
 
+    "hearts": {
+        "layers": ["value-mask", "wobble", "rotate", "posterize", "snow", "crt", "lens"],
+        "settings": lambda: {
+            "angle": random.randint(10, 25),
+            "mask": mask.mcpaint_19,
+            "mask_repeat": random.randint(8, 12),
+            "posterize_levels": random.randint(1, 2),
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.ones,
+            "hue_distrib": None if coin_flip() else random_member([distrib.column_index, distrib.row_index]),
+            "hue_rotation": .925
+        }
+    },
+
     "heartburn": {
         "layers": ["voronoi", "bloom", "vignette-dark", "contrast"],
         "settings": lambda: {
