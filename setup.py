@@ -34,7 +34,7 @@ setup(name='noisemaker',
         "Pillow==8.0.1",
         "pyfastnoisesimd==0.4.1",
         "tensorflow_addons==0.11.2",
-        "wheel==0.36.1",  # Needed by TF
+        "wheel==0.36.2",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],
