@@ -7,7 +7,7 @@ import click
 from noisemaker.constants import ValueDistribution
 
 import noisemaker.cli as cli
-import noisemaker.presets as presets
+import noisemaker.old_presets as presets
 import noisemaker.util as util
 
 

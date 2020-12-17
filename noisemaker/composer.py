@@ -1,9 +1,11 @@
 """Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
 from collections import UserDict
+from enum import Enum, EnumMeta
 from functools import partial
 
 import json
+import random
 
 import tensorflow as tf
 
@@ -19,6 +21,8 @@ ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post']
 
 # Don't raise an exception if the following keys are unused in settings
 UNUSED_OKAY = ['speed', 'palette_name']
+
+_STASH = {}
 
 
 class Preset:
@@ -145,7 +149,55 @@ def _rollup(preset_name, key, default, presets, settings):
     return child_data
 
 
+def random_member(*collections):
+    """Return a random member from a collection, enum list, or enum. Ensures deterministic ordering."""
+
+    collection = []
+
+    for c in collections:
+        if isinstance(collection, EnumMeta):
+            collection += list(c)
+
+        # maybe it's a list of enum members
+        elif isinstance(next(iter(c), None), Enum):
+            collection += [s[1] for s in sorted([(m.name if m is not None else "", m) for m in c])]
+
+        else:
+            # make sure order is deterministic
+            collection += sorted(c)
+
+    return collection[random.randint(0, len(collection) - 1)]
+
+
+def coin_flip():
+    return bool(random.randint(0, 1))
+
+
+def enum_range(a, b):
+    """Return a list of enum members within the specified inclusive numeric value range."""
+
+    enum_class = type(a)
+
+    members = []
+
+    for i in range(a.value, b.value + 1):
+        members.append(enum_class(i))
+
+    return members
+
+
+def stash(key, value=None):
+    """Hold on to a variable for reference within the same lambda. Returns the stashed value if not given as arg."""
+
+    global _STASH
+    if value is not None:
+        _STASH[key] = value
+    return _STASH[key]
+
+
 class UnusedKeys(Exception):
+    """Exception raised when a preset has keys that aren't being used"""
+
     pass
 
 
@@ -174,6 +226,6 @@ class SettingsDict(UserDict):
 
         if keys:
             if len(keys) == 1:
-                raise UnusedKeys(f"Settings key \"{keys[0]}\" was set, but never accessed.")
+                raise UnusedKeys(f"Settings key \"{keys[0]}\" is unused. This is usually human error.")
             else:
-                raise UnusedKeys(f"Settings keys {keys} were set, but never accessed.")
+                raise UnusedKeys(f"Settings keys {keys} are unused. This is usually human error.")

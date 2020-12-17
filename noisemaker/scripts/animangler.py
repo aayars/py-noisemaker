@@ -9,7 +9,7 @@ from noisemaker.constants import ValueDistribution
 from noisemaker.util import magick
 
 import noisemaker.cli as cli
-import noisemaker.presets as presets
+import noisemaker.old_presets as presets
 import noisemaker.util as util
 
 

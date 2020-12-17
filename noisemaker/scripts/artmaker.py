@@ -9,7 +9,7 @@ from noisemaker.util import logger, dumps, save
 
 import noisemaker.cli as cli
 import noisemaker.generators as generators
-import noisemaker.presets as presets
+import noisemaker.old_presets as presets
 import noisemaker.value as value
 
 

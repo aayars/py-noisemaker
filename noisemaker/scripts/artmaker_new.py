@@ -4,7 +4,7 @@ import click
 
 from noisemaker.composer import Preset
 from noisemaker.util import logger
-from noisemaker.new_presets import PRESETS
+from noisemaker.presets import PRESETS
 
 import noisemaker.cli as cli
 import noisemaker.value as value

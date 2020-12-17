@@ -6,7 +6,7 @@ from noisemaker.util import save, load
 import noisemaker.constants as constants
 import noisemaker.effects as effects
 import noisemaker.generators as generators
-import noisemaker.presets as presets
+import noisemaker.old_presets as presets
 import noisemaker.value as value
 
 SMALL_X = 512

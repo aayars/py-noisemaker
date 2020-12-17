@@ -7,7 +7,7 @@ from noisemaker.util import logger, dumps, load, save, shape_from_file
 
 import noisemaker.cli as cli
 import noisemaker.effects as effects
-import noisemaker.presets as presets
+import noisemaker.old_presets as presets
 import noisemaker.value as value
 
 
