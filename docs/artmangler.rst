@@ -1,7 +1,9 @@
 Artmangler CLI
 ==============
 
-Noisemaker includes a CLI utility called ``artmangler`` that allows you to easily apply effects presets to images.
+``artmangler`` is deprecated. For its replacement, see the ``effect`` subcommand in `noisemaker <noisemaker.html>`_.
+
+Noisemaker includes a now-deprecated CLI utility called ``artmangler`` that allows you to easily apply effects presets to images.
 
 For a usage summary, run ``artmangler -h`` or ``artmangler --help``.
 

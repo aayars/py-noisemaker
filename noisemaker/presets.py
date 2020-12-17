@@ -144,7 +144,7 @@ PRESETS = {
             "reflect_range": 7.5 + random.random() * 3.5
         },
         "generator": lambda settings: {
-            "freq": random.randint(10, 15),
+            "freq": random.randint(8, 12),
             "hue_range": 0,
             "lattice_drift": 1.0,
             "mask": mask.sparse,
@@ -1932,7 +1932,6 @@ PRESETS = {
             "saturation": 0.0,
         },
     },
-
 
     "lens": {
         "layers": ["normalize", "aberration", "vaseline", "tint", "vignette-dark", "contrast"],

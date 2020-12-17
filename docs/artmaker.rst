@@ -1,7 +1,9 @@
 Artmaker CLI
 ============
 
-Noisemaker includes a CLI utility called ``artmaker`` that allows you to easily create noise from presets.
+``artmaker`` is deprecated. For its replacement, see the ``generator`` subcommand in `noisemaker <noisemaker.html>`_.
+
+Noisemaker includes a now-deprecated CLI utility called ``artmaker`` that allows you to easily create noise from presets.
 
 Running ``artmaker`` without arguments generates a random 1024 x 1024 image named ``art.png`` in the current directory.
 

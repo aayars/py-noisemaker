@@ -176,6 +176,8 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
+    print(f"Have seed {value.simplex._seed}")
+
     # Normalize input
 
     if isinstance(freq, int):

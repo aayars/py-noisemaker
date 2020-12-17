@@ -1,4 +1,4 @@
-Usage: noisemaker [OPTIONS]
+Usage: noisemaker-old [OPTIONS]
 
   Noisemaker - Visual noise generator
 

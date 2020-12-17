@@ -136,7 +136,7 @@ Post-reduce effects are modeled in each preset's ``post`` section, which is a fl
 Putting It All Together
 -----------------------
 
-The following contrived example illustrates a preset containing each of the above described sections. For concrete examples, see noisemaker/new_presets.py and test/test_composer.py.
+The following contrived example illustrates a preset containing each of the above described sections. For concrete examples, see noisemaker/presets.py and test/test_composer.py.
 
 Note that ``settings``, ``generator``, ``octaves``, and ``post`` are wrapped inside ``lambda``. This enables re-evaluation of presets if/when the random number generator seed is changed.
 

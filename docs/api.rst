@@ -61,10 +61,10 @@ noisemaker.presets
     :undoc-members:
     :show-inheritance:
 
-noisemaker.new_presets
+noisemaker.old_presets
 ----------------------
 
-.. automodule:: noisemaker.new_presets
+.. automodule:: noisemaker.old_presets
     :members:
     :undoc-members:
     :show-inheritance:

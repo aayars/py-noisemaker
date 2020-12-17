@@ -75,7 +75,7 @@ class Preset:
     def is_effect(self):
         return not self.is_generator() or self.settings.get("voronoi_refract")
 
-    def render(self, tensor=None, shape=DEFAULT_SHAPE, name="art.png"):
+    def render(self, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png"):
         """Render the preset to an image file."""
 
         logger.debug("Rendering noise: "
@@ -84,11 +84,12 @@ class Preset:
                                   indent=4))
 
         try:
-            tensor = multires(tensor=tensor, shape=shape, octave_effects=self.octave_effects, post_effects=self.post_effects,
-                              **self.generator_kwargs)
+            tensor = multires(tensor=tensor, shape=shape,
+                              octave_effects=self.octave_effects, post_effects=self.post_effects,
+                              time=time, speed=speed, **self.generator_kwargs)
 
             with tf.compat.v1.Session().as_default():
-                save(tensor, name)
+                save(tensor, filename)
 
         except Exception as e:
             logger.error(f"Error rendering preset named {self.name}: {e}")
