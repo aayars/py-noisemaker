@@ -1839,7 +1839,10 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 
     blurred = value.offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
 
-    return value.blend(tensor, 1.0 - (1.0 - tensor) * (1.0 - blurred), alpha)
+    blurred = tf.image.adjust_brightness(blurred, .25)
+    blurred = tf.image.adjust_contrast(blurred, 1.5)
+
+    return value.blend(tensor, (tensor + blurred) * .5, alpha)
 
 
 @effect()
@@ -3101,17 +3104,17 @@ def ridge(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def sine(tensor, shape, displacement=1.0, time=0.0, speed=1.0):
+def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0):
     channels = shape[2]
 
     if channels == 1:
-        return tf.sin(tensor * displacement)
+        return tf.sin(tensor * amount)
 
     elif channels == 2:
-        return tf.stack([tf.sin(tensor[:, :, 0] * displacement), tensor[:, :, 1]], 2)
+        return tf.stack([tf.sin(tensor[:, :, 0] * amount), tensor[:, :, 1]], 2)
 
     elif channels == 3:
-        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * displacement)], 2)
+        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * amount)], 2)
 
     elif channels == 4:
-        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * displacement), tensor[:, :, 3]], 2)
+        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * amount), tensor[:, :, 3]], 2)
