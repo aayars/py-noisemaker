@@ -1736,6 +1736,7 @@ PRESETS = {
             "spline_order": interp.constant,
             "lattice_drift": random.randint(5, 10),
             "hue_range": random.random() * 4,
+            "hue_rotation": random.random(),
         }
     },
 
@@ -3657,6 +3658,41 @@ PRESETS = {
         },
     },
 
+    "whatami": {
+        "layers": ["voronoi", "reindex-octaves", "reindex-post", "lens"],
+        "settings": lambda: {
+            "reindex_range": 2,
+            "voronoi_alpha": .75 + random.random() * .125,
+            "voronoi_diagram_type": voronoi.color_range,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(7, 9),
+            "hue_range": 3,
+        },
+    },
+
+    "woahdude": {
+        "layers": ["voronoi", "sine-octaves", "refract-post", "bloom", "saturation", "lens"],
+        "settings": lambda: {
+            "dist_metric": distance.euclidean,
+            "refract_range": .0005 + random.random() * .00025,
+            "saturation": 1.5,
+            "sine_range": random.randint(40, 60),
+            "speed": .025,
+            "tint_alpha": .05 + random.random() * .025,
+            "voronoi_refract": .333 + random.random() * .333,
+            "voronoi_diagram_type": voronoi.range,
+            "voronoi_nth": 0,
+            "voronoi_point_distrib": random_member(point.circular_members()),
+            "voronoi_point_freq": 6,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(3, 5),
+            "hue_range": 2,
+            "lattice_drift": 1,
+        },
+    },
+
     "wobble": {
         "post": lambda settings: [Effect("wobble")]
     },
@@ -3699,6 +3735,22 @@ PRESETS = {
         ]
     },
 
+    "wormstep": {
+        "layers": ["worms"],
+        "settings": lambda: {
+            "palette_name": None,
+            "worms_alpha": .5 + random.random() * .5,
+            "worms_behavior": worms.chaotic,
+            "worms_density": 500,
+            "worms_kink": 1.0 + random.random() * 4.0,
+            "worms_stride": 8.0 + random.random() * 4.0,
+        },
+        "generator": lambda settings: {
+            "corners": True,
+            "lattice_drift": coin_flip(),
+            "octaves": random.randint(1, 3),
+        },
+    },
 }
 
 Preset = functools.partial(Preset, presets=PRESETS)
