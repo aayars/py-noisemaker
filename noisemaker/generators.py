@@ -137,7 +137,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
              rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff,
-             octave_effects=None, post_effects=None, time=0.0, speed=1.0):
+             octave_effects=None, post_effects=None, time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -192,47 +192,50 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     if octave_blending == OctaveBlending.alpha and shape[2] in (1, 3):  # Make sure there's an alpha channel
         shape[2] += 1
 
-    # Make some noise
+    if tensor is None:
+        tensor = tf.zeros(shape)
 
-    tensor = tf.zeros(shape)
+        for octave in range(1, octaves + 1):
+            multiplier = 2 ** octave
 
-    for octave in range(1, octaves + 1):
-        multiplier = 2 ** octave
+            base_freq = [int(f * .5 * multiplier) for f in freq]
 
-        base_freq = [int(f * .5 * multiplier) for f in freq]
+            if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
+                break
 
-        if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
-            break
+            layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners, distrib=distrib,
+                          mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift, rgb=rgb,
+                          hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
+                          brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
+                          saturation_distrib=saturation_distrib, octave_effects=octave_effects, octave=octave,
+                          time=time, speed=speed)
 
-        layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners, distrib=distrib,
-                      mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift, rgb=rgb,
-                      hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
-                      brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                      saturation_distrib=saturation_distrib, octave_effects=octave_effects, octave=octave,
-                      time=time, speed=speed)
+            if octave_blending == OctaveBlending.reduce_max:
+                tensor = tf.maximum(tensor, layer)
 
-        if octave_blending == OctaveBlending.reduce_max:
-            tensor = tf.maximum(tensor, layer)
+            elif octave_blending == OctaveBlending.alpha:
+                a = tf.expand_dims(layer[:, :, -1], -1)
 
-        elif octave_blending == OctaveBlending.alpha:
-            a = tf.expand_dims(layer[:, :, -1], -1)
+                tensor = (tensor * (1.0 - a)) + layer * a
 
-            tensor = (tensor * (1.0 - a)) + layer * a
+            else:  # falloff
+                tensor += layer / multiplier
 
-        else:  # falloff
-            tensor += layer / multiplier
+        # If the original shape did not include an alpha channel, reduce masked values to 0 (black)
+        if octave_blending == OctaveBlending.alpha and original_shape[2] in (1, 3):
+            a = tensor[:, :, -1]
 
-    # If the original shape did not include an alpha channel, reduce masked values to 0 (black)
-    if octave_blending == OctaveBlending.alpha and original_shape[2] in (1, 3):
-        a = tensor[:, :, -1]
+            if original_shape[2] == 1:
+                tensor = tf.expand_dims(tensor[:, :, 0] * a, -1)
 
-        if original_shape[2] == 1:
-            tensor = tf.expand_dims(tensor[:, :, 0] * a, -1)
+            elif original_shape[2] == 3:
+                tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2) * tf.expand_dims(a, -1)
 
-        elif original_shape[2] == 3:
-            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2) * tf.expand_dims(a, -1)
+            shape = original_shape
 
-        shape = original_shape
+    else:
+        for effect_or_preset in octave_effects:
+            tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, 1)
 
     for effect_or_preset in post_effects:
         tensor = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
