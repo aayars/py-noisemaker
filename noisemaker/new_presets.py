@@ -154,7 +154,7 @@ PRESETS = {
     },
 
     "acid-grid": {
-        "layers": ["voronoid", "sobel", "funhouse", "bloom"],
+        "layers": ["voronoi-refract", "sobel", "funhouse", "bloom"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .333 + random.random() * .333,
@@ -476,7 +476,7 @@ PRESETS = {
     },
 
     "branewaves": {
-        "layers": ["value-mask", "ripples", "bloom"],
+        "layers": ["value-mask", "ripple", "bloom"],
         "settings": lambda: {
             "mask": random_member(mask.grid_members()),
             "mask_repeat": random.randint(5, 10),
@@ -730,7 +730,7 @@ PRESETS = {
     },
 
     "cool-water": {
-        "layers": ["refract-octaves", "reflect-octaves", "ripples", "funhouse", "bloom"],
+        "layers": ["refract-octaves", "reflect-octaves", "ripple", "funhouse", "bloom", "lens"],
         "settings": lambda: {
             "reflect_range": .16667 + random.random() * .16667,
             "refract_range": .25 + random.random() * .125,
@@ -1642,7 +1642,7 @@ PRESETS = {
     },
 
     "groove-is-stored-in-the-heart": {
-        "layers": ["posterize", "ripples", "distressed"],
+        "layers": ["posterize", "ripple", "distressed"],
         "settings": lambda: {
             "posterize_levels": random.randint(1, 2),
             "ripple_range": .75 + random.random() * .375,
@@ -1688,7 +1688,7 @@ PRESETS = {
     },
 
     "hotel-carpet": {
-        "layers": ["basic", "ripples", "carpet", "dither"],
+        "layers": ["basic", "ripple", "carpet", "dither"],
         "settings": lambda: {
             "ripple_kink": .5 + random.random() * .25,
             "ripple_range": .666 + random.random() * .333,
@@ -1722,10 +1722,10 @@ PRESETS = {
             "refract_range": random.random(),
         },
         "generator": lambda settings: {
+            "freq": 2,
             "distrib": random_member([m for m in distrib if m not in (distrib.ones, distrib.mids)]),
             "hue_range": random.random(),
             "ridges": coin_flip(),
-            "rgb": coin_flip(),
             "saturation": random.random(),
         }
     },
@@ -1929,7 +1929,7 @@ PRESETS = {
 
     "light-leak": {
         "layers": ["vignette-bright"],
-        "post": lambda settings: [Effect("light_leak", alpha=.333 + random.random() * .333), Preset("bloom")]
+        "post": lambda settings: [Effect("light_leak", alpha=.125 + random.random() * .06125), Preset("bloom")]
     },
 
     "look-up": {
@@ -1949,7 +1949,7 @@ PRESETS = {
     },
 
     "lost-in-it": {
-        "layers": ["basic", "ripples", "brightness", "contrast"],
+        "layers": ["basic", "ripple", "brightness", "contrast"],
         "settings": lambda: {
             "ripple_freq": random.randint(2, 4),
             "ripple_range": .5 + random.random() * .25,
@@ -2180,7 +2180,7 @@ PRESETS = {
     },
 
     "nausea": {
-        "layers": ["value-mask", "ripples", "normalize", "maybe-palette", "aberration"],
+        "layers": ["value-mask", "ripple", "normalize", "maybe-palette", "aberration"],
         "settings": lambda: {
             "mask": random_member([mask.h_bar, mask.v_bar]),
             "mask_repeat": random.randint(5, 8),
@@ -2433,7 +2433,7 @@ PRESETS = {
     },
 
     "painterly": {
-        "layers": ["value-mask", "ripples", "funhouse", "rotate", "saturation", "dither", "lens"],
+        "layers": ["value-mask", "ripple", "funhouse", "rotate", "saturation", "dither", "lens"],
         "settings": lambda: {
             "mask": random_member(mask.grid_members()),
             "mask_repeat": 1,
@@ -2783,7 +2783,7 @@ PRESETS = {
         "post": lambda settings: [Effect("ridge")]
     },
 
-    "ripples": {
+    "ripple": {
         "settings": lambda: {
             "ripple_range": .025 + random.random() * .1,
             "ripple_freq": random.randint(2, 3),
@@ -3066,7 +3066,10 @@ PRESETS = {
     },
 
     "sobel": {
-        "post": lambda settings: [Effect("sobel", dist_metric=random_member(distance.all()))]
+        "settings": lambda: {
+            "dist_metric": random_member(distance.all())
+        },
+        "post": lambda settings: [Effect("sobel", dist_metric=settings["dist_metric"])]
     },
 
     "soft-cells": {
@@ -3362,11 +3365,152 @@ PRESETS = {
         },
     },
 
+    "time-to-reflect": {
+        "layers": ["symmetry", "reflect-octaves", "reflect-post", "ridge", "shadow", "invert", "dither", "saturation"],
+        "settings": lambda: {
+            "reflect_range": 6.0 + random.random() * 3.0
+        },
+        "generator": lambda settings: {
+            "ridges": True,
+        },
+    },
+
+    "timeworms": {
+        "layers": ["reflect-octaves", "worms", "density-map", "bloom", "lens"],
+        "settings": lambda: {
+            "reflect_range": random.randint(0, 1) * random.random() * 2,
+            "worms_alpha": 1,
+            "worms_behavior": worms.obedient,
+            "worms_density": .25,
+            "worms_duration": 10,
+            "worms_stride": 2,
+            "worms_kink": .25 + random.random() * 2.5,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(4, 18),
+            "saturation": 0,
+            "mask": mask.sparse,
+            "mask_static": True,
+            "octaves": random.randint(1, 3),
+            "spline_order": random_member([m for m in interp if m != interp.bicubic]),
+        },
+    },
+
     "tint": {
         "settings": lambda: {
             "tint_alpha": .25 + random.random() * .125
         },
         "post": lambda settings: [Effect("tint", alpha=settings["tint_alpha"])]
+    },
+
+    "tri-hard": {
+        "layers": ["voronoi", "posterize-outline", "rotate", "lens"],
+        "settings": lambda: {
+            "dist_metric": random_member([distance.octagram, distance.triangular, distance.hexagram]),
+            "posterize_levels": 6,
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_point_freq": random.randint(8, 10),
+            "voronoi_refract": .333 + random.random() * .333,
+            "voronoi_refract_y_from_offset": False,
+        },
+        "generator": lambda settings: {
+            "hue_range": .125 + random.random(),
+        },
+    },
+
+    "tribbles": {
+        "layers": ["voronoi", "funhouse", "normalize", "invert", "worms", "rotate", "lens"],
+        "settings": lambda: {
+            "dist_metric": distance.euclidean,
+            "voronoi_alpha": 0.5 + random.random() * .25,
+            "voronoi_diagram_type": voronoi.range_regions,
+            "voronoi_point_distrib": point.h_hex,
+            "voronoi_point_drift": .25,
+            "voronoi_point_freq": random.randint(2, 3) * 2,
+            "voronoi_nth": 0,
+            "warp_freq": random.randint(2, 4),
+            "warp_octaves": random.randint(2, 4),
+            "warp_range": 0.025 + random.random() * .005,
+            "worms_alpha": .75 + random.random() * .25,
+            "worms_behavior": worms.unruly,
+            "worms_density": 750,
+            "worms_drunkenness": random.random() * .125,
+            "worms_duration": 1.0,
+            "worms_kink": 1.0,
+            "worms_stride": .5,
+            "worms_stride_deviation": .5,
+        },
+        "generator": lambda settings: {
+            "freq": [settings["voronoi_point_freq"]] * 2,
+            "hue_range": 0.25 + random.random() * 2.5,
+            "saturation": .375 + random.random() * .15,
+            "ridges": True,
+        },
+    },
+
+    "trominos": {
+        "layers": ["value-mask", "posterize", "sobel", "rotate", "invert", "bloom", "crt", "lens"],
+        "settings": lambda: {
+            "mask": mask.tromino,
+            "mask_repeat": random.randint(6, 12),
+            "posterize_levels": random.randint(1, 2),
+        },
+        "generator": lambda settings: {
+            "spline_order": random_member([interp.constant, interp.cosine]),
+        },
+    },
+
+    "truchet-maze": {
+        "layers": ["value-mask", "posterize", "rotate", "bloom", "lens"],
+        "settings": lambda: {
+            "angle": random_member([0, 45, random.randint(0, 360)]),
+            "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
+            "mask_repeat": random.randint(15, 25),
+            "posterize_levels": 1,
+        },
+    },
+
+    "truffula-spore": {
+        "layers": ["multires-alpha", "worms", "lens"],
+        "settings": lambda: {
+            "palette_name": None,
+            "worms_alpha": .5,
+            "worms_behavior": worms.unruly,
+        },
+        "generator": lambda settings: {
+            "hue_range": 1.0 + random.random() * .5,
+            "distrib": distrib.exp,
+            "octaves": 8,
+        }
+    },
+
+    "unicorn-puddle": {
+        "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
+        "settings": lambda: {
+            "palette_name": None,
+            "reflect_range": .125 + random.random() * .06125,
+            "refract_range": .05 + random.random() * .025,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.uniform,
+            "freq": 2,
+            "hue_range": 2.0 + random.random(),
+            "lattice_drift": 1.0,
+        },
+    },
+
+    "unmasked": {
+        "layers": ["sobel", "invert", "reindex-octaves", "rotate", "bloom", "lens"],
+        "settings": lambda: {
+            "reindex_range": 1 + random.random() * 1.5,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.uniform,
+            "freq": random.randint(3, 5),
+            "mask": random_member(mask.procedural_members()),
+            "octaves": random.randint(1, 2),
+        },
     },
 
     "value-mask": {
@@ -3384,6 +3528,24 @@ PRESETS = {
 
     "vaseline": {
         "post": lambda settings: [Effect("vaseline", alpha=.375 + random.random() * .1875)]
+    },
+
+    "vectoroids": {
+        "layers": ["voronoi", "derivative-post", "glowing-edges", "bloom", "crt", "lens"],
+        "settings": lambda: {
+            "dist_metric": distance.euclidean,
+            "voronoi_diagram_type": voronoi.color_regions,
+            "voronoi_nth": 0,
+            "voronoi_point_freq": 15,
+            "voronoi_point_drift": .25 + random.random() * .75,
+        },
+        "generator": lambda settings: {
+            "freq": 40,
+            "distrib": distrib.ones,
+            "mask": mask.sparse,
+            "mask_static": True,
+            "spline_order": interp.constant,
+        },
     },
 
     "vibe": {
@@ -3453,7 +3615,7 @@ PRESETS = {
         ]
     },
 
-    "voronoid": {
+    "voronoi-refract": {
         "layers": ["voronoi"],
         "settings": lambda: {
             "voronoi_refract": .25 + random.random() * .25
@@ -3465,6 +3627,34 @@ PRESETS = {
             "vortex_range": random.randint(16, 48)
         },
         "post": lambda settings: [Effect("vortex", displacement=settings["vortex_range"])]
+    },
+
+    "warped-cells": {
+        "layers": ["voronoi", "ridge", "funhouse", "bloom", "dither", "lens"],
+        "settings": lambda: {
+            "dist_metric": random_member(distance.absolute_members()),
+            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_diagram_type": voronoi.color_range,
+            "voronoi_nth": 0,
+            "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
+            "voronoi_point_freq": random.randint(6, 10),
+            "warp_range": .25 + random.random() * .25,
+        },
+    },
+
+    "what-do-they-want": {
+        "layers": ["value-mask", "sobel", "invert", "rotate", "bloom", "lens"],
+        "settings": lambda: {
+            "dist_metric": distance.triangular,
+            "mask": random_member([mask.invaders_square, mask.matrix]),
+            "mask_repeat": random.randint(4, 6),
+        },
+        "generator": lambda settings: {
+            "corners": True,
+            "distrib": distrib.ones,
+            "octave_blending": blend.alpha,
+            "octaves": 2,
+        },
     },
 
     "wobble": {
