@@ -48,10 +48,11 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
                              '--height', str(height),
                              '--name', filename])
 
-            util.check_call(['artmangler', 'crt', filename,
+            util.check_call(['noisemaker', 'effect', 'crt', filename,
                              '--no-resize',
                              '--seed', str(seed),
-                             '--overrides', '{"distrib": "simplex", "speed": 0.25}',
+                             '--speed': '0.25',
+                             '--distrib': 'periodic_uniform',
                              '--time', str(i / 30.0),
                              '--name', filename])
 
