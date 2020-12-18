@@ -51,8 +51,8 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
             util.check_call(['noisemaker', 'effect', 'crt', filename,
                              '--no-resize',
                              '--seed', str(seed),
-                             '--speed': '0.25',
-                             '--distrib': 'periodic_uniform',
+                             '--speed', '0.25',
+                             '--distrib', 'periodic_uniform',
                              '--time', str(i / 30.0),
                              '--name', filename])
 
