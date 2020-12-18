@@ -134,13 +134,13 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @cli.channels_option()
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECTS)))
-@cli.name_option(default='ani.gif')
+@cli.filename_option(default='ani.gif')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=30, help="How many frames total")
 @cli.option('--watermark', type=str)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATORS)))
 @click.pass_context
-def animation(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, watermark, preset_name):
+def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -162,11 +162,11 @@ def animation(ctx, width, height, channels, seed, effect_preset, name, save_fram
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
-            filename = f'{tmp}/{i:04d}.png'
+            frame_filename = f'{tmp}/{i:04d}.png'
 
             common_params = ['--seed', str(seed),
                              '--time', f'{i/frame_count:0.4f}',
-                             '--filename', filename]
+                             '--filename', frame_filename]
 
             util.check_call(['noisemaker', 'generator', preset_name,
                              '--distrib', _use_periodic_distrib(preset.generator_kwargs.get("distrib")),
@@ -175,17 +175,17 @@ def animation(ctx, width, height, channels, seed, effect_preset, name, save_fram
                              '--width', str(width)] + common_params)
 
             if effect_preset:
-                util.check_call(['noisemaker', 'effect', effect_preset, filename,
+                util.check_call(['noisemaker', 'effect', effect_preset, frame_filename,
                                  '--no-resize',
                                  '--speed', str(_use_reasonable_speed(EFFECTS[effect_preset], frame_count))] + common_params)
 
             if save_frames:
-                shutil.copy(filename, save_frames)
+                shutil.copy(frame_filename, save_frames)
 
             if watermark:
-                util.watermark(watermark, filename)
+                util.watermark(watermark, frame_filename)
 
-        if name.endswith(".mp4"):
+        if filename.endswith(".mp4"):
             # when you want something done right
             util.check_call(['ffmpeg',
                              '-y',  # overwrite existing
@@ -195,10 +195,10 @@ def animation(ctx, width, height, channels, seed, effect_preset, name, save_fram
                              '-pix_fmt', 'yuv420p',  # because this is what twitter wants
                              '-b:v', '1700000',  # maximum allowed bitrate for 720x720 (2048k), minus some encoder overhead
                              '-s', '720x720',  # a twitter-recommended size
-                             name])
+                             filename])
 
         else:
-            util.magick(f'{tmp}/*png', name)
+            util.magick(f'{tmp}/*png', filename)
 
 
 def _use_periodic_distrib(distrib):
