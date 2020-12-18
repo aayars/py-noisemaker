@@ -54,14 +54,13 @@ def main():
 @cli.height_option()
 @cli.channels_option()
 @cli.time_option()
-@cli.clut_option()
 @cli.seed_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.distrib_option()
 @cli.filename_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATORS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, clut, seed, speed, distrib, filename, preset_name):
+def generator(ctx, width, height, channels, time, seed, speed, distrib, filename, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
