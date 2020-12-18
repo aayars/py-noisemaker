@@ -4,7 +4,7 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 RUN apt update -qq && \
-    apt install -qq -y curl git python3-pip python3-setuptools python3-six && \
+    apt install -qq -y curl git python3-pip python3-setuptools python3-six ffmpeg imagemagick && \
     \
     mkdir -p /root/.noisemaker/fonts && \
     cd /root/.noisemaker/fonts && \
