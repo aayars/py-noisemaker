@@ -52,7 +52,6 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
                              '--no-resize',
                              '--seed', str(seed),
                              '--speed', '0.25',
-                             '--distrib', 'periodic_uniform',
                              '--time', str(i / 30.0),
                              '--name', filename])
 
