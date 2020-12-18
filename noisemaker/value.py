@@ -39,6 +39,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
     initial_shape = freq + [shape[-1]]
 
+    if distrib is None:
+        distrib = ValueDistribution.normal
+
     if isinstance(distrib, int):
         distrib = ValueDistribution(distrib)
 
