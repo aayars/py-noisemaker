@@ -221,8 +221,8 @@ def resample(tensor, shape, spline_order=3):
     input_shape = tf.shape(tensor)
 
     # Blown up row and column indices. These map into input tensor, producing a big blocky version.
-    resized_row_index = tf.cast(row_index(shape), tf.float32) * (tf.cast(input_shape[1], tf.float32) / shape[1])   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
-    resized_col_index = tf.cast(column_index(shape), tf.float32) * (tf.cast(input_shape[0], tf.float32) / shape[0])
+    resized_row_index = tf.cast(row_index(shape), tf.float32) * (tf.cast(input_shape[1], tf.float32) / tf.cast(shape[1], tf.float32))   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
+    resized_col_index = tf.cast(column_index(shape), tf.float32) * (tf.cast(input_shape[0], tf.float32) / tf.cast(shape[0], tf.float32))
 
     # Map to input indices as int
     resized_row_index_trunc = tf.floor(resized_row_index)

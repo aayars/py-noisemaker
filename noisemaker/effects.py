@@ -715,8 +715,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
     # Use extended range so we can refract in 4 directions (-1..1) instead of 2 (0..1).
     # Doesn't work with derivatives (and isn't needed), because derivatives are signed naturally.
-    x_offsets = value_map(reference_x, shape, signed_range=quad_directional, with_normalize=False) * displacement * width
-    y_offsets = value_map(reference_y, shape, signed_range=quad_directional, with_normalize=False) * displacement * height
+    x_offsets = value_map(reference_x, shape, signed_range=quad_directional, with_normalize=False) * displacement * tf.cast(width, tf.float32)
+    y_offsets = value_map(reference_y, shape, signed_range=quad_directional, with_normalize=False) * displacement * tf.cast(height, tf.float32)
     # If not using extended range (0..1 instead of -1..1), keep the value range consistent.
     if not quad_directional:
         x_offsets *= 2.0
@@ -1834,10 +1834,10 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
     height, width, channels = shape
 
     blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
-    blurred = value.proportional_downsample(blurred, shape, [max(int(height * .01), 1), max(int(width * .01), 1), channels]) * 4.0
+    blurred = value.proportional_downsample(blurred, shape, [max(int(height / 100), 1), max(int(width / 100), 1), channels]) * 4.0
     blurred = value.resample(blurred, shape)
 
-    blurred = value.offset(blurred, shape, x=int(shape[1] * -.05), y=int(shape[0] * -.05))
+    blurred = value.offset(blurred, shape, x=int(tf.cast(width, tf.float32) * -.05), y=int(tf.cast(shape[0], tf.float32) * -.05))
 
     blurred = tf.image.adjust_brightness(blurred, .25)
     blurred = tf.image.adjust_contrast(blurred, 1.5)

@@ -1,3 +1,4 @@
+import os
 import random
 import shutil
 import tempfile
@@ -10,6 +11,7 @@ from noisemaker.constants import ValueDistribution
 from noisemaker.presets import PRESETS
 
 import noisemaker.cli as cli
+import noisemaker.generators as generators
 import noisemaker.effects as effects
 import noisemaker.util as util
 import noisemaker.value as value
@@ -199,6 +201,63 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
 
         else:
             util.magick(f'{tmp}/*png', filename)
+
+
+@main.command()
+@cli.input_dir_option(required=True)
+@cli.filename_option(default="collage.png")
+@click.option("--control-filename", help="Control image filename (optional)")
+@click.pass_context
+def mashup(ctx, input_dir, filename, control_filename):
+    filenames = []
+
+    for root, _, files in os.walk(input_dir):
+        for f in files:
+            if f.endswith(('.png', '.jpg')):
+                filenames.append(os.path.join(root, f))
+
+    collage_count = min(random.randint(4, 6), len(filenames))
+    collage_images = []
+
+    for i in range(collage_count + 1):
+        index = random.randint(0, len(filenames) - 1)
+
+        input_filename = os.path.join(input_dir, filenames[index])
+
+        collage_input = tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32)
+
+        collage_images.append(collage_input)
+
+    if control_filename:
+        control = tf.image.convert_image_dtype(load(control_filename, channels=1), dtype=tf.float32)
+
+    else:
+        control = collage_images.pop()
+
+    shape = tf.shape(control)  # All images need to be the same size!
+
+    control = effects.value_map(control, shape, keepdims=True)
+
+    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
+
+    value_shape = [shape[0], shape[1], 1]
+
+    control = effects.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=value_shape)
+
+    with tf.compat.v1.Session().as_default():
+        tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
+
+        tensor = value.blend(tensor, base, .125 + random.random() * .125)
+
+        tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+        tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
+
+        tensor = tf.image.adjust_brightness(tensor, .05)
+        tensor = tf.image.adjust_contrast(tensor, 1.25)
+
+        util.save(tensor, filename)
+
+    print('mashup')
 
 
 def _use_periodic_distrib(distrib):
