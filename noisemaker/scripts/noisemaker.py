@@ -17,6 +17,9 @@ import noisemaker.value as value
 GENERATORS = {}
 EFFECTS = {}
 
+# Setting this to anything higher can make the presets non-deterministic. Not sure why!
+MAX_SEED_VALUE = 9999
+
 
 def _reload_presets():
     """Re-evaluate presets after changing the interpreter's random seed."""
@@ -57,7 +60,7 @@ def main():
 @click.pass_context
 def generator(ctx, width, height, channels, time, clut, seed, speed, distrib, filename, preset_name):
     if not seed:
-        seed = random.randint(1, 2 ** 32)
+        seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
     _reload_presets()
@@ -91,7 +94,7 @@ def generator(ctx, width, height, channels, time, clut, seed, speed, distrib, fi
 @click.pass_context
 def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filename):
     if not seed:
-        seed = random.randint(1, 2 ** 32)
+        seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
     _reload_presets()
@@ -139,7 +142,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @click.pass_context
 def animation(ctx, width, height, channels, seed, effect_preset, name, save_frames, frame_count, watermark, preset_name):
     if seed is None:
-        seed = random.randint(1, 2 ** 32)
+        seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
     _reload_presets()

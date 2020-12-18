@@ -98,8 +98,8 @@ High-level API: Noisemaker Composer
 
 See :doc:`composer` documentation.
 
-Low-level API
-~~~~~~~~~~~~~
+Low-level API: Generator and Effects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 See :doc:`api` documentation.
 

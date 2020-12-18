@@ -195,7 +195,7 @@ def enum_range(a, b):
 
 
 def stash(key, value=None):
-    """Hold on to a variable for reference within the same lambda. Returns the stashed value if not given as arg."""
+    """Hold on to a variable for reference within the same lambda. Returns the stashed value."""
 
     global _STASH
     if value is not None:
