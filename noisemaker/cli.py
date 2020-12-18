@@ -189,7 +189,7 @@ def post_ridges_option(**attrs):
 def distrib_option(**attrs):
     attrs.setdefault("help", "Value distribution")
 
-    return str_option("--distrib", type=click.Choice([m.name for m in ValueDistribution]), default=ValueDistribution.normal.name, **attrs)
+    return str_option("--distrib", type=click.Choice([m.name for m in ValueDistribution]), default=None, **attrs)
 
 
 def corners_option(**attrs):
