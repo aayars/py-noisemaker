@@ -19,8 +19,7 @@ import noisemaker.value as value
 GENERATORS = {}
 EFFECTS = {}
 
-# Setting this to anything higher can make the presets non-deterministic. Not sure why!
-MAX_SEED_VALUE = 9999
+MAX_SEED_VALUE = 2 ** 32
 
 
 def _reload_presets():
