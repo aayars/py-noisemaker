@@ -6,7 +6,7 @@ from noisemaker.composer import Effect, Preset
 
 SHAPE = [256, 256, 1]
 
-PRESETS = {
+PRESETS = lambda: {
     "test-parent": {
         "settings": lambda: {
             "freq": 2,
@@ -62,7 +62,7 @@ class TestComposer(unittest.TestCase):
     def test_parent(self):
         """test-parent preset contains the expected values from the canned example."""
 
-        preset = Preset('test-parent', PRESETS)
+        preset = Preset('test-parent', PRESETS())
 
         assert preset.settings['freq'] == 2
         assert preset.settings['sides'] == 4
@@ -79,7 +79,7 @@ class TestComposer(unittest.TestCase):
     def test_child(self):
         """test-child preset contains the expected values from the canned example."""
 
-        preset = Preset('test-child', PRESETS)
+        preset = Preset('test-child', PRESETS())
 
         assert preset.settings['freq'] == 5
         assert preset.settings['sides'] == 4
@@ -96,7 +96,7 @@ class TestComposer(unittest.TestCase):
     def test_grandchild(self):
         """test-grandchild preset contains the expected values from the canned example."""
 
-        preset = Preset('test-grandchild', PRESETS)
+        preset = Preset('test-grandchild', PRESETS())
 
         assert preset.settings['freq'] == 5
         assert preset.settings['sides'] == 25
@@ -119,7 +119,7 @@ class TestComposer(unittest.TestCase):
     def test_render(self):
         """Rendering an image to disk does not raise an exception."""
 
-        preset = Preset('test-grandchild', PRESETS)
+        preset = Preset('test-grandchild', PRESETS())
 
         with tempfile.TemporaryDirectory() as temp:
             preset.render(shape=SHAPE, filename=os.path.join(temp, "art.jpg"))
@@ -128,4 +128,4 @@ class TestComposer(unittest.TestCase):
         """An invalid parent preset name raises an exception at preset creation time."""
 
         with self.assertRaises(ValueError):
-            preset = Preset("test-invalid-layers", PRESETS)
+            preset = Preset("test-invalid-layers", PRESETS())

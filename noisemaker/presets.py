@@ -17,7 +17,7 @@ from noisemaker.palettes import PALETTES
 import noisemaker.masks as masks
 
 #: A dictionary of presets for use with the artmaker-new script.
-PRESETS = {
+PRESETS = lambda: {
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
         "settings": lambda: {
@@ -3770,4 +3770,4 @@ PRESETS = {
     },
 }
 
-Preset = functools.partial(Preset, presets=PRESETS)
+Preset = functools.partial(Preset, presets=PRESETS())

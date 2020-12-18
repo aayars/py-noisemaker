@@ -26,8 +26,10 @@ MAX_SEED_VALUE = 9999
 def _reload_presets():
     """Re-evaluate presets after changing the interpreter's random seed."""
 
-    for preset_name in PRESETS:
-        preset = Preset(preset_name, PRESETS)
+    presets = PRESETS()
+
+    for preset_name in presets:
+        preset = Preset(preset_name, presets)
 
         if preset.is_generator():
             GENERATORS[preset_name] = preset
