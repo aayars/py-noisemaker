@@ -70,11 +70,11 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
 @cli.input_dir_option(required=True)
 @cli.int_option('--frame', required=True)
 @cli.int_option('--seed', required=True)
-@cli.name_option(default="mashup.png")
+@cli.filename_option(default="mashup.png")
 @cli.width_option(default=DEFAULT_WIDTH)
 @cli.height_option(default=DEFAULT_HEIGHT)
 @click.pass_context
-def frame(ctx, input_dir, frame, seed, name, width, height):
+def frame(ctx, input_dir, frame, seed, filename, width, height):
     value.set_seed(seed)
 
     shape = [height, width, 3]
@@ -119,4 +119,4 @@ def frame(ctx, input_dir, frame, seed, name, width, height):
         tensor = tf.image.adjust_brightness(tensor, .05)
         tensor = tf.image.adjust_contrast(tensor, 1.25)
 
-        util.save(tensor, name)
+        util.save(tensor, filename)
