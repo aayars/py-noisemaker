@@ -3302,7 +3302,11 @@ PRESETS = {
     },
 
     "tensor-tone": {
-        "post": lambda settings: [Effect("glyph_map", colorize=coin_flip())]
+        "post": lambda settings: [
+            Effect("glyph_map",
+                   mask=mask.halftone,
+                   colorize=coin_flip())
+        ]
     },
 
     "tensorflower": {
