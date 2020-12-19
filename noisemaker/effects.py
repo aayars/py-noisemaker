@@ -3104,7 +3104,7 @@ def ridge(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0):
+def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0, rgb=False):
     channels = shape[2]
 
     if channels == 1:
@@ -3114,7 +3114,15 @@ def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0):
         return tf.stack([tf.sin(tensor[:, :, 0] * amount), tensor[:, :, 1]], 2)
 
     elif channels == 3:
+        if rgb:
+            return tf.sin(tensor * amount)
+
         return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * amount)], 2)
 
     elif channels == 4:
+        if rgb:
+            temp = tf.sin(tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2) * amount)
+
+            return tf.stack([temp[:, :, 0], temp[:, :, 1], temp[:, :, 2], tensor[:, :, 3]], 2)
+
         return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * amount), tensor[:, :, 3]], 2)

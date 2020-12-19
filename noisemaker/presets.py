@@ -3056,19 +3056,21 @@ PRESETS = lambda: {  # noqa E731
 
     "sine-octaves": {
         "settings": lambda: {
-            "sine_range": random.randint(4, 20)
+            "sine_range": random.randint(4, 20),
+            "sine_rgb": False,
         },
         "octaves": lambda settings: [
-            Effect("sine", amount=settings["sine_range"])
+            Effect("sine", amount=settings["sine_range"], rgb=settings["sine_rgb"])
         ]
     },
 
     "sine-post": {
         "settings": lambda: {
-            "sine_range": random.randint(4, 20)
+            "sine_range": random.randint(4, 20),
+            "sine_rgb": False,
         },
         "post": lambda settings: [
-            Effect("sine", amount=settings["sine_range"])
+            Effect("sine", amount=settings["sine_range"], rgb=settings["sine_rgb"])
         ]
     },
 
