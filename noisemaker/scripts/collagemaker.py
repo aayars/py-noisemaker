@@ -13,6 +13,8 @@ import noisemaker.value as value
 
 
 @click.group(help="""
+        This script is deprecated. Please see "noisemaker mashup" for its replacement.
+
         Collagemaker - Image collage tool
 
         https://github.com/aayars/py-noisemaker

@@ -9,6 +9,8 @@ import noisemaker.value as value
 
 
 @click.command(help="""
+        This script is deprecated. Please see its replacement, "noisemaker".
+
         Noisemaker - Visual noise generator
 
         https://github.com/aayars/py-noisemaker

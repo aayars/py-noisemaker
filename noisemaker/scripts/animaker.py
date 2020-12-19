@@ -12,6 +12,8 @@ import noisemaker.util as util
 
 
 @click.command(help="""
+        This script is deprecated. Please see "noisemaker animation" for its replacement.
+
         Animaker - Animated Noisemaker loops
 
         https://github.com/aayars/py-noisemaker

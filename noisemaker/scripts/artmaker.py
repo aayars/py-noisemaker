@@ -14,6 +14,8 @@ import noisemaker.value as value
 
 
 @click.command(help="""
+        This script is deprecated. Please see "noisemaker generator" for its replacement.
+
         Artmaker - Presets for Noisemaker
 
         https://github.com/aayars/py-noisemaker

@@ -12,6 +12,8 @@ import noisemaker.value as value
 
 
 @click.command(help="""
+        This script is deprecated. Please see "noisemaker effect" for its replacement.
+
         artmangler - Do something arty with an input image
 
         https://github.com/aayars/py-noisemaker

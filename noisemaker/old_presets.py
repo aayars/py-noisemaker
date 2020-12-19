@@ -1,4 +1,6 @@
-"""Presets library for artmaker/artmangler scripts.
+"""Deprecated library. Please use presets.py.
+
+Presets library for artmaker/artmangler scripts.
 
 Presets may contain any keyword arg accepted by :func:`~noisemaker.effects.post_process()`
 """

@@ -16,7 +16,7 @@ from noisemaker.palettes import PALETTES
 
 import noisemaker.masks as masks
 
-#: A dictionary of presets for use with the artmaker-new script.
+#: A dictionary of presets for use with the "noisemaker generator" and "noisemaker effect" commands.
 PRESETS = lambda: {
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
