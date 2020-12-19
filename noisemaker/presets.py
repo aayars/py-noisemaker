@@ -461,17 +461,17 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "branemelt": {
-        "layers": ["multires", "sine-octaves", "reflect-post", "bloom", "shadow", "brightness", "contrast"],
+        "layers": ["multires", "sine-octaves", "reflect-octaves",  "bloom", "shadow", "brightness", "lens"],
         "settings": lambda: {
             "brightness": .125,
             "contrast": 1.5,
             "palette_name": None,
-            "reflect_range": .0333 + random.random() * .016667,
+            "reflect_range": .025 + random.random() * .0125,
             "shadow_alpha": .666 + random.random() * .333,
-            "sine_range": random.randint(6, 9),
+            "sine_range": random.randint(48, 64),
         },
         "generator": lambda settings: {
-            "freq": random.randint(12, 24),
+            "freq": random.randint(6, 12),
         },
     },
 
@@ -990,7 +990,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "different": {
-        "layers": ["multires", "sine-octaves", "reflect-octaves", "reindex-octaves", "funhouse"],
+        "layers": ["multires", "sine-octaves", "reflect-octaves", "reindex-octaves", "funhouse", "lens"],
         "settings": lambda: {
             "reflect_range": 7.5 + random.random() * 5.0,
             "reindex_range": .25 + random.random() * .25,
@@ -999,7 +999,7 @@ PRESETS = lambda: {  # noqa E731
             "warp_range": .0375 * random.random() * .0375,
         },
         "generator": lambda settings: {
-            "freq": [random.randint(8, 12), random.randint(8, 12)]
+            "freq": [random.randint(4, 6), random.randint(4, 6)]
         },
     },
 
