@@ -6,7 +6,7 @@ import tempfile
 import click
 import tensorflow as tf
 
-from noisemaker.composer import Preset
+from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
 from noisemaker.constants import ValueDistribution
 from noisemaker.presets import PRESETS
 
@@ -16,28 +16,10 @@ import noisemaker.effects as effects
 import noisemaker.util as util
 import noisemaker.value as value
 
-GENERATORS = {}
-EFFECTS = {}
-
 MAX_SEED_VALUE = 2 ** 32
 
 
-def _reload_presets():
-    """Re-evaluate presets after changing the interpreter's random seed."""
-
-    presets = PRESETS()
-
-    for preset_name in presets:
-        preset = Preset(preset_name, presets)
-
-        if preset.is_generator():
-            GENERATORS[preset_name] = preset
-
-        if preset.is_effect():
-            EFFECTS[preset_name] = preset
-
-
-_reload_presets()
+reload_presets(PRESETS())
 
 
 @click.group(help="""
@@ -58,21 +40,21 @@ def main():
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.distrib_option()
 @cli.filename_option(default='art.png')
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATORS)))
+@click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def generator(ctx, width, height, channels, time, seed, speed, distrib, filename, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    _reload_presets()
+    reload_presets(PRESETS())
 
     if preset_name == "random":
-        preset_name = list(GENERATORS)[random.randint(0, len(GENERATORS) - 1)]
+        preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
 
     print(f"{preset_name} (seed: {seed})")
 
-    preset = GENERATORS[preset_name]
+    preset = GENERATOR_PRESETS[preset_name]
 
     if distrib is not None:
         preset.generator_kwargs["distrib"] = distrib
@@ -91,7 +73,7 @@ def generator(ctx, width, height, channels, time, seed, speed, distrib, filename
 @cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
-@click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECTS)))
+@click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECT_PRESETS)))
 @click.argument('input_filename')
 @click.pass_context
 def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filename):
@@ -99,7 +81,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    _reload_presets()
+    reload_presets(PRESETS())
 
     input_shape = util.shape_from_file(input_filename)
 
@@ -108,11 +90,11 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
     tensor = tf.image.convert_image_dtype(util.load(input_filename, channels=input_shape[2]), dtype=tf.float32)
 
     if preset_name == "random":
-        preset_name = list(EFFECTS)[random.randint(0, len(EFFECTS) - 1)]
+        preset_name = list(EFFECT_PRESETS)[random.randint(0, len(EFFECT_PRESETS) - 1)]
 
     print(f"{preset_name} (seed: {seed})")
 
-    preset = EFFECTS[preset_name]
+    preset = EFFECT_PRESETS[preset_name]
 
     if no_resize:
         shape = input_shape
@@ -135,32 +117,32 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @cli.height_option()
 @cli.channels_option()
 @cli.seed_option()
-@cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECTS)))
+@cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
 @cli.filename_option(default='ani.gif')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=30, help="How many frames total")
 @cli.option('--watermark', type=str)
-@click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATORS)))
+@click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    _reload_presets()
+    reload_presets(PRESETS())
 
     if preset_name == 'random':
-        preset_name = list(GENERATORS)[random.randint(0, len(GENERATORS) - 1)]
+        preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
 
     if effect_preset == 'random':
-        effect_preset = list(EFFECTS)[random.randint(0, len(EFFECTS) - 1)]
+        effect_preset = list(EFFECT_PRESETS)[random.randint(0, len(EFFECT_PRESETS) - 1)]
 
     if effect_preset:
         print(f"{preset_name} vs. {effect_preset} (seed: {seed})")
     else:
         print(f"{preset_name} (seed: {seed})")
 
-    preset = GENERATORS[preset_name]
+    preset = GENERATOR_PRESETS[preset_name]
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
@@ -179,7 +161,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
             if effect_preset:
                 util.check_call(['noisemaker', 'effect', effect_preset, frame_filename,
                                  '--no-resize',
-                                 '--speed', str(_use_reasonable_speed(EFFECTS[effect_preset], frame_count))] + common_params)
+                                 '--speed', str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))] + common_params)
 
             if save_frames:
                 shutil.copy(frame_filename, save_frames)
@@ -229,7 +211,7 @@ def mashup(ctx, input_dir, filename, control_filename):
         collage_images.append(collage_input)
 
     if control_filename:
-        control = tf.image.convert_image_dtype(load(control_filename, channels=1), dtype=tf.float32)
+        control = tf.image.convert_image_dtype(util.load(control_filename, channels=1), dtype=tf.float32)
 
     else:
         control = collage_images.pop()

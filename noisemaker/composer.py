@@ -4,7 +4,6 @@ from collections import UserDict
 from enum import Enum, EnumMeta
 from functools import partial
 
-import json
 import random
 
 import tensorflow as tf
@@ -21,6 +20,10 @@ ALLOWED_KEYS = ["layers", SETTINGS_KEY, "generator", "octaves", "post"]
 
 # Don't raise an exception if the following keys are unused in settings
 UNUSED_OKAY = ["speed", "palette_name"]
+
+# Populated by reload_presets() after setting random seed
+GENERATOR_PRESETS = {}
+EFFECT_PRESETS = {}
 
 _STASH = {}
 
@@ -78,6 +81,7 @@ class Preset:
     def render(self, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png"):
         """Render the preset to an image file."""
 
+        # import json
         # logger.debug("Rendering noise: "
         #             + json.dumps(self.__dict__,
         #                          default=lambda v: dict(v) if isinstance(v, SettingsDict) else str(v),
@@ -201,6 +205,19 @@ def stash(key, value=None):
     if value is not None:
         _STASH[key] = value
     return _STASH[key]
+
+
+def reload_presets(presets):
+    """Re-evaluate presets after changing the interpreter's random seed."""
+
+    for preset_name in presets:
+        preset = Preset(preset_name, presets)
+
+        if preset.is_generator():
+            GENERATOR_PRESETS[preset_name] = preset
+
+        if preset.is_effect():
+            EFFECT_PRESETS[preset_name] = preset
 
 
 class UnusedKeys(Exception):
