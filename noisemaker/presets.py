@@ -218,6 +218,7 @@ PRESETS = lambda: {
         "layers": ["multires-ridged", "invert", "voronoi", "derivative-octaves", "invert",
                    "erosion-worms", "bloom", "shadow", "dither", "contrast", "saturation"],
         "settings": lambda: {
+            "contrast": 2.0,
             "deriv_alpha": .25 + random.random() * .125,
             "dist_metric": distance.euclidean,
             "erosion_worms_alpha": .05 + random.random() * .025,
