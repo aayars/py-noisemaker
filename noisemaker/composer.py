@@ -122,16 +122,14 @@ def _rollup(preset_name, key, default, presets, settings):
     # child_data represents the current preset's *evaluated* kwargs. The lambdas have been evaluated as per whatever the
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
     if key == SETTINGS_KEY:
-        child_data = evaluated_kwargs.get(key, lambda: default)
+        child_data = evaluated_kwargs.get(key, default)
     else:
         child_data = evaluated_kwargs.get(key, lambda _: default)
 
-    if not callable(child_data):
-        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
-    elif key == SETTINGS_KEY:
-        child_data = child_data()
-    else:
-        child_data = child_data(settings)
+        if not callable(child_data):
+            raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
+        else:
+            child_data = child_data(settings)
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")

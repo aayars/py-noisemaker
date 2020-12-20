@@ -20,7 +20,7 @@ import noisemaker.masks as masks
 PRESETS = lambda: {  # noqa E731
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "palette_name": None,
             "voronoi_alpha": .5 + random.random() * .5,
@@ -37,7 +37,7 @@ PRESETS = lambda: {  # noqa E731
 
     "1976": {
         "layers": ["voronoi"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_nth": 0,
@@ -52,7 +52,7 @@ PRESETS = lambda: {  # noqa E731
 
     "1985": {
         "layers": ["reindex-post", "voronoi"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.chebyshev,
             "reindex_range": .2 + random.random() * .1,
             "voronoi_diagram_type": voronoi.range,
@@ -74,7 +74,7 @@ PRESETS = lambda: {  # noqa E731
 
     "2001": {
         "layers": ["analog-glitch", "invert", "posterize", "vignette-bright", "aberration"],
-        "settings": lambda: {
+        "settings": {
             "mask": mask.bank_ocr,
             "mask_repeat": random.randint(9, 12),
             "vignette_alpha": .75 + random.random() * .25,
@@ -87,7 +87,7 @@ PRESETS = lambda: {  # noqa E731
 
     "2d-chess": {
         "layers": ["value-mask", "voronoi"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "voronoi_alpha": 0.5 + random.random() * .5,
             "voronoi_diagram_type": voronoi.color_range if coin_flip() \
@@ -106,7 +106,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "aberration": {
-        "settings": lambda: {
+        "settings": {
             "aberration_displacement": .0125 + random.random() * .006125
         },
         "post": lambda settings: [Effect("aberration", displacement=settings["aberration_displacement"])]
@@ -127,7 +127,7 @@ PRESETS = lambda: {  # noqa E731
 
     "acid": {
         "layers": ["reindex-post", "normalize"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 1.25 + random.random() * 1.25,
         },
         "generator": lambda settings: {
@@ -139,7 +139,7 @@ PRESETS = lambda: {  # noqa E731
 
     "acid-droplets": {
         "layers": ["multires", "reflect-octaves", "density-map", "random-hue", "bloom", "shadow", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reflect_range": 7.5 + random.random() * 3.5
         },
@@ -154,7 +154,7 @@ PRESETS = lambda: {  # noqa E731
 
     "acid-grid": {
         "layers": ["voronoi-refract", "sobel", "funhouse", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .333 + random.random() * .333,
             "voronoi_diagram_type": voronoi.color_range,
@@ -169,7 +169,7 @@ PRESETS = lambda: {  # noqa E731
 
     "acid-wash": {
         "layers": ["funhouse", "ridge", "shadow", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "warp_octaves": 8,
         },
         "generator": lambda settings: {
@@ -202,7 +202,7 @@ PRESETS = lambda: {  # noqa E731
 
     "alien-terrain-multires": {
         "layers": ["multires-ridged", "derivative-octaves", "maybe-invert", "bloom", "shadow", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "deriv_alpha": .333 + random.random() * .333,
             "dist_metric": distance.euclidean,
             "palette_name": None,
@@ -217,7 +217,7 @@ PRESETS = lambda: {  # noqa E731
     "alien-terrain-worms": {
         "layers": ["multires-ridged", "invert", "voronoi", "derivative-octaves", "invert",
                    "erosion-worms", "bloom", "shadow", "dither", "contrast", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 2.0,
             "deriv_alpha": .25 + random.random() * .125,
             "dist_metric": distance.euclidean,
@@ -241,14 +241,14 @@ PRESETS = lambda: {  # noqa E731
 
     "alien-transmission": {
         "layers": ["analog-glitch", "sobel", "glitchin-out"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.procedural_members()),
         }
     },
 
     "analog-glitch": {
         "layers": ["value-mask"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member([mask.alphanum_hex, mask.lcd, mask.fat_lcd]),
             "mask_repeat": random.randint(20, 30),
         },
@@ -261,7 +261,7 @@ PRESETS = lambda: {  # noqa E731
 
     "arcade-carpet": {
         "layers": ["basic", "funhouse", "posterize", "nudge-hue", "contrast", "dither"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "posterize_levels": 3,
             "warp_freq": random.randint(75, 125),
@@ -290,7 +290,7 @@ PRESETS = lambda: {  # noqa E731
 
     "aztec-waffles": {
         "layers": ["symmetry", "voronoi", "maybe-invert", "reflect-post"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
             "reflect_range": random.randint(12, 25),
             "voronoi_diagram_type": voronoi.color_range,
@@ -314,7 +314,7 @@ PRESETS = lambda: {  # noqa E731
 
     "basic-voronoi": {
         "layers": ["basic", "voronoi"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_diagram_type": random_member([voronoi.color_range, voronoi.color_regions,
                                                    voronoi.range_regions, voronoi.color_flow])
         }
@@ -322,7 +322,7 @@ PRESETS = lambda: {  # noqa E731
 
     "basic-voronoi-refract": {
         "layers": ["basic", "voronoi"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "voronoi_diagram_type": voronoi.range,
             "voronoi_nth": 0,
@@ -335,7 +335,7 @@ PRESETS = lambda: {  # noqa E731
 
     "band-together": {
         "layers": ["reindex-post", "funhouse", "shadow", "normalize"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": random.randint(8, 12),
             "warp_range": .333 + random.random() * .16667,
             "warp_octaves": 8,
@@ -352,7 +352,7 @@ PRESETS = lambda: {  # noqa E731
 
     "beneath-the-surface": {
         "layers": ["multires-alpha", "reflect-octaves", "bloom", "shadow"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 10.0 + random.random() * 5.0,
         },
         "generator": lambda settings: {
@@ -365,7 +365,7 @@ PRESETS = lambda: {  # noqa E731
 
     "benny-lava": {
         "layers": ["posterize", "maybe-palette", "funhouse", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": 1,
             "warp_range": 1 + random.random() * .5,
         },
@@ -376,7 +376,7 @@ PRESETS = lambda: {  # noqa E731
 
     "berkeley": {
         "layers": ["multires-ridged", "reindex-octaves", "sine-octaves", "ridge", "shadow", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reindex_range": .75 + random.random() * .25,
             "sine_range": 2.0 + random.random() * 2.0,
@@ -388,7 +388,7 @@ PRESETS = lambda: {  # noqa E731
 
     "big-data-startup": {
         "layers": ["glyphic", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(2, 4),
         },
         "generator": lambda settings: {
@@ -401,7 +401,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bit-by-bit": {
         "layers": ["value-mask", "bloom", "crt"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member([mask.alphanum_binary, mask.alphanum_hex, mask.alphanum_numeric]),
             "mask_repeat": random.randint(30, 60)
         }
@@ -409,7 +409,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bitmask": {
         "layers": ["multires-low", "value-mask", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.procedural_members()),
             "mask_repeat": random.randint(7, 15),
         },
@@ -420,7 +420,7 @@ PRESETS = lambda: {  # noqa E731
 
     "blacklight-fantasy": {
         "layers": ["voronoi", "funhouse", "posterize", "sobel", "invert", "bloom", "dither", "nudge-hue"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "posterize_levels": 3,
             "voronoi_refract": .5 + random.random() * 1.25,
@@ -434,7 +434,7 @@ PRESETS = lambda: {  # noqa E731
 
     "blockchain-stock-photo-background": {
         "layers": ["value-mask", "glitchin-out", "rotate", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "angle": random.randint(5, 35),
             "mask": random_member([mask.alphanum_binary, mask.alphanum_hex,
                                    mask.alphanum_numeric, mask.bank_ocr]),
@@ -444,7 +444,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bloom": {
         "layers": ["normalize"],
-        "settings": lambda: {
+        "settings": {
             "bloom_alpha": .075 + random.random() * .0375,
         },
         "post": lambda settings: [
@@ -462,7 +462,7 @@ PRESETS = lambda: {  # noqa E731
 
     "branemelt": {
         "layers": ["multires", "sine-octaves", "reflect-octaves",  "bloom", "shadow", "brightness", "lens"],
-        "settings": lambda: {
+        "settings": {
             "brightness": .125,
             "contrast": 1.5,
             "palette_name": None,
@@ -477,7 +477,7 @@ PRESETS = lambda: {  # noqa E731
 
     "branewaves": {
         "layers": ["value-mask", "ripple", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.grid_members()),
             "mask_repeat": random.randint(5, 10),
             "ripple_freq": 2,
@@ -491,7 +491,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "brightness": {
-        "settings": lambda: {
+        "settings": {
             "brightness": .125 + random.random() * .0625
         },
         "post": lambda settings: [Effect("adjust_brightness", amount=settings["brightness"])]
@@ -499,7 +499,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bringing-hexy-back": {
         "layers": ["voronoi", "funhouse", "maybe-invert", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .333 + random.random() * .333,
             "voronoi_diagram_type": voronoi.range_regions,
@@ -518,7 +518,7 @@ PRESETS = lambda: {  # noqa E731
 
     "broken": {
         "layers": ["multires-low", "reindex-octaves", "posterize", "glowing-edges", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": 3,
             "reindex_range": random.randint(3, 4),
             "speed": .025,
@@ -533,7 +533,7 @@ PRESETS = lambda: {  # noqa E731
     "bubble-chamber": {
         "layers": ["basic", "worms", "brightness", "contrast", "glowing-edges", "tint",
                    "bloom", "snow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "brightness": .125,
             "contrast": 2.5 + random.random() * 1.25,
             "palette_name": None,
@@ -552,7 +552,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bubble-machine": {
         "layers": ["posterize", "wormhole", "reverb", "outline", "maybe-invert"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(8, 16),
             "reverb_iterations": random.randint(1, 3),
             "reverb_octaves": random.randint(3, 5),
@@ -570,7 +570,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bubble-multiverse": {
         "layers": ["voronoi", "refract-post", "density-map", "random-hue", "bloom", "shadow"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "refract_range": .125 + random.random() * .05,
             "speed": .05,
@@ -583,7 +583,7 @@ PRESETS = lambda: {  # noqa E731
 
     "carpet": {
         "layers": ["worms", "grime"],
-        "settings": lambda: {
+        "settings": {
             "worms_alpha": .25 + random.random() * .25,
             "worms_behavior": worms.chaotic,
             "worms_stride": .333 + random.random() * .333,
@@ -593,7 +593,7 @@ PRESETS = lambda: {  # noqa E731
 
     "celebrate": {
         "layers": ["posterize", "maybe-palette", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(3, 5),
             "speed": .025,
         },
@@ -606,7 +606,7 @@ PRESETS = lambda: {  # noqa E731
     "cell-reflect": {
         "layers": ["voronoi", "reflect-post", "derivative-post", "density-map", "maybe-invert",
                    "bloom", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "palette_name": None,
             "reflect_range": random.randint(2, 4) * 5,
@@ -621,7 +621,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cell-refract": {
         "layers": ["voronoi", "ridge"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "voronoi_diagram_type": voronoi.range,
             "voronoi_point_freq": random.randint(3, 4),
@@ -635,7 +635,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cell-refract-2": {
         "layers": ["voronoi", "refract-post", "derivative-post", "density-map", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "refract_range": random.randint(1, 3) * .25,
             "voronoi_alpha": .333 + random.random() * .333,
@@ -647,7 +647,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cell-worms": {
         "layers": ["multires-low", "voronoi", "worms", "density-map", "random-hue", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": .75,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
             "voronoi_point_freq": random.randint(2, 4),
@@ -663,7 +663,7 @@ PRESETS = lambda: {  # noqa E731
 
     "chunky-knit": {
         "layers": ["jorts", "random-hue", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "angle": random.random() * 360.0,
             "glyph_map_alpha": .333 + random.random() * .16667,
             "glyph_map_mask": mask.waffle,
@@ -685,7 +685,7 @@ PRESETS = lambda: {  # noqa E731
 
     "color-flow": {
         "layers": ["basic-voronoi"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_diagram_type": voronoi.color_flow,
         },
         "generator": lambda settings: {
@@ -696,7 +696,7 @@ PRESETS = lambda: {  # noqa E731
 
     "concentric": {
         "layers": ["voronoi", "contrast", "maybe-palette", "wobble"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "speed": .75,
             "voronoi_diagram_type": voronoi.range,
@@ -723,7 +723,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "contrast": {
-        "settings": lambda: {
+        "settings": {
             "contrast": 1.25 + random.random() * .25
         },
         "post": lambda settings: [Effect("adjust_contrast", amount=settings["contrast"])]
@@ -731,7 +731,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cool-water": {
         "layers": ["refract-octaves", "reflect-octaves", "ripple", "funhouse", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": .16667 + random.random() * .16667,
             "refract_range": .25 + random.random() * .125,
             "refract_y_from_offset": True,
@@ -762,7 +762,7 @@ PRESETS = lambda: {  # noqa E731
 
     "corduroy": {
         "layers": ["jorts", "random-hue", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "saturation": .625 + random.random() * .125,
             "glyph_map_zoom": 8.0,
         },
@@ -770,7 +770,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cosmic-thread": {
         "layers": ["worms", "brightness", "contrast", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "brightness": .1,
             "contrast": 2.5,
             "worms_alpha": .875,
@@ -789,7 +789,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cobblestone": {
         "layers": ["bringing-hexy-back", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "saturation": .0 + random.random() * .05,
             "shadow_alpha": 1.0,
             "voronoi_point_freq": random.randint(3, 4) * 2,
@@ -829,7 +829,7 @@ PRESETS = lambda: {  # noqa E731
 
     "crooked": {
         "layers": ["starfield", "pixel-sort", "glitchin-out"],
-        "settings": lambda: {
+        "settings": {
             "pixel_sort_angled": True,
             "pixel_sort_darkest": False
         }
@@ -842,7 +842,7 @@ PRESETS = lambda: {  # noqa E731
 
     "crystallize": {
         "layers": ["voronoi", "vignette-bright", "bloom", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "voronoi_point_freq": 4,
             "voronoi_alpha": .5,
@@ -853,7 +853,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cubert": {
         "layers": ["voronoi", "crt", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_inverse": True,
@@ -868,7 +868,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cubic": {
         "layers": ["basic-voronoi", "outline", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": 0.25 + random.random() * .5,
             "voronoi_nth": random.randint(2, 8),
             "voronoi_point_distrib": point.concentric,
@@ -879,7 +879,7 @@ PRESETS = lambda: {  # noqa E731
 
     "cyclic-dilation": {
         "layers": ["voronoi", "reindex-post"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": random.randint(4, 6),
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_corners": True,
@@ -892,7 +892,7 @@ PRESETS = lambda: {  # noqa E731
 
     "dark-matter": {
         "layers": ["multires-alpha", "reflect-octaves"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": random.randint(20, 30),
         },
         "generator": lambda settings: {
@@ -910,7 +910,7 @@ PRESETS = lambda: {  # noqa E731
 
     "death-star-plans": {
         "layers": ["voronoi", "refract-post", "rotate", "posterize", "sobel", "invert", "crt", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.chebyshev, distance.manhattan]),
             "posterize_levels": random.randint(3, 4),
             "refract_range": .5 + random.random() * .25,
@@ -925,7 +925,7 @@ PRESETS = lambda: {  # noqa E731
 
     "deep-field": {
         "layers": ["multires", "refract-octaves", "funhouse"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "refract_range": .2 + random.random() * .1,
             "warp_freq": [2, 2],
@@ -965,7 +965,7 @@ PRESETS = lambda: {  # noqa E731
 
     "density-wave": {
         "layers": [random_member(["basic", "symmetry"]), "reflect-post", "density-map", "invert", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": random.randint(3, 8),
         },
         "generator": lambda settings: {
@@ -974,7 +974,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "derivative-octaves": {
-        "settings": lambda: {
+        "settings": {
             "deriv_alpha": 1.0,
             "dist_metric": random_member(distance.absolute_members())
         },
@@ -982,7 +982,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "derivative-post": {
-        "settings": lambda: {
+        "settings": {
             "deriv_alpha": 1.0,
             "dist_metric": random_member(distance.absolute_members())
         },
@@ -991,7 +991,7 @@ PRESETS = lambda: {  # noqa E731
 
     "different": {
         "layers": ["multires", "sine-octaves", "reflect-octaves", "reindex-octaves", "funhouse", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 7.5 + random.random() * 5.0,
             "reindex_range": .25 + random.random() * .25,
             "sine_range": random.randint(7, 12),
@@ -1010,7 +1010,7 @@ PRESETS = lambda: {  # noqa E731
 
     "distance": {
         "layers": ["multires", "derivative-octaves", "bloom", "shadow", "contrast", "rotate", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
         },
         "generator": lambda settings: {
@@ -1022,7 +1022,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "dither": {
-        "settings": lambda: {
+        "settings": {
             "dither_alpha": .1 + random.random() * .05
         },
         "post": lambda settings: [Effect("dither", alpha=settings["dither_alpha"])]
@@ -1040,7 +1040,7 @@ PRESETS = lambda: {  # noqa E731
     # },
 
     "dla": {
-        "settings": lambda: {
+        "settings": {
             "dla_alpha": .666 + random.random() * .333,
             "dla_padding": random.randint(2, 8),
             "dla_seed_density": .2 + random.random() * .1,
@@ -1057,7 +1057,7 @@ PRESETS = lambda: {  # noqa E731
 
     "dla-forest": {
         "layers": ["dla", "reverb", "contrast", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dla_padding": random.randint(2, 8),
             "reverb_iterations": random.randint(2, 4),
         }
@@ -1065,7 +1065,7 @@ PRESETS = lambda: {  # noqa E731
 
     "dmt": {
         "layers": ["voronoi", "kaleido", "refract-post", "bloom", "vignette-dark", "contrast", "normalize"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 2.5,
             "dist_metric": random_member(distance.absolute_members()),
             "kaleido_point_freq": 4,
@@ -1088,7 +1088,7 @@ PRESETS = lambda: {  # noqa E731
 
     "domain-warp": {
         "layers": ["multires-ridged", "refract-post", "vaseline", "dither", "vignette-dark", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .25 + random.random() * .25,
         }
     },
@@ -1108,7 +1108,7 @@ PRESETS = lambda: {  # noqa E731
 
     "eat-static": {
         "layers": ["be-kind-rewind", "scanline-error", "crt"],
-        "settings": lambda: {
+        "settings": {
             "speed": 2.0,
         },
         "generator": lambda settings: {
@@ -1120,7 +1120,7 @@ PRESETS = lambda: {  # noqa E731
 
     "electric-worms": {
         "layers": ["voronoi", "worms", "density-map", "glowing-edges", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.manhattan, distance.octagram, distance.triangular]),
             "voronoi_alpha": .25 + random.random() * .25,
             "voronoi_diagram_type": voronoi.color_range,
@@ -1146,7 +1146,7 @@ PRESETS = lambda: {  # noqa E731
 
     "emo": {
         "layers": ["value-mask", "voronoi", "contrast", "rotate", "saturation", "tint", "lens"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 4.0,
             "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
             "mask": mask.emoji,
@@ -1160,7 +1160,7 @@ PRESETS = lambda: {  # noqa E731
 
     "emu": {
         "layers": ["value-mask", "maybe-palette", "voronoi", "saturation", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.all()),
             "mask": stash("mask", random_member(enum_range(mask.emoji_00, mask.emoji_26))),
             "mask_repeat": 1,
@@ -1178,7 +1178,7 @@ PRESETS = lambda: {  # noqa E731
 
     "entities": {
         "layers": ["value-mask", "refract-octaves", "normalize"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .1 + random.random() * .05,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
@@ -1194,7 +1194,7 @@ PRESETS = lambda: {  # noqa E731
 
     "entity": {
         "layers": ["entities", "sobel", "invert", "bloom", "random-hue", "lens"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .025 + random.random() * .0125,
             "refract_signed_range": True,
             "refract_y_from_offset": False,
@@ -1209,7 +1209,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "erosion-worms": {
-        "settings": lambda: {
+        "settings": {
             "erosion_worms_alpha": .5 + random.random() * .5,
             "erosion_worms_contraction": .5 + random.random() * .5,
             "erosion_worms_density": random.randint(25, 100),
@@ -1231,7 +1231,7 @@ PRESETS = lambda: {  # noqa E731
 
     "escape-velocity": {
         "layers": ["multires-low", "erosion-worms", "lens"],
-        "settings": lambda: {
+        "settings": {
             "erosion_worms_contraction": .2 + random.random() * .1,
             "erosion_worms_iterations": random.randint(625, 1125),
         },
@@ -1243,7 +1243,7 @@ PRESETS = lambda: {  # noqa E731
 
     "explore": {
         "layers": ["dmt", "kaleido", "bloom", "contrast", "lens"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .75 + random.random() * .75,
             "kaleido_sides": random.randint(3, 18),
         },
@@ -1259,7 +1259,7 @@ PRESETS = lambda: {  # noqa E731
 
     "fast-eddies": {
         "layers": ["basic", "voronoi", "worms", "contrast", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "palette_name": None,
             "voronoi_alpha": .5 + random.random() * .5,
@@ -1288,7 +1288,7 @@ PRESETS = lambda: {  # noqa E731
 
     "figments": {
         "layers": ["multires-low", "voronoi", "funhouse", "wormhole", "bloom", "contrast", "lens"],
-        "settings": lambda: {
+        "settings": {
             "speed": .025,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_refract": .333 + random.random() * .333,
@@ -1308,7 +1308,7 @@ PRESETS = lambda: {  # noqa E731
 
     "financial-district": {
         "layers": ["voronoi", "bloom", "contrast", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.manhattan,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": point.random,
@@ -1319,7 +1319,7 @@ PRESETS = lambda: {  # noqa E731
 
     "flux-capacitor": {
         "layers": ["symmetry", "voronoi", "worms", "contrast", "bloom", "brightness", "contrast", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "contrast": 2.5,
             "speed": .333,
@@ -1340,7 +1340,7 @@ PRESETS = lambda: {  # noqa E731
 
     "fossil-hunt": {
         "layers": ["voronoi", "refract-octaves", "posterize-outline", "saturation", "dither"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(3, 5),
             "refract_range": random.randint(2, 4) * .5,
             "refract_y_from_offset": True,
@@ -1356,7 +1356,7 @@ PRESETS = lambda: {  # noqa E731
 
     "fractal-forms": {
         "layers": ["fractal-seed"],
-        "settings": lambda: {
+        "settings": {
             "worms_kink": random.randint(256, 512),
         }
     },
@@ -1364,7 +1364,7 @@ PRESETS = lambda: {  # noqa E731
     "fractal-seed": {
         "layers": ["multires-low", "worms", "density-map", "random-hue", "bloom", "shadow",
                    "contrast", "saturation", "aberration"],
-        "settings": lambda: {
+        "settings": {
             "speed": .05,
             "palette_name": None,
             "worms_behavior": random_member([worms.chaotic, worms.random]),
@@ -1384,7 +1384,7 @@ PRESETS = lambda: {  # noqa E731
 
     "fractal-smoke": {
         "layers": ["fractal-seed"],
-        "settings": lambda: {
+        "settings": {
             "worms_behavior": worms.random,
             "worms_stride": random.randint(96, 192),
         }
@@ -1393,7 +1393,7 @@ PRESETS = lambda: {  # noqa E731
     "fractile": {
         "layers": ["symmetry", "voronoi", "reverb", "contrast", "palette", "random-hue",
                    "rotate", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "reverb_iterations": random.randint(2, 4),
             "reverb_octaves": random.randint(2, 4),
@@ -1407,7 +1407,7 @@ PRESETS = lambda: {  # noqa E731
 
     "fundamentals": {
         "layers": ["voronoi", "derivative-post", "density-map", "saturation", "dither"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": random.randint(3, 5),
@@ -1420,7 +1420,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "funhouse": {
-        "settings": lambda: {
+        "settings": {
             "warp_freq": [random.randint(2, 3), random.randint(1, 3)],
             "warp_octaves": random.randint(1, 4),
             "warp_range": .25 + random.random() * .125,
@@ -1439,7 +1439,7 @@ PRESETS = lambda: {  # noqa E731
 
     "funky-glyphs": {
         "layers": ["value-mask", "refract-post", "contrast", "saturation", "rotate", "lens", "dither"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member([
                 mask.alphanum_binary, mask.alphanum_numeric, mask.alphanum_hex,
                 mask.lcd, mask.lcd_binary,
@@ -1459,7 +1459,7 @@ PRESETS = lambda: {  # noqa E731
 
     "galalaga": {
         "layers": ["value-mask"],
-        "settings": lambda: {
+        "settings": {
             "mask": mask.invaders_square,
             "mask_repeat": 4,
         },
@@ -1487,7 +1487,7 @@ PRESETS = lambda: {  # noqa E731
 
     "game-show": {
         "layers": ["maybe-palette", "posterize", "be-kind-rewind"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(2, 5),
         },
         "generator": lambda settings: {
@@ -1500,7 +1500,7 @@ PRESETS = lambda: {  # noqa E731
 
     "glass-darkly": {
         "layers": ["multires-alpha", "nudge-hue", "reflect-post"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": .95 + random.random() * .1,
         },
         "generator": lambda settings: {
@@ -1517,7 +1517,7 @@ PRESETS = lambda: {  # noqa E731
 
     "globules": {
         "layers": ["multires-low", "reflect-octaves", "density-map", "shadow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reflect_range": 2.5,
             "speed": .125,
@@ -1537,7 +1537,7 @@ PRESETS = lambda: {  # noqa E731
     "glom": {
         "layers": ["refract-octaves", "reflect-octaves", "refract-post", "reflect-post", "funhouse",
                    "bloom", "shadow", "contrast", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": .625 + random.random() * .375,
             "refract_range": .333 + random.random() * .16667,
             "refract_signed_range": False,
@@ -1560,7 +1560,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "glyph-map": {
-        "settings": lambda: {
+        "settings": {
             "glyph_map_alpha": 1.0,
             "glyph_map_colorize": coin_flip(),
             "glyph_map_spline_order": interp.constant,
@@ -1579,7 +1579,7 @@ PRESETS = lambda: {  # noqa E731
 
     "glyphic": {
         "layers": ["value-mask", "posterize", "palette", "saturation", "maybe-invert", "dither", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.procedural_members()),
             "posterize_levels": 1,
         },
@@ -1596,7 +1596,7 @@ PRESETS = lambda: {  # noqa E731
 
     "graph-paper": {
         "layers": ["voronoi", "derivative-post", "rotate", "lens", "crt", "bloom", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .5 + random.random() * .25,
             "voronoi_refract": 1.5 + random.random() * .75,
@@ -1615,7 +1615,7 @@ PRESETS = lambda: {  # noqa E731
 
     "grass": {
         "layers": ["multires", "worms", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "worms_behavior": random_member([worms.chaotic, worms.meandering]),
             "worms_alpha": .9,
             "worms_density": 50 + random.random() * 25,
@@ -1643,7 +1643,7 @@ PRESETS = lambda: {  # noqa E731
 
     "groove-is-stored-in-the-heart": {
         "layers": ["posterize", "ripple", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(1, 2),
             "ripple_range": .75 + random.random() * .375,
         },
@@ -1672,7 +1672,7 @@ PRESETS = lambda: {  # noqa E731
 
     "hearts": {
         "layers": ["value-mask", "wobble", "rotate", "posterize", "snow", "crt", "lens"],
-        "settings": lambda: {
+        "settings": {
             "angle": random.randint(10, 25),
             "mask": mask.mcpaint_19,
             "mask_repeat": random.randint(8, 12),
@@ -1687,7 +1687,7 @@ PRESETS = lambda: {  # noqa E731
 
     "heartburn": {
         "layers": ["voronoi", "bloom", "vignette-dark", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 10 + random.random() * 5.0,
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 0.9625,
@@ -1704,7 +1704,7 @@ PRESETS = lambda: {  # noqa E731
 
     "hotel-carpet": {
         "layers": ["basic", "ripple", "carpet", "dither"],
-        "settings": lambda: {
+        "settings": {
             "ripple_kink": .5 + random.random() * .25,
             "ripple_range": .666 + random.random() * .333,
         },
@@ -1715,7 +1715,7 @@ PRESETS = lambda: {  # noqa E731
 
     "hsv-gradient": {
         "layers": ["basic", "rotate", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None
         },
         "generator": lambda settings: {
@@ -1727,7 +1727,7 @@ PRESETS = lambda: {  # noqa E731
     "hydraulic-flow": {
         "layers": ["multires", "derivative-octaves", "refract-octaves", "erosion-worms", "density-map",
                    "maybe-invert", "shadow", "bloom", "rotate", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "deriv_alpha": .25 + random.random() * .25,
             "erosion_worms_alpha": .125 + random.random() * .125,
             "erosion_worms_contraction": .75 + random.random() * .5,
@@ -1758,7 +1758,7 @@ PRESETS = lambda: {  # noqa E731
     "inkling": {
         "layers": ["voronoi", "refract-post", "funhouse", "grayscale", "density-map", "contrast",
                    "fibers", "grime", "scratches"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "contrast": 2.5,
             "refract_range": .25 + random.random() * .125,
@@ -1782,7 +1782,7 @@ PRESETS = lambda: {  # noqa E731
 
     "is-this-anything": {
         "layers": ["soup"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": 2.5 + random.random() * 1.25,
             "voronoi_point_freq": 1,
         }
@@ -1790,7 +1790,7 @@ PRESETS = lambda: {  # noqa E731
 
     "its-the-fuzz": {
         "layers": ["multires-low", "muppet-skin"],
-        "settings": lambda: {
+        "settings": {
             "worms_behavior": worms.unruly,
             "worms_drunkenness": .5 + random.random() * .25,
             "worms_duration": 2.0 + random.random(),
@@ -1799,7 +1799,7 @@ PRESETS = lambda: {  # noqa E731
 
     "jorts": {
         "layers": ["glyph-map", "funhouse", "rotate", "shadow", "brightness", "contrast", "saturation", "dither", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "glyph_map_alpha": .5 + random.random() * .25,
             "glyph_map_colorize": True,
             "glyph_map_mask": mask.v_bar,
@@ -1819,7 +1819,7 @@ PRESETS = lambda: {  # noqa E731
 
     "jovian-clouds": {
         "layers": ["voronoi", "worms", "brightness", "contrast", "saturation", "shadow", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 3.0,
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .175 + random.random() * .25,
@@ -1844,7 +1844,7 @@ PRESETS = lambda: {  # noqa E731
 
     "just-refracts-maam": {
         "layers": ["refract-octaves", "refract-post", "shadow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .5 + random.random() * .5
         },
         "generator": lambda settings: {
@@ -1855,7 +1855,7 @@ PRESETS = lambda: {  # noqa E731
 
     "kaleido": {
         "layers": ["wobble"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.all()),
             "kaleido_point_corners": False,
             "kaleido_point_distrib": point.random,
@@ -1876,7 +1876,7 @@ PRESETS = lambda: {  # noqa E731
 
     "knotty-clouds": {
         "layers": ["voronoi", "worms"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": .125 + random.random() * .25,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_freq": random.randint(6, 10),
@@ -1890,7 +1890,7 @@ PRESETS = lambda: {  # noqa E731
 
     "later": {
         "layers": ["value-mask", "multires", "voronoi", "funhouse", "glowing-edges", "crt", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "mask": random_member(mask.procedural_members()),
             "voronoi_diagram_type": voronoi.flow,
@@ -1911,7 +1911,7 @@ PRESETS = lambda: {  # noqa E731
     "lattice-noise": {
         "layers": ["derivative-octaves", "derivative-post", "density-map", "shadow",
                    "dither", "saturation", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
         },
         "generator": lambda settings: {
@@ -1924,7 +1924,7 @@ PRESETS = lambda: {  # noqa E731
 
     "lcd": {
         "layers": ["value-mask", "invert", "rotate", "shadow", "vignette-bright", "brightness", "dither"],
-        "settings": lambda: {
+        "settings": {
             "angle": random.randint(10, 25),
             "mask": random_member([mask.lcd, mask.lcd_binary]),
             "mask_repeat": random.randint(8, 12),
@@ -1949,7 +1949,7 @@ PRESETS = lambda: {  # noqa E731
 
     "look-up": {
         "layers": ["multires-alpha", "bloom", "brightness", "contrast", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "brightness": -.05,
             "contrast": 3,
             "saturation": .5,
@@ -1965,7 +1965,7 @@ PRESETS = lambda: {  # noqa E731
 
     "lost-in-it": {
         "layers": ["basic", "ripple", "brightness", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "ripple_freq": random.randint(2, 4),
             "ripple_range": .5 + random.random() * .25,
         },
@@ -1980,7 +1980,7 @@ PRESETS = lambda: {  # noqa E731
 
     "lotus": {
         "layers": ["reflect-post", "dmt", "kaleido"],
-        "settings": lambda: {
+        "settings": {
             "kaleido_blend_edges": False,
             "reflect_range": 10.0 + random.random() * 5.0,
         },
@@ -1991,7 +1991,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "lowpoly": {
-        "settings": lambda: {
+        "settings": {
             "lowpoly_distrib": random_member(point.circular_members()),
             "lowpoly_freq": random.randint(10, 20),
         },
@@ -2004,7 +2004,7 @@ PRESETS = lambda: {  # noqa E731
 
     "lowpoly-regions": {
         "layers": ["voronoi", "lowpoly"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_point_freq": random.randint(2, 3),
         },
@@ -2012,7 +2012,7 @@ PRESETS = lambda: {  # noqa E731
 
     "lsd": {
         "layers": ["refract-post", "invert", "random-hue", "lens"],
-        "settings": lambda: {
+        "settings": {
             "speed": .025,
         },
         "generator": lambda settings: {
@@ -2024,14 +2024,14 @@ PRESETS = lambda: {  # noqa E731
 
     "mad-multiverse": {
         "layers": ["kaleido"],
-        "settings": lambda: {
+        "settings": {
             "kaleido_point_freq": random.randint(3, 6),
         },
     },
 
     "magic-smoke": {
         "layers": ["worms"],
-        "settings": lambda: {
+        "settings": {
             "worms_alpha": 1,
             "worms_behavior": random_member([worms.obedient, worms.crosshatch]),
             "worms_density": 750,
@@ -2053,7 +2053,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "maybe-palette": {
-        "settings": lambda: {
+        "settings": {
             "palette_name": random_member(PALETTES),
             "palette_on": coin_flip(),
         },
@@ -2064,7 +2064,7 @@ PRESETS = lambda: {  # noqa E731
 
     "mcpaint": {
         "layers": ["glyph-map", "maybe-palette", "rotate", "dither", "saturation", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "glyph_map_colorize": coin_flip(),
             "glyph_map_mask": mask.mcpaint,
             "glyph_map_zoom": random.randint(2, 3),
@@ -2079,7 +2079,7 @@ PRESETS = lambda: {  # noqa E731
 
     "metaballs": {
         "layers": ["voronoi", "posterize"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "posterize_levels": 1,
             "voronoi_diagram_type": voronoi.flow,
@@ -2090,7 +2090,7 @@ PRESETS = lambda: {  # noqa E731
 
     "moire-than-a-feeling": {
         "layers": ["wormhole", "density-map", "invert", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "wormhole_kink": 128,
             "wormhole_stride": .0005,
         },
@@ -2102,7 +2102,7 @@ PRESETS = lambda: {  # noqa E731
 
     "molded-plastic": {
         "layers": ["color-flow", "refract-post"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "refract_range": 1.0 + random.random() * .5,
             "voronoi_inverse": True,
@@ -2120,7 +2120,7 @@ PRESETS = lambda: {  # noqa E731
 
     "mosaic": {
         "layers": ["voronoi"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": .75 + random.random() * .25
         },
         "post": lambda settings: [Preset("bloom")]
@@ -2135,7 +2135,7 @@ PRESETS = lambda: {  # noqa E731
 
     "multires-alpha": {
         "layers": ["multires"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
         },
         "generator": lambda settings: {
@@ -2163,7 +2163,7 @@ PRESETS = lambda: {  # noqa E731
 
     "muppet-skin": {
         "layers": ["basic", "worms", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "worms_alpha": .625 + random.random() * .125,
             "worms_behavior": worms.unruly if coin_flip() else worms.obedient,
@@ -2179,7 +2179,7 @@ PRESETS = lambda: {  # noqa E731
 
     "mycelium": {
         "layers": ["multires", "grayscale", "derivative-post", "funhouse", "normalize", "fractal-seed", "vignette-dark", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
             "warp_range": .125 + random.random() * .06125,
             "worms_behavior": worms.random,
@@ -2196,7 +2196,7 @@ PRESETS = lambda: {  # noqa E731
 
     "nausea": {
         "layers": ["value-mask", "ripple", "normalize", "maybe-palette", "aberration"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member([mask.h_bar, mask.v_bar]),
             "mask_repeat": random.randint(5, 8),
             "ripple_kink": 1.25 + random.random() * 1.25,
@@ -2215,7 +2215,7 @@ PRESETS = lambda: {  # noqa E731
 
     "nerdvana": {
         "layers": ["symmetry", "voronoi", "density-map", "reverb", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "palette_name": None,
             "reverb_octaves": 2,
@@ -2229,7 +2229,7 @@ PRESETS = lambda: {  # noqa E731
 
     "neon-cambrian": {
         "layers": ["voronoi", "posterize", "wormhole", "derivative-post", "brightness", "bloom", "contrast", "aberration"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 4,
             "dist_metric": distance.euclidean,
             "posterize_levels": random.randint(20, 25),
@@ -2245,7 +2245,7 @@ PRESETS = lambda: {  # noqa E731
 
     "noise-blaster": {
         "layers": ["multires", "reindex-octaves", "reindex-post"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 3,
             "speed": .025,
         },
@@ -2268,7 +2268,7 @@ PRESETS = lambda: {  # noqa E731
     "noodler": {
         "layers": ["multires-alpha", "contrast", "maybe-palette", "normalize",
                    "reindex-octaves", "shadow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 8.0 + random.random() * 4.0,
         },
         "generator": lambda settings: {
@@ -2289,7 +2289,7 @@ PRESETS = lambda: {  # noqa E731
 
     "now": {
         "layers": ["multires-low", "normalize", "voronoi", "funhouse", "outline", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": random.randint(3, 10),
@@ -2315,7 +2315,7 @@ PRESETS = lambda: {  # noqa E731
     "numberwang": {
         "layers": ["value-mask", "funhouse", "posterize", "palette", "maybe-invert",
                    "random-hue", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "mask": mask.alphanum_numeric,
             "mask_repeat": random.randint(5, 10),
             "posterize_levels": 2,
@@ -2343,7 +2343,7 @@ PRESETS = lambda: {  # noqa E731
 
     "octave-rings": {
         "layers": ["palette", "value-mask", "reflect-octaves", "reverb", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 75.0 + random.random() * 37.5,
             "reverb_octaves": random.randint(1, 3),
             "reverb_ridges": False,
@@ -2359,7 +2359,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "octave-warp": {
-        "settings": lambda: {
+        "settings": {
             "speed": .025 + random.random() * .0125
         },
         "post": lambda settings: [
@@ -2372,7 +2372,7 @@ PRESETS = lambda: {  # noqa E731
 
     "oldschool": {
         "layers": ["voronoi", "normalize", "maybe-palette", "random-hue", "saturation", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "speed": .05,
             "voronoi_diagram_type": voronoi.flow,
@@ -2410,7 +2410,7 @@ PRESETS = lambda: {  # noqa E731
 
     "outer-limits": {
         "layers": ["symmetry", "reindex-post", "normalize", "dither", "be-kind-rewind", "vignette-dark", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reindex_range": random.randint(8, 16),
         },
@@ -2425,7 +2425,7 @@ PRESETS = lambda: {  # noqa E731
 
     "oxidize": {
         "layers": ["refract-post", "contrast", "bloom", "shadow", "saturation", "lens"],
-        "settings": lambda: {
+        "settings": {
             "refract_range": .1 + random.random() * .05,
             "saturation": .5,
             "speed": .05,
@@ -2449,7 +2449,7 @@ PRESETS = lambda: {  # noqa E731
 
     "painterly": {
         "layers": ["value-mask", "ripple", "funhouse", "rotate", "saturation", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.grid_members()),
             "mask_repeat": 1,
             "ripple_freq": random.randint(4, 6),
@@ -2470,7 +2470,7 @@ PRESETS = lambda: {  # noqa E731
 
     "palette": {
         "layers": ["maybe-palette"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": random_member(PALETTES),
             "palette_on": True,
         },
@@ -2478,7 +2478,7 @@ PRESETS = lambda: {  # noqa E731
 
     "pearlescent": {
         "layers": ["voronoi", "normalize", "refract-post", "bloom", "shadow", "lens", "brightness", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "brightness": .05,
             "dist_metric": distance.euclidean,
             "refract_range": .5 + random.random() * .25,
@@ -2498,7 +2498,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "pixel-sort": {
-        "settings": lambda: {
+        "settings": {
             "pixel_sort_angled": coin_flip(),
             "pixel_sort_darkest": coin_flip(),
         },
@@ -2512,7 +2512,7 @@ PRESETS = lambda: {  # noqa E731
     "plaid": {
         "layers": ["multires-low", "derivative-octaves", "funhouse", "rotate", "dither",
                    "vignette-dark", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.chebyshev,
             "vignette_alpha": .25 + random.random() * .125,
             "warp_freq": random.randint(2, 3),
@@ -2531,7 +2531,7 @@ PRESETS = lambda: {  # noqa E731
     "pluto": {
         "layers": ["multires-ridged", "derivative-octaves", "voronoi", "refract-post",
                    "bloom", "shadow", "contrast", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "deriv_alpha": .333 + random.random() * .16667,
             "dist_metric": distance.euclidean,
             "palette_name": None,
@@ -2555,14 +2555,14 @@ PRESETS = lambda: {  # noqa E731
 
     "polar": {
         "layers": ["kaleido"],
-        "settings": lambda: {
+        "settings": {
             "kaleido_sides": 1
         },
     },
 
     "posterize": {
         "layers": ["normalize"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(3, 7)
         },
         "post": lambda settings: [Effect("posterize", levels=settings["posterize_levels"])]
@@ -2575,7 +2575,7 @@ PRESETS = lambda: {  # noqa E731
     "precision-error": {
         "layers": ["symmetry", "derivative-octaves", "reflect-octaves", "derivative-post",
                    "density-map", "invert", "shadows", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reflect_range": .75 + random.random() * 2.0,
         }
@@ -2583,7 +2583,7 @@ PRESETS = lambda: {  # noqa E731
 
     "procedural-mask": {
         "layers": ["value-mask", "rotate", "bloom", "crt", "vignette-dark", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask.procedural_members()),
             "mask_repeat": random.randint(10, 20)
         },
@@ -2595,7 +2595,7 @@ PRESETS = lambda: {  # noqa E731
     "prophesy": {
         "layers": ["value-mask", "refract-octaves", "posterize", "emboss", "brightness", "contrast",
                    "maybe-invert", "rotate", "tint", "dither", "shadows", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "brightness": -.125,
             "contrast": 1.5,
             "mask": mask.invaders_square,
@@ -2617,7 +2617,7 @@ PRESETS = lambda: {  # noqa E731
 
     "puzzler": {
         "layers": ["basic-voronoi", "maybe-invert", "wormhole"],
-        "settings": lambda: {
+        "settings": {
             "speed": .025,
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
@@ -2627,7 +2627,7 @@ PRESETS = lambda: {  # noqa E731
 
     "quadrants": {
         "layers": ["basic", "reindex-post"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 2,
         },
         "generator": lambda settings: {
@@ -2639,7 +2639,7 @@ PRESETS = lambda: {  # noqa E731
 
     "quilty": {
         "layers": ["voronoi", "bloom", "dither"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
             "voronoi_diagram_type": random_member([voronoi.range, voronoi.color_range]),
             "voronoi_nth": random.randint(0, 4),
@@ -2661,7 +2661,7 @@ PRESETS = lambda: {  # noqa E731
 
     "rasteroids": {
         "layers": ["funhouse", "sobel", "invert", "pixel-sort", "bloom", "crt", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "pixel_sort_angled": False,
             "pixel_sort_darkest": False,
             "vignette_alpha": .125 + random.random() * .06125,
@@ -2679,7 +2679,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "reflect-octaves": {
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 5 + random.random() * .25,
         },
         "octaves": lambda settings: [
@@ -2690,7 +2690,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "reflect-post": {
-        "settings": lambda: {
+        "settings": {
             "reflect_range": .5 + random.random() * 12.5,
         },
         "post": lambda settings: [
@@ -2701,7 +2701,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "refract-octaves": {
-        "settings": lambda: {
+        "settings": {
             "refract_range": .5 + random.random() * .25,
             "refract_signed_range": True,
             "refract_y_from_offset": False,
@@ -2715,7 +2715,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "refract-post": {
-        "settings": lambda: {
+        "settings": {
             "refract_range": .125 + random.random() * 1.25,
             "refract_signed_range": True,
             "refract_y_from_offset": True,
@@ -2730,7 +2730,7 @@ PRESETS = lambda: {  # noqa E731
 
     "regional": {
         "layers": ["voronoi", "glyph-map", "bloom", "crt", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "glyph_map_colorize": True,
             "glyph_map_zoom": random.randint(4, 8),
             "voronoi_diagram_type": voronoi.color_regions,
@@ -2742,14 +2742,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "reindex-octaves": {
-        "settings": lambda: {
+        "settings": {
             "reindex_range": .125 + random.random() * 2.5
         },
         "octaves": lambda settings: [Effect("reindex", displacement=settings["reindex_range"])]
     },
 
     "reindex-post": {
-        "settings": lambda: {
+        "settings": {
             "reindex_range": .125 + random.random() * 2.5
         },
         "post": lambda settings: [Effect("reindex", displacement=settings["reindex_range"])]
@@ -2757,7 +2757,7 @@ PRESETS = lambda: {  # noqa E731
 
     "remember-logo": {
         "layers": ["symmetry", "voronoi", "derivative-post", "density-map", "crt", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.regions,
             "voronoi_nth": random.randint(0, 4),
@@ -2768,7 +2768,7 @@ PRESETS = lambda: {  # noqa E731
 
     "reverb": {
         "layers": ["normalize"],
-        "settings": lambda: {
+        "settings": {
             "reverb_iterations": 1,
             "reverb_ridges": coin_flip(),
             "reverb_octaves": random.randint(3, 6)
@@ -2799,7 +2799,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "ripple": {
-        "settings": lambda: {
+        "settings": {
             "ripple_range": .025 + random.random() * .1,
             "ripple_freq": random.randint(2, 3),
             "ripple_kink": random.randint(3, 18)
@@ -2813,7 +2813,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "rotate": {
-        "settings": lambda: {
+        "settings": {
             "angle": random.random() * 360.0
         },
         "post": lambda settings: [Effect("rotate", angle=settings["angle"])]
@@ -2822,7 +2822,7 @@ PRESETS = lambda: {  # noqa E731
     "runes-of-arecibo": {
         "layers": ["value-mask", "grayscale", "posterize", "snow", "dither", "dither", "normalize",
                    "emboss", "maybe-invert", "contrast", "rotate", "lens", "brightness", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "brightness": -.1,
             "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
             "mask_repeat": random.randint(8, 12),
@@ -2837,7 +2837,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sands-of-time": {
         "layers": ["worms", "lens"],
-        "settings": lambda: {
+        "settings": {
             "worms_behavior": worms.unruly,
             "worms_alpha": 1,
             "worms_density": 750,
@@ -2853,7 +2853,7 @@ PRESETS = lambda: {  # noqa E731
 
     "satori": {
         "layers": ["multires-low", "sine-octaves", "voronoi", "contrast"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "speed": .05,
             "voronoi_alpha": 1.0,
@@ -2872,7 +2872,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "saturation": {
-        "settings": lambda: {
+        "settings": {
             "saturation": .333 + random.random() * .16667
         },
         "post": lambda settings: [Effect("adjust_saturation", amount=settings["saturation"])]
@@ -2880,7 +2880,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sblorp": {
         "layers": ["posterize", "invert", "maybe-palette", "saturation", "dither"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": 1,
         },
         "generator": lambda settings: {
@@ -2896,7 +2896,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sbup": {
         "layers": ["posterize", "funhouse", "falsetto", "palette", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(1, 2),
             "warp_range": 1.5 + random.random(),
         },
@@ -2917,7 +2917,7 @@ PRESETS = lambda: {  # noqa E731
 
     "scribbles": {
         "layers": ["derivative-octaves", "derivative-post", "sobel"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
         },
         "generator": lambda settings: {
@@ -2941,7 +2941,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "shadow": {
-        "settings": lambda: {
+        "settings": {
             "shadow_alpha": .5 + random.random() * .25
         },
         "post": lambda settings: [Effect("shadow", alpha=settings["shadow_alpha"])]
@@ -2957,7 +2957,7 @@ PRESETS = lambda: {  # noqa E731
 
     "shape-party": {
         "layers": ["voronoi", "posterize", "invert", "aberration", "bloom"],
-        "settings": lambda: {
+        "settings": {
             "aberration_displacement": .125 + random.random() * .06125,
             "dist_metric": distance.manhattan,
             "posterize_levels": 1,
@@ -2976,7 +2976,7 @@ PRESETS = lambda: {  # noqa E731
 
     "shatter": {
         "layers": ["basic-voronoi", "refract-post", "maybe-invert", "posterize-outline", "normalize", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "posterize_levels": random.randint(4, 6),
             "refract_range": .75 + random.random() * .375,
@@ -2993,7 +2993,7 @@ PRESETS = lambda: {  # noqa E731
 
     "shimmer": {
         "layers": ["derivative-octaves", "voronoi", "refract-post", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "refract_range": 1.25 * random.random() * .625,
             "voronoi_alpha": .25 + random.random() * .125,
@@ -3010,7 +3010,7 @@ PRESETS = lambda: {  # noqa E731
 
     "shmoo": {
         "layers": ["posterize", "invert", "outline", "distressed"],
-        "settings": lambda: {
+        "settings": {
             "posterize_levels": random.randint(1, 4),
             "speed": .025,
         },
@@ -3022,7 +3022,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sideways": {
         "layers": ["multires-low", "reflect-octaves", "pixel-sort", "lens", "crt"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "pixel_sort_angled": False,
         },
@@ -3037,7 +3037,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sined-multifractal": {
         "layers": ["multires-ridged", "sine-octaves", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "sine_range": random.randint(10, 15),
         },
@@ -3055,7 +3055,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "sine-octaves": {
-        "settings": lambda: {
+        "settings": {
             "sine_range": random.randint(4, 20),
             "sine_rgb": False,
         },
@@ -3065,7 +3065,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "sine-post": {
-        "settings": lambda: {
+        "settings": {
             "sine_range": random.randint(4, 20),
             "sine_rgb": False,
         },
@@ -3083,7 +3083,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "sobel": {
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.all())
         },
         "post": lambda settings: [Effect("sobel", dist_metric=settings["dist_metric"])]
@@ -3091,7 +3091,7 @@ PRESETS = lambda: {  # noqa E731
 
     "soft-cells": {
         "layers": ["voronoi", "rotate", "soften"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_alpha": .5 + random.random() * .5,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
@@ -3101,7 +3101,7 @@ PRESETS = lambda: {  # noqa E731
 
     "soften": {
         "layers": ["bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
         },
         "generator": lambda settings: {
             "freq": 2,
@@ -3115,7 +3115,7 @@ PRESETS = lambda: {  # noqa E731
 
     "soup": {
         "layers": ["voronoi", "normalize", "refract-post", "worms", "density-map", "bloom", "shadow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "refract_range": .5 + random.random() * .25,
             "refract_y_from_offset": True,
@@ -3136,7 +3136,7 @@ PRESETS = lambda: {  # noqa E731
 
     "spaghettification": {
         "layers": ["multires-low", "voronoi", "worms", "funhouse", "contrast", "density-map", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_inverse": True,
@@ -3167,7 +3167,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "spatter": {
-        "settings": lambda: {
+        "settings": {
             "speed": .0333 + random.random() * .016667
         },
         "post": lambda settings: [Effect("spatter")]
@@ -3176,7 +3176,7 @@ PRESETS = lambda: {  # noqa E731
 
     "splork": {
         "layers": ["voronoi", "posterize"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.chebyshev,
             "posterize_levels": 1,
             "voronoi_diagram_type": voronoi.color_range,
@@ -3199,7 +3199,7 @@ PRESETS = lambda: {  # noqa E731
 
     "stackin-bricks": {
         "layers": ["voronoi"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_inverse": True,
@@ -3209,7 +3209,7 @@ PRESETS = lambda: {  # noqa E731
 
     "starfield": {
         "layers": ["multires-low", "brightness", "nebula", "contrast", "lens", "dither", "vignette-dark"],
-        "settings": lambda: {
+        "settings": {
             "brightness": -.075,
             "contrast": 4.0,
             "palette_name": None,
@@ -3229,7 +3229,7 @@ PRESETS = lambda: {  # noqa E731
 
     "string-theory": {
         "layers": ["multires-low", "erosion-worms", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "erosion_worms_alpha": .875 + random.random() * .125,
             "erosion_worms_contraction": 4.0 + random.random() * 2.0,
             "erosion_worms_density": .25 + random.random() * .125,
@@ -3281,7 +3281,7 @@ PRESETS = lambda: {  # noqa E731
 
     "teh-matrex-haz-u": {
         "layers": ["glyph-map", "bloom", "contrast", "lens", "crt"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 2.0,
             "glyph_map_colorize": True,
             "glyph_map_mask": random_member([
@@ -3314,7 +3314,7 @@ PRESETS = lambda: {  # noqa E731
 
     "tensorflower": {
         "layers": ["symmetry", "voronoi", "vortex", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "palette_name": None,
             "voronoi_diagram_type": voronoi.range_regions,
@@ -3331,7 +3331,7 @@ PRESETS = lambda: {  # noqa E731
 
     "terra-terribili": {
         "layers": ["multires-ridged", "shadow", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_on": True
         },
         "generator": lambda settings: {
@@ -3342,7 +3342,7 @@ PRESETS = lambda: {  # noqa E731
 
     "the-arecibo-response": {
         "layers": ["value-mask", "snow", "crt"],
-        "settings": lambda: {
+        "settings": {
         },
         "generator": lambda settings: {
             "freq": random.randint(42, 210),
@@ -3352,7 +3352,7 @@ PRESETS = lambda: {  # noqa E731
 
     "the-data-must-flow": {
         "layers": ["worms", "derivative-post", "brightness", "contrast", "glowing-edges", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "contrast": 2.0,
             "worms_alpha": .95 + random.random() * .125,
             "worms_behavior": worms.obedient,
@@ -3369,7 +3369,7 @@ PRESETS = lambda: {  # noqa E731
 
     "the-inward-spiral": {
         "layers": ["voronoi", "worms", "glowing-edges", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * .125),
             "voronoi_diagram_type": voronoi.color_range,
@@ -3388,7 +3388,7 @@ PRESETS = lambda: {  # noqa E731
 
     "time-to-reflect": {
         "layers": ["symmetry", "reflect-octaves", "reflect-post", "ridge", "shadow", "invert", "dither", "saturation"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 6.0 + random.random() * 3.0
         },
         "generator": lambda settings: {
@@ -3398,7 +3398,7 @@ PRESETS = lambda: {  # noqa E731
 
     "timeworms": {
         "layers": ["reflect-octaves", "worms", "density-map", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": random.randint(0, 1) * random.random() * 2,
             "worms_alpha": 1,
             "worms_behavior": worms.obedient,
@@ -3418,7 +3418,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "tint": {
-        "settings": lambda: {
+        "settings": {
             "tint_alpha": .25 + random.random() * .125
         },
         "post": lambda settings: [Effect("tint", alpha=settings["tint_alpha"])]
@@ -3426,7 +3426,7 @@ PRESETS = lambda: {  # noqa E731
 
     "tri-hard": {
         "layers": ["voronoi", "posterize-outline", "rotate", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member([distance.octagram, distance.triangular, distance.hexagram]),
             "posterize_levels": 6,
             "voronoi_alpha": .333 + random.random() * .333,
@@ -3442,7 +3442,7 @@ PRESETS = lambda: {  # noqa E731
 
     "tribbles": {
         "layers": ["voronoi", "funhouse", "normalize", "invert", "worms", "rotate", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": 0.5 + random.random() * .25,
             "voronoi_diagram_type": voronoi.range_regions,
@@ -3472,7 +3472,7 @@ PRESETS = lambda: {  # noqa E731
 
     "trominos": {
         "layers": ["value-mask", "posterize", "sobel", "rotate", "invert", "bloom", "crt", "lens"],
-        "settings": lambda: {
+        "settings": {
             "mask": mask.tromino,
             "mask_repeat": random.randint(6, 12),
             "posterize_levels": random.randint(1, 2),
@@ -3484,7 +3484,7 @@ PRESETS = lambda: {  # noqa E731
 
     "truchet-maze": {
         "layers": ["value-mask", "posterize", "rotate", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "angle": random_member([0, 45, random.randint(0, 360)]),
             "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
             "mask_repeat": random.randint(15, 25),
@@ -3494,7 +3494,7 @@ PRESETS = lambda: {  # noqa E731
 
     "truffula-spore": {
         "layers": ["multires-alpha", "worms", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "worms_alpha": .5,
             "worms_behavior": worms.unruly,
@@ -3508,7 +3508,7 @@ PRESETS = lambda: {  # noqa E731
 
     "unicorn-puddle": {
         "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "reflect_range": .125 + random.random() * .06125,
             "refract_range": .05 + random.random() * .025,
@@ -3523,7 +3523,7 @@ PRESETS = lambda: {  # noqa E731
 
     "unmasked": {
         "layers": ["sobel", "invert", "reindex-octaves", "rotate", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 1 + random.random() * 1.5,
         },
         "generator": lambda settings: {
@@ -3535,7 +3535,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "value-mask": {
-        "settings": lambda: {
+        "settings": {
             "mask": random_member(mask),
             "mask_repeat": random.randint(2, 8)
         },
@@ -3553,7 +3553,7 @@ PRESETS = lambda: {  # noqa E731
 
     "vectoroids": {
         "layers": ["voronoi", "derivative-post", "glowing-edges", "bloom", "crt", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_nth": 0,
@@ -3571,7 +3571,7 @@ PRESETS = lambda: {  # noqa E731
 
     "vibe": {
         "layers": ["reflect-post", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reflect_range": 10.0 + random.random() * 10.0,
         },
         "generator": lambda settings: {
@@ -3581,7 +3581,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "vignette-bright": {
-        "settings": lambda: {
+        "settings": {
             "vignette_alpha": .333 + random.random() * .333,
             "vignette_brightness": 1.0,
         },
@@ -3593,7 +3593,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "vignette-dark": {
-        "settings": lambda: {
+        "settings": {
             "vignette_alpha": .5 + random.random() * .25,
             "vignette_brightness": 0.0,
         },
@@ -3605,7 +3605,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "voronoi": {
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": random_member([t for t in voronoi if t != voronoi.none]),
@@ -3638,13 +3638,13 @@ PRESETS = lambda: {  # noqa E731
 
     "voronoi-refract": {
         "layers": ["voronoi"],
-        "settings": lambda: {
+        "settings": {
             "voronoi_refract": .25 + random.random() * .25
         }
     },
 
     "vortex": {
-        "settings": lambda: {
+        "settings": {
             "vortex_range": random.randint(16, 48)
         },
         "post": lambda settings: [Effect("vortex", displacement=settings["vortex_range"])]
@@ -3652,7 +3652,7 @@ PRESETS = lambda: {  # noqa E731
 
     "warped-cells": {
         "layers": ["voronoi", "ridge", "funhouse", "bloom", "dither", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": random_member(distance.absolute_members()),
             "voronoi_alpha": .333 + random.random() * .333,
             "voronoi_diagram_type": voronoi.color_range,
@@ -3665,7 +3665,7 @@ PRESETS = lambda: {  # noqa E731
 
     "what-do-they-want": {
         "layers": ["value-mask", "sobel", "invert", "rotate", "bloom", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.triangular,
             "mask": random_member([mask.invaders_square, mask.matrix]),
             "mask_repeat": random.randint(4, 6),
@@ -3680,7 +3680,7 @@ PRESETS = lambda: {  # noqa E731
 
     "whatami": {
         "layers": ["voronoi", "reindex-octaves", "reindex-post", "lens"],
-        "settings": lambda: {
+        "settings": {
             "reindex_range": 2,
             "voronoi_alpha": .75 + random.random() * .125,
             "voronoi_diagram_type": voronoi.color_range,
@@ -3693,7 +3693,7 @@ PRESETS = lambda: {  # noqa E731
 
     "woahdude": {
         "layers": ["voronoi", "sine-octaves", "refract-post", "bloom", "saturation", "lens"],
-        "settings": lambda: {
+        "settings": {
             "dist_metric": distance.euclidean,
             "refract_range": .0005 + random.random() * .00025,
             "saturation": 1.5,
@@ -3718,7 +3718,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "wormhole": {
-        "settings": lambda: {
+        "settings": {
             "wormhole_kink": .5 + random.random(),
             "wormhole_stride": .025 + random.random() * .05
         },
@@ -3730,7 +3730,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "worms": {
-        "settings": lambda: {
+        "settings": {
             "worms_alpha": .75 + random.random() * .25,
             "worms_behavior": random_member(worms.all()),
             "worms_density": random.randint(250, 500),
@@ -3757,7 +3757,7 @@ PRESETS = lambda: {  # noqa E731
 
     "wormstep": {
         "layers": ["worms"],
-        "settings": lambda: {
+        "settings": {
             "palette_name": None,
             "worms_alpha": .5 + random.random() * .5,
             "worms_behavior": worms.chaotic,
