@@ -3117,7 +3117,7 @@ def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0, rgb=False):
         if rgb:
             return tf.sin(tensor * amount)
 
-        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], tf.sin(tensor[:, :, 2] * amount)], 2)
+        return tf.stack([tensor[:, :, 0], tensor[:, :, 1], value.normalize(tf.sin(tensor[:, :, 2] * amount))], 2)
 
     elif channels == 4:
         if rgb:
