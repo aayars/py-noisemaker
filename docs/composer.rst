@@ -48,12 +48,13 @@ Reusable settings are modeled in each preset's ``settings`` dictionary. Layering
 
 .. code-block:: python
 
-    PRESETS = {
+    # The whole dictionary is wrapped in a lambda to ensure deterministic results when the
+    # random number generator seed is changed.
+    PRESETS = lambda: {
         "just-an-example": {
             # "settings" is a free-form dictionary of global args which may be
-            # referenced throughout the preset and its descendants. It is wrapped
-            # in a lambda to permit re-evaluation after changing random seeds.
-            "settings": lambda: {
+            # referenced throughout the preset and its descendants.
+            "settings": {
                 "your-special-variable": random.random(),
                 "another-special-variable": random.randint(2, 4),
                 # ...
@@ -70,7 +71,7 @@ Noisemaker's noise generator has several parameters, and these simply need to li
 
 .. code-block:: python
 
-    PRESETS = {
+    PRESETS = lambda: {
         "just-an-example": {
             # A strictly validated dictionary of keyword args to send to
             # noisemaker.generators.multires():
@@ -95,7 +96,7 @@ Per-octave effects are modeled in each preset's ``octaves`` list, which specifie
 
 .. code-block:: python
 
-    PRESETS = {
+    PRESETS = lambda: {
         "just-an-example": {
             # A list of per-octave effects, to apply in order:
             "octaves": lambda settings: [
@@ -118,7 +119,7 @@ Post-reduce effects are modeled in each preset's ``post`` section, which is a fl
 
 .. code-block:: python
 
-    PRESETS = {
+    PRESETS = lambda: {
         "just-an-example": {
             # A list of post-reduce effects, to apply in order:
             "post": lambda settings: [
@@ -142,14 +143,14 @@ Note that ``settings``, ``generator``, ``octaves``, and ``post`` are wrapped ins
 
 .. code-block:: python
 
-    PRESETS = {
+    PRESETS = lambda: {
         "just-an-example": {
             # A list of parent preset names, if any:
             "layers": ["first-parent", "second-parent", ...],
 
             # A free-form dictionary of global args which may be referenced throughout
             # the preset and its descendants:
-            "settings": lambda: {
+            "settings": {
                 "your-special-variable": random.random(),
                 "another-special-variable": random.randint(2, 4),
                 # ...
