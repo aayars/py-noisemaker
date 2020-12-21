@@ -3016,6 +3016,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "freq": random.randint(2, 3),
+            "lattice_drift": 1.0,
             "hue_range": 1.5 + random.random() * .75,
         },
     },
