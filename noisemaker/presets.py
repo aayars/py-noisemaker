@@ -1264,7 +1264,7 @@ PRESETS = lambda: {  # noqa E731
             "palette_name": None,
             "voronoi_alpha": .5 + random.random() * .5,
             "voronoi_diagram_type": voronoi.flow,
-            "voronoi_point_freq": random.randint(2, 10),
+            "voronoi_point_freq": random.randint(2, 6),
             "voronoi_refract": 1.0,
             "worms_alpha": .5 + random.random() * .5,
             "worms_behavior": worms.chaotic,
