@@ -2657,13 +2657,10 @@ def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0, rgb=False):
 
 
 @effect()
-def shaped_blend(tensor, shape, dist_metric=DistanceMetric.euclidean, time=0.0, speed=1.0):
+def value_refract(tensor, shape, freq=4, distrib=ValueDistribution.center_euclidean, displacement=.125, time=0.0, speed=1.0):
     """
     """
 
-    value_shape = value.value_shape(shape)
+    blend_values = value.values(freq=freq, shape=value.value_shape(shape), distrib=distrib, time=time, speed=speed)
 
-    blend_values = value.normalized_sine(value.singularity(None, value_shape, dist_metric=dist_metric) * 20 - math.tau * time)
-
-    # XXX
-    return value.refract(tensor, shape, time=time, speed=speed, reference_x=blend_values, displacement=.125)
+    return value.refract(tensor, shape, time=time, speed=speed, reference_x=blend_values, displacement=displacement)

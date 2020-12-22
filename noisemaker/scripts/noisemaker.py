@@ -113,8 +113,8 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 
 
 @main.command(help="Create a .gif or .mp4. Requires ImageMagick and ffmpeg, respectively.")
-@cli.width_option()
-@cli.height_option()
+@cli.width_option(default=512)
+@cli.height_option(default=512)
 @cli.channels_option()
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))

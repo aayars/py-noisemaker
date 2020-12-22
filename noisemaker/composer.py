@@ -81,11 +81,11 @@ class Preset:
     def render(self, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png"):
         """Render the preset to an image file."""
 
-        import json
-        logger.debug("Rendering noise: "
-                     + json.dumps(self.__dict__,
-                                  default=lambda v: dict(v) if isinstance(v, SettingsDict) else str(v),
-                                  indent=4))
+        # import json
+        # logger.debug("Rendering noise: "
+        #              + json.dumps(self.__dict__,
+        #                           default=lambda v: dict(v) if isinstance(v, SettingsDict) else str(v),
+        #                           indent=4))
 
         try:
             tensor = multires(tensor=tensor, shape=shape,

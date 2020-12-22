@@ -15,6 +15,7 @@ from noisemaker.constants import (
 from noisemaker.palettes import PALETTES
 
 import noisemaker.masks as masks
+import noisemaker.value as value
 
 #: A dictionary of presets for use with the "noisemaker generator" and "noisemaker effect" commands.
 PRESETS = lambda: {  # noqa E731
@@ -667,7 +668,14 @@ PRESETS = lambda: {  # noqa E731
             "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
             "hue_range": .25 + random.random() * .125,
         },
-        "post": lambda settings: [Effect("normalize")],
+        "post": lambda settings: [Effect("normalize")]
+    },
+
+    "center-refract": {
+        "layers": ["value-refract"],
+        "settings": {
+            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
+        },
     },
 
     "chunky-knit": {
@@ -2264,6 +2272,30 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "noise-lake": {
+        "layers": ["multires-low", "value-refract"],
+        "settings": {
+            "value_freq": random.randint(4, 6),
+            "value_refract_range": .25 + random.random() * .125,
+        },
+        "generator": lambda settings: {
+            "hue_range": .75 + random.random() * 0.375,
+            "freq": random.randint(4, 6),
+            "lattice_drift": 1.0,
+            "ridges": True,
+        },
+    },
+
+    "noise-tunnel": {
+        "layers": ["center-distance", "center-refract"],
+        "settings": {
+            "speed": 1.0,
+        },
+        "generator": lambda settings: {
+            "hue_range": 2.0 + random.random()
+        },
+    },
+
     "noirmaker": {
         "layers": ["dither", "grayscale"],
         "post": lambda settings: [
@@ -3555,6 +3587,20 @@ PRESETS = lambda: {  # noqa E731
             "mask": settings["mask"],
             "spline_order": random_member([m for m in interp if m != interp.bicubic])
         }
+    },
+
+    "value-refract": {
+        "settings": {
+            "value_freq": random.randint(2, 4),
+            "value_distrib": distrib.periodic_uniform,
+            "value_refract_range": .125 + random.random() * .06125,
+        },
+        "post": lambda settings: [
+            Effect("value_refract",
+                   displacement=settings["value_refract_range"],
+                   distrib=settings["value_distrib"],
+                   freq=settings["value_freq"])
+        ]
     },
 
     "vaseline": {
