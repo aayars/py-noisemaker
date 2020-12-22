@@ -2987,14 +2987,17 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "serene": {
-        "layers": ["basic-water", "center-refract", "lens"],
+        "layers": ["basic-water", "center-refract", "refract-post", "lens"],
         "settings": {
+            "refract_range": .0025 + random.random() * .00125,
+            "refract_y_from_offset": False,
             "value_distrib": distrib.center_euclidean,
+            "value_freq": random.randint(2, 3),
             "value_refract_range": .025 + random.random() * .0125,
             "speed": 0.25,
         },
         "generator": lambda settings: {
-            "freq": random.randint(2, 4),
+            "freq": random.randint(2, 3),
             "octaves": 3,
         }
     },
@@ -3107,6 +3110,19 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": random.random(),
             "hue_rotation": random.random(),
             "lattice_drift": .75,
+        },
+    },
+
+    "singularity": {
+        "layers": ["refract-post", ], #"wormhole"],
+        "settings": {
+            "refract_range": .1 + random.random() * .05,
+            "refract_y_from_offset": False,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.center_euclidean,
+            "freq": 1,
+            "hue_range": .75 + random.random() * .375,
         },
     },
 
@@ -3566,6 +3582,24 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "turbulence": {
+        "layers": ["basic-water", "center-refract", "refract-post", "lens", "contrast"],
+        "settings": {
+            "refract_range": .025 + random.random() * .0125,
+            "refract_y_from_offset": False,
+            "value_distrib": distrib.center_euclidean,
+            "value_freq": 1,
+            "value_refract_range": .05 + random.random() * .025,
+            "speed": -.05,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(2, 3),
+            "hue_range": 2.0,
+            "hue_rotation": random.random(),
+            "octaves": 3,
+        }
+    },
+
     "unicorn-puddle": {
         "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
         "settings": {
@@ -3793,8 +3827,8 @@ PRESETS = lambda: {  # noqa E731
 
     "wormhole": {
         "settings": {
-            "wormhole_kink": .5 + random.random(),
-            "wormhole_stride": .025 + random.random() * .05
+            "wormhole_kink": 1.0 + random.random() * .5,
+            "wormhole_stride": .05 + random.random() * .025
         },
         "post": lambda settings: [
             Effect("wormhole",
