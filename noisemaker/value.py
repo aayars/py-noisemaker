@@ -329,7 +329,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     ###
     if diagram_type not in VoronoiDiagramType.flow_members():
         dist, indices = tf.nn.top_k(dist, k=point_count)
-        index = int((nth + 1) * -1)
+        index = min(nth + 1, point_count - 1) * -1
 
     ###
 
