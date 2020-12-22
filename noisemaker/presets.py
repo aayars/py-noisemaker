@@ -3113,19 +3113,6 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
-    "singularity": {
-        "layers": ["refract-post", ], #"wormhole"],
-        "settings": {
-            "refract_range": .1 + random.random() * .05,
-            "refract_y_from_offset": False,
-        },
-        "generator": lambda settings: {
-            "distrib": distrib.center_euclidean,
-            "freq": 1,
-            "hue_range": .75 + random.random() * .375,
-        },
-    },
-
     "simple-frame": {
         "post": lambda settings: [Effect("simple_frame")]
     },
