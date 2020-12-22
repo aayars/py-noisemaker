@@ -1328,6 +1328,24 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["grime", "scratches", "stray-hair"],
     },
 
+    "fireball": {
+        "layers": ["center-refract", "refract-post", "refract-post", "bloom", "lens", "contrast"],
+        "settings": {
+            "contrast": 2.5,
+            "refract_range": .025 + random.random() * .0125,
+            "refract_y_from_offset": False,
+            "value_distrib": distrib.center_euclidean,
+            "value_freq": 1,
+            "value_refract_range": .05 + random.random() * .025,
+            "speed": .05,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.center_euclidean,
+            "hue_rotation": .925,
+            "freq": 1,
+        }
+    },
+
     "financial-district": {
         "layers": ["voronoi", "bloom", "contrast", "saturation"],
         "settings": {
