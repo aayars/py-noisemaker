@@ -3505,6 +3505,18 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("tint", alpha=settings["tint_alpha"])]
     },
 
+    "trench-run": {
+        "layers": ["center-distance", "posterize", "sobel", "invert", "scanline-error", "crt"],
+        "settings": {
+            "posterize_levels": 1,
+            "speed": 1.0,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.center_chebyshev,
+            "hue_range": .1,
+        },
+    },
+
     "tri-hard": {
         "layers": ["voronoi", "posterize-outline", "rotate", "lens"],
         "settings": {
