@@ -135,8 +135,9 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 
-    # Skip the below post-processing for fastnoise, since it's generated at a different size.
-    if distrib not in (ValueDistribution.fastnoise, ValueDistribution.fastnoise_exp):
+    # Skip the below post-processing for fastnoise and center-distance types, since they're generated at full size.
+    # TODO: Make this works for the full-size types
+    if not ValueDistribution.is_fastnoise(distrib) and not ValueDistribution.is_center_distance(distrib):
         if mask:
             atlas = masks.get_atlas(mask)
 
@@ -156,9 +157,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         tensor = resample(tensor, shape, spline_order=spline_order)
 
-        if not ValueDistribution.is_center_distance(distrib):
-            if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-                tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
+        if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
+            tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
 
     if distrib not in (ValueDistribution.ones, ValueDistribution.mids, ValueDistribution.zeros):
         # I wish we didn't have to do this, but values out of the 0..1 range screw all kinds of things up
