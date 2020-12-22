@@ -3655,7 +3655,7 @@ PRESETS = lambda: {  # noqa E731
             "freq": [int(i * settings["mask_repeat"]) for i in masks.mask_shape(settings["mask"])[0:2]],
             "mask": settings["mask"],
             "spline_order": random_member([m for m in interp if m != interp.bicubic])
-        }
+        },
     },
 
     "value-refract": {

@@ -7,6 +7,7 @@ import tensorflow as tf
 from noisemaker.constants import InterpolationType, OctaveBlending, ValueDistribution
 
 import noisemaker.effects as effects
+import noisemaker.simplex as simplex
 import noisemaker.value as value
 
 
@@ -85,7 +86,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
         else:
             if hue_rotation is None:
-                hue_rotation = tf.random.normal([])
+                hue_rotation = simplex.random(time=time, speed=speed)
 
             h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
