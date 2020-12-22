@@ -75,7 +75,11 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
         # ValueDistribution.ones,
         ValueDistribution.column_index,
         ValueDistribution.row_index,
-    ) and not ValueDistribution.is_simplex(distrib) and not ValueDistribution.is_fastnoise(distrib) and not ValueDistribution.is_periodic(distrib):
+    ) \
+            and not ValueDistribution.is_center_distance(distrib) \
+            and not ValueDistribution.is_simplex(distrib) \
+            and not ValueDistribution.is_fastnoise(distrib) \
+            and not ValueDistribution.is_periodic(distrib):
 
         overrides['distrib'] = 'periodic_uniform'
 

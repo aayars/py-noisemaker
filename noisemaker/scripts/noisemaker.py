@@ -36,13 +36,13 @@ def main():
 @cli.height_option()
 @cli.channels_option()
 @cli.time_option()
-@cli.seed_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
+@cli.seed_option()
 @cli.distrib_option()
 @cli.filename_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, seed, speed, distrib, filename, preset_name):
+def generator(ctx, width, height, channels, time, speed, seed, distrib, filename, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -189,8 +189,11 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
 @cli.input_dir_option(required=True)
 @cli.filename_option(default="collage.png")
 @click.option("--control-filename", help="Control image filename (optional)")
+@cli.time_option()
+@click.option('--speed', help="Animation speed", type=float, default=0.25)
+@cli.seed_option()
 @click.pass_context
-def mashup(ctx, input_dir, filename, control_filename):
+def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
     filenames = []
 
     for root, _, files in os.walk(input_dir):
@@ -211,20 +214,22 @@ def mashup(ctx, input_dir, filename, control_filename):
         collage_images.append(collage_input)
 
     if control_filename:
-        control = tf.image.convert_image_dtype(util.load(control_filename, channels=1), dtype=tf.float32)
+        control_shape = util.shape_from_file(control_filename)
+        control = tf.image.convert_image_dtype(util.load(control_filename, channels=control_shape[2]), dtype=tf.float32)
 
     else:
         control = collage_images.pop()
 
     shape = tf.shape(control)  # All images need to be the same size!
 
-    control = effects.value_map(control, shape, keepdims=True)
+    control = value.value_map(control, shape, keepdims=True)
 
-    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random())
+    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random(),
+                            seed=seed, time=time, speed=speed)
 
-    value_shape = [shape[0], shape[1], 1]
+    value_shape = value.value_shape(shape)
 
-    control = effects.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=value_shape)
+    control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=value_shape)
 
     with tf.compat.v1.Session().as_default():
         tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
@@ -261,7 +266,12 @@ def _use_periodic_distrib(distrib):
         ValueDistribution.ones,
         ValueDistribution.column_index,
         ValueDistribution.row_index,
-    ) and not ValueDistribution.is_simplex(distrib) and not ValueDistribution.is_fastnoise(distrib) and not ValueDistribution.is_periodic(distrib):
+    ) \
+            and not ValueDistribution.is_center_distance(distrib) \
+            and not ValueDistribution.is_simplex(distrib) \
+            and not ValueDistribution.is_fastnoise(distrib) \
+            and not ValueDistribution.is_periodic(distrib):
+
         distrib = ValueDistribution.periodic_uniform
 
     return distrib.name

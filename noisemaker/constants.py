@@ -127,17 +127,27 @@ class ValueDistribution(Enum):
     zeros = 7
 
     column_index = 10
-
     row_index = 11
 
+    center_euclidean = 20
+    center_manhattan = 21
+    center_chebyshev = 22
+    center_octagram = 23
+    center_triangular = 24
+    center_hexagram = 25
+
+    @classmethod
+    def is_center_distance(cls, member):
+        return member and (member.value >= 20) and (member.value < 50)
+
     # animated loops via the infamous 4d donut approach
-    simplex = 20
-    simplex_exp = 21
-    simplex_pow_inv_1 = 22
+    simplex = 50
+    simplex_exp = 51
+    simplex_pow_inv_1 = 52
 
     @classmethod
     def is_simplex(cls, member):
-        return member and (member.value >= 20) and (member.value < 100)
+        return member and (member.value >= 50) and (member.value < 100)
 
     # fastnoise for high-frequency animated noise. it doesn't loop, but nobody will know
     fastnoise = 100

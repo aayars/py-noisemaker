@@ -118,6 +118,9 @@ def multi_str_option(attr, **attrs):
 def option(*param_decls, **attrs):
     """ Add a Click option. """
 
+    if "help" not in attrs:
+        attrs["help"] = ""
+
     def decorator(f):
         if isinstance(attrs.get("type"), click.IntRange):
             r = attrs["type"]
@@ -135,7 +138,7 @@ def option(*param_decls, **attrs):
 def freq_option(**attrs):
     attrs.setdefault("help", "Minimum noise frequency {0}".format(FREQ_HINT))
 
-    return int_option("--freq", default=3, callback=validate_more_than_one(), **attrs)
+    return int_option("--freq", default=3, **attrs)
 
 
 def width_option(default=1024, **attrs):

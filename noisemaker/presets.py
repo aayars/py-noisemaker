@@ -661,6 +661,15 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "center-distance": {
+        "generator": lambda settings: {
+            "freq": random.randint(1, 8),
+            "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
+            "hue_range": .25 + random.random() * .125,
+        },
+        "post": lambda settings: [Effect("normalize")],
+    },
+
     "chunky-knit": {
         "layers": ["jorts", "random-hue", "contrast"],
         "settings": {

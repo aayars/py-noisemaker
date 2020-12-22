@@ -68,9 +68,9 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     common_value_params["shape"] = [shape[0], shape[1], 1]
 
     if lattice_drift:
-        tensor = effects.refract(tensor, shape, time=time, speed=speed,
-                                 displacement=lattice_drift / min(freq[0], freq[1]),
-                                 warp_freq=freq, spline_order=spline_order, signed_range=False)
+        tensor = value.refract(tensor, shape, time=time, speed=speed,
+                               displacement=lattice_drift / min(freq[0], freq[1]),
+                               warp_freq=freq, spline_order=spline_order, signed_range=False)
 
     if octave_effects is not None:  # New way
         for effect_or_preset in octave_effects:
