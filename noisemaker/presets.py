@@ -334,6 +334,26 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "basic-water": {
+        "layers": ["refract-octaves", "reflect-octaves", "ripple"],
+        "settings": {
+            "reflect_range": .16667 + random.random() * .16667,
+            "refract_range": .25 + random.random() * .125,
+            "refract_y_from_offset": True,
+            "ripple_range": .005 + random.random() * .0025,
+            "ripple_kink": random.randint(2, 4),
+            "ripple_freq": random.randint(2, 4),
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.uniform,
+            "freq": random.randint(7, 10),
+            "hue_range": .05 + random.random() * .05,
+            "hue_rotation": .5125 + random.random() * .025,
+            "lattice_drift": 1.0,
+            "octaves": 4,
+        }
+    },
+
     "band-together": {
         "layers": ["reindex-post", "funhouse", "shadow", "normalize"],
         "settings": {
@@ -664,7 +684,7 @@ PRESETS = lambda: {  # noqa E731
 
     "center-distance": {
         "generator": lambda settings: {
-            "freq": random.randint(1, 8),
+            "freq": random.randint(1, 6),
             "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
             "hue_range": .25 + random.random() * .125,
         },
@@ -747,25 +767,11 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "cool-water": {
-        "layers": ["refract-octaves", "reflect-octaves", "ripple", "funhouse", "bloom", "lens"],
+        "layers": ["basic-water", "funhouse", "bloom", "lens"],
         "settings": {
-            "reflect_range": .16667 + random.random() * .16667,
-            "refract_range": .25 + random.random() * .125,
-            "refract_y_from_offset": True,
-            "ripple_range": .005 + random.random() * .0025,
-            "ripple_kink": random.randint(2, 4),
-            "ripple_freq": random.randint(2, 4),
             "warp_range": .0625 + random.random() * .0625,
             "warp_freq": random.randint(2, 3),
         },
-        "generator": lambda settings: {
-            "distrib": distrib.uniform,
-            "freq": random.randint(7, 10),
-            "hue_range": .05 + random.random() * .05,
-            "hue_rotation": .5125 + random.random() * .025,
-            "lattice_drift": 1.0,
-            "octaves": 4,
-        }
     },
 
     "corner-case": {
@@ -1438,7 +1444,7 @@ PRESETS = lambda: {  # noqa E731
 
     "funhouse": {
         "settings": {
-            "warp_freq": [random.randint(2, 3), random.randint(1, 3)],
+            "warp_freq": [random.randint(2, 4), random.randint(2, 4)],
             "warp_octaves": random.randint(1, 4),
             "warp_range": .25 + random.random() * .125,
             "warp_signed_range": False,
@@ -2273,7 +2279,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "noise-lake": {
-        "layers": ["multires-low", "value-refract"],
+        "layers": ["multires-low", "value-refract", "snow", "lens"],
         "settings": {
             "value_freq": random.randint(4, 6),
             "value_refract_range": .25 + random.random() * .125,
@@ -2287,7 +2293,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "noise-tunnel": {
-        "layers": ["center-distance", "center-refract"],
+        "layers": ["center-distance", "center-refract", "snow", "lens"],
         "settings": {
             "speed": 1.0,
         },
@@ -2979,6 +2985,19 @@ PRESETS = lambda: {  # noqa E731
 
     "scuff": {
         "post": lambda settings: [Effect("scratches")]
+    },
+
+    "serene": {
+        "layers": ["basic-water", "center-refract", "lens"],
+        "settings": {
+            "value_distrib": distrib.center_euclidean,
+            "value_refract_range": .025 + random.random() * .0125,
+            "speed": 0.25,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(2, 4),
+            "octaves": 3,
+        }
     },
 
     "shadow": {

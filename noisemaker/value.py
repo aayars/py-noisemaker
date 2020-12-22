@@ -43,9 +43,6 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     """
     """
 
-    from noisemaker.util import logger
-    logger.info(f"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX time {time} speed {speed}")
-
     if isinstance(freq, int):
         freq = freq_for_shape(freq, shape)
 
