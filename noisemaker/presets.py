@@ -15,7 +15,6 @@ from noisemaker.constants import (
 from noisemaker.palettes import PALETTES
 
 import noisemaker.masks as masks
-import noisemaker.value as value
 
 #: A dictionary of presets for use with the "noisemaker generator" and "noisemaker effect" commands.
 PRESETS = lambda: {  # noqa E731

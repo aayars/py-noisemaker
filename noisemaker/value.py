@@ -96,7 +96,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
     elif ValueDistribution.is_center_distance(distrib):
         metric = DistanceMetric[distrib.name.replace("center_", "")]
-        tensor = normalized_sine(singularity(None, shape, dist_metric=metric) * math.tau * max(freq[0], freq[1]) - math.tau * time * math.floor(1 + speed)) * tf.ones(shape)
+        tensor = normalized_sine(singularity(None, shape, dist_metric=metric) * math.tau * max(freq[0], freq[1])
+                                 - math.tau * time * math.floor(1 + speed)) * tf.ones(shape)
 
     elif ValueDistribution.is_simplex(distrib):
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
