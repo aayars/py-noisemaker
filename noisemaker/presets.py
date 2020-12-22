@@ -3071,14 +3071,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "shmoo": {
-        "layers": ["posterize", "invert", "outline", "distressed"],
+        "layers": ["basic", "posterize", "invert", "outline", "distressed"],
         "settings": {
+            "palette_on": False,
             "posterize_levels": random.randint(1, 4),
             "speed": .025,
         },
         "generator": lambda settings: {
-            "freq": random.randint(2, 3),
-            "lattice_drift": 1.0,
+            "freq": random.randint(3, 4),
             "hue_range": 1.5 + random.random() * .75,
         },
     },
