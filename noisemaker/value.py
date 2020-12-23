@@ -143,30 +143,32 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 
-    # Skip the below post-processing for fastnoise and center-distance types, since they're generated at full size.
-    # TODO: Make this works for the full-size types
+    if mask:
+        atlas = masks.get_atlas(mask)
+
+        glyph_shape = freq + [1]
+
+        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
+                                           time=0 if mask_static else time, speed=speed)
+
+        # These noise types are generated at full size
+        if ValueDistribution.is_fastnoise(distrib) or ValueDistribution.is_center_distance(distrib):
+            mask_values = resample(mask_values, shape, spline_order=spline_order)
+            mask_values = pin_corners(mask_values, shape, freq, corners)
+
+        if shape[2] == 2:
+            tensor = tf.stack([tensor[:, :, 0], tf.stack(mask_values)[:, :, 0]], 2)
+
+        elif shape[2] == 4:
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], tf.stack(mask_values)[:, :, 0]], 2)
+
+        else:
+            tensor *= mask_values
+
     if not ValueDistribution.is_fastnoise(distrib) and not ValueDistribution.is_center_distance(distrib):
-        if mask:
-            atlas = masks.get_atlas(mask)
-
-            glyph_shape = freq + [1]
-
-            mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
-                                               time=0 if mask_static else time, speed=speed)
-
-            if shape[2] == 2:
-                tensor = tf.stack([tensor[:, :, 0], tf.stack(mask_values)[:, :, 0]], 2)
-
-            elif shape[2] == 4:
-                tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], tf.stack(mask_values)[:, :, 0]], 2)
-
-            else:
-                tensor *= mask_values
-
         tensor = resample(tensor, shape, spline_order=spline_order)
 
-        if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-            tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
+        tensor = pin_corners(tensor, shape, freq, corners)
 
     if distrib not in (ValueDistribution.ones, ValueDistribution.mids, ValueDistribution.zeros):
         # I wish we didn't have to do this, but values out of the 0..1 range screw all kinds of things up
@@ -1006,3 +1008,12 @@ def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
     x, y = point_cloud(1, PointDistribution.square, shape)
 
     return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
+
+
+def pin_corners(tensor, shape, freq, corners):
+    """Pin values to image corners, or align with image center, as per the given "corners" arg."""
+
+    if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
+        tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
+
+    return tensor
