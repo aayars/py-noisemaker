@@ -1279,6 +1279,23 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("false_color")]
     },
 
+    "fargate": {
+        "layers": ["serene", "contrast", "saturation", "crt"],
+        "settings": {
+            "refract_range": .0125 + random.random() * .006125,
+            "speed": -.25,
+            "value_distrib": distrib.center_euclidean,
+            "value_freq": 3,
+            "value_refract_range": .0125 + random.random() * .006125,
+        },
+        "generator": lambda settings: {
+            "brightness_distrib": distrib.uniform,
+            "freq": 3,
+            "octaves": 3,
+            "saturation_distrib": distrib.uniform,
+        }
+    },
+
     "fast-eddies": {
         "layers": ["basic", "voronoi", "worms", "contrast", "saturation"],
         "settings": {
@@ -2573,7 +2590,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "brightness_distrib": distrib.uniform,
-            "distrib": distrib.center_hexagram,
+            "distrib": settings["value_distrib"],
             "hue_range": .2 + random.random() * .1,
             "hue_rotation": .9 + random.random() * .05,
             "freq": 2,
