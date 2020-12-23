@@ -3213,7 +3213,10 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "snow": {
-        "post": lambda settings: [Effect("snow", alpha=.333 + random.random() * .16667)]
+        "settings": {
+            "snow_alpha": .25 + random.random() * .125
+        },
+        "post": lambda settings: [Effect("snow", alpha=settings["snow_alpha"])]
     },
 
     "sobel": {
@@ -3519,6 +3522,18 @@ PRESETS = lambda: {  # noqa E731
         "generator": lambda settings: {
             "freq": random.randint(12, 24),
         },
+    },
+
+    "time-crystal": {
+        "layers": ["center-distance", "reflect-post", "saturation", "dither", "crt"],
+        "settings": {
+            "reflect_range": 2.0 + random.random(),
+        },
+        "generator": lambda settings: {
+            "distrib": random_member([distrib.center_triangular, distrib.center_hexagram]),
+            "hue_range": 2.0 + random.random(),
+            "freq": 1,
+        }
     },
 
     "time-doughnuts": {
