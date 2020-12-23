@@ -453,9 +453,8 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "blockchain-stock-photo-background": {
-        "layers": ["value-mask", "glitchin-out", "rotate", "vignette-dark"],
+        "layers": ["value-mask", "glitchin-out", "skew", "vignette-dark"],
         "settings": {
-            "angle": random.randint(5, 35),
             "mask": random_member([mask.alphanum_binary, mask.alphanum_hex,
                                    mask.alphanum_numeric, mask.bank_ocr]),
             "mask_repeat": random.randint(20, 40),
@@ -1743,9 +1742,8 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "hearts": {
-        "layers": ["value-mask", "wobble", "rotate", "posterize", "snow", "crt", "lens"],
+        "layers": ["value-mask", "wobble", "skew", "posterize", "snow", "crt", "lens"],
         "settings": {
-            "angle": random.randint(10, 25),
             "mask": mask.mcpaint_19,
             "mask_repeat": random.randint(8, 12),
             "posterize_levels": random.randint(1, 2),
@@ -1870,7 +1868,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "jorts": {
-        "layers": ["glyph-map", "funhouse", "rotate", "shadow", "brightness", "contrast", "saturation", "dither", "vignette-dark"],
+        "layers": ["glyph-map", "funhouse", "skew", "shadow", "brightness", "contrast", "saturation", "dither", "vignette-dark"],
         "settings": {
             "glyph_map_alpha": .5 + random.random() * .25,
             "glyph_map_colorize": True,
@@ -1995,9 +1993,8 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "lcd": {
-        "layers": ["value-mask", "invert", "rotate", "shadow", "vignette-bright", "brightness", "dither"],
+        "layers": ["value-mask", "invert", "skew", "shadow", "vignette-bright", "brightness", "dither"],
         "settings": {
-            "angle": random.randint(10, 25),
             "mask": random_member([mask.lcd, mask.lcd_binary]),
             "mask_repeat": random.randint(8, 12),
         },
@@ -2135,7 +2132,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "mcpaint": {
-        "layers": ["glyph-map", "maybe-palette", "rotate", "dither", "saturation", "vignette-dark"],
+        "layers": ["glyph-map", "maybe-palette", "skew", "dither", "saturation", "vignette-dark"],
         "settings": {
             "glyph_map_colorize": coin_flip(),
             "glyph_map_mask": mask.mcpaint,
@@ -2699,7 +2696,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "procedural-mask": {
-        "layers": ["value-mask", "rotate", "bloom", "crt", "vignette-dark", "contrast"],
+        "layers": ["value-mask", "skew", "bloom", "crt", "vignette-dark", "contrast"],
         "settings": {
             "mask": random_member(mask.procedural_members()),
             "mask_repeat": random.randint(10, 20)
@@ -2711,7 +2708,7 @@ PRESETS = lambda: {  # noqa E731
 
     "prophesy": {
         "layers": ["value-mask", "refract-octaves", "posterize", "emboss", "brightness", "contrast",
-                   "maybe-invert", "rotate", "tint", "dither", "shadows", "contrast"],
+                   "maybe-invert", "skew", "tint", "dither", "shadows", "contrast"],
         "settings": {
             "brightness": -.125,
             "contrast": 1.5,
@@ -2938,9 +2935,8 @@ PRESETS = lambda: {  # noqa E731
 
     "runes-of-arecibo": {
         "layers": ["value-mask", "grayscale", "posterize", "snow", "dither", "dither", "normalize",
-                   "emboss", "maybe-invert", "contrast", "rotate", "lens", "brightness", "contrast"],
+                   "emboss", "maybe-invert", "contrast", "skew", "lens", "brightness", "contrast"],
         "settings": {
-            "angle": random.randint(5, 35),
             "brightness": -.1,
             "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
             "mask_repeat": random.randint(8, 12),
@@ -3211,6 +3207,13 @@ PRESETS = lambda: {  # noqa E731
 
     "sketch": {
         "post": lambda settings: [Effect("sketch"), Effect("fibers"), Effect("grime"), Effect("texture")]
+    },
+
+    "skew": {
+        "layers": ["rotate"],
+        "settings": {
+            "angle": random.randint(5, 35),
+        },
     },
 
     "snow": {
@@ -3877,7 +3880,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "what-do-they-want": {
-        "layers": ["value-mask", "sobel", "invert", "rotate", "bloom", "lens"],
+        "layers": ["value-mask", "sobel", "invert", "skew", "bloom", "lens"],
         "settings": {
             "dist_metric": distance.triangular,
             "mask": random_member([mask.invaders_square, mask.matrix]),
