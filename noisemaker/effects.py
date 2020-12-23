@@ -1415,7 +1415,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
 
     if xy is None:
         seed_count = int(math.sqrt(int(half_height * seed_density) or 1))
-        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape)
+        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape, time=time, speed=speed)
 
     else:
         x, y, seed_count = xy
