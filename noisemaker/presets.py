@@ -1295,13 +1295,13 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "fargate": {
-        "layers": ["serene", "contrast", "saturation", "crt"],
+        "layers": ["serene", "saturation", "contrast", "crt"],
         "settings": {
-            "refract_range": .0125 + random.random() * .006125,
+            "refract_range": .015 + random.random() * .0075,
             "speed": -.25,
             "value_distrib": distrib.center_euclidean,
             "value_freq": 3,
-            "value_refract_range": .0125 + random.random() * .006125,
+            "value_refract_range": .015 + random.random() * .0075,
         },
         "generator": lambda settings: {
             "brightness_distrib": distrib.uniform,
