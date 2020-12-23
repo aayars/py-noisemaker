@@ -3903,6 +3903,26 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "wild-kingdom": {
+        "layers": ["funhouse", "posterize-outline", "shadow", "maybe-invert", "dither", "nudge-hue", "lens"],
+        "settings": {
+            "posterize_levels": 3,
+            "vaseline_alpha": .1 + random.random() * .05,
+            "vignette_alpha": .1 + random.random() * .05,
+            "warp_octaves": 3,
+            "warp_range": .0333,
+        },
+        "generator": lambda settings: {
+            "freq": 20,
+            "lattice_drift": 0.333,
+            "mask": mask.sparse,
+            "mask_static": True,
+            "rgb": True,
+            "ridges": True,
+            "spline_order": interp.cosine,
+        },
+    },
+
     "woahdude": {
         "layers": ["voronoi", "sine-octaves", "refract-post", "bloom", "saturation", "lens"],
         "settings": {
