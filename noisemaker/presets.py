@@ -3488,6 +3488,21 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "time-doughnuts": {
+        "layers": ["center-distance", "funhouse", "posterize", "saturation", "dither", "scanline-error", "crt"],
+        "settings": {
+            "posterize_levels": 2,
+            "speed": .05,
+            "warp_octaves": 2,
+            "warp_range": .1 + random.random() * .05,
+            "warp_signed_range": True,
+        },
+        "generator": lambda settings: {
+            "distrib": distrib.center_euclidean,
+            "freq": random.randint(2, 3)
+        }
+    },
+
     "time-to-reflect": {
         "layers": ["symmetry", "reflect-octaves", "reflect-post", "ridge", "shadow", "invert", "dither", "saturation"],
         "settings": {
