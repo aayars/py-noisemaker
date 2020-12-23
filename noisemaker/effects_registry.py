@@ -1,4 +1,4 @@
-"""Low-level effects library for Noisemaker"""
+"""Effect decorator for Noisemaker Composer Presets"""
 
 import inspect
 

@@ -414,7 +414,7 @@ PRESETS = lambda: {  # noqa E731
         "generator": lambda settings: {
             "mask": mask.script,
             "hue_rotation": random.random(),
-            "hue_range": .0625 + random.random() * .5,
+            "hue_range": .06125 + random.random() * .5,
             "saturation": 1.0,
         }
     },
@@ -512,7 +512,7 @@ PRESETS = lambda: {  # noqa E731
 
     "brightness": {
         "settings": {
-            "brightness": .125 + random.random() * .0625
+            "brightness": .125 + random.random() * .06125
         },
         "post": lambda settings: [Effect("adjust_brightness", amount=settings["brightness"])]
     },
@@ -768,7 +768,7 @@ PRESETS = lambda: {  # noqa E731
     "cool-water": {
         "layers": ["basic-water", "funhouse", "bloom", "lens"],
         "settings": {
-            "warp_range": .0625 + random.random() * .0625,
+            "warp_range": .06125 + random.random() * .06125,
             "warp_freq": random.randint(2, 3),
         },
     },
@@ -1452,7 +1452,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": random.randint(3, 5),
             "voronoi_point_freq": random.randint(3, 5),
-            "voronoi_refract": .125 + random.random() * .0625,
+            "voronoi_refract": .125 + random.random() * .06125,
         },
         "generator": lambda settings: {
             "freq": random.randint(3, 5),
@@ -1805,7 +1805,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": random.randint(3, 5),
             "voronoi_refract": .25 + random.random() * .125,
-            "warp_range": .125 + random.random() * .0625,
+            "warp_range": .125 + random.random() * .06125,
         },
         "generator": lambda settings: {
             "distrib": distrib.ones,
@@ -1853,7 +1853,7 @@ PRESETS = lambda: {  # noqa E731
         "generator": lambda settings: {
             "freq": [128, 512],
             "hue_rotation": .5 + random.random() * .05,
-            "hue_range": .0625 + random.random() * .0625,
+            "hue_range": .06125 + random.random() * .06125,
         }
     },
 
@@ -2517,11 +2517,11 @@ PRESETS = lambda: {  # noqa E731
             "mask": random_member(mask.grid_members()),
             "mask_repeat": 1,
             "ripple_freq": random.randint(4, 6),
-            "ripple_kink": .0625 + random.random() * .125,
-            "ripple_range": .0625 + random.random() * .125,
+            "ripple_kink": .06125 + random.random() * .125,
+            "ripple_range": .06125 + random.random() * .125,
             "warp_freq": random.randint(5, 7),
             "warp_octaves": 8,
-            "warp_range": .0625 + random.random() * .125,
+            "warp_range": .06125 + random.random() * .125,
         },
         "generator": lambda settings: {
             "distrib": distrib.uniform,
@@ -2559,6 +2559,27 @@ PRESETS = lambda: {  # noqa E731
             "ridges": coin_flip(),
             "saturation": .175 + random.random() * .25,
         },
+    },
+
+    "pink-diamond": {
+        "layers": ["center-distance", "center-refract", "refract-octaves", "refract-post", "nudge-hue", "bloom", "lens"],
+        "settings": {
+            "bloom_alpha": .333 + random.random() * .16667,
+            "refract_range": .0125 + random.random() * .006125,
+            "refract_y_from_offset": False,
+            "value_distrib": distrib.center_hexagram,
+            "vaseline_alpha": .125 + random.random() * .06125,
+            "speed": -.125,
+        },
+        "generator": lambda settings: {
+            "brightness_distrib": distrib.uniform,
+            "distrib": distrib.center_hexagram,
+            "hue_range": .2 + random.random() * .1,
+            "hue_rotation": .9 + random.random() * .05,
+            "freq": 2,
+            "ridges": True,
+            "saturation_distrib": distrib.ones,
+        }
     },
 
     "pixel-sort": {
@@ -2663,7 +2684,7 @@ PRESETS = lambda: {  # noqa E731
             "brightness": -.125,
             "contrast": 1.5,
             "mask": mask.invaders_square,
-            "refract_range": .0625 + random.random() * .0625,
+            "refract_range": .06125 + random.random() * .06125,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
             "posterize_levels": random.randint(3, 6),
@@ -2731,7 +2752,7 @@ PRESETS = lambda: {  # noqa E731
             "vignette_alpha": .125 + random.random() * .06125,
             "warp_freq": random.randint(3, 5),
             "warp_octaves": random.randint(3, 5),
-            "warp_range": .125 + random.random() * .0625,
+            "warp_range": .125 + random.random() * .06125,
             "warp_spline_order": interp.constant,
         },
         "generator": lambda settings: {
@@ -3673,7 +3694,10 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "vaseline": {
-        "post": lambda settings: [Effect("vaseline", alpha=.375 + random.random() * .1875)]
+        "settings": {
+            "vaseline_alpha": .375 + random.random() * .1875
+        },
+        "post": lambda settings: [Effect("vaseline", alpha=settings["vaseline_alpha"])]
     },
 
     "vectoroids": {
