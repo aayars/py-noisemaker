@@ -2940,6 +2940,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "grayscale", "posterize", "snow", "dither", "dither", "normalize",
                    "emboss", "maybe-invert", "contrast", "rotate", "lens", "brightness", "contrast"],
         "settings": {
+            "angle": random.randint(5, 35),
             "brightness": -.1,
             "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
             "mask_repeat": random.randint(8, 12),
