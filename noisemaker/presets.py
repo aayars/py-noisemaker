@@ -849,6 +849,21 @@ PRESETS = lambda: {  # noqa E731
         ]
     },
 
+    "crime-scene": {
+        "layers": ["value-mask", "rotate", "dither", "spatter", "spatter", "grime", "grime", "lens"],
+        "settings": {
+            "mask": mask.chess,
+            "mask_repeat": random.randint(2, 3),
+            "spatter_color": [.35 + random.random() * .15,
+                              .025 + random.random() * .0125,
+                              .075 + random.random() * .0375],
+        },
+        "generator": lambda settings: {
+            "saturation": 0 if coin_flip() else .125,
+            "spline_order": interp.constant,
+        },
+    },
+
     "crooked": {
         "layers": ["starfield", "pixel-sort", "glitchin-out"],
         "settings": {
@@ -3287,9 +3302,10 @@ PRESETS = lambda: {  # noqa E731
 
     "spatter": {
         "settings": {
-            "speed": .0333 + random.random() * .016667
+            "speed": .0333 + random.random() * .016667,
+            "spatter_color": True,
         },
-        "post": lambda settings: [Effect("spatter")]
+        "post": lambda settings: [Effect("spatter", color=settings["spatter_color"])]
     },
 
 

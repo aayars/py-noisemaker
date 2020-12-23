@@ -2531,7 +2531,11 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
 
     #
     if color and shape[2] == 3:
-        splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+        if color is True:
+            splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+
+        else:  # Pass in [r, g, b]
+            splash = tf.ones(shape) * tf.stack(color)
 
     else:
         splash = tf.zeros(shape)
