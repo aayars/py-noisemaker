@@ -809,8 +809,7 @@ def wormhole(tensor, shape, kink=1.0, input_stride=1.0, alpha=1.0, time=0.0, spe
     values = value.value_map(tensor, shape, with_normalize=False)
 
     degrees = values * math.tau * kink
-    # stride = values * height * input_stride
-    stride = height * input_stride
+    stride = 1024 * input_stride
 
     x_index = tf.cast(value.row_index(shape), tf.float32)
     y_index = tf.cast(value.column_index(shape), tf.float32)
