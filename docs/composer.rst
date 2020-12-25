@@ -54,7 +54,7 @@ Reusable settings are modeled in each preset's ``settings`` dictionary. Layering
         "just-an-example": {
             # "settings" is a free-form dictionary of global args which may be
             # referenced throughout the preset and its descendants.
-            "settings": {
+            "settings": lambda: {
                 "your-special-variable": random.random(),
                 "another-special-variable": random.randint(2, 4),
                 # ...
@@ -150,7 +150,7 @@ Note that ``settings``, ``generator``, ``octaves``, and ``post`` are wrapped ins
 
             # A free-form dictionary of global args which may be referenced throughout
             # the preset and its descendants:
-            "settings": {
+            "settings": lambda: {
                 "your-special-variable": random.random(),
                 "another-special-variable": random.randint(2, 4),
                 # ...

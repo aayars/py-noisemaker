@@ -62,6 +62,9 @@ class Preset:
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _rollup(preset_name, "post", [], presets, self.settings)
 
+        if preset_name == "blotto":
+            print(f"Have blotto: {[e.__dict__ for e in self.post_effects]}")
+
         # Make sure there's no dangling settings keys
         try:
             self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
@@ -122,14 +125,17 @@ def _rollup(preset_name, key, default, presets, settings):
     # child_data represents the current preset's *evaluated* kwargs. The lambdas have been evaluated as per whatever the
     # current seed and random generator state is. Ancestor preset kwargs will get evaluated and merged into this.
     if key == SETTINGS_KEY:
-        child_data = evaluated_kwargs.get(key, default)
+        child_data = evaluated_kwargs.get(key, lambda: default)
     else:
         child_data = evaluated_kwargs.get(key, lambda _: default)
 
-        if not callable(child_data):
-            raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
+    if callable(child_data):
+        if key == SETTINGS_KEY:
+            child_data = child_data()
         else:
             child_data = child_data(settings)
+    else:
+        raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" wasn't wrapped in a lambda. This can cause unexpected results for the given seed.")
 
     if not isinstance(child_data, type(default)):
         raise ValueError(f"Preset \"{preset_name}\" key \"{key}\" is a {type(child_data)}, but we were expecting a {type(default)}.")
@@ -140,14 +146,6 @@ def _rollup(preset_name, key, default, presets, settings):
 
         # Data to be merged; just need to know how to merge it, based on type.
         parent_data = _rollup(base_preset_name, key, default, presets, settings)
-
-        if callable(parent_data):
-            if key == SETTINGS_KEY:
-                parent_data = parent_data()
-            else:
-                parent_data = parent_data(settings)
-        else:
-            parent_data = parent_data.copy()
 
         if isinstance(parent_data, dict):
             child_data = dict(parent_data, **child_data)  # merge keys, overriding parent with child
@@ -207,6 +205,9 @@ def stash(key, value=None):
 
 def reload_presets(presets):
     """Re-evaluate presets after changing the interpreter's random seed."""
+
+    GENERATOR_PRESETS.clear()
+    EFFECT_PRESETS.clear()
 
     for preset_name in presets:
         preset = Preset(preset_name, presets)

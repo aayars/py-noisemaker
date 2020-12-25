@@ -19,7 +19,7 @@ import noisemaker.value as value
 MAX_SEED_VALUE = 2 ** 16
 
 
-reload_presets(PRESETS())
+reload_presets(PRESETS)
 
 
 @click.group(help="""
@@ -47,7 +47,7 @@ def generator(ctx, width, height, channels, time, speed, seed, distrib, filename
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    reload_presets(PRESETS())
+    reload_presets(PRESETS)
 
     if preset_name == "random":
         preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
@@ -81,7 +81,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    reload_presets(PRESETS())
+    reload_presets(PRESETS)
 
     input_shape = util.shape_from_file(input_filename)
 
@@ -129,7 +129,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    reload_presets(PRESETS())
+    reload_presets(PRESETS)
 
     if preset_name == 'random':
         preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]

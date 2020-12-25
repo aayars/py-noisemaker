@@ -8,7 +8,7 @@ SHAPE = [256, 256, 1]
 
 PRESETS = lambda: {
     "test-parent": {
-        "settings": {
+        "settings": lambda: {
             "freq": 2,
             "sides": 4,
         },
@@ -30,7 +30,7 @@ PRESETS = lambda: {
     "test-child": {
         "layers": ["test-parent"],
 
-        "settings": {
+        "settings": lambda: {
             "freq": 5,
         }
     },
@@ -38,7 +38,7 @@ PRESETS = lambda: {
     "test-grandchild": {
         "layers": ["test-child"],
 
-        "settings": {
+        "settings": lambda: {
             "sides": 25,
         },
 
