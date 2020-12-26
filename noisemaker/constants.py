@@ -138,7 +138,16 @@ class ValueDistribution(Enum):
 
     @classmethod
     def is_center_distance(cls, member):
-        return member and (member.value >= 20) and (member.value < 50)
+        return member and (member.value >= 20) and (member.value < 30)
+
+    scan_up = 30
+    scan_down = 31
+    scan_left = 32
+    scan_right = 33
+
+    @classmethod
+    def is_scan(cls, member):
+        return member and (member.value >= 30) and (member.value < 40)
 
     # animated loops via the infamous 4d donut approach
     simplex = 50
@@ -164,7 +173,14 @@ class ValueDistribution(Enum):
 
     @classmethod
     def is_periodic(cls, member):
-        return member and (member.value >= 1000)
+        return member and (member.value >= 1000) and (member.value < 1010)
+
+    @classmethod
+    def is_native_size(cls, member):
+        """The noise type is generated at full-size, rather than upsampled."""
+        return cls.is_center_distance(member) \
+                or cls.is_scan(member) \
+                or cls.is_fastnoise(member)
 
 
 class ValueMask(Enum):

@@ -3482,6 +3482,26 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "test-pattern": {
+        "layers": ["posterize", "swerve-h", "pixel-sort", "snow", "be-kind-rewind", "lens"],
+        "settings": lambda: {
+            "pixel_sort_angled": False,
+            "pixel_sort_darkest": False,
+            "posterize_levels": random.randint(2, 4),
+            "vignette_alpha": .05 + random.random() * .025,
+        },
+        "generator": lambda settings: {
+            "brightness_distrib": distrib.ones,
+            "distrib": random_member([m for m in distrib if distrib.is_center_distance(m) or distrib.is_scan(m)]),
+            "freq": 1,
+            "hue_range": .25 + random.random() * 1.25,
+            "saturation_distrib": distrib.ones,
+        },
+        "post": lambda settings: [
+
+        ]
+    },
+
     "the-arecibo-response": {
         "layers": ["value-mask", "snow", "crt"],
         "settings": lambda: {

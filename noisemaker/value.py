@@ -106,6 +106,27 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         tensor = normalized_sine(singularity(None, shape, dist_metric=metric) * math.tau * max(freq[0], freq[1])
                                  - math.tau * time * rounded_speed) * tf.ones(shape)
 
+    elif ValueDistribution.is_scan(distrib):
+        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_down):
+            scan_distrib = ValueDistribution.column_index
+
+        elif distrib in (ValueDistribution.scan_left, ValueDistribution.scan_right):
+            scan_distrib = ValueDistribution.row_index
+
+        tensor = values([shape[0], shape[1]], value_shape(shape), distrib=scan_distrib)
+
+        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_left):
+            tensor = 1.0 - tensor
+
+        # make sure speed doesn't break looping
+        # XXX copied from center distance
+        if speed > 0:
+            rounded_speed = math.floor(1 + speed)
+        else:
+            rounded_speed = math.ceil(-1 + speed)
+
+        tensor = normalized_sine(tensor * math.tau - math.tau * time * rounded_speed) * tf.ones(shape)
+
     elif ValueDistribution.is_simplex(distrib):
         tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
@@ -151,8 +172,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
                                            time=0 if mask_static else time, speed=speed)
 
-        # These noise types are generated at full size
-        if ValueDistribution.is_fastnoise(distrib) or ValueDistribution.is_center_distance(distrib):
+        # These noise types are generated at full size, resize and pin just the mask.
+        if ValueDistribution.is_native_size(distrib):
             mask_values = resample(mask_values, shape, spline_order=spline_order)
             mask_values = pin_corners(mask_values, shape, freq, corners)
 
@@ -165,9 +186,8 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
         else:
             tensor *= mask_values
 
-    if not ValueDistribution.is_fastnoise(distrib) and not ValueDistribution.is_center_distance(distrib):
+    if not ValueDistribution.is_native_size(distrib):
         tensor = resample(tensor, shape, spline_order=spline_order)
-
         tensor = pin_corners(tensor, shape, freq, corners)
 
     if distrib not in (ValueDistribution.ones, ValueDistribution.mids, ValueDistribution.zeros):

@@ -268,6 +268,7 @@ def _use_periodic_distrib(distrib):
         ValueDistribution.row_index,
     ) \
             and not ValueDistribution.is_center_distance(distrib) \
+            and not ValueDistribution.is_scan(distrib) \
             and not ValueDistribution.is_simplex(distrib) \
             and not ValueDistribution.is_fastnoise(distrib) \
             and not ValueDistribution.is_periodic(distrib):
