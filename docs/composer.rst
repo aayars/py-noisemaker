@@ -30,7 +30,7 @@ The lineage of ancestor presets is modeled in each preset's ``layers`` list, whi
 
 .. code-block:: python
 
-    PRESETS = {
+    PRESETS = lambda: {
         "just-an-example": {
             # A list of parent preset names, if any:
             "layers": ["first-parent", "second-parent", ...]

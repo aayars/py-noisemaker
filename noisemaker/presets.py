@@ -1,7 +1,7 @@
 import functools
 import random
 
-from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, reload_presets, stash
+from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
 from noisemaker.constants import (
     DistanceMetric as distance,
     InterpolationType as interp,
@@ -17,7 +17,7 @@ from noisemaker.palettes import PALETTES
 import noisemaker.masks as masks
 
 #: A dictionary of presets for use with the "noisemaker generator" and "noisemaker effect" commands.
-PRESETS = {  # noqa E731
+PRESETS = lambda: {  # noqa E731
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
         "settings": lambda: {
@@ -4009,4 +4009,4 @@ PRESETS = {  # noqa E731
     },
 }
 
-Preset = functools.partial(Preset, presets=PRESETS)
+Preset = functools.partial(Preset, presets=PRESETS())

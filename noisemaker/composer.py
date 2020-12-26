@@ -206,6 +206,8 @@ def reload_presets(presets):
     GENERATOR_PRESETS.clear()
     EFFECT_PRESETS.clear()
 
+    presets = presets()
+
     for preset_name in presets:
         preset = Preset(preset_name, presets)
 

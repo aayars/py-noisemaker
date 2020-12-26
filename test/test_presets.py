@@ -5,9 +5,11 @@ from noisemaker.presets import PRESETS
 def test_presets():
     problems = []
 
-    for preset_name in PRESETS:
+    presets = PRESETS()
+
+    for preset_name in presets:
         try:
-            preset = Preset(preset_name, PRESETS)
+            preset = Preset(preset_name, presets)
 
         except Exception as e:
             problems.append(f"{preset_name} has an error: {e}")
