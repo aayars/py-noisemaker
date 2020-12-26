@@ -179,8 +179,8 @@ class ValueDistribution(Enum):
     def is_native_size(cls, member):
         """The noise type is generated at full-size, rather than upsampled."""
         return cls.is_center_distance(member) \
-                or cls.is_scan(member) \
-                or cls.is_fastnoise(member)
+            or cls.is_scan(member) \
+            or cls.is_fastnoise(member)
 
 
 class ValueMask(Enum):
