@@ -3602,6 +3602,7 @@ PRESETS = lambda: {  # noqa E731
         "generator": lambda settings: {
             "distrib": distrib.center_chebyshev,
             "hue_range": .1,
+            "hue_rotation": random.random(),
         },
     },
 
