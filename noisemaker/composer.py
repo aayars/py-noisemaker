@@ -62,9 +62,6 @@ class Preset:
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _rollup(preset_name, "post", [], presets, self.settings)
 
-        if preset_name == "blotto":
-            print(f"Have blotto: {[e.__dict__ for e in self.post_effects]}")
-
         # Make sure there's no dangling settings keys
         try:
             self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
