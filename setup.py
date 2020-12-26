@@ -33,7 +33,7 @@ setup(name='noisemaker',
         "opensimplex==0.3",
         "Pillow==8.0.1",
         "pyfastnoisesimd==0.4.1",
-        "tensorflow_addons==0.11.2",
+        "tensorflow_addons==0.12.0",
         "wheel==0.36.2",  # Needed by TF
         ],
 
