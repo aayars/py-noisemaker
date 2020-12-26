@@ -3497,9 +3497,6 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": .25 + random.random() * 1.25,
             "saturation_distrib": distrib.ones,
         },
-        "post": lambda settings: [
-
-        ]
     },
 
     "the-arecibo-response": {
