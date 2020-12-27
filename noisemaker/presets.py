@@ -1650,18 +1650,18 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "graph-paper": {
-        "layers": ["voronoi", "derivative-post", "rotate", "lens", "crt", "bloom", "contrast"],
+        "layers": ["wobble", "voronoi", "derivative-post", "rotate", "lens", "crt", "bloom", "contrast"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .5 + random.random() * .25,
-            "voronoi_refract": 1.5 + random.random() * .75,
+            "voronoi_refract": .75 + random.random() * .375,
             "voronoi_refract_y_from_offset": True,
             "voronoi_diagram_type": voronoi.flow,
         },
         "generator": lambda settings: {
             "corners": True,
             "distrib": distrib.ones,
-            "freq": random.randint(4, 8) * 2,
+            "freq": random.randint(3, 4) * 2,
             "mask": mask.chess,
             "rgb": True,
             "spline_order": interp.constant,
@@ -1943,7 +1943,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "later": {
-        "layers": ["value-mask", "multires", "voronoi", "funhouse", "glowing-edges", "crt", "vignette-dark"],
+        "layers": ["value-mask", "multires", "wobble", "voronoi", "funhouse", "glowing-edges", "crt", "vignette-dark"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "mask": random_member(mask.procedural_members()),
@@ -2365,10 +2365,11 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "now": {
-        "layers": ["multires-low", "normalize", "voronoi", "funhouse", "outline", "dither", "saturation"],
+        "layers": ["multires-low", "normalize", "wobble", "voronoi", "funhouse", "outline", "dither", "saturation"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "voronoi_diagram_type": voronoi.flow,
+            "voronoi_point_distrib": point.random,
             "voronoi_point_freq": random.randint(3, 10),
             "voronoi_refract": 2.0 + random.random(),
             "warp_freq": random.randint(2, 4),
@@ -3187,7 +3188,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sine-octaves": {
         "settings": lambda: {
-            "sine_range": random.randint(8, 20),
+            "sine_range": random.randint(8, 12),
             "sine_rgb": False,
         },
         "octaves": lambda settings: [

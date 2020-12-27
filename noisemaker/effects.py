@@ -1514,8 +1514,8 @@ def wobble(tensor, shape, time=0.0, speed=1.0):
     Move the entire image around
     """
 
-    x_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[1], tf.int32)
-    y_offset = tf.cast(simplex.random(time=time, speed=speed) * shape[0], tf.int32)
+    x_offset = tf.cast(simplex.random(time=time, speed=speed * .5) * shape[1], tf.int32)
+    y_offset = tf.cast(simplex.random(time=time, speed=speed * .5) * shape[0], tf.int32)
 
     return value.offset(tensor, shape, x=x_offset, y=y_offset)
 
