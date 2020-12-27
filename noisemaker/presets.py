@@ -680,22 +680,6 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
-    "center-distance": {
-        "generator": lambda settings: {
-            "freq": random.randint(1, 6),
-            "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
-            "hue_range": .25 + random.random() * .125,
-        },
-        "post": lambda settings: [Effect("normalize")]
-    },
-
-    "center-refract": {
-        "layers": ["value-refract"],
-        "settings": lambda: {
-            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
-        },
-    },
-
     "chunky-knit": {
         "layers": ["jorts", "random-hue", "contrast"],
         "settings": lambda: {
@@ -1360,7 +1344,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "fireball": {
-        "layers": ["center-refract", "refract-post", "refract-post", "bloom", "lens", "contrast"],
+        "layers": ["periodic-refract", "refract-post", "refract-post", "bloom", "lens", "contrast"],
         "settings": lambda: {
             "contrast": 2.5,
             "refract_range": .025 + random.random() * .0125,
@@ -2339,7 +2323,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "noise-tunnel": {
-        "layers": ["center-distance", "center-refract", "snow", "lens"],
+        "layers": ["periodic-distance", "periodic-refract", "snow", "lens"],
         "settings": lambda: {
             "speed": 1.0,
         },
@@ -2590,8 +2574,24 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "periodic-distance": {
+        "generator": lambda settings: {
+            "freq": random.randint(1, 6),
+            "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
+            "hue_range": .25 + random.random() * .125,
+        },
+        "post": lambda settings: [Effect("normalize")]
+    },
+
+    "periodic-refract": {
+        "layers": ["value-refract"],
+        "settings": lambda: {
+            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m) or distrib.is_scan(m)]),
+        },
+    },
+
     "pink-diamond": {
-        "layers": ["center-distance", "center-refract", "refract-octaves", "refract-post", "nudge-hue", "bloom", "lens"],
+        "layers": ["periodic-distance", "periodic-refract", "refract-octaves", "refract-post", "nudge-hue", "bloom", "lens"],
         "settings": lambda: {
             "bloom_alpha": .333 + random.random() * .16667,
             "refract_range": .0125 + random.random() * .006125,
@@ -3055,7 +3055,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "serene": {
-        "layers": ["basic-water", "center-refract", "refract-post", "lens"],
+        "layers": ["basic-water", "periodic-refract", "refract-post", "lens"],
         "settings": lambda: {
             "refract_range": .0025 + random.random() * .00125,
             "refract_y_from_offset": False,
@@ -3546,7 +3546,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "time-crystal": {
-        "layers": ["center-distance", "reflect-post", "saturation", "dither", "crt"],
+        "layers": ["periodic-distance", "reflect-post", "saturation", "dither", "crt"],
         "settings": lambda: {
             "reflect_range": 2.0 + random.random(),
         },
@@ -3558,7 +3558,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "time-doughnuts": {
-        "layers": ["center-distance", "funhouse", "posterize", "saturation", "dither", "scanline-error", "crt"],
+        "layers": ["periodic-distance", "funhouse", "posterize", "saturation", "dither", "scanline-error", "crt"],
         "settings": lambda: {
             "posterize_levels": 2,
             "speed": .05,
@@ -3611,7 +3611,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "trench-run": {
-        "layers": ["center-distance", "posterize", "sobel", "invert", "scanline-error", "crt"],
+        "layers": ["periodic-distance", "posterize", "sobel", "invert", "scanline-error", "crt"],
         "settings": lambda: {
             "posterize_levels": 1,
             "speed": 1.0,
@@ -3706,7 +3706,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "turbulence": {
-        "layers": ["basic-water", "center-refract", "refract-post", "lens", "contrast"],
+        "layers": ["basic-water", "periodic-refract", "refract-post", "lens", "contrast"],
         "settings": lambda: {
             "refract_range": .025 + random.random() * .0125,
             "refract_y_from_offset": False,
