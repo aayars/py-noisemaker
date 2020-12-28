@@ -714,7 +714,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "concentric": {
-        "layers": ["voronoi", "contrast", "maybe-palette", "wobble"],
+        "layers": ["wobble", "voronoi", "contrast", "maybe-palette"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
             "speed": .75,
@@ -1874,7 +1874,7 @@ PRESETS = lambda: {  # noqa E731
     "jovian-clouds": {
         "layers": ["voronoi", "worms", "brightness", "contrast", "saturation", "shadow", "dither", "lens"],
         "settings": lambda: {
-            "contrast": 3.0,
+            "contrast": 2.0,
             "dist_metric": distance.euclidean,
             "voronoi_alpha": .175 + random.random() * .25,
             "voronoi_diagram_type": voronoi.flow,
