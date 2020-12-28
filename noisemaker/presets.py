@@ -1376,7 +1376,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["symmetry", "voronoi", "worms", "contrast", "bloom", "brightness", "contrast", "vignette-dark"],
         "settings": lambda: {
             "dist_metric": distance.triangular,
-            "contrast": 2.5,
+            "contrast": 1.75 + random.random() * .875,
             "speed": .333,
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.color_range,
@@ -1385,11 +1385,11 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_nth": 0,
             "worms_alpha": .25,
             "worms_behavior": worms.meandering,
-            "worms_density": .125,
-            "worms_drunkenness": .125,
-            "worms_duration": 8,
-            "worms_stride": 1,
-            "worms_stride_deviation": 0,
+            "worms_density": .25 + random.random() * .125,
+            "worms_drunkenness": .1 + random.random() * .05,
+            "worms_duration": 6.0 + random.random() * 4.0,
+            "worms_stride": .75,
+            "worms_stride_deviation": .25,
         }
     },
 
@@ -3354,7 +3354,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "brightness", "nebula", "contrast", "lens", "dither", "vignette-dark"],
         "settings": lambda: {
             "brightness": -.075,
-            "contrast": 4.0,
+            "contrast": 2.0,
             "palette_name": None,
         },
         "generator": lambda settings: {
@@ -3528,7 +3528,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "the-inward-spiral": {
-        "layers": ["voronoi", "worms", "glowing-edges", "bloom", "lens"],
+        "layers": ["voronoi", "worms", "brightness", "contrast", "bloom", "lens"],
         "settings": lambda: {
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * .125),
@@ -3947,7 +3947,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "woahdude": {
-        "layers": ["voronoi", "sine-octaves", "refract-post", "bloom", "saturation", "lens"],
+        "layers": ["wobble", "voronoi", "sine-octaves", "refract-post", "bloom", "saturation", "lens"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "refract_range": .0005 + random.random() * .00025,
