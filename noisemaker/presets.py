@@ -554,13 +554,15 @@ PRESETS = lambda: {  # noqa E731
                    "bloom", "snow", "lens"],
         "settings": lambda: {
             "brightness": .125,
-            "contrast": 2.5 + random.random() * 1.25,
+            "contrast": 1.0 + random.random() * .5,
             "palette_name": None,
+            "speed": .125,
             "worms_alpha": .925,
-            "worms_behavior": worms.chaotic,
+            "worms_behavior": worms.meandering,
             "worms_density": .25 + random.random() * .125,
             "worms_drunken_spin": True,
             "worms_drunkenness": .125 + random.random() * .06125,
+            "worms_duration": 1.5 + random.random() * .75,
             "worms_stride_deviation": 5.0 + random.random() * 2.5,
         },
         "generator": lambda settings: {
