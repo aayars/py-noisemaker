@@ -1037,3 +1037,15 @@ def pin_corners(tensor, shape, freq, corners):
         tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
 
     return tensor
+
+
+def coerce_enum(value, cls):
+    """Attempt to coerce a given string or int value into an Enum instance."""
+
+    if isinstance(value, int):
+        value = cls(value)
+
+    elif isinstance(value, str):
+        value = cls[value]
+
+    return value

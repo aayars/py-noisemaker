@@ -4,7 +4,7 @@ import unittest
 
 from noisemaker.composer import Effect, Preset
 
-SHAPE = [256, 256, 1]
+SHAPE = [256, 256, 3]
 
 PRESETS = lambda: {
     "test-parent": {

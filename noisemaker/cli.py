@@ -3,6 +3,7 @@
 import click
 
 from noisemaker.constants import (
+    ColorSpace,
     DistanceMetric,
     InterpolationType,
     OctaveBlending,
@@ -703,6 +704,12 @@ def rgb_option(**attrs):
     attrs.setdefault("help", "Use RGB noise basis instead of HSV")
 
     return bool_option("--rgb", **attrs)
+
+
+def color_space_option(**attrs):
+    attrs.setdefault("help", "Color Space: Specify a color model for noise generation")
+
+    return str_option("--color-space", type=click.Choice([m.name for m in ColorSpace]), default="hsv", **attrs)
 
 
 def hue_range_option(**attrs):

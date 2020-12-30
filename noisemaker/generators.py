@@ -4,16 +4,22 @@ from functools import partial
 
 import tensorflow as tf
 
-from noisemaker.constants import InterpolationType, OctaveBlending, ValueDistribution
+from noisemaker.constants import (
+    ColorSpace,
+    InterpolationType,
+    OctaveBlending,
+    ValueDistribution
+)
 
 import noisemaker.effects as effects
+import noisemaker.oklab as oklab
 import noisemaker.simplex as simplex
 import noisemaker.value as value
 
 
 def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
           distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, mask_static=False,
-          lattice_drift=0.0, rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+          lattice_drift=0.0, color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           speed=1.0, time=0.0, octave_effects=None, octave=1, **post_process_args):
     """
@@ -35,7 +41,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     :param bool mask_inverse:
     :param bool mask_static: If True, don't animate the mask
     :param float lattice_drift: Push away from underlying lattice
-    :param bool rgb: Disable HSV
+    :param ColorSpace color_space:
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
     :param float saturation: HSV saturation
@@ -52,6 +58,8 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
+
+    color_space = value.coerce_enum(color_space, ColorSpace)
 
     common_value_params = {
         "corners": corners,
@@ -78,9 +86,9 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
             tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave)
 
     else:  # Old way
-        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, rgb=rgb, **post_process_args)
+        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, color_space=color_space, **post_process_args)
 
-    if shape[-1] >= 3 and not rgb:
+    if color_space == ColorSpace.hsv:
         if hue_distrib:
             h = tf.squeeze(value.values(freq=freq, distrib=hue_distrib, **common_value_params))
 
@@ -123,10 +131,33 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
         if shape[2] == 4:
             tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], a], 2)
 
+    elif color_space == ColorSpace.oklab:
+        L = tensor[:, :, 0]
+        a = tensor[:, :, 1] * -.509 + .276
+        b = tensor[:, :, 2] * -.509 + .198
+
+        if shape[2] == 4:
+            alpha = tensor[:, :, 3]
+
+        if ridges and spline_order:  # ridges don't work well when not interpolating values
+            L = value.ridge(L)
+
+        if sin:
+            L = value.normalize(tf.sin(sin * L))
+
+        # print(f"L min {tf.reduce_min(L)} max {tf.reduce_max(L)}")
+        # print(f"a min {tf.reduce_min(a)} max {tf.reduce_max(a)}")
+        # print(f"b min {tf.reduce_min(b)} max {tf.reduce_max(b)}")
+
+        tensor = tf.maximum(tf.minimum(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)), 1.0), 0.0)
+
+        if shape[2] == 4:
+            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], alpha], 2)
+
     elif ridges and spline_order:
         tensor = value.ridge(tensor)
 
-    if sin and rgb:
+    if sin and color_space in (ColorSpace.rgb, ColorSpace.grayscale):
         tensor = tf.sin(sin * tensor)
 
     return tensor
@@ -135,7 +166,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
              distrib=ValueDistribution.normal, corners=False,
              mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0,
-             rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+             color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff,
              octave_effects=None, post_effects=None, time=0.0, speed=1.0, tensor=None):
@@ -159,7 +190,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     :param bool mask_inverse:
     :param bool mask_static: If True, don't animate the mask
     :param float lattice_drift: Push away from underlying lattice
-    :param bool rgb: Disable HSV
+    :param ColorSpace color_space:
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
     :param float saturation: HSV saturation
@@ -182,11 +213,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
 
-    if isinstance(octave_blending, int):
-        octave_blending = OctaveBlending(octave_blending)
-
-    elif isinstance(octave_blending, str):
-        octave_blending = OctaveBlending[octave_blending]
+    octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
     original_shape = shape.copy()
 
@@ -205,9 +232,9 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
                 break
 
             layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners, distrib=distrib,
-                          mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift, rgb=rgb,
-                          hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
-                          brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
+                          mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift,
+                          color_space=color_space, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
+                          hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
                           saturation_distrib=saturation_distrib, octave_effects=octave_effects, octave=octave,
                           time=time, speed=speed)
 
@@ -247,7 +274,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
 def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
                  distrib=ValueDistribution.normal, corners=False,
                  mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0,
-                 rgb=False, hue_range=.125, hue_rotation=None, saturation=1.0,
+                 color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
                  hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
                  octave_blending=OctaveBlending.falloff,
                  post_ridges=False, reflect_range=0.0, refract_range=0.0, reindex_range=0.0,
@@ -283,7 +310,7 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
     :param float post_refract_range: Reduced self-distort range (0..1+)
     :param float post_refract_y_from_offset: Derive Y offsets from offset image
     :param bool post_deriv: Reduced derivatives
-    :param bool rgb: Disable HSV
+    :param ColorSpace color_space:
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
     :param float saturation: HSV saturation
@@ -304,11 +331,7 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
 
-    if isinstance(octave_blending, int):
-        octave_blending = OctaveBlending(octave_blending)
-
-    elif isinstance(octave_blending, str):
-        octave_blending = OctaveBlending[octave_blending]
+    octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
     original_shape = shape.copy()
 
@@ -332,9 +355,9 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
                       refract_y_from_offset=post_process_args.get("refract_y_from_offset", False),
                       distrib=distrib, corners=corners, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
                       deriv=deriv, deriv_metric=deriv_metric, deriv_alpha=deriv_alpha,
-                      lattice_drift=lattice_drift, rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
-                      hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                      saturation_distrib=saturation_distrib, time=time, speed=speed)
+                      lattice_drift=lattice_drift, color_space=color_space, hue_range=hue_range, hue_rotation=hue_rotation,
+                      saturation=saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
+                      brightness_freq=brightness_freq, saturation_distrib=saturation_distrib, time=time, speed=speed)
 
         if octave_blending == OctaveBlending.reduce_max:
             tensor = tf.maximum(tensor, layer)
@@ -363,11 +386,12 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
     post_process_args.pop("refract_y_from_offset", None)
 
     tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
-                                  ridges_hint=ridges and rgb, spline_order=spline_order,
+                                  ridges_hint=ridges and color_space == ColorSpace.rgb,
+                                  spline_order=spline_order,
                                   reindex_range=post_reindex_range, reflect_range=post_reflect_range,
                                   refract_range=post_refract_range, refract_y_from_offset=post_refract_y_from_offset,
                                   with_reverb=with_reverb, reverb_iterations=reverb_iterations,
-                                  deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, rgb=rgb,
+                                  deriv=post_deriv, deriv_metric=deriv_metric, with_ridge=post_ridges, color_space=color_space,
                                   **post_process_args)
 
     return value.normalize(tensor)

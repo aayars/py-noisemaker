@@ -583,3 +583,13 @@ class OctaveBlending(Enum):
 
     # Overlay each layer using the layer's alpha channel
     alpha = 20
+
+
+class ColorSpace(Enum):
+    """
+    """
+
+    grayscale = 1
+    rgb = 11
+    hsv = 21
+    oklab = 31

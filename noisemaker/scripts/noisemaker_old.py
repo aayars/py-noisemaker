@@ -106,7 +106,7 @@ import noisemaker.value as value
 @cli.vignette_brightness_option()
 @cli.pop_option()
 @cli.shadow_option()
-@cli.rgb_option()
+@cli.color_space_option()
 @cli.hue_range_option()
 @cli.hue_rotation_option()
 @cli.post_hue_rotation_option()
@@ -139,13 +139,20 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          voronoi_alpha, voronoi_refract, voronoi_refract_y_from_offset,
          voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither,
          aberration, light_leak, vignette, vignette_brightness,
-         pop, convolve, shadow, bloom, rgb, hue_range, hue_rotation,
+         pop, convolve, shadow, bloom, color_space, hue_range, hue_rotation,
          saturation, hue_distrib, saturation_distrib, post_hue_rotation,
          post_saturation, brightness_distrib, input_dir, dla, dla_padding,
          point_freq, point_distrib, point_corners, point_generations,
          point_drift, density, palette, seed, name):
 
     value.set_seed(seed)
+
+    if color_space == "grayscale":
+        if channels > 2:
+            channels = 1
+    else:
+        if channels < 3:
+            channels = 3
 
     shape = [height, width, channels]
 
@@ -173,7 +180,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
                                      glyph_map_alpha=glyph_map_alpha, with_composite=composite, composite_zoom=composite_zoom,
                                      warp_range=warp, warp_octaves=warp_octaves, warp_interp=warp_interp, warp_freq=warp_freq, warp_map=warp_map,
                                      posterize_levels=posterize, vortex_range=vortex,
-                                     rgb=rgb, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
+                                     color_space=color_space, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation, post_hue_rotation=post_hue_rotation,
                                      post_saturation=post_saturation, hue_distrib=hue_distrib, brightness_distrib=brightness_distrib,
                                      saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                      with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,

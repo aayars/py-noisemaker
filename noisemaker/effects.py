@@ -9,6 +9,7 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 
 from noisemaker.constants import (
+    ColorSpace,
     DistanceMetric,
     InterpolationType,
     PointDistribution,
@@ -60,7 +61,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                  with_nebula=False, with_false_color=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
                  with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None, with_degauss=False,
-                 rgb=False, time=0.0, speed=1.0, **_):
+                 color_space=ColorSpace.hsv, time=0.0, speed=1.0, **_):
     """
     Apply post-processing effects.
 
@@ -183,7 +184,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     :param None|float with_lens_warp: Lens warp effect
     :param None|float with_tint: Color tint effect alpha amount
     :param None|float with_degauss: CRT degauss effect
-    :param bool rgb: Using RGB mode? Hint for some effects.
+    :param ColorSpace color_space:
     :return: Tensor
     """
 
@@ -298,7 +299,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                          blend_edges=kaleido_blend_edges)
 
     if with_sobel and with_sobel != DistanceMetric.none:
-        tensor = sobel(tensor, shape, with_sobel, rgb)
+        tensor = sobel(tensor, shape, with_sobel, ColorSpace.is_rgb(color_space))
 
     if with_convolve:
         for kernel in with_convolve:
@@ -693,8 +694,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :return: Tensor
     """
 
-    if isinstance(behavior, int):
-        behavior = WormBehavior(behavior)
+    behavior = value.coerce_enum(behavior, WormBehavior)
 
     height, width, channels = shape
 
@@ -1674,11 +1674,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0,
     if mask is None:
         mask = ValueMask.truetype
 
-    elif isinstance(mask, int):
-        mask = ValueMask(mask)
-
-    elif isinstance(mask, str):
-        mask = ValueMask[mask]
+    mask = value.coerce_enum(mask, ValueMask)
 
     if mask == ValueMask.truetype:
         glyph_shape = masks.mask_shape(ValueMask.truetype)

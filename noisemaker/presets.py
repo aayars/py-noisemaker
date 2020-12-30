@@ -3,6 +3,7 @@ import random
 
 from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
 from noisemaker.constants import (
+    ColorSpace as color,
     DistanceMetric as distance,
     InterpolationType as interp,
     OctaveBlending as blend,
@@ -31,7 +32,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_nth": random.randint(1, 3),
         },
         "generator": lambda settings: {
-            "rgb": True,
+            "color_space": color.rgb,
         },
     },
 
@@ -115,7 +116,7 @@ PRESETS = lambda: {  # noqa E731
     "abyssal-echoes": {
         "layers": ["multires-alpha", "saturation", "random-hue"],
         "generator": lambda settings: {
-            "rgb": True,
+            "color_space": color.rgb,
         },
         "octaves": lambda settings: [
             Effect("refract",
@@ -131,9 +132,9 @@ PRESETS = lambda: {  # noqa E731
             "reindex_range": 1.25 + random.random() * 1.25,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "freq": random.randint(10, 15),
             "octaves": 8,
-            "rgb": True,
         },
     },
 
@@ -182,9 +183,9 @@ PRESETS = lambda: {  # noqa E731
     "activation-signal": {
         "layers": ["value-mask", "maybe-palette", "glitchin-out"],
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "freq": 4,
             "mask": mask.white_bear,
-            "rgb": coin_flip(),
             "spline_order": interp.constant,
         }
     },
@@ -269,12 +270,12 @@ PRESETS = lambda: {  # noqa E731
             "warp_octaves": 1,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.exp,
             "freq": settings["warp_freq"],
             "hue_range": 1,
             "mask": mask.sparser,
             "mask_static": True,
-            "rgb": True,
         }
     },
 
@@ -448,7 +449,7 @@ PRESETS = lambda: {  # noqa E731
             "warp_range": random.randint(0, 1) * random.random(),
         },
         "generator": lambda settings: {
-            "rgb": True,
+            "color_space": color.rgb,
         },
     },
 
@@ -473,8 +474,8 @@ PRESETS = lambda: {  # noqa E731
 
     "blotto": {
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "distrib": distrib.ones,
-            "rgb": coin_flip(),
         },
         "post": lambda settings: [Effect("spatter", color=False), Preset("maybe-palette")]
     },
@@ -529,9 +530,9 @@ PRESETS = lambda: {  # noqa E731
             "warp_octaves": random.randint(1, 4),
         },
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "freq": settings["voronoi_point_freq"],
             "hue_range": .25 + random.random() * .75,
-            "rgb": coin_flip(),
         }
     },
 
@@ -543,9 +544,9 @@ PRESETS = lambda: {  # noqa E731
             "speed": .025,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "freq": random.randint(3, 4),
             "lattice_drift": 2,
-            "rgb": True,
         },
     },
 
@@ -649,7 +650,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": random.randint(8, 12) * .5,
         },
         "generator": lambda settings: {
-            "rgb": coin_flip(),
+            "color_space": random_member([color.rgb, color.hsv]),
             "ridges": True,
         },
     },
@@ -726,10 +727,10 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_freq": random.randint(1, 2),
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.ones,
             "freq": 2,
             "mask": mask.h_bar,
-            "rgb": True,
             "spline_order": interp.constant,
         }
     },
@@ -790,7 +791,7 @@ PRESETS = lambda: {  # noqa E731
             "worms_stride_deviation": 0.0
         },
         "generator": lambda setings: {
-            "rgb": True,
+            "color_space": color.rgb,
         },
     },
 
@@ -1118,12 +1119,12 @@ PRESETS = lambda: {  # noqa E731
     "dropout": {
         "layers": ["derivative-post", "maybe-invert"],
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "distrib": distrib.ones,
             "freq": [random.randint(4, 6), random.randint(2, 4)],
             "mask": mask.dropout,
             "octave_blending": blend.reduce_max,
             "octaves": random.randint(5, 6),
-            "rgb": coin_flip(),
             "spline_order": interp.constant,
         }
     },
@@ -1258,8 +1259,8 @@ PRESETS = lambda: {  # noqa E731
             "erosion_worms_iterations": random.randint(625, 1125),
         },
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "distrib": random_member([distrib.lognormal, distrib.exp, distrib.uniform]),
-            "rgb": coin_flip(),
         }
     },
 
@@ -1561,9 +1562,9 @@ PRESETS = lambda: {  # noqa E731
             "reflect_range": .95 + random.random() * .1,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.lognormal,
             "octaves": 8,
-            "rgb": True,
         },
     },
 
@@ -1661,11 +1662,11 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.flow,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "corners": True,
             "distrib": distrib.ones,
             "freq": random.randint(3, 4) * 2,
             "mask": mask.chess,
-            "rgb": True,
             "spline_order": interp.constant,
         }
     },
@@ -2240,12 +2241,12 @@ PRESETS = lambda: {  # noqa E731
             "worms_behavior": worms.random,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.uniform,
             "freq": [random.randint(3, 4), random.randint(3, 4)],
             "lattice_drift": 1.0,
             "mask": mask.h_tri,
             "mask_static": True,
-            "rgb": True,
         }
     },
 
@@ -2259,7 +2260,7 @@ PRESETS = lambda: {  # noqa E731
             "ripple_range": 1.25 + random.random(),
         },
         "generator": lambda settings: {
-            "rgb": True,
+            "color_space": color.rgb,
             "spline_order": interp.constant,
         },
     },
@@ -2461,11 +2462,11 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": random.randint(8, 12) * .5,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "corners": True,
             "distrib": distrib.ones,
             "freq": random.randint(2, 5) * 2,
             "mask": mask.chess,
-            "rgb": True,
             "spline_order": interp.constant,
         },
     },
@@ -2748,8 +2749,8 @@ PRESETS = lambda: {  # noqa E731
             "reindex_range": 2,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "freq": [2, 2],
-            "rgb": True,
             "spline_order": random_member([interp.cosine, interp.bicubic]),
         },
     },
@@ -2980,10 +2981,10 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_freq": random.randint(2, 8),
         },
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "freq": random.randint(3, 4),
             "hue_range": random.random(),
             "lattice_drift": 1,
-            "rgb": coin_flip(),
             "ridges": True,
         },
     },
@@ -3001,13 +3002,13 @@ PRESETS = lambda: {  # noqa E731
             "posterize_levels": 1,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.ones,
             "freq": random.randint(5, 9),
             "lattice_drift": 1.25 + random.random() * 1.25,
             "mask": mask.sparse,
             "octave_blending": blend.reduce_max,
             "octaves": random.randint(2, 3),
-            "rgb": True,
         },
     },
 
@@ -3099,10 +3100,10 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": .125 + random.random() * .25,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.ones,
             "freq": 11,
             "mask": random_member(mask.procedural_members()),
-            "rgb": True,
             "spline_order": interp.cosine,
         },
     },
@@ -3120,7 +3121,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.range_regions,
         },
         "generator": lambda settings: {
-            "rgb": coin_flip(),
+            "color_space": random_member([color.rgb, color.hsv]),
         },
     },
 
@@ -3248,12 +3249,12 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
         },
         "generator": lambda settings: {
+            "color_space": random_member([color.rgb, color.hsv]),
             "freq": 2,
             "hue_range": .25 + random.random() * .25,
             "hue_rotation": random.random(),
             "lattice_drift": 1,
             "octaves": random.randint(1, 4),
-            "rgb": coin_flip(),
         },
     },
 
@@ -3330,10 +3331,10 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": .125,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "distrib": distrib.ones,
             "freq": 33,
             "mask": mask.bank_ocr,
-            "rgb": True,
             "spline_order": interp.cosine,
         },
     },
@@ -3382,8 +3383,8 @@ PRESETS = lambda: {  # noqa E731
             "palette_name": None,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "octaves": random.randint(2, 4),
-            "rgb": True,
             "ridges": False,
         },
     },
@@ -3470,7 +3471,7 @@ PRESETS = lambda: {  # noqa E731
             "vortex_range": random.randint(8, 25),
         },
         "generator": lambda settings: {
-            "rgb": True,
+            "color_space": color.rgb,
         },
     },
 
@@ -3524,8 +3525,8 @@ PRESETS = lambda: {  # noqa E731
             "worms_stride_deviation": 6,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "freq": [3, 1],
-            "rgb": True,
         },
     },
 
@@ -3938,11 +3939,11 @@ PRESETS = lambda: {  # noqa E731
             "warp_range": .0333,
         },
         "generator": lambda settings: {
+            "color_space": color.rgb,
             "freq": 20,
             "lattice_drift": 0.333,
             "mask": mask.sparse,
             "mask_static": True,
-            "rgb": True,
             "ridges": True,
             "spline_order": interp.cosine,
         },
