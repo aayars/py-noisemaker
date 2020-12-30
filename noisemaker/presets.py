@@ -2451,6 +2451,16 @@ PRESETS = lambda: {  # noqa E731
         ]
     },
 
+    "oklab-color-space": {
+        "layers": ["multires-ridged"],
+        "settings": lambda: {
+            "palette_on": False,
+        },
+        "generator": lambda settings: {
+            "color_space": color.oklab
+        }
+    },
+
     "oldschool": {
         "layers": ["voronoi", "normalize", "maybe-palette", "random-hue", "saturation", "distressed"],
         "settings": lambda: {
