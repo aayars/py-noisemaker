@@ -684,6 +684,22 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "chalky": {
+        "layers": ["refract-post", "octave-warp", "outline", "dither", "lens"],
+        "settings": lambda: {
+            "outline_invert": True,
+            "refract_range": .1 + random.random() * .05,
+            "warp_octaves": 8,
+            "warp_range": .0333 + random.random() * .016667,
+        },
+        "generator": lambda settings: {
+            "color_space": color.oklab,
+            "freq": random.randint(2, 3),
+            "octaves": random.randint(2, 3),
+            "ridges": True,
+        },
+    },
+
     "chunky-knit": {
         "layers": ["jorts", "random-hue", "contrast"],
         "settings": lambda: {
@@ -2438,13 +2454,18 @@ PRESETS = lambda: {  # noqa E731
 
     "octave-warp": {
         "settings": lambda: {
-            "speed": .025 + random.random() * .0125
+            "speed": .025 + random.random() * .0125,
+            "warp_freq": random.randint(2, 3),
+            "warp_octaves": random.randint(2, 4),
+            "warp_range": 2.0 + random.random(),
+            "warp_spline_order": interp.bicubic,
         },
         "post": lambda settings: [
             Effect("warp",
-                   displacement=2.0 + random.random(),
-                   freq=random.randint(2, 3),
-                   octaves=3)
+                   displacement=settings["warp_range"],
+                   freq=settings["warp_freq"],
+                   octaves=settings["warp_octaves"],
+                   spline_order=settings["warp_spline_order"])
         ]
     },
 
@@ -2508,7 +2529,16 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "outline": {
-        "post": lambda settings: [Effect("outline", sobel_metric=distance.euclidean)]
+        "settings": lambda: {
+            "dist_metric": distance.euclidean,
+            "outline_invert": False,
+        },
+        "post": lambda settings: [
+            Effect("outline",
+                sobel_metric=settings["dist_metric"],
+                invert=settings["outline_invert"],
+            )
+        ]
     },
 
     "oxidize": {
@@ -3236,7 +3266,7 @@ PRESETS = lambda: {  # noqa E731
 
     "sobel": {
         "settings": lambda: {
-            "dist_metric": random_member(distance.all())
+            "dist_metric": random_member(distance.all()),
         },
         "post": lambda settings: [Effect("sobel", dist_metric=settings["dist_metric"])]
     },
