@@ -29,16 +29,16 @@ def main():
 @main.command()
 @cli.input_dir_option(required=True)
 @cli.int_option('--seed', required=True)
-@cli.name_option(default="mashup.gif")
+@cli.filename_option(default="mashup.gif")
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.width_option(default=DEFAULT_WIDTH)
 @cli.height_option(default=DEFAULT_HEIGHT)
 @cli.option('--watermark', type=str)
 @click.pass_context
-def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
+def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark):
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(30):
-            filename = f'{tmp}/{i:04d}.png'
+            frame_filename = f'{tmp}/{i:04d}.png'
 
             util.check_call(['magic-mashup', 'frame',
                              '--input-dir', input_dir,
@@ -46,22 +46,22 @@ def frames(ctx, input_dir, seed, name, save_frames, width, height, watermark):
                              '--seed', str(seed),
                              '--width', str(width),
                              '--height', str(height),
-                             '--filename', filename])
+                             '--filename', frame_filename])
 
-            util.check_call(['noisemaker', 'effect', 'crt', filename,
+            util.check_call(['noisemaker', 'effect', 'crt', frame_filename,
                              '--no-resize',
                              '--seed', str(seed),
                              '--speed', '0.25',
                              '--time', str(i / 30.0),
-                             '--filename', filename])
+                             '--filename', frame_filename])
 
             if save_frames:
-                shutil.copy(filename, save_frames)
+                shutil.copy(frame_filename, save_frames)
 
             if watermark:
-                util.watermark(watermark, filename)
+                util.watermark(watermark, frame_filename)
 
-        util.magick(f'{tmp}/*png', name)
+        util.magick(f'{tmp}/*png', filename)
 
     print('magic-mashup')
 
