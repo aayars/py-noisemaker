@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='noisemaker',
-      version='0.2.110',
+      version='0.2.111',
       description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
       author_email='aayars@gmail.com',
@@ -32,13 +32,12 @@ setup(name='noisemaker',
         "click==7.1.2",
         "h5py~=2.10.0",
         "loguru==0.5.3",
-        "numpy<1.19.0,>=1.16.0",
         "opensimplex==0.3",
         "Pillow==8.0.1",
         "protobuf<4,>=3.7",
         "pyfastnoisesimd==0.4.1",
         "six~=1.15.0",
-        "tensorflow-addons==0.12.0",
+        "tensorflow_addons==0.12.0",
         "tensorflow-graphics==2020.5.20",
         "wheel==0.36.2",  # Needed by TF
         ],
