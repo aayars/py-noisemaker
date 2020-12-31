@@ -298,7 +298,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                          blend_edges=kaleido_blend_edges)
 
     if with_sobel and with_sobel != DistanceMetric.none:
-        tensor = sobel(tensor, shape, with_sobel, ColorSpace.is_rgb(color_space))
+        tensor = sobel(tensor, shape, with_sobel, color_space == ColorSpace.rgb)
 
     if with_convolve:
         for kernel in with_convolve:
