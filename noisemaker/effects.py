@@ -347,7 +347,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         tensor = tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, post_brightness), 1.0), -1.0)
 
     if post_contrast is not None:
-        tensor = tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, post_contrast), 1.0), 0.0)
+        tensor = value.clamp01(tf.image.adjust_contrast(tensor, post_contrast))
 
     if with_jpeg_decimate:
         tensor = jpeg_decimate(tensor, shape, iterations=with_jpeg_decimate)
@@ -528,7 +528,7 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alp
         x = (x + x_dir) % width
         y = (y + y_dir) % height
 
-    out = tf.maximum(tf.minimum(out, 1.0), 0.0)
+    out = value.clamp01(out)
 
     if inverse:
         out = 1.0 - out
@@ -1823,8 +1823,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     values = value.value_map(tensor, value_shape, keepdims=True)
     values = tf.image.adjust_contrast(values, 2.0)
 
-    values = tf.minimum(values, 1.0)
-    values = tf.maximum(values, 0.0)
+    values = value.clamp01(values)
 
     outline = 1.0 - derivative(values, value_shape)
     outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
@@ -2593,12 +2592,12 @@ def adjust_saturation(tensor, shape, amount=.75, time=0.0, speed=1.0):
 
 @effect()
 def adjust_brightness(tensor, shape, amount=.125, time=0.0, speed=1.0):
-    return tf.maximum(tf.minimum(tf.image.adjust_brightness(tensor, amount), 1.0), 0.0)
+    return value.clamp01(tf.image.adjust_brightness(tensor, amount))
 
 
 @effect()
 def adjust_contrast(tensor, shape, amount=1.25, time=0.0, speed=1.0):
-    return tf.maximum(tf.minimum(tf.image.adjust_contrast(tensor, amount), 1.0), 0.0)
+    return value.clamp01(tf.image.adjust_contrast(tensor, amount))
 
 
 @effect()

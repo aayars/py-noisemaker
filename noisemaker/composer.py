@@ -73,7 +73,7 @@ class Preset:
         return f"<Preset \"{self.name}\">"
 
     def is_generator(self):
-        return self.generator_kwargs or "voronoi" in self.settings
+        return self.generator_kwargs or self.settings.get("voronoi_diagram_type")
 
     def is_effect(self):
         return not self.is_generator() or self.settings.get("voronoi_refract")

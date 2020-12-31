@@ -149,7 +149,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
         # print(f"a min {tf.reduce_min(a)} max {tf.reduce_max(a)}")
         # print(f"b min {tf.reduce_min(b)} max {tf.reduce_max(b)}")
 
-        tensor = tf.maximum(tf.minimum(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)), 1.0), 0.0)
+        tensor = value.clamp01(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)))
 
         if shape[2] == 4:
             tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], alpha], 2)

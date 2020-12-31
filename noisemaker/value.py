@@ -20,6 +20,7 @@ from noisemaker.effects_registry import effect
 from noisemaker.points import point_cloud
 
 import noisemaker.masks as masks
+import noisemaker.oklab as oklab
 import noisemaker.simplex as simplex
 
 
@@ -958,7 +959,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
 
 def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=True):
     """
-    Create a grayscale value map from the given image Tensor by reducing the sum across channels.
+    Create a grayscale value map from the given image Tensor, based on apparent luminance.
 
     Return value ranges between 0 and 1.
 
@@ -969,7 +970,21 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
     :return: Tensor of shape (height, width), or (height, width, channels) if keepdims was True.
     """
 
-    tensor = tf.reduce_sum(tensor, len(shape) - 1, keepdims=keepdims)
+    # XXX Why is shape sometimes wrong when passed in from refract?
+    shape = tf.shape(tensor)
+
+    if shape[2] in (1, 2):
+        tensor = tensor[:, :, 0]
+
+    elif shape[2] == 3:
+        tensor = oklab.rgb_to_oklab(normalize(tensor))[:, :, 0]
+
+    elif shape[2] == 4:
+        tensor = normalize(tensor)
+        tensor = oklab.rgb_to_oklab(tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2))[:, :, 0]
+
+    if keepdims:
+        tensor = tf.expand_dims(tensor, -1)
 
     if with_normalize:
         tensor = normalize(tensor, signed_range=signed_range)
@@ -1016,3 +1031,7 @@ def coerce_enum(value, cls):
         value = cls[value]
 
     return value
+
+
+def clamp01(tensor):
+    return tf.maximum(tf.minimum(tensor, 1.0), 0.0)
