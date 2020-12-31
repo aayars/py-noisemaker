@@ -183,7 +183,7 @@ PRESETS = lambda: {  # noqa E731
     "activation-signal": {
         "layers": ["value-mask", "maybe-palette", "glitchin-out"],
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "freq": 4,
             "mask": mask.white_bear,
             "spline_order": interp.constant,
@@ -305,6 +305,7 @@ PRESETS = lambda: {  # noqa E731
     "basic": {
         "layers": ["maybe-palette", "normalize"],
         "generator": lambda settings: {
+            "color_space": random_member(color.color_members()),
             "freq": [random.randint(2, 4), random.randint(2, 4)],
         },
     },
@@ -474,7 +475,7 @@ PRESETS = lambda: {  # noqa E731
 
     "blotto": {
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "distrib": distrib.ones,
         },
         "post": lambda settings: [Effect("spatter", color=False), Preset("maybe-palette")]
@@ -530,7 +531,7 @@ PRESETS = lambda: {  # noqa E731
             "warp_octaves": random.randint(1, 4),
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "freq": settings["voronoi_point_freq"],
             "hue_range": .25 + random.random() * .75,
         }
@@ -638,7 +639,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_nth": coin_flip(),
             "voronoi_point_distrib": random_member([m for m in point if m not in point.grid_members()]),
             "voronoi_point_freq": random.randint(2, 3),
-        }
+        },
     },
 
     "cell-refract": {
@@ -650,7 +651,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": random.randint(8, 12) * .5,
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "ridges": True,
         },
     },
@@ -1119,7 +1120,7 @@ PRESETS = lambda: {  # noqa E731
     "dropout": {
         "layers": ["derivative-post", "maybe-invert"],
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "distrib": distrib.ones,
             "freq": [random.randint(4, 6), random.randint(2, 4)],
             "mask": mask.dropout,
@@ -1257,7 +1258,7 @@ PRESETS = lambda: {  # noqa E731
             "erosion_worms_iterations": random.randint(625, 1125),
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "distrib": random_member([distrib.pow_inv_1, distrib.exp, distrib.uniform]),
         }
     },
@@ -2987,7 +2988,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_freq": random.randint(2, 8),
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "freq": random.randint(3, 4),
             "hue_range": random.random(),
             "lattice_drift": 1,
@@ -3127,7 +3128,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.range_regions,
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
         },
     },
 
@@ -3255,7 +3256,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
         },
         "generator": lambda settings: {
-            "color_space": random_member([color.rgb, color.hsv]),
+            "color_space": random_member(color.color_members()),
             "freq": 2,
             "hue_range": .25 + random.random() * .25,
             "hue_rotation": random.random(),

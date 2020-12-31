@@ -559,6 +559,15 @@ class ColorSpace(Enum):
     """
 
     grayscale = 1
+
     rgb = 11
     hsv = 21
     oklab = 31
+
+    @classmethod
+    def is_color(cls, m):
+        return m and m.value > 1
+
+    @classmethod
+    def color_members(cls):
+        return [m for m in cls if cls.is_color(m)]
