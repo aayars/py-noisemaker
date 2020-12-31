@@ -4,7 +4,6 @@ import math
 import random
 
 import numpy as np
-import pyfastnoisesimd as fn
 import tensorflow as tf
 import tensorflow_addons as tfa
 
@@ -597,7 +596,7 @@ def ripple(tensor, shape, freq=2, displacement=1.0, kink=1.0, reference=None, sp
     value_shape = value.value_shape(shape)
 
     if reference is None:
-        reference = value.values(freq=freq, shape=value_shape, distrib=ValueDistribution.periodic_uniform, spline_order=spline_order)
+        reference = value.values(freq=freq, shape=value_shape, spline_order=spline_order)
 
     # Twist index, borrowed from worms. TODO refactor me?
     index = value.value_map(reference, shape, with_normalize=False) * math.tau * kink * simplex.random(time, speed=speed)
@@ -700,14 +699,6 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     count = int(max(width, height) * density)
 
-    if drunkenness:  # Get nearest power of 2, otherwise fastnoise will probably dump core
-        c = 2
-
-        while c < count:
-            c *= 2
-
-        count = c
-
     worms_y = tf.random.uniform([count]) * (height - 1)
     worms_x = tf.random.uniform([count]) * (width - 1)
     worms_stride = tf.random.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)
@@ -715,10 +706,6 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     color_source = colors if colors is not None else tensor
 
     colors = tf.gather_nd(color_source, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
-
-    # For the benefit of drunk or meandering worms
-    fastgen = fn.Noise()
-    fastgen.frequency = count * .1
 
     quarter_count = int(count * .25)
 
@@ -746,8 +733,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             ]), [count]),
 
         # Chaotic, changing over time
-        WormBehavior.meandering: lambda n:
-            (value.normalize(tf.stack(fastgen.genAsGrid([count], start=[int(min(shape[0], shape[1]) * time * speed)]))) * 2.0 - 1.0) * math.pi
+        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, tf.random.uniform([count]))
     }
 
     worms_rot = rots[behavior](count)
@@ -769,7 +755,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             if not drunken_spin:
                 start = int(min(shape[0], shape[1]) * time * speed + i * speed * 10)  # Wobbling here and there
 
-            worms_rot += (value.normalize(tf.stack(fastgen.genAsGrid([count], start=[start]))) * 2.0 - 1.0) * drunkenness * math.pi
+            worms_rot += (value.periodic_value(time * speed, tf.random.uniform([count])) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
@@ -2003,7 +1989,7 @@ def glitch(tensor, shape, time=0.0, speed=1.0):
 
     tensor = value.normalize(tensor)
 
-    base = value.simple_multires(2, shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform,
+    base = value.simple_multires(2, shape, time=time, speed=speed, 
                                  octaves=random.randint(2, 5), spline_order=0)
 
     base = value.refract(base, shape, random.random())
@@ -2048,11 +2034,11 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
 
     # Generate scan noise
     scan_noise = value.values(freq=[int(height * .5) + 1, int(width * .05) + 1], shape=[height, width, 1], time=time,
-                              speed=speed, spline_order=1, distrib=ValueDistribution.fastnoise)
+                              speed=speed, spline_order=1)
 
     # Create horizontal offsets
     grad = value.values(freq=[int(random.random() * 10) + 5, 1], shape=[height, width, 1], time=time,
-                        speed=speed, distrib=ValueDistribution.periodic_uniform)
+                        speed=speed)
     grad = tf.maximum(grad - .5, 0)
     grad = tf.minimum(grad * 2, 1)
 
@@ -2080,7 +2066,7 @@ def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     mask = tf.pow(value.singularity(None, value_shape), 5)  # obscure center pinch
 
     # Displacement values multiplied by mask to make it wavy towards the edges
-    distortion_x = (value.values(2, value_shape, distrib=ValueDistribution.periodic_uniform,
+    distortion_x = (value.values(2, value_shape,
                                  time=time, speed=speed, spline_order=2) * 2.0 - 1.0) * mask
 
     return value.refract(tensor, shape, displacement, reference_x=distortion_x)
@@ -2114,8 +2100,7 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     # Horizontal scanlines
-    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed,
-                                         distrib=ValueDistribution.periodic_uniform, spline_order=0)),
+    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed, spline_order=0)),
                          [int(height * .125) or 1, width, 1])
 
     scan_noise = value.resample(scan_noise, value_shape)
@@ -2145,16 +2130,15 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = value.value_shape(shape)
     error_line = tf.maximum(value.values(freq=[int(height * .75), 1], shape=value_shape, time=time,
-                                         speed=speed, distrib=ValueDistribution.fastnoise_exp) - .5, 0)
+                                         speed=speed, distrib=ValueDistribution.exp) - .5, 0)
     error_swerve = tf.maximum(value.values(freq=[int(height * .01), 1], shape=value_shape, time=time,
-                                           speed=speed, distrib=ValueDistribution.periodic_exp) - .5, 0)
+                                           speed=speed, distrib=ValueDistribution.exp) - .5, 0)
 
     error_line *= error_swerve
 
     error_swerve *= 2
 
-    white_noise = value.values(freq=[int(height * .75), 1], shape=value_shape, time=time,
-                               speed=speed, distrib=ValueDistribution.fastnoise)
+    white_noise = value.values(freq=[int(height * .75), 1], shape=value_shape, time=time, speed=speed)
     white_noise = value.blend(0, white_noise, error_swerve)
 
     error = error_line + white_noise
@@ -2173,10 +2157,10 @@ def snow(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
     height, width, channels = shape
 
     static = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100,
-                          distrib=ValueDistribution.fastnoise, spline_order=0)
+                          spline_order=0)
 
     static_limiter = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100,
-                                  distrib=ValueDistribution.fastnoise_exp, spline_order=0) * alpha
+                                  distrib=ValueDistribution.exp, spline_order=0) * alpha
 
     return value.blend(tensor, static, static_limiter)
 
@@ -2188,8 +2172,7 @@ def dither(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    white_noise = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed,
-                               distrib=ValueDistribution.fastnoise)
+    white_noise = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed)
 
     return value.blend(tensor, white_noise, alpha)
 
@@ -2199,7 +2182,7 @@ def false_color(tensor, shape, horizontal=False, displacement=.5, time=0.0, spee
     """
     """
 
-    clut = value.values(freq=2, shape=shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
+    clut = value.values(freq=2, shape=shape, time=time, speed=speed)
 
     return value.normalize(color_map(tensor, shape, clut=clut, horizontal=horizontal, displacement=displacement))
 
@@ -2212,12 +2195,12 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     for i in range(4):
-        mask = value.values(freq=4, shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
+        mask = value.values(freq=4, shape=value_shape, time=time, speed=speed)
 
         mask = worms(mask, shape, behavior=WormBehavior.chaotic, alpha=1, density=.05 + random.random() * .00125,
                      duration=1, kink=random.randint(5, 10), stride=.75, stride_deviation=.125, time=time, speed=speed)
 
-        brightness = value.values(freq=128, shape=shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise)
+        brightness = value.values(freq=128, shape=shape, time=time, speed=speed)
 
         tensor = value.blend(tensor, brightness, mask * .5)
 
@@ -2232,15 +2215,13 @@ def scratches(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     for i in range(4):
-        mask = value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed,
-                            distrib=ValueDistribution.periodic_uniform)
+        mask = value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed)
 
         mask = worms(mask, value_shape, behavior=[1, 3][random.randint(0, 1)], alpha=1, density=.25 + random.random() * .25,
                      duration=2 + random.random() * 2, kink=.125 + random.random() * .125, stride=.75, stride_deviation=.5,
                      time=time, speed=speed)
 
-        mask -= value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed,
-                             distrib=ValueDistribution.periodic_uniform) * 2.0
+        mask -= value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed) * 2.0
 
         mask = tf.maximum(mask, 0.0)
 
@@ -2258,12 +2239,12 @@ def stray_hair(tensor, shape, time=0.0, speed=1.0):
 
     value_shape = value.value_shape(shape)
 
-    mask = value.values(4, value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
+    mask = value.values(4, value_shape, time=time, speed=speed)
 
     mask = worms(mask, value_shape, behavior=WormBehavior.unruly, alpha=1, density=.0025 + random.random() * .00125,
                  duration=random.randint(8, 16), kink=random.randint(5, 50), stride=.5, stride_deviation=.25)
 
-    brightness = value.values(freq=32, shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
+    brightness = value.values(freq=32, shape=value_shape, time=time, speed=speed)
 
     return value.blend(tensor, brightness * .333, mask * .666)
 
@@ -2276,7 +2257,7 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     mask = value.simple_multires(freq=5, shape=value_shape, time=time, speed=speed,
-                                 distrib=ValueDistribution.periodic_exp, octaves=8)
+                                 octaves=8)
 
     mask = value.refract(mask, value_shape, 1.0, y_from_offset=True)
     mask = derivative(mask, value_shape, DistanceMetric.chebyshev, alpha=0.5)
@@ -2284,13 +2265,13 @@ def grime(tensor, shape, time=0.0, speed=1.0):
     dusty = value.blend(tensor, .25, tf.square(mask) * .125)
 
     specks = value.values(freq=[int(shape[0] * .25), int(shape[1] * .25)], shape=value_shape, time=time,
-                          mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.fastnoise_exp)
+                          mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.exp)
     specks = value.refract(specks, value_shape, .1)
 
     specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - .5, 0.0)))
 
     dusty = value.blend(dusty, value.values(freq=[shape[0], shape[1]], shape=value_shape, mask=ValueMask.sparse,
-                                            time=time, speed=speed, distrib=ValueDistribution.fastnoise_exp), .125) * specks
+                                            time=time, speed=speed, distrib=ValueDistribution.exp), .125) * specks
 
     return value.blend(tensor, dusty, mask)
 
@@ -2303,7 +2284,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
     half_value_shape = value.value_shape(half_shape)
 
-    noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, distrib=ValueDistribution.fastnoise, octaves=8)
+    noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, octaves=8)
 
     black = tf.zeros(half_value_shape)
     white = tf.ones(half_value_shape)
@@ -2344,7 +2325,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
-                                  distrib=ValueDistribution.fastnoise, octaves=8, ridges=True)
+                                  octaves=8, ridges=True)
 
     return tensor * (tf.ones(value_shape) * .75 + shadow(noise, value_shape, 1.0) * .25)
 
@@ -2362,9 +2343,9 @@ def watermark(tensor, shape, time=0.0, speed=1.0):
 
     mask = warp(mask, value_shape, [2, 4], octaves=1, displacement=.5, time=time, speed=speed)
 
-    mask *= tf.square(value.values(freq=2, shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform))
+    mask *= tf.square(value.values(freq=2, shape=value_shape, time=time, speed=speed))
 
-    brightness = value.values(freq=16, shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform)
+    brightness = value.values(freq=16, shape=value_shape, time=time, speed=speed)
 
     return value.blend(tensor, brightness, mask * .125)
 
@@ -2470,10 +2451,10 @@ def nebula(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     overlay = value.simple_multires([random.randint(3, 4), 1], value_shape, time=time, speed=speed,
-                                    distrib=ValueDistribution.periodic_exp, ridges=True, octaves=6)
+                                    distrib=ValueDistribution.exp, ridges=True, octaves=6)
 
     overlay -= value.simple_multires([random.randint(2, 4), 1], value_shape, time=time, speed=speed,
-                                     distrib=ValueDistribution.periodic_uniform, ridges=True, octaves=4)
+                                     ridges=True, octaves=4)
 
     overlay *= .125
 
@@ -2495,7 +2476,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
 
     # Generate a smear
     smear = value.simple_multires(random.randint(3, 6), value_shape, time=time,
-                                  speed=speed, distrib=ValueDistribution.simplex_exp,
+                                  speed=speed, distrib=ValueDistribution.exp,
                                   octaves=6, spline_order=3)
 
     smear = warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
@@ -2504,7 +2485,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
 
     # Add spatter dots
     spatter = value.simple_multires(random.randint(32, 64), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.periodic_exp,
+                                    speed=speed, distrib=ValueDistribution.exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
     spatter = post_process(spatter, shape, None, post_brightness=-1.0, post_contrast=4)
@@ -2512,7 +2493,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     smear = tf.maximum(smear, spatter)
 
     spatter = value.simple_multires(random.randint(150, 200), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.periodic_exp,
+                                    speed=speed, distrib=ValueDistribution.exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
     spatter = post_process(spatter, shape, None, post_brightness=-1.25, post_contrast=4)
@@ -2521,7 +2502,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
 
     # Remove some of it
     smear = tf.maximum(0.0, smear - value.simple_multires(random.randint(2, 3), value_shape, time=time,
-                                                          speed=speed, distrib=ValueDistribution.periodic_exp,
+                                                          speed=speed, distrib=ValueDistribution.exp,
                                                           ridges=True, octaves=3, spline_order=2))
 
     #
@@ -2544,7 +2525,7 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     pre_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, 1]
 
-    control = value.simple_multires(freq=random.randint(2, 4), shape=pre_shape, distrib=ValueDistribution.periodic_uniform,
+    control = value.simple_multires(freq=random.randint(2, 4), shape=pre_shape,
                                     octaves=8, ridges=True, time=time, speed=speed)
 
     control = warp(control, pre_shape, freq=3, displacement=.125, octaves=2)
@@ -2581,7 +2562,7 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     if shape[2] < 3:  # Not a color image
         return tensor
 
-    color = value.values(freq=3, shape=shape, time=time, speed=speed, distrib=ValueDistribution.periodic_uniform, corners=True)
+    color = value.values(freq=3, shape=shape, time=time, speed=speed, corners=True)
 
     # Confine hue to a range
     color = tf.stack([(tensor[:, :, 0] * .333 + random.random() * .333 + random.random()) % 1.0,

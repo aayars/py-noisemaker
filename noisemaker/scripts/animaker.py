@@ -65,24 +65,6 @@ def main(ctx, width, height, channels, seed, effect_preset, name, save_frames, f
     elif distrib and isinstance(distrib, str):
         distrib = ValueDistribution[distrib]
 
-    if distrib == ValueDistribution.exp:
-        overrides['distrib'] = 'periodic_exp'
-
-    elif distrib == ValueDistribution.lognormal:
-        overrides['distrib'] = 'simplex_pow_inv_1'
-
-    elif distrib not in (
-        # ValueDistribution.ones,
-        ValueDistribution.column_index,
-        ValueDistribution.row_index,
-    ) \
-            and not ValueDistribution.is_center_distance(distrib) \
-            and not ValueDistribution.is_simplex(distrib) \
-            and not ValueDistribution.is_fastnoise(distrib) \
-            and not ValueDistribution.is_periodic(distrib):
-
-        overrides['distrib'] = 'periodic_uniform'
-
     if 'point_drift' not in kwargs:
         overrides['point_drift'] = 0.25
 

@@ -110,20 +110,16 @@ class ValueDistribution(Enum):
        image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
     """
 
-    normal = 0
-
     uniform = 1
-
     exp = 2
+    pow_inv_1 = 4
 
-    laplace = 3
-
-    lognormal = 4
+    @classmethod
+    def is_noise(cls, member):
+        return member and member.value < 5
 
     ones = 5
-
     mids = 6
-
     zeros = 7
 
     column_index = 10
@@ -149,38 +145,11 @@ class ValueDistribution(Enum):
     def is_scan(cls, member):
         return member and (member.value >= 30) and (member.value < 40)
 
-    # animated loops via the infamous 4d donut approach
-    simplex = 50
-    simplex_exp = 51
-    simplex_pow_inv_1 = 52
-
-    @classmethod
-    def is_simplex(cls, member):
-        return member and (member.value >= 50) and (member.value < 100)
-
-    # fastnoise for high-frequency animated noise. it doesn't loop, but nobody will know
-    fastnoise = 100
-    fastnoise_exp = 101
-
-    @classmethod
-    def is_fastnoise(cls, member):
-        return member and (member.value >= 100) and (member.value < 1000)
-
-    # animated loops via a periodic function
-    periodic_uniform = 1000
-    periodic_exp = 1001
-    periodic_pow_inv_1 = 1002
-
-    @classmethod
-    def is_periodic(cls, member):
-        return member and (member.value >= 1000) and (member.value < 1010)
-
     @classmethod
     def is_native_size(cls, member):
         """The noise type is generated at full-size, rather than upsampled."""
         return cls.is_center_distance(member) \
-            or cls.is_scan(member) \
-            or cls.is_fastnoise(member)
+            or cls.is_scan(member)
 
 
 class ValueMask(Enum):

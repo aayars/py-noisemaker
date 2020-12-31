@@ -38,11 +38,10 @@ def main():
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
-@cli.distrib_option()
 @cli.filename_option(default='art.png')
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, speed, seed, distrib, filename, preset_name):
+def generator(ctx, width, height, channels, time, speed, seed, filename, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -55,9 +54,6 @@ def generator(ctx, width, height, channels, time, speed, seed, distrib, filename
     print(f"{preset_name} (seed: {seed})")
 
     preset = GENERATOR_PRESETS[preset_name]
-
-    if distrib is not None:
-        preset.generator_kwargs["distrib"] = distrib
 
     try:
         preset.render(shape=[height, width, channels], time=time, speed=speed, filename=filename)
@@ -153,7 +149,6 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
                              '--filename', frame_filename]
 
             util.check_call(['noisemaker', 'generator', preset_name,
-                             '--distrib', _use_periodic_distrib(preset.generator_kwargs.get("distrib")),
                              '--speed', str(_use_reasonable_speed(preset, frame_count)),
                              '--height', str(height),
                              '--width', str(width)] + common_params)
@@ -245,37 +240,6 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
         util.save(tensor, filename)
 
     print('mashup')
-
-
-def _use_periodic_distrib(distrib):
-    """Make sure the given ValueDistribution is animation-friendly."""
-
-    if distrib and isinstance(distrib, int):
-        distrib = ValueDistribution(distrib)
-
-    elif distrib and isinstance(distrib, str):
-        distrib = ValueDistribution[distrib]
-
-    if distrib == ValueDistribution.exp:
-        distrib = ValueDistribution.periodic_exp
-
-    elif distrib == ValueDistribution.lognormal:
-        distrib = ValueDistribution.simplex_pow_inv_1
-
-    elif distrib not in (
-        ValueDistribution.ones,
-        ValueDistribution.column_index,
-        ValueDistribution.row_index,
-    ) \
-            and not ValueDistribution.is_center_distance(distrib) \
-            and not ValueDistribution.is_scan(distrib) \
-            and not ValueDistribution.is_simplex(distrib) \
-            and not ValueDistribution.is_fastnoise(distrib) \
-            and not ValueDistribution.is_periodic(distrib):
-
-        distrib = ValueDistribution.periodic_uniform
-
-    return distrib.name
 
 
 def _use_reasonable_speed(preset, frame_count):

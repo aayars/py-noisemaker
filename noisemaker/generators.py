@@ -18,7 +18,7 @@ import noisemaker.value as value
 
 
 def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
-          distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, mask_static=False,
+          distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
           lattice_drift=0.0, color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           speed=1.0, time=0.0, octave_effects=None, octave=1, **post_process_args):
@@ -110,7 +110,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
             if isinstance(brightness_freq, int):
                 brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
-            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.normal,
+            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.uniform,
                                         **common_value_params))
 
         else:
@@ -164,7 +164,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
 
 def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
-             distrib=ValueDistribution.normal, corners=False,
+             distrib=ValueDistribution.uniform, corners=False,
              mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
@@ -272,7 +272,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
 
 
 def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
-                 distrib=ValueDistribution.normal, corners=False,
+                 distrib=ValueDistribution.uniform, corners=False,
                  mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0,
                  color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
                  hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,

@@ -19,7 +19,6 @@ from noisemaker.constants import (
 from noisemaker.effects_registry import effect
 from noisemaker.points import point_cloud
 
-import noisemaker.fastnoise as fastnoise
 import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 
@@ -38,7 +37,7 @@ def set_seed(seed):
         simplex._seed = seed
 
 
-def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=None, mask_inverse=False, mask_static=False,
+def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
            spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
     """
@@ -49,7 +48,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
     initial_shape = freq + [shape[-1]]
 
     if distrib is None:
-        distrib = ValueDistribution.normal
+        distrib = ValueDistribution.uniform
 
     if isinstance(distrib, int):
         distrib = ValueDistribution(distrib)
@@ -71,22 +70,6 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
     elif distrib == ValueDistribution.zeros:
         tensor = tf.zeros(initial_shape)
-
-    elif distrib == ValueDistribution.normal:
-        tensor = tf.random.normal(initial_shape, mean=0.5, stddev=0.25)
-        tensor = tf.math.minimum(tf.math.maximum(tensor, 0.0), 1.0)
-
-    elif distrib == ValueDistribution.uniform:
-        tensor = tf.random.uniform(initial_shape)
-
-    elif distrib == ValueDistribution.exp:
-        tensor = tf.cast(tf.stack(np.random.exponential(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.laplace:
-        tensor = tf.cast(tf.stack(np.random.laplace(size=initial_shape)), tf.float32)
-
-    elif distrib == ValueDistribution.lognormal:
-        tensor = tf.cast(tf.stack(np.random.lognormal(size=initial_shape)), tf.float32)
 
     elif distrib == ValueDistribution.column_index:
         tensor = tf.expand_dims(normalize(tf.cast(column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
@@ -127,23 +110,7 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         tensor = normalized_sine(tensor * math.tau - math.tau * time * rounded_speed) * tf.ones(shape)
 
-    elif ValueDistribution.is_simplex(distrib):
-        tensor = simplex.simplex(initial_shape, time=time, speed=speed)
-
-        if distrib == ValueDistribution.simplex_exp:
-            tensor = tf.math.pow(tensor, 4)
-
-        elif distrib == ValueDistribution.simplex_pow_inv_1:
-            tensor = tf.math.pow(tensor, -1)
-
-    elif ValueDistribution.is_fastnoise(distrib):
-
-        tensor = fastnoise.fastnoise(shape, freq, seed=simplex._seed, time=time, speed=speed)
-
-        if distrib == ValueDistribution.fastnoise_exp:
-            tensor = tf.math.pow(tensor, 4)
-
-    elif ValueDistribution.is_periodic(distrib):
+    elif ValueDistribution.is_noise(distrib):
         # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
         # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
         # since time values are per-pixel, this has the added bonus of animating different parts of the image at different
@@ -155,10 +122,10 @@ def values(freq, shape, distrib=ValueDistribution.normal, corners=False, mask=No
 
         tensor = periodic_value(scaled_time, tf.random.uniform(initial_shape))
 
-        if distrib == ValueDistribution.periodic_exp:
+        if distrib == ValueDistribution.exp:
             tensor = tf.math.pow(tensor, 4)
 
-        elif distrib == ValueDistribution.periodic_pow_inv_1:
+        elif distrib == ValueDistribution.pow_inv_1:
             tensor = tf.math.pow(tensor, -1)
 
     else:
@@ -933,7 +900,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
+            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -944,7 +911,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.periodic_uniform,
+            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:

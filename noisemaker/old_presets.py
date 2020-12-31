@@ -914,7 +914,7 @@ _PRESETS = lambda: {  # noqa: E731
     "crooked": lambda: extend("glitchin-out", "starfield", "pixel-sort-angled"),
 
     "crop-spirals": lambda: {
-        "distrib": distrib.laplace,
+        "distrib": distrib.pow_inv_1,
         "freq": random.randint(4, 6) * 2,
         "hue_range": 1,
         "saturation": .75,
@@ -1051,7 +1051,6 @@ _PRESETS = lambda: {  # noqa: E731
 
     "diffusion-feedback": lambda: extend("aberration", "bloom", "sobel", {
         "corners": True,
-        "distrib": distrib.normal,
         "freq": 8,
         "dla_padding": 5,
         "point_distrib": point.square,
@@ -1133,7 +1132,6 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "eat-static": lambda: extend("be-kind-rewind", "scanline-error", {
-        "distrib": distrib.fastnoise,
         "freq": 512,
         "saturation": 0,
         "speed": 2.0,
@@ -1180,7 +1178,6 @@ _PRESETS = lambda: {  # noqa: E731
     },
 
     "entities": lambda: {
-        "distrib": distrib.simplex,
         "freq": 6 * random.randint(4, 5) * 2,
         "hue_range": 1.0 + random.random() * 3.0,
         "mask": mask.invaders_square,
@@ -1199,7 +1196,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "escape-velocity": lambda: extend("multires-low", {
-        "distrib": random_member([distrib.lognormal, distrib.exp, distrib.uniform]),
+        "distrib": random_member([distrib.pow_inv_1, distrib.exp, distrib.uniform]),
         "erosion_worms_contraction": .2 + random.random() * .1,
         "erosion_worms_iterations": random.randint(625, 1125),
         "rgb": coin_flip(),
@@ -1429,7 +1426,6 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "game-show": lambda: extend("be-kind-rewind", "maybe-palette", {
-        "distrib": distrib.normal,
         "freq": random.randint(8, 16) * 2,
         "mask": random_member([mask.h_tri, mask.v_tri]),
         "posterize_levels": random.randint(2, 5),
@@ -1439,7 +1435,7 @@ _PRESETS = lambda: {  # noqa: E731
     "game-over-man": lambda: extend("galalaga", "glitchin-out", "lens"),
 
     "glass-darkly": lambda: extend("multires-alpha", {
-        "distrib": distrib.lognormal,
+        "distrib": distrib.pow_inv_1,
         "octaves": 8,
         "post_hue_rotation": .1 + random.random() * .05,
         "post_reflect_range": .95 + random.random() * .1,
@@ -1770,7 +1766,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "look-up": lambda: extend("bloom", "multires-alpha", {
-        "distrib": distrib.simplex_exp,
+        "distrib": distrib.exp,
         "hue_range": .333 + random.random() * .333,
         "lattice_drift": 0,
         "octaves": 8,
@@ -1855,7 +1851,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "mcpaint": lambda: {
         "corners": True,
-        "distrib": random_member([distrib.ones, distrib.uniform, distrib.normal]),
+        "distrib": random_member([distrib.ones, distrib.uniform]),
         "freq": random.randint(2, 4),
         "glyph_map_colorize": coin_flip(),
         "glyph_map_zoom": random.randint(3, 6),
@@ -2959,7 +2955,7 @@ _PRESETS = lambda: {  # noqa: E731
 
     "vortex-checkers": lambda: extend("outline", {
         "freq": random.randint(4, 10) * 2,
-        "distrib": random_member([distrib.ones, distrib.uniform, distrib.laplace]),
+        "distrib": random_member([distrib.ones, distrib.uniform]),
         "mask": mask.chess,
         "hue_range": random.random(),
         "saturation": random.random(),

@@ -1135,7 +1135,6 @@ PRESETS = lambda: {  # noqa E731
             "speed": 2.0,
         },
         "generator": lambda settings: {
-            "distrib": distrib.fastnoise,
             "freq": 512,
             "saturation": 0,
         }
@@ -1209,7 +1208,6 @@ PRESETS = lambda: {  # noqa E731
             "mask_repeat": random.randint(3, 4) * 2,
         },
         "generator": lambda settings: {
-            "distrib": distrib.simplex,
             "hue_range": 2.0 + random.random() * 2.0,
             "spline_order": interp.cosine,
         },
@@ -1260,7 +1258,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "color_space": random_member([color.rgb, color.hsv]),
-            "distrib": random_member([distrib.lognormal, distrib.exp, distrib.uniform]),
+            "distrib": random_member([distrib.pow_inv_1, distrib.exp, distrib.uniform]),
         }
     },
 
@@ -1549,7 +1547,6 @@ PRESETS = lambda: {  # noqa E731
             "posterize_levels": random.randint(2, 5),
         },
         "generator": lambda settings: {
-            "distrib": distrib.normal,
             "freq": random.randint(8, 16) * 2,
             "mask": random_member([mask.h_tri, mask.v_tri]),
             "spline_order": interp.cosine,
@@ -1563,7 +1560,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "color_space": color.rgb,
-            "distrib": distrib.lognormal,
+            "distrib": distrib.pow_inv_1,
             "octaves": 8,
         },
     },
@@ -2127,7 +2124,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "corners": True,
-            "distrib": random_member([distrib.uniform, distrib.normal]),
             "freq": random.randint(2, 3),
             "spline_order": interp.cosine,
         },
@@ -3781,13 +3777,12 @@ PRESETS = lambda: {  # noqa E731
     "value-refract": {
         "settings": lambda: {
             "value_freq": random.randint(2, 4),
-            "value_distrib": distrib.periodic_uniform,
             "value_refract_range": .125 + random.random() * .06125,
         },
         "post": lambda settings: [
             Effect("value_refract",
                    displacement=settings["value_refract_range"],
-                   distrib=settings["value_distrib"],
+                   distrib=settings.get("value_distrib", distrib.uniform),
                    freq=settings["value_freq"])
         ]
     },
