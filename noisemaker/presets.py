@@ -1157,6 +1157,14 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "educational-video-film": {
+        "layers": ["be-kind-rewind"],
+        "generator": lambda settings: {
+            "color_space": color.oklab,
+            "ridges": True,
+        },
+    },
+
     "electric-worms": {
         "layers": ["voronoi", "worms", "density-map", "glowing-edges", "bloom"],
         "settings": lambda: {
@@ -2005,7 +2013,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "lens": {
-        "layers": ["normalize", "aberration", "vaseline", "tint", "vignette-dark", "contrast"],
+        "layers": ["aberration", "vaseline", "tint", "vignette-dark", "contrast"],
     },
 
     "lens-warp": {

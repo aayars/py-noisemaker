@@ -265,6 +265,8 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
         for effect_or_preset in octave_effects:
             tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, 1)
 
+    tensor = value.normalize(tensor)
+
     for effect_or_preset in post_effects:
         tensor = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 

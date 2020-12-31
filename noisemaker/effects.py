@@ -2032,12 +2032,11 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     height, width, channels = shape
 
     # Generate scan noise
-    scan_noise = value.values(freq=[int(height * .5) + 1, int(width * .05) + 1], shape=[height, width, 1], time=time,
-                              speed=speed, spline_order=1)
+    scan_noise = value.values(freq=[int(height * .5) + 1, int(width * .25) + 1], shape=[height, width, 1], time=time,
+                              speed=speed * 100, spline_order=1)
 
     # Create horizontal offsets
-    grad = value.values(freq=[int(random.random() * 10) + 5, 1], shape=[height, width, 1], time=time,
-                        speed=speed)
+    grad = value.values(freq=[int(random.random() * 10) + 5, 1], shape=[height, width, 1], time=time, speed=speed)
     grad = tf.maximum(grad - .5, 0)
     grad = tf.minimum(grad * 2, 1)
 
@@ -2088,7 +2087,7 @@ def degauss(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
 @effect()
 def crt(tensor, shape, time=0.0, speed=1.0):
     """
-    Apply vintage CRT snow and scanlines.
+    Apply vintage CRT scanlines.
 
     :param Tensor tensor:
     :param list[int] shape:
@@ -2099,23 +2098,22 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     # Horizontal scanlines
-    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed, spline_order=0)),
+    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)),
                          [int(height * .125) or 1, width, 1])
 
     scan_noise = value.resample(scan_noise, value_shape)
 
     scan_noise = lens_warp(scan_noise, value_shape, time=time, speed=speed)
 
-    tensor = value.normalize(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.075))
+    tensor = value.clamp01(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.075))
 
     if channels == 3:
         tensor = aberration(tensor, shape, .0125 + random.random() * .00625)
         tensor = tf.image.random_hue(tensor, .125)
-        tensor = tf.image.adjust_saturation(tensor, 1.25)
-
-    tensor = tf.image.adjust_contrast(tensor, 1.25)
+        tensor = tf.image.adjust_saturation(tensor, 1.125)
 
     tensor = vignette(tensor, shape, brightness=0, alpha=random.random() * .175)
+    tensor = tf.image.adjust_contrast(tensor, 1.25)
 
     return tensor
 
@@ -2128,8 +2126,11 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
     height, width, channels = shape
 
     value_shape = value.value_shape(shape)
-    error_line = tf.maximum(value.values(freq=[int(height * .75), 1], shape=value_shape, time=time,
-                                         speed=speed, distrib=ValueDistribution.exp) - .5, 0)
+
+    error_freq = [int(value_shape[0] * .5) or 1, int(value_shape[1] * .5) or 1]
+
+    error_line = tf.maximum(value.values(freq=error_freq, shape=value_shape, time=time,
+                                         speed=speed * 10, distrib=ValueDistribution.exp) - .5, 0)
     error_swerve = tf.maximum(value.values(freq=[int(height * .01), 1], shape=value_shape, time=time,
                                            speed=speed, distrib=ValueDistribution.exp) - .5, 0)
 
@@ -2137,7 +2138,7 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
 
     error_swerve *= 2
 
-    white_noise = value.values(freq=[int(height * .75), 1], shape=value_shape, time=time, speed=speed)
+    white_noise = value.values(freq=error_freq, shape=value_shape, time=time, speed=speed * 100)
     white_noise = value.blend(0, white_noise, error_swerve)
 
     error = error_line + white_noise
@@ -2155,10 +2156,12 @@ def snow(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    static = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100,
+    value_shape = value.value_shape(shape)
+
+    static = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100,
                           spline_order=0)
 
-    static_limiter = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100,
+    static_limiter = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100,
                                   distrib=ValueDistribution.exp, spline_order=0) * alpha
 
     return value.blend(tensor, static, static_limiter)
