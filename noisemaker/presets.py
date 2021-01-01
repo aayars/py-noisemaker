@@ -3423,8 +3423,11 @@ PRESETS = lambda: {  # noqa E731
             "palette_on": False,
         },
         "generator": lambda settings: {
+            "color_space": color.hsv,
             "distrib": distrib.exp,
             "freq": random.randint(400, 500),
+            "hue_range": 1.0,
+            "saturation": .75,
             "mask": mask.sparser,
             "mask_static": True,
             "spline_order": interp.linear,
