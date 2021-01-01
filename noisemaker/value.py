@@ -977,10 +977,10 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
         tensor = tensor[:, :, 0]
 
     elif shape[2] == 3:
-        tensor = oklab.rgb_to_oklab(normalize(tensor))[:, :, 0]
+        tensor = oklab.rgb_to_oklab(clamp01(tensor))[:, :, 0]
 
     elif shape[2] == 4:
-        tensor = normalize(tensor)
+        tensor = clamp01(tensor)
         tensor = oklab.rgb_to_oklab(tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2))[:, :, 0]
 
     if keepdims:

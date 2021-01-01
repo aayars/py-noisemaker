@@ -3854,7 +3854,7 @@ PRESETS = lambda: {  # noqa E731
     "vibe": {
         "layers": ["reflect-post", "lens"],
         "settings": lambda: {
-            "reflect_range": 10.0 + random.random() * 10.0,
+            "reflect_range": 1.0 + random.random() * .5,
         },
         "generator": lambda settings: {
             "brightness_distrib": None,
