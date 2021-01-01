@@ -2174,7 +2174,7 @@ def dither(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    white_noise = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed)
+    white_noise = value.values(freq=[height, width], shape=[height, width, 1], time=time, speed=speed * 100)
 
     return value.blend(tensor, white_noise, alpha)
 
