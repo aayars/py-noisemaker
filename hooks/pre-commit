@@ -25,6 +25,8 @@ def main():
 
     shutil.move('setup.py-out', 'setup.py')
 
+    subprocess.check_call(["python", "setup.py", "test"])
+
     subprocess.call(["git", "add", "setup.py"])
 
 

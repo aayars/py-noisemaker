@@ -2255,12 +2255,12 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "mycelium": {
-        "layers": ["multires", "grayscale", "derivative-post", "octave-warp-octaves",
+        "layers": ["multires", "octave-warp-octaves", "derivative-post",
                    "normalize", "fractal-seed", "vignette-dark", "contrast"],
         "settings": lambda: {
             "speed": .05,
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
-            "warp_range": 5.0 + random.random() * 2.5,
+            "warp_range": 2.5 + random.random() * 1.25,
             "worms_behavior": worms.random,
         },
         "generator": lambda settings: {
