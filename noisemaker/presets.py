@@ -2255,7 +2255,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "mycelium": {
-        "layers": ["multires", "octave-warp-octaves", "derivative-post",
+        "layers": ["multires", "grayscale", "octave-warp-octaves", "derivative-post",
                    "normalize", "fractal-seed", "vignette-dark", "contrast"],
         "settings": lambda: {
             "speed": .05,
@@ -2264,8 +2264,8 @@ PRESETS = lambda: {  # noqa E731
             "worms_behavior": worms.random,
         },
         "generator": lambda settings: {
-            "color_space": color.rgb,
-            "distrib": distrib.uniform,
+            "color_space": color.grayscale,
+            "distrib": distrib.ones,
             "freq": [random.randint(3, 4), random.randint(3, 4)],
             "lattice_drift": 1.0,
             "mask": mask.h_tri,
@@ -4061,8 +4061,8 @@ PRESETS = lambda: {  # noqa E731
             "worms_density": random.randint(250, 500),
             "worms_drunkenness": 0.0,
             "worms_drunken_spin": False,
-            "worms_duration": .5 + random.random(),
-            "worms_kink": 1.0 + random.random() * 1.5,
+            "worms_duration": 1.0 + random.random() * .5,
+            "worms_kink": 1.0 + random.random() * .5,
             "worms_stride": .75 + random.random() * .5,
             "worms_stride_deviation": random.random() + .5
         },
