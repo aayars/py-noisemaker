@@ -31,7 +31,7 @@ def main():
     pass
 
 
-@main.command()
+@main.command(help="Generate a .png or .jpg from preset")
 @cli.width_option(default=2048)
 @cli.height_option()
 @cli.channels_option()
@@ -63,7 +63,7 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, preset_
         raise
 
 
-@main.command()
+@main.command(help="Apply an effect to a .png or .jpg image")
 @cli.seed_option()
 @cli.filename_option(default='mangled.png')
 @cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
@@ -108,7 +108,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
         raise
 
 
-@main.command(help="Create a .gif or .mp4. Requires ImageMagick and ffmpeg, respectively.")
+@main.command(help="Generate a .gif or .mp4 from preset")
 @cli.width_option(default=512)
 @cli.height_option(default=512)
 @cli.channels_option()
@@ -180,7 +180,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
             util.magick(f'{tmp}/*png', filename)
 
 
-@main.command()
+@main.command(help="Blend a directory of .png or .jpg images")
 @cli.input_dir_option(required=True)
 @cli.filename_option(default="collage.png")
 @click.option("--control-filename", help="Control image filename (optional)")
