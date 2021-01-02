@@ -967,6 +967,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires", "refract-octaves", "octave-warp-octaves", "bloom", "lens"],
         "settings": lambda: {
             "palette_on": False,
+            "speed": .05,
             "refract_range": .2 + random.random() * .1,
             "warp_freq": 2,
             "warp_signed_range": True,
@@ -2254,10 +2255,12 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "mycelium": {
-        "layers": ["multires", "grayscale", "derivative-post", "funhouse", "normalize", "fractal-seed", "vignette-dark", "contrast"],
+        "layers": ["multires", "grayscale", "derivative-post", "octave-warp-octaves",
+                   "normalize", "fractal-seed", "vignette-dark", "contrast"],
         "settings": lambda: {
+            "speed": .05,
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
-            "warp_range": .125 + random.random() * .06125,
+            "warp_range": 5.0 + random.random() * 2.5,
             "worms_behavior": worms.random,
         },
         "generator": lambda settings: {
@@ -4091,6 +4094,19 @@ PRESETS = lambda: {  # noqa E731
             "corners": True,
             "lattice_drift": coin_flip(),
             "octaves": random.randint(1, 3),
+        },
+    },
+
+    "writhe": {
+        "layers": ["multires-alpha", "octave-warp-octaves", "brightness", "shadow", "dither", "lens"],
+        "settings": lambda: {
+            "speed": .025,
+            "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
+            "warp_range": 5.0 + random.random() * 2.5,
+        },
+        "generator": lambda settings: {
+            "color_space": color.oklab,
+            "ridges": True,
         },
     },
 }
