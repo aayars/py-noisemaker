@@ -3348,12 +3348,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "soup": {
-        "layers": ["wobble", "voronoi", "normalize", "refract-post", "worms",
-                   "density-map", "bloom", "shadow", "lens"],
+        "layers": ["voronoi", "normalize", "refract-post", "worms",
+                   "grayscale", "density-map", "bloom", "shadow", "lens"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
-            "refract_range": 1.5 + random.random() * .75,
+            "refract_range": 2.5 + random.random() * 1.25,
             "refract_y_from_offset": True,
+            "speed": .025,
+            "voronoi_alpha": .333 + random.random() * .333,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_inverse": True,
             "voronoi_point_freq": random.randint(2, 3),
