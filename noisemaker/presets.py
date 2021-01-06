@@ -728,6 +728,7 @@ PRESETS = lambda: {  # noqa E731
             "reflect_range": .125 + random.random() * .06125,
             "refract_range": .1 + random.random() * .05,
             "saturation": .625,
+            "speed": .075,
         },
         "generator": lambda settings: {
             "color_space": color.hsv,
