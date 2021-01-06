@@ -718,6 +718,28 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "cloudburst": {
+        "layers": ["multires", "reflect-octaves", "octave-warp-octaves", "refract-post",
+                   "bloom", "brightness", "contrast", "invert", "saturation"],
+        "settings": lambda: {
+            "brightness": .125,
+            "contrast": 1.5 + random.random() * .5,
+            "palette_on": False,
+            "reflect_range": .125 + random.random() * .06125,
+            "refract_range": .1 + random.random() * .05,
+            "saturation": .625,
+        },
+        "generator": lambda settings: {
+            "color_space": color.hsv,
+            "distrib": distrib.exp,
+            "freq": 2,
+            "hue_range": .05 - random.random() * .025,
+            "hue_rotation": .1 - random.random() * .025,
+            "lattice_drift": .75,
+            "saturation_distrib": distrib.ones,
+        },
+    },
+
     "clouds": {
         "post": lambda settings: [Effect("clouds"), Preset("bloom"), Preset("dither")]
     },
@@ -2028,14 +2050,16 @@ PRESETS = lambda: {  # noqa E731
     "look-up": {
         "layers": ["multires-alpha", "bloom", "brightness", "contrast", "saturation"],
         "settings": lambda: {
-            "brightness": -.05,
-            "contrast": 3,
+            "brightness": -.125,
+            "contrast": 1.5,
             "saturation": .5,
         },
         "generator": lambda settings: {
+            "color_space": color.hsv,
             "distrib": distrib.exp,
             "hue_range": .333 + random.random() * .333,
             "lattice_drift": 0,
+            "mask": mask.sparser,
             "octaves": 8,
             "ridges": True,
         },
@@ -3324,10 +3348,11 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "soup": {
-        "layers": ["voronoi", "normalize", "refract-post", "worms", "density-map", "bloom", "shadow", "lens"],
+        "layers": ["wobble", "voronoi", "normalize", "refract-post", "worms",
+                   "density-map", "bloom", "shadow", "lens"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
-            "refract_range": .5 + random.random() * .25,
+            "refract_range": 1.5 + random.random() * .75,
             "refract_y_from_offset": True,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_inverse": True,
@@ -3799,10 +3824,11 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
         "settings": lambda: {
             "palette_on": False,
-            "reflect_range": .125 + random.random() * .06125,
-            "refract_range": .05 + random.random() * .025,
+            "reflect_range": .5 + random.random() * .25,
+            "refract_range": .5 + random.random() * .25,
         },
         "generator": lambda settings: {
+            "color_space": color.oklab,
             "distrib": distrib.uniform,
             "freq": 2,
             "hue_range": 2.0 + random.random(),
