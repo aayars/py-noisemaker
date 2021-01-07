@@ -2523,12 +2523,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "oklab-color-space": {
-        "layers": ["multires-ridged"],
+        "layers": ["basic"],
         "settings": lambda: {
             "palette_on": False,
         },
         "generator": lambda settings: {
-            "color_space": color.oklab
+            "color_space": color.oklab,
+            "octaves": random.randint(1, 8),
+            "ridges": coin_flip(),
         }
     },
 
