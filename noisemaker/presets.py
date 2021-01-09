@@ -2054,6 +2054,7 @@ PRESETS = lambda: {  # noqa E731
             "brightness": -.125,
             "contrast": 1.5,
             "saturation": .5,
+            "speed": .025,
         },
         "generator": lambda settings: {
             "color_space": color.hsv,
