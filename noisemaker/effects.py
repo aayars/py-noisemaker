@@ -1346,7 +1346,7 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 
     height, width, channels = shape
 
-    blurred = tf.maximum(tensor * 2.0 - 1.0, 0.0)
+    blurred = value.clamp01(tensor * 2.0 - 1.0)
     blurred = value.proportional_downsample(blurred, shape, [max(int(height / 100), 1), max(int(width / 100), 1), channels]) * 4.0
     blurred = value.resample(blurred, shape)
 
@@ -1355,7 +1355,7 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
     blurred = tf.image.adjust_brightness(blurred, .25)
     blurred = tf.image.adjust_contrast(blurred, 1.5)
 
-    return value.blend(tensor, (tensor + blurred) * .5, alpha)
+    return value.blend(value.clamp01(tensor), value.clamp01((tensor + blurred) * .5), alpha)
 
 
 @effect()

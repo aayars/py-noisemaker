@@ -464,7 +464,6 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "bloom": {
-        "layers": ["normalize"],
         "settings": lambda: {
             "bloom_alpha": .075 + random.random() * .0375,
         },
