@@ -551,28 +551,6 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
-    "bubble-chamber": {
-        "layers": ["basic", "worms", "brightness", "contrast", "glowing-edges", "tint",
-                   "bloom", "snow", "lens"],
-        "settings": lambda: {
-            "brightness": .125,
-            "contrast": 1.0 + random.random() * .5,
-            "palette_on": False,
-            "speed": .125,
-            "worms_alpha": .925,
-            "worms_behavior": worms.meandering,
-            "worms_density": .25 + random.random() * .125,
-            "worms_drunken_spin": True,
-            "worms_drunkenness": .125 + random.random() * .06125,
-            "worms_duration": 1.5 + random.random() * .75,
-            "worms_stride_deviation": 5.0 + random.random() * 2.5,
-        },
-        "generator": lambda settings: {
-            "hue_range": 1.0,
-            "distrib": distrib.exp,
-        },
-    },
-
     "bubble-machine": {
         "layers": ["posterize", "wormhole", "reverb", "outline", "maybe-invert"],
         "settings": lambda: {
@@ -1418,27 +1396,6 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_distrib": point.random,
             "voronoi_nth": random.randint(1, 3),
             "voronoi_point_freq": 2,
-        }
-    },
-
-    "flux-capacitor": {
-        "layers": ["symmetry", "voronoi", "worms", "contrast", "bloom", "brightness", "contrast", "vignette-dark"],
-        "settings": lambda: {
-            "dist_metric": distance.triangular,
-            "contrast": 1.75 + random.random() * .875,
-            "speed": .333,
-            "voronoi_alpha": 1.0,
-            "voronoi_diagram_type": voronoi.color_range,
-            "voronoi_inverse": True,
-            "voronoi_point_freq": 1,
-            "voronoi_nth": 0,
-            "worms_alpha": .25,
-            "worms_behavior": worms.meandering,
-            "worms_density": .25 + random.random() * .125,
-            "worms_drunkenness": .1 + random.random() * .05,
-            "worms_duration": 6.0 + random.random() * 4.0,
-            "worms_stride": .75,
-            "worms_stride_deviation": .25,
         }
     },
 
@@ -4092,7 +4049,6 @@ PRESETS = lambda: {  # noqa E731
             "worms_behavior": random_member(worms.all()),
             "worms_density": random.randint(250, 500),
             "worms_drunkenness": 0.0,
-            "worms_drunken_spin": False,
             "worms_duration": 1.0 + random.random() * .5,
             "worms_kink": 1.0 + random.random() * .5,
             "worms_stride": .75 + random.random() * .5,
@@ -4104,7 +4060,6 @@ PRESETS = lambda: {  # noqa E731
                    behavior=settings["worms_behavior"],
                    density=settings["worms_density"],
                    drunkenness=settings["worms_drunkenness"],
-                   drunken_spin=settings["worms_drunken_spin"],
                    duration=settings["worms_duration"],
                    kink=settings["worms_kink"],
                    stride=settings["worms_stride"],
