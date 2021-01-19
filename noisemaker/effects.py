@@ -692,8 +692,6 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :return: Tensor
     """
 
-    drunkenness = .125
-
     behavior = value.coerce_enum(behavior, WormBehavior)
 
     height, width, channels = shape
