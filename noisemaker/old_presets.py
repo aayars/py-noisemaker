@@ -147,7 +147,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
 
     "kaleido": lambda: extend("wobble", {
         "kaleido_blend_edges": coin_flip(),
-        "kaleido_dist_metric": random_member(distance.all()),
+        "kaleido_sdf_sides": random.randint(0, 10),
         "point_freq": 1,
         "with_kaleido": random.randint(5, 32),
     }),
@@ -1090,7 +1090,7 @@ _PRESETS = lambda: {  # noqa: E731
         "brightness_distrib": distrib.ones,
         "freq": 4,
         "hue_range": 3.5 + random.random() * 2.0,
-        "kaleido_dist_metric": random_member(distance.all()),
+        "kaleido_sdf_sides": random.randint(0, 10),
         "point_distrib": random_member([point.square, point.waffle]),
         "point_freq": 4,
         "post_refract_range": .075 + random.random() * .075,
@@ -1789,7 +1789,7 @@ _PRESETS = lambda: {  # noqa: E731
         "brightness_distrib": None,
         "hue_range": .75 + random.random() * .75,
         "kaleido_blend_edges": False,
-        "kaleido_dist_metric": distance.euclidean,
+        "kaleido_sdf_sides": 0,
         "post_reflect_range": 10.0 + random.random() * 10.0,
         "with_kaleido": 18,
     }),

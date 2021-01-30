@@ -70,6 +70,7 @@ import noisemaker.value as value
 @cli.voronoi_refract_option()
 @cli.voronoi_refract_y_from_offset_option()
 @cli.voronoi_inverse_option()
+@cli.voronoi_sdf_sides_option()
 @cli.dla_option()
 @cli.dla_padding_option()
 @cli.point_freq_option()
@@ -137,8 +138,8 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          glyph_map_zoom, glyph_map_alpha, composite, composite_zoom,
          posterize, erosion_worms, voronoi, voronoi_metric, voronoi_nth,
          voronoi_alpha, voronoi_refract, voronoi_refract_y_from_offset,
-         voronoi_inverse, glitch, vhs, crt, scan_error, snow, dither,
-         aberration, light_leak, vignette, vignette_brightness,
+         voronoi_inverse, voronoi_sdf_sides, glitch, vhs, crt, scan_error,
+         snow, dither, aberration, light_leak, vignette, vignette_brightness,
          pop, convolve, shadow, bloom, color_space, hue_range, hue_rotation,
          saturation, hue_distrib, saturation_distrib, post_hue_rotation,
          post_saturation, brightness_distrib, input_dir, dla, dla_padding,
@@ -170,7 +171,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
                                      with_wormhole=wormhole, wormhole_kink=wormhole_kink, wormhole_stride=wormhole_stride, with_erosion_worms=erosion_worms,
                                      with_voronoi=voronoi, voronoi_metric=voronoi_metric, voronoi_nth=voronoi_nth,
                                      voronoi_alpha=voronoi_alpha, voronoi_refract=voronoi_refract, voronoi_inverse=voronoi_inverse,
-                                     voronoi_refract_y_from_offset=voronoi_refract_y_from_offset,
+                                     voronoi_sdf_sides=voronoi_sdf_sides, voronoi_refract_y_from_offset=voronoi_refract_y_from_offset,
                                      with_dla=dla, dla_padding=dla_padding, point_freq=point_freq, point_distrib=point_distrib, point_corners=point_corners,
                                      point_generations=point_generations, point_drift=point_drift,
                                      with_outline=outline, with_sobel=sobel, with_normal_map=normals,

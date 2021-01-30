@@ -19,6 +19,7 @@ class DistanceMetric(Enum):
     # These require signed inputs
     triangular = 101
     hexagram = 102
+    sdf = 201  # Signed distance field
 
     @classmethod
     def all(cls):
@@ -125,25 +126,29 @@ class ValueDistribution(Enum):
     column_index = 10
     row_index = 11
 
-    center_euclidean = 20
-    center_manhattan = 21
-    center_chebyshev = 22
-    center_octagram = 23
-    center_triangular = 24
-    center_hexagram = 25
+    center_circle = 20
+    center_triangle = 23
+    center_diamond = 21
+    center_square = 24
+    center_pentagon = 25
+    center_hexagon = 26
+    center_heptagon = 27
+    center_octagon = 28
+    center_nonagon = 29
+    center_decagon = 30
 
     @classmethod
     def is_center_distance(cls, member):
-        return member and (member.value >= 20) and (member.value < 30)
+        return member and (member.value >= 20) and (member.value < 40)
 
-    scan_up = 30
-    scan_down = 31
-    scan_left = 32
-    scan_right = 33
+    scan_up = 40
+    scan_down = 41
+    scan_left = 42
+    scan_right = 43
 
     @classmethod
     def is_scan(cls, member):
-        return member and (member.value >= 30) and (member.value < 40)
+        return member and (member.value >= 40) and (member.value < 50)
 
     @classmethod
     def is_native_size(cls, member):

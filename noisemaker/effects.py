@@ -35,8 +35,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                  worms_alpha=.5, worms_kink=1.0, worms_drunkenness=0.0,
                  with_sobel=None, with_normal_map=False, deriv=None, deriv_alpha=1.0, with_outline=False,
                  with_glowing_edges=False, with_wormhole=False, wormhole_kink=2.5, wormhole_stride=.1, wormhole_alpha=1.0,
-                 with_voronoi=0, voronoi_nth=0, voronoi_metric=DistanceMetric.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0, voronoi_inverse=False,
-                 voronoi_refract_y_from_offset=True, posterize_levels=0,
+                 with_voronoi=0, voronoi_nth=0, voronoi_metric=DistanceMetric.euclidean, voronoi_alpha=1.0, voronoi_refract=0.0,
+                 voronoi_inverse=False, voronoi_sdf_sides=5, voronoi_refract_y_from_offset=True, posterize_levels=0,
                  with_erosion_worms=False, erosion_worms_density=50, erosion_worms_iterations=50, erosion_worms_contraction=1.0,
                  erosion_worms_alpha=1.0, erosion_worms_inverse=False, erosion_worms_xy_blend=None,
                  warp_range=0.0, warp_octaves=3, warp_interp=None, warp_freq=None, warp_map=None, warp_signed_range=True,
@@ -54,7 +54,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                  with_lowpoly=False, lowpoly_distrib=1000000, lowpoly_freq=10, lowpoly_metric=DistanceMetric.euclidean,
                  angle=None,
                  with_simple_frame=False,
-                 with_kaleido=None, kaleido_dist_metric=DistanceMetric.euclidean, kaleido_blend_edges=True,
+                 with_kaleido=None, kaleido_sdf_sides=0, kaleido_blend_edges=True,
                  with_wobble=None, with_palette=None,
                  with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
                  with_nebula=False, with_false_color=False, with_frame=False, with_scratches=False, with_fibers=False,
@@ -96,6 +96,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     :param float voronoi_refract: Domain warp input tensor against Voronoi
     :param bool voronoi_refract_y_from_offset: Derive Y offsets from offsetting image
     :param bool voronoi_inverse: Inverse values for Voronoi 'range' types
+    :param bool voronoi_sdf_sides: Number of sides for Voronoi when using DistanceMetric.sdf
     :param bool ridges_hint: Ridged multifractal hint for Voronoi
     :param DistanceMetric|int deriv: Derivative distance metric
     :param float deriv_alpha: Derivative alpha blending amount
@@ -158,8 +159,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     :param DistanceMetric lowpoly_metric: Low-poly effect distance metric
     :param None|float angle: Rotation angle
     :param None|bool with_simple_frame:
-    :param None|int with_kaleido: Number of kaleido sides
-    :param None|DistanceMetric kaleido_dist_metric: Kaleido center distance metric
+    :param None|int with_kaleido: Number of kaleido reflection sides
+    :param None|DistanceMetric kaleido_sdf_sides: Number of kaleido shape sides
     :param bool kaleido_blend_edges: Blend Kaleido with original edge indices
     :param None|float with_wobble: Move entire image around
     :param None|str with_palette: Apply named cosine palette
@@ -214,7 +215,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         if with_voronoi and with_voronoi != VoronoiDiagramType.none:
             input_tensor = value.voronoi(input_tensor, tiled_shape, alpha=voronoi_alpha, diagram_type=with_voronoi, dist_metric=voronoi_metric,
                                          inverse=voronoi_inverse, nth=voronoi_nth, ridges_hint=ridges_hint, with_refract=voronoi_refract,
-                                         xy=xy, refract_y_from_offset=voronoi_refract_y_from_offset)
+                                         sdf_sides=voronoi_sdf_sides, xy=xy, refract_y_from_offset=voronoi_refract_y_from_offset)
 
         if with_dla:
             input_tensor = value.blend(input_tensor, dla(input_tensor, tiled_shape, padding=dla_padding, xy=xy), with_dla)
@@ -294,7 +295,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
         tensor = density_map(tensor, shape)
 
     if with_kaleido:
-        tensor = kaleido(tensor, shape, with_kaleido, dist_metric=kaleido_dist_metric, xy=xy,
+        tensor = kaleido(tensor, shape, with_kaleido, sdf_sides=kaleido_sdf_sides, xy=xy,
                          blend_edges=kaleido_blend_edges)
 
     if with_sobel and with_sobel != DistanceMetric.none:
@@ -1887,7 +1888,7 @@ def square_crop_and_resize(tensor, shape, length=1024):
 
 
 @effect()
-def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=None, blend_edges=True, time=0.0, speed=1.0,
+def kaleido(tensor, shape, sides=6, sdf_sides=5, xy=None, blend_edges=True, time=0.0, speed=1.0,
             point_freq=1, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False):
     """
     Adapted from https://github.com/patriciogonzalezvivo/thebookofshaders/blob/master/15/texture-kaleidoscope.frag
@@ -1911,11 +1912,15 @@ def kaleido(tensor, shape, sides=6, dist_metric=DistanceMetric.euclidean, xy=Non
 
     value_shape = value.value_shape(shape)
 
+    if sdf_sides < 3:
+        dist_metric = DistanceMetric.euclidean
+    else:
+        dist_metric = DistanceMetric.sdf
+
     # distance from any pixel to center
-    r = value.voronoi(None, value_shape, dist_metric=dist_metric, xy=xy,
-                      point_freq=point_freq, point_generations=point_generations,
-                      point_distrib=point_distrib, point_drift=point_drift,
-                      point_corners=point_corners)
+    r = value.voronoi(None, value_shape, dist_metric=dist_metric, sdf_sides=sdf_sides,
+                      xy=xy, point_freq=point_freq, point_generations=point_generations,
+                      point_distrib=point_distrib, point_drift=point_drift, point_corners=point_corners)
 
     r = tf.squeeze(r)
 
@@ -2634,7 +2639,7 @@ def sine(tensor, shape, amount=1.0, time=0.0, speed=1.0, rgb=False):
 
 
 @effect()
-def value_refract(tensor, shape, freq=4, distrib=ValueDistribution.center_euclidean, displacement=.125, time=0.0, speed=1.0):
+def value_refract(tensor, shape, freq=4, distrib=ValueDistribution.center_circle, displacement=.125, time=0.0, speed=1.0):
     """
     """
 

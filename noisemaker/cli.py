@@ -540,6 +540,12 @@ def voronoi_inverse_option(**attrs):
     return bool_option("--voronoi-inverse", **attrs)
 
 
+def voronoi_sdf_sides_option(**attrs):
+    attrs.setdefault("help", "Voronoi: Number of sides, if using Signed Distance Fields (sdf)")
+
+    return int_option("--voronoi-sdf-sides", default=5, **attrs)
+
+
 def point_freq_option(default=3.0, **attrs):
     attrs.setdefault("help", "Voronoi/DLA: Approximate lengthwise point cloud frequency (freq * freq = count)")
 

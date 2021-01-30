@@ -1308,7 +1308,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "refract_range": .015 + random.random() * .0075,
             "speed": -.25,
-            "value_distrib": distrib.center_euclidean,
+            "value_distrib": distrib.center_circle,
             "value_freq": 3,
             "value_refract_range": .015 + random.random() * .0075,
         },
@@ -1375,13 +1375,13 @@ PRESETS = lambda: {  # noqa E731
             "contrast": 2.5,
             "refract_range": .025 + random.random() * .0125,
             "refract_y_from_offset": False,
-            "value_distrib": distrib.center_euclidean,
+            "value_distrib": distrib.center_circle,
             "value_freq": 1,
             "value_refract_range": .05 + random.random() * .025,
             "speed": .05,
         },
         "generator": lambda settings: {
-            "distrib": distrib.center_euclidean,
+            "distrib": distrib.center_circle,
             "hue_rotation": .925,
             "freq": 1,
         }
@@ -1914,20 +1914,20 @@ PRESETS = lambda: {  # noqa E731
     "kaleido": {
         "layers": ["wobble"],
         "settings": lambda: {
-            "dist_metric": random_member(distance.all()),
             "kaleido_point_corners": False,
             "kaleido_point_distrib": point.random,
             "kaleido_point_freq": 1,
+            "kaleido_sdf_sides": random.randint(0, 10),
             "kaleido_sides": random.randint(5, 32),
             "kaleido_blend_edges": coin_flip(),
         },
         "post": lambda settings: [
             Effect("kaleido",
                    blend_edges=settings["kaleido_blend_edges"],
-                   dist_metric=settings["dist_metric"],
                    point_corners=settings["kaleido_point_corners"],
                    point_distrib=settings["kaleido_point_distrib"],
                    point_freq=settings["kaleido_point_freq"],
+                   sdf_sides=settings["kaleido_sdf_sides"],
                    sides=settings["kaleido_sides"]),
         ]
     },
@@ -2649,7 +2649,7 @@ PRESETS = lambda: {  # noqa E731
             "bloom_alpha": .333 + random.random() * .16667,
             "refract_range": .0125 + random.random() * .006125,
             "refract_y_from_offset": False,
-            "value_distrib": distrib.center_hexagram,
+            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
             "vaseline_alpha": .125 + random.random() * .06125,
             "speed": -.125,
         },
@@ -3112,7 +3112,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "refract_range": .0025 + random.random() * .00125,
             "refract_y_from_offset": False,
-            "value_distrib": distrib.center_euclidean,
+            "value_distrib": distrib.center_circle,
             "value_freq": random.randint(2, 3),
             "value_refract_range": .025 + random.random() * .0125,
             "speed": 0.25,
@@ -3610,7 +3610,7 @@ PRESETS = lambda: {  # noqa E731
             "reflect_range": 2.0 + random.random(),
         },
         "generator": lambda settings: {
-            "distrib": random_member([distrib.center_triangular, distrib.center_hexagram]),
+            "distrib": random_member([distrib.center_triangle, distrib.center_hexagon]),
             "hue_range": 2.0 + random.random(),
             "freq": 1,
         }
@@ -3626,7 +3626,7 @@ PRESETS = lambda: {  # noqa E731
             "warp_signed_range": True,
         },
         "generator": lambda settings: {
-            "distrib": distrib.center_euclidean,
+            "distrib": distrib.center_circle,
             "freq": random.randint(2, 3)
         }
     },
@@ -3676,7 +3676,7 @@ PRESETS = lambda: {  # noqa E731
             "speed": 1.0,
         },
         "generator": lambda settings: {
-            "distrib": distrib.center_chebyshev,
+            "distrib": distrib.center_square,
             "hue_range": .1,
             "hue_rotation": random.random(),
         },
@@ -3769,7 +3769,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "refract_range": .025 + random.random() * .0125,
             "refract_y_from_offset": False,
-            "value_distrib": distrib.center_euclidean,
+            "value_distrib": distrib.center_circle,
             "value_freq": 1,
             "value_refract_range": .05 + random.random() * .025,
             "speed": -.05,
@@ -3902,6 +3902,7 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": random_member([t for t in voronoi if t != voronoi.none]),
+            "voronoi_sdf_sides": random.randint(1, 4) * 2 + 1,
             "voronoi_inverse": False,
             "voronoi_nth": random.randint(0, 2),
             "voronoi_point_corners": False,
@@ -3925,7 +3926,8 @@ PRESETS = lambda: {  # noqa E731
                    point_freq=settings["voronoi_point_freq"],
                    point_generations=settings["voronoi_point_generations"],
                    with_refract=settings["voronoi_refract"],
-                   refract_y_from_offset=settings["voronoi_refract_y_from_offset"])
+                   refract_y_from_offset=settings["voronoi_refract_y_from_offset"],
+                   sdf_sides=settings["voronoi_sdf_sides"])
         ]
     },
 

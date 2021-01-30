@@ -51,17 +51,9 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     if distrib is None:
         distrib = ValueDistribution.uniform
 
-    if isinstance(distrib, int):
-        distrib = ValueDistribution(distrib)
+    distrib = coerce_enum(distrib, ValueDistribution)
 
-    elif isinstance(distrib, str):
-        distrib = ValueDistribution[distrib]
-
-    if isinstance(mask, int):
-        mask = ValueMask(mask)
-
-    elif isinstance(mask, str):
-        mask = ValueMask[mask]
+    mask = coerce_enum(mask, ValueMask)
 
     if distrib == ValueDistribution.ones:
         tensor = tf.ones(initial_shape)
@@ -79,7 +71,32 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         tensor = tf.expand_dims(normalize(tf.cast(row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
 
     elif ValueDistribution.is_center_distance(distrib):
-        metric = DistanceMetric[distrib.name.replace("center_", "")]
+        sdf_sides = None
+
+        if distrib == ValueDistribution.center_circle:
+            metric = DistanceMetric.euclidean
+        elif distrib == ValueDistribution.center_triangle:
+            metric = DistanceMetric.triangular
+        elif distrib == ValueDistribution.center_diamond:
+            metric = DistanceMetric.manhattan
+        elif distrib == ValueDistribution.center_square:
+            metric = DistanceMetric.chebyshev
+        elif distrib == ValueDistribution.center_pentagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 5
+        elif distrib == ValueDistribution.center_hexagon:
+            metric = DistanceMetric.hexagram
+        elif distrib == ValueDistribution.center_heptagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 7
+        elif distrib == ValueDistribution.center_octagon:
+            metric = DistanceMetric.octagram
+        elif distrib == ValueDistribution.center_nonagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 9
+        elif distrib == ValueDistribution.center_decagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 10
 
         # make sure speed doesn't break looping
         if speed > 0:
@@ -87,7 +104,7 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         else:
             rounded_speed = math.ceil(-1 + speed)
 
-        tensor = normalized_sine(singularity(None, shape, dist_metric=metric) * math.tau * max(freq[0], freq[1])
+        tensor = normalized_sine(singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
                                  - math.tau * time * rounded_speed) * tf.ones(shape)
 
     elif ValueDistribution.is_scan(distrib):
@@ -165,7 +182,7 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     return tensor
 
 
-def distance(a, b, metric):
+def distance(a, b, metric, sdf_sides=5):
     """
     Compute the distance from a to b, using the specified metric.
 
@@ -175,11 +192,7 @@ def distance(a, b, metric):
     :return: Tensor
     """
 
-    if isinstance(metric, int):
-        metric = DistanceMetric(metric)
-
-    elif isinstance(metric, str):
-        metric = DistanceMetric[metric]
+    metric = coerce_enum(metric, DistanceMetric)
 
     if metric == DistanceMetric.euclidean:
         dist = tf.sqrt(a * a + b * b)
@@ -202,6 +215,13 @@ def distance(a, b, metric):
             tf.maximum(tf.abs(a) - b * -.5, b * -1)
         )
 
+    elif metric == DistanceMetric.sdf:
+        # https://thebookofshaders.com/07/
+        arctan = tf.math.atan2(a, -b) + math.pi
+        r = math.tau / sdf_sides
+
+        dist = tf.math.cos(tf.math.floor(.5 + arctan / r) * r - arctan) * tf.sqrt(a * a + b * b)
+
     else:
         raise ValueError("{0} isn't a distance metric.".format(metric))
 
@@ -210,7 +230,7 @@ def distance(a, b, metric):
 
 @effect()
 def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
-            dist_metric=DistanceMetric.euclidean, alpha=1.0, with_refract=0.0, inverse=False,
+            dist_metric=DistanceMetric.euclidean, sdf_sides=3, alpha=1.0, with_refract=0.0, inverse=False,
             xy=None, ridges_hint=False, refract_y_from_offset=True, time=0.0, speed=1.0,
             point_freq=3, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False):
     """
@@ -235,11 +255,9 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     :return: Tensor
     """
 
-    if isinstance(diagram_type, int):
-        diagram_type = VoronoiDiagramType(diagram_type)
+    diagram_type = coerce_enum(diagram_type, VoronoiDiagramType)
 
-    elif isinstance(diagram_type, str):
-        diagram_type = VoronoiDiagramType[diagram_type]
+    dist_metric = coerce_enum(dist_metric, DistanceMetric)
 
     original_shape = shape
 
@@ -275,11 +293,8 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
 
     is_triangular = dist_metric in (
         DistanceMetric.triangular,
-        DistanceMetric.triangular.name,
-        DistanceMetric.triangular.value,
         DistanceMetric.hexagram,
-        DistanceMetric.hexagram.name,
-        DistanceMetric.hexagram.value,
+        DistanceMetric.sdf,
     )
 
     if diagram_type in VoronoiDiagramType.flow_members():
@@ -291,7 +306,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
         # Keep it visually flipped "horizontal"-side-up
         y_sign = -1.0 if inverse else 1.0
 
-        dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_metric)
+        dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_metric, sdf_sides=sdf_sides)
 
     else:
         half_width = int(width * .5)
@@ -307,6 +322,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
         y0_diff = y_index - y - half_height
         y1_diff = y_index - y + half_height
 
+        #
         x_diff = tf.minimum(tf.abs(x0_diff), tf.abs(x1_diff)) / width
         y_diff = tf.minimum(tf.abs(y0_diff), tf.abs(y1_diff)) / height
 
@@ -476,11 +492,7 @@ def resample(tensor, shape, spline_order=3):
     :return: Tensor
     """
 
-    if isinstance(spline_order, int):
-        spline_order = InterpolationType(spline_order)
-
-    elif isinstance(spline_order, str):
-        spline_order = InterpolationType[spline_order]
+    spline_order = coerce_enum(spline_order, InterpolationType)
 
     input_shape = tf.shape(tensor)
 
