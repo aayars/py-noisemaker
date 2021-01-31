@@ -97,6 +97,12 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         elif distrib == ValueDistribution.center_decagon:
             metric = DistanceMetric.sdf
             sdf_sides = 10
+        elif distrib == ValueDistribution.center_hendecagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 11
+        elif distrib == ValueDistribution.center_dodecagon:
+            metric = DistanceMetric.sdf
+            sdf_sides = 12
 
         # make sure speed doesn't break looping
         if speed > 0:

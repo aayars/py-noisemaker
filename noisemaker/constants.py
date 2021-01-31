@@ -136,6 +136,8 @@ class ValueDistribution(Enum):
     center_octagon = 28
     center_nonagon = 29
     center_decagon = 30
+    center_hendecagon = 31
+    center_dodecagon = 32
 
     @classmethod
     def is_center_distance(cls, member):
