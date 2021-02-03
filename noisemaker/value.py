@@ -149,9 +149,6 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         if distrib == ValueDistribution.exp:
             tensor = tf.math.pow(tensor, 4)
 
-        elif distrib == ValueDistribution.pow_inv_1:
-            tensor = tf.math.pow(tensor, -1)
-
     else:
         raise ValueError("%s (%s) is not a ValueDistribution" % (distrib, type(distrib)))
 

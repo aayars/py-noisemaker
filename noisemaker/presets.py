@@ -1283,7 +1283,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "color_space": random_member(color.color_members()),
-            "distrib": random_member([distrib.pow_inv_1, distrib.exp, distrib.uniform]),
+            "distrib": random_member([distrib.exp, distrib.uniform]),
         }
     },
 
@@ -1558,14 +1558,15 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "glass-darkly": {
-        "layers": ["multires-alpha", "nudge-hue", "reflect-post"],
+        "layers": ["multires-alpha", "nudge-hue", "reflect-post", "bloom", "contrast", "dither"],
         "settings": lambda: {
-            "reflect_range": .95 + random.random() * .1,
+            "reflect_range": .45 + random.random() * .05,
         },
         "generator": lambda settings: {
             "color_space": color.rgb,
-            "distrib": distrib.pow_inv_1,
-            "octaves": 8,
+            "distrib": distrib.exp,
+            "mask": mask.sparser,
+            "octaves": 6,
         },
     },
 

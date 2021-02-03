@@ -914,7 +914,7 @@ _PRESETS = lambda: {  # noqa: E731
     "crooked": lambda: extend("glitchin-out", "starfield", "pixel-sort-angled"),
 
     "crop-spirals": lambda: {
-        "distrib": distrib.pow_inv_1,
+        "distrib": distrib.exp,
         "freq": random.randint(4, 6) * 2,
         "hue_range": 1,
         "saturation": .75,
@@ -1196,7 +1196,7 @@ _PRESETS = lambda: {  # noqa: E731
     }),
 
     "escape-velocity": lambda: extend("multires-low", {
-        "distrib": random_member([distrib.pow_inv_1, distrib.exp, distrib.uniform]),
+        "distrib": random_member([distrib.exp, distrib.uniform]),
         "erosion_worms_contraction": .2 + random.random() * .1,
         "erosion_worms_iterations": random.randint(625, 1125),
         "rgb": coin_flip(),
@@ -1435,7 +1435,7 @@ _PRESETS = lambda: {  # noqa: E731
     "game-over-man": lambda: extend("galalaga", "glitchin-out", "lens"),
 
     "glass-darkly": lambda: extend("multires-alpha", {
-        "distrib": distrib.pow_inv_1,
+        "distrib": distrib.exp,
         "octaves": 8,
         "post_hue_rotation": .1 + random.random() * .05,
         "post_reflect_range": .95 + random.random() * .1,

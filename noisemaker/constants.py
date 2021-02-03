@@ -113,7 +113,6 @@ class ValueDistribution(Enum):
 
     uniform = 1
     exp = 2
-    pow_inv_1 = 4
 
     @classmethod
     def is_noise(cls, member):
