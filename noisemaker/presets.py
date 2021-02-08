@@ -1563,6 +1563,13 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "glacial": {
+        "layers": ["fractal-smoke"],
+        "settings": lambda: {
+            "worms_quantize": True,
+        }
+    },
+
     "glass-darkly": {
         "layers": ["multires-alpha", "nudge-hue", "reflect-post", "bloom", "contrast", "dither"],
         "settings": lambda: {
@@ -3789,6 +3796,23 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "twisted": {
+        "layers": ["worms"],
+        "settings": lambda: {
+            "worms_density": random.randint(125, 250),
+            "worms_duration": 1.0 + random.random() * 0.5,
+            "worms_quantize": True,
+            "worms_stride": 1.0,
+            "worms_stride_deviation": 0.5,
+        },
+        "generator": lambda settings: {
+            "freq": random.randint(6, 12),
+            "hue_range": 0.0,
+            "ridges": True,
+            "saturation": 0.0,
+        }
+    },
+
     "unicorn-puddle": {
         "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
         "settings": lambda: {
@@ -4059,6 +4083,7 @@ PRESETS = lambda: {  # noqa E731
             "worms_drunkenness": 0.0,
             "worms_duration": 1.0 + random.random() * .5,
             "worms_kink": 1.0 + random.random() * .5,
+            "worms_quantize": False,
             "worms_stride": .75 + random.random() * .5,
             "worms_stride_deviation": random.random() + .5
         },
@@ -4070,6 +4095,7 @@ PRESETS = lambda: {  # noqa E731
                    drunkenness=settings["worms_drunkenness"],
                    duration=settings["worms_duration"],
                    kink=settings["worms_kink"],
+                   quantize=settings["worms_quantize"],
                    stride=settings["worms_stride"],
                    stride_deviation=settings["worms_stride_deviation"])
         ]

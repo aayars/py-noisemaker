@@ -670,7 +670,7 @@ def color_map(tensor, shape, clut=None, horizontal=False, displacement=.5, time=
 
 @effect()
 def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stride_deviation=.05, alpha=.5, kink=1.0,
-          drunkenness=0.0, colors=None, time=0.0, speed=1.0):
+          drunkenness=0.0, quantize=False, colors=None, time=0.0, speed=1.0):
     """
     Make a furry patch of worms which follow field flow rules.
 
@@ -689,6 +689,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
     :param float alpha: Fade worms (0..1)
     :param float kink: Make your worms twist.
     :param float drunkenness: Randomly fudge angle at each step (1.0 = 360 degrees)
+    :param bool quantize: Quantize rotations to 45 degree increments
     :param Tensor colors: Optional starting colors, if not from `tensor`.
     :return: Tensor
     """
@@ -760,6 +761,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
         out += tf.scatter_nd(worm_positions, colors * exposure, scatter_shape)
 
         next_position = tf.gather_nd(index, worm_positions) + worms_rot
+
+        if quantize:
+            next_position = tf.math.round(next_position)
 
         worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
         worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
