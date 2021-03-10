@@ -28,7 +28,7 @@ setup(name='noisemaker',
         ''',
 
       install_requires=[
-        "absl-py<0.11,>=0.9",
+        "absl-py>=0.9,<0.13",
         "click==7.1.2",
         "h5py~=2.10.0",
         "loguru==0.5.3",
