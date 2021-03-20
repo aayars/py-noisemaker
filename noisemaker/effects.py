@@ -2075,6 +2075,30 @@ def lens_warp(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
 
 
 @effect()
+def lens_distortion(tensor, shape, displacement=1.0, time=0.0, speed=1.0):
+    """
+    """
+
+    x_index = tf.cast(value.row_index(shape), tf.float32) / shape[1]
+    y_index = tf.cast(value.column_index(shape), tf.float32) / shape[0]
+
+    x_dist = x_index - .5
+    y_dist = y_index - .5
+
+    center_dist = 1.0 - value.normalize(value.distance(x_dist, y_dist))
+
+    if displacement < 0.0:
+        zoom = displacement * -.25
+    else:
+        zoom = 0.0
+
+    x_offset = tf.cast(((x_index - x_dist * zoom) - x_dist * center_dist * center_dist * displacement) * shape[1], tf.int32) % shape[1]
+    y_offset = tf.cast(((y_index - y_dist * zoom) - y_dist * center_dist * center_dist * displacement) * shape[0], tf.int32) % shape[0]
+
+    return tf.gather_nd(tensor, tf.stack([y_offset, x_offset], 2))
+
+
+@effect()
 def degauss(tensor, shape, displacement=.0625, time=0.0, speed=1.0):
     """
     """

@@ -108,7 +108,7 @@ PRESETS = lambda: {  # noqa E731
 
     "aberration": {
         "settings": lambda: {
-            "aberration_displacement": .0125 + random.random() * .006125
+            "aberration_displacement": .025 + random.random() * .00125
         },
         "post": lambda settings: [Effect("aberration", displacement=settings["aberration_displacement"])]
     },
@@ -2006,11 +2006,20 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "lens": {
-        "layers": ["aberration", "vaseline", "tint", "vignette-dark", "contrast"],
+        "layers": ["lens-distortion", "aberration", "vaseline", "tint", "vignette-dark", "contrast"],
+    },
+
+    "lens-distortion": {
+        "post": lambda settings: [
+            Effect("lens_distortion", displacement=(.5 + random.random() * .25) * (1 if coin_flip() else -1)),
+        ]
     },
 
     "lens-warp": {
-        "post": lambda settings: [Effect("lens_warp", displacement=.125 + random.random() * .125)]
+        "post": lambda settings: [
+            Effect("lens_warp", displacement=.125 + random.random() * .06125),
+            Effect("lens_distortion", displacement=.5 + random.random() * .25 * (1 if coin_flip() else -1)),
+        ]
     },
 
     "light-leak": {
