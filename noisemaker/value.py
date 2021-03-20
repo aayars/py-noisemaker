@@ -185,7 +185,7 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     return tensor
 
 
-def distance(a, b, metric, sdf_sides=5):
+def distance(a, b, metric=DistanceMetric.euclidean, sdf_sides=5):
     """
     Compute the distance from a to b, using the specified metric.
 
