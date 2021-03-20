@@ -1009,7 +1009,7 @@ def blend_layers(control, shape, feather=1.0, *layers):
     return value.blend(combined_layer_0, combined_layer_1, control_floor_fract)
 
 
-def center_mask(center, edges, shape, power=2):
+def center_mask(center, edges, shape, dist_metric=DistanceMetric.chebyshev, power=2):
     """
     Blend two image tensors from the center to the edges.
 
@@ -1020,7 +1020,7 @@ def center_mask(center, edges, shape, power=2):
     :return: Tensor
     """
 
-    mask = tf.pow(value.singularity(None, shape, dist_metric=DistanceMetric.chebyshev), power)
+    mask = tf.pow(value.singularity(None, shape, dist_metric=dist_metric), power)
 
     return value.blend(center, edges, mask)
 
@@ -1574,7 +1574,7 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0, time=0.0, speed=1.0):
 
     tensor = value.normalize(tensor)
 
-    edges = center_mask(tensor, tf.ones(shape) * brightness, shape)
+    edges = center_mask(tensor, tf.ones(shape) * brightness, shape, dist_metric=DistanceMetric.euclidean)
 
     return value.blend(tensor, edges, alpha)
 
