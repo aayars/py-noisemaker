@@ -1127,6 +1127,7 @@ PRESETS = lambda: {  # noqa E731
         "generator": lambda settings: {
             "brightness_distrib": random_member([distrib.ones, distrib.uniform]),
             "mask": None if coin_flip() else mask.dropout,
+            "mask_static": True,
             "freq": 4,
             "hue_range": 2.5 + random.random() * 1.25,
         },
