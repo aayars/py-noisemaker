@@ -69,10 +69,10 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
         control = effects.square_crop_and_resize(control, shape_from_file(control_filename), 1024)
 
-        control = effects.value_map(control, shape, keepdims=True)
+        control = value.value_map(control, shape, keepdims=True)
 
     else:
-        control = effects.value_map(collage_images.pop(), shape, keepdims=True)
+        control = value.value_map(collage_images.pop(), shape, keepdims=True)
 
     control = effects.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[height, width, 1])
 
