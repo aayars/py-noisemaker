@@ -48,13 +48,6 @@ def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark
                              '--height', str(height),
                              '--filename', frame_filename])
 
-            util.check_call(['noisemaker', 'effect', 'crt', frame_filename,
-                             '--no-resize',
-                             '--seed', str(seed),
-                             '--speed', '0.25',
-                             '--time', str(i / 30.0),
-                             '--filename', frame_filename])
-
             if save_frames:
                 shutil.copy(frame_filename, save_frames)
 
