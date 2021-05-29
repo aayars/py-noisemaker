@@ -5,7 +5,6 @@ import random
 
 import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 from noisemaker.constants import (
     ColorSpace,
@@ -1753,7 +1752,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
         padded = tf.image.resize_with_crop_or_pad(tensor, want_length, want_length)
 
-        rotated = tfa.image.rotate(padded, math.radians(angle), 'BILINEAR')
+        rotated = rotate2D(padded, padded_shape, math.radians(angle))
 
     else:
         padded_shape = shape
@@ -1774,7 +1773,7 @@ def _pixel_sort(tensor, shape, angle, darkest):
 
     if angle:
         # Rotate back to original orientation
-        sorted_channels = tfa.image.rotate(sorted_channels, math.radians(-angle), 'BILINEAR')
+        sorted_channels = rotate2D(sorted_channels, padded_shape, math.radians(-angle))
 
         # Crop to original size
         sorted_channels = tf.image.resize_with_crop_or_pad(sorted_channels, height, width)
@@ -1803,9 +1802,28 @@ def rotate(tensor, shape, angle=None, time=0.0, speed=1.0):
 
     padded = expand_tile(tensor, shape, padded_shape)
 
-    rotated = tfa.image.rotate(padded, math.radians(angle), 'BILINEAR')
+    rotated = rotate2D(padded, padded_shape, math.radians(angle))
 
     return tf.image.resize_with_crop_or_pad(rotated, height, width)
+
+
+def rotate2D(tensor, shape, rot):
+    """
+    """
+
+    angle = rot * math.tau;
+
+    x_index = tf.cast(value.row_index(shape), tf.float32) / shape[1] - 0.5
+    y_index = tf.cast(value.column_index(shape), tf.float32) / shape[0] - 0.5
+
+    _x_index = tf.cos(angle) * x_index + tf.sin(angle) * y_index + 0.5
+
+    _y_index = -tf.sin(angle) * x_index + tf.cos(angle) * y_index + 0.5
+
+    x_index = tf.cast(_x_index * shape[1], tf.int32) % shape[1]
+    y_index = tf.cast(_y_index * shape[0], tf.int32) % shape[0]
+
+    return tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
 
 
 @effect()

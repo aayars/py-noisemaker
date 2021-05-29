@@ -1,4 +1,4 @@
-FROM python:3.7-slim-stretch
+FROM python:3.9-slim
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -8,16 +8,12 @@ RUN apt update -qq && \
     \
     mkdir -p /root/.noisemaker/fonts && \
     cd /root/.noisemaker/fonts && \
-    /usr/bin/curl -s https://releases.pagure.org/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz \
+    /usr/bin/curl -s https://s3.wasabisys.com/noisemakerbot-assets-east/fonts/liberation-fonts-ttf-2.00.1.tar.gz \
         | /bin/tar xz --strip-components=1 && \
     cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
-    pip3 install -q tensorflow==2.3.0 && \
-    \
-    apt install -qq -y cpanminus gcc libjpeg-dev libpng-dev make perl-doc && \
-    PERL_MM_USE_DEFAULT=1 perl -MCPAN -e 'install Math::Fractal::Noisemaker' && \
-    apt remove -qq --purge -y cpanminus gcc make && \
+    pip3 install -q tensorflow==2.5.0 && \
     \
     apt remove -qq --purge -y curl git python3-pip && \
     apt autoremove -qq -y && \
