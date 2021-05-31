@@ -55,7 +55,7 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
         else:
             text_x /= 2
 
-        draw.text((text_x + 2, text_y + 2), line, font=font, fill=shadow_color)
+        draw.text((text_x + 1, text_y + 1), line, font=font, fill=shadow_color)
         draw.text((text_x, text_y), line, font=font, fill=fill)
 
         text_y += line_h + padding
