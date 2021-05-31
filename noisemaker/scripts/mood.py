@@ -51,7 +51,7 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
 
         text_x = input_width - line_w
         if right:
-            text_x -= padding
+            text_x -= padding + 4
         else:
             text_x /= 2
 

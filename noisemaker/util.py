@@ -85,8 +85,8 @@ def watermark(text, filename):
     return check_call(['mood',
                        '--filename', filename,
                        '--text', text,
-                       '--font', 'LiberationSans-Bold',
-                       '--font-size', '12',
+                       '--font', 'Jura-Regular',
+                       '--font-size', '16',
                        '--no-rect',
                        '--bottom',
                        '--right'])

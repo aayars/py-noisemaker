@@ -10,6 +10,7 @@ RUN apt update -qq && \
     cd /root/.noisemaker/fonts && \
     /usr/bin/curl -s https://s3.wasabisys.com/noisemakerbot-assets-east/fonts/liberation-fonts-ttf-2.00.1.tar.gz \
         | /bin/tar xz --strip-components=1 && \
+    /usr/bin/curl --output Jura-Regular.ttf https://s3.wasabisys.com/noisemakerbot-assets-east/fonts/Jura-Regular.ttf && \
     cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
