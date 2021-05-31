@@ -234,8 +234,8 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
         tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
         tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
 
-        tensor = tf.image.adjust_brightness(tensor, .05)
-        tensor = tf.image.adjust_contrast(tensor, 1.25)
+        tensor = tf.image.adjust_brightness(tensor, .1)
+        tensor = tf.image.adjust_contrast(tensor, 1.5)
 
         util.save(tensor, filename)
 
