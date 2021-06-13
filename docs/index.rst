@@ -68,6 +68,11 @@ To install noisemaker in a dev env:
 
 For subsequent activation of the virtual environment, run ``source venv/bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
 
+Notebook
+~~~~~~~~
+
+You can play with Noisemaker in a `Colab Notebook`_.
+
 Docker
 ~~~~~~
 
@@ -109,6 +114,7 @@ Indices and tables
 
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
+.. _`Colab Notebook`: https://colab.research.google.com/drive/1s1FNR6dYcNEXE7Uwx_E8rH6Xn4sMcqMV?usp=sharing
 .. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/py-noisemaker/
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
@@ -116,5 +122,4 @@ Indices and tables
 .. _`Wikipedia: Perlin noise`: https://en.wikipedia.org/wiki/Perlin_noise
 .. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
 .. _`Wikipedia: Worley noise`: https://en.wikipedia.org/wiki/Worley_noise
-
 
