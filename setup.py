@@ -38,7 +38,7 @@ setup(name='noisemaker',
         "protobuf<4,>=3.7",
         "six~=1.15.0",
         "tensorflow-graphics==2020.5.20",
-        "wheel==0.36.2",  # Needed by TF
+        "wheel==0.37.0",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],
