@@ -42,5 +42,5 @@ setup(name='noisemaker',
         ],
 
       setup_requires=["pytest-runner"],
-      tests_require=["pytest==6.2.4"],
+      tests_require=["pytest==7.0.0"],
       )
