@@ -28,19 +28,19 @@ setup(name='noisemaker',
         ''',
 
       install_requires=[
-        "absl-py<0.11,>=0.9",
-        "click==8.0.1",
-        "h5py~=3.1.0",
-        "loguru==0.5.3",
+        "absl-py>=0.9,<1.3",
+        "click==8.1.3",
+        "h5py>=3.1,<3.8",
+        "loguru==0.6.0",
         "numpy>=1.19.2,<1.24.0",
         "opensimplex==0.3",
-        "Pillow==8.2.0",
-        "protobuf<4,>=3.7",
+        "Pillow==9.2.0",
+        "protobuf>=3.7,<5",
         "six~=1.15.0",
-        "tensorflow-graphics==2020.5.20",
-        "wheel==0.36.2",  # Needed by TF
+        "tensorflow-graphics==2021.12.3",
+        "wheel==0.37.1",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],
-      tests_require=["pytest==6.2.4"],
+      tests_require=["pytest==7.1.2"],
       )
