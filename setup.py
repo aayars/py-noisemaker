@@ -31,14 +31,14 @@ setup(name='noisemaker',
         "absl-py<0.11,>=0.9",
         "click==8.0.1",
         "h5py~=3.1.0",
-        "loguru==0.5.3",
+        "loguru==0.6.0",
         "numpy~=1.19.2",
         "opensimplex==0.3",
         "Pillow==8.2.0",
         "protobuf<4,>=3.7",
         "six~=1.15.0",
         "tensorflow-graphics==2020.5.20",
-        "wheel==0.36.2",  # Needed by TF
+        "wheel==0.37.1",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],
