@@ -271,12 +271,18 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     if xy is None:
         if point_freq == 1:
             x, y = point_cloud(point_freq, PointDistribution.square, shape)
+            point_count = len(x)
 
         else:
-            x, y = point_cloud(point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations,
+            x0, y0 = point_cloud(point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations,
                                drift=point_drift, time=time, speed=speed)
+            point_count = len(x0)
 
-        point_count = len(x)
+            x = []
+            y = []
+            for i in range(point_count):
+                x.append(blend_cosine(x0[i], x0[(i + 1) % point_count], time))
+                y.append(blend_cosine(y0[i], y0[(i + 1) % point_count], time))
 
     else:
         if len(xy) == 2:

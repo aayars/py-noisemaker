@@ -87,7 +87,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "2d-chess": {
-        "layers": ["value-mask", "voronoi"],
+        "layers": ["value-mask", "voronoi", "rotate"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
             "voronoi_alpha": 0.5 + random.random() * .5,
