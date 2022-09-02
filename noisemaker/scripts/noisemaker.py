@@ -116,7 +116,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
 @cli.filename_option(default='ani.gif')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
-@cli.option('--frame-count', type=int, default=30, help="How many frames total")
+@cli.option('--frame-count', type=int, default=50, help="How many frames total")
 @cli.option('--watermark', type=str)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
@@ -168,7 +168,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
             # when you want something done right
             util.check_call(['ffmpeg',
                              '-y',  # overwrite existing
-                             '-framerate', '30',
+                             '-framerate', '50',
                              '-i', f'{tmp}/%04d.png',
                              '-c:v', 'libx264',  # because this is what twitter wants
                              '-pix_fmt', 'yuv420p',  # because this is what twitter wants
@@ -245,4 +245,4 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 def _use_reasonable_speed(preset, frame_count):
     """Return a reasonable speed parameter for the given animation length."""
 
-    return preset.settings.get("speed", 0.25) * (frame_count / 30.0)
+    return preset.settings.get("speed", 0.25) * (frame_count / 50.0)
