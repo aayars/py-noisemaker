@@ -2012,14 +2012,14 @@ PRESETS = lambda: {  # noqa E731
 
     "lens-distortion": {
         "post": lambda settings: [
-            Effect("lens_distortion", displacement=(.5 + random.random() * .25) * (1 if coin_flip() else -1)),
+            Effect("lens_distortion", displacement=(.25 + random.random() * .125) * (1 if coin_flip() else -1)),
         ]
     },
 
     "lens-warp": {
         "post": lambda settings: [
             Effect("lens_warp", displacement=.125 + random.random() * .06125),
-            Effect("lens_distortion", displacement=.5 + random.random() * .25 * (1 if coin_flip() else -1)),
+            Effect("lens_distortion", displacement=.25 + random.random() * .125 * (1 if coin_flip() else -1)),
         ]
     },
 
