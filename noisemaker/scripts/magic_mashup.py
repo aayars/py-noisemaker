@@ -37,7 +37,7 @@ def main():
 @click.pass_context
 def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark):
     with tempfile.TemporaryDirectory() as tmp:
-        for i in range(30):
+        for i in range(50):
             frame_filename = f'{tmp}/{i:04d}.png'
 
             util.check_call(['magic-mashup', 'frame',
@@ -95,7 +95,7 @@ def frame(ctx, input_dir, frame, seed, filename, width, height):
 
         collage_images.append(tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32))
 
-    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), seed=seed, time=frame/30.0, speed=0.125)
+    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), seed=seed, time=frame/50.0, speed=0.125)
 
     control = value.value_map(collage_images.pop(), shape, keepdims=True)
 
