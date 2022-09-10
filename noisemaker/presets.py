@@ -3611,16 +3611,6 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
-    "time-to-reflect": {
-        "layers": ["symmetry", "reflect-octaves", "reflect-post", "ridge", "shadow", "invert", "dither", "saturation"],
-        "settings": lambda: {
-            "reflect_range": 6.0 + random.random() * 3.0
-        },
-        "generator": lambda settings: {
-            "ridges": True,
-        },
-    },
-
     "timeworms": {
         "layers": ["reflect-octaves", "worms", "density-map", "bloom", "lens"],
         "settings": lambda: {
