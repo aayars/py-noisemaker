@@ -1571,19 +1571,6 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
-    "glass-darkly": {
-        "layers": ["multires-alpha", "nudge-hue", "reflect-post", "bloom", "contrast", "dither"],
-        "settings": lambda: {
-            "reflect_range": .45 + random.random() * .05,
-        },
-        "generator": lambda settings: {
-            "color_space": color.rgb,
-            "distrib": distrib.exp,
-            "mask": mask.sparser,
-            "octaves": 6,
-        },
-    },
-
     "glitchin-out": {
         "layers": ["corrupt"],
         "post": lambda settings: [Effect("glitch"), Preset("crt"), Preset("bloom")]
@@ -2250,7 +2237,7 @@ PRESETS = lambda: {  # noqa E731
             "palette_on": False,
             "worms_alpha": .625 + random.random() * .125,
             "worms_behavior": worms.unruly if coin_flip() else worms.obedient,
-            "worms_density": 500,
+            "worms_density": 250,
             "worms_stride": .75,
             "worms_stride_deviation": .25,
         },
@@ -2374,20 +2361,6 @@ PRESETS = lambda: {  # noqa E731
         ]
     },
 
-    "noodler": {
-        "layers": ["multires-alpha", "contrast", "maybe-palette", "normalize",
-                   "reindex-octaves", "shadow", "lens"],
-        "settings": lambda: {
-            "reindex_range": 8.0 + random.random() * 4.0,
-        },
-        "generator": lambda settings: {
-            "distrib": distrib.uniform,
-            "lattice_drift": 1.0,
-            "mask": mask.sparse,
-            "octaves": 4,
-        },
-    },
-
     "normals": {
         "post": lambda settings: [Effect("normal_map")]
     },
@@ -2449,23 +2422,6 @@ PRESETS = lambda: {  # noqa E731
             "mask": random_member(mask.procedural_members()),
             "spline_order": interp.constant,
         }
-    },
-
-    "octave-rings": {
-        "layers": ["palette", "value-mask", "reflect-octaves", "reverb", "lens"],
-        "settings": lambda: {
-            "reflect_range": 75.0 + random.random() * 37.5,
-            "reverb_octaves": random.randint(1, 3),
-            "reverb_ridges": False,
-            "mask": mask.waffle,
-            "mask_repeat": random.randint(1, 3),
-        },
-        "generator": lambda settings: {
-            "corners": True,
-            "distrib": distrib.ones,
-            "spline_order": interp.cosine,
-            "octaves": random.randint(2, 5),
-        },
     },
 
     "octave-warp-octaves": {
@@ -3900,6 +3856,20 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.sparse,
             "mask_static": True,
             "spline_order": interp.constant,
+        },
+    },
+
+    "veil": {
+        "layers": ["voronoi", "fractal-seed"],
+        "settings": lambda: {
+            "dist_metric": random_member([distance.manhattan, distance.octagram, distance.triangular]),
+            "voronoi_diagram_type": random_member([voronoi.color_range, voronoi.range]),
+            "voronoi_inverse": True,
+            "voronoi_point_distrib": random_member(point.grid_members()),
+            "voronoi_point_freq": random.randint(2, 3),
+            "worms_behavior": worms.random,
+            "worms_kink": .5 + random.random(),
+            "worms_stride": random.randint(48, 96),
         },
     },
 
