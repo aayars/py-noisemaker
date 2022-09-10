@@ -43,6 +43,7 @@ class Preset:
         if not isinstance(prototype, dict):
             raise ValueError(f"Preset \"{preset_name}\" should be a dict, not \"{type(prototype)}\"")
 
+        # To avoid mistakes in presets, unknown top-level keys are disallowed.
         for key in prototype:
             if key not in ALLOWED_KEYS:
                 raise ValueError(f"Not sure what to do with key \"{key}\" in preset \"{preset_name}\". Typo?")
@@ -62,7 +63,7 @@ class Preset:
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _rollup(preset_name, "post", [], presets, self.settings)
 
-        # Make sure there's no dangling settings keys
+        # To avoid mistakes in presets, unused keys are disallowed.
         try:
             self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
 
