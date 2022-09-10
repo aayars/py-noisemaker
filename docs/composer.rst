@@ -3,21 +3,10 @@ Noisemaker Composer
 
 Noisemaker Composer is a high-level interface for creating generative art with noise. The design is informed by lessons learned from the previous incarnation of presets in Noisemaker.
 
-Limitations With Previous Approach
-----------------------------------
-
-Noisemaker's previous strategy for applying parameterized effects was to call into a single `large top-level monolithic function <api.html#noisemaker.effects.post_process>`_. This suffered from several limitations:
-
-- Not dynamic enough. Always applied effects in the same hard-coded order.
-- Did not allow repeated effects, unless bespoke logic to do so was shoehorned into the monolith.
-- Indirect. Rather than providing direct access to `generators <api.html#module-noisemaker.generators>`_ and `effects <api.html#module-noisemaker.effects>`_, the old post-processing monolith acted as a middleman and strict gatekeeper.
-- Error prone. Sloppy parameter handling, with no obviously rational way to add validation.
-- `An unwieldy number of parameters <api.html#noisemaker.effects.post_process>`_, which is not a great way to program. Adding new features was difficult, and only compounded the problem over time.
-
 Composer Presets
 ----------------
 
-The current solution attempts to be flexible and highly composable. Composer Presets expose Noisemaker's lower-level `generator <api.html#module-noisemaker.generators>`_ and `effect <api.html#module-noisemaker.effects>`_ APIs, and are modeled using terse syntax which can be finely tailored per-preset. The intent behind this design was to provide a compact and maintainable interface which answers five key questions for each preset:
+"Composer" Presets expose Noisemaker's lower-level `generator <api.html#module-noisemaker.generators>`_ and `effect <api.html#module-noisemaker.effects>`_ APIs, and are modeled using terse syntax which can be finely tailored per-preset. The intent behind this design was to provide a compact and maintainable interface which answers five key questions for each preset:
 
 1) Which presets are being built on?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
