@@ -3794,7 +3794,8 @@ PRESETS = lambda: {  # noqa E731
             "distrib": distrib.uniform,
             "freq": random.randint(3, 5),
             "mask": random_member(mask.procedural_members()),
-            "octaves": random.randint(1, 2),
+            "octave_blending": blend.alpha,
+            "octaves": random.randint(2, 4),
         },
     },
 
