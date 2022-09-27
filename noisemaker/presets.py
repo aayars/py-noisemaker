@@ -2761,6 +2761,14 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("texture")]
     },
 
+    "pull": {
+        "layers": ["basic-voronoi", "erosion-worms"],
+        "settings": lambda: {
+            "voronoi_alpha": 0.25 + random.random() * 0.5,
+            "voronoi_diagram_type": random_member([voronoi.range, voronoi.color_range, voronoi.range_regions]),
+        }
+    },
+
     "puzzler": {
         "layers": ["basic-voronoi", "maybe-invert", "wormhole"],
         "settings": lambda: {
