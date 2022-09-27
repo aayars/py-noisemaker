@@ -1798,7 +1798,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "freq": 2,
-            "distrib": random_member([m for m in distrib if m not in (distrib.ones, distrib.mids)]),
             "hue_range": random.random(),
             "ridges": coin_flip(),
             "saturation": random.random(),
