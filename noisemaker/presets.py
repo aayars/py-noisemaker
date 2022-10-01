@@ -3206,6 +3206,10 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "simple-frame": {
+        "post": lambda settings: [Effect("simple_frame")]
+    },
+
     "sined-multifractal": {
         "layers": ["multires-ridged", "sine-octaves", "bloom", "lens"],
         "settings": lambda: {
@@ -3219,10 +3223,6 @@ PRESETS = lambda: {  # noqa E731
             "hue_rotation": random.random(),
             "lattice_drift": .75,
         },
-    },
-
-    "simple-frame": {
-        "post": lambda settings: [Effect("simple_frame")]
     },
 
     "sine-octaves": {
@@ -3243,6 +3243,14 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [
             Effect("sine", amount=settings["sine_range"], rgb=settings["sine_rgb"])
         ]
+    },
+
+    "singularity": {
+        "layers": ["basic-voronoi"],
+        "settings": lambda: {
+            "voronoi_point_freq": 1,
+            "voronoi_diagram_type": random_member([voronoi.color_range, voronoi.range, voronoi.range_regions]),
+        },
     },
 
     "sketch": {

@@ -165,7 +165,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
 def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
              distrib=ValueDistribution.uniform, corners=False,
-             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0,
+             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, supersample=True,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff,
@@ -190,6 +190,7 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     :param bool mask_inverse:
     :param bool mask_static: If True, don't animate the mask
     :param float lattice_drift: Push away from underlying lattice
+    :param bool supersample: Use 2x supersampling
     :param ColorSpace color_space:
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
@@ -216,6 +217,10 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
     original_shape = shape.copy()
+
+    if supersample:
+        shape[0] *= 2
+        shape[1] *= 2
 
     if octave_blending == OctaveBlending.alpha and shape[2] in (1, 3):  # Make sure there's an alpha channel
         shape[2] += 1
@@ -271,6 +276,9 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
         tensor = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     tensor = value.normalize(tensor)
+
+    if supersample:
+        tensor = value.proportional_downsample(tensor, shape, original_shape)
 
     return tensor
 

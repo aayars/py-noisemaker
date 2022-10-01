@@ -32,7 +32,7 @@ def main():
 
 
 @main.command(help="Generate a .png or .jpg from preset")
-@cli.width_option(default=2048)
+@cli.width_option()
 @cli.height_option()
 @cli.channels_option()
 @cli.time_option()

@@ -256,6 +256,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     :param bool inverse: Invert range brightness values (does not affect hue)
     :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
     :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
+    :param bool downsample: Use a downsampled distance field, probably to conserve memory
     :return: Tensor
     """
 
@@ -294,8 +295,12 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
         else:
             x, y, point_count = xy
 
-        x = tf.cast(tf.stack(x), tf.float32) / 2.0
-        y = tf.cast(tf.stack(y), tf.float32) / 2.0
+        x = tf.cast(tf.stack(x), tf.float32)
+        y = tf.cast(tf.stack(y), tf.float32)
+
+        if downsample:
+            x /= 2.0
+            y /= 2.0
 
     vshape = value_shape(shape)
 

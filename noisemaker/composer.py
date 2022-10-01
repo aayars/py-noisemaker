@@ -12,7 +12,7 @@ from noisemaker.effects_registry import EFFECTS
 from noisemaker.generators import multires
 from noisemaker.util import logger, save
 
-DEFAULT_SHAPE = [1024, 2048, 3]
+DEFAULT_SHAPE = [1024, 1024, 3]
 
 SETTINGS_KEY = "settings"
 
