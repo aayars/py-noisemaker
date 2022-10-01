@@ -591,7 +591,7 @@ def proportional_downsample(tensor, shape, new_shape):
     :param list[int] new_shape:
     """
 
-    kernel_shape = [int(max(shape[0] / new_shape[0], 1)), int(max(shape[1] / new_shape[1], 1)), shape[2], 1]
+    kernel_shape = [max(int(shape[0] / new_shape[0]), 1), max(int(shape[1] / new_shape[1]), 1), shape[2], 1]
 
     kernel = tf.ones(kernel_shape)
 
