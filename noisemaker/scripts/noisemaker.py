@@ -118,9 +118,10 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=50, help="How many frames total")
 @cli.option('--watermark', type=str)
+@cli.option('--preview-filename', type=click.Path(exists=False))
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preset_name):
+def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -163,6 +164,9 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
 
             if watermark:
                 util.watermark(watermark, frame_filename)
+
+            if preview_filename and i == 0:
+                shutil.copy(frame_filename, preview_filename)
 
         if filename.endswith(".mp4"):
             # when you want something done right

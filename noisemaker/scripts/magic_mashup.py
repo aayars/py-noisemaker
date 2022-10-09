@@ -34,10 +34,12 @@ def main():
 @cli.width_option(default=DEFAULT_WIDTH)
 @cli.height_option(default=DEFAULT_HEIGHT)
 @cli.option('--watermark', type=str)
+@cli.option('--preview-filename', type=click.Path(exists=False))
+@cli.option('--frame-count', type=int, default=50)
 @click.pass_context
-def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark):
+def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark, preview_filename, frame_count):
     with tempfile.TemporaryDirectory() as tmp:
-        for i in range(50):
+        for i in range(frame_count):
             frame_filename = f'{tmp}/{i:04d}.png'
 
             util.check_call(['magic-mashup', 'frame',
@@ -53,6 +55,9 @@ def frames(ctx, input_dir, seed, filename, save_frames, width, height, watermark
 
             if watermark:
                 util.watermark(watermark, frame_filename)
+
+            if preview_filename and i == 0:
+                shutil.copy(frame_filename, preview_filename)
 
         util.magick(f'{tmp}/*png', filename)
 
