@@ -16,7 +16,7 @@ import noisemaker.effects as effects
 import noisemaker.util as util
 import noisemaker.value as value
 
-MAX_SEED_VALUE = 2 ** 32
+MAX_SEED_VALUE = 2 ** 32 - 1
 
 
 reload_presets(PRESETS)
