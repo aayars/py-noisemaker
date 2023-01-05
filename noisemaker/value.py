@@ -236,7 +236,7 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
             dist_metric=DistanceMetric.euclidean, sdf_sides=3, alpha=1.0, with_refract=0.0, inverse=False,
             xy=None, ridges_hint=False, refract_y_from_offset=True, time=0.0, speed=1.0,
             point_freq=3, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False,
-            downsample=False):
+            downsample=True):
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 

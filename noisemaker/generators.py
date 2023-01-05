@@ -165,7 +165,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
 def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
              distrib=ValueDistribution.uniform, corners=False,
-             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, supersample=True,
+             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, supersample=False,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff,
