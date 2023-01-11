@@ -2761,6 +2761,21 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("texture")]
     },
 
+    "pseudoprematism": {
+        "layers": ["value-mask", "funhouse", "rotate"],
+        "settings": lambda: {
+            "warp_range": .5 + random.random() * .25,
+            "warp_octaves": 1,
+        },
+        "generator": lambda settings: {
+            "freq": [random.randint(8, 16), random.randint(48, 64)],
+            "mask": mask.sparser,
+            "octave_blending": blend.alpha,
+            "octaves": 2,
+            "spline_order": interp.constant,
+        },
+    },
+
     "pull": {
         "layers": ["basic-voronoi", "erosion-worms"],
         "settings": lambda: {
