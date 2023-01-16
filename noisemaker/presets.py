@@ -2869,6 +2869,10 @@ PRESETS = lambda: {  # noqa E731
         ]
     },
 
+    "reflecto": {
+        "layers": ["basic", "reflect-octaves", "reflect-post"]
+    },
+
     "refract-octaves": {
         "settings": lambda: {
             "refract_range": .5 + random.random() * .25,
