@@ -1698,6 +1698,16 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("adjust_saturation", amount=0)]
     },
 
+    "griddy": {
+        "layers": ["basic", "sobel", "invert", "bloom"],
+        "generator": lambda settings: {
+            "freq": random.randint(3, 9),
+            "mask": mask.chess,
+            "octaves": random.randint(3, 8),
+            "spline_order": interp.constant
+        },
+    },
+
     "grime": {
         "post": lambda settings: [Effect("grime")]
     },
