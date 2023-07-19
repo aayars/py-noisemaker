@@ -72,5 +72,4 @@ def main(ctx, seed, name, no_resize, overrides, time, preset_name, input_filenam
         logger.error(f"effects.post_process() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
         raise
 
-    with tf.compat.v1.Session().as_default():
-        save(tensor, name)
+    save(tensor, name)

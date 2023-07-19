@@ -91,5 +91,4 @@ def main(ctx, width, height, channels, time, clut, seed, overrides, settings, na
         logger.error(f"generators.multires_old() failed: {e}\nSeed: {seed}\nArgs: {dumps(kwargs)}")
         raise
 
-    with tf.compat.v1.Session().as_default():
-        save(tensor, name)
+    save(tensor, name)

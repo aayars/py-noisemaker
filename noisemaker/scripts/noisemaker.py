@@ -1,3 +1,5 @@
+from enum import Enum
+
 import os
 import random
 import shutil
@@ -7,7 +9,7 @@ import click
 import tensorflow as tf
 
 from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
-from noisemaker.constants import ValueDistribution
+from noisemaker.constants import ColorSpace, ValueDistribution
 from noisemaker.presets import PRESETS
 
 import noisemaker.cli as cli
@@ -39,9 +41,10 @@ def main():
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
 @cli.filename_option(default='art.png')
+@click.option('--with-ai', help="Apply image-to-image AI (requires stability.ai key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, speed, seed, filename, preset_name):
+def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -51,16 +54,73 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, preset_
     if preset_name == "random":
         preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
 
-    print(f"{preset_name} (seed: {seed})")
+    print(f"{preset_name.replace('-', ' ')} (seed: {seed})")
 
     preset = GENERATOR_PRESETS[preset_name]
 
+    # print_preset(preset, with_ai)
+
     try:
-        preset.render(shape=[height, width, channels], time=time, speed=speed, filename=filename)
+        preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename, with_ai=with_ai)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
         raise
+
+
+def print_preset(preset, with_ai):
+    if with_ai:
+        print("")
+        print(preset.ai_settings["prompt"])
+
+    if preset.layers:
+        print("")
+        print("Extends: " + ", ".join(str(l).replace('-', ' ') for l in preset.flattened_layers))
+
+    print("")
+    print("Layers:")
+
+    if preset.final_effects:
+        print("  - Final:")
+
+        for effect in reversed(preset.final_effects):
+            if callable(effect):
+                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+            else:
+                print(f"    - {effect.name.replace('_', ' ')}")
+
+    if preset.post_effects or with_ai:
+        print("  - Post:")
+
+        if with_ai:
+            print("    - stable diffusion")
+
+        for effect in reversed(preset.post_effects):
+            if callable(effect):
+                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+            else:
+                print(f"    - {effect.name.replace('_', ' ')}")
+
+    if preset.octave_effects:
+        print("  - Per-Octave:")
+
+        for effect in reversed(preset.octave_effects):
+            if callable(effect):
+                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+            else:
+                print(f"    - {effect.name.replace('_', ' ')}")
+
+    print("")
+    print("  - Settings:")
+    for (k, v) in sorted(preset.settings.items()):
+        if isinstance(v, Enum):
+            print(f"    - {k.replace('_', ' ')}: {v.name.replace('_', ' ')}")
+        elif isinstance(v, float):
+            print(f"    - {k.replace('_', ' ')}: {round(v, 3)}")
+        else:
+            print(f"    - {k.replace('_', ' ')}: {v}")
+
+    print("")
 
 
 @main.command(help="Apply an effect to a .png or .jpg image")
@@ -101,7 +161,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
         tensor = effects.square_crop_and_resize(tensor, input_shape, shape[0])
 
     try:
-        preset.render(tensor=tensor, shape=shape, time=time, speed=speed, filename=filename)
+        preset.render(seed=seed, tensor=tensor, shape=shape, time=time, speed=speed, filename=filename)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
@@ -230,18 +290,17 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 
     control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=value_shape)
 
-    with tf.compat.v1.Session().as_default():
-        tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
+    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-        tensor = value.blend(tensor, base, .125 + random.random() * .125)
+    tensor = value.blend(tensor, base, .125 + random.random() * .125)
 
-        tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-        tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
+    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
 
-        tensor = tf.image.adjust_brightness(tensor, .1)
-        tensor = tf.image.adjust_contrast(tensor, 1.5)
+    tensor = tf.image.adjust_brightness(tensor, .1)
+    tensor = tf.image.adjust_contrast(tensor, 1.5)
 
-        util.save(tensor, filename)
+    util.save(tensor, filename)
 
     print('mashup')
 

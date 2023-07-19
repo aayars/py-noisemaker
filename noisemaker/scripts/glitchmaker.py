@@ -29,11 +29,11 @@ def auto(ctx, name, input_filename):
     crt = (random.random() > .333)
     scan_error = (random.random() > .5)
     snow = random.random() * .5 if (random.random() > .5) else 0
-    dither = random.random() * .25 if (random.random() > .5) else 0
+    grain = random.random() * .25 if (random.random() > .5) else 0
     aberration = random.random() * .02 if (random.random() > .333) else 0
     bloom = .5 + random.random() * .5 if (random.random() > .5) else 0
 
-    render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, name, input_filename)
+    render(ctx, glitch, vhs, crt, scan_error, snow, grain, aberration, bloom, name, input_filename)
 
 
 @main.command()
@@ -42,7 +42,7 @@ def auto(ctx, name, input_filename):
 @cli.crt_option(default=True)
 @cli.scan_error_option(default=True)
 @cli.snow_option()
-@cli.dither_option()
+@cli.grain_option()
 @cli.aberration_option(default=.01)
 @cli.bloom_option()
 @cli.name_option(default="glitch.png")
@@ -52,7 +52,7 @@ def advanced(*args):
     render(*args)
 
 
-def render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, name, input_filename):
+def render(ctx, glitch, vhs, crt, scan_error, snow, grain, aberration, bloom, name, input_filename):
     tensor = tf.image.convert_image_dtype(load(input_filename), tf.float32)
 
     freq = [3, 3]
@@ -60,30 +60,29 @@ def render(ctx, glitch, vhs, crt, scan_error, snow, dither, aberration, bloom, n
     max_height = 1024
     max_width = 1024
 
-    with tf.compat.v1.Session().as_default():
-        height, width, channels = tf.shape(tensor).eval()
+    height, width, channels = tf.shape(tensor).eval()
 
-        need_resample = False
+    need_resample = False
 
-        if height > max_height:
-            need_resample = True
-            width = int(width * (max_height / height))
-            height = max_height
+    if height > max_height:
+        need_resample = True
+        width = int(width * (max_height / height))
+        height = max_height
 
-        if width > max_width:
-            need_resample = True
-            height = int(height * (max_width / width))
-            width = max_width
+    if width > max_width:
+        need_resample = True
+        height = int(height * (max_width / width))
+        width = max_width
 
-        shape = [height, width, channels]
+    shape = [height, width, channels]
 
-        if need_resample:
-            tensor = value.resample(tensor, shape)
+    if need_resample:
+        tensor = value.resample(tensor, shape)
 
-        tensor = effects.post_process(tensor, shape=shape, freq=freq, with_bloom=bloom, with_aberration=aberration,
-                                      with_glitch=glitch, with_vhs=vhs, with_crt=crt,
-                                      with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+    tensor = effects.post_process(tensor, shape=shape, freq=freq, with_bloom=bloom, with_aberration=aberration,
+                                  with_glitch=glitch, with_vhs=vhs, with_crt=crt,
+                                  with_scan_error=scan_error, with_snow=snow, with_grain=grn)
 
-        save(tensor, name)
+    save(tensor, name)
 
     print(name)

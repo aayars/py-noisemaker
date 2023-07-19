@@ -57,7 +57,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
     "clouds": lambda: {
         "with_clouds": True,
         "with_bloom": .25,
-        "with_dither": .05,
+        "with_grain": .05,
     },
 
     "convolution-feedback": lambda: {
@@ -80,16 +80,16 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_degauss": .0625 + random.random() * .03125,
     }),
 
-    "density-map": lambda: extend("invert", "dither", {
+    "density-map": lambda: extend("invert", "grain", {
         "with_density_map": True,
     }),
 
-    "distressed": lambda: extend("dither", "filthy", "scuff", {
+    "distressed": lambda: extend("grain", "filthy", "scuff", {
         "post_saturation": .25 + random.random() * .125,
     }),
 
-    "dither": lambda: {
-        "with_dither": .125 + random.random() * .125,
+    "grain": lambda: {
+        "with_grain": .125 + random.random() * .125,
     },
 
     "erosion-worms": lambda: {
@@ -190,7 +190,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "with_nebula": True,
     },
 
-    "noirmaker": lambda: extend("bloom", "dither", "vignette-dark", {
+    "noirmaker": lambda: extend("bloom", "grain", "vignette-dark", {
         "post_contrast": 5,
         "post_saturation": 0,
         "with_light_leak": .25 + random.random() * .25,
@@ -207,7 +207,7 @@ _EFFECTS_PRESETS = lambda: {  # noqa: E731
         "warp_range": 3.0 + random.random(),
     },
 
-    "one-art-please": lambda: extend("dither", "light-leak", {
+    "one-art-please": lambda: extend("grain", "light-leak", {
         "post_contrast": 1.25,
         "post_saturation": .75,
         "with_texture": True,
@@ -418,7 +418,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     }),
 
-    "1976": lambda: extend("dither", {
+    "1976": lambda: extend("grain", {
         "point_freq": 2,
         "post_saturation": .125 + random.random() * .0625,
         "voronoi_metric": distance.triangular,
@@ -531,7 +531,7 @@ _PRESETS = lambda: {  # noqa: E731
         "saturation": 2,
     }),
 
-    "alien-terrain-worms": lambda: extend("bloom", "dither", "erosion-worms", "multires-ridged", "shadow", {
+    "alien-terrain-worms": lambda: extend("bloom", "grain", "erosion-worms", "multires-ridged", "shadow", {
         "deriv": distance.euclidean,
         "deriv_alpha": 0.25 + random.random() * .125,
         "erosion_worms_alpha": .025 + random.random() * .015,
@@ -565,7 +565,7 @@ _PRESETS = lambda: {  # noqa: E731
             for i in masks.mask_shape(stash("analog-glitch-mask"))[0:2]],
     }),
 
-    "anticounterfeit": lambda: extend("dither", "invert", "wormhole", {
+    "anticounterfeit": lambda: extend("grain", "invert", "wormhole", {
         "freq": 2,
         "point_freq": 1,
         "speed": .025,
@@ -576,7 +576,7 @@ _PRESETS = lambda: {  # noqa: E731
         "wormhole_kink": 6,
     }),
 
-    "arcade-carpet": lambda: extend("basic", "dither", {
+    "arcade-carpet": lambda: extend("basic", "grain", {
         "post_hue_rotation": -.125,
         "distrib": distrib.exp,
         "freq": random.randint(75, 125),
@@ -660,7 +660,7 @@ _PRESETS = lambda: {  # noqa: E731
         "sin": 2 * random.random() * 2,
     }),
 
-    "big-data-startup": lambda: extend("dither", "glyphic", {
+    "big-data-startup": lambda: extend("grain", "glyphic", {
         "mask": mask.script,
         "hue_rotation": random.random(),
         "hue_range": .0625 + random.random() * .5,
@@ -682,7 +682,7 @@ _PRESETS = lambda: {  # noqa: E731
         "ridges": True,
     }),
 
-    "blacklight-fantasy": lambda: extend("bloom", "dither", "invert", "voronoi", {
+    "blacklight-fantasy": lambda: extend("bloom", "grain", "invert", "voronoi", {
         "post_hue_rotation": -.125,
         "posterize_levels": 3,
         "rgb": True,
@@ -741,7 +741,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.range_regions,
     }),
 
-    "broken": lambda: extend("dither", "multires-low", {
+    "broken": lambda: extend("grain", "multires-low", {
         "freq": random.randint(3, 4),
         "lattice_drift": 2,
         "post_brightness": .125,
@@ -795,7 +795,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
     }),
 
-    "cell-reflect": lambda: extend("bloom", "dither", "maybe-invert", {
+    "cell-reflect": lambda: extend("bloom", "grain", "maybe-invert", {
         "point_freq": random.randint(2, 3),
         "post_deriv": random_member(distance.absolute_members()),
         "post_reflect_range": random.randint(2, 4) * 5,
@@ -894,7 +894,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_freq": random.randint(2, 3),
     }),
 
-    "corner-case": lambda: extend("basic", "bloom", "dither", "multires-ridged", {
+    "corner-case": lambda: extend("basic", "bloom", "grain", "multires-ridged", {
         "corners": True,
         "lattice_drift": coin_flip(),
         "saturation": random.randint(0, 1) * random.random() * .25,
@@ -1295,7 +1295,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_stride_deviation": 0,
     }),
 
-    "fossil-hunt": lambda: extend("dither", {
+    "fossil-hunt": lambda: extend("grain", {
         "freq": random.randint(3, 5),
         "lattice_drift": 1.0,
         "refract_range": random.randint(2, 4),
@@ -1506,7 +1506,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.flow,
     }),
 
-    "grass": lambda: extend("dither", "multires", {
+    "grass": lambda: extend("grain", "multires", {
         "freq": random.randint(6, 12),
         "hue_rotation": .25 + random.random() * .05,
         "lattice_drift": 1,
@@ -1599,7 +1599,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     },
 
-    "hotel-carpet": lambda: extend("basic", "carpet", "dither", "ripples", {
+    "hotel-carpet": lambda: extend("basic", "carpet", "grain", "ripples", {
         "ripple_kink": .5 + random.random() * .25,
         "ripple_range": .666 + random.random() * .333,
         "spline_order": interp.constant,
@@ -1610,7 +1610,7 @@ _PRESETS = lambda: {  # noqa: E731
         "lattice_drift": random.random(),
     }),
 
-    "hydraulic-flow": lambda: extend("basic", "bloom", "dither", "maybe-invert", "multires", "shadow", {
+    "hydraulic-flow": lambda: extend("basic", "bloom", "grain", "maybe-invert", "multires", "shadow", {
         "deriv": random_member([distance.none, distance.euclidean]),
         "deriv_alpha": .25 + random.random() * .25,
         "distrib": random_member([m for m in distrib if m not in (distrib.ones, distrib.mids)]),
@@ -1675,7 +1675,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_drunkenness": .125 + random.random() * .0625,
     }),
 
-    "jorts": lambda: extend("dither", {
+    "jorts": lambda: extend("grain", {
         "freq": [128, 512],
         "glyph_map_alpha": .125 + random.random() * .25,
         "glyph_map_zoom": 2,
@@ -1827,7 +1827,7 @@ _PRESETS = lambda: {  # noqa: E731
         "speed": .025,
     }),
 
-    "magic-squares": lambda: extend("bloom", "dither", "multires-low", {
+    "magic-squares": lambda: extend("bloom", "grain", "multires-low", {
         "distrib": random_member([m.value for m in distance if m not in (distrib.ones, distrib.mids)]),
         "edges": .25 + random.random() * .5,
         "freq": random_member([9, 12, 15, 18]),
@@ -2081,7 +2081,7 @@ _PRESETS = lambda: {  # noqa: E731
         "spline_order": interp.constant,
     }),
 
-    "outer-limits": lambda: extend("be-kind-rewind", "dither", "symmetry", {
+    "outer-limits": lambda: extend("be-kind-rewind", "grain", "symmetry", {
         "reindex_range": random.randint(8, 16),
         "saturation": 0,
     }),
@@ -2126,7 +2126,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.flow,
     }),
 
-    "plaid": lambda: extend("dither", "multires-low", {
+    "plaid": lambda: extend("grain", "multires-low", {
         "deriv": distance.chebyshev,
         "distrib": distrib.ones,
         "hue_range": random.random() * .5,
@@ -2138,7 +2138,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_octaves": 1,
     }),
 
-    "pluto": lambda: extend("bloom", "dither", "multires-ridged", "shadow", "voronoi", {
+    "pluto": lambda: extend("bloom", "grain", "multires-ridged", "shadow", "voronoi", {
         "freq": random.randint(4, 8),
         "deriv": random_member(distance.absolute_members()),
         "deriv_alpha": .333 + random.random() * .333,
@@ -2152,7 +2152,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     }),
 
-    "political-map": lambda: extend("bloom", "dither", "outline", {
+    "political-map": lambda: extend("bloom", "grain", "outline", {
         "freq": 5,
         "saturation": 0.35,
         "lattice_drift": 1,
@@ -2213,7 +2213,7 @@ _PRESETS = lambda: {  # noqa: E731
         "voronoi_alpha": .625,
     }),
 
-    "quilty": lambda: extend("bloom", "dither", {
+    "quilty": lambda: extend("bloom", "grain", {
         "freq": random.randint(2, 6),
         "saturation": random.random() * .5,
         "point_distrib": random_member(point.grid_members(), mask.nonprocedural_members()),
@@ -2381,7 +2381,7 @@ _PRESETS = lambda: {  # noqa: E731
         "warp_range": 1.5 + random.random(),
     }),
 
-    "scribbles": lambda: extend("dither", "shadow", "sobel", {
+    "scribbles": lambda: extend("grain", "shadow", "sobel", {
         "deriv": random_member(distance.absolute_members()),
         "freq": random.randint(4, 8),
         "lattice_drift": random.random(),
@@ -2515,7 +2515,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.color_range,
     },
 
-    "smoke-on-the-water": lambda: extend("bloom", "dither", "shadows", {
+    "smoke-on-the-water": lambda: extend("bloom", "grain", "shadows", {
         "octaves": 8,
         "point_freq": 10,
         "post_saturation": .5,
@@ -2581,7 +2581,7 @@ _PRESETS = lambda: {  # noqa: E731
         "worms_stride": random.randint(150, 350),
     }),
 
-    "spectrogram": lambda: extend("dither", "filthy", {
+    "spectrogram": lambda: extend("grain", "filthy", {
         "distrib": distrib.row_index,
         "freq": random.randint(256, 512),
         "hue_range": .5 + random.random() * .5,
@@ -2674,7 +2674,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.flow,
     }),
 
-    "starfield": lambda: extend("aberration", "dither", "bloom", "multires-low", "nebula", {
+    "starfield": lambda: extend("aberration", "grain", "bloom", "multires-low", "nebula", {
         "distrib": distrib.exp,
         "freq": random.randint(200, 300),
         "mask": mask.sparse,
@@ -3038,7 +3038,7 @@ _PRESETS = lambda: {  # noqa: E731
         "with_voronoi": voronoi.range,
     }),
 
-    "wild-kingdom": lambda: extend("bloom", "dither", "maybe-invert", "outline", "random-hue", {
+    "wild-kingdom": lambda: extend("bloom", "grain", "maybe-invert", "outline", "random-hue", {
         "freq": 25,
         "lattice_drift": 1,
         "mask": mask.sparser,

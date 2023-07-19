@@ -100,7 +100,7 @@ import noisemaker.value as value
 @cli.crt_option()
 @cli.scan_error_option()
 @cli.snow_option()
-@cli.dither_option()
+@cli.grain_option()
 @cli.aberration_option()
 @cli.light_leak_option()
 @cli.vignette_option()
@@ -139,7 +139,7 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
          posterize, erosion_worms, voronoi, voronoi_metric, voronoi_nth,
          voronoi_alpha, voronoi_refract, voronoi_refract_y_from_offset,
          voronoi_inverse, voronoi_sdf_sides, glitch, vhs, crt, scan_error,
-         snow, dither, aberration, light_leak, vignette, vignette_brightness,
+         snow, grain, aberration, light_leak, vignette, vignette_brightness,
          pop, convolve, shadow, bloom, color_space, hue_range, hue_rotation,
          saturation, hue_distrib, saturation_distrib, post_hue_rotation,
          post_saturation, brightness_distrib, input_dir, dla, dla_padding,
@@ -186,9 +186,8 @@ def main(ctx, freq, width, height, channels, time, octaves, octave_blending,
                                      saturation_distrib=saturation_distrib, input_dir=input_dir, with_aberration=aberration, with_bloom=bloom, with_pop=pop,
                                      with_light_leak=light_leak, with_vignette=vignette, vignette_brightness=vignette_brightness, with_density_map=density,
                                      with_convolve=convolve, with_shadow=shadow, with_palette=palette, with_glitch=glitch, with_vhs=vhs,
-                                     with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_dither=dither)
+                                     with_crt=crt, with_scan_error=scan_error, with_snow=snow, with_grain=grain)
 
-    with tf.compat.v1.Session().as_default():
-        save(tensor, name)
+    save(tensor, name)
 
     print(name)

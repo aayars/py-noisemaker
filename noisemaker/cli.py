@@ -658,10 +658,10 @@ def snow_option(**attrs):
     return float_option("--snow", **attrs)
 
 
-def dither_option(**attrs):
+def grain_option(**attrs):
     attrs.setdefault("help", "Glitch effects: Per-pixel brightness jitter")
 
-    return float_option("--dither", **attrs)
+    return float_option("--grain", **attrs)
 
 
 def aberration_option(**attrs):

@@ -9,11 +9,11 @@ import noisemaker.generators as generators
 import noisemaker.old_presets as presets
 import noisemaker.value as value
 
-SMALL_X = 512
-SMALL_Y = 256
+SMALL_X = 1024
+SMALL_Y = 1024
 
 LARGE_X = 1024
-LARGE_Y = 512
+LARGE_Y = 1024
 
 FREQ = 3
 SATURATION = .333
@@ -97,8 +97,7 @@ def _control():
     control = effects.convolve(kernel=constants.ValueMask.conv2d_sharpen, tensor=control, shape=post_shape)
     control = value.normalize(control)
 
-    with tf.compat.v1.Session().as_default():
-        save(control, CONTROL_FILENAME)
+    save(control, CONTROL_FILENAME)
 
 
 @main.command()
@@ -141,8 +140,7 @@ def blended():
     combined = tf.image.adjust_contrast(combined, .75)
     combined = tf.image.adjust_saturation(combined, .625)
 
-    with tf.compat.v1.Session().as_default():
-        save(combined, BLENDED_FILENAME)
+    save(combined, BLENDED_FILENAME)
 
 
 @main.command()
@@ -172,5 +170,4 @@ def run_preset(preset_name, shape, filename, tensor=None):
     if tensor is None:
         tensor = generators.multires_old(**kwargs)
 
-    with tf.compat.v1.Session().as_default():
-        save(tensor, filename)
+    save(tensor, filename)

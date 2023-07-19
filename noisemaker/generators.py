@@ -2,7 +2,7 @@
 
 from functools import partial
 
-import tensorflow as tf
+import tempfile
 
 from noisemaker.constants import (
     ColorSpace,
@@ -11,11 +11,13 @@ from noisemaker.constants import (
     ValueDistribution
 )
 
+import noisemaker.ai as ai
 import noisemaker.effects as effects
 import noisemaker.oklab as oklab
 import noisemaker.simplex as simplex
+import noisemaker.util as util
 import noisemaker.value as value
-
+import tensorflow as tf
 
 def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
           distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
@@ -73,103 +75,104 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
     tensor = value.values(freq=freq, shape=shape, distrib=distrib, **common_value_params)
 
-    # Use 1 channel for per-channel noise generation, if any
-    common_value_params["shape"] = [shape[0], shape[1], 1]
-
     if lattice_drift:
         tensor = value.refract(tensor, shape, time=time, speed=speed,
                                displacement=lattice_drift / min(freq[0], freq[1]),
                                warp_freq=freq, spline_order=spline_order, signed_range=False)
 
-    if octave_effects is not None:  # New way
+    if octave_effects is not None:  # New way, used by all Composer presets
         for effect_or_preset in octave_effects:
             tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave)
 
     else:  # Old way
-        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed, spline_order=spline_order, color_space=color_space, **post_process_args)
+        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
+                                      spline_order=spline_order, color_space=color_space,
+                                      **post_process_args)
+
+    # Preserve alpha channel for color space conversions
+    alpha = None
+    if shape[2] == 4:
+        alpha = tensor[:, :, 3]
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
+    elif shape[2] == 2:
+        alpha = tensor[:, :, 1]
+        tensor = tf.stack([tensor[:, :, 0]], 2)
+
+    if color_space == ColorSpace.oklab:
+        L = tensor[:, :, 0]
+        a = tensor[:, :, 1] * -.509 + .276
+        b = tensor[:, :, 2] * -.509 + .198
+
+        tensor = value.clamp01(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)))
+        color_space = ColorSpace.rgb
+
+    if color_space == ColorSpace.rgb:
+        tensor = tf.image.rgb_to_hsv([tensor])[0]
+        color_space = ColorSpace.hsv
 
     if color_space == ColorSpace.hsv:
+        # Use 1 channel for per-channel noise generation, if any
+        common_value_params["shape"] = [shape[0], shape[1], 1]
+
+        # tweak hue
         if hue_distrib:
             h = tf.squeeze(value.values(freq=freq, distrib=hue_distrib, **common_value_params))
-
         else:
             if hue_rotation is None:
                 hue_rotation = simplex.random(time=time, speed=speed)
 
             h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
+        # tweak saturation
         if saturation_distrib:
             s = tf.squeeze(value.values(freq=freq, distrib=saturation_distrib, **common_value_params))
-
         else:
             s = tensor[:, :, 1]
 
         s *= saturation
 
+        # tweak brightness
         if brightness_distrib or brightness_freq:
             if isinstance(brightness_freq, int):
                 brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
-            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.uniform,
+            v = tf.squeeze(value.values(freq=brightness_freq or freq,
+                                        distrib=brightness_distrib or ValueDistribution.uniform,
                                         **common_value_params))
-
         else:
             v = tensor[:, :, 2]
 
-        if ridges and spline_order:  # ridges don't work well when not interpolating values
+        if ridges and spline_order:  # ridges don't work with spline_order == 0
             v = value.ridge(v)
 
         if sin:
             v = value.normalize(tf.sin(sin * v))
 
-        # Preserve the alpha channel before conversion to RGB
-        if shape[2] == 4:
-            a = tensor[:, :, 3]
-
         tensor = tf.image.hsv_to_rgb([tf.stack([h, s, v], 2)])[0]
 
-        if shape[2] == 4:
-            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], a], 2)
-
-    elif color_space == ColorSpace.oklab:
-        L = tensor[:, :, 0]
-        a = tensor[:, :, 1] * -.509 + .276
-        b = tensor[:, :, 2] * -.509 + .198
-
-        if shape[2] == 4:
-            alpha = tensor[:, :, 3]
-
-        if ridges and spline_order:  # ridges don't work well when not interpolating values
-            L = value.ridge(L)
+    if color_space == ColorSpace.grayscale:
+        if ridges and spline_order:  # ridges don't work with spline_order == 0
+            tensor = value.ridge(tensor)
 
         if sin:
-            L = value.normalize(tf.sin(sin * L))
+            tensor = tf.sin(sin * tensor)
 
-        # print(f"L min {tf.reduce_min(L)} max {tf.reduce_max(L)}")
-        # print(f"a min {tf.reduce_min(a)} max {tf.reduce_max(a)}")
-        # print(f"b min {tf.reduce_min(b)} max {tf.reduce_max(b)}")
-
-        tensor = value.clamp01(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)))
-
-        if shape[2] == 4:
-            tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], alpha], 2)
-
-    elif ridges and spline_order:
-        tensor = value.ridge(tensor)
-
-    if sin and color_space in (ColorSpace.rgb, ColorSpace.grayscale):
-        tensor = tf.sin(sin * tensor)
+    # re-insert the alpha channel
+    if shape[2] == 4:
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], alpha], 2)
+    elif shape[2] == 2:
+        tensor = tf.stack([tensor[:, :, 0], alpha], 2)
 
     return tensor
 
 
-def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=InterpolationType.bicubic,
-             distrib=ValueDistribution.uniform, corners=False,
+def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
+             spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
              mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, supersample=False,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             octave_blending=OctaveBlending.falloff,
-             octave_effects=None, post_effects=None, time=0.0, speed=1.0, tensor=None):
+             octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
+             with_ai=False, final_effects=None, time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -178,11 +181,14 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
        :height: 256
        :alt: Noisemaker example output (CC0)
 
+    :param Preset preset: The Preset object being rendered
+    :param int seed: The current seed (informational only, use value.set_seed to set seed)
     :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8
     :param bool ridges: Per-octave "crease" at midpoint values: (1 - abs(n * 2 - 1))
     :param bool post_ridges: Post-reduce "crease" at midpoint values: (1 - abs(n * 2 - 1))
+    :param float sin: Apply sin function to noise basis
     :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
     :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
     :param bool corners: If True, pin values to corners instead of image center
@@ -202,6 +208,8 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
     :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
     :param list[callable] octave_effects: A list of composer lambdas to invoke per-octave
     :param list[callable] post_effects: A list of composer lambdas to invoke after flattening layers
+    :param bool with_ai: Apply image-to-image before the post-processing effects
+    :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
@@ -236,10 +244,11 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
             if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
                 break
 
-            layer = basic(base_freq, shape, ridges=ridges, spline_order=spline_order, corners=corners, distrib=distrib,
-                          mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, lattice_drift=lattice_drift,
-                          color_space=color_space, hue_range=hue_range, hue_rotation=hue_rotation, saturation=saturation,
-                          hue_distrib=hue_distrib, brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
+            layer = basic(base_freq, shape, ridges=ridges, sin=sin, spline_order=spline_order, corners=corners,
+                          distrib=distrib, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
+                          lattice_drift=lattice_drift, color_space=color_space, hue_range=hue_range,
+                          hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
+                          brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
                           saturation_distrib=saturation_distrib, octave_effects=octave_effects, octave=octave,
                           time=time, speed=speed)
 
@@ -272,8 +281,29 @@ def multires(freq=3, shape=None, octaves=1, ridges=False, spline_order=Interpola
 
     tensor = value.normalize(tensor)
 
+    final = []
+
     for effect_or_preset in post_effects:
-        tensor = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
+        tensor, f = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
+        final += f
+
+    if with_ai:
+        tensor = value.normalize(tensor)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = f"{tmp}/temp.png"
+
+            util.save(tensor, tmp_path)
+
+            try:
+                tensor = ai.apply(preset.ai_settings, seed,
+                                  input_filename=tmp_path, output_filename=tmp_path)
+
+            except Exception as e:
+                util.logger.error(f"preset.render_ai() failed: {e}\nSeed: {seed}")
+
+    for effect_or_preset in final + final_effects:
+        tensor = _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     tensor = value.normalize(tensor)
 
@@ -409,18 +439,6 @@ def multires_old(freq=3, shape=None, octaves=4, ridges=False, sin=0.0, spline_or
     return value.normalize(tensor)
 
 
-def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
-    """Helper function to either invoke a post effect or unroll a preset."""
-    if callable(effect_or_preset):
-        return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
-
-    else:  # Is a Preset. Unroll me.
-        for e_or_p in effect_or_preset.post_effects:
-            tensor = _apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
-
-        return tensor
-
-
 def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave):
     """Helper function to either invoke a octave effect or unroll a preset."""
     if callable(effect_or_preset):
@@ -434,5 +452,36 @@ def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed,
     else:  # Is a Preset. Unroll me.
         for e_or_p in effect_or_preset.octave_effects:
             tensor = _apply_octave_effect_or_preset(e_or_p, tensor, shape, time, speed, octave)
+
+        return tensor
+
+def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
+    """Helper function to either invoke a post effect or unroll a preset."""
+    if callable(effect_or_preset):
+        # print(f" POST: Applying {effect_or_preset}")
+        return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed), []
+
+    else:  # Is a Preset. Unroll me.
+        final = []
+        # Post effects may also define "final" effects. Collect them and return them so we
+        # can tack them on at the end after everything is said and done
+        final += effect_or_preset.final_effects
+
+        for e_or_p in effect_or_preset.post_effects:
+            tensor, f = _apply_post_effect_or_preset(e_or_p, tensor, shape, time, speed)
+            final += f
+
+        return tensor, final
+
+
+def _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
+    """Helper function to either invoke a final effect or unroll a preset."""
+    if callable(effect_or_preset):
+        # print(f"FINAL: Applying {effect_or_preset}")
+        return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
+
+    else:  # Is a Preset. Unroll me.
+        for e_or_p in effect_or_preset.post_effects + effect_or_preset.final_effects:
+            tensor = _apply_final_effect_or_preset(e_or_p, tensor, shape, time, speed)
 
         return tensor

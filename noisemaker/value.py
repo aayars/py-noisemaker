@@ -477,7 +477,7 @@ def normalize(tensor, signed_range=False):
         raise ValueError(f"Input tensor contains {ceil}, check caller for shenanigans")
 
     if floor == ceil:  # Avoid divide by zero
-        raise ValueError(f"Input tensor min and max are each {floor}, check caller for shenanigans")
+        return tensor
 
     delta = ceil - floor
 

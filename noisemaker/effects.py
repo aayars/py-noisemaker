@@ -55,7 +55,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
                  with_simple_frame=False,
                  with_kaleido=None, kaleido_sdf_sides=0, kaleido_blend_edges=True,
                  with_wobble=None, with_palette=None,
-                 with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_dither=False,
+                 with_glitch=False, with_vhs=False, with_crt=False, with_scan_error=False, with_snow=False, with_grain=False,
                  with_nebula=False, with_false_color=False, with_frame=False, with_scratches=False, with_fibers=False,
                  with_stray_hair=False, with_grime=False, with_watermark=False, with_ticker=False, with_texture=False,
                  with_pre_spatter=False, with_spatter=False, with_clouds=False, with_lens_warp=None, with_tint=None, with_degauss=False,
@@ -168,7 +168,7 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     :param bool with_crt: Vintage TV effect
     :param bool with_scan_error: Horizontal scan error
     :param float with_snow: Analog broadcast snow
-    :param float with_dither: Per-pixel brightness jitter
+    :param float with_grain: Per-pixel brightness jitter
     :param bool with_frame: Shitty instant camera effect
     :param bool with_nebula: Add clouds
     :param bool with_false_color: Swap colors with basic noise
@@ -389,8 +389,8 @@ def post_process(tensor, shape, freq, ridges_hint=False, spline_order=Interpolat
     if with_glitch:
         tensor = glitch(tensor, shape, time=time, speed=speed)
 
-    if with_dither:
-        tensor = dither(tensor, shape, with_dither, time=time, speed=speed)
+    if with_grain:
+        tensor = grain(tensor, shape, with_grain, time=time, speed=speed)
 
     if with_snow:
         tensor = snow(tensor, shape, with_snow, time=time, speed=speed)
@@ -1196,7 +1196,7 @@ def outline(tensor, shape, sobel_metric=1, invert=False, time=0.0, speed=1.0):
     edges = sobel_operator(values, value_shape, dist_metric=sobel_metric)
 
     if invert:
-        edges = 1 - edges
+        edges = 1.0 - edges
 
     return edges * tensor
 
@@ -1745,19 +1745,13 @@ def _pixel_sort(tensor, shape, angle, darkest):
     if darkest:
         tensor = 1.0 - tensor
 
-    if angle:
-        want_length = max(height, width) * 2
+    want_length = max(height, width) * 2
 
-        padded_shape = [want_length, want_length, channels]
+    padded_shape = [want_length, want_length, channels]
 
-        padded = tf.image.resize_with_crop_or_pad(tensor, want_length, want_length)
+    padded = tf.image.resize_with_crop_or_pad(tensor, want_length, want_length)
 
-        rotated = rotate2D(padded, padded_shape, math.radians(angle))
-
-    else:
-        padded_shape = shape
-
-        rotated = tensor
+    rotated = rotate2D(padded, padded_shape, math.radians(angle))
 
     # Find index of brightest pixel
     x_index = tf.expand_dims(tf.argmax(value.value_map(rotated, padded_shape), axis=1, output_type=tf.int32), -1)
@@ -1771,12 +1765,11 @@ def _pixel_sort(tensor, shape, angle, darkest):
     # Apply offset
     sorted_channels = tf.gather_nd(tf.stack(sorted_channels, 2), tf.stack([value.column_index(padded_shape), x_index], 2))
 
-    if angle:
-        # Rotate back to original orientation
-        sorted_channels = rotate2D(sorted_channels, padded_shape, math.radians(-angle))
+    # Rotate back to original orientation
+    sorted_channels = rotate2D(sorted_channels, padded_shape, math.radians(-angle))
 
-        # Crop to original size
-        sorted_channels = tf.image.resize_with_crop_or_pad(sorted_channels, height, width)
+    # Crop to original size
+    sorted_channels = tf.image.resize_with_crop_or_pad(sorted_channels, height, width)
 
     # Blend with source image
     tensor = tf.maximum(tensor, sorted_channels)
@@ -1807,11 +1800,9 @@ def rotate(tensor, shape, angle=None, time=0.0, speed=1.0):
     return tf.image.resize_with_crop_or_pad(rotated, height, width)
 
 
-def rotate2D(tensor, shape, rot):
+def rotate2D(tensor, shape, angle):
     """
     """
-
-    angle = rot * math.tau;
 
     x_index = tf.cast(value.row_index(shape), tf.float32) / shape[1] - 0.5
     y_index = tf.cast(value.column_index(shape), tf.float32) / shape[0] - 0.5
@@ -2151,7 +2142,7 @@ def crt(tensor, shape, time=0.0, speed=1.0):
 
     scan_noise = lens_warp(scan_noise, value_shape, time=time, speed=speed)
 
-    tensor = value.clamp01(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.075))
+    tensor = value.clamp01(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
     if channels == 3:
         tensor = aberration(tensor, shape, .0125 + random.random() * .00625)
@@ -2196,7 +2187,7 @@ def scanline_error(tensor, shape, time=0.0, speed=1.0):
 
 
 @effect()
-def snow(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
+def snow(tensor, shape, alpha=0.25, time=0.0, speed=1.0):
     """
     """
 
@@ -2214,7 +2205,7 @@ def snow(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
 
 
 @effect()
-def dither(tensor, shape, alpha=0.5, time=0.0, speed=1.0):
+def grain(tensor, shape, alpha=0.25, time=0.0, speed=1.0):
     """
     """
 
@@ -2308,20 +2299,20 @@ def grime(tensor, shape, time=0.0, speed=1.0):
                                  octaves=8)
 
     mask = value.refract(mask, value_shape, 1.0, y_from_offset=True)
-    mask = derivative(mask, value_shape, DistanceMetric.chebyshev, alpha=0.5)
+    mask = derivative(mask, value_shape, DistanceMetric.chebyshev, alpha=0.125)
 
-    dusty = value.blend(tensor, .25, tf.square(mask) * .125)
+    dusty = value.blend(tensor, .25, tf.square(mask) * .075)
 
     specks = value.values(freq=[int(shape[0] * .25), int(shape[1] * .25)], shape=value_shape, time=time,
-                          mask=ValueMask.sparse, speed=speed, distrib=ValueDistribution.exp)
-    specks = value.refract(specks, value_shape, .1)
+                          mask=ValueMask.dropout, speed=speed, distrib=ValueDistribution.exp)
+    specks = value.refract(specks, value_shape, .25)
 
-    specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - .5, 0.0)))
+    specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - .625, 0.0)))
 
     dusty = value.blend(dusty, value.values(freq=[shape[0], shape[1]], shape=value_shape, mask=ValueMask.sparse,
-                                            time=time, speed=speed, distrib=ValueDistribution.exp), .125) * specks
+                                            time=time, speed=speed, distrib=ValueDistribution.exp), .075) * specks
 
-    return value.blend(tensor, dusty, mask)
+    return value.blend(tensor, dusty, mask * .75)
 
 
 @effect()
@@ -2375,7 +2366,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
                                   octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape) * .75 + shadow(noise, value_shape, 1.0) * .25)
+    return tensor * (tf.ones(value_shape) * .9 + shadow(noise, value_shape, 1.0) * .1)
 
 
 @effect()

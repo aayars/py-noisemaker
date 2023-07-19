@@ -76,20 +76,19 @@ def basic(ctx, width, height, input_dir, name, control_filename, retro_upscale):
 
     control = effects.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[height, width, 1])
 
-    with tf.compat.v1.Session().as_default():
-        # sort collage images by brightness
-        collage_images = [j[1] for j in sorted([(tf.reduce_sum(i).numpy(), i) for i in collage_images])]
+    # sort collage images by brightness
+    collage_images = [j[1] for j in sorted([(tf.reduce_sum(i).numpy(), i) for i in collage_images])]
 
-        tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
+    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-        tensor = value.blend(tensor, base, .125 + random.random() * .125)
+    tensor = value.blend(tensor, base, .125 + random.random() * .125)
 
-        tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-        tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
+    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
 
-        tensor = tf.image.adjust_brightness(tensor, .05)
-        tensor = tf.image.adjust_contrast(tensor, 1.25)
+    tensor = tf.image.adjust_brightness(tensor, .05)
+    tensor = tf.image.adjust_contrast(tensor, 1.25)
 
-        save(tensor, name)
+    save(tensor, name)
 
     print('mashup')

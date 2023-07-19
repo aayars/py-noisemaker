@@ -29,5 +29,4 @@ def main(ctx, name, retro_upscale, input_filename):
 
     tensor = effects.square_crop_and_resize(tensor, shape, 1024)
 
-    with tf.compat.v1.Session().as_default():
-        save(tensor, name)
+    save(tensor, name)

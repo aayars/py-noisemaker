@@ -33,7 +33,7 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
     text_y = input_height - text_height
 
     if bottom:
-        text_y -= padding
+        text_y -= int(padding * .5)
 
     else:
         text_y /= 2

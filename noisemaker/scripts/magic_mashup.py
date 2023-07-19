@@ -106,15 +106,14 @@ def frame(ctx, input_dir, frame, seed, filename, width, height):
 
     control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[shape[0], shape[1], 1])
 
-    with tf.compat.v1.Session().as_default():
-        tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
+    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
 
-        tensor = value.blend(tensor, base, .125 + random.random() * .125)
+    tensor = value.blend(tensor, base, .125 + random.random() * .125)
 
-        tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-        tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
+    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
+    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
 
-        tensor = tf.image.adjust_brightness(tensor, .1)
-        tensor = tf.image.adjust_contrast(tensor, 1.5)
+    tensor = tf.image.adjust_brightness(tensor, .1)
+    tensor = tf.image.adjust_contrast(tensor, 1.5)
 
-        util.save(tensor, filename)
+    util.save(tensor, filename)
