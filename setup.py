@@ -36,7 +36,7 @@ setup(name='noisemaker',
         "opensimplex==0.3",
         "Pillow==9.5.0",
         "protobuf>=3.7,<5",
-        "requests==2.27.1",
+        "requests==2.31.0",
         "six~=1.15.0",
         "tensorflow-graphics==2021.12.3",
         "wheel==0.40.0",  # Needed by TF
