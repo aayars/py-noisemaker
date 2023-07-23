@@ -98,6 +98,8 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
         alpha = tensor[:, :, 1]
         tensor = tf.stack([tensor[:, :, 0]], 2)
 
+    original_color_space = color_space
+
     if color_space == ColorSpace.oklab:
         L = tensor[:, :, 0]
         a = tensor[:, :, 1] * -.509 + .276
@@ -118,8 +120,12 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
         if hue_distrib:
             h = tf.squeeze(value.values(freq=freq, distrib=hue_distrib, **common_value_params))
         else:
-            if hue_rotation is None:
-                hue_rotation = simplex.random(time=time, speed=speed)
+            if original_color_space == ColorSpace.hsv:
+                if hue_rotation is None:
+                    hue_rotation = simplex.random(time=time, speed=speed)
+            else:  # Avoid hard edges on color models that don't wrap hue from 1 to 0 naturally
+                hue_range = 1.0
+                hue_rotation = 0.0
 
             h = (tensor[:, :, 0] * hue_range + hue_rotation) % 1.0
 
