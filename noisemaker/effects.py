@@ -1039,6 +1039,9 @@ def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
     :return: Tensor
     """
 
+    if levels == 0:
+        return tensor
+
     tensor *= levels
 
     tensor += (1/levels) * .5
@@ -1965,7 +1968,7 @@ def kaleido(tensor, shape, sides=6, sdf_sides=5, xy=None, blend_edges=True, time
 
 
 @effect()
-def palette(tensor, shape, name=None, time=0.0, speed=1.0):
+def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
     """
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
@@ -1984,7 +1987,11 @@ def palette(tensor, shape, name=None, time=0.0, speed=1.0):
     phase = p["phase"] * tf.ones(channel_shape) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
-    return offset + amp * tf.math.cos(math.tau * (freq * value.value_map(tensor, shape, keepdims=True, with_normalize=False) * .875 + phase))
+    colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(
+        tensor, shape, keepdims=True, with_normalize=False
+    ) * .875 + .0625 + phase))
+
+    return value.blend_cosine(tensor, colored, alpha)
 
 
 @effect()

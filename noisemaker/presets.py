@@ -25,7 +25,7 @@ PRESETS = lambda: {  # noqa E731
             "color_space": color.rgb,
             "dist_metric": distance.euclidean,
             "palette_on": False,
-            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_alpha": 0.5 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_corners": True,
             "voronoi_point_distrib": point.circular,
@@ -33,9 +33,9 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_nth": random.randint(1, 3),
         },
         "ai": {
-            "prompt": "1960s, kaleidoscopic, psychedelia, vintage poster art, distressed, faded",
-            "image_strength": 0.5,
-            "cfg_scale": 35,
+            "prompt": "1960s, kaleidoscopic, psychedelia, vintage poster art",
+            "image_strength": 0.625,
+            "cfg_scale": 25,
         }
     },
 
@@ -43,16 +43,16 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["voronoi", "grain", "saturation"],
         "settings": lambda: {
             "dist_metric": distance.triangular,
-            "saturation_final": .25 + random.random() * .125,
+            "saturation_final": 0.25 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_nth": 0,
             "voronoi_point_distrib": point.random,
             "voronoi_point_freq": 2,
         },
         "ai": {
-            "prompt": "1970s, overlapping shapes, vintage poster art, distressed",
+            "prompt": "1970s, overlapping shapes, vintage poster art",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -62,17 +62,17 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": distance.chebyshev,
             "freq": random.randint(10, 15),
-            "reindex_range": .2 + random.random() * .1,
+            "reindex_range": 0.2 + random.random() * 0.1,
             "spline_order": interp.constant,
             "voronoi_diagram_type": voronoi.range,
             "voronoi_nth": 0,
             "voronoi_point_distrib": point.random,
-            "voronoi_refract": .2 + random.random() * .1
+            "voronoi_refract": 0.2 + random.random() * 0.1
         },
         "ai": {
             "prompt": "1980s, nostalgia, colorful, shapes, loud, retro",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -82,13 +82,13 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.bank_ocr,
             "mask_repeat": random.randint(9, 12),
             "spline_order": interp.cosine,
-            "vignette_alpha": .75 + random.random() * .25,
+            "vignette_alpha": 0.75 + random.random() * 0.25,
             "posterize_levels": random.randint(1, 2),
         },
         "ai": {
             "prompt": "2000s, retro futuristic, ocr, glitchy",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -100,7 +100,7 @@ PRESETS = lambda: {  # noqa E731
             "freq": 8,
             "mask": mask.chess,
             "spline_order": interp.constant,
-            "voronoi_alpha": 0.5 + random.random() * .5,
+            "voronoi_alpha": 0.5 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.color_range if coin_flip() else random_member(
                     [m for m in voronoi if not voronoi.is_flow_member(m) and m != voronoi.none]),  # noqa E131
             "voronoi_nth": random.randint(0, 1) * random.randint(0, 63),
@@ -111,33 +111,17 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "decorative tile design, chessboard",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
     "aberration": {
         "settings": lambda: {
-            "aberration_displacement": .0125 + random.random() * .0006125
+            "aberration_displacement": 0.0125 + random.random() * 0.000625
         },
         "final": lambda settings: [
             Effect("aberration",
                 displacement=settings["aberration_displacement"])]
-    },
-
-    "abyssal-echoes": {
-        "layers": ["multires-alpha", "saturation", "random-hue"],
-        "settings": lambda: {
-            "color_space": color.rgb,
-        },
-        "octaves": lambda settings: [
-            Effect("refract",
-               displacement=random.randint(20, 30),
-               from_derivative=True,
-               y_from_offset=False)
-        ],
-        "ai": {
-            "prompt": "an expansive abyss, echoes, nothingness"
-        }
     },
 
     "acid": {
@@ -151,7 +135,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "old textured wall, exposed layers of old paint, paint chipping and peeling away",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -170,7 +154,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "corrosive liquid splatter, faded",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -179,12 +163,12 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": distance.euclidean,
             "lattice_drift": coin_flip(),
-            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_distrib": random_member(point.grid_members()),
             "voronoi_point_freq": 4,
             "voronoi_point_generations": 2,
-            "warp_range": .125 + random.random() * .06125,
+            "warp_range": 0.125 + random.random() * 0.0625,
         },
         "ai": {
             "prompt": "psychedelic imagery, distorted geometric grid",
@@ -206,7 +190,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "activation-signal": {
-        "layers": ["value-mask", "maybe-palette", "glitchin-out"],
+        "layers": ["value-mask", "glitchin-out"],
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "freq": 4,
@@ -231,7 +215,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "1980s, 1990s, vaporwave, cyber, analog",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -240,25 +224,43 @@ PRESETS = lambda: {  # noqa E731
                    "erosion-worms", "bloom", "shadow", "grain", "saturation"],
         "settings": lambda: {
             "grain_contrast": 1.5,
-            "deriv_alpha": .25 + random.random() * .125,
+            "deriv_alpha": 0.25 + random.random() * 0.125,
             "dist_metric": distance.euclidean,
-            "erosion_worms_alpha": .05 + random.random() * .025,
+            "erosion_worms_alpha": 0.05 + random.random() * 0.025,
             "erosion_worms_density": random.randint(150, 200),
             "erosion_worms_inverse": True,
-            "erosion_worms_xy_blend": .333 + random.random() * .16667,
+            "erosion_worms_xy_blend": 0.333 + random.random() * 0.16667,
             "freq": random.randint(3, 5),
-            "hue_rotation": .875,
-            "hue_range": .25 + random.random() * .25,
+            "hue_rotation": 0.875,
+            "hue_range": 0.25 + random.random() * 0.25,
             "palette_on": False,
-            "voronoi_alpha": .5 + random.random() * .25,
+            "voronoi_alpha": 0.5 + random.random() * 0.25,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": 10,
             "voronoi_point_distrib": point.random,
-            "voronoi_refract": .25 + random.random() * .125,
+            "voronoi_refract": 0.25 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "satellite photography, aerial photography, high detail, eroded sci-fi terrain, high-relief, geomorphology, arid desert, orbiter imagery, cratered, lunar surface",
             "style_preset": "photographic",
+        }
+    },
+
+    "alien-glyphs": {
+        "layers": ["entities", "maybe-rotate", "bloom", "crt"],
+        "settings": lambda: {
+            "corners": True,
+            "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
+            "mask_repeat": random.randint(6, 12),
+            "refract_range": 0.025 + random.random() * 0.0125,
+            "refract_signed_range": False,
+            "refract_y_from_offset": True,
+            "spline_order": random_member([interp.linear, interp.cosine]),
+        },
+        "ai": {
+            "prompt": "sci-fi font, alien language glyphs",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
         }
     },
 
@@ -268,19 +270,21 @@ PRESETS = lambda: {  # noqa E731
             "mask": random_member(mask.procedural_members()),
         },
         "ai": {
-            "prompt": "encoded data transmission in an alien language, analog signal, alien glyphs, predator hud",
+            "prompt": "sci-fi font, alien language glyphs",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
         }
     },
 
     "analog-glitch": {
         "layers": ["value-mask"],
         "settings": lambda: {
-            # offset by i * .5 for glitched texture lookup
+            # offset by i * 0.5 for glitched texture lookup
             "mask": random_member([mask.alphanum_hex, mask.lcd, mask.fat_lcd]),
             "mask_repeat": random.randint(20, 30),
         },
         "generator": lambda settings: {
-            "freq": [int(i * .5 + i * settings["mask_repeat"]) for i in masks.mask_shape(settings["mask"])[0:2]],
+            "freq": [int(i * 0.5 + i * settings["mask_repeat"]) for i in masks.mask_shape(settings["mask"])[0:2]],
         },
         "ai": {
             "prompt": "glitched broken alphanumeric lcd",
@@ -300,7 +304,7 @@ PRESETS = lambda: {  # noqa E731
             "palette_on": False,
             "posterize_levels": 3,
             "warp_freq": random.randint(25, 25),
-            "warp_range": .03 + random.random() * .015,
+            "warp_range": 0.03 + random.random() * 0.015,
             "warp_octaves": 1,
         },
         "generator": lambda settings: {
@@ -319,12 +323,12 @@ PRESETS = lambda: {  # noqa E731
                    "snow"],
         "settings": lambda: {
             "freq": 15,
-            "hue_range": random.random() * .25,
+            "hue_range": random.random() * 0.25,
             "hue_rotation": random.random(),
             "mask": mask.truetype,
         },
         "ai": {
-            "prompt": "a difficult captcha",
+            "prompt": "an extremely difficult captcha",
         }
     },
 
@@ -333,7 +337,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "freq": random.randint(6, 12),
             "reindex_range": random.randint(8, 12),
-            "warp_range": .333 + random.random() * .16667,
+            "warp_range": 0.333 + random.random() * 0.16667,
             "warp_octaves": 8,
             "warp_freq": random.randint(2, 3),
         },
@@ -354,7 +358,7 @@ PRESETS = lambda: {  # noqa E731
             "distrib": distrib.uniform,
             "freq": [random.randint(2, 4), random.randint(2, 4)],
             "hue_distrib": None,
-            "hue_range": random.random() * .25,
+            "hue_range": random.random() * 0.25,
             "hue_rotation": None,
             "lattice_drift": 0.0,
             "mask": None,
@@ -396,7 +400,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "basic-low-poly": {
-        "layers": ["basic", "low-poly"],
+        "layers": ["basic", "low-poly", "grain", "saturation"],
         "ai": {
             "prompt": "a basic low-poly design, low poly mesh, diffuse lighting",
             "image_strength": 0.75,
@@ -420,10 +424,10 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "voronoi"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
-            "hue_range": .25 + random.random() * .5,
+            "hue_range": 0.25 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.range,
             "voronoi_nth": 0,
-            "voronoi_refract": 1.0 + random.random() * .5,
+            "voronoi_refract": 1.0 + random.random() * 0.5,
         },
         "ai": {
             "prompt": "a basic voronoi diagram with cells that refract like glass",
@@ -435,16 +439,18 @@ PRESETS = lambda: {  # noqa E731
     "basic-water": {
         "layers": ["multires", "refract-octaves", "reflect-octaves", "ripple"],
         "settings": lambda: {
+            "color_space": color.hsv,
             "distrib": distrib.uniform,
             "freq": random.randint(7, 10),
-            "hue_range": .05 + random.random() * .05,
-            "hue_rotation": .5125 + random.random() * .025,
+            "hue_range": 0.05 + random.random() * 0.05,
+            "hue_rotation": 0.5125 + random.random() * 0.025,
             "lattice_drift": 1.0,
             "octaves": 4,
-            "reflect_range": .16667 + random.random() * .16667,
-            "refract_range": .25 + random.random() * .125,
+            "palette_on": False,
+            "reflect_range": 0.16667 + random.random() * 0.16667,
+            "refract_range": 0.25 + random.random() * 0.125,
             "refract_y_from_offset": True,
-            "ripple_range": .005 + random.random() * .0025,
+            "ripple_range": 0.005 + random.random() * 0.0025,
             "ripple_kink": random.randint(2, 4),
             "ripple_freq": random.randint(2, 4),
         },
@@ -460,14 +466,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "benny-lava": {
-        "layers": ["basic", "posterize", "maybe-palette", "funhouse", "distressed"],
+        "layers": ["basic", "posterize", "funhouse", "distressed"],
         "settings": lambda: {
             "distrib": distrib.column_index,
             "posterize_levels": 1,
-            "warp_range": 1 + random.random() * .5,
+            "warp_range": 1 + random.random() * 0.5,
         },
         "ai": {
-            "prompt": "colorful melting and flowing posterized blobs, faded, distressed",
+            "prompt": "melting and flowing posterized blobs",
         }
     },
 
@@ -476,13 +482,13 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "freq": random.randint(12, 16),
             "palette_on": False,
-            "reindex_range": .75 + random.random() * .25,
+            "reindex_range": 0.75 + random.random() * 0.25,
             "sine_range": 2.0 + random.random() * 2.0,
         },
         "ai": {
             "prompt": "psychedelia, vivid colors",
             "image_strength": 0.375,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         }
     },
 
@@ -491,7 +497,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "mask": mask.script,
             "hue_rotation": random.random(),
-            "hue_range": .06125 + random.random() * .5,
+            "hue_range": 0.0625 + random.random() * 0.5,
             "posterize_levels": random.randint(2, 4),
         },
         "ai": {
@@ -529,7 +535,7 @@ PRESETS = lambda: {  # noqa E731
             "color_space": color.rgb,
             "dist_metric": random_member(distance.absolute_members()),
             "posterize_levels": 3,
-            "voronoi_refract": .5 + random.random() * 1.25,
+            "voronoi_refract": 0.5 + random.random() * 1.25,
             "warp_octaves": random.randint(1, 4),
             "warp_range": random.randint(0, 1) * random.random(),
         },
@@ -543,7 +549,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bloom": {
         "settings": lambda: {
-            "bloom_alpha": .05 + random.random() * .025,
+            "bloom_alpha": 0.05 + random.random() * 0.025,
         },
         "final": lambda settings: [
             Effect("bloom", alpha=settings["bloom_alpha"])
@@ -563,19 +569,18 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "branemelt": {
-        "layers": ["multires", "sine-octaves", "reflect-octaves",  "bloom", "shadow", "lens"],
+        "layers": ["multires", "sine-octaves", "reflect-octaves", "bloom", "shadow", "grain", "saturation"],
         "settings": lambda: {
-            "brightness_final": .125,
-            "contrast_final": 1.5,
+            "color_space": color.oklab,
             "freq": random.randint(6, 12),
             "palette_on": False,
-            "reflect_range": .025 + random.random() * .0125,
-            "shadow_alpha": .666 + random.random() * .333,
+            "reflect_range": 0.025 + random.random() * 0.0125,
+            "shadow_alpha": 0.666 + random.random() * 0.333,
             "sine_range": random.randint(48, 64),
         },
         "ai": {
-            "prompt": "a brightly colored trippy psychedelic design with overlapping ripples",
-            "image_strength": 0.75,
+            "prompt": "psychedelic fractal imagery with overlapping ripples",
+            "image_strength": 0.375,
             "cfg_scale": 25,
         }
     },
@@ -588,26 +593,26 @@ PRESETS = lambda: {  # noqa E731
             "ridges": True,
             "ripple_freq": 2,
             "ripple_kink": 1.5 + random.random() * 2,
-            "ripple_range": .15 + random.random() * .15,
+            "ripple_range": 0.15 + random.random() * 0.15,
             "spline_order": random_member([m for m in interp if m != interp.constant]),
         },
         "ai": {
             "prompt": "a brightly colored trippy psychedelic design with overlapping waves",
-            "image_strength": 0.75,
+            "image_strength": 0.5,
             "cfg_scale": 25,
         }
     },
 
     "brightness-post": {
         "settings": lambda: {
-            "brightness_post": .125 + random.random() * .06125
+            "brightness_post": 0.125 + random.random() * 0.0625
         },
         "post": lambda settings: [Effect("adjust_brightness", amount=settings["brightness_post"])]
     },
 
     "brightness-final": {
         "settings": lambda: {
-            "brightness_final": .125 + random.random() * .06125
+            "brightness_final": 0.125 + random.random() * 0.0625
         },
         "final": lambda settings: [Effect("adjust_brightness", amount=settings["brightness_final"])]
     },
@@ -617,13 +622,13 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "dist_metric": distance.euclidean,
-            "hue_range": .25 + random.random() * .75,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "hue_range": 0.25 + random.random() * 0.75,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_nth": 0,
             "voronoi_point_distrib": point.v_hex if coin_flip() else point.h_hex,
             "voronoi_point_freq": random.randint(4, 7) * 2,
-            "warp_range": .05 + random.random() * .25,
+            "warp_range": 0.05 + random.random() * 0.25,
             "warp_octaves": random.randint(1, 4),
         },
         "generator": lambda settings: {
@@ -644,7 +649,7 @@ PRESETS = lambda: {  # noqa E731
             "lattice_drift": 2,
             "posterize_levels": 3,
             "reindex_range": random.randint(3, 4),
-            "speed": .025,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "high detail brightly colored layers of broken shapes with glowing edges",
@@ -662,8 +667,8 @@ PRESETS = lambda: {  # noqa E731
             "reverb_iterations": random.randint(1, 3),
             "reverb_octaves": random.randint(3, 5),
             "spline_order": random_member([m for m in interp if m != interp.constant]),
-            "wormhole_stride": .1 + random.random() * .05,
-            "wormhole_kink": .5 + random.random() * 4,
+            "wormhole_stride": 0.1 + random.random() * 0.05,
+            "wormhole_kink": 0.5 + random.random() * 4,
         },
         "ai": {
             "prompt": "billions of tiny bubbles",
@@ -674,12 +679,12 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["voronoi", "refract-post", "density-map", "random-hue", "bloom", "shadow"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
-            "refract_range": .125 + random.random() * .05,
-            "speed": .05,
+            "refract_range": 0.125 + random.random() * 0.05,
+            "speed": 0.05,
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": 10,
-            "voronoi_refract": .625 + random.random() * .25,
+            "voronoi_refract": 0.625 + random.random() * 0.25,
         },
         "ai": {
             "prompt": "high detail regions of color, complex fractal",
@@ -689,20 +694,20 @@ PRESETS = lambda: {  # noqa E731
     "carpet": {
         "layers": ["worms", "grime"],
         "settings": lambda: {
-            "worms_alpha": .25 + random.random() * .25,
+            "worms_alpha": 0.25 + random.random() * 0.25,
             "worms_behavior": worms.chaotic,
-            "worms_stride": .333 + random.random() * .333,
-            "worms_stride_deviation": .25
+            "worms_stride": 0.333 + random.random() * 0.333,
+            "worms_stride_deviation": 0.25
         },
     },
 
     "celebrate": {
-        "layers": ["basic", "posterize", "maybe-palette", "distressed"],
+        "layers": ["basic", "posterize", "distressed"],
         "settings": lambda: {
             "brightness_distrib": distrib.ones,
             "hue_range": 1,
             "posterize_levels": random.randint(3, 5),
-            "speed": .025,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "abstract design, art, vintage psychedelia",
@@ -718,8 +723,8 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.absolute_members()),
             "palette_name": None,
             "reflect_range": random.randint(2, 4) * 5,
-            "saturation_final": .5 + random.random() * .25,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "saturation_final": 0.5 + random.random() * 0.25,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": coin_flip(),
             "voronoi_point_distrib": random_member([m for m in point if m not in point.grid_members()]),
@@ -739,7 +744,7 @@ PRESETS = lambda: {  # noqa E731
             "ridges": True,
             "voronoi_diagram_type": voronoi.range,
             "voronoi_point_freq": random.randint(3, 4),
-            "voronoi_refract": random.randint(8, 12) * .5,
+            "voronoi_refract": random.randint(8, 12) * 0.5,
         },
         "ai": {
             "prompt": "refractive voronoi cells, liquid glass, high detail fractal refraction",
@@ -753,8 +758,8 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["voronoi", "refract-post", "derivative-post", "density-map", "saturation"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
-            "refract_range": random.randint(1, 3) * .25,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "refract_range": random.randint(1, 3) * 0.25,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_distrib": random_member([m for m in point if m not in point.grid_members()]),
             "voronoi_point_freq": random.randint(2, 3),
@@ -771,8 +776,8 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "voronoi", "worms", "density-map", "random-hue", "saturation"],
         "settings": lambda: {
             "freq": random.randint(3, 7),
-            "hue_range": .125 + random.random() * .875,
-            "voronoi_alpha": .75,
+            "hue_range": 0.125 + random.random() * 0.875,
+            "voronoi_alpha": 0.75,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
             "voronoi_point_freq": random.randint(2, 4),
             "worms_density": 1500,
@@ -781,6 +786,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fur, flow field, geometric shapes",
+            "image_strength": 0.75,
+            "cfg_scale": 15,
         }
     },
 
@@ -791,10 +798,10 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(2, 3),
             "octaves": random.randint(2, 3),
             "outline_invert": True,
-            "refract_range": .1 + random.random() * .05,
+            "refract_range": 0.1 + random.random() * 0.05,
             "ridges": True,
             "warp_octaves": 8,
-            "warp_range": .0333 + random.random() * .016667,
+            "warp_range": 0.0333 + random.random() * 0.016667,
         },
         "ai": {
             "prompt": "scribbles, doodles, style of chalk art"
@@ -805,7 +812,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["jorts", "random-hue", "contrast-final"],
         "settings": lambda: {
             "angle": random.random() * 360.0,
-            "glyph_map_alpha": .333 + random.random() * .16667,
+            "glyph_map_alpha": 0.333 + random.random() * 0.16667,
             "glyph_map_mask": mask.waffle,
             "glyph_map_zoom": 16.0,
         },
@@ -817,7 +824,7 @@ PRESETS = lambda: {  # noqa E731
     "classic-desktop": {
         "layers": ["basic", "lens-warp"],
         "settings": lambda: {
-            "hue_range": .333 + random.random() * .333,
+            "hue_range": 0.333 + random.random() * 0.333,
             "lattice_drift": random.random(),
         },
         "ai": {
@@ -827,22 +834,19 @@ PRESETS = lambda: {  # noqa E731
 
     "cloudburst": {
         "layers": ["multires", "reflect-octaves", "octave-warp-octaves", "refract-post",
-                   "invert", "bloom", "brightness-final", "contrast-final", "invert", "saturation"],
+                   "invert", "grain"],
         "settings": lambda: {
-            "brightness_final": .125,
             "color_space": color.hsv,
-            "contrast_final": 1.5 + random.random() * .5,
             "distrib": distrib.exp,
             "freq": 2,
-            "hue_range": .05 - random.random() * .025,
-            "hue_rotation": .1 - random.random() * .025,
-            "lattice_drift": .75,
+            "hue_range": 0.05 - random.random() * 0.025,
+            "hue_rotation": 0.1 - random.random() * 0.025,
+            "lattice_drift": 0.75,
             "palette_on": False,
-            "reflect_range": .125 + random.random() * .06125,
-            "refract_range": .1 + random.random() * .05,
+            "reflect_range": 0.125 + random.random() * 0.0625,
+            "refract_range": 0.1 + random.random() * 0.05,
             "saturation_distrib": distrib.ones,
-            "saturation_final": .625,
-            "speed": .075,
+            "speed": 0.075,
         },
         "ai": {
             "prompt": "realistic white clouds in a blue sky",
@@ -865,7 +869,7 @@ PRESETS = lambda: {  # noqa E731
             "distrib": distrib.ones,
             "freq": 2,
             "mask": mask.h_bar,
-            "speed": .75,
+            "speed": 0.75,
             "spline_order": interp.constant,
             "voronoi_diagram_type": voronoi.range,
             "voronoi_refract": random.randint(8, 16),
@@ -893,14 +897,14 @@ PRESETS = lambda: {  # noqa E731
 
     "contrast-post": {
         "settings": lambda: {
-            "contrast_post": 1.25 + random.random() * .25
+            "contrast_post": 1.25 + random.random() * 0.25
         },
         "post": lambda settings: [Effect("adjust_contrast", amount=settings["contrast_post"])]
     },
 
     "contrast-final": {
         "settings": lambda: {
-            "contrast_final": 1.25 + random.random() * .25
+            "contrast_final": 1.25 + random.random() * 0.25
         },
         "final": lambda settings: [Effect("adjust_contrast", amount=settings["contrast_final"])]
     },
@@ -908,11 +912,12 @@ PRESETS = lambda: {  # noqa E731
     "cool-water": {
         "layers": ["basic-water", "funhouse", "bloom", "lens"],
         "settings": lambda: {
-            "warp_range": .06125 + random.random() * .06125,
+            "warp_range": 0.0625 + random.random() * 0.0625,
             "warp_freq": random.randint(2, 3),
         },
         "ai": {
             "prompt": "complex photorealistic water texture with ripples and light refraction",
+            "style_preset": "photographic",
         }
     },
 
@@ -931,7 +936,7 @@ PRESETS = lambda: {  # noqa E731
     "corduroy": {
         "layers": ["jorts", "random-hue", "contrast-final"],
         "settings": lambda: {
-            "saturation": .625 + random.random() * .125,
+            "saturation": 0.625 + random.random() * 0.125,
             "glyph_map_zoom": 8.0,
         },
         "ai": {
@@ -942,16 +947,16 @@ PRESETS = lambda: {  # noqa E731
     "cosmic-thread": {
         "layers": ["basic", "worms", "brightness-final", "contrast-final", "bloom"],
         "settings": lambda: {
-            "brightness_final": .1,
+            "brightness_final": 0.1,
             "color_space": color.rgb,
             "contrast_final": 2.5,
-            "worms_alpha": .875,
+            "worms_alpha": 0.875,
             "worms_behavior": random_member(worms.all()),
-            "worms_density": .125,
-            "worms_drunkenness": .125 + random.random() * .25,
+            "worms_density": 0.125,
+            "worms_drunkenness": 0.125 + random.random() * 0.25,
             "worms_duration": 125,
             "worms_kink": 1.0,
-            "worms_stride": .75,
+            "worms_stride": 0.75,
             "worms_stride_deviation": 0.0
         },
         "ai": {
@@ -962,12 +967,12 @@ PRESETS = lambda: {  # noqa E731
     "cobblestone": {
         "layers": ["bringing-hexy-back", "saturation", "texture", "shadow", "contrast-post", "contrast-final"],
         "settings": lambda: {
-            "hue_range": .1 + random.random() * .05,
-            "saturation_final": .0 + random.random() * .05,
+            "hue_range": 0.1 + random.random() * 0.05,
+            "saturation_final": 0.0 + random.random() * 0.05,
             "shadow_alpha": 0.5,
             "voronoi_point_freq": random.randint(3, 4) * 2,
             "warp_freq": [random.randint(3, 4), random.randint(3, 4)],
-            "warp_range": .125,
+            "warp_range": 0.125,
             "warp_octaves": 8
         },
         "ai": {
@@ -981,7 +986,7 @@ PRESETS = lambda: {  # noqa E731
     "convolution-feedback": {
         "post": lambda settings: [
             Effect("conv_feedback",
-                   alpha=.5 * random.random() * .25,
+                   alpha=.5 * random.random() * 0.25,
                    iterations=random.randint(250, 500)),
         ]
     },
@@ -989,7 +994,7 @@ PRESETS = lambda: {  # noqa E731
     "corrupt": {
         "post": lambda settings: [
             Effect("warp",
-                   displacement=.025 + random.random() * .1,
+                   displacement=.025 + random.random() * 0.1,
                    freq=[random.randint(2, 4), random.randint(1, 3)],
                    octaves=random.randint(2, 4),
                    spline_order=interp.constant),
@@ -1001,7 +1006,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "mask": mask.chess,
             "mask_repeat": random.randint(2, 3),
-            "saturation": 0 if coin_flip() else .125,
+            "saturation": 0 if coin_flip() else 0.125,
             "spline_order": interp.constant,
         },
         "ai": {
@@ -1023,7 +1028,7 @@ PRESETS = lambda: {  # noqa E731
     "crt": {
         "layers": ["scanline-error", "snow"],
         "settings": lambda: {
-            "crt_brightness": .05,
+            "crt_brightness": 0.05,
             "crt_contrast": 1.05,
         },
         "final": lambda settings: [
@@ -1038,12 +1043,13 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": distance.triangular,
             "voronoi_point_freq": 4,
-            "voronoi_alpha": .875,
+            "voronoi_alpha": 0.875,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 4,
         },
         "ai": {
             "prompt": "stacked cubes, qbert, high detail",
+            "style_preset": "isographic"
         }
     },
 
@@ -1052,14 +1058,15 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": distance.triangular,
             "freq": random.randint(4, 6),
-            "hue_range": .5 + random.random(),
+            "hue_range": 0.5 + random.random(),
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_inverse": True,
             "voronoi_point_distrib": point.h_hex,
             "voronoi_point_freq": random.randint(4, 6),
         },
         "ai": {
-            "prompt": "colorful stacked cubes, qbert"
+            "prompt": "colorful stacked cubes, qbert",
+            "style_preset": "isographic"
         }
     },
 
@@ -1073,6 +1080,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "low-poly, low poly mesh, diffuse lighting",
+            "image_strength": 0.5,
             "style_preset": "low-poly",
         }
     },
@@ -1081,7 +1089,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["voronoi", "reindex-post", "saturation", "grain"],
         "settings": lambda: {
             "freq": random.randint(24, 48),
-            "hue_range": .25 + random.random() * 1.25,
+            "hue_range": 0.25 + random.random() * 1.25,
             "reindex_range": random.randint(4, 6),
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_corners": True,
@@ -1107,7 +1115,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": random_member([distance.chebyshev, distance.manhattan]),
             "posterize_levels": random.randint(3, 4),
-            "refract_range": .5 + random.random() * .25,
+            "refract_range": 0.5 + random.random() * 0.25,
             "refract_y_from_offset": True,
             "voronoi_alpha": 1,
             "voronoi_diagram_type": voronoi.range,
@@ -1132,8 +1140,8 @@ PRESETS = lambda: {  # noqa E731
             "octave_blending": blend.alpha,
             "octaves": 5,
             "palette_on": False,
-            "speed": .05,
-            "refract_range": .2 + random.random() * .1,
+            "speed": 0.05,
+            "refract_range": 0.2 + random.random() * 0.1,
             "warp_freq": 2,
             "warp_signed_range": True,
         },
@@ -1159,7 +1167,7 @@ PRESETS = lambda: {  # noqa E731
 
     "degauss": {
         "final": lambda settings: [
-            Effect("degauss", displacement=.06 + random.random() * .03),
+            Effect("degauss", displacement=.06 + random.random() * 0.03),
             Preset("crt"),
         ]
     },
@@ -1203,9 +1211,9 @@ PRESETS = lambda: {  # noqa E731
     "dexter": {
         "layers": ["spatter-final"],
         "settings": lambda: {
-            "spatter_final_color": [.35 + random.random() * .15,
-                                    .025 + random.random() * .0125,
-                                    .075 + random.random() * .0375],
+            "spatter_final_color": [.35 + random.random() * 0.15,
+                                    0.025 + random.random() * 0.0125,
+                                    0.075 + random.random() * 0.0375],
         },
     },
 
@@ -1214,10 +1222,10 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "freq": [random.randint(4, 6), random.randint(4, 6)],
             "reflect_range": 7.5 + random.random() * 5.0,
-            "reindex_range": .25 + random.random() * .25,
+            "reindex_range": 0.25 + random.random() * 0.25,
             "sine_range": random.randint(7, 12),
-            "speed": .025,
-            "warp_range": .0375 * random.random() * .0375,
+            "speed": 0.025,
+            "warp_range": 0.0375 * random.random() * 0.0375,
         },
         "ai": {
             "prompt": "quirky psychedelic texture",
@@ -1235,7 +1243,7 @@ PRESETS = lambda: {  # noqa E731
             "distrib": distrib.exp,
             "freq": [random.randint(4, 5), random.randint(2, 3)],
             "lattice_drift": 1,
-            "saturation": .06125 + random.random() * .125,
+            "saturation": 0.0625 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "distance, distant mood, planet from orbit, atmospheric cloud cover, surface from high orbit",
@@ -1245,10 +1253,10 @@ PRESETS = lambda: {  # noqa E731
     "dla": {
         "layers": ["basic", "contrast-final"],
         "settings": lambda: {
-            "dla_alpha": .666 + random.random() * .333,
+            "dla_alpha": 0.666 + random.random() * 0.333,
             "dla_padding": random.randint(2, 8),
-            "dla_seed_density": .2 + random.random() * .1,
-            "dla_density": .1 + random.random() * .05,
+            "dla_seed_density": 0.2 + random.random() * 0.1,
+            "dla_density": 0.1 + random.random() * 0.05,
         },
         "post": lambda settings: [
             Effect("dla",
@@ -1280,10 +1288,12 @@ PRESETS = lambda: {  # noqa E731
     "domain-warp": {
         "layers": ["multires-ridged", "refract-post", "vaseline", "grain", "vignette-dark", "saturation"],
         "settings": lambda: {
-            "refract_range": .25 + random.random() * .25,
+            "refract_range": 0.5 + random.random() * 0.5,
         },
         "ai": {
-            "prompt": "perlin noise fbm domain warping example"
+            "prompt": "domain warping example, fractional brownian motion",
+            "image_strength": 0.75,
+            "cfg_scale": 10,
         }
     },
 
@@ -1332,12 +1342,12 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member([distance.manhattan, distance.octagram, distance.triangular]),
             "freq": random.randint(3, 6),
             "lattice_drift": 1,
-            "voronoi_alpha": .25 + random.random() * .25,
+            "voronoi_alpha": 0.25 + random.random() * 0.25,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": random.randint(0, 3),
             "voronoi_point_freq": random.randint(3, 6),
             "voronoi_point_distrib": point.random,
-            "worms_alpha": .666 + random.random() * .333,
+            "worms_alpha": 0.666 + random.random() * 0.333,
             "worms_behavior": worms.random,
             "worms_density": 1000,
             "worms_duration": 1,
@@ -1346,6 +1356,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "electric worms, electrified flow field, psychedelic fractal art",
+            "image_strength": .75,
+            "cfg_scale": 15,
         }
     },
 
@@ -1361,7 +1373,7 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.emoji,
             "spline_order": interp.cosine,
             "voronoi_diagram_type": voronoi.range,
-            "voronoi_refract": .125 + random.random() * .25,
+            "voronoi_refract": 0.125 + random.random() * 0.25,
         },
         "ai": {
             "prompt": "black and white design with distorted symbols and geometric shapes",
@@ -1369,7 +1381,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "emu": {
-        "layers": ["value-mask", "maybe-palette", "voronoi", "saturation", "distressed"],
+        "layers": ["value-mask", "voronoi", "saturation", "distressed"],
         "settings": lambda: {
             "dist_metric": random_member(distance.all()),
             "distrib": distrib.ones,
@@ -1378,7 +1390,7 @@ PRESETS = lambda: {  # noqa E731
             "spline_order": interp.constant,
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.range,
-            "voronoi_refract": .125 + random.random() * .125,
+            "voronoi_refract": 0.125 + random.random() * 0.125,
             "voronoi_refract_y_from_offset": False,
         },
         "generator": lambda settings: {
@@ -1393,12 +1405,12 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "refract-octaves", "normalize"],
         "settings": lambda: {
             "hue_range": 2.0 + random.random() * 2.0,
-            "refract_range": .1 + random.random() * .05,
+            "mask": mask.invaders_square,
+            "mask_repeat": random.randint(3, 4) * 2,
+            "refract_range": 0.1 + random.random() * 0.05,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
             "spline_order": interp.cosine,
-            "mask": mask.invaders_square,
-            "mask_repeat": random.randint(3, 4) * 2,
         },
         "ai": {
             "prompt": "a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
@@ -1412,26 +1424,26 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "corners": True,
             "distrib": distrib.ones,
-            "hue_range": 1.0 + random.random() * .5,
+            "hue_range": 1.0 + random.random() * 0.5,
             "mask_repeat": 1,
-            "refract_range": .025 + random.random() * .0125,
+            "refract_range": 0.025 + random.random() * 0.0125,
             "refract_signed_range": True,
             "refract_y_from_offset": False,
-            "speed": .05,
+            "speed": 0.05,
         },
         "ai": {
-            "prompt": "a single large entity, avatar of a mayan god, symmetrical, psychedelic visionary art",
+            "prompt": "a single large entity, avatar of a mysterious god, symmetrical, psychedelic visionary art",
         },
     },
 
     "erosion-worms": {
         "settings": lambda: {
-            "erosion_worms_alpha": .5 + random.random() * .5,
-            "erosion_worms_contraction": .5 + random.random() * .5,
+            "erosion_worms_alpha": 0.5 + random.random() * 0.5,
+            "erosion_worms_contraction": 0.5 + random.random() * 0.5,
             "erosion_worms_density": random.randint(25, 100),
             "erosion_worms_inverse": False,
             "erosion_worms_iterations": random.randint(25, 100),
-            "erosion_worms_xy_blend": .75 + random.random() * .25
+            "erosion_worms_xy_blend": 0.75 + random.random() * 0.25
         },
         "post": lambda settings: [
             Effect("erosion_worms",
@@ -1453,7 +1465,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "distrib": random_member([distrib.exp, distrib.uniform]),
-            "erosion_worms_contraction": .2 + random.random() * .1,
+            "erosion_worms_contraction": 0.2 + random.random() * 0.1,
             "erosion_worms_iterations": random.randint(625, 1125),
         },
         "ai": {
@@ -1471,12 +1483,12 @@ PRESETS = lambda: {  # noqa E731
             "brightness_distrib": distrib.uniform,
             "freq": 3,
             "octaves": 3,
-            "refract_range": .015 + random.random() * .0075,
+            "refract_range": 0.015 + random.random() * 0.0075,
             "saturation_distrib": distrib.uniform,
-            "speed": -.25,
+            "speed": -0.25,
             "value_distrib": distrib.center_circle,
             "value_freq": 3,
-            "value_refract_range": .015 + random.random() * .0075,
+            "value_refract_range": 0.015 + random.random() * 0.0075,
         },
         "ai": {
             "prompt": "outward ripples, serene, peaceful",
@@ -1487,16 +1499,16 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "voronoi", "worms", "contrast-final", "saturation"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
-            "hue_range": .25 + random.random() * .75,
+            "hue_range": 0.25 + random.random() * 0.75,
             "hue_rotation": random.random(),
             "octaves": random.randint(1, 3),
             "palette_on": False,
             "ridges": coin_flip(),
-            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_alpha": 0.5 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": random.randint(2, 6),
             "voronoi_refract": 1.0,
-            "worms_alpha": .5 + random.random() * .5,
+            "worms_alpha": 0.5 + random.random() * 0.5,
             "worms_behavior": worms.chaotic,
             "worms_density": 1000,
             "worms_duration": 6,
@@ -1507,7 +1519,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies, flow field, fractal flame",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         },
     },
@@ -1522,17 +1534,14 @@ PRESETS = lambda: {  # noqa E731
             "freq": 2,
             "hue_range": 2,
             "lattice_drift": 1,
-            "speed": .025,
+            "speed": 0.025,
             "voronoi_diagram_type": voronoi.flow,
-            "voronoi_refract": .333 + random.random() * .333,
-            "wormhole_stride": .02 + random.random() * .01,
+            "voronoi_refract": 0.333 + random.random() * 0.333,
+            "wormhole_stride": 0.02 + random.random() * 0.01,
             "wormhole_kink": 4,
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
-            "image_strength": 0.625,
-            "cfg_scale": 35,
-            "style_preset": "photographic",
         },
     },
 
@@ -1545,14 +1554,14 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "contrast_final": 2.5,
             "distrib": distrib.center_circle,
-            "hue_rotation": .925,
+            "hue_rotation": 0.925,
             "freq": 1,
-            "refract_range": .025 + random.random() * .0125,
+            "refract_range": 0.025 + random.random() * 0.0125,
             "refract_y_from_offset": False,
             "value_distrib": distrib.center_circle,
             "value_freq": 1,
-            "value_refract_range": .05 + random.random() * .025,
-            "speed": .05,
+            "value_refract_range": 0.05 + random.random() * 0.025,
+            "speed": 0.05,
         },
         "ai": {
             "prompt": "a swirling ball of flame, fireball"
@@ -1579,9 +1588,9 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(3, 5),
             "lattice_drift": 1.0,
             "posterize_levels": random.randint(3, 5),
-            "refract_range": random.randint(2, 4) * .5,
+            "refract_range": random.randint(2, 4) * 0.5,
             "refract_y_from_offset": True,
-            "voronoi_alpha": .5,
+            "voronoi_alpha": 0.5,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_freq": 10,
         },
@@ -1601,7 +1610,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         },
     },
 
@@ -1612,10 +1621,10 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(2, 3),
             "hue_range": 1.0 + random.random() * 3.0,
             "ridges": coin_flip(),
-            "speed": .05,
+            "speed": 0.05,
             "palette_on": False,
             "worms_behavior": random_member([worms.chaotic, worms.random]),
-            "worms_alpha": .9 + random.random() * .1,
+            "worms_alpha": 0.9 + random.random() * 0.1,
             "worms_density": random.randint(750, 1250),
             "worms_duration": random.randint(2, 3),
             "worms_kink": 1.0,
@@ -1625,7 +1634,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         },
     },
 
@@ -1638,7 +1647,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "smoke, psychedelic fractal turbulence, swirling, unmixed, eddies",
             "image_strength": 0.625,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         },
     },
 
@@ -1649,7 +1658,7 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.absolute_members()),
             "reverb_iterations": random.randint(2, 4),
             "reverb_octaves": random.randint(2, 4),
-            "voronoi_alpha": .5 + random.random() * .5,
+            "voronoi_alpha": 0.5 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": random.randint(0, 2),
             "voronoi_point_distrib": random_member(point.grid_members()),
@@ -1669,7 +1678,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": random.randint(3, 5),
             "voronoi_point_freq": random.randint(3, 5),
-            "voronoi_refract": .125 + random.random() * .06125,
+            "voronoi_refract": 0.125 + random.random() * 0.0625,
         },
         "ai": {
             "prompt": "the cover design for a computer science textbook",
@@ -1680,7 +1689,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "warp_freq": [random.randint(2, 4), random.randint(2, 4)],
             "warp_octaves": random.randint(1, 4),
-            "warp_range": .25 + random.random() * .125,
+            "warp_range": 0.25 + random.random() * 0.125,
             "warp_signed_range": False,
             "warp_spline_order": interp.bicubic
         },
@@ -1698,14 +1707,10 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "refract-post", "contrast-final", "maybe-rotate", "saturation", "lens", "grain"],
         "settings": lambda: {
             "distrib": random_member([distrib.ones, distrib.uniform]),
-            "mask": random_member([
-                mask.alphanum_binary, mask.alphanum_numeric, mask.alphanum_hex,
-                mask.lcd, mask.lcd_binary,
-                mask.fat_lcd, mask.fat_lcd_binary, mask.fat_lcd_numeric, mask.fat_lcd_hex
-            ]),
+            "mask": random_member(mask.glyph_members()),
             "mask_repeat": random.randint(1, 6),
             "octaves": random.randint(1, 2),
-            "refract_range": .125 + random.random() * .125,
+            "refract_range": 0.125 + random.random() * 0.125,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
             "spline_order": random_member([m for m in interp if m != interp.constant]),
@@ -1742,7 +1747,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "game-show": {
-        "layers": ["basic", "maybe-palette", "posterize", "be-kind-rewind"],
+        "layers": ["basic", "posterize", "be-kind-rewind"],
         "settings": lambda: {
             "freq": random.randint(8, 16) * 2,
             "mask": random_member([mask.h_tri, mask.v_tri]),
@@ -1775,15 +1780,15 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.ones,
             "freq": random.randint(3, 6),
-            "hue_range": .25 + random.random() * .5,
+            "hue_range": 0.25 + random.random() * 0.5,
             "lattice_drift": 1,
             "mask": mask.sparse,
             "mask_static": True,
             "octaves": random.randint(3, 6),
             "palette_on": False,
             "reflect_range": 2.5,
-            "saturation": .175 + random.random() * .175,
-            "speed": .125,
+            "saturation": 0.175 + random.random() * 0.175,
+            "speed": 0.125,
         },
         "ai": {
             "prompt": "deep space nebula imagery, dark globules, dark matter, stellar nursery",
@@ -1796,19 +1801,19 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.uniform,
             "freq": [2, 2],
-            "hue_range": .25 + random.random() * .125,
+            "hue_range": 0.25 + random.random() * 0.125,
             "lattice_drift": 1,
             "octaves": 2,
-            "reflect_range": .625 + random.random() * .375,
-            "refract_range": .333 + random.random() * .16667,
+            "reflect_range": 0.625 + random.random() * 0.375,
+            "refract_range": 0.333 + random.random() * 0.16667,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
-            "speed": .025,
-            "warp_range": .06125 + random.random() * .030625,
+            "speed": 0.025,
+            "warp_range": 0.0625 + random.random() * 0.030625,
             "warp_octaves": 1,
         },
         "ai": {
-            "prompt": "a gooey sticky liquid oozing around, gel, gelatinous ooze",
+            "prompt": "a gooey sticky dark liquid oozing around, gel, gelatinous ooze",
         }
     },
 
@@ -1823,7 +1828,7 @@ PRESETS = lambda: {  # noqa E731
             "glyph_map_colorize": coin_flip(),
             "glyph_map_spline_order": interp.constant,
             "glyph_map_mask": random_member(set(mask.procedural_members()).intersection(masks.square_masks())),
-            "glyph_map_zoom": random.randint(1, 3),
+            "glyph_map_zoom": random.randint(6, 10),
         },
         "post": lambda settings: [
             Effect("glyph_map",
@@ -1832,7 +1837,12 @@ PRESETS = lambda: {  # noqa E731
                    mask=settings["glyph_map_mask"],
                    spline_order=settings["glyph_map_spline_order"],
                    zoom=settings["glyph_map_zoom"])
-        ]
+        ],
+        "ai": {
+            "prompt": "a grid of glyphs and symbols, truchet pattern",
+            "image_strength": 0.925,
+            "cfg_scale": 15,
+        }
     },
 
     "glyphic": {
@@ -1857,9 +1867,9 @@ PRESETS = lambda: {  # noqa E731
     "grain": {
         "unique": True,
         "settings": lambda: {
-            "grain_alpha": .05 + random.random() * .025,
-            "grain_brightness": .05 + random.random() * .025,
-            "grain_contrast": 1.05 + random.random() * .025
+            "grain_alpha": 0.0333 + random.random() * 0.01666,
+            "grain_brightness": 0.0125 + random.random() * 0.00625,
+            "grain_contrast": 1.025 + random.random() * 0.0125
         },
         "final": lambda settings: [
             Effect("grain", alpha=settings["grain_alpha"]),
@@ -1878,8 +1888,8 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(3, 4) * 2,
             "mask": mask.chess,
             "spline_order": interp.constant,
-            "voronoi_alpha": .5 + random.random() * .25,
-            "voronoi_refract": .75 + random.random() * .375,
+            "voronoi_alpha": 0.5 + random.random() * 0.25,
+            "voronoi_refract": 0.75 + random.random() * 0.375,
             "voronoi_refract_y_from_offset": True,
             "voronoi_diagram_type": voronoi.flow,
         },
@@ -1891,18 +1901,20 @@ PRESETS = lambda: {  # noqa E731
     "grass": {
         "layers": ["multires", "worms", "grain"],
         "settings": lambda: {
+            "color_space": color.hsv,
             "freq": random.randint(6, 12),
-            "hue_rotation": .25 + random.random() * .05,
+            "hue_rotation": 0.25 + random.random() * 0.05,
             "lattice_drift": 1,
-            "saturation": .625 + random.random() * .25,
+            "palette_on": False,
+            "saturation": 0.625 + random.random() * 0.25,
             "worms_behavior": random_member([worms.chaotic, worms.meandering]),
-            "worms_alpha": .9,
+            "worms_alpha": 0.9,
             "worms_density": 50 + random.random() * 25,
-            "worms_drunkenness": .125,
+            "worms_drunkenness": 0.125,
             "worms_duration": 1.125,
-            "worms_stride": .875,
-            "worms_stride_deviation": .125,
-            "worms_kink": .125 + random.random() * .5,
+            "worms_stride": 0.875,
+            "worms_stride_deviation": 0.125,
+            "worms_kink": 0.125 + random.random() * 0.5,
         },
         "ai": {
             "prompt": "grassy texture, grass and dirt, multi-colored grass, thatch, a dusty old lawn, turf",
@@ -1938,7 +1950,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.column_index,
             "posterize_levels": random.randint(1, 2),
-            "ripple_range": .75 + random.random() * .375,
+            "ripple_range": 0.75 + random.random() * 0.375,
         },
         "ai": {
             "prompt": "groovy, psychedelia, peace and love, groove is stored in the heart, vintage",
@@ -1951,7 +1963,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "pixel-sort", "maybe-rotate", "glitchin-out"],
         "settings": lambda: {
             "freq": 2,
-            "hue_range": .05,
+            "hue_range": 0.05,
             "lattice_drift": 1,
             "spline_order": interp.constant,
         },
@@ -1965,7 +1977,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.ones,
             "hue_distrib": None if coin_flip() else random_member([distrib.column_index, distrib.row_index]),
-            "hue_rotation": .925,
+            "hue_rotation": 0.925,
             "mask": mask.mcpaint_19,
             "mask_repeat": random.randint(8, 12),
             "posterize_levels": random.randint(1, 2),
@@ -1979,8 +1991,8 @@ PRESETS = lambda: {  # noqa E731
     "hotel-carpet": {
         "layers": ["basic", "ripple", "carpet", "grain"],
         "settings": lambda: {
-            "ripple_kink": .5 + random.random() * .25,
-            "ripple_range": .666 + random.random() * .333,
+            "ripple_kink": 0.5 + random.random() * 0.25,
+            "ripple_range": 0.666 + random.random() * 0.333,
             "spline_order": interp.constant,
         },
         "ai": {
@@ -1989,10 +2001,10 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "hsv-gradient": {
-        "layers": ["basic", "maybe-rotate", "lens"],
+        "layers": ["basic", "maybe-rotate", "grain", "saturation"],
         "settings": lambda: {
             "color_space": color.hsv,
-            "hue_range": .5 + random.random() * 2.0,
+            "hue_range": 0.5 + random.random() * 2.0,
             "lattice_drift": 1.0,
             "palette_on": False,
         },
@@ -2005,9 +2017,9 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires", "derivative-octaves", "refract-octaves", "erosion-worms", "density-map",
                    "maybe-invert", "shadow", "bloom", "maybe-rotate", "lens"],
         "settings": lambda: {
-            "deriv_alpha": .25 + random.random() * .25,
-            "erosion_worms_alpha": .125 + random.random() * .125,
-            "erosion_worms_contraction": .75 + random.random() * .5,
+            "deriv_alpha": 0.25 + random.random() * 0.25,
+            "erosion_worms_alpha": 0.125 + random.random() * 0.125,
+            "erosion_worms_contraction": 0.75 + random.random() * 0.5,
             "erosion_worms_density": random.randint(5, 250),
             "erosion_worms_iterations": random.randint(50, 250),
             "freq": 2,
@@ -2046,11 +2058,11 @@ PRESETS = lambda: {  # noqa E731
             "lattice_drift": 1.0,
             "mask": mask.dropout,
             "mask_static": True,
-            "refract_range": .25 + random.random() * .125,
+            "refract_range": 0.25 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": random.randint(3, 5),
-            "voronoi_refract": .25 + random.random() * .125,
-            "warp_range": .125 + random.random() * .06125,
+            "voronoi_refract": 0.25 + random.random() * 0.125,
+            "warp_range": 0.125 + random.random() * 0.0625,
         },
         "ai": {
             "prompt": "spilled ink on paper, unmixed paint",
@@ -2079,7 +2091,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "muppet-fur"],
         "settings": lambda: {
             "worms_behavior": worms.unruly,
-            "worms_drunkenness": .5 + random.random() * .25,
+            "worms_drunkenness": 0.5 + random.random() * 0.25,
             "worms_duration": 2.0 + random.random(),
         },
         "ai": {
@@ -2095,16 +2107,16 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "angle": 0,
             "freq": [128, 512],
-            "glyph_map_alpha": .5 + random.random() * .25,
+            "glyph_map_alpha": 0.5 + random.random() * 0.25,
             "glyph_map_colorize": True,
             "glyph_map_mask": mask.v_bar,
             "glyph_map_spline_order": interp.linear,
             "glyph_map_zoom": 4.0,
-            "hue_rotation": .5 + random.random() * .05,
-            "hue_range": .06125 + random.random() * .06125,
+            "hue_rotation": 0.5 + random.random() * 0.05,
+            "hue_range": 0.0625 + random.random() * 0.0625,
             "palette_on": False,
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
-            "warp_range": .0075 + random.random() * .00625,
+            "warp_range": 0.0075 + random.random() * 0.00625,
             "warp_octaves": 1,
         },
         "ai": {
@@ -2121,25 +2133,25 @@ PRESETS = lambda: {  # noqa E731
             "contrast_post": 2.0,
             "dist_metric": distance.euclidean,
             "freq": [random.randint(4, 7), random.randint(1, 3)],
-            "hue_range": .333 + random.random() * .16667,
-            "hue_rotation": .5,
-            "voronoi_alpha": .175 + random.random() * .25,
+            "hue_range": 0.333 + random.random() * 0.16667,
+            "hue_rotation": 0.5,
+            "voronoi_alpha": 0.175 + random.random() * 0.25,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_distrib": point.random,
             "voronoi_point_freq": random.randint(8, 10),
             "voronoi_refract": 5.0 + random.random() * 3.0,
             "worms_behavior": worms.chaotic,
-            "worms_alpha": .175 + random.random() * .25,
+            "worms_alpha": 0.175 + random.random() * 0.25,
             "worms_density": 500,
             "worms_duration": 2.0,
             "worms_kink": 192,
             "worms_stride": 1.0,
-            "worms_stride_deviation": .06125,
+            "worms_stride_deviation": 0.0625,
         },
         "ai": {
             "prompt": "great red spot of jupiter, jovian clouds, gas giant atmosphere, juno satellite imagery, storms, hurricanes, cyclones, jetstream, swirling, unmixed, eddies",
             "image_strength": 0.35,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         },
     },
@@ -2148,13 +2160,13 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "refract-octaves", "refract-post", "shadow", "lens"],
         "settings": lambda: {
             "corners": True,
-            "refract_range": .5 + random.random() * .5,
+            "refract_range": 0.5 + random.random() * 0.5,
             "ridges": coin_flip(),
         },
         "ai": {
             "prompt": "distorted glass refracting a psychedelic fractal pattern",
             "image_strength": 0.375,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "photographic"
         }
     },
@@ -2177,16 +2189,21 @@ PRESETS = lambda: {  # noqa E731
                    point_freq=settings["kaleido_point_freq"],
                    sdf_sides=settings["kaleido_sdf_sides"],
                    sides=settings["kaleido_sides"]),
-        ]
+        ],
+        "ai": {
+            "prompt": "abstract psychedelic fractal pattern",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "knotty-clouds": {
         "layers": ["basic", "voronoi", "worms"],
         "settings": lambda: {
-            "voronoi_alpha": .125 + random.random() * .25,
+            "voronoi_alpha": 0.125 + random.random() * 0.25,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_freq": random.randint(6, 10),
-            "worms_alpha": .666 + random.random() * .333,
+            "worms_alpha": 0.666 + random.random() * 0.333,
             "worms_behavior": worms.obedient,
             "worms_density": 1000,
             "worms_duration": 1,
@@ -2213,7 +2230,7 @@ PRESETS = lambda: {  # noqa E731
             "warp_freq": random.randint(2, 4),
             "warp_spline_order": interp.bicubic,
             "warp_octaves": 2,
-            "warp_range": .05 + random.random() * .025,
+            "warp_range": 0.05 + random.random() * 0.025,
         },
         "ai": {
             "prompt": "neon blacklight psychedelic fractal design",
@@ -2251,30 +2268,33 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "lens": {
-        "layers": ["lens-distortion", "aberration", "vaseline", "tint", "vignette-dark", "brightness-final",
-                   "contrast-final"],
+        "layers": ["lens-distortion", "aberration", "vaseline", "tint", "vignette-dark"],
         "settings": lambda: {
-            "brightness_final": .05 + random.random() * .025,
-            "contrast_final": 1.05 + random.random() * .05,
+            "lens_brightness": 0.0125 + random.random() * 0.00625,
+            "lens_contrast": 1.025 + random.random() * 0.0125
         },
+        "final": lambda settings: [
+            Preset("brightness-final", settings={"brightness_final": settings["lens_brightness"]}),
+            Preset("contrast-final", settings={"contrast_final": settings["lens_contrast"]})
+        ]
     },
 
     "lens-distortion": {
         "final": lambda settings: [
-            Effect("lens_distortion", displacement=(.25 + random.random() * .125) * (1 if coin_flip() else -1)),
+            Effect("lens_distortion", displacement=(.125 + random.random() * 0.0625) * (1 if coin_flip() else -1)),
         ]
     },
 
     "lens-warp": {
         "post": lambda settings: [
-            Effect("lens_warp", displacement=.125 + random.random() * .06125),
-            Effect("lens_distortion", displacement=.25 + random.random() * .125 * (1 if coin_flip() else -1)),
+            Effect("lens_warp", displacement=.125 + random.random() * 0.0625),
+            Effect("lens_distortion", displacement=.25 + random.random() * 0.125 * (1 if coin_flip() else -1)),
         ]
     },
 
     "light-leak": {
         "layers": ["vignette-bright"],
-        "final": lambda settings: [Effect("light_leak", alpha=.125 + random.random() * .06125), Preset("bloom")]
+        "final": lambda settings: [Effect("light_leak", alpha=.125 + random.random() * 0.0625), Preset("bloom")]
     },
 
     "look-up": {
@@ -2285,13 +2305,13 @@ PRESETS = lambda: {  # noqa E731
             "contrast_final": 1.5,
             "distrib": distrib.exp,
             "freq": random.randint(30, 40),
-            "hue_range": .333 + random.random() * .333,
+            "hue_range": 0.333 + random.random() * 0.333,
             "lattice_drift": 0,
             "mask": mask.sparsest,
             "octaves": 10,
             "ridges": True,
-            "saturation": .5,
-            "speed": .025,
+            "saturation": 0.5,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "night sky, stars, milky way, lens flare, stargazing",
@@ -2333,7 +2353,7 @@ PRESETS = lambda: {  # noqa E731
             "brightness_distrib": distrib.ones,
             "freq": random.randint(3, 4),
             "hue_range": random.randint(3, 4),
-            "speed": .025,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "psychedelic fractal artwork, swirling, unmixed, trippy",
@@ -2349,7 +2369,7 @@ PRESETS = lambda: {  # noqa E731
             "worms_alpha": 1,
             "worms_behavior": random_member([worms.obedient, worms.crosshatch]),
             "worms_density": 750,
-            "worms_duration": .25,
+            "worms_duration": 0.25,
             "worms_kink": random.randint(1, 3),
             "worms_stride": random.randint(64, 256),
         },
@@ -2369,11 +2389,12 @@ PRESETS = lambda: {  # noqa E731
 
     "maybe-palette": {
         "settings": lambda: {
+            "palette_alpha": 0.5 + random.random() * 0.5,
             "palette_name": random_member(PALETTES),
-            "palette_on": coin_flip(),
+            "palette_on": random.random() < 0.375,
         },
         "post": lambda settings: [] if not settings["palette_on"] else [
-            Effect("palette", name=settings["palette_name"])
+            Effect("palette", name=settings["palette_name"], alpha=settings["palette_alpha"])
         ]
     },
 
@@ -2400,8 +2421,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "macpaint, classic computing, truchet pattern, bitmap, 1-bit graphics",
-            "image_strength": .75,
-            "cfg_scale": 35,
+            "image_strength": 0.75,
+            "cfg_scale": 25,
             "style_preset": "pixel-art",
         }
     },
@@ -2412,7 +2433,7 @@ PRESETS = lambda: {  # noqa E731
             "octaves": random.randint(1, 2),
             "saturation": 0,
             "wormhole_kink": 128,
-            "wormhole_stride": .0005,
+            "wormhole_stride": 0.0005,
         },
         "ai": {
             "prompt": "interference patterns, moire",
@@ -2440,9 +2461,9 @@ PRESETS = lambda: {  # noqa E731
             "octaves": random.randint(4, 8)
         },
         "ai": {
-            "prompt": "psychedelic fractal art",
+            "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
     },
@@ -2457,9 +2478,9 @@ PRESETS = lambda: {  # noqa E731
             "palette_on": False,
         },
         "ai": {
-            "prompt": "psychedelic fractal art",
+            "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
     },
@@ -2470,9 +2491,9 @@ PRESETS = lambda: {  # noqa E731
             "octaves": random.randint(2, 4)
         },
         "ai": {
-            "prompt": "psychedelic fractal art",
+            "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
     },
@@ -2484,9 +2505,9 @@ PRESETS = lambda: {  # noqa E731
             "ridges": True
         },
         "ai": {
-            "prompt": "psychedelic fractal art",
+            "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
     },
@@ -2494,14 +2515,14 @@ PRESETS = lambda: {  # noqa E731
     "muppet-fur": {
         "layers": ["basic", "worms", "rotate", "bloom", "lens"],
         "settings": lambda: {
-            "hue_range": random.random() * .5,
+            "hue_range": random.random() * 0.5,
             "lattice_drift": 1.0,
             "palette_on": False,
-            "worms_alpha": .625 + random.random() * .125,
+            "worms_alpha": 0.625 + random.random() * 0.125,
             "worms_behavior": worms.unruly if coin_flip() else worms.obedient,
             "worms_density": 250,
-            "worms_stride": .75,
-            "worms_stride_deviation": .25,
+            "worms_stride": 0.75,
+            "worms_stride_deviation": 0.25,
         },
         "ai": {
             "prompt": "flow field, colorful faux fur, furry, fuzzy, fluffy, rave culture",
@@ -2521,7 +2542,7 @@ PRESETS = lambda: {  # noqa E731
             "lattice_drift": 1.0,
             "mask": mask.h_tri,
             "mask_static": True,
-            "speed": .05,
+            "speed": 0.05,
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
             "warp_range": 2.5 + random.random() * 1.25,
             "worms_behavior": worms.random,
@@ -2535,7 +2556,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "nausea": {
-        "layers": ["value-mask", "ripple", "normalize", "maybe-palette", "aberration"],
+        "layers": ["value-mask", "ripple", "normalize", "aberration"],
         "settings": lambda: {
             "color_space": color.rgb,
             "mask": random_member([mask.h_bar, mask.v_bar]),
@@ -2583,7 +2604,7 @@ PRESETS = lambda: {  # noqa E731
             "posterize_levels": random.randint(20, 25),
             "voronoi_diagram_type": voronoi.color_flow,
             "voronoi_point_distrib": point.random,
-            "wormhole_stride": .2 + random.random() * .1,
+            "wormhole_stride": 0.2 + random.random() * 0.1,
         },
         "ai": {
             "prompt": "artistic depiction of primordial underwater life, cambrian era, kelp, invertebrates",
@@ -2598,24 +2619,24 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(3, 4),
             "lattice_drift": 1,
             "reindex_range": 3,
-            "speed": .025,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence",
             "image_strength": 0.5,
-            "cfg_scale": 35,
+            "cfg_scale": 25,
         },
     },
 
     "noise-lake": {
         "layers": ["multires-low", "value-refract", "snow", "lens"],
         "settings": lambda: {
-            "hue_range": .75 + random.random() * 0.375,
+            "hue_range": 0.75 + random.random() * 0.375,
             "freq": random.randint(4, 6),
             "lattice_drift": 1.0,
             "ridges": True,
             "value_freq": random.randint(4, 6),
-            "value_refract_range": .25 + random.random() * .125,
+            "value_refract_range": 0.25 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "psychedelic fractal vibrations, lake ripples",
@@ -2656,7 +2677,7 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(3, 10),
             "hue_range": random.random(),
             "lattice_drift": coin_flip(),
-            "saturation": .5 + random.random() * .5,
+            "saturation": 0.5 + random.random() * 0.5,
             "spline_order": interp.constant,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_distrib": point.random,
@@ -2664,7 +2685,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_refract": 2.0 + random.random(),
             "warp_freq": random.randint(2, 4),
             "warp_octaves": 1,
-            "warp_range": .0375 + random.random() * .0375,
+            "warp_range": 0.0375 + random.random() * 0.0375,
             "warp_spline_order": interp.bicubic,
         },
         "ai": {
@@ -2684,7 +2705,7 @@ PRESETS = lambda: {  # noqa E731
             "mask_repeat": random.randint(5, 10),
             "posterize_levels": 2,
             "spline_order": interp.cosine,
-            "warp_range": .25 + random.random() * .75,
+            "warp_range": 0.25 + random.random() * 0.75,
             "warp_freq": random.randint(2, 4),
             "warp_octaves": 1,
             "warp_spline_order": interp.bicubic,
@@ -2716,7 +2737,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "warp_freq": [random.randint(2, 4), random.randint(2, 4)],
             "warp_octaves": random.randint(1, 4),
-            "warp_range": .5 + random.random() * .25,
+            "warp_range": 0.5 + random.random() * 0.25,
             "warp_signed_range": False,
             "warp_spline_order": interp.bicubic
         },
@@ -2732,7 +2753,7 @@ PRESETS = lambda: {  # noqa E731
 
     "octave-warp-post": {
         "settings": lambda: {
-            "speed": .025 + random.random() * .0125,
+            "speed": 0.025 + random.random() * 0.0125,
             "warp_freq": random.randint(2, 3),
             "warp_octaves": random.randint(2, 4),
             "warp_range": 2.0 + random.random(),
@@ -2761,7 +2782,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "oldschool": {
-        "layers": ["voronoi", "normalize", "maybe-palette", "random-hue", "saturation", "distressed"],
+        "layers": ["voronoi", "normalize", "random-hue", "saturation", "distressed"],
         "settings": lambda: {
             "color_space": color.rgb,
             "corners": True,
@@ -2770,11 +2791,11 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(2, 5) * 2,
             "mask": mask.chess,
             "spline_order": interp.constant,
-            "speed": .05,
+            "speed": 0.05,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_distrib": point.random,
             "voronoi_point_freq": random.randint(4, 8),
-            "voronoi_refract": random.randint(8, 12) * .5,
+            "voronoi_refract": random.randint(8, 12) * 0.5,
         },
         "ai": {
             "prompt": "a distorted psychedelic black and white checker pattern, groovy, psychedelia, peace and love, vintage, monochrome",
@@ -2786,7 +2807,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "oracle": {
-        "layers": ["value-mask", "maybe-palette", "random-hue", "maybe-invert", "crt"],
+        "layers": ["value-mask", "random-hue", "maybe-invert", "crt"],
         "settings": lambda: {
             "corners": True,
             "freq": [14, 8],
@@ -2828,13 +2849,13 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.exp,
             "freq": 4,
-            "hue_range": .875 + random.random() * .25,
+            "hue_range": 0.875 + random.random() * 0.25,
             "lattice_drift": 1,
             "octave_blending": blend.reduce_max,
             "octaves": 8,
-            "refract_range": .1 + random.random() * .05,
-            "saturation_final": .5,
-            "speed": .05,
+            "refract_range": 0.1 + random.random() * 0.05,
+            "saturation_final": 0.5,
+            "speed": 0.05,
         },
         "ai": {
             "prompt": "oxidation, oxidized metal, rusted iron, corrosive, corrosion, sulfurous, rough texture",
@@ -2859,18 +2880,18 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "ripple", "funhouse", "maybe-rotate", "saturation", "grain"],
         "settings": lambda: {
             "distrib": distrib.uniform,
-            "hue_range": .333 + random.random() * .666,
+            "hue_range": 0.333 + random.random() * 0.666,
             "mask": random_member(mask.grid_members()),
             "mask_repeat": 1,
             "octaves": 8,
             "ridges": True,
             "ripple_freq": random.randint(4, 6),
-            "ripple_kink": .06125 + random.random() * .125,
-            "ripple_range": .06125 + random.random() * .125,
+            "ripple_kink": 0.0625 + random.random() * 0.125,
+            "ripple_range": 0.0625 + random.random() * 0.125,
             "spline_order": interp.linear,
             "warp_freq": random.randint(5, 7),
             "warp_octaves": 8,
-            "warp_range": .06125 + random.random() * .125,
+            "warp_range": 0.0625 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "abstract watercolor, fine art, painterly, textured canvas",
@@ -2887,22 +2908,42 @@ PRESETS = lambda: {  # noqa E731
         },
     },
 
+    "pantheon": {
+        "layers": ["runes-of-arecibo"],
+        "settings": lambda: {
+            "mask": random_member([mask.invaders_square, random_member(mask.glyph_members())]),
+            "mask_repeat": random.randint(2, 3) * 2,
+            "octaves": 2,
+            "posterize_levels": random.randint(3, 6),
+            "refract_range": random_member([0, random.random() * 0.05]),
+            "refract_signed_range": False,
+            "refract_y_from_offset": True,
+            "spline_order": interp.cosine,
+        },
+        "ai": {
+            "prompt": "ancient mayan gods, dieties, stone face carving, stone tablet, pantheon of mayan gods, ancient maya art and language",
+            "image_strength": 0.625,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+        },
+    },
+
     "pearlescent": {
         "layers": ["voronoi", "normalize", "refract-post", "brightness-final", "bloom", "shadow", "lens"],
         "settings": lambda: {
-            "brightness_final": .05,
+            "brightness_final": 0.05,
             "dist_metric": distance.euclidean,
             "freq": [2, 2],
             "hue_range": random.randint(3, 5),
             "octaves": random.randint(3, 5),
-            "refract_range": .5 + random.random() * .25,
+            "refract_range": 0.5 + random.random() * 0.25,
             "ridges": coin_flip(),
-            "saturation": .175 + random.random() * .25,
-            "tint_alpha": .0125 + random.random() * .06125,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "saturation": 0.175 + random.random() * 0.25,
+            "tint_alpha": 0.0125 + random.random() * 0.0625,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_freq": random.randint(3, 5),
-            "voronoi_refract": .25 + random.random() * .125,
+            "voronoi_refract": 0.25 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "iridescent material, iridescence, mica, silicate mineral, mother-of-pearl",
@@ -2917,9 +2958,14 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "freq": random.randint(1, 6),
             "distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
-            "hue_range": .25 + random.random() * .125,
+            "hue_range": 0.25 + random.random() * 0.125,
         },
-        "post": lambda settings: [Effect("normalize")]
+        "post": lambda settings: [Effect("normalize")],
+        "ai": {
+            "prompt": "abstract psychedelic design",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "periodic-refract": {
@@ -2932,25 +2978,26 @@ PRESETS = lambda: {  # noqa E731
     "pink-diamond": {
         "layers": ["periodic-distance", "periodic-refract", "refract-octaves", "refract-post", "nudge-hue", "bloom", "lens"],
         "settings": lambda: {
-            "bloom_alpha": .333 + random.random() * .16667,
+            "bloom_alpha": 0.333 + random.random() * 0.16667,
             "brightness_distrib": distrib.uniform,
             "freq": 2,
-            "hue_range": .2 + random.random() * .1,
-            "hue_rotation": .9 + random.random() * .05,
-            "refract_range": .0125 + random.random() * .006125,
+            "hue_range": 0.2 + random.random() * 0.1,
+            "hue_rotation": 0.9 + random.random() * 0.05,
+            "refract_range": 0.0125 + random.random() * 0.00625,
             "refract_y_from_offset": False,
             "ridges": True,
             "saturation_distrib": distrib.ones,
-            "speed": -.125,
+            "speed": -0.125,
             "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m)]),
-            "vaseline_alpha": .125 + random.random() * .06125,
+            "vaseline_alpha": 0.125 + random.random() * 0.0625,
         },
         "generator": lambda settings: {
             "distrib": settings["value_distrib"],
         },
         "ai": {
             "prompt": "light refracted through a pink gemstone with orange highlights",
-            "cfg_scale": 30,
+            "image_strength": 0.5,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -2974,12 +3021,12 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": distance.chebyshev,
             "distrib": distrib.ones,
             "freq": random.randint(2, 4) * 2,
-            "hue_range": random.random() * .5,
+            "hue_range": random.random() * 0.5,
             "mask": mask.chess,
             "spline_order": random.randint(1, 3),
-            "vignette_alpha": .25 + random.random() * .125,
+            "vignette_alpha": 0.25 + random.random() * 0.125,
             "warp_freq": random.randint(2, 3),
-            "warp_range": random.random() * .125,
+            "warp_range": random.random() * 0.125,
             "warp_octaves": 1,
         },
         "ai": {
@@ -2992,19 +3039,19 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-ridged", "derivative-octaves", "voronoi", "refract-post",
                    "bloom", "shadow", "contrast-post", "grain", "saturation", "lens"],
         "settings": lambda: {
-            "deriv_alpha": .333 + random.random() * .16667,
+            "deriv_alpha": 0.333 + random.random() * 0.16667,
             "dist_metric": distance.euclidean,
             "distrib": distrib.exp,
             "freq": random.randint(4, 8),
-            "hue_rotation": .575,
+            "hue_rotation": 0.575,
             "octave_blending": blend.reduce_max,
             "palette_on": False,
-            "refract_range": .01 + random.random() * .005,
-            "saturation": .75 + random.random() * .25,
+            "refract_range": 0.01 + random.random() * 0.005,
+            "saturation": 0.75 + random.random() * 0.25,
             "shadow_alpha": 1.0,
-            "tint_alpha": .0125 + random.random() * .006125,
-            "vignette_alpha": .125 + random.random() * .06125,
-            "voronoi_alpha": .925 + random.random() * .075,
+            "tint_alpha": 0.0125 + random.random() * 0.00625,
+            "vignette_alpha": 0.125 + random.random() * 0.0625,
+            "voronoi_alpha": 0.925 + random.random() * 0.075,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 2,
             "voronoi_point_distrib": point.random,
@@ -3022,6 +3069,11 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "kaleido_sides": 1
         },
+        "ai": {
+            "prompt": "abstract psychedelic fractal pattern",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "posterize": {
@@ -3041,7 +3093,7 @@ PRESETS = lambda: {  # noqa E731
                    "density-map", "invert", "shadows", "contrast-post"],
         "settings": lambda: {
             "palette_on": False,
-            "reflect_range": .75 + random.random() * 2.0,
+            "reflect_range": 0.75 + random.random() * 2.0,
         },
         "ai": {
             "prompt": "an abstract artistic representation of floating point error",
@@ -3064,24 +3116,25 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "refract-octaves", "posterize", "emboss", "maybe-invert",
                    "tint", "shadows", "saturation", "dexter", "texture", "maybe-skew", "grain"],
         "settings": lambda: {
-            "grain_brightness": .125,
+            "grain_brightness": 0.125,
             "grain_contrast": 1.125,
-            "mask": mask.invaders_square,
+            "mask": random_member(mask.glyph_members()),
             "mask_repeat": random.randint(3, 7),
             "octaves": 2,
+            "palette_on": False,
             "posterize_levels": random.randint(3, 6),
-            "saturation": .25 + random.random() * .125,
+            "saturation": 0.25 + random.random() * 0.125,
             "spline_order": interp.cosine,
-            "refract_range": .06125 + random.random() * .06125,
+            "refract_range": 0.0125 + random.random() * 0.025,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
-            "tint_alpha": .01 + random.random() * .005,
-            "vignette_alpha": .25 + random.random() * .125,
+            "tint_alpha": 0.01 + random.random() * 0.005,
+            "vignette_alpha": 0.25 + random.random() * 0.125,
         },
         "ai": {
-            "prompt": "mayan glyph writing, codex, ancient mayan stone carving, maya stelae, mayan art",
-            "image_strength": .925,
-            "cfg_scale": 35,
+            "prompt": "mayan glyph writing, codex, ancient mayan stone carving, maya stelae, mayan art and language, stone tablet, a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
+            "image_strength": 0.625,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3091,17 +3144,27 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "voronoi_alpha": 0.25 + random.random() * 0.5,
             "voronoi_diagram_type": random_member([voronoi.range, voronoi.color_range, voronoi.range_regions]),
+        },
+        "ai": {
+            "prompt": "flow field, abstract psychedelic fractal pattern",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
         }
     },
 
     "puzzler": {
         "layers": ["basic-voronoi", "maybe-invert", "wormhole"],
         "settings": lambda: {
-            "speed": .025,
+            "speed": 0.025,
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
             "voronoi_point_freq": 10,
         },
+        "ai": {
+            "prompt": "cut out pieces of paper",
+            "cfg_scale": 25,
+            "style_preset": "origami",
+        }
     },
 
     "quadrants": {
@@ -3112,22 +3175,33 @@ PRESETS = lambda: {  # noqa E731
             "reindex_range": 2,
             "spline_order": random_member([interp.cosine, interp.bicubic]),
         },
+        "ai": {
+            "prompt": "abstract fractal design",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "quilty": {
-        "layers": ["voronoi", "bloom", "grain"],
+        "layers": ["voronoi", "skew", "bloom", "grain"],
         "settings": lambda: {
             "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
-            "freq": random.randint(2, 6),
-            "saturation": random.random() * .5,
+            "freq": random.randint(2, 4),
+            "saturation": random.random() * 0.5,
             "spline_order": interp.constant,
             "voronoi_diagram_type": random_member([voronoi.range, voronoi.color_range]),
             "voronoi_nth": random.randint(0, 4),
             "voronoi_point_distrib": random_member(point.grid_members()),
             "voronoi_point_freq": random.randint(2, 4),
-            "voronoi_refract": random.randint(1, 3) * .5,
+            "voronoi_refract": random.randint(1, 3) * 0.5,
             "voronoi_refract_y_from_offset": True,
         },
+        "ai": {
+            "prompt": "patchwork quilt, soft cotton fabric",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+        }
     },
 
     "random-hue": {
@@ -3143,17 +3217,20 @@ PRESETS = lambda: {  # noqa E731
             "pixel_sort_angled": False,
             "pixel_sort_darkest": False,
             "spline_order": interp.constant,
-            "vignette_alpha": .125 + random.random() * .06125,
+            "vignette_alpha": 0.125 + random.random() * 0.0625,
             "warp_freq": random.randint(3, 5),
             "warp_octaves": random.randint(3, 5),
-            "warp_range": .125 + random.random() * .06125,
+            "warp_range": 0.125 + random.random() * 0.0625,
             "warp_spline_order": interp.constant,
         },
+        "ai": {
+            "prompt": "vector display reminiscent of classic arcade games, neon squares, rasterized shapes, glowing outlines on a black background",
+        }
     },
 
     "reflect-octaves": {
         "settings": lambda: {
-            "reflect_range": 5 + random.random() * .25,
+            "reflect_range": 5 + random.random() * 0.25,
         },
         "octaves": lambda settings: [
             Effect("refract",
@@ -3164,7 +3241,7 @@ PRESETS = lambda: {  # noqa E731
 
     "reflect-post": {
         "settings": lambda: {
-            "reflect_range": .5 + random.random() * 12.5,
+            "reflect_range": 0.5 + random.random() * 12.5,
         },
         "post": lambda settings: [
             Effect("refract",
@@ -3185,7 +3262,7 @@ PRESETS = lambda: {  # noqa E731
 
     "refract-octaves": {
         "settings": lambda: {
-            "refract_range": .5 + random.random() * .25,
+            "refract_range": 0.5 + random.random() * 0.25,
             "refract_signed_range": True,
             "refract_y_from_offset": False,
         },
@@ -3199,7 +3276,7 @@ PRESETS = lambda: {  # noqa E731
 
     "refract-post": {
         "settings": lambda: {
-            "refract_range": .125 + random.random() * 1.25,
+            "refract_range": 0.125 + random.random() * 1.25,
             "refract_signed_range": True,
             "refract_y_from_offset": True,
         },
@@ -3214,24 +3291,29 @@ PRESETS = lambda: {  # noqa E731
     "regional": {
         "layers": ["voronoi", "glyph-map", "bloom", "crt", "contrast-post"],
         "settings": lambda: {
-            "glyph_map_colorize": True,
+            "glyph_map_colorize": coin_flip(),
             "glyph_map_zoom": random.randint(4, 8),
-            "hue_range": .25 + random.random(),
+            "hue_range": 0.25 + random.random(),
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_nth": 0,
         },
+        "ai": {
+            "prompt": "a grid of glyphs and symbols, truchet pattern",
+            "image_strength": 0.5,
+            "cfg_scale": 30,
+        }
     },
 
     "reindex-octaves": {
         "settings": lambda: {
-            "reindex_range": .125 + random.random() * 2.5
+            "reindex_range": 0.125 + random.random() * 2.5
         },
         "octaves": lambda settings: [Effect("reindex", displacement=settings["reindex_range"])]
     },
 
     "reindex-post": {
         "settings": lambda: {
-            "reindex_range": .125 + random.random() * 2.5
+            "reindex_range": 0.125 + random.random() * 2.5
         },
         "post": lambda settings: [Effect("reindex", displacement=settings["reindex_range"])]
     },
@@ -3245,6 +3327,11 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_distrib": random_member(point.circular_members()),
             "voronoi_point_freq": random.randint(3, 7),
         },
+        "ai": {
+            "prompt": "retro vector design",
+            "image_strength": 0.5,
+            "cfg_scale": 30,
+        }
     },
 
     "reverb": {
@@ -3269,10 +3356,16 @@ PRESETS = lambda: {  # noqa E731
             "corners": True,
             "distrib": distrib.column_index,
             "freq": random.randint(6, 12),
-            "hue_range": .9,
+            "hue_range": 0.9,
+            "palette_on": False,
             "saturation_distrib": distrib.ones,
             "spline_order": interp.constant,
         },
+        "ai": {
+            "prompt": "abstract design, art, vintage psychedelia, rainbow, pride",
+            "image_strength": 0.75,
+            "cfg_scale": 25,
+        }
     },
 
     "ridge": {
@@ -3281,7 +3374,7 @@ PRESETS = lambda: {  # noqa E731
 
     "ripple": {
         "settings": lambda: {
-            "ripple_range": .025 + random.random() * .1,
+            "ripple_range": 0.025 + random.random() * 0.1,
             "ripple_freq": random.randint(2, 3),
             "ripple_kink": random.randint(3, 18)
         },
@@ -3301,17 +3394,27 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "runes-of-arecibo": {
-        "layers": ["value-mask", "grayscale", "posterize", "snow", "grain", "grain", "normalize",
-                   "emboss", "maybe-invert", "contrast-post", "skew", "lens", "brightness-final", "contrast-final"],
+        "layers": ["value-mask", "refract-octaves", "posterize", "emboss", "maybe-invert", "contrast-post", "skew",
+                   "grain", "texture", "vaseline", "brightness-final", "contrast-final"],
         "settings": lambda: {
-            "brightness_final": -.1,
+            "brightness_final": -0.1,
+            "color_space": color.grayscale,
             "corners": True,
             "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
-            "mask_repeat": random.randint(8, 12),
-            "posterize_levels": 1,
+            "mask_repeat": random.randint(4, 12),
+            "palette_on": False,
+            "posterize_levels": random.randint(1, 3),
+            "refract_range": 0.025 + random.random() * 0.0125,
+            "refract_signed_range": False,
+            "refract_y_from_offset": True,
             "spline_order": random_member([interp.linear, interp.cosine]),
-            "vignette_alpha": .333 + random.random() * .16667,
         },
+        "ai": {
+            "prompt": "alien glyph writing, codex, ancient alien stone carving, alien language, stone tablet",
+            "image_strength": 0.625,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+        }
     },
 
     "sands-of-time": {
@@ -3322,10 +3425,16 @@ PRESETS = lambda: {  # noqa E731
             "worms_behavior": worms.unruly,
             "worms_alpha": 1,
             "worms_density": 750,
-            "worms_duration": .25,
+            "worms_duration": 0.25,
             "worms_kink": random.randint(1, 2),
             "worms_stride": random.randint(128, 256),
         },
+        "ai": {
+            "prompt": "sand blowing away in the wind, sand scattered to the wind, particles",
+            "image_strength": 0.75,
+            "cfg_scale": 20,
+            "style_preset": "photographic",
+        }
     },
 
     "satori": {
@@ -3337,24 +3446,29 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": random.random(),
             "lattice_drift": 1,
             "ridges": True,
-            "speed": .05,
+            "speed": 0.05,
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.flow,
-            "voronoi_refract": random.randint(6, 12) * .25,
+            "voronoi_refract": random.randint(6, 12) * 0.25,
             "voronoi_point_distrib": random_member([point.random] + point.circular_members()),
             "voronoi_point_freq": random.randint(2, 8),
         },
+        "ai": {
+            "prompt": "abstract psychedelic fractal pattern",
+            "image_strength": 0.25,
+            "cfg_scale": 25,
+        }
     },
 
     "saturation": {
         "settings": lambda: {
-            "saturation_final": .333 + random.random() * .16667
+            "saturation_final": 0.333 + random.random() * 0.16667
         },
         "final": lambda settings: [Effect("adjust_saturation", amount=settings["saturation_final"])]
     },
 
     "sblorp": {
-        "layers": ["basic", "posterize", "invert", "maybe-palette", "grain", "saturation"],
+        "layers": ["basic", "posterize", "invert", "grain", "saturation"],
         "settings": lambda: {
             "color_space": color.rgb,
             "distrib": distrib.ones,
@@ -3365,6 +3479,9 @@ PRESETS = lambda: {  # noqa E731
             "octaves": random.randint(2, 3),
             "posterize_levels": 1,
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery, high-contrast ooze splattered onto a bright background",
+        }
     },
 
     "sbup": {
@@ -3376,6 +3493,9 @@ PRESETS = lambda: {  # noqa E731
             "posterize_levels": random.randint(1, 2),
             "warp_range": 1.5 + random.random(),
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery, noisy pattern on a bright background",
+        }
     },
 
     "scanline-error": {
@@ -3399,7 +3519,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "scribbles, doodles, style of pencil drawing, sketch",
-            "image_strength": .75,
+            "image_strength": 0.75,
             "cfg_scale": 25,
         }
     },
@@ -3413,18 +3533,24 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "freq": random.randint(2, 3),
             "octaves": 3,
-            "refract_range": .0025 + random.random() * .00125,
+            "refract_range": 0.0025 + random.random() * 0.00125,
             "refract_y_from_offset": False,
             "value_distrib": distrib.center_circle,
             "value_freq": random.randint(2, 3),
-            "value_refract_range": .025 + random.random() * .0125,
+            "value_refract_range": 0.025 + random.random() * 0.0125,
             "speed": 0.25,
         },
+        "ai": {
+            "prompt": "outward ripples, serene, peaceful",
+            "image_strength": 0.5,
+            "cfg_scale": 20,
+            "style_preset": "photographic",
+        }
     },
 
     "shadow": {
         "settings": lambda: {
-            "shadow_alpha": .5 + random.random() * .25
+            "shadow_alpha": 0.5 + random.random() * 0.25
         },
         "post": lambda settings: [Effect("shadow", alpha=settings["shadow_alpha"])]
     },
@@ -3438,9 +3564,9 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "shape-party": {
-        "layers": ["voronoi", "posterize", "invert", "aberration", "bloom"],
+        "layers": ["voronoi", "posterize", "invert", "aberration", "grain", "saturation"],
         "settings": lambda: {
-            "aberration_displacement": .125 + random.random() * .06125,
+            "aberration_displacement": 0.125 + random.random() * 0.0625,
             "color_space": color.rgb,
             "dist_metric": distance.manhattan,
             "distrib": distrib.ones,
@@ -3450,8 +3576,11 @@ PRESETS = lambda: {  # noqa E731
             "spline_order": interp.cosine,
             "voronoi_point_freq": 2,
             "voronoi_nth": 1,
-            "voronoi_refract": .125 + random.random() * .25,
+            "voronoi_refract": 0.125 + random.random() * 0.25,
         },
+        "ai": {
+            "prompt": "abstract modern art, the shapes are having a party, festive shapes, distorted glyphs",
+        }
     },
 
     "shatter": {
@@ -3460,13 +3589,16 @@ PRESETS = lambda: {  # noqa E731
             "color_space": random_member(color.color_members()),
             "dist_metric": random_member(distance.absolute_members()),
             "posterize_levels": random.randint(4, 6),
-            "refract_range": .75 + random.random() * .375,
+            "refract_range": 0.75 + random.random() * 0.375,
             "refract_y_from_offset": True,
-            "speed": .05,
+            "speed": 0.05,
             "voronoi_inverse": coin_flip(),
             "voronoi_point_freq": random.randint(3, 5),
             "voronoi_diagram_type": voronoi.range_regions,
         },
+        "ai": {
+            "prompt": "shattered shapes, broken",
+        }
     },
 
     "shimmer": {
@@ -3476,23 +3608,31 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(2, 3),
             "hue_range": 3.0 + random.random() * 1.5,
             "lattice_drift": 1.0,
-            "refract_range": 1.25 * random.random() * .625,
+            "refract_range": 1.25 * random.random() * 0.625,
             "ridges": True,
-            "voronoi_alpha": .25 + random.random() * .125,
+            "voronoi_alpha": 0.25 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.color_flow,
             "voronoi_point_freq": 10,
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery, shimmering noise",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "shmoo": {
         "layers": ["basic", "posterize", "invert", "outline", "distressed"],
         "settings": lambda: {
             "freq": random.randint(3, 4),
-            "hue_range": 1.5 + random.random() * .75,
+            "hue_range": 1.5 + random.random() * 0.75,
             "palette_on": False,
             "posterize_levels": random.randint(1, 4),
-            "speed": .025,
+            "speed": 0.025,
         },
+        "ai": {
+            "prompt": "1970s cartoon blobs, colorful, outlined regions of solid color",
+        }
     },
 
     "sideways": {
@@ -3503,9 +3643,12 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.script,
             "palette_on": False,
             "pixel_sort_angled": False,
-            "saturation": .06125 + random.random() * .125,
+            "saturation": 0.0625 + random.random() * 0.125,
             "spline_order": random_member([m for m in interp if m != interp.constant]),
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery, sideways",
+        }
     },
 
     "simple-frame": {
@@ -3513,16 +3656,22 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "sined-multifractal": {
-        "layers": ["multires-ridged", "sine-octaves", "bloom", "lens"],
+        "layers": ["multires-ridged", "sine-octaves", "grain", "saturation"],
         "settings": lambda: {
             "distrib": distrib.uniform,
             "freq": random.randint(2, 3),
             "hue_range": random.random(),
             "hue_rotation": random.random(),
-            "lattice_drift": .75,
+            "lattice_drift": 0.75,
             "palette_on": False,
             "sine_range": random.randint(10, 15),
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
+            "style_preset": "tile-texture",
+        }
     },
 
     "sine-octaves": {
@@ -3546,11 +3695,16 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "singularity": {
-        "layers": ["basic-voronoi"],
+        "layers": ["basic-voronoi", "grain"],
         "settings": lambda: {
             "voronoi_point_freq": 1,
             "voronoi_diagram_type": random_member([voronoi.color_range, voronoi.range, voronoi.range_regions]),
         },
+        "ai": {
+            "prompt": "abstract psychedelic imagery, singularity",
+            # "image_strength": 0.5,
+            # "cfg_scale": 20,
+        }
     },
 
     "sketch": {
@@ -3567,7 +3721,7 @@ PRESETS = lambda: {  # noqa E731
 
     "snow": {
         "settings": lambda: {
-            "snow_alpha": .125 + random.random() * .06125
+            "snow_alpha": 0.125 + random.random() * 0.0625
         },
         "final": lambda settings: [Effect("snow", alpha=settings["snow_alpha"])]
     },
@@ -3580,25 +3734,22 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "soft-cells": {
-        "layers": ["voronoi", "maybe-rotate", "soften"],
+        "layers": ["voronoi", "maybe-rotate", "lens", "bloom"],
         "settings": lambda: {
-            "voronoi_alpha": .5 + random.random() * .5,
+            "color_space": random_member(color.color_members()),
+            "freq": 2,
+            "hue_range": 0.25 + random.random() * 0.25,
+            "hue_rotation": random.random(),
+            "lattice_drift": 1,
+            "octaves": random.randint(1, 4),
+            "voronoi_alpha": 0.5 + random.random() * 0.5,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
             "voronoi_point_freq": random.randint(4, 8),
         },
-    },
-
-    "soften": {
-        "layers": ["basic", "bloom", "lens"],
-        "settings": lambda: {
-            "color_space": random_member(color.color_members()),
-            "freq": 2,
-            "hue_range": .25 + random.random() * .25,
-            "hue_rotation": random.random(),
-            "lattice_drift": 1,
-            "octaves": random.randint(1, 4),
-        },
+        "ai": {
+            "prompt": "softly glowing shapes, soft cells",
+        }
     },
 
     "soup": {
@@ -3609,18 +3760,21 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(2, 3),
             "refract_range": 2.5 + random.random() * 1.25,
             "refract_y_from_offset": True,
-            "speed": .025,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "speed": 0.025,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_inverse": True,
             "voronoi_point_freq": random.randint(2, 3),
-            "worms_alpha": .75 + random.random() * .25,
+            "worms_alpha": 0.75 + random.random() * 0.25,
             "worms_behavior": worms.random,
             "worms_density": 500,
             "worms_kink": 4.0 + random.random() * 2.0,
             "worms_stride": 1.0,
             "worms_stride_deviation": 0.0,
         },
+        "ai": {
+            "prompt": "fractal flame, psychedelic fractal imagery, flow field",
+        }
     },
 
     "spaghettification": {
@@ -3631,15 +3785,18 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_inverse": True,
             "voronoi_point_freq": 1,
-            "warp_range": .5 + random.random() * .25,
+            "warp_range": 0.5 + random.random() * 0.25,
             "warp_octaves": 1,
-            "worms_alpha": .875,
+            "worms_alpha": 0.875,
             "worms_behavior": worms.chaotic,
             "worms_density": 1000,
             "worms_kink": 1.0,
             "worms_stride": random.randint(150, 250),
             "worms_stride_deviation": 0.0,
         },
+        "ai": {
+            "prompt": "fractal flame, psychedelic fractal imagery, flow field",
+        }
     },
 
     "spectrogram": {
@@ -3647,15 +3804,18 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "distrib": distrib.row_index,
             "freq": random.randint(256, 512),
-            "hue_range": .5 + random.random() * .5,
+            "hue_range": 0.5 + random.random() * 0.5,
             "mask": mask.bar_code,
             "spline_order": interp.constant,
+        },
+        "ai": {
+            "prompt": "stellar spectra, spectrum, spectrogram, spectrographic",
         }
     },
 
     "spatter-post": {
         "settings": lambda: {
-            "speed": .0333 + random.random() * .016667,
+            "speed": 0.0333 + random.random() * 0.016667,
             "spatter_post_color": True,
         },
         "post": lambda settings: [Effect("spatter", color=settings["spatter_post_color"])]
@@ -3663,27 +3823,31 @@ PRESETS = lambda: {  # noqa E731
 
     "spatter-final": {
         "settings": lambda: {
-            "speed": .0333 + random.random() * .016667,
+            "speed": 0.0333 + random.random() * 0.016667,
             "spatter_final_color": True,
         },
         "final": lambda settings: [Effect("spatter", color=settings["spatter_final_color"])]
     },
 
     "splork": {
-        "layers": ["voronoi", "posterize"],
+        "layers": ["voronoi", "posterize", "lens"],
         "settings": lambda: {
             "color_space": color.rgb,
             "dist_metric": distance.chebyshev,
             "distrib": distrib.ones,
             "freq": 33,
             "mask": mask.bank_ocr,
-            "posterize_levels": 1,
+            "palette_on": True,
+            "posterize_levels": random.randint(1, 3),
             "spline_order": interp.cosine,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 1,
             "voronoi_point_freq": 2,
-            "voronoi_refract": .125,
+            "voronoi_refract": 0.125,
         },
+        "ai": {
+            "prompt": "high contrast design with distorted symbols and geometric shapes, alien glyphs and graffiti",
+        }
     },
 
     "spooky-ticker": {
@@ -3698,12 +3862,16 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_inverse": True,
             "voronoi_point_freq": 10,
         },
+        "ai": {
+            "prompt": "stacked cubes, qbert, high detail",
+            "style_preset": "isometric"
+        }
     },
 
     "starfield": {
         "layers": ["multires-low", "brightness-post", "nebula", "contrast-post", "lens", "grain", "vignette-dark", "contrast-final"],
         "settings": lambda: {
-            "brightness_post": -.075,
+            "brightness_post": -0.075,
             "color_space": color.hsv,
             "contrast_post": 2.0,
             "distrib": distrib.exp,
@@ -3712,7 +3880,7 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.sparser,
             "mask_static": True,
             "palette_on": False,
-            "saturation": .75,
+            "saturation": 0.75,
             "spline_order": interp.linear,
         },
         "ai": {
@@ -3729,49 +3897,79 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "erosion-worms", "bloom", "lens"],
         "settings": lambda: {
             "color_space": color.rgb,
-            "erosion_worms_alpha": .875 + random.random() * .125,
+            "erosion_worms_alpha": 0.875 + random.random() * 0.125,
             "erosion_worms_contraction": 4.0 + random.random() * 2.0,
-            "erosion_worms_density": .25 + random.random() * .125,
+            "erosion_worms_density": 0.25 + random.random() * 0.125,
             "erosion_worms_iterations": random.randint(1250, 2500),
             "octaves": random.randint(2, 4),
             "palette_on": False,
             "ridges": False,
         },
+        "ai": {
+            "prompt": "flow field, fractal flame, cosmic string",
+        }
     },
 
     "subpixelator": {
         "layers": ["basic", "subpixels", "funhouse"],
+        "settings": lambda: {
+            "palette_on": False,
+        },
+        "ai": {
+            "prompt": "rgb subpixels, red green blue pixel elements, monitor macro",
+            "image_strength": 0.75,
+            "cfg_scale": 30,
+        }
     },
 
     "subpixels": {
-        "post": lambda settings: [Effect("glyph_map", mask=random_member(mask.rgb_members()), zoom=random_member([2, 4, 8]))]
+        "post": lambda settings: [
+            Effect("glyph_map",
+                   mask=random_member(mask.rgb_members()),
+                   zoom=random_member([8, 16]))
+        ]
     },
 
     "symmetry": {
-        "layers": ["basic", "maybe-palette"],
+        "layers": ["basic"],
         "settings": lambda: {
             "corners": True,
             "freq": [2, 2],
         },
+        "ai": {
+            "prompt": "soft blended colors, four-way symmetry, natural symmetry, kaleidoscope"
+        }
     },
 
     "swerve-h": {
+        "settings": lambda: {
+            "swerve_h_displacement": 0.5 + random.random() * 0.5,
+            "swerve_h_freq": [random.randint(2, 5), 1],
+            "swerve_h_octaves": 1,
+            "swerve_h_spline_order": interp.bicubic
+        },
         "post": lambda settings: [
             Effect("warp",
-                   displacement=.5 + random.random() * .5,
-                   freq=[random.randint(2, 5), 1],
-                   octaves=1,
-                   spline_order=interp.bicubic)
+                   displacement=settings["swerve_h_displacement"],
+                   freq=settings["swerve_h_freq"],
+                   octaves=settings["swerve_h_octaves"],
+                   spline_order=settings["swerve_h_spline_order"])
         ]
     },
 
     "swerve-v": {
+        "settings": lambda: {
+            "swerve_v_displacement": 0.5 + random.random() * 0.5,
+            "swerve_v_freq": [1, random.randint(2, 5)],
+            "swerve_v_octaves": 1,
+            "swerve_v_spline_order": interp.bicubic
+        },
         "post": lambda settings: [
             Effect("warp",
-                   displacement=.5 + random.random() * .5,
-                   freq=[1, random.randint(2, 5)],
-                   octaves=1,
-                   spline_order=interp.bicubic)
+                   displacement=settings["swerve_v_displacement"],
+                   freq=settings["swerve_v_freq"],
+                   octaves=settings["swerve_v_octaves"],
+                   spline_order=settings["swerve_v_spline_order"])
         ]
     },
 
@@ -3781,21 +3979,17 @@ PRESETS = lambda: {  # noqa E731
             "contrast_post": 2.0,
             "freq": (random.randint(2, 3), random.randint(24, 48)),
             "glyph_map_colorize": True,
-            "glyph_map_mask": random_member([
-                random_member([mask.alphanum_binary, mask.alphanum_numeric, mask.alphanum_hex]),
-                mask.truetype,
-                mask.ideogram,
-                mask.invaders_square,
-                random_member([mask.fat_lcd, mask.fat_lcd_binary, mask.fat_lcd_numeric, mask.fat_lcd_hex]),
-                mask.emoji,
-            ]),
-            "glyph_map_zoom": random.randint(4, 8),
-            "hue_rotation": .4 + random.random() * .2,
-            "hue_range": .25,
+            "glyph_map_mask": random_member(mask.glyph_members()),
+            "glyph_map_zoom": random.randint(2, 6),
+            "hue_rotation": 0.4 + random.random() * 0.2,
+            "hue_range": 0.25,
             "lattice_drift": 1,
             "mask": mask.dropout,
             "spline_order": interp.cosine,
         },
+        "ai": {
+            "prompt": "matrix computer code, hacker programming language, sci-fi font, language glyphs",
+        }
     },
 
     "tensor-tone": {
@@ -3819,17 +4013,25 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_freq": 2,
             "vortex_range": random.randint(8, 25),
         },
+        "ai": {
+            "prompt": "parabolic tiling, flower with four petals, four-way symmetry",
+            "image_strength": 0.875,
+            "cfg_scale": 25,
+        }
     },
 
     "terra-terribili": {
         "layers": ["multires-ridged", "shadow", "lens", "grain"],
         "settings": lambda: {
-            "hue_range": .5 + random.random() * .5,
-            "lattice_drift": 1.0,
+            "hue_range": 0.5 + random.random() * 0.5,
+            "lattice_drift": random.random(),
+            "octaves": 10,
             "palette_on": True
         },
         "ai": {
-            "prompt": "terra terribili, satellite photography, aerial photography, high detail, eroded sci-fi terrain, high-relief, geomorphology, molten hellscape, orbiter imagery, cratered surface, scarred, io, volcanoes",
+            "prompt": "terra terribili, satellite photography, aerial photography, high detail, eroded sci-fi terrain, high-relief, geomorphology, molten hellscape, orbiter imagery, cratered rocky surface, fantasy rpg zone, scarred, io, volcanoes",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3838,15 +4040,21 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "posterize", "swerve-h", "pixel-sort", "snow", "be-kind-rewind", "lens"],
         "settings": lambda: {
             "brightness_distrib": distrib.ones,
-            "distrib": random_member([m for m in distrib if distrib.is_center_distance(m) or distrib.is_scan(m)]),
+            "distrib": random_member([m for m in distrib if distrib.is_scan(m)]),
             "freq": 1,
-            "hue_range": .25 + random.random() * 1.25,
+            "hue_range": 0.5 + random.random() * 1.5,
             "pixel_sort_angled": False,
             "pixel_sort_darkest": False,
             "posterize_levels": random.randint(2, 4),
             "saturation_distrib": distrib.ones,
-            "vignette_alpha": .05 + random.random() * .025,
+            "swerve_h_displacement": 0.25 + random.random() * 0.25,
+            "vignette_alpha": 0.05 + random.random() * 0.025,
         },
+        "ai": {
+            "prompt": "broadcast tv test pattern, visual distortion pattern, wavy test card, television test signal, color bars",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
+        }
     },
 
     "texture": {
@@ -3856,9 +4064,13 @@ PRESETS = lambda: {  # noqa E731
     "the-arecibo-response": {
         "layers": ["value-mask", "snow", "crt"],
         "settings": lambda: {
-            "freq": random.randint(42, 210),
+            "freq": random.randint(21, 105),
             "mask": mask.arecibo,
+            "mask_repeat": random.randint(2, 6),
         },
+        "ai": {
+            "prompt": "response to the arecibo signal, alien message, alien language, dna double helix, nucleotides"
+        }
     },
 
     "the-data-must-flow": {
@@ -3867,7 +4079,7 @@ PRESETS = lambda: {  # noqa E731
             "color_space": color.rgb,
             "contrast_post": 2.0,
             "freq": [3, 1],
-            "worms_alpha": .95 + random.random() * .125,
+            "worms_alpha": 0.95 + random.random() * 0.125,
             "worms_behavior": worms.obedient,
             "worms_density": 2.0 + random.random(),
             "worms_duration": 1,
@@ -3884,7 +4096,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": random_member(distance.all()),
             "freq": random.randint(12, 24),
-            "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * .125),
+            "voronoi_alpha": 1.0 - (random.randint(0, 1) * random.random() * 0.125),
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 0,
             "voronoi_point_freq": 1,
@@ -3894,6 +4106,9 @@ PRESETS = lambda: {  # noqa E731
             "worms_density": 500,
             "worms_kink": random.randint(6, 24),
         },
+        "ai": {
+            "prompt": "flow field, spiralling path towards center, center distance",
+        }
     },
 
     "time-crystal": {
@@ -3904,6 +4119,12 @@ PRESETS = lambda: {  # noqa E731
             "freq": 1,
             "reflect_range": 2.0 + random.random(),
         },
+        "ai": {
+            "prompt": "light refracted through a clear crystal with prismatic colors",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+        }
     },
 
     "time-doughnuts": {
@@ -3912,11 +4133,14 @@ PRESETS = lambda: {  # noqa E731
             "distrib": distrib.center_circle,
             "freq": random.randint(2, 3),
             "posterize_levels": 2,
-            "speed": .05,
+            "speed": 0.05,
             "warp_octaves": 2,
-            "warp_range": .1 + random.random() * .05,
+            "warp_range": 0.1 + random.random() * 0.05,
             "warp_signed_range": True,
         },
+        "ai": {
+            "prompt": "distorted waves of solid color emanate from the center of the image"
+        }
     },
 
     "timeworms": {
@@ -3931,16 +4155,19 @@ PRESETS = lambda: {  # noqa E731
             "spline_order": random_member([m for m in interp if m != interp.bicubic]),
             "worms_alpha": 1,
             "worms_behavior": worms.obedient,
-            "worms_density": .25,
+            "worms_density": 0.25,
             "worms_duration": 10,
             "worms_stride": 2,
-            "worms_kink": .25 + random.random() * 2.5,
+            "worms_kink": 0.25 + random.random() * 2.5,
         },
+        "ai": {
+            "prompt": "flow field, branching and converging timelines",
+        }
     },
 
     "tint": {
         "settings": lambda: {
-            "tint_alpha": .25 + random.random() * .125
+            "tint_alpha": 0.25 + random.random() * 0.125
         },
         "final": lambda settings: [Effect("tint", alpha=settings["tint_alpha"])]
     },
@@ -3949,54 +4176,66 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["periodic-distance", "posterize", "sobel", "invert", "scanline-error", "crt"],
         "settings": lambda: {
             "distrib": distrib.center_square,
-            "hue_range": .1,
+            "hue_range": 0.1,
             "hue_rotation": random.random(),
             "posterize_levels": 1,
             "speed": 1.0,
         },
+        "ai": {
+            "prompt": "tie fighter pilot's hud view flying through the death star's ravine, vector display, trench"
+        }
     },
 
     "tri-hard": {
-        "layers": ["voronoi", "posterize-outline", "maybe-rotate", "lens"],
+        "layers": ["voronoi", "posterize-outline", "maybe-rotate", "grain", "saturation"],
         "settings": lambda: {
             "dist_metric": random_member([distance.octagram, distance.triangular, distance.hexagram]),
-            "hue_range": .125 + random.random(),
+            "hue_range": 0.125 + random.random(),
             "posterize_levels": 6,
-            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_alpha": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_point_freq": random.randint(8, 10),
-            "voronoi_refract": .333 + random.random() * .333,
+            "voronoi_refract": 0.333 + random.random() * 0.333,
             "voronoi_refract_y_from_offset": False,
         },
+        "ai": {
+            "prompt": "stylized psychedelic pattern with shapes and outlined regions of solid color",
+        }
     },
 
     "tribbles": {
-        "layers": ["voronoi", "funhouse", "normalize", "invert", "worms", "maybe-rotate", "lens"],
+        "layers": ["voronoi", "funhouse", "normalize", "invert", "contrast-post", "worms", "maybe-rotate", "lens"],
         "settings": lambda: {
+            "color_space": color.hsv,
             "dist_metric": distance.euclidean,
             "hue_range": 0.25 + random.random() * 2.5,
-            "ridges": True,
-            "saturation": .375 + random.random() * .15,
-            "voronoi_alpha": 0.5 + random.random() * .25,
+            "saturation": 0.375 + random.random() * 0.15,
+            "voronoi_alpha": 0.5 + random.random() * 0.25,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": point.h_hex,
-            "voronoi_point_drift": .25,
+            "voronoi_point_drift": 0.25,
             "voronoi_point_freq": random.randint(2, 3) * 2,
             "voronoi_nth": 0,
             "warp_freq": random.randint(2, 4),
             "warp_octaves": random.randint(2, 4),
-            "warp_range": 0.025 + random.random() * .005,
-            "worms_alpha": .75 + random.random() * .25,
+            "warp_range": 0.025 + random.random() * 0.005,
+            "worms_alpha": 0.5 + random.random() * 0.25,
             "worms_behavior": worms.unruly,
             "worms_density": 750,
-            "worms_drunkenness": random.random() * .125,
-            "worms_duration": 1.0,
+            "worms_drunkenness": random.random() * 0.125,
+            "worms_duration": 2.0,
             "worms_kink": 1.0,
-            "worms_stride": .5,
-            "worms_stride_deviation": .5,
+            "worms_stride": 0.5,
+            "worms_stride_deviation": 0.5,
         },
         "generator": lambda settings: {
             "freq": [settings["voronoi_point_freq"]] * 2,
+        },
+        "ai": {
+            "prompt": "tribbles, furry, fuzzy, fluffy, puffs",
+            "image_strength": 0.875,
+            "cfg_scale": 30,
+            "style_preset": "photographic",
         }
     },
 
@@ -4005,30 +4244,26 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "mask": mask.tromino,
             "mask_repeat": random.randint(6, 12),
-            "posterize_levels": random.randint(1, 2),
+            "posterize_levels": random.randint(1, 4),
             "spline_order": random_member([interp.constant, interp.cosine]),
         },
+        "ai": {
+            "prompt": "a grid of shapes inspired by tetrominos, geometric shapes inspired by \"Tetris\""
+        }
     },
 
     "truchet-maze": {
-        "layers": ["value-mask", "posterize", "maybe-rotate", "bloom", "lens"],
+        "layers": ["value-mask", "posterize", "maybe-rotate", "bloom", "crt"],
         "settings": lambda: {
             "angle": random_member([0, 45, random.randint(0, 360)]),
             "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
-            "mask_repeat": random.randint(15, 25),
-            "posterize_levels": 1,
+            "mask_repeat": random.randint(20, 40),
+            "posterize_levels": random.randint(1, 4),
         },
-    },
-
-    "truffula-spore": {
-        "layers": ["multires-alpha", "worms", "lens"],
-        "settings": lambda: {
-            "hue_range": 1.0 + random.random() * .5,
-            "distrib": distrib.exp,
-            "octaves": 8,
-            "palette_on": False,
-            "worms_alpha": .5,
-            "worms_behavior": worms.unruly,
+        "ai": {
+            "prompt": "maze generated with truchet tiles, `10 PRINT CHR$(205.5+RND(1)); : GOTO 10`",
+            "image_strength": .625,
+            "cfg_scale": 25,
         }
     },
 
@@ -4039,13 +4274,17 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": 2.0,
             "hue_rotation": random.random(),
             "octaves": 3,
-            "refract_range": .025 + random.random() * .0125,
+            "refract_range": 0.025 + random.random() * 0.0125,
             "refract_y_from_offset": False,
             "value_distrib": distrib.center_circle,
             "value_freq": 1,
-            "value_refract_range": .05 + random.random() * .025,
-            "speed": -.05,
+            "value_refract_range": 0.05 + random.random() * 0.025,
+            "speed": -0.05,
         },
+        "ai": {
+            "prompt": "colorful distorted ripples emanating from the center of the image",
+            "style_preset": "photographic",
+        }
     },
 
     "twisted": {
@@ -4060,6 +4299,9 @@ PRESETS = lambda: {  # noqa E731
             "worms_quantize": True,
             "worms_stride": 1.0,
             "worms_stride_deviation": 0.5,
+        },
+        "ai": {
+            "prompt": "flow field with quantized direction",
         }
     },
 
@@ -4072,8 +4314,8 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": 2.0 + random.random(),
             "lattice_drift": 1.0,
             "palette_on": False,
-            "reflect_range": .5 + random.random() * .25,
-            "refract_range": .5 + random.random() * .25,
+            "reflect_range": 0.5 + random.random() * 0.25,
+            "refract_range": 0.5 + random.random() * 0.25,
         },
         "ai": {
             "prompt": "melted paint, melting colors, unmixed",
@@ -4093,6 +4335,9 @@ PRESETS = lambda: {  # noqa E731
             "octaves": random.randint(2, 4),
             "reindex_range": 1 + random.random() * 1.5,
         },
+        "ai": {
+            "prompt": "a noodly noise field processed with sobel shading",
+        }
     },
 
     "value-mask": {
@@ -4105,13 +4350,16 @@ PRESETS = lambda: {  # noqa E731
         },
         "generator": lambda settings: {
             "freq": [int(i * settings["mask_repeat"]) for i in masks.mask_shape(settings["mask"])[0:2]],
+        },
+        "ai": {
+            "prompt": "generative noise with a masked-out pattern",
         }
     },
 
     "value-refract": {
         "settings": lambda: {
             "value_freq": random.randint(2, 4),
-            "value_refract_range": .125 + random.random() * .06125,
+            "value_refract_range": 0.125 + random.random() * 0.0625,
         },
         "post": lambda settings: [
             Effect("value_refract",
@@ -4123,7 +4371,7 @@ PRESETS = lambda: {  # noqa E731
 
     "vaseline": {
         "settings": lambda: {
-            "vaseline_alpha": .375 + random.random() * .1875
+            "vaseline_alpha": 0.375 + random.random() * 0.1875
         },
         "final": lambda settings: [Effect("vaseline", alpha=settings["vaseline_alpha"])]
     },
@@ -4140,8 +4388,13 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.color_regions,
             "voronoi_nth": 0,
             "voronoi_point_freq": 15,
-            "voronoi_point_drift": .25 + random.random() * .75,
+            "voronoi_point_drift": 0.25 + random.random() * 0.75,
         },
+        "ai": {
+            "prompt": "vector display reminiscent of classic arcade game \"asteroids\", vectorized shapes, glowing outlines on a black background",
+            "image_strength": 0.875,
+            "style_preset": "neon-punk",
+        }
     },
 
     "veil": {
@@ -4153,23 +4406,33 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_distrib": random_member(point.grid_members()),
             "voronoi_point_freq": random.randint(2, 3),
             "worms_behavior": worms.random,
-            "worms_kink": .5 + random.random(),
+            "worms_kink": 0.5 + random.random(),
             "worms_stride": random.randint(48, 96),
         },
+        "ai": {
+            "prompt": "flow field, fractal flame"
+        }
     },
 
     "vibe": {
-        "layers": ["basic", "reflect-post", "lens"],
+        "layers": ["basic", "reflect-post", "posterize-outline", "grain"],
         "settings": lambda: {
             "brightness_distrib": None,
-            "hue_range": .75 + random.random() * .75,
-            "reflect_range": 1.0 + random.random() * .5,
+            "color_space": color.oklab,
+            "lattice_drift": 1.0,
+            "palette_on": False,
+            "reflect_range": 0.5 + random.random() * 0.5,
         },
+        "ai": {
+            "prompt": "psychedelic fractal imagery, vibey, subdued mood",
+            "image_strength": 0.5,
+            "cfg_scale": 20,
+        }
     },
 
     "vignette-bright": {
         "settings": lambda: {
-            "vignette_alpha": .333 + random.random() * .333,
+            "vignette_alpha": 0.333 + random.random() * 0.333,
             "vignette_brightness": 1.0,
         },
         "final": lambda settings: [
@@ -4181,7 +4444,7 @@ PRESETS = lambda: {  # noqa E731
 
     "vignette-dark": {
         "settings": lambda: {
-            "vignette_alpha": .5 + random.random() * .25,
+            "vignette_alpha": 0.5 + random.random() * 0.25,
             "vignette_brightness": 0.0,
         },
         "final": lambda settings: [
@@ -4197,13 +4460,13 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.all()),
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": random_member([t for t in voronoi if t != voronoi.none]),
-            "voronoi_sdf_sides": random.randint(1, 4) * 2 + 1,
+            "voronoi_sdf_sides": random.randint(2, 8),
             "voronoi_inverse": False,
             "voronoi_nth": random.randint(0, 2),
             "voronoi_point_corners": False,
             "voronoi_point_distrib": point.random if coin_flip() else random_member(point, mask.nonprocedural_members()),
             "voronoi_point_drift": 0.0,
-            "voronoi_point_freq": random.randint(4, 10),
+            "voronoi_point_freq": random.randint(8, 15),
             "voronoi_point_generations": 1,
             "voronoi_refract": 0,
             "voronoi_refract_y_from_offset": True,
@@ -4223,14 +4486,23 @@ PRESETS = lambda: {  # noqa E731
                    with_refract=settings["voronoi_refract"],
                    refract_y_from_offset=settings["voronoi_refract_y_from_offset"],
                    sdf_sides=settings["voronoi_sdf_sides"])
-        ]
+        ],
+        "ai": {
+            "prompt": "voronoi diagram overlayed on a field of value noise",
+            "image_strength": .75,
+        },
     },
 
     "voronoi-refract": {
         "layers": ["voronoi"],
         "settings": lambda: {
-            "voronoi_refract": .25 + random.random() * .25
-        }
+            "palette_on": False,
+            "voronoi_refract": 0.25 + random.random() * 0.75
+        },
+        "ai": {
+            "prompt": "value noise warped and deformed by a voronoi diagram, refracted colors",
+            "image_strength": .75,
+        },
     },
 
     "vortex": {
@@ -4241,58 +4513,62 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "warped-cells": {
-        "layers": ["voronoi", "ridge", "funhouse", "bloom", "grain", "lens"],
+        "layers": ["voronoi", "ridge", "funhouse", "bloom", "grain"],
         "settings": lambda: {
             "dist_metric": random_member(distance.absolute_members()),
-            "voronoi_alpha": .333 + random.random() * .333,
+            "voronoi_alpha": 0.666 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 0,
             "voronoi_point_distrib": random_member(point, mask.nonprocedural_members()),
             "voronoi_point_freq": random.randint(6, 10),
-            "warp_range": .25 + random.random() * .25,
+            "warp_range": 0.25 + random.random() * 0.25,
         },
-    },
-
-    "what-do-they-want": {
-        "layers": ["value-mask", "sobel", "invert", "skew", "bloom", "lens"],
-        "settings": lambda: {
-            "corners": True,
-            "dist_metric": distance.triangular,
-            "distrib": distrib.ones,
-            "mask": random_member([mask.invaders_square, mask.matrix]),
-            "mask_repeat": random.randint(4, 6),
-            "octave_blending": blend.alpha,
-            "octaves": 2,
-        },
+        "ai": {
+            "prompt": "warped and distorted voronoi cells, colorful stretched shapes",
+            "image_strength": .875,
+            "cfg_scale": 25,
+        }
     },
 
     "whatami": {
-        "layers": ["voronoi", "reindex-octaves", "reindex-post", "lens"],
+        "layers": ["voronoi", "reindex-octaves", "reindex-post", "grain", "saturation"],
         "settings": lambda: {
             "freq": random.randint(7, 9),
-            "hue_range": 3,
-            "reindex_range": 2,
-            "voronoi_alpha": .75 + random.random() * .125,
+            "hue_range": random.randint(3, 12),
+            "reindex_range": 1.5 + random.random() * 1.5,
+            "voronoi_alpha": 0.75 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.color_range,
         },
+        "ai": {
+            "prompt": "psychedelic fractal pattern with repeated bands of color",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+        }
     },
 
     "wild-kingdom": {
-        "layers": ["basic", "funhouse", "posterize-outline", "shadow", "maybe-invert", "grain", "nudge-hue", "lens"],
+        "layers": ["basic", "funhouse", "posterize-outline", "shadow", "maybe-invert", "lens", "grain", "nudge-hue"],
         "settings": lambda: {
             "color_space": color.rgb,
             "freq": 20,
             "lattice_drift": 0.333,
             "mask": mask.sparse,
             "mask_static": True,
-            "posterize_levels": 3,
+            "palette_on": False,
+            "posterize_levels": random.randint(2, 6),
             "ridges": True,
             "spline_order": interp.cosine,
-            "vaseline_alpha": .1 + random.random() * .05,
-            "vignette_alpha": .1 + random.random() * .05,
+            "vaseline_alpha": 0.1 + random.random() * 0.05,
+            "vignette_alpha": 0.1 + random.random() * 0.05,
             "warp_octaves": 3,
-            "warp_range": .0333,
+            "warp_range": 0.0333,
         },
+        "ai": {
+            "prompt": "microscopic view of single-celled organisms, glowing amoeba blobs, are they having a party?",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+        }
     },
 
     "woahdude": {
@@ -4302,12 +4578,12 @@ PRESETS = lambda: {  # noqa E731
             "freq": random.randint(3, 5),
             "hue_range": 2,
             "lattice_drift": 1,
-            "refract_range": .0005 + random.random() * .00025,
+            "refract_range": 0.0005 + random.random() * 0.00025,
             "saturation_final": 1.5,
             "sine_range": random.randint(40, 60),
-            "speed": .025,
-            "tint_alpha": .05 + random.random() * .025,
-            "voronoi_refract": .333 + random.random() * .333,
+            "speed": 0.025,
+            "tint_alpha": 0.05 + random.random() * 0.025,
+            "voronoi_refract": 0.333 + random.random() * 0.333,
             "voronoi_diagram_type": voronoi.range,
             "voronoi_nth": 0,
             "voronoi_point_distrib": random_member(point.circular_members()),
@@ -4324,8 +4600,8 @@ PRESETS = lambda: {  # noqa E731
 
     "wormhole": {
         "settings": lambda: {
-            "wormhole_kink": 1.0 + random.random() * .5,
-            "wormhole_stride": .05 + random.random() * .025
+            "wormhole_kink": 1.0 + random.random() * 0.5,
+            "wormhole_stride": 0.05 + random.random() * 0.025
         },
         "post": lambda settings: [
             Effect("wormhole",
@@ -4336,15 +4612,15 @@ PRESETS = lambda: {  # noqa E731
 
     "worms": {
         "settings": lambda: {
-            "worms_alpha": .75 + random.random() * .25,
+            "worms_alpha": 0.75 + random.random() * 0.25,
             "worms_behavior": random_member(worms.all()),
             "worms_density": random.randint(250, 500),
             "worms_drunkenness": 0.0,
-            "worms_duration": 1.0 + random.random() * .5,
-            "worms_kink": 1.0 + random.random() * .5,
+            "worms_duration": 1.0 + random.random() * 0.5,
+            "worms_kink": 1.0 + random.random() * 0.5,
             "worms_quantize": False,
-            "worms_stride": .75 + random.random() * .5,
-            "worms_stride_deviation": random.random() + .5
+            "worms_stride": 0.75 + random.random() * 0.5,
+            "worms_stride_deviation": random.random() + 0.5
         },
         "post": lambda settings: [
             Effect("worms",
@@ -4367,12 +4643,15 @@ PRESETS = lambda: {  # noqa E731
             "lattice_drift": coin_flip(),
             "octaves": random.randint(1, 3),
             "palette_name": None,
-            "worms_alpha": .5 + random.random() * .5,
+            "worms_alpha": 0.5 + random.random() * 0.5,
             "worms_behavior": worms.chaotic,
             "worms_density": 500,
             "worms_kink": 1.0 + random.random() * 4.0,
             "worms_stride": 8.0 + random.random() * 4.0,
         },
+        "ai": {
+            "prompt": "flow field, fractal flame, noise contours",
+        }
     },
 
     "writhe": {
@@ -4380,12 +4659,12 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": color.oklab,
             "ridges": True,
-            "speed": .025,
+            "speed": 0.025,
             "warp_freq": [random.randint(2, 3), random.randint(2, 3)],
             "warp_range": 5.0 + random.random() * 2.5,
         },
         "ai": {
-            "prompt": "",
+            "prompt": "a writhing mass of overlapping noise, seething chaos",
         }
     },
 
@@ -4400,7 +4679,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "8-bit tiled sprites, retro rpg map, classic arcade game, fantasy dungeon",
-            "image_strength": .625,
+            "image_strength": 0.625,
             "cfg_scale": 30,
             "style_preset": "pixel-art",
         }

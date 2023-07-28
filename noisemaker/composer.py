@@ -18,11 +18,11 @@ SETTINGS_KEY = "settings"
 
 ALLOWED_KEYS = ["layers", SETTINGS_KEY, "generator", "octaves", "post", "final", "ai", "unique"]
 
-# These correspond to https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
+# These correspond to https://platform.stability.ai/docs/api-reference#tag/v1generation/operation/textToImage
 ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset"]
 
 # Don't raise an exception if the following keys are unused in settings
-UNUSED_OKAY = ["ai", "angle", "palette_name", "speed"]
+UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "speed"]
 
 # Populated by reload_presets() after setting random seed
 GENERATOR_PRESETS = {}
@@ -41,23 +41,8 @@ class Preset:
 
         prototype = presets.get(preset_name)
 
-        # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
-        _ai_settings = prototype.get("ai", {})
-        for k in _ai_settings:
-            if k not in ALLOWED_AI_KEYS:
-                raise ValueError(f"Preset named \"{preset_name}\" has disallowed AI key \"{k}\"")
-
-        self.ai_settings = {
-            "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", psychedelic fractal imagery"),
-            "image_strength": _ai_settings.get("image_strength", 0.625),
-            "cfg_scale": _ai_settings.get("cfg_scale", 15),
-            "style_preset": _ai_settings.get("style_preset", "digital-art"),
-        }
-
-        self.ai_settings.update(prototype.get("ai_settings", {}))
-
         if prototype is None:
-            raise ValueError(f"Preset named \"{preset_name}\" was not found among the available presets.")
+            raise ValueError(f"Preset \"{preset_name}\" was not found among the available presets.")
 
         if not isinstance(prototype, dict):
             raise ValueError(f"Preset \"{preset_name}\" should be a dict, not \"{type(prototype)}\"")
@@ -65,15 +50,18 @@ class Preset:
         # To avoid mistakes in presets, unknown top-level keys are disallowed.
         for key in prototype:
             if key not in ALLOWED_KEYS:
-                raise ValueError(f"Key \"{key}\" is not permitted. Allowed keys are: {ALLOWED_KEYS}")
+                raise ValueError(f"Preset \"{preset_name}\": Key \"{key}\" is not permitted. " \
+                                 f"Allowed keys are: {ALLOWED_KEYS}")
 
+        # Build a flat list of parent preset names, in topological order.
         self.flattened_layers = []
         _flatten_ancestors(self.name, presets, {}, self.flattened_layers)
 
-        # The "settings" dict provides overridable args to generator, octaves, post, and final
+        # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
+        # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
         self.settings = SettingsDict(_flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets))
 
-        if settings:  # Inline overrides from caller (from CLI)
+        if settings:  # Inline overrides from caller (such as from CLI)
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
@@ -88,8 +76,28 @@ class Preset:
         # A list of callable effects functions, to be applied in order after everything else
         self.final_effects = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
 
-        # To avoid mistakes in presets, unused keys are disallowed.
-        self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
+        try:
+            # To avoid mistakes in presets, unused keys are disallowed.
+            self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
+        except Exception as e:
+            raise ValueError(f"Preset \"{preset_name}\": {e}")
+
+        # AI post-processing settings are not currently inherited, but are specified on a per-preset basis.
+        _ai_settings = prototype.get("ai", {})
+        for k in _ai_settings:
+            if k not in ALLOWED_AI_KEYS:
+                raise ValueError(f"Preset \"{preset_name}\": Disallowed key in \"ai\" section: " \
+                                 f"\"{k}\"")
+
+        self.ai_settings = {
+            "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", psychedelic fractal imagery"),
+            "image_strength": _ai_settings.get("image_strength", 0.625),
+            "cfg_scale": _ai_settings.get("cfg_scale", 15),
+            "style_preset": _ai_settings.get("style_preset", "digital-art"),
+        }
+
+        self.ai_settings.update(prototype.get("ai_settings", {}))
+
 
     def __str__(self):
         return f"<Preset \"{self.name}\">"
@@ -168,10 +176,18 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
             ancestor = presets[ancestor_name].get(key, lambda _: default)
 
         if callable(ancestor):
-            if key == SETTINGS_KEY:
-                ancestor = ancestor()
-            else:
-                ancestor = ancestor(settings)
+            try:
+                if key == SETTINGS_KEY:
+                    ancestor = ancestor()
+                else:
+                    ancestor = ancestor(settings)
+
+            except Exception as e:
+                if preset.name == ancestor_name:
+                    raise
+                else:
+                    raise ValueError(f"In ancestor \"{ancestor_name}\": {e}")
+
         else:
             raise ValueError(f"{ancestor_name}: Key \"{key}\" wasn't wrapped in a lambda. " +
                               "This can cause unexpected results for the given seed.")
@@ -194,7 +210,7 @@ def random_member(*collections):
 
     for c in collections:
         if not hasattr(c, "__iter__"):
-            raise ValueError(f"Args to random_member() should be iterable (collection, enum list, or enum)")
+            raise ValueError(f"random_member(arg) should be iterable (collection, enum list, or enum)")
 
         if isinstance(collection, EnumMeta):
             collection += list(c)
@@ -250,7 +266,7 @@ def reload_presets(presets):
 
 
 class UnusedKeys(Exception):
-    """Exception raised when a preset has keys that aren't being used"""
+    """Exception raised when a preset has keys that aren't being used."""
 
     pass
 

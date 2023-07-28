@@ -388,7 +388,6 @@ class ValueMask(Enum):
     sparsest = 1002
 
     invaders = 1003
-
     invaders_square = 1004
 
     matrix = 1005
@@ -479,6 +478,18 @@ class ValueMask(Enum):
     @classmethod
     def is_procedural(cls, member):
         return member.value >= cls.sparse.value
+
+    @classmethod
+    def glyph_members(cls):
+        return [m for m in cls if
+                    (m.value >= cls.invaders.value and m.value <= cls.tromino.value) or
+                    (m.value >= cls.lcd.value and m.value <= cls.arecibo_dna.value) or
+                    m.value == cls.emoji.value or
+                    m.value == cls.bank_ocr.value]
+
+    @classmethod
+    def is_glyph(cls, member):
+        return member in glyph_members
 
 
 class VoronoiDiagramType(Enum):

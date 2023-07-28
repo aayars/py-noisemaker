@@ -12,6 +12,7 @@ from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_preset
 from noisemaker.constants import ColorSpace, ValueDistribution
 from noisemaker.presets import PRESETS
 
+import noisemaker.ai as ai
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.effects as effects
@@ -19,6 +20,9 @@ import noisemaker.util as util
 import noisemaker.value as value
 
 MAX_SEED_VALUE = 2 ** 32 - 1
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 reload_presets(PRESETS)
@@ -42,9 +46,10 @@ def main():
 @cli.seed_option()
 @cli.filename_option(default='art.png')
 @click.option('--with-ai', help="Apply image-to-image AI (requires stability.ai key)", is_flag=True, default=False)
+@click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai, preset_name):
+def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai, with_alt_text, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -58,7 +63,7 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    # print_preset(preset, with_ai)
+    print_preset(preset, with_ai)
 
     try:
         preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename, with_ai=with_ai)
@@ -66,6 +71,9 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
         raise
+
+    if with_alt_text:
+        print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
 def print_preset(preset, with_ai):
@@ -87,7 +95,7 @@ def print_preset(preset, with_ai):
             if callable(effect):
                 print(f"    - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ')}")
+                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
 
     if preset.post_effects or with_ai:
         print("  - Post:")
@@ -99,7 +107,7 @@ def print_preset(preset, with_ai):
             if callable(effect):
                 print(f"    - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ')}")
+                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
 
     if preset.octave_effects:
         print("  - Per-Octave:")
@@ -108,7 +116,7 @@ def print_preset(preset, with_ai):
             if callable(effect):
                 print(f"    - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ')}")
+                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
 
     print("")
     print("  - Settings:")
