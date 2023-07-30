@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3-slim-bookworm
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
