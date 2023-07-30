@@ -169,7 +169,7 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
     else:
         flattened_metadata = []
 
-    for ancestor_name in preset.flattened_layers + [preset.name]:
+    for ancestor_name in preset.flattened_layers:
         if key == SETTINGS_KEY:
             ancestor = presets[ancestor_name].get(key, lambda: default)
         else:
