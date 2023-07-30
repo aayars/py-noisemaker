@@ -122,7 +122,7 @@ class TestComposer(unittest.TestCase):
         preset = Preset('test-grandchild', PRESETS())
 
         with tempfile.TemporaryDirectory() as temp:
-            preset.render(shape=SHAPE, filename=os.path.join(temp, "art.jpg"))
+            preset.render(seed=1, shape=SHAPE, filename=os.path.join(temp, "art.jpg"))
 
     def test_invalid_layers(self):
         """An invalid parent preset name raises an exception at preset creation time."""
