@@ -14,7 +14,7 @@ RUN apt update -qq && \
     cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
-    pip3 install -q tensorflow==2.5.0 && \
+    pip3 install -q tensorflow==2.13.0 && \
     \
     apt remove -qq --purge -y curl git python3-pip && \
     apt autoremove -qq -y && \
