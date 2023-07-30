@@ -63,7 +63,7 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    print_preset(preset, with_ai)
+    # print_preset(preset, with_ai)
 
     try:
         preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename, with_ai=with_ai)
