@@ -359,7 +359,7 @@ PRESETS = lambda: {  # noqa E731
             "freq": [random.randint(2, 4), random.randint(2, 4)],
             "hue_distrib": None,
             "hue_range": random.random() * 0.25,
-            "hue_rotation": None,
+            "hue_rotation": random.random(),
             "lattice_drift": 0.0,
             "mask": None,
             "mask_inverse": False,
@@ -1049,7 +1049,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "stacked cubes, qbert, high detail",
-            "style_preset": "isographic"
+            "style_preset": "isometric"
         }
     },
 
@@ -1066,7 +1066,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "colorful stacked cubes, qbert",
-            "style_preset": "isographic"
+            "style_preset": "isometric"
         }
     },
 
@@ -1938,6 +1938,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a grid within a grid, recursive grids",
+            "image_strength": .5,
+            "cfg_scale": 20,
         }
     },
 
@@ -2516,6 +2518,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "worms", "rotate", "bloom", "lens"],
         "settings": lambda: {
             "hue_range": random.random() * 0.5,
+            "hue_rotation": random.random(),
             "lattice_drift": 1.0,
             "palette_on": False,
             "worms_alpha": 0.625 + random.random() * 0.125,
@@ -2623,7 +2626,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence",
-            "image_strength": 0.5,
+            "image_strength": 0.25,
             "cfg_scale": 25,
         },
     },
@@ -2766,19 +2769,6 @@ PRESETS = lambda: {  # noqa E731
                    octaves=settings["warp_octaves"],
                    spline_order=settings["warp_spline_order"])
         ]
-    },
-
-    "oklab-color-space": {
-        "layers": ["basic"],
-        "settings": lambda: {
-            "color_space": color.oklab,
-            "octaves": random.randint(1, 8),
-            "palette_on": False,
-            "ridges": coin_flip(),
-        },
-        "ai": {
-            "prompt": "a soft blend of vibrant colors",
-        }
     },
 
     "oldschool": {
@@ -3438,7 +3428,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "satori": {
-        "layers": ["multires-low", "sine-octaves", "voronoi", "contrast-post"],
+        "layers": ["multires-low", "sine-octaves", "voronoi", "contrast-post", "grain", "saturation"],
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "dist_metric": random_member(distance.absolute_members()),
@@ -3456,7 +3446,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "abstract psychedelic fractal pattern",
             "image_strength": 0.25,
-            "cfg_scale": 25,
+            "cfg_scale": 15,
         }
     },
 
