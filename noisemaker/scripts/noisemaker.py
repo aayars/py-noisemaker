@@ -3,6 +3,7 @@ from enum import Enum
 import os
 import random
 import shutil
+import subprocess
 import tempfile
 
 import click
@@ -187,9 +188,10 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @cli.option('--frame-count', type=int, default=50, help="How many frames total")
 @cli.option('--watermark', type=str)
 @cli.option('--preview-filename', type=click.Path(exists=False))
+@click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, preset_name):
+def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -209,6 +211,8 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
 
     preset = GENERATOR_PRESETS[preset_name]
 
+    caption = None
+
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
             frame_filename = f'{tmp}/{i:04d}.png'
@@ -217,10 +221,21 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
                              '--time', f'{i/frame_count:0.4f}',
                              '--filename', frame_filename]
 
-            util.check_call(['noisemaker', 'generator', preset_name,
-                             '--speed', str(_use_reasonable_speed(preset, frame_count)),
-                             '--height', str(height),
-                             '--width', str(width)] + common_params)
+            extra_params = []
+            if with_alt_text and i == 0:
+                extra_params = ['--with-alt-text']
+
+            output = subprocess.check_output(['noisemaker', 'generator', preset_name,
+                                              '--speed', str(_use_reasonable_speed(preset, frame_count)),
+                                              '--height', str(height),
+                                              '--width', str(width)] + common_params + extra_params,
+                                              universal_newlines=True).strip().split("\n")
+
+            if with_alt_text and i == 0:
+                if len(output) == 6:  # Useless extra crap that Tensorflow on Apple Silicon spews to stdout
+                    print(output[2])
+                else:
+                    print(output[1])
 
             if effect_preset:
                 util.check_call(['noisemaker', 'effect', effect_preset, frame_filename,
@@ -237,7 +252,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
                 shutil.copy(frame_filename, preview_filename)
 
         if filename.endswith(".mp4"):
-            # when you want something done right
+            # these settings are bad and they should feel bad. TODO: higher quality output
             util.check_call(['ffmpeg',
                              '-y',  # overwrite existing
                              '-framerate', '50',
