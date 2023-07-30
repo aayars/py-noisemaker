@@ -2,10 +2,10 @@
 
 #
 # stability.ai key is needed for stable diffusion.
-# Put the key in a file named: $NOISEMAKER_DIR/.stability
+# Put the key in a file named: $NOISEMAKER_DIR/.creds/.stability
 #
 # OpenAI key is needed for alt text generation.
-# Put the key in a file named: $NOISEMAKER_DIR/.openai
+# Put the key in a file named: $NOISEMAKER_DIR/.creds/.openai
 #
 # $NOISEMAKER_DIR defaults to ~/.noisemaker
 #
@@ -34,7 +34,7 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
 def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"):
     api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.stability"
+    api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
     if os.path.exists(api_key_path):
         with open(api_key_path, 'r') as fh:
             api_key = fh.read().strip()
@@ -77,7 +77,7 @@ def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"
 
 def describe(name, prompt, filename):
     api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.openai"
+    api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
     if os.path.exists(api_key_path):
         with open(api_key_path, 'r') as fh:
             api_key = fh.read().strip()
