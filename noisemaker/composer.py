@@ -265,6 +265,17 @@ def reload_presets(presets):
             raise ValueError(f"Preset \"{preset_name}\": {e}")
 
 
+def stash(key, value=None):
+    """Hold on to a variable for reference within the same lambda. Returns the stashed value."""
+
+    global _STASH
+
+    if value is not None:
+        _STASH[key] = value
+
+    return _STASH[key]
+
+
 class UnusedKeys(Exception):
     """Exception raised when a preset has keys that aren't being used."""
 
