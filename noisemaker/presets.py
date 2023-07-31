@@ -541,7 +541,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail brightly colored fluorescent blacklight outlines of a high fantasy scene over a black background",
-            "image_strength": 0.75,
+            "image_strength": 0.375,
             "cfg_scale": 25,
             "style_preset": "fantasy-art",
         }
