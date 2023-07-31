@@ -60,8 +60,6 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
     if preset_name == "random":
         preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
 
-    print(f"{preset_name.replace('-', ' ')} (seed: {seed})")
-
     preset = GENERATOR_PRESETS[preset_name]
 
     # print_preset(preset, with_ai)
@@ -72,6 +70,12 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
         raise
+
+    if preset.ai_success:
+        print(f"{preset_name.replace('-', ' ')} vs. stable diffusion (seed: {seed})")
+
+    else:
+        print(f"{preset_name.replace('-', ' ')} (seed: {seed})")
 
     if with_alt_text:
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))

@@ -98,6 +98,8 @@ class Preset:
 
         self.ai_settings.update(prototype.get("ai_settings", {}))
 
+        # This will be set to True if the call to Stable Diffusion succeeds
+        self.ai_success = False
 
     def __str__(self):
         return f"<Preset \"{self.name}\">"
