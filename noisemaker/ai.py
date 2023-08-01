@@ -75,7 +75,7 @@ def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def describe(name, prompt, filename):
+def describe(preset_name, prompt, filename):
     api_key = None
     api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
     if os.path.exists(api_key_path):
@@ -86,59 +86,84 @@ def describe(name, prompt, filename):
         if api_key is None:
             raise Exception(f"Missing OpenAI API key at {api_key_path}.")
 
+        #
+        #
+        #
         thief = ColorThief(filename)
         palette = thief.get_palette(color_count=random.randint(2,3))
 
         for color in reversed(palette):
-            prompt = f"rgb({color[0]},{color[1]},{color[2]}), " + prompt
+            prompt += f", rgb({color[0]},{color[1]},{color[2]})"
 
-        response = requests.post(
-            f"{OPENAI_API_HOST}/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": OPENAI_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "I will provide a name of a generative art composition, along with a comma-delimited list of descriptive terms. You will use this information to generate a short summary, written in the authoritative tone of a fine art critic. Put quotes around the provided name of the composition, and properly capitalize it. Additionally, input may specify RGB color codes in the format of rgb(R,G,B) in the range of 0-255, but you must convert these into human-readable color names and refer to them as such. Do not refer to RGB color code representations or quote the names. Do not put the entire summary in quotes. The summary may not exceed 250 characters."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Create a human-readable English summary to be used as a descriptive \"alt text\" image caption, for those who are unable to see the image. The name of the composition is \"{name}\", and the list of terms is: \"{prompt}\""
-                    }
-                ]
-            }
-        )
+        #
+        #
+        #
+        system_prompt = "I will provide a name of a generative art composition, " \
+                        "along with a comma-delimited list of descriptive terms. You " \
+                        "will use this information to generate a short summary, written " \
+                        "in the authoritative tone of a fine art critic. Put quotes " \
+                        "around the provided name of the composition, and properly " \
+                        "capitalize it. Additionally, input may specify RGB color codes " \
+                        "in the format of rgb(R,G,B) in the range of 0-255, but you must " \
+                        "convert these into human-readable color names and refer to them " \
+                        "as such. Do not refer to RGB color code representations or quote " \
+                        "the names. Do not put the entire summary in quotes. The summary " \
+                        "may not exceed 250 characters."
 
-        summary = response.json()['choices'][0]['message']['content']
+        user_prompt =  "Create a human-readable English summary to be used as a " \
+                       "descriptive \"alt text\" image caption, for those who are unable " \
+                      f"to see the image. The name of the composition is \"{preset_name}\", " \
+                      f"and the list of terms is: \"{prompt}\""
 
-        response = requests.post(
-            f"{OPENAI_API_HOST}/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": OPENAI_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "Sometimes the previous OpenAI assistant makes mistakes, it is your job to correct them. For the given summary of a generative art piece, perform the following fixes as necessary: Shorten the summary to 250 characters or fewer. Composition name must be in quotes and properly capitalized. Any lingering RGB color codes must be converted into human-readable color names. Color names must not be capitalized, nor in quotes. The summary paragraph must not be in quotes. Finally, check the grammar and tone of the summary, and make sure it doesn't sound too pretentious or repetitive."
-                    },
-                    {
-                        "role": "user",
-                        "content": summary
-                    }
-                ]
-            }
-        )
+        summary = _openai_query(api_key, preset_name, system_prompt, user_prompt)
 
-        summary = response.json()['choices'][0]['message']['content']
-    except Exception:
-        summary = f"\"{name}\" is an abstract generative art composition. " \
-                  "(An error occurred while trying to come up with a better description)"
+        #
+        #
+        #
+        system_prompt = "Sometimes the previous OpenAI assistant makes mistakes, it is " \
+                        "your job to correct them. For the given summary of a generative " \
+                        "art piece, perform the following fixes as necessary: Shorten " \
+                        "the summary to 250 characters or fewer. Composition name must " \
+                        "be in quotes and properly capitalized. Any lingering RGB color " \
+                        "codes must be converted into human-readable color names. Color " \
+                        "names must not be capitalized, nor in quotes. The summary " \
+                        "paragraph must not be in quotes. Take it easy with superlatives " \
+                        "such as \"captivating\" and \"mesmerizing\". Finally, check the " \
+                        "grammar and tone of the summary, and make sure it doesn't sound too " \
+                        "pretentious or repetitive."
+
+        summary = _openai_query(api_key, preset_name, system_prompt, summary)
+
+    except Exception as e:
+        summary = f"\"{preset_name}\" is an abstract generative art composition. " \
+                  f"(An error occurred while trying to come up with a better description: {e})"
 
     return summary
+
+
+def _openai_query(api_key, preset_name, system_prompt, user_prompt):
+    response = requests.post(
+        f"{OPENAI_API_HOST}/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": OPENAI_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                }
+            ]
+        }
+    )
+
+    try:
+        return response.json()['choices'][0]['message']['content']
+    except Exception as e:
+        raise Exception(f"Unexpected JSON structure: {response.json()}")
