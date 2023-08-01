@@ -818,6 +818,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "chunky knit fabric, waffle knit",
+            "image_strength": 0.5,
+            "cfg_scale": 20,
+            "style_preset": "photographic"
         }
     },
 
