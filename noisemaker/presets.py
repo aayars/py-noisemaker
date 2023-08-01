@@ -2696,6 +2696,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "now, psychedelic fractal imagery",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3514,6 +3515,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "scribbles, doodles, style of pencil drawing, sketch",
             "image_strength": 0.75,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4315,6 +4317,7 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 

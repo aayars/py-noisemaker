@@ -24,7 +24,6 @@ import tensorflow as tf
 
 
 STABILITY_API_HOST = "https://api.stability.ai"
-STABILITY_ENGINE_ID = "stable-diffusion-v1-5"
 
 OPENAI_API_HOST = "https://api.openai.com"
 OPENAI_MODEL = "gpt-3.5-turbo"
@@ -43,7 +42,7 @@ def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"
         raise Exception(f"Missing Stability API key at {api_key_path}.")
 
     response = requests.post(
-        f"{STABILITY_API_HOST}/v1/generation/{STABILITY_ENGINE_ID}/image-to-image",
+        f"{STABILITY_API_HOST}/v1/generation/{settings['model']}/image-to-image",
         headers={
             "Accept": "application/json",
             "Authorization": f"Bearer {api_key}"
@@ -131,14 +130,6 @@ def describe(preset_name, prompt, filename):
                         "such as \"captivating\" and \"mesmerizing\". Finally, check the " \
                         "grammar and tone of the summary, and make sure it doesn't sound too " \
                         "pretentious or repetitive."
-
-        summary = _openai_query(api_key, preset_name, system_prompt, summary)
-
-        #
-        #
-        #
-        system_prompt = "Ensure the text does not use any given adjective more than once, " \
-                        "and conforms to Associated Press writing standards."
 
         summary = _openai_query(api_key, preset_name, system_prompt, summary)
 

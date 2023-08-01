@@ -19,7 +19,7 @@ SETTINGS_KEY = "settings"
 ALLOWED_KEYS = ["layers", SETTINGS_KEY, "generator", "octaves", "post", "final", "ai", "unique"]
 
 # These correspond to https://platform.stability.ai/docs/api-reference#tag/v1generation/operation/textToImage
-ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset"]
+ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset", "model"]
 
 # Don't raise an exception if the following keys are unused in settings
 UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "speed"]
@@ -94,6 +94,7 @@ class Preset:
             "image_strength": _ai_settings.get("image_strength", 0.625),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
             "style_preset": _ai_settings.get("style_preset", "digital-art"),
+            "model": _ai_settings.get("model", "stable-diffusion-v1-5")
         }
 
         self.ai_settings.update(prototype.get("ai_settings", {}))
