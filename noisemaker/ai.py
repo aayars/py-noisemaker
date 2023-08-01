@@ -134,9 +134,9 @@ def describe(preset_name, prompt, filename):
 
         summary = _openai_query(api_key, preset_name, system_prompt, summary)
 
-    except Exception as e:
+    except Exception:
         summary = f"\"{preset_name}\" is an abstract generative art composition. " \
-                  f"(An error occurred while trying to come up with a better description: {e})"
+                   "(An error occurred while trying to come up with a better description)"
 
     return summary
 
