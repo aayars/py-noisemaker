@@ -72,10 +72,10 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
         raise
 
     if preset.ai_success:
-        print(f"{preset_name.replace('-', ' ')} vs. {preset.ai_settings['model']} (seed: {seed})")
+        print(f"{preset_name} vs. {preset.ai_settings['model']} (seed: {seed})")
 
     else:
-        print(f"{preset_name.replace('-', ' ')} (seed: {seed})")
+        print(f"{preset_name} (seed: {seed})")
 
     if with_alt_text:
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
