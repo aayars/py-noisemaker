@@ -4195,6 +4195,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "stylized psychedelic pattern with shapes and outlined regions of solid color",
+            "image_strength": 0.5,
         }
     },
 

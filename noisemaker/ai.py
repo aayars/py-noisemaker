@@ -31,7 +31,7 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
-def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"):
+def apply(settings, seed, input_filename):
     api_key = None
     api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
     if os.path.exists(api_key_path):
@@ -68,8 +68,39 @@ def apply(settings, seed, input_filename="art.png", output_filename="art-ai.png"
     data = response.json()
 
     for i, image in enumerate(data["artifacts"]):
-        with open(f"{output_filename}", "wb") as f:
-            tensor = tf.io.decode_png(base64.b64decode(image["base64"]))
+        tensor = tf.io.decode_png(base64.b64decode(image["base64"]))
+
+    return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
+
+def x2_upscale(input_filename):
+    api_key = None
+    api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
+    if os.path.exists(api_key_path):
+        with open(api_key_path, 'r') as fh:
+            api_key = fh.read().strip()
+
+    if api_key is None:
+        raise Exception(f"Missing Stability API key at {api_key_path}.")
+
+    if not input_filename.endswith(".png"):
+        raise Exception("Only PNG images are supported for upscale.")
+
+    response = requests.post(
+        f"{STABILITY_API_HOST}/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
+        headers={
+            "Accept": "image/png",
+            "Authorization": f"Bearer {api_key}"
+        },
+        files={
+            "image": open(input_filename, "rb")
+        }
+    )
+
+    if response.status_code != 200:
+        raise Exception("Non-200 response: " + str(response.text))
+
+    tensor = tf.io.decode_png(response.content)
 
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 

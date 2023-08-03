@@ -111,7 +111,8 @@ class Preset:
     def is_effect(self):
         return self.post_effects or self.final_effects
 
-    def render(self, seed, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png", with_ai=False):
+    def render(self, seed, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png",
+               with_supersample=False, with_ai=False, with_upscale=False):
         """Render the preset to an image file."""
 
         # import json
@@ -121,9 +122,9 @@ class Preset:
         #                           indent=4))
 
         try:
-            tensor = multires(self, seed, tensor=tensor, shape=shape,
+            tensor = multires(self, seed, tensor=tensor, shape=shape, with_supersample=with_supersample,
                               octave_effects=self.octave_effects, post_effects=self.post_effects,
-                              with_ai=with_ai, final_effects=self.final_effects,
+                              with_ai=with_ai, final_effects=self.final_effects, with_upscale=with_upscale,
                               time=time, speed=speed, **self.generator_kwargs)
 
             save(tensor, filename)

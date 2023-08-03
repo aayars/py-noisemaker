@@ -46,11 +46,14 @@ def main():
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
 @cli.filename_option(default='art.png')
-@click.option('--with-ai', help="Apply image-to-image AI (requires stability.ai key)", is_flag=True, default=False)
-@click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
+@click.option('--with-supersample', help="Use x2 supersample for anti-aliasing", is_flag=True, default=False)
+@click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
+@click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
+@click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai, with_alt_text, preset_name):
+def generator(ctx, width, height, channels, time, speed, seed, filename, with_supersample, with_ai, with_upscale,
+              with_alt_text, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -65,7 +68,8 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_ai
     # print_preset(preset, with_ai)
 
     try:
-        preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename, with_ai=with_ai)
+        preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename,
+                      with_supersample=with_supersample, with_ai=with_ai, with_upscale=with_upscale)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")

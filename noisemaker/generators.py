@@ -174,11 +174,11 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
 def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
              spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
-             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, supersample=False,
+             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, with_supersample=False,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
-             with_ai=False, final_effects=None, time=0.0, speed=1.0, tensor=None):
+             with_ai=False, final_effects=None, with_upscale=False, time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -202,7 +202,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param bool mask_inverse:
     :param bool mask_static: If True, don't animate the mask
     :param float lattice_drift: Push away from underlying lattice
-    :param bool supersample: Use 2x supersampling
+    :param bool with_supersample: Use x2 supersampling
     :param ColorSpace color_space:
     :param float hue_range: HSV hue range
     :param float|None hue_rotation: HSV hue bias
@@ -214,14 +214,19 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
     :param list[callable] octave_effects: A list of composer lambdas to invoke per-octave
     :param list[callable] post_effects: A list of composer lambdas to invoke after flattening layers
-    :param bool with_ai: Apply image-to-image before the post-processing effects
+    :param bool with_ai: AI: Apply image-to-image before the final effects pass
     :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
+    :param bool with_upscale: AI: x2 upscale final results
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
 
     Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
+
+    if with_ai and with_supersample:
+        # Supersampling makes the input too large for current AI models
+        raise Exception("--with-ai and --with-supersample may not be used together.")
 
     # Normalize input
 
@@ -232,7 +237,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
     original_shape = shape.copy()
 
-    if supersample:
+    if with_supersample:
         shape[0] *= 2
         shape[1] *= 2
 
@@ -302,21 +307,32 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
             util.save(tensor, tmp_path)
 
             try:
-                tensor = ai.apply(preset.ai_settings, seed,
-                                  input_filename=tmp_path, output_filename=tmp_path)
+                tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path)
 
                 preset.ai_success = True
 
             except Exception as e:
-                util.logger.error(f"preset.render_ai() failed: {e}\nSeed: {seed}")
+                util.logger.error(f"ai.apply() failed: {e}\nSeed: {seed}")
 
     for effect_or_preset in final + final_effects:
         tensor = _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     tensor = value.normalize(tensor)
 
-    if supersample:
+    if with_supersample:
         tensor = value.proportional_downsample(tensor, shape, original_shape)
+
+    if with_upscale:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = f"{tmp}/temp.png"
+
+            util.save(tensor, tmp_path)
+
+            try:
+                tensor = ai.x2_upscale(tmp_path)
+
+            except Exception as e:
+                util.logger.error(f"preset.upscale() failed: {e}\nSeed: {seed}")
 
     return tensor
 
