@@ -315,6 +315,7 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.375,
             "cfg_scale": 30,
             "style_preset": "neon-punk",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -333,7 +334,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "band-together": {
-        "layers": ["basic", "reindex-post", "funhouse", "shadow", "normalize"],
+        "layers": ["basic", "reindex-post", "funhouse", "shadow", "normalize", "grain"],
         "settings": lambda: {
             "freq": random.randint(6, 12),
             "reindex_range": random.randint(8, 12),
@@ -345,6 +346,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "artistic design with long bands of streaking color",
             "image_strength": 0.75,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -804,7 +806,8 @@ PRESETS = lambda: {  # noqa E731
             "warp_range": 0.0333 + random.random() * 0.016667,
         },
         "ai": {
-            "prompt": "scribbles, doodles, style of chalk art"
+            "prompt": "scribbles, doodles, style of chalk art",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -820,7 +823,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "chunky knit fabric, waffle knit",
             "image_strength": 0.5,
             "cfg_scale": 20,
-            "style_preset": "photographic"
+            "style_preset": "photographic",
         }
     },
 
@@ -3697,8 +3700,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract psychedelic imagery, singularity",
-            # "image_strength": 0.5,
-            # "cfg_scale": 20,
         }
     },
 
@@ -4565,6 +4566,7 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
