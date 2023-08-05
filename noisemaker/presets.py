@@ -2649,8 +2649,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal vibrations, lake ripples",
-            "image_strength": 0.625,
-            "cfg_scale": 30,
+            "image_strength": 0.75,
+            "cfg_scale": 20,
         },
     },
 
