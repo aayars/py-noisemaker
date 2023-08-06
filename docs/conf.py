@@ -168,5 +168,5 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return MagicMock()
 
-MOCK_MODULES = ['PIL', 'loguru', 'numpy', 'opensimplex', 'pyfastnoisesimd', 'tensorflow', 'tensorflow_addons', 'tensorflow_graphics', 'tensorflow_graphics.image', 'tensorflow_graphics.image.color_space', 'tensorflow_graphics.image.color_space.linear_rgb', 'tensorflow_graphics.image.color_space.srgb', 'skimage.transform', 'skimage.util']
+MOCK_MODULES = ['PIL', 'colorthief', 'loguru', 'numpy', 'opensimplex', 'pyfastnoisesimd', 'tensorflow', 'tensorflow_addons', 'tensorflow_graphics', 'tensorflow_graphics.image', 'tensorflow_graphics.image.color_space', 'tensorflow_graphics.image.color_space.linear_rgb', 'tensorflow_graphics.image.color_space.srgb', 'skimage.transform', 'skimage.util']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
