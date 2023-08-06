@@ -178,7 +178,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
-             with_ai=False, final_effects=None, with_upscale=False, time=0.0, speed=1.0, tensor=None):
+             with_ai=False, final_effects=None, with_upscale=False, stability_model=None,
+             time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -217,6 +218,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param bool with_ai: AI: Apply image-to-image before the final effects pass
     :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
     :param bool with_upscale: AI: x2 upscale final results
+    :param str stability_model: AI: Override the default stability.ai model
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
@@ -307,7 +309,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
             util.save(tensor, tmp_path)
 
             try:
-                tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path)
+                tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
+                                  stability_model=stability_model)
 
                 preset.ai_success = True
 

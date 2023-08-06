@@ -1302,6 +1302,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "domain warping example, fractional brownian motion",
             "image_strength": 0.75,
             "cfg_scale": 10,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2632,7 +2633,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "noise-blaster": {
-        "layers": ["multires", "reindex-octaves", "reindex-post"],
+        "layers": ["multires", "reindex-octaves", "reindex-post", "grain"],
         "settings": lambda: {
             "freq": random.randint(3, 4),
             "lattice_drift": 1,
@@ -2643,6 +2644,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal turbulence",
             "image_strength": 0.25,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 

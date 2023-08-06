@@ -5,6 +5,7 @@ import random
 import shutil
 import subprocess
 import tempfile
+import textwrap
 
 import click
 import tensorflow as tf
@@ -50,10 +51,12 @@ def main():
 @click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
+@click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
+@click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def generate(ctx, width, height, channels, time, speed, seed, filename, with_supersample, with_ai, with_upscale,
-             with_alt_text, preset_name):
+             with_alt_text, stability_model, debug_print, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -65,11 +68,13 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    # _print_preset(preset, with_ai)
+    if debug_print:
+        _debug_print(preset, with_ai, stability_model)
 
     try:
         preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename,
-                      with_supersample=with_supersample, with_ai=with_ai, with_upscale=with_upscale)
+                      with_supersample=with_supersample, with_ai=with_ai, with_upscale=with_upscale,
+                      stability_model=stability_model)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
@@ -85,59 +90,99 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def _print_preset(preset, with_ai):
-    if with_ai:
-        print("")
-        print(preset.ai_settings["prompt"])
+def _debug_print(preset, with_ai, stability_model):
+    first_column = ["Layers:"]
 
-    if preset.layers:
-        print("")
-        print("Extends: " + ", ".join(str(l).replace('-', ' ') for l in preset.flattened_layers))
+    if preset.flattened_layers:
+        first_column.append("  - Lineage (by newest):")
 
-    print("")
-    print("Layers:")
+        if not preset.flattened_layers:
+            first_column.append("    - None")
+
+        for parent in reversed(preset.flattened_layers):
+            first_column.append(f"    - {parent}")
+
+    first_column.append("")
+    first_column.append("  - Effects (by newest):")
+
+    if not preset.final_effects and not with_ai and not preset.post_effects:
+        first_column.append("    - None")
+        first_column.append("")
 
     if preset.final_effects:
-        print("  - Final:")
+        first_column.append("    - Final Pass:")
 
         for effect in reversed(preset.final_effects):
             if callable(effect):
-                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+                first_column.append(f"      - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
+                first_column.append(f"      - {effect.name.replace('_', ' ').replace('-', ' ')}")
+
+        first_column.append("")
+
+    if with_ai:
+        first_column.append(f"    - AI Settings:")
+
+        for (k, v) in sorted(preset.ai_settings.items()):
+            if stability_model and k == 'model':
+                v = stability_model
+
+            for i, line in enumerate(textwrap.wrap(f"{k.replace('_', ' ')}: {v}", 42)):
+                if i == 0:
+                    first_column.append(f"      - {line}")
+                else:
+                    first_column.append(f"        {line}")
+
+        first_column.append("")
 
     if preset.post_effects or with_ai:
-        print("  - Post:")
+        first_column.append("    - Post Pass:")
 
         if with_ai:
-            print("    - stable diffusion")
+            first_column.append("      - stable diffusion")
 
         for effect in reversed(preset.post_effects):
             if callable(effect):
-                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+                first_column.append(f"      - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
+                first_column.append(f"      - {effect.name.replace('_', ' ').replace('-', ' ')}")
+
+        first_column.append("")
 
     if preset.octave_effects:
-        print("  - Per-Octave:")
+        first_column.append("    - Per-Octave:")
 
         for effect in reversed(preset.octave_effects):
             if callable(effect):
-                print(f"    - {effect.func.__name__.replace('_', ' ')}")
+                first_column.append(f"      - {effect.func.__name__.replace('_', ' ')}")
             else:
-                print(f"    - {effect.name.replace('_', ' ').replace('-', ' ')}")
+                first_column.append(f"      - {effect.name.replace('_', ' ').replace('-', ' ')}")
 
-    print("")
-    print("  - Settings:")
+        first_column.append("")
+
+    second_column = ["Settings:"]
     for (k, v) in sorted(preset.settings.items()):
         if isinstance(v, Enum):
-            print(f"    - {k.replace('_', ' ')}: {v.name.replace('_', ' ')}")
+            second_column.append(f"  - {k.replace('_', ' ')}: {v.name.replace('_', ' ')}")
         elif isinstance(v, float):
-            print(f"    - {k.replace('_', ' ')}: {round(v, 3)}")
+            second_column.append(f"  - {k.replace('_', ' ')}: {round(v, 3)}")
         else:
-            print(f"    - {k.replace('_', ' ')}: {v}")
+            second_column.append(f"  - {k.replace('_', ' ')}: {v}")
 
-    print("")
+    second_column.append("")
+
+    for i in range(max(len(first_column), len(second_column))):
+        if i < len(first_column):
+            first = first_column[i]
+        else:
+            first = ""
+
+        if i < len(second_column):
+            second = second_column[i]
+        else:
+            second = ""
+
+        print(f"{first:50} {second}")
 
 
 @main.command(help="Apply an effect to a .png or .jpg image")

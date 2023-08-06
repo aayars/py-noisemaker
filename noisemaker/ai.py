@@ -31,7 +31,7 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
-def apply(settings, seed, input_filename):
+def apply(settings, seed, input_filename, stability_model):
     api_key = None
     api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
     if os.path.exists(api_key_path):
@@ -41,8 +41,10 @@ def apply(settings, seed, input_filename):
     if api_key is None:
         raise Exception(f"Missing Stability API key at {api_key_path}.")
 
+    model = stability_model if stability_model else settings['model']
+
     response = requests.post(
-        f"{STABILITY_API_HOST}/v1/generation/{settings['model']}/image-to-image",
+        f"{STABILITY_API_HOST}/v1/generation/{model}/image-to-image",
         headers={
             "Accept": "application/json",
             "Authorization": f"Bearer {api_key}"
