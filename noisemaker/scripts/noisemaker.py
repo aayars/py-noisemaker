@@ -69,7 +69,7 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
     preset = GENERATOR_PRESETS[preset_name]
 
     if debug_print:
-        _debug_print(preset, with_ai, stability_model)
+        _debug_print(preset, with_supersample, with_ai, with_upscale, stability_model)
 
     try:
         preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename,
@@ -90,7 +90,7 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def _debug_print(preset, with_ai, stability_model):
+def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_model):
     first_column = ["Layers:"]
 
     if preset.flattened_layers:
@@ -159,6 +159,10 @@ def _debug_print(preset, with_ai, stability_model):
                 first_column.append(f"      - {effect.name.replace('_', ' ').replace('-', ' ')}")
 
         first_column.append("")
+
+    first_column.append("Canvas:")
+    first_column.append(f"  - with supersample: {with_supersample}")
+    first_column.append(f"  - with upscale: {with_upscale}")
 
     second_column = ["Settings:"]
     for (k, v) in sorted(preset.settings.items()):
@@ -291,7 +295,7 @@ def animate(ctx, width, height, channels, seed, effect_preset, filename, save_fr
                     print(output[1])
 
             if effect_preset:
-                util.check_call(['noisemaker', 'effect', effect_preset, frame_filename,
+                util.check_call(['noisemaker', 'apply', effect_preset, frame_filename,
                                  '--no-resize',
                                  '--speed', str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))] + common_params)
 

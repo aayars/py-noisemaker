@@ -1675,7 +1675,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "tile flooring, shower tiles, symmetrical decorative design, marble, granite, ceramic",
-            "style_preset": "enhance"
+            "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -2610,6 +2611,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "trippy kaleidoscopic imagery, symmetry, mandala, nirvana",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
