@@ -17,7 +17,7 @@ from noisemaker.palettes import PALETTES
 
 import noisemaker.masks as masks
 
-#: A dictionary of presets for use with the "noisemaker generator" and "noisemaker effect" commands.
+#: Composable presets for Noisemaker. See composer.py and https://noisemaker.readthedocs.io/en/latest/composer.html
 PRESETS = lambda: {  # noqa E731
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
