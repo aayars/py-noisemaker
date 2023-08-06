@@ -101,7 +101,6 @@ See also
 --------
 
 -  `Wikipedia: Value noise`_
--  `Wikipedia: Perlin noise`_
 -  `Wikipedia: Voronoi diagram`_
 -  `Wikipedia: Worley noise`_
 
@@ -119,7 +118,6 @@ Indices and tables
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
 .. _`Wikipedia: Value noise`: https://en.wikipedia.org/wiki/Value_noise
-.. _`Wikipedia: Perlin noise`: https://en.wikipedia.org/wiki/Perlin_noise
 .. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
 .. _`Wikipedia: Worley noise`: https://en.wikipedia.org/wiki/Worley_noise
 
