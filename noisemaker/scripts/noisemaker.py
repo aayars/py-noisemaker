@@ -52,8 +52,8 @@ def main():
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generator(ctx, width, height, channels, time, speed, seed, filename, with_supersample, with_ai, with_upscale,
-              with_alt_text, preset_name):
+def generate(ctx, width, height, channels, time, speed, seed, filename, with_supersample, with_ai, with_upscale,
+             with_alt_text, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -65,7 +65,7 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_su
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    # print_preset(preset, with_ai)
+    # _print_preset(preset, with_ai)
 
     try:
         preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename,
@@ -85,7 +85,7 @@ def generator(ctx, width, height, channels, time, speed, seed, filename, with_su
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def print_preset(preset, with_ai):
+def _print_preset(preset, with_ai):
     if with_ai:
         print("")
         print(preset.ai_settings["prompt"])
@@ -149,7 +149,7 @@ def print_preset(preset, with_ai):
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECT_PRESETS)))
 @click.argument('input_filename')
 @click.pass_context
-def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filename):
+def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filename):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -199,7 +199,7 @@ def effect(ctx, seed, filename, no_resize, time, speed, preset_name, input_filen
 @click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animation(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
+def animate(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -233,7 +233,7 @@ def animation(ctx, width, height, channels, seed, effect_preset, filename, save_
             if with_alt_text and i == 0:
                 extra_params = ['--with-alt-text']
 
-            output = subprocess.check_output(['noisemaker', 'generator', preset_name,
+            output = subprocess.check_output(['noisemaker', 'generate', preset_name,
                                               '--speed', str(_use_reasonable_speed(preset, frame_count)),
                                               '--height', str(height),
                                               '--width', str(width)] + common_params + extra_params,
