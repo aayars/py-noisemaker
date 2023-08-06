@@ -91,7 +91,7 @@ class Preset:
 
         self.ai_settings = {
             "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", psychedelic fractal imagery"),
-            "image_strength": _ai_settings.get("image_strength", 0.625),
+            "image_strength": _ai_settings.get("image_strength", 0.5),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
             "style_preset": _ai_settings.get("style_preset", "digital-art"),
             "model": _ai_settings.get("model", "stable-diffusion-v1-5")

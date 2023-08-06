@@ -1192,7 +1192,8 @@ PRESETS = lambda: {  # noqa E731
             "saturation": random.randint(0, 1),
         },
         "ai": {
-            "prompt": "density plot, wave"
+            "prompt": "density plot, wave",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2872,6 +2873,7 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.625,
             "cfg_scale": 30,
             "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3456,7 +3458,8 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "abstract psychedelic fractal pattern",
             "image_strength": 0.25,
-            "cfg_scale": 15,
+            "cfg_scale": 20,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3829,7 +3832,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "splork": {
-        "layers": ["voronoi", "posterize", "lens"],
+        "layers": ["voronoi", "posterize", "distressed"],
         "settings": lambda: {
             "color_space": color.rgb,
             "dist_metric": distance.chebyshev,
@@ -3846,6 +3849,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high contrast design with distorted symbols and geometric shapes, alien glyphs and graffiti",
+            "image_strength": 0.5,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 

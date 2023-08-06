@@ -150,7 +150,7 @@ def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_mode
         first_column.append("")
 
     if preset.octave_effects:
-        first_column.append("    - Per-Octave:")
+        first_column.append("    - Per-Octave Pass:")
 
         for effect in reversed(preset.octave_effects):
             if callable(effect):
@@ -163,6 +163,7 @@ def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_mode
     first_column.append("Canvas:")
     first_column.append(f"  - with supersample: {with_supersample}")
     first_column.append(f"  - with upscale: {with_upscale}")
+    first_column.append("")
 
     second_column = ["Settings:"]
     for (k, v) in sorted(preset.settings.items()):
@@ -187,7 +188,6 @@ def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_mode
             second = ""
 
         print(f"{first:50} {second}")
-
 
 @main.command(help="Apply an effect to a .png or .jpg image")
 @cli.seed_option()
