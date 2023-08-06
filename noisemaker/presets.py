@@ -4163,7 +4163,7 @@ PRESETS = lambda: {  # noqa E731
 
     "tint": {
         "settings": lambda: {
-            "tint_alpha": 0.25 + random.random() * 0.125
+            "tint_alpha": 0.125 + random.random() * 0.05,
         },
         "final": lambda settings: [Effect("tint", alpha=settings["tint_alpha"])]
     },
@@ -4201,31 +4201,31 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "tribbles": {
-        "layers": ["voronoi", "funhouse", "invert", "worms", "maybe-rotate", "lens"],
+        "layers": ["voronoi", "funhouse", "invert", "contrast-post", "worms", "maybe-rotate", "lens"],
         "settings": lambda: {
-            "color_space": color.hsv,
+            "color_space": random_member([color.hsv, color.oklab]),
             "dist_metric": distance.euclidean,
-            "freq": random.randint(4, 10),
-            "hue_range": 0.25 + random.random() * 2.5,
+            "hue_range": 0.5 + random.random() * 2.5,
             "octaves": random.randint(1, 4),
-            "saturation": 0.375 + random.random() * 0.15,
-            "voronoi_alpha": 0.75 + random.random() * 0.25,
+            "palette_on": False,
+            "saturation": 0.375 + random.random() * 0.5,
+            "voronoi_alpha": 0.625 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": point.h_hex,
-            "voronoi_point_drift": 0.375,
-            "voronoi_point_freq": random.randint(1, 4) * 2,
+            "voronoi_point_drift": random.random() * 0.5,
+            "voronoi_point_freq": random.randint(2, 10),
             "voronoi_nth": 0,
             "warp_freq": random.randint(2, 4),
             "warp_octaves": random.randint(2, 4),
             "warp_range": 0.05 + random.random() * 0.0025,
-            "worms_alpha": 0.75 + random.random() * 0.25,
+            "worms_alpha": 0.625 + random.random() * 0.125,
             "worms_behavior": worms.unruly,
-            "worms_density": 1250,
+            "worms_density": random.randint(500, 2000),
             "worms_drunkenness": random.random() * 0.125,
-            "worms_duration": 1.0,
-            "worms_kink": 1.0,
-            "worms_stride": 1.0,
-            "worms_stride_deviation": 0.5,
+            "worms_duration": 0.25 + random.random() * 0.25,
+            "worms_kink": 0.875 + random.random() * 0.25,
+            "worms_stride": 0.75 + random.random() * 0.25,
+            "worms_stride_deviation": 0.375 + random.random() * 0.25,
         },
         "generator": lambda settings: {
             "freq": [settings["voronoi_point_freq"]] * 2,
