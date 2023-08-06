@@ -690,6 +690,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail regions of color, complex fractal",
+            "image_strength": 0.5,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2180,14 +2182,20 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "kaleido": {
-        "layers": ["symmetry", "wobble"],
+        "layers": ["voronoi-refract", "wobble"],
         "settings": lambda: {
-            "kaleido_point_corners": False,
+            "color_space": color.hsv,
+            "freq": random.randint(8, 12),
+            "hue_range": .5 + random.random() * 2.5,
+            "kaleido_point_corners": True,
             "kaleido_point_distrib": point.random,
             "kaleido_point_freq": 1,
             "kaleido_sdf_sides": random.randint(0, 10),
-            "kaleido_sides": random.randint(5, 32),
-            "kaleido_blend_edges": coin_flip(),
+            "kaleido_sides": random.randint(3, 16),
+            "kaleido_blend_edges": False,
+            "palette_on": False,
+            "speed": 0.125,
+            "voronoi_point_freq": random.randint(8, 12),
         },
         "post": lambda settings: [
             Effect("kaleido",
@@ -2200,8 +2208,9 @@ PRESETS = lambda: {  # noqa E731
         ],
         "ai": {
             "prompt": "abstract psychedelic fractal pattern",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
+            "image_strength": 0.05,
+            "cfg_scale": 35,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2975,11 +2984,13 @@ PRESETS = lambda: {  # noqa E731
     "pink-diamond": {
         "layers": ["periodic-distance", "periodic-refract", "refract-octaves", "refract-post", "nudge-hue", "bloom", "lens"],
         "settings": lambda: {
+            "color_space": color.hsv,
             "bloom_alpha": 0.333 + random.random() * 0.16667,
             "brightness_distrib": distrib.uniform,
             "freq": 2,
             "hue_range": 0.2 + random.random() * 0.1,
             "hue_rotation": 0.9 + random.random() * 0.05,
+            "palette_on": False,
             "refract_range": 0.0125 + random.random() * 0.00625,
             "refract_y_from_offset": False,
             "ridges": True,
@@ -3058,18 +3069,6 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.3,
             "cfg_scale": 30,
             "style_preset": "photographic",
-        }
-    },
-
-    "polar": {
-        "layers": ["kaleido"],
-        "settings": lambda: {
-            "kaleido_sides": 1
-        },
-        "ai": {
-            "prompt": "abstract psychedelic fractal pattern",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
         }
     },
 
