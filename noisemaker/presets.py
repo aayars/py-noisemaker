@@ -1,7 +1,7 @@
 import functools
 import random
 
-from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member
+from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
 from noisemaker.constants import (
     ColorSpace as color,
     DistanceMetric as distance,
@@ -312,9 +312,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "blacklight arcade carpet, sci-fi, day-glow, bright colorful fluorescent shapes on black background, planets, stars, nebulas, comets, rockets, ufos, spaceships, asteroids, meteors, 1980s, 1990s",
-            "image_strength": 0.375,
+            "image_strength": 0.25,
             "cfg_scale": 30,
-            "style_preset": "neon-punk",
             "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
@@ -491,6 +490,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelia, vivid colors",
             "image_strength": 0.375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1395,16 +1395,14 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": random_member(distance.all()),
             "distrib": distrib.ones,
-            "mask": random_member(enum_range(mask.emoji_00, mask.emoji_26)),
+            "mask": stash("mask", random_member(enum_range(mask.emoji_00, mask.emoji_26))),
             "mask_repeat": 1,
             "spline_order": interp.constant,
             "voronoi_alpha": 1.0,
             "voronoi_diagram_type": voronoi.range,
+            "voronoi_point_distrib": stash("mask"),
             "voronoi_refract": 0.125 + random.random() * 0.125,
             "voronoi_refract_y_from_offset": False,
-        },
-        "generator": lambda settings: {
-            "voronoi_point_distrib": settings["mask"],
         },
         "ai": {
             "prompt": "black and white design with distorted symbols and geometric shapes",

@@ -74,7 +74,6 @@ def apply(settings, seed, input_filename, stability_model):
 
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
-
 def x2_upscale(input_filename):
     api_key = None
     api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
@@ -147,7 +146,7 @@ def describe(preset_name, prompt, filename):
                       f"to see the image. The name of the composition is \"{preset_name}\", " \
                       f"and the list of terms is: \"{prompt}\""
 
-        summary = _openai_query(api_key, preset_name, system_prompt, user_prompt)
+        summary = _openai_query(api_key, system_prompt, user_prompt)
 
         #
         #
@@ -164,7 +163,7 @@ def describe(preset_name, prompt, filename):
                         "grammar and tone of the summary, and make sure it doesn't sound too " \
                         "pretentious or repetitive."
 
-        summary = _openai_query(api_key, preset_name, system_prompt, summary)
+        summary = _openai_query(api_key, system_prompt, summary)
 
     except Exception:
         summary = f"\"{preset_name}\" is an abstract generative art composition. " \
@@ -173,7 +172,26 @@ def describe(preset_name, prompt, filename):
     return summary
 
 
-def _openai_query(api_key, preset_name, system_prompt, user_prompt):
+def dream():
+    api_key = None
+    api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
+    if os.path.exists(api_key_path):
+        with open(api_key_path, 'r') as fh:
+            api_key = fh.read().strip()
+
+    if api_key is None:
+        raise Exception(f"Missing OpenAI API key at {api_key_path}.")
+
+    system_prompt = "Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination, as if it were something from a vision or dream. The image must not include humanoid forms. Do not label the answers with anything like \"Name\" or \"Description\". The description may not exceed 250 characters."
+
+    user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
+
+    generated_prompt = _openai_query(api_key, system_prompt, user_prompt)
+
+    return [a.strip() for a in generated_prompt.split(';')]
+
+
+def _openai_query(api_key, system_prompt, user_prompt):
     response = requests.post(
         f"{OPENAI_API_HOST}/v1/chat/completions",
         headers={
