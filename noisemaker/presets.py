@@ -987,7 +987,8 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "cobblestones texture, smooth cobblestone path",
             "image_strength": 0.75,
             "cfg_scale": 20,
-            "style_preset": "enhance",
+            "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1156,7 +1157,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "hubble space telescope, hst, spitzer space telescope, deep field, galaxies",
             "image_strength": 0.75,
-            "cfg_scale": 15,
+            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -2288,7 +2289,7 @@ PRESETS = lambda: {  # noqa E731
     "lens": {
         "layers": ["lens-distortion", "aberration", "vaseline", "tint", "vignette-dark"],
         "settings": lambda: {
-            "lens_brightness": 0.0125 + random.random() * 0.00625,
+            "lens_brightness": 0.025 + random.random() * 0.0125,
             "lens_contrast": 1.025 + random.random() * 0.0125
         },
         "final": lambda settings: [
@@ -2467,9 +2468,10 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "molten glass, glass blowing art, melted paint, melting colors, unmixed",
-            "image_strength": 0.5,
+            "image_strength": 0.425,
             "cfg_scale": 25,
             "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2483,6 +2485,7 @@ PRESETS = lambda: {  # noqa E731
             "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "tile-texture",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2499,7 +2502,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
             "cfg_scale": 25,
-            "style_preset": "tile-texture",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2512,7 +2515,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
             "cfg_scale": 25,
-            "style_preset": "tile-texture",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2526,7 +2529,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal imagery",
             "image_strength": 0.5,
             "cfg_scale": 25,
-            "style_preset": "tile-texture",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2808,6 +2811,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a distorted psychedelic black and white checker pattern, groovy, psychedelia, peace and love, vintage, monochrome",
+            "image_strength": 0.625,
+            "cfg_scale": 30,
         }
     },
 
@@ -2819,8 +2824,8 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "random-hue", "maybe-invert", "crt"],
         "settings": lambda: {
             "corners": True,
-            "freq": [14, 8],
             "mask": mask.iching,
+            "mask_repeat": random.randint(1, 8),
             "spline_order": interp.constant,
         },
         "ai": {
@@ -3149,6 +3154,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "flow field, abstract psychedelic fractal pattern",
             "image_strength": 0.375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3256,7 +3262,8 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "distorted funhouse mirror reflecting a psychedelic fractal pattern",
             "image_strength": 0.5,
             "cfg_scale": 30,
-            "style_preset": "photographic"
+            "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3670,9 +3677,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
-            "style_preset": "tile-texture",
+            "image_strength": 0.375,
+            "cfg_scale": 30,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 

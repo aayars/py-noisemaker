@@ -391,14 +391,14 @@ def _use_reasonable_speed(preset, frame_count):
     return preset.settings.get("speed", 0.25) * (frame_count / 50.0)
 
 
-@main.command(help="Let the machine dream whatever it wants.")
+@main.command(help="Let the machine dream whatever it wants")
 @cli.width_option()
 @cli.height_option()
 @cli.seed_option()
 @cli.filename_option(default='dream.png')
 def dream(width, height, seed, filename):
     if seed is None:
-         seed = random.randint(1, MAX_SEED_VALUE)
+        seed = random.randint(1, MAX_SEED_VALUE)
 
     name, prompt = ai.dream()
 
