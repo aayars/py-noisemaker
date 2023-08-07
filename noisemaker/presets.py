@@ -173,6 +173,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "psychedelic imagery, distorted geometric grid",
             "cfg_scale": 30,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -655,6 +656,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail brightly colored layers of broken shapes with glowing edges",
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2289,8 +2293,8 @@ PRESETS = lambda: {  # noqa E731
     "lens": {
         "layers": ["lens-distortion", "aberration", "vaseline", "tint", "vignette-dark"],
         "settings": lambda: {
-            "lens_brightness": 0.025 + random.random() * 0.0125,
-            "lens_contrast": 1.025 + random.random() * 0.0125
+            "lens_brightness": 0.05 + random.random() * 0.025,
+            "lens_contrast": 1.05 + random.random() * 0.025
         },
         "final": lambda settings: [
             Preset("brightness-final", settings={"brightness_final": settings["lens_brightness"]}),
@@ -2378,6 +2382,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal artwork, swirling, unmixed, trippy",
             "image_strength": 0.5,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2977,9 +2982,10 @@ PRESETS = lambda: {  # noqa E731
         },
         "post": lambda settings: [Effect("normalize")],
         "ai": {
-            "prompt": "abstract psychedelic design",
-            "image_strength": 0.375,
+            "prompt": "abstract psychedelic art, concentric shapes",
+            "image_strength": 0.25,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3606,7 +3612,11 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.range_regions,
         },
         "ai": {
-            "prompt": "shattered shapes, broken",
+            "prompt": "shattered shapes, broken, shards, fragments",
+            "image_strength": 0.375,
+            "cfg_scale": 25,
+            "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
