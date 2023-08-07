@@ -172,7 +172,7 @@ def describe(preset_name, prompt, filename):
     return summary
 
 
-def dream():
+def dream(nightmare=False):
     api_key = None
     api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
     if os.path.exists(api_key_path):
@@ -182,7 +182,12 @@ def dream():
     if api_key is None:
         raise Exception(f"Missing OpenAI API key at {api_key_path}.")
 
-    system_prompt = "Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination, as if it were something from a vision or dream. The image must not include humanoid forms. Do not label the answers with anything like \"Name\" or \"Description\". The description may not exceed 250 characters."
+    if nightmare:
+        flavor_text = "a dark and powerful omen portending a prophetic event, perhaps apocalyptic in nature. To know the thing is to know madness."
+    else:
+        flavor_text = "as if it were something from a vision or dream."
+
+    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination, {flavor_text} The image must not include humanoid forms. Do not label the answers with anything like \"Name\" or \"Description\". The description may not exceed 250 characters."
 
     user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
 

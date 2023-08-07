@@ -395,12 +395,13 @@ def _use_reasonable_speed(preset, frame_count):
 @cli.width_option()
 @cli.height_option()
 @cli.seed_option()
+@click.option('--nightmare', help="This isn't fun anymore", is_flag=True, default=False)
 @cli.filename_option(default='dream.png')
-def dream(width, height, seed, filename):
+def dream(width, height, seed, nightmare, filename):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
-    name, prompt = ai.dream()
+    name, prompt = ai.dream(nightmare)
 
     shape = [height, width, 3]
 
