@@ -395,22 +395,21 @@ def _use_reasonable_speed(preset, frame_count):
 @cli.width_option()
 @cli.height_option()
 @cli.seed_option()
-@click.option('--nightmare', help="This isn't fun anymore", is_flag=True, default=False)
 @cli.filename_option(default='dream.png')
-def dream(width, height, seed, nightmare, filename):
+def dream(width, height, seed, filename):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
-    name, prompt = ai.dream(nightmare)
+    name, prompt = ai.dream()
 
     shape = [height, width, 3]
 
     color_space = random_member([ColorSpace.hsv, ColorSpace.rgb, ColorSpace.oklab]) 
 
-    tensor = generators.basic(freq=[int(height * .25) or 1, int(width * .25) or 1], shape=shape, color_space=ColorSpace.oklab, hue_range=0.5 + random.random())
+    tensor = generators.basic(freq=[height, width], shape=shape, color_space=color_space, hue_range=0.5 + random.random())
 
     settings = {
-        "image_strength": 0.025,
+        "image_strength": 0.05,
         "cfg_scale": 35,
         "prompt": prompt,
         "style_preset": "photographic",
