@@ -2306,6 +2306,11 @@ def invaders(**kwargs):
     return _invaders(**kwargs)
 
 
+@mask([18, 18, 1])
+def invaders_large(**kwargs):
+    return _invaders(**kwargs)
+
+
 @mask([6, 6, 1])
 def invaders_square(**kwargs):
     return _invaders(**kwargs)

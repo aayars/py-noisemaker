@@ -583,8 +583,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery with overlapping ripples",
-            "image_strength": 0.375,
+            "image_strength": 0.225,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -601,8 +602,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a brightly colored trippy psychedelic design with overlapping waves",
-            "image_strength": 0.5,
+            "image_strength": 0.225,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -794,8 +796,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fur, flow field, geometric shapes",
-            "image_strength": 0.75,
-            "cfg_scale": 15,
+            "image_strength": 0.375,
+            "cfg_scale": 20,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1646,8 +1649,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
-            "image_strength": 0.625,
+            "image_strength": 0.375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -4566,6 +4570,7 @@ PRESETS = lambda: {  # noqa E731
             "prompt": "psychedelic fractal pattern with repeated bands of color",
             "image_strength": 0.375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 

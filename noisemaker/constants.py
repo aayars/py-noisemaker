@@ -388,25 +388,26 @@ class ValueMask(Enum):
     sparsest = 1002
 
     invaders = 1003
-    invaders_square = 1004
+    invaders_large = 1004
+    invaders_square = 1005
 
-    matrix = 1005
+    matrix = 1006
 
-    letters = 1006
+    letters = 1007
 
-    ideogram = 1007
+    ideogram = 1008
 
-    iching = 1008
+    iching = 1009
 
-    script = 1009
+    script = 1010
 
-    white_bear = 1010
+    white_bear = 1011
 
-    tromino = 1011
+    tromino = 1012
 
-    alphanum_binary = 1012
-    alphanum_numeric = 1013
-    alphanum_hex = 1014
+    alphanum_binary = 1013
+    alphanum_numeric = 1014
+    alphanum_hex = 1015
 
     truetype = 1020
 
