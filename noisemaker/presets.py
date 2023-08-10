@@ -552,7 +552,7 @@ PRESETS = lambda: {  # noqa E731
 
     "bloom": {
         "settings": lambda: {
-            "bloom_alpha": 0.05 + random.random() * 0.025,
+            "bloom_alpha": 0.025 + random.random() * 0.0125,
         },
         "final": lambda settings: [
             Effect("bloom", alpha=settings["bloom_alpha"])
@@ -2104,6 +2104,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fractal flame, singularity, flow field, soupy",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2487,13 +2488,12 @@ PRESETS = lambda: {  # noqa E731
     "multires": {
         "layers": ["basic"],
         "settings": lambda: {
-            "octaves": random.randint(4, 8)
+            "octaves": random.randint(6, 8)
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.5,
+            "image_strength": 0.125,
             "cfg_scale": 25,
-            "style_preset": "tile-texture",
             "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
@@ -2509,7 +2509,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.5,
+            "image_strength": 0.125,
             "cfg_scale": 25,
             "model": "stable-diffusion-xl-1024-v1-0",
         }
@@ -2522,7 +2522,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.5,
+            "image_strength": 0.125,
             "cfg_scale": 25,
             "model": "stable-diffusion-xl-1024-v1-0",
         }
@@ -2536,7 +2536,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.5,
+            "image_strength": 0.125,
             "cfg_scale": 25,
             "model": "stable-diffusion-xl-1024-v1-0",
         }
@@ -2673,8 +2673,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal vibrations, lake ripples",
-            "image_strength": 0.75,
+            "image_strength": 0.375,
             "cfg_scale": 20,
+            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -3795,6 +3796,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fractal flame, psychedelic fractal imagery, flow field",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 

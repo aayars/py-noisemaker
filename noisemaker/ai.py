@@ -55,7 +55,7 @@ def apply(settings, seed, input_filename, stability_model):
         data={
             "image_strength": settings["image_strength"],
             "init_image_mode": "IMAGE_STRENGTH",
-            "text_prompts[0][text]": settings["prompt"],
+            "text_prompts[0][text]": settings["prompt"] + " No people.",
             "cfg_scale": settings["cfg_scale"],
             "samples": 1,
             "steps": 50,
@@ -73,6 +73,7 @@ def apply(settings, seed, input_filename, stability_model):
         tensor = tf.io.decode_png(base64.b64decode(image["base64"]))
 
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
 
 def x2_upscale(input_filename):
     api_key = None
@@ -185,9 +186,9 @@ def dream():
     #
     #
     #
-    flavor_text = f"as if it were something from a vision or dream."
+    # flavor_text = f"as if it were something from a vision or dream."
 
-    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination, {flavor_text} The image must not include humanoid forms. Do not label the answers with anything like \"Name\" or \"Description\". The description may not exceed 250 characters."
+    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not label the answers with anything like \"Name\" or \"Description\" or \"the name and description are as follows\". The description may not exceed 250 characters."
 
     user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
 
@@ -214,7 +215,8 @@ def _openai_query(api_key, system_prompt, user_prompt):
                     "role": "user",
                     "content": user_prompt,
                 }
-            ]
+            ],
+            "temperature": 0.75,
         }
     )
 
