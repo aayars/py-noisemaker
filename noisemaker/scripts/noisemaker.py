@@ -422,9 +422,11 @@ def dream(width, height, seed, filename):
         util.save(tensor, tmp_filename)
 
         tensor = ai.apply(settings, seed, tmp_filename, None)
+        description = ai.describe(name, prompt, tmp_filename)
 
     print(name)
     print(prompt)
+    print(description)
 
     preset = EFFECT_PRESETS["lens"]
     tensor = preset.render(seed=seed, tensor=tensor, shape=shape, filename=filename)

@@ -899,14 +899,15 @@ PRESETS = lambda: {  # noqa E731
     "conference": {
         "layers": ["value-mask", "sobel", "maybe-rotate", "maybe-invert", "grain"],
         "settings": lambda: {
-            "freq": 4 * random.randint(6, 12),
             "mask": mask.halftone,
+            "mask_repeat": random.randint(4, 12),
             "spline_order": interp.cosine,
         },
         "ai": {
             "prompt": "design motif, industry conference, truchet pattern",
-            "image_strength": 0.925,
+            "image_strength": 0.5,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3962,7 +3963,10 @@ PRESETS = lambda: {  # noqa E731
             "freq": [2, 2],
         },
         "ai": {
-            "prompt": "soft blended colors, four-way symmetry, natural symmetry, kaleidoscope"
+            "prompt": "soft blended colors, four-way symmetry, natural symmetry, kaleidoscope",
+            "image_strength": .125,
+            "cfg_scale": 20,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
