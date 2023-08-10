@@ -183,12 +183,7 @@ def dream():
     if api_key is None:
         raise Exception(f"Missing OpenAI API key at {api_key_path}.")
 
-    #
-    #
-    #
-    # flavor_text = f"as if it were something from a vision or dream."
-
-    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not label the answers with anything like \"Name\" or \"Description\" or \"the name and description are as follows\". The description may not exceed 250 characters."
+    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not litter the answers with labels like \"Name\" or \"Description\" or \"the name is\" or \"the description is\" or \"the name and description are as follows\". The description may not exceed 250 characters."
 
     user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
 
