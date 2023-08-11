@@ -183,11 +183,17 @@ def dream():
     if api_key is None:
         raise Exception(f"Missing OpenAI API key at {api_key_path}.")
 
-    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not litter the answers with labels like \"Name\" or \"Description\" or \"the name is\" or \"the description is\" or \"the name and description are as follows\". The description may not exceed 250 characters."
+    for _ in range(5):
+        system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not litter the answers with labels like \"Name\" or \"Description\" or \"the name is\" or \"the description is\" or \"the name and description are as follows\". The description may not exceed 250 characters."
 
-    user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
+        user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
 
-    generated_prompt = _openai_query(api_key, system_prompt, user_prompt)
+        generated_prompt = _openai_query(api_key, system_prompt, user_prompt)
+
+        if not any(string in generated_prompt.lower() for string in ['"', 'name', 'description']):
+            break
+
+        time.sleep(1)
 
     return [a.strip() for a in generated_prompt.split(';')]
 
