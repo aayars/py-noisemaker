@@ -372,7 +372,6 @@ PRESETS = lambda: {  # noqa E731
             "saturation": 1.0,
             "saturation_distrib": None,
             "sin": 0.0,
-            "speed": 1.0,
             "spline_order": interp.bicubic,
         },
         "generator": lambda settings: {
