@@ -6,6 +6,8 @@ import json
 import os
 import subprocess
 
+from noisemaker.constants import ColorSpace
+
 from PIL import Image
 from loguru import logger as default_logger
 
@@ -125,6 +127,19 @@ def dumps(kwargs):
             out[k] = v
 
     return json.dumps(out, indent=4, sort_keys=True)
+
+
+def shape_from_params(width, height, color_space, with_alpha):
+    if color_space == ColorSpace.grayscale:
+        shape = [height, width, 1]
+
+    else:
+        shape = [height, width, 3]
+
+    if with_alpha:
+        shape[2] += 1
+
+    return shape
 
 
 def shape_from_file(filename):

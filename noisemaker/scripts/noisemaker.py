@@ -43,11 +43,11 @@ def main():
 @main.command(help="Generate a .png or .jpg from preset")
 @cli.width_option()
 @cli.height_option()
-@cli.channels_option()
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
 @cli.filename_option(default='art.png')
+@click.option('--with-alpha', help="Include alpha channel", is_flag=True, default=False)
 @click.option('--with-supersample', help="Use x2 supersample for anti-aliasing", is_flag=True, default=False)
 @click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
@@ -56,7 +56,7 @@ def main():
 @click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generate(ctx, width, height, channels, time, speed, seed, filename, with_supersample, with_ai, with_upscale,
+def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_ai, with_upscale,
              with_alt_text, stability_model, debug_print, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
@@ -70,12 +70,12 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
     preset = GENERATOR_PRESETS[preset_name]
 
     if debug_print:
-        _debug_print(preset, with_supersample, with_ai, with_upscale, stability_model)
+        _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model)
 
     try:
-        preset.render(seed, shape=[height, width, channels], time=time, speed=speed, filename=filename,
-                      with_supersample=with_supersample, with_ai=with_ai, with_upscale=with_upscale,
-                      stability_model=stability_model)
+        preset.render(seed, shape=[height, width, None], time=time, speed=speed, filename=filename,
+                      with_alpha=with_alpha, with_supersample=with_supersample, with_ai=with_ai,
+                      with_upscale=with_upscale, stability_model=stability_model)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
@@ -91,7 +91,7 @@ def generate(ctx, width, height, channels, time, speed, seed, filename, with_sup
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_model):
+def _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model):
     first_column = ["Layers:"]
 
     if preset.flattened_layers:
@@ -162,6 +162,7 @@ def _debug_print(preset, with_supersample, with_ai, with_upscale, stability_mode
         first_column.append("")
 
     first_column.append("Canvas:")
+    first_column.append(f"  - with alpha: {with_alpha}")
     first_column.append(f"  - with supersample: {with_supersample}")
     first_column.append(f"  - with upscale: {with_upscale}")
     first_column.append("")
@@ -238,7 +239,6 @@ def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filena
 @main.command(help="Generate a .gif or .mp4 from preset")
 @cli.width_option(default=512)
 @cli.height_option(default=512)
-@cli.channels_option()
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
 @cli.filename_option(default='ani.gif')
@@ -249,7 +249,7 @@ def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filena
 @click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animate(ctx, width, height, channels, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
+def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -395,10 +395,9 @@ def _use_reasonable_speed(preset, frame_count):
 @main.command(help="Let the machine dream whatever it wants")
 @cli.width_option()
 @cli.height_option()
-@cli.seed_option()
 @cli.filename_option(default='dream.png')
-def dream(width, height, seed, filename):
-    name, prompt, description = dreamer.dream(width, height, seed, filename)
+def dream(width, height, filename):
+    name, prompt, description = dreamer.dream(width, height, filename=filename)
 
     print(name)
     print(prompt)

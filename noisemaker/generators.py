@@ -23,7 +23,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
           distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
           lattice_drift=0.0, color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
-          speed=1.0, time=0.0, octave_effects=None, octave=1, **post_process_args):
+          speed=1.0, time=0.0, octave_effects=None, octave=1):
     """
     Generate a single layer of scaled noise.
 
@@ -54,8 +54,6 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
-
-    Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
     if isinstance(freq, int):
@@ -80,14 +78,9 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
                                displacement=lattice_drift / min(freq[0], freq[1]),
                                warp_freq=freq, spline_order=spline_order, signed_range=False)
 
-    if octave_effects is not None:  # New way, used by all Composer presets
+    if octave_effects is not None:
         for effect_or_preset in octave_effects:
             tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave)
-
-    else:  # Old way
-        tensor = effects.post_process(tensor, shape, freq, time=time, speed=speed,
-                                      spline_order=spline_order, color_space=color_space,
-                                      **post_process_args)
 
     # Preserve alpha channel for color space conversions
     alpha = None
@@ -178,7 +171,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
-             with_ai=False, final_effects=None, with_upscale=False, stability_model=None,
+             with_alpha=False, with_ai=False, final_effects=None, with_upscale=False, stability_model=None,
              time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
@@ -215,6 +208,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
     :param list[callable] octave_effects: A list of composer lambdas to invoke per-octave
     :param list[callable] post_effects: A list of composer lambdas to invoke after flattening layers
+    :param bool with_alpha: Include alpha channel
     :param bool with_ai: AI: Apply image-to-image before the final effects pass
     :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
     :param bool with_upscale: AI: x2 upscale final results
@@ -222,8 +216,6 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
-
-    Additional keyword args will be sent to :py:func:`noisemaker.effects.post_process`
     """
 
     if with_ai and with_supersample:
@@ -231,11 +223,14 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
         raise Exception("--with-ai and --with-supersample may not be used together.")
 
     # Normalize input
+    color_space = value.coerce_enum(color_space, ColorSpace)
+    octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
+
+    if shape[-1] is None:
+        shape = util.shape_from_params(shape[1], shape[0], color_space, with_alpha)
 
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
-
-    octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
     original_shape = shape.copy()
 
@@ -359,7 +354,6 @@ def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed,
 def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
     """Helper function to either invoke a post effect or unroll a preset."""
     if callable(effect_or_preset):
-        # print(f" POST: Applying {effect_or_preset}")
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed), []
 
     else:  # Is a Preset. Unroll me.
@@ -378,7 +372,6 @@ def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
 def _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
     """Helper function to either invoke a final effect or unroll a preset."""
     if callable(effect_or_preset):
-        # print(f"FINAL: Applying {effect_or_preset}")
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
 
     else:  # Is a Preset. Unroll me.

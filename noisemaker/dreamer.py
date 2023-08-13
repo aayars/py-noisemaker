@@ -24,7 +24,6 @@ _ADJECTIVES = [
     "fantasy",
     "fauvist",
     "futuristic",
-    "impossible",
     "impressionist",
     "macro",
     "magical",
@@ -47,7 +46,7 @@ _ADJECTIVES = [
     "whimsical",
 ]
 
-def dream(width, height, seed, filename):
+def dream(width, height, filename='dream.png'):
     adjective = composer.random_member(_ADJECTIVES)
 
     for _ in range(5):
@@ -58,23 +57,21 @@ def dream(width, height, seed, filename):
         generated_prompt = ai._openai_query(system_prompt, user_prompt)
 
         # Brute force it when GPT doesn't follow directions
-        if len(generated_prompt.split(';')) == 2 and not any(string in generated_prompt.lower() for string in ['"', 'name', 'description']):
+        if len(generated_prompt.split(';')) == 2 and not any(string in generated_prompt.lower() for string in ['_', '"', 'name', 'description']):
             break
 
         time.sleep(1)
 
     name, prompt = [a.strip() for a in generated_prompt.split(';')]
 
-    if seed is None:
-        seed = random.randint(1,  2 ** 32 - 1)
-
     shape = [height, width, 3]
+    color_space = composer.random_member([m for m in ColorSpace if m != ColorSpace.grayscale])
 
-    tensor = generators.basic(seed=seed, freq=[height, width], shape=shape, color_space=composer.random_member(ColorSpace),
+    tensor = generators.basic(freq=[height, width], shape=shape, color_space=color_space,
                               hue_range=0.125 + random.random() * 1.5)
 
     settings = {
-        "image_strength": 0.125,
+        "image_strength": 0.0125,
         "cfg_scale": 20,
         "prompt": prompt,
         "style_preset": "photographic",
@@ -86,10 +83,10 @@ def dream(width, height, seed, filename):
 
         util.save(tensor, tmp_filename)
 
-        tensor = ai.apply(settings, seed, tmp_filename, None)
+        tensor = ai.apply(settings, random.randint(1, 2 ** 32 - 1), tmp_filename, None)
 
         description = ai.describe(name, prompt, tmp_filename)
 
-    composer.EFFECT_PRESETS["lens"].render(seed=seed, tensor=tensor, shape=shape, filename=filename)
+    composer.EFFECT_PRESETS["lens"].render(seed=random.randint(1, 2 ** 32 - 1), tensor=tensor, shape=shape, filename=filename)
 
     return name, prompt, description

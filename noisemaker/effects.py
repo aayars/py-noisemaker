@@ -1977,21 +1977,37 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
     if not name:
         return tensor
 
-    channel_shape = [shape[0], shape[1], 3]
+    # Can't apply if mode is grayscale
+    if shape[2] in (1, 2):
+        return tensor
+
+    # Preserve the alpha channel
+    alpha_channel = None
+    if shape[2] == 4:
+        alpha_channel = tensor[:, :, 3]
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
+
+    rgb_shape = [shape[0], shape[1], 3]
 
     p = palettes[name]
 
-    offset = p["offset"] * tf.ones(channel_shape)
-    amp = p["amp"] * tf.ones(channel_shape)
-    freq = p["freq"] * tf.ones(channel_shape)
-    phase = p["phase"] * tf.ones(channel_shape) + time
+    offset = p["offset"] * tf.ones(rgb_shape)
+    amp = p["amp"] * tf.ones(rgb_shape)
+    freq = p["freq"] * tf.ones(rgb_shape)
+    phase = p["phase"] * tf.ones(rgb_shape) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
     colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(
         tensor, shape, keepdims=True, with_normalize=False
     ) * .875 + .0625 + phase))
 
-    return value.blend_cosine(tensor, colored, alpha)
+    tensor = value.blend_cosine(tensor, colored, alpha)
+
+    # Re-insert the alpha channel
+    if shape[2] == 4:
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2], alpha_channel], 2)
+
+    return tensor
 
 
 @effect()

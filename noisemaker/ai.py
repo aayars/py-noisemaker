@@ -127,7 +127,7 @@ def describe(preset_name, prompt, filename):
                         "the summary to 250 characters or fewer. Composition name must " \
                         "be in quotes and properly capitalized. Any lingering RGB color " \
                         "codes must be converted into human-readable color names. Color " \
-                        "names must not be capitalized, nor in quotes. The summary " \
+                        "names must be lower-case, and not in quotes. The summary " \
                         "paragraph must not be in quotes. Take it easy with superlatives " \
                         "such as \"captivating\" and \"mesmerizing\". Finally, check the " \
                         "grammar and tone of the summary, and make sure it doesn't sound too " \
