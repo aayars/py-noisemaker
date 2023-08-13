@@ -10,11 +10,12 @@ import textwrap
 import click
 import tensorflow as tf
 
-from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, random_member, reload_presets
+from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
 from noisemaker.constants import ColorSpace, ValueDistribution
 from noisemaker.presets import PRESETS
 
 import noisemaker.ai as ai
+import noisemaker.dreamer as dreamer
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.effects as effects
@@ -397,36 +398,8 @@ def _use_reasonable_speed(preset, frame_count):
 @cli.seed_option()
 @cli.filename_option(default='dream.png')
 def dream(width, height, seed, filename):
-    if seed is None:
-        seed = random.randint(1, MAX_SEED_VALUE)
-
-    name, prompt = ai.dream()
-
-    shape = [height, width, 3]
-
-    color_space = random_member([ColorSpace.hsv, ColorSpace.rgb, ColorSpace.oklab]) 
-
-    tensor = generators.basic(freq=[height, width], shape=shape, color_space=color_space, hue_range=0.5 + random.random())
-
-    settings = {
-        "image_strength": 0.05,
-        "cfg_scale": 35,
-        "prompt": prompt,
-        "style_preset": "photographic",
-        "model": "stable-diffusion-xl-1024-v1-0",
-    }
-
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_filename = f"{tmp}/noise.png"
-
-        util.save(tensor, tmp_filename)
-
-        tensor = ai.apply(settings, seed, tmp_filename, None)
-        description = ai.describe(name, prompt, tmp_filename)
+    name, prompt, description = dreamer.dream(width, height, seed, filename)
 
     print(name)
     print(prompt)
     print(description)
-
-    preset = EFFECT_PRESETS["lens"]
-    tensor = preset.render(seed=seed, tensor=tensor, shape=shape, filename=filename)

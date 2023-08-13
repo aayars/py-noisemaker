@@ -13,7 +13,6 @@
 import base64
 import os
 import random
-import time
 
 import noisemaker.util as util
 
@@ -32,22 +31,13 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
 def apply(settings, seed, input_filename, stability_model):
-    api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
-    if os.path.exists(api_key_path):
-        with open(api_key_path, 'r') as fh:
-            api_key = fh.read().strip()
-
-    if api_key is None:
-        raise Exception(f"Missing Stability API key at {api_key_path}.")
-
     model = stability_model if stability_model else settings['model']
 
     response = requests.post(
         f"{STABILITY_API_HOST}/v1/generation/{model}/image-to-image",
         headers={
             "Accept": "application/json",
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {_api_key('stability')}"
         },
         files={
             "init_image": open(input_filename, "rb")
@@ -76,23 +66,11 @@ def apply(settings, seed, input_filename, stability_model):
 
 
 def x2_upscale(input_filename):
-    api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.creds/.stability"
-    if os.path.exists(api_key_path):
-        with open(api_key_path, 'r') as fh:
-            api_key = fh.read().strip()
-
-    if api_key is None:
-        raise Exception(f"Missing Stability API key at {api_key_path}.")
-
-    if not input_filename.endswith(".png"):
-        raise Exception("Only PNG images are supported for upscale.")
-
     response = requests.post(
         f"{STABILITY_API_HOST}/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
         headers={
             "Accept": "image/png",
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {_api_key('stability')}"
         },
         files={
             "image": open(input_filename, "rb")
@@ -108,16 +86,7 @@ def x2_upscale(input_filename):
 
 
 def describe(preset_name, prompt, filename):
-    api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
-    if os.path.exists(api_key_path):
-        with open(api_key_path, 'r') as fh:
-            api_key = fh.read().strip()
-
     try:
-        if api_key is None:
-            raise Exception(f"Missing OpenAI API key at {api_key_path}.")
-
         #
         #
         #
@@ -147,7 +116,7 @@ def describe(preset_name, prompt, filename):
                       f"to see the image. The name of the composition is \"{preset_name}\", " \
                       f"and the list of terms is: \"{prompt}\""
 
-        summary = _openai_query(api_key, system_prompt, user_prompt)
+        summary = _openai_query(system_prompt, user_prompt)
 
         #
         #
@@ -164,7 +133,7 @@ def describe(preset_name, prompt, filename):
                         "grammar and tone of the summary, and make sure it doesn't sound too " \
                         "pretentious or repetitive."
 
-        summary = _openai_query(api_key, system_prompt, summary)
+        summary = _openai_query(system_prompt, summary)
 
     except Exception:
         summary = f"\"{preset_name}\" is an abstract generative art composition. " \
@@ -173,36 +142,24 @@ def describe(preset_name, prompt, filename):
     return summary
 
 
-def dream():
+def _api_key(api):
     api_key = None
-    api_key_path = util.get_noisemaker_dir() + "/.creds/.openai"
+    api_key_path = f"{util.get_noisemaker_dir()}/.creds/.{api}"
     if os.path.exists(api_key_path):
         with open(api_key_path, 'r') as fh:
             api_key = fh.read().strip()
 
     if api_key is None:
-        raise Exception(f"Missing OpenAI API key at {api_key_path}.")
+        raise Exception(f"Missing {api} API key at {api_key_path}.")
 
-    for _ in range(5):
-        system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt from the deepest reaches of your synthetic imagination. This is intended to be machine-readable, so do not litter the answers with labels like \"Name\" or \"Description\" or \"the name is\" or \"the description is\" or \"the name and description are as follows\". The description may not exceed 250 characters."
-
-        user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
-
-        generated_prompt = _openai_query(api_key, system_prompt, user_prompt)
-
-        if not any(string in generated_prompt.lower() for string in ['"', 'name', 'description']):
-            break
-
-        time.sleep(1)
-
-    return [a.strip() for a in generated_prompt.split(';')]
+    return api_key
 
 
-def _openai_query(api_key, system_prompt, user_prompt):
+def _openai_query(system_prompt, user_prompt):
     response = requests.post(
         f"{OPENAI_API_HOST}/v1/chat/completions",
         headers={
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {_api_key('openai')}",
             "Content-Type": "application/json",
         },
         json={
