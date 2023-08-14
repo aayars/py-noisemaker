@@ -570,6 +570,16 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "blur": {
+        "settings": lambda: {
+            "blur_amount": 25.0,
+            "blur_spline_order": interp.bicubic,
+        },
+        "post": lambda settings: [
+            Effect("blur", amount=settings["blur_amount"], spline_order=settings["blur_spline_order"])
+        ],
+    },
+
     "branemelt": {
         "layers": ["multires", "sine-octaves", "reflect-octaves", "bloom", "shadow", "grain", "saturation"],
         "settings": lambda: {
@@ -4284,12 +4294,13 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "truchet-maze": {
-        "layers": ["value-mask", "posterize", "maybe-rotate", "bloom", "crt"],
+        "layers": ["value-mask", "posterize", "rotate", "bloom", "crt"],
         "settings": lambda: {
             "angle": random_member([0, 45, random.randint(0, 360)]),
             "mask": random_member([mask.truchet_lines, mask.truchet_curves]),
-            "mask_repeat": random.randint(20, 40),
+            "mask_repeat": random.randint(4, 12),
             "posterize_levels": random.randint(1, 4),
+            "spline_order": interp.cosine,
         },
         "ai": {
             "prompt": "maze generated with truchet tiles, `10 PRINT CHR$(205.5+RND(1)); : GOTO 10`",

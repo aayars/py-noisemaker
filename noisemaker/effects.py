@@ -2706,3 +2706,15 @@ def value_refract(tensor, shape, freq=4, distrib=ValueDistribution.center_circle
     blend_values = value.values(freq=freq, shape=value.value_shape(shape), distrib=distrib, time=time, speed=speed)
 
     return value.refract(tensor, shape, time=time, speed=speed, reference_x=blend_values, displacement=displacement)
+
+
+@effect()
+def blur(tensor, shape, amount=10.0, spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
+    ""
+    ""
+
+    tensor = value.proportional_downsample(tensor, shape, [max(int(shape[0] / amount), 1), max(int(shape[1] / amount), 1), shape[2]]) * 4.0
+
+    tensor = value.resample(tensor, shape, spline_order=spline_order)
+
+    return tensor

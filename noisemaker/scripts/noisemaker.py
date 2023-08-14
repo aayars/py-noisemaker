@@ -54,10 +54,11 @@ def main():
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
 @click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
+@click.option('--debug-out', help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_ai, with_upscale,
-             with_alt_text, stability_model, debug_print, preset_name):
+             with_alt_text, stability_model, debug_print, debug_out, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -69,8 +70,17 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    if debug_print:
-        _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model)
+    if debug_print or debug_out:
+        debug_text = _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model)
+
+        if debug_print:
+            for line in debug_text:
+                print(line)
+
+        if debug_out is not None:
+            with open(debug_out, 'w') as fh:
+                for line in debug_text:
+                    fh.write(line + "\n")
 
     try:
         preset.render(seed, shape=[height, width, None], time=time, speed=speed, filename=filename,
@@ -91,7 +101,7 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model):
+def _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model):
     first_column = ["Layers:"]
 
     if preset.flattened_layers:
@@ -162,6 +172,7 @@ def _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, st
         first_column.append("")
 
     first_column.append("Canvas:")
+    first_column.append(f"  - seed: {seed}")
     first_column.append(f"  - with alpha: {with_alpha}")
     first_column.append(f"  - with supersample: {with_supersample}")
     first_column.append(f"  - with upscale: {with_upscale}")
@@ -178,6 +189,8 @@ def _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, st
 
     second_column.append("")
 
+    out = []
+
     for i in range(max(len(first_column), len(second_column))):
         if i < len(first_column):
             first = first_column[i]
@@ -189,7 +202,10 @@ def _debug_print(preset, with_alpha, with_supersample, with_ai, with_upscale, st
         else:
             second = ""
 
-        print(f"{first:50} {second}")
+        out.append(f"{first:50} {second}")
+
+    return out
+
 
 @main.command(help="Apply an effect to a .png or .jpg image")
 @cli.seed_option()
