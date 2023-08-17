@@ -54,18 +54,19 @@ _INTROS = [
 def dream(width, height, filename='dream.png'):
     adjective = composer.random_member(_ADJECTIVES)
 
-    for _ in range(5):
-        system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt for an image in a {adjective} style. Your answer is intended to be machine-readable, so do not litter the answers with labels like \"Name\" or \"Description\" or \"the name is\" or \"the description is\" or \"the name and description are as follows\". The description may not exceed 250 characters."
+    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt for an image in a {adjective} style. Provide the data in semicolon-delimited format. Do not litter the data with useless labels like \"Name:\" or \"Description:\" or \"the name is\" or \"the description is\" or \"the name and description are as follows:\". Properly capitalize and use spaces where appropriate. The name must be between 8 and 25 characters. The description may be between 50 and 225 characters."
 
-        user_prompt = "What is the name and description of the composition? Provide the name and description in semicolon-delimited format."
+    user_prompt = "What is the name and description of the composition? Provide the data in semicolon-delimited format. Do not label the data."
 
-        generated_prompt = ai._openai_query(system_prompt, user_prompt)
+    generated_prompt = ai._openai_query(system_prompt, user_prompt)
 
-        # Brute force it when GPT doesn't follow directions
-        if len(generated_prompt.split(';')) == 2 and not any(string in generated_prompt.lower() for string in ['_', '"', 'name', 'description']):
-            break
-
+    # Sigh
+    if len(generated_prompt.split(';')) != 2 or any(string in generated_prompt.lower() for string in [':', '_', '"', 'name', 'description']):
         time.sleep(1)
+
+        system_prompt = f"ChatGPT is not very good at following directions. This data is supposed to contain only a semicolon-delimited name and description. Ensure that the given data is not littered with useless labels like \"Name:\" or \"Description:\" or \"the name is\" or \"the description is\" or \"the name and description are as follows:\". The generated name and description should be seperated by a semicolon. Properly capitalize and use spaces where appropriate. The name must be between 8 and 25 characters. The description may be between 50 and 225 characters."
+
+        generated_prompt = ai._openai_query(system_prompt, generated_prompt)
 
     name, prompt = [a.strip() for a in generated_prompt.split(';')]
 
