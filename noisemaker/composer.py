@@ -261,7 +261,10 @@ def reload_presets(presets):
                 EFFECT_PRESETS[preset_name] = preset
 
         except Exception as e:
-            raise ValueError(f"Preset \"{preset_name}\": {e}")
+            if f"Preset \"{preset_name}\"" in str(e):
+                raise
+            else:
+                raise ValueError(f"Preset \"{preset_name}\": {e}")
 
 
 def stash(key, value=None):

@@ -82,7 +82,7 @@ PRESETS = lambda: {  # noqa E731
             "mask": mask.bank_ocr,
             "mask_repeat": random.randint(9, 12),
             "spline_order": interp.cosine,
-            "vignette_alpha": 0.75 + random.random() * 0.25,
+            "vignette_bright_alpha": 0.75 + random.random() * 0.25,
             "posterize_levels": random.randint(1, 2),
         },
         "ai": {
@@ -730,8 +730,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract design, art, vintage psychedelia",
-            "image_strength": 0.75,
+            "image_strength": 0.375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2310,6 +2311,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "lens_brightness": 0.05 + random.random() * 0.025,
             "lens_contrast": 1.05 + random.random() * 0.025
+
         },
         "final": lambda settings: [
             Preset("brightness-final", settings={"brightness_final": settings["lens_brightness"]}),
@@ -2332,7 +2334,10 @@ PRESETS = lambda: {  # noqa E731
 
     "light-leak": {
         "layers": ["vignette-bright"],
-        "final": lambda settings: [Effect("light_leak", alpha=.125 + random.random() * 0.0625), Preset("bloom")]
+        "settings": lambda: {
+            "light_leak_alpha": .25 + random.random() * 0.125,
+        },
+        "final": lambda settings: [Effect("light_leak", alpha=settings["light_leak_alpha"])]
     },
 
     "look-up": {
@@ -3062,7 +3067,7 @@ PRESETS = lambda: {  # noqa E731
             "hue_range": random.random() * 0.5,
             "mask": mask.chess,
             "spline_order": random.randint(1, 3),
-            "vignette_alpha": 0.25 + random.random() * 0.125,
+            "vignette_dark_alpha": 0.25 + random.random() * 0.125,
             "warp_freq": random.randint(2, 3),
             "warp_range": random.random() * 0.125,
             "warp_octaves": 1,
@@ -3088,7 +3093,7 @@ PRESETS = lambda: {  # noqa E731
             "saturation": 0.75 + random.random() * 0.25,
             "shadow_alpha": 1.0,
             "tint_alpha": 0.0125 + random.random() * 0.00625,
-            "vignette_alpha": 0.125 + random.random() * 0.0625,
+            "vignette_dark_alpha": 0.125 + random.random() * 0.0625,
             "voronoi_alpha": 0.925 + random.random() * 0.075,
             "voronoi_diagram_type": voronoi.color_range,
             "voronoi_nth": 2,
@@ -3155,7 +3160,7 @@ PRESETS = lambda: {  # noqa E731
             "refract_signed_range": False,
             "refract_y_from_offset": True,
             "tint_alpha": 0.01 + random.random() * 0.005,
-            "vignette_alpha": 0.25 + random.random() * 0.125,
+            "vignette_dark_alpha": 0.25 + random.random() * 0.125,
         },
         "ai": {
             "prompt": "mayan glyph writing, codex, ancient mayan stone carving, maya stelae, mayan art and language, stone tablet, a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
@@ -3244,7 +3249,7 @@ PRESETS = lambda: {  # noqa E731
             "pixel_sort_angled": False,
             "pixel_sort_darkest": False,
             "spline_order": interp.constant,
-            "vignette_alpha": 0.125 + random.random() * 0.0625,
+            "vignette_dark_alpha": 0.125 + random.random() * 0.0625,
             "warp_freq": random.randint(3, 5),
             "warp_octaves": random.randint(3, 5),
             "warp_range": 0.125 + random.random() * 0.0625,
@@ -4086,7 +4091,7 @@ PRESETS = lambda: {  # noqa E731
             "posterize_levels": random.randint(2, 4),
             "saturation_distrib": distrib.ones,
             "swerve_h_displacement": 0.25 + random.random() * 0.25,
-            "vignette_alpha": 0.05 + random.random() * 0.025,
+            "vignette_dark_alpha": 0.05 + random.random() * 0.025,
         },
         "ai": {
             "prompt": "broadcast tv test pattern, visual distortion pattern, wavy test card, television test signal, color bars",
@@ -4475,25 +4480,25 @@ PRESETS = lambda: {  # noqa E731
 
     "vignette-bright": {
         "settings": lambda: {
-            "vignette_alpha": 0.333 + random.random() * 0.333,
-            "vignette_brightness": 1.0,
+            "vignette_bright_alpha": 0.333 + random.random() * 0.333,
+            "vignette_bright_brightness": 1.0,
         },
         "final": lambda settings: [
             Effect("vignette",
-                   alpha=settings["vignette_alpha"],
-                   brightness=settings["vignette_brightness"])
+                   alpha=settings["vignette_bright_alpha"],
+                   brightness=settings["vignette_bright_brightness"])
         ]
     },
 
     "vignette-dark": {
         "settings": lambda: {
-            "vignette_alpha": 0.5 + random.random() * 0.25,
-            "vignette_brightness": 0.0,
+            "vignette_dark_alpha": 0.5 + random.random() * 0.25,
+            "vignette_dark_brightness": 0.0,
         },
         "final": lambda settings: [
             Effect("vignette",
-                   alpha=settings["vignette_alpha"],
-                   brightness=settings["vignette_brightness"])
+                   alpha=settings["vignette_dark_alpha"],
+                   brightness=settings["vignette_dark_brightness"])
         ]
     },
 
@@ -4568,8 +4573,9 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "warped and distorted voronoi cells, colorful stretched shapes",
-            "image_strength": .875,
+            "image_strength": .375,
             "cfg_scale": 25,
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4603,7 +4609,7 @@ PRESETS = lambda: {  # noqa E731
             "ridges": True,
             "spline_order": interp.cosine,
             "vaseline_alpha": 0.1 + random.random() * 0.05,
-            "vignette_alpha": 0.1 + random.random() * 0.05,
+            "vignette_dark_alpha": 0.1 + random.random() * 0.05,
             "warp_octaves": 3,
             "warp_range": 0.0333,
         },
