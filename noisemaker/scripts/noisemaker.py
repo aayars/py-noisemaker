@@ -263,9 +263,10 @@ def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filena
 @cli.option('--watermark', type=str)
 @cli.option('--preview-filename', type=click.Path(exists=False))
 @click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
+@click.option('--with-supersample', help="Use x2 supersample for anti-aliasing", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, preset_name):
+def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, with_supersample, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -298,6 +299,9 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
             extra_params = []
             if with_alt_text and i == 0:
                 extra_params = ['--with-alt-text']
+
+            if with_supersample:
+                extra_params += ['--with-supersample']
 
             output = subprocess.check_output(['noisemaker', 'generate', preset_name,
                                               '--speed', str(_use_reasonable_speed(preset, frame_count)),
