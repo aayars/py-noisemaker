@@ -31,7 +31,7 @@ setup(name='noisemaker',
         "requests>=2.4.2",
         "six~=1.15.0",
         "tensorflow-graphics==2021.12.3",
-        "wheel==0.41.2",  # Needed by TF
+        "wheel==0.41.3",  # Needed by TF
         ],
 
       setup_requires=["pytest-runner"],
