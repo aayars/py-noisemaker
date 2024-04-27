@@ -1,5 +1,8 @@
 """Low-level effects library for Noisemaker"""
 
+from tensorflow_graphics.image.color_space.linear_rgb import from_srgb
+from tensorflow_graphics.image.color_space.srgb import from_linear_rgb
+
 import math
 import random
 
@@ -1042,6 +1045,8 @@ def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
     if levels == 0:
         return tensor
 
+    tensor = from_srgb(tensor)
+
     tensor *= levels
 
     tensor += (1/levels) * .5
@@ -1049,6 +1054,8 @@ def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
     tensor = tf.floor(tensor)
 
     tensor /= levels
+
+    tensor = from_linear_rgb(tensor)
 
     return tensor
 
