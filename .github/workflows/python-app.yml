@@ -16,14 +16,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.12
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: 3.12
+        python-version: 3.11
     - name: Install
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install tensorflow-addons>=0.10.0
         python3 -m pip install --editable .
         python3 -m pip install tensorflow==2.16.1
 
