@@ -16,18 +16,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.11
+    - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
-        python-version: 3.11
+        python-version: 3.10
     - name: Install
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install --upgrade setuptools
         python3 -m pip install --editable .
         python3 -m pip install tensorflow==2.16.1
-
-    - name: Test
+    - name: Install tox
+      run: pip install tox
+    - name: Run tests
       run: |
         noisemaker --help
-        python setup.py test
+        tox
