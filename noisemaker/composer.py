@@ -94,7 +94,7 @@ class Preset:
             "image_strength": _ai_settings.get("image_strength", 0.5),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
             "style_preset": _ai_settings.get("style_preset", "digital-art"),
-            "model": _ai_settings.get("model", "stable-diffusion-v1-5")
+            "model": _ai_settings.get("model", "stable-diffusion-v1-6")
         }
 
         self.ai_settings.update(prototype.get("ai_settings", {}))

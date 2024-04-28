@@ -304,8 +304,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
             util.save(tensor, tmp_path)
 
             try:
-                tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
-                                  stability_model=stability_model)
+                tensor = value.blend(tensor, ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
+                                  stability_model=stability_model), 0.5)
 
                 preset.ai_success = True
 

@@ -740,6 +740,13 @@ def blend_cubic(a, b, c, d, g):
     return sum(_cubic_components(a, b, c, d, g))
 
 
+@effect()
+def smoothstep(tensor, shape, a=0.0, b=1.0, time=0.0, speed=1.0):
+    t = tf.clip_by_value((tensor - a) / (b - a), 0.0, 1.0)
+
+    return t * t * (3.0 - 2.0 * t)
+
+
 def freq_for_shape(freq, shape):
     """
     Given a base frequency as int, generate noise frequencies for each spatial dimension.

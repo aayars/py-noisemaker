@@ -352,7 +352,7 @@ PRESETS = lambda: {  # noqa E731
 
     "basic": {
         "unique": True,
-        "layers": ["maybe-palette"],
+        "layers": ["maybe-smoothstep", "maybe-palette"],
         "settings": lambda: {
             "brightness_distrib": None,
             "color_space": random_member(color.color_members()),
@@ -2453,6 +2453,12 @@ PRESETS = lambda: {  # noqa E731
         "final": lambda settings: [] if coin_flip() else [Preset("skew")]
     },
 
+    "maybe-smoothstep": {
+        "post": lambda settings: stash("smoothstep", [] if random.random() < 0.25 else [
+            Preset(random_member(["smoothstep", "smoothstep-narrow", "smoothstep-wide"]))
+        ]),
+    },
+
     "mcpaint": {
         "layers": ["glyph-map", "skew", "grain", "vignette-dark", "brightness-final", "contrast-final", "saturation"],
         "settings": lambda: {
@@ -3753,6 +3759,30 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["rotate"],
         "settings": lambda: {
             "angle": random.randint(-10, 10),
+        },
+    },
+
+    "smoothstep": {
+        "settings": lambda: {
+            "smoothstep_min": 0.0,
+            "smoothstep_max": 1.0,
+        },
+        "post": lambda settings: [Effect("smoothstep", a=settings["smoothstep_min"], b=settings["smoothstep_max"])],
+    },
+
+    "smoothstep-narrow": {
+        "layers": ["smoothstep"],
+        "settings": lambda: {
+            "smoothstep_min": 0.333,
+            "smoothstep_max": 0.667,
+        },
+    },
+
+    "smoothstep-wide": {
+        "layers": ["smoothstep"],
+        "settings": lambda: {
+            "smoothstep_min": -2.0,
+            "smoothstep_max": 3.0,
         },
     },
 
