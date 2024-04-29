@@ -72,7 +72,7 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
     preset = GENERATOR_PRESETS[preset_name]
 
     if debug_print or debug_out:
-        debug_text = _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model)
+        debug_text = _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model)
 
         if debug_print:
             for line in debug_text:

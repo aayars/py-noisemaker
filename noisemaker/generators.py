@@ -318,6 +318,9 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
     tensor = value.normalize(tensor)
 
+    if with_fxaa:
+        tensor = value.fxaa(tensor)
+
     if with_supersample:
         tensor = value.proportional_downsample(tensor, shape, original_shape)
 
@@ -332,9 +335,6 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
             except Exception as e:
                 util.logger.error(f"preset.upscale() failed: {e}\nSeed: {seed}")
-
-    if with_fxaa:
-        tensor = value.fxaa(tensor)
 
     return tensor
 

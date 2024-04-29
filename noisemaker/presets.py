@@ -1947,7 +1947,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "grassy texture, grass and dirt, multi-colored grass, thatch, a dusty old lawn, turf",
-            "image_strength": 0.75,
+            "image_strength": 0.625,
             "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
@@ -3153,14 +3153,14 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "grain_brightness": 0.125,
             "grain_contrast": 1.125,
-            "mask": random_member(mask.glyph_members()),
-            "mask_repeat": random.randint(3, 7),
+            "mask": mask.invaders_square,
+            "mask_repeat": random.randint(1, 3) * 2,
             "octaves": 2,
             "palette_on": False,
-            "posterize_levels": random.randint(3, 6),
+            "posterize_levels": random.randint(4, 8),
             "saturation": 0.25 + random.random() * 0.125,
             "spline_order": interp.cosine,
-            "refract_range": 0.0125 + random.random() * 0.025,
+            "refract_range": 0.25 + random.random() * 0.125,
             "refract_signed_range": False,
             "refract_y_from_offset": True,
             "tint_alpha": 0.01 + random.random() * 0.005,
@@ -3168,9 +3168,10 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "mayan glyph writing, codex, ancient mayan stone carving, maya stelae, mayan art and language, stone tablet, a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
-            "image_strength": 0.625,
+            "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "photographic",
+            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
