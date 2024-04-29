@@ -49,7 +49,7 @@ def main():
 @cli.filename_option(default='art.png')
 @click.option('--with-alpha', help="Include alpha channel", is_flag=True, default=False)
 @click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
-@click.option('--with-fxaa', help="Use FXAA anti-aliasing", is_flag=True, default=False)
+@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
@@ -213,7 +213,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai,
 @cli.seed_option()
 @cli.filename_option(default='mangled.png')
 @cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
-@click.option('--with-fxaa', help="Use FXAA anti-aliasing", is_flag=True, default=False)
+@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECT_PRESETS)))
@@ -266,10 +266,11 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 @cli.option('--watermark', type=str)
 @cli.option('--preview-filename', type=click.Path(exists=False))
 @click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
-@click.option('--with-supersample', help="Use x2 supersample for anti-aliasing", is_flag=True, default=False)
+@click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
+@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, with_supersample, preset_name):
+def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, with_supersample, with_fxaa, preset_name):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -306,6 +307,9 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
             if with_supersample:
                 extra_params += ['--with-supersample']
 
+            if with_fxaa:
+                extra_params += ['--with-fxaa']
+
             output = subprocess.check_output(['noisemaker', 'generate', preset_name,
                                               '--speed', str(_use_reasonable_speed(preset, frame_count)),
                                               '--height', str(height),
@@ -319,9 +323,15 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
                     print(output[1])
 
             if effect_preset:
+                extra_params = []
+
+                if with_fxaa:
+                    extra_params += ['--with-fxaa']
+
                 util.check_call(['noisemaker', 'apply', effect_preset, frame_filename,
                                  '--no-resize',
-                                 '--speed', str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))] + common_params)
+                                 '--speed', str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))]
+                                + common_params + extra_params)
 
             if save_frames:
                 shutil.copy(frame_filename, save_frames)
