@@ -1067,3 +1067,41 @@ def coerce_enum(value, cls):
 
 def clamp01(tensor):
     return tf.maximum(tf.minimum(tensor, 1.0), 0.0)
+
+
+def fxaa(tensor):
+    # Constants for FXAA
+    FXAA_REDUCE_MUL = 1.0 / 8.0
+    FXAA_REDUCE_MIN = 1.0 / 128.0
+    FXAA_SPAN_MAX = 8.0
+
+    # Pad tensor to handle boundary conditions
+    padded_tensor = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
+
+    # Fetch neighbors
+    center = padded_tensor[1:-1, 1:-1, :]  # Center pixel
+    north = padded_tensor[:-2, 1:-1, :]    # North neighbor
+    south = padded_tensor[2:, 1:-1, :]     # South neighbor
+    west = padded_tensor[1:-1, :-2, :]     # West neighbor
+    east = padded_tensor[1:-1, 2:, :]      # East neighbor
+
+    # Compute luminance using NTSC conversion weights
+    luma = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)
+    lumaC = tf.reduce_sum(center * luma, axis=-1, keepdims=True)
+    lumaN = tf.reduce_sum(north * luma, axis=-1, keepdims=True)
+    lumaS = tf.reduce_sum(south * luma, axis=-1, keepdims=True)
+    lumaW = tf.reduce_sum(west * luma, axis=-1, keepdims=True)
+    lumaE = tf.reduce_sum(east * luma, axis=-1, keepdims=True)
+
+    # Calculate luminance differences and weights
+    weightC = 1.0  # Weight for the center pixel
+    weightN = tf.exp(-tf.abs(lumaC - lumaN))
+    weightS = tf.exp(-tf.abs(lumaC - lumaS))
+    weightW = tf.exp(-tf.abs(lumaC - lumaW))
+    weightE = tf.exp(-tf.abs(lumaC - lumaE))
+    sum_weights = weightC + weightN + weightS + weightW + weightE + 1e-10  # Avoid division by zero
+
+    # Compute weighted sum of the center and its neighbors
+    result = (center * weightC + north * weightN + south * weightS + west * weightW + east * weightE) / sum_weights
+
+    return result

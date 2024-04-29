@@ -48,7 +48,8 @@ def main():
 @cli.seed_option()
 @cli.filename_option(default='art.png')
 @click.option('--with-alpha', help="Include alpha channel", is_flag=True, default=False)
-@click.option('--with-supersample', help="Use x2 supersample for anti-aliasing", is_flag=True, default=False)
+@click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
+@click.option('--with-fxaa', help="Use FXAA anti-aliasing", is_flag=True, default=False)
 @click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
@@ -57,7 +58,7 @@ def main():
 @click.option('--debug-out', help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
 @click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_ai, with_upscale,
+def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale,
              with_alt_text, stability_model, debug_print, debug_out, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
@@ -84,8 +85,8 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
 
     try:
         preset.render(seed, shape=[height, width, None], time=time, speed=speed, filename=filename,
-                      with_alpha=with_alpha, with_supersample=with_supersample, with_ai=with_ai,
-                      with_upscale=with_upscale, stability_model=stability_model)
+                      with_alpha=with_alpha, with_supersample=with_supersample, with_fxaa=with_fxaa,
+                      with_ai=with_ai, with_upscale=with_upscale, stability_model=stability_model)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
@@ -101,7 +102,7 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
 
 
-def _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upscale, stability_model):
+def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model):
     first_column = ["Layers:"]
 
     if preset.flattened_layers:
@@ -175,6 +176,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upsca
     first_column.append(f"  - seed: {seed}")
     first_column.append(f"  - with alpha: {with_alpha}")
     first_column.append(f"  - with supersample: {with_supersample}")
+    first_column.append(f"  - with fxaa: {with_fxaa}")
     first_column.append(f"  - with upscale: {with_upscale}")
     first_column.append("")
 
@@ -211,12 +213,13 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_ai, with_upsca
 @cli.seed_option()
 @cli.filename_option(default='mangled.png')
 @cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
+@click.option('--with-fxaa', help="Use FXAA anti-aliasing", is_flag=True, default=False)
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECT_PRESETS)))
 @click.argument('input_filename')
 @click.pass_context
-def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filename):
+def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -245,7 +248,7 @@ def apply(ctx, seed, filename, no_resize, time, speed, preset_name, input_filena
         tensor = effects.square_crop_and_resize(tensor, input_shape, shape[0])
 
     try:
-        preset.render(seed=seed, tensor=tensor, shape=shape, time=time, speed=speed, filename=filename)
+        preset.render(seed=seed, tensor=tensor, shape=shape, with_fxaa=with_fxaa, time=time, speed=speed, filename=filename)
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")

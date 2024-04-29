@@ -171,8 +171,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
-             with_alpha=False, with_ai=False, final_effects=None, with_upscale=False, stability_model=None,
-             time=0.0, speed=1.0, tensor=None):
+             with_alpha=False, with_ai=False, final_effects=None, with_upscale=False, with_fxaa=False,
+             stability_model=None, time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -212,6 +212,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param bool with_ai: AI: Apply image-to-image before the final effects pass
     :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
     :param bool with_upscale: AI: x2 upscale final results
+    :param bool with_fxaa: Apply FXAA to results
     :param str stability_model: AI: Override the default stability.ai model
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
@@ -331,6 +332,9 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
             except Exception as e:
                 util.logger.error(f"preset.upscale() failed: {e}\nSeed: {seed}")
+
+    if with_fxaa:
+        tensor = value.fxaa(tensor)
 
     return tensor
 
