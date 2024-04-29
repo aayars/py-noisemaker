@@ -330,15 +330,16 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
                 shutil.copy(frame_filename, preview_filename)
 
         if filename.endswith(".mp4"):
-            # these settings are bad and they should feel bad. TODO: higher quality output
-            util.check_call(['ffmpeg',
-                             '-y',  # overwrite existing
-                             '-framerate', '50',
-                             '-i', f'{tmp}/%04d.png',
-                             '-c:v', 'libx264',  # because this is what twitter wants
-                             '-pix_fmt', 'yuv420p',  # because this is what twitter wants
-                             '-b:v', '1700000',  # maximum allowed bitrate for 720x720 (2048k), minus some encoder overhead
-                             '-s', '720x720',  # a twitter-recommended size
+            util.check_call(["ffmpeg",
+                             "-framerate", "30",
+                             "-i", f"{tmp}/%04d.png",
+                             "-s", "1024x1024",
+                             "-c:v", "libx264",
+                             "-preset", "veryslow",
+                             "-crf", "15",
+                             "-pix_fmt", "yuv420p",
+                             "-b:v", "8000k",
+                             "-bufsize", "16000k",
                              filename])
 
         else:
