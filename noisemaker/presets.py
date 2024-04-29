@@ -2558,13 +2558,13 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "muppet-fur": {
-        "layers": ["basic", "smoothstep", "worms", "rotate", "bloom", "lens"],
+        "layers": ["basic", "worms", "rotate", "bloom", "lens"],
         "settings": lambda: {
             "color_space": random_member([color.oklab, color.hsv]),
             "freq": random.randint(2, 3),
-            "hue_range": random.random() * 0.125,
+            "hue_range": random.random() * 0.25,
             "hue_rotation": random.random(),
-            "lattice_drift": random.random() * 0.5,
+            "lattice_drift": random.random() * 0.333,
             "palette_on": False,
             "worms_alpha": 0.875 + random.random() * 0.125,
             "worms_behavior": worms.unruly,
@@ -3779,8 +3779,8 @@ PRESETS = lambda: {  # noqa E731
     "smoothstep-wide": {
         "layers": ["smoothstep"],
         "settings": lambda: {
-            "smoothstep_min": -1.0,
-            "smoothstep_max": 2.0,
+            "smoothstep_min": -2.0,
+            "smoothstep_max": 3.0,
         },
     },
 
