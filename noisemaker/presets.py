@@ -352,7 +352,7 @@ PRESETS = lambda: {  # noqa E731
 
     "basic": {
         "unique": True,
-        "layers": ["maybe-smoothstep", "maybe-palette"],
+        "layers": ["maybe-palette"],
         "settings": lambda: {
             "brightness_distrib": None,
             "color_space": random_member(color.color_members()),
@@ -2127,7 +2127,7 @@ PRESETS = lambda: {  # noqa E731
             "worms_duration": 2.0 + random.random(),
         },
         "ai": {
-            "prompt": "colorful fuzz, felt, fibers, fabric, lint, wool, flow field",
+            "prompt": "colorful fuzz, felt, fibers, fabric, lint, wool, flow field, soft",
             "cfg_scale": 25,
             "style_preset": "photographic",
         }
@@ -2453,12 +2453,6 @@ PRESETS = lambda: {  # noqa E731
         "final": lambda settings: [] if coin_flip() else [Preset("skew")]
     },
 
-    "maybe-smoothstep": {
-        "post": lambda settings: stash("smoothstep", [] if random.random() < 0.25 else [
-            Preset(random_member(["smoothstep", "smoothstep-narrow", "smoothstep-wide"]))
-        ]),
-    },
-
     "mcpaint": {
         "layers": ["glyph-map", "skew", "grain", "vignette-dark", "brightness-final", "contrast-final", "saturation"],
         "settings": lambda: {
@@ -2566,19 +2560,23 @@ PRESETS = lambda: {  # noqa E731
     "muppet-fur": {
         "layers": ["basic", "worms", "rotate", "bloom", "lens"],
         "settings": lambda: {
-            "hue_range": random.random() * 0.5,
+            "color_space": random_member([color.oklab, color.hsv]),
+            "freq": random.randint(2, 3),
+            "hue_range": random.random() * 0.25,
             "hue_rotation": random.random(),
-            "lattice_drift": 1.0,
+            "lattice_drift": random.random() * 0.333,
             "palette_on": False,
-            "worms_alpha": 0.625 + random.random() * 0.125,
-            "worms_behavior": worms.unruly if coin_flip() else worms.obedient,
-            "worms_density": 250,
-            "worms_stride": 0.75,
-            "worms_stride_deviation": 0.25,
+            "worms_alpha": 0.875 + random.random() * 0.125,
+            "worms_behavior": worms.unruly,
+            "worms_density": random.randint(500, 1250),
+            "worms_drunkenness": random.random() * 0.025,
+            "worms_duration": 2.0 + random.random() * 1.0,
+            "worms_stride": 1.0,
+            "worms_stride_deviation": 0.0,
         },
         "ai": {
-            "prompt": "flow field, colorful faux fur, furry, fuzzy, fluffy, rave culture",
-            "image_strength": 0.75,
+            "prompt": "flow field, colorful faux fur, furry, fuzzy, fluffy, rave culture, soft",
+            "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "photographic",
         }
@@ -4290,7 +4288,7 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": random_member([point.h_hex, point.v_hex]),
             "voronoi_point_drift": 0.25 + random.random() * 0.5,
-            "voronoi_point_freq": random.randint(3, 6),
+            "voronoi_point_freq": random.randint(2, 4) * 2,
             "voronoi_nth": 0,
             "warp_freq": random.randint(2, 4),
             "warp_octaves": random.randint(2, 4),
@@ -4301,13 +4299,14 @@ PRESETS = lambda: {  # noqa E731
             "worms_drunkenness": random.random() * 0.025,
             "worms_duration": 0.5 + random.random() * 0.25,
             "worms_kink": 0.875 + random.random() * 0.25,
-            "worms_stride": 0.875 + random.random() * 0.25,
+            "worms_stride": 1.0,
+            "worms_stride_deviation": 0.0,
         },
         "generator": lambda settings: {
             "freq": [settings["voronoi_point_freq"]] * 2,
         },
         "ai": {
-            "prompt": "tribbles, furry, fuzzy, fluffy, puffs",
+            "prompt": "tribbles, furry, fuzzy, fluffy, puffs, soft",
             "image_strength": 0.5,
             "cfg_scale": 25,
             "style_preset": "photographic",
