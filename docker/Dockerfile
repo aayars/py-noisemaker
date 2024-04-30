@@ -1,4 +1,4 @@
-FROM python:3-slim-bookworm
+FROM python:3.10-slim-bookworm
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -14,7 +14,7 @@ RUN apt update -qq && \
     cd / && \
     \
     pip3 install -q git+https://github.com/aayars/py-noisemaker && \
-    pip3 install -q tensorflow==2.13.0 && \
+    pip3 install -q tensorflow==2.16.1 && \
     \
     apt remove -qq --purge -y curl git python3-pip && \
     apt autoremove -qq -y && \
