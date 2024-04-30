@@ -1070,11 +1070,6 @@ def clamp01(tensor):
 
 
 def fxaa(tensor):
-    # Constants for FXAA
-    FXAA_REDUCE_MUL = 1.0 / 8.0
-    FXAA_REDUCE_MIN = 1.0 / 128.0
-    FXAA_SPAN_MAX = 8.0
-
     # Pad tensor to handle boundary conditions
     padded_tensor = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
 
