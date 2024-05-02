@@ -570,16 +570,6 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
-    "blur": {
-        "settings": lambda: {
-            "blur_amount": 25.0,
-            "blur_spline_order": interp.bicubic,
-        },
-        "post": lambda settings: [
-            Effect("blur", amount=settings["blur_amount"], spline_order=settings["blur_spline_order"])
-        ],
-    },
-
     "branemelt": {
         "layers": ["multires", "sine-octaves", "reflect-octaves", "bloom", "shadow", "grain", "saturation"],
         "settings": lambda: {
