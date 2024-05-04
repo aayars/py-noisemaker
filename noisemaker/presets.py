@@ -1212,7 +1212,10 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.absolute_members())
         },
         "octaves": lambda settings: [
-            Effect("derivative", dist_metric=settings["dist_metric"], alpha=settings["deriv_alpha"])
+            Effect("derivative", dist_metric=settings["dist_metric"], alpha=settings["deriv_alpha"]),
+        ],
+        "post": lambda settings: [
+            Effect("fxaa")
         ]
     },
 
@@ -1222,7 +1225,8 @@ PRESETS = lambda: {  # noqa E731
             "dist_metric": random_member(distance.absolute_members())
         },
         "post": lambda settings: [
-            Effect("derivative", dist_metric=settings["dist_metric"], alpha=settings["deriv_alpha"])
+            Effect("derivative", dist_metric=settings["dist_metric"], alpha=settings["deriv_alpha"]),
+            Effect("fxaa")
         ]
     },
 
@@ -2249,13 +2253,13 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["value-mask", "multires", "wobble", "voronoi", "funhouse", "glowing-edges", "crt", "vignette-dark"],
         "settings": lambda: {
             "dist_metric": distance.euclidean,
-            "freq": random.randint(4, 8),
+            "freq": random.randint(2, 5),
             "mask": random_member(mask.procedural_members()),
             "spline_order": interp.constant,
             "voronoi_diagram_type": voronoi.flow,
             "voronoi_point_distrib": point.random,
-            "voronoi_point_freq": random.randint(4, 8),
-            "voronoi_refract": 2.0 + random.random(),
+            "voronoi_point_freq": random.randint(3, 6),
+            "voronoi_refract": 1.0 + random.random() * 0.5,
             "warp_freq": random.randint(2, 4),
             "warp_spline_order": interp.bicubic,
             "warp_octaves": 2,
@@ -2567,7 +2571,7 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "flow field, colorful faux fur, furry, fuzzy, fluffy, rave culture, soft",
             "image_strength": 0.5,
-            "cfg_scale": 25,
+            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -2873,7 +2877,8 @@ PRESETS = lambda: {  # noqa E731
             Effect("outline",
                 sobel_metric=settings["dist_metric"],
                 invert=settings["outline_invert"],
-            )
+            ),
+            Effect("fxaa")
         ]
     },
 
@@ -3656,12 +3661,14 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "shmoo": {
-        "layers": ["basic", "posterize", "invert", "outline", "distressed"],
+        "layers": ["basic", "brightness-post", "posterize", "invert", "outline", "distressed"],
         "settings": lambda: {
-            "freq": random.randint(3, 4),
+            "brightness_post": 0.25,
+            "color_space": color.hsv,
+            "freq": random.randint(3, 5),
             "hue_range": 1.5 + random.random() * 0.75,
             "palette_on": False,
-            "posterize_levels": random.randint(1, 4),
+            "posterize_levels": random.randint(2, 6),
             "speed": 0.025,
         },
         "ai": {
@@ -3786,7 +3793,10 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "dist_metric": random_member(distance.all()),
         },
-        "post": lambda settings: [Effect("sobel", dist_metric=settings["dist_metric"])]
+        "post": lambda settings: [
+            Effect("sobel", dist_metric=settings["dist_metric"]),
+            Effect("fxaa")
+        ]
     },
 
     "soft-cells": {
@@ -3904,7 +3914,8 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high contrast design with distorted symbols and geometric shapes, alien glyphs and graffiti",
-            "image_strength": 0.5,
+            "image_strength": 0.333,
+            "cfg_scale": 25,
             "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
@@ -4206,24 +4217,27 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "timeworms": {
-        "layers": ["basic", "reflect-octaves", "worms", "density-map", "bloom", "lens"],
+        "layers": ["basic", "reflect-octaves", "worms", "density-map", "lens"],
         "settings": lambda: {
             "freq": random.randint(4, 18),
             "mask": mask.sparse,
             "mask_static": True,
             "octaves": random.randint(1, 3),
+            "palette_on": False,
             "reflect_range": random.randint(0, 1) * random.random() * 2,
             "saturation": 0,
             "spline_order": random_member([m for m in interp if m != interp.bicubic]),
-            "worms_alpha": 1,
+            "worms_alpha": 1.0,
             "worms_behavior": worms.obedient,
-            "worms_density": 0.25,
-            "worms_duration": 10,
-            "worms_stride": 2,
-            "worms_kink": 0.25 + random.random() * 2.5,
+            "worms_density": 1.0,
+            "worms_duration": 40,
+            "worms_stride": 1.0,
+            "worms_stride_deviation": 0.0,
         },
         "ai": {
-            "prompt": "flow field, branching and converging timelines",
+            "prompt": "flow field, diverging, converging, timelines",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
         }
     },
 
@@ -4271,10 +4285,12 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": color.hsv,
             "dist_metric": distance.euclidean,
-            "hue_range": 0.5 + random.random() * 1.25,
-            "octaves": random.randint(1, 4),
+            "distrib": distrib.column_index,
+            # "hue_range": 0.5 + random.random() * 1.25,
+            "hue_range": 1.0,
+            # "octaves": random.randint(1, 4),
             "palette_on": False,
-            "saturation": 0.375 + random.random() * 0.5,
+            # "saturation": 0.375 + random.random() * 0.5,
             "voronoi_alpha": 0.875 + random.random() * 0.125,
             "voronoi_diagram_type": voronoi.range_regions,
             "voronoi_point_distrib": random_member([point.h_hex, point.v_hex]),
@@ -4702,7 +4718,8 @@ PRESETS = lambda: {  # noqa E731
                    kink=settings["worms_kink"],
                    quantize=settings["worms_quantize"],
                    stride=settings["worms_stride"],
-                   stride_deviation=settings["worms_stride_deviation"])
+                   stride_deviation=settings["worms_stride_deviation"]),
+            Effect("fxaa"),
         ]
     },
 

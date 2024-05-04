@@ -1045,7 +1045,8 @@ def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
     if levels == 0:
         return tensor
 
-    tensor = from_srgb(tensor)
+    if shape[-1] == 3:
+       tensor = from_srgb(tensor)
 
     tensor *= levels
 
@@ -1055,7 +1056,8 @@ def posterize(tensor, shape, levels=9, time=0.0, speed=1.0):
 
     tensor /= levels
 
-    tensor = from_linear_rgb(tensor)
+    if shape[-1] == 3:
+       tensor = from_linear_rgb(tensor)
 
     return tensor
 

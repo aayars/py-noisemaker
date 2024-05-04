@@ -1069,7 +1069,8 @@ def clamp01(tensor):
     return tf.maximum(tf.minimum(tensor, 1.0), 0.0)
 
 
-def fxaa(tensor):
+@effect()
+def fxaa(tensor, shape, time=0.0, speed=1.0):
     # Pad tensor to handle boundary conditions
     padded_tensor = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
 

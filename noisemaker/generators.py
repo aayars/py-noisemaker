@@ -319,7 +319,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     tensor = value.normalize(tensor)
 
     if with_fxaa:
-        tensor = value.fxaa(tensor)
+        tensor = value.fxaa(tensor, shape)
 
     if with_supersample:
         tensor = value.proportional_downsample(tensor, shape, original_shape)
