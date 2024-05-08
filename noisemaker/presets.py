@@ -1321,7 +1321,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "dropout": {
-        "layers": ["basic", "derivative-post", "maybe-invert", "grain"],
+        "layers": ["basic", "maybe-rotate", "derivative-post", "maybe-invert", "grain"],
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "distrib": distrib.ones,
@@ -3185,7 +3185,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "puzzler": {
-        "layers": ["basic-voronoi", "maybe-invert", "wormhole"],
+        "layers": ["basic-voronoi", "maybe-invert", "wormhole", "distressed"],
         "settings": lambda: {
             "speed": 0.025,
             "voronoi_diagram_type": voronoi.color_regions,
@@ -3845,7 +3845,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "spaghettification": {
-        "layers": ["multires-low", "voronoi", "worms", "funhouse", "contrast-post", "density-map", "lens"],
+        "layers": ["multires-low", "voronoi", "funhouse", "worms", "contrast-post", "density-map", "lens"],
         "settings": lambda: {
             "freq": 2,
             "palette_on": False,
