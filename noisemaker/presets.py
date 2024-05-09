@@ -1464,6 +1464,7 @@ PRESETS = lambda: {  # noqa E731
             "erosion_worms_density": random.randint(25, 100),
             "erosion_worms_inverse": False,
             "erosion_worms_iterations": random.randint(25, 100),
+            "erosion_worms_quantize": False,
             "erosion_worms_xy_blend": 0.75 + random.random() * 0.25
         },
         "post": lambda settings: [
@@ -1473,6 +1474,7 @@ PRESETS = lambda: {  # noqa E731
                    density=settings["erosion_worms_density"],
                    inverse=settings["erosion_worms_inverse"],
                    iterations=settings["erosion_worms_iterations"],
+                   quantize=settings["erosion_worms_quantize"],
                    xy_blend=settings["erosion_worms_xy_blend"]),
             Effect("normalize")
         ],
@@ -4044,6 +4046,21 @@ PRESETS = lambda: {  # noqa E731
                    octaves=settings["swerve_v_octaves"],
                    spline_order=settings["swerve_v_spline_order"])
         ]
+    },
+
+    "techno-virus": {
+        "layers": ["hydraulic-flow", "tint", "aberration", "lens"],
+        "settings": lambda: {
+            "erosion_worms_alpha": 1.0,
+            "erosion_worms_density": random.randint(1, 25),
+            "erosion_worms_iterations": random.randint(250, 1000),
+            "erosion_worms_quantize": True,
+            "octaves": 4,
+        },
+        "ai": {
+            "prompt": "long particle trails, quantized direction, circuitboard tracks, cyber, "
+                      "technological virus, circuit diagram, subway map",
+        }
     },
 
     "teh-matrex-haz-u": {

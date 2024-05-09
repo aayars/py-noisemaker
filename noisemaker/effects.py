@@ -466,7 +466,7 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
 
 
 @effect()
-def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alpha=.25, inverse=False, xy_blend=False, time=0.0, speed=1.0):
+def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, quantize=False, alpha=.25, inverse=False, xy_blend=False, time=0.0, speed=1.0):
     """
     WIP hydraulic erosion effect.
     """
@@ -521,6 +521,10 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, alp
         sparse_values = tf.squeeze(tf.gather_nd(values, index))
         g_x = value.blend(y1_values - sparse_values, x1_y1_values - x1_values, u)
         g_y = value.blend(x1_values - sparse_values, x1_y1_values - y1_values, v)
+
+        if quantize:
+            g_x = tf.floor(g_x)
+            g_y = tf.floor(g_y)
 
         length = value.distance(g_x, g_y, DistanceMetric.euclidean) * contraction
 
