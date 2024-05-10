@@ -1772,7 +1772,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "game-show": {
-        "layers": ["basic", "posterize", "be-kind-rewind"],
+        "layers": ["basic", "maybe-rotate", "posterize", "be-kind-rewind"],
         "settings": lambda: {
             "freq": random.randint(8, 16) * 2,
             "mask": random_member([mask.h_tri, mask.v_tri]),
@@ -3101,9 +3101,9 @@ PRESETS = lambda: {  # noqa E731
             "voronoi_point_distrib": point.random,
         },
         "ai": {
-            "prompt": "pluto's bladed terrain, geomorphology, nasa imagery, new horizons, terrain map, high-relief, ice, frozen",
-            "image_strength": 0.3,
-            "cfg_scale": 30,
+            "prompt": "icy bladed terrain, geomorphology, nasa imagery, new horizons, terrain map, high-relief, ice, frozen",
+            "image_strength": 0.5,
+            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3243,7 +3243,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "rasteroids": {
-        "layers": ["basic", "funhouse", "sobel", "invert", "pixel-sort", "bloom", "crt", "vignette-dark"],
+        "layers": ["basic", "funhouse", "sobel", "invert", "pixel-sort", "maybe-rotate", "bloom", "crt", "vignette-dark"],
         "settings": lambda: {
             "distrib": random_member([distrib.uniform, distrib.ones]),
             "freq": 6 * random.randint(2, 3),
