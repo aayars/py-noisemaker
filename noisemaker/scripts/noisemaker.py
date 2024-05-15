@@ -398,8 +398,10 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 
     control = value.value_map(control, shape, keepdims=True)
 
+    value.set_seed(seed)
+
     base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random(),
-                            seed=seed, time=time, speed=speed)
+                            time=time, speed=speed)
 
     value_shape = value.value_shape(shape)
 
