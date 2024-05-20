@@ -3186,6 +3186,18 @@ PRESETS = lambda: {  # noqa E731
         }
     },
 
+    "pull-quantize": {
+        "layers": ["pull", "lens", "grain"],
+        "settings": lambda: {
+            "dist_metric": random_member([distance.manhattan, distance.chebyshev]),
+            "erosion_worms_alpha": 1.0,
+            "erosion_worms_quantize": True,
+            "saturation": 0.0,
+            "voronoi_point_freq": 3,
+            "voronoi_alpha": 1.0,
+        }
+    },
+
     "puzzler": {
         "layers": ["basic-voronoi", "maybe-invert", "wormhole", "distressed"],
         "settings": lambda: {
