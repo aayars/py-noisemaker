@@ -495,7 +495,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "big-data-startup": {
-        "layers": ["glyphic", "grain", "saturation"],
+        "layers": ["glyphic"],
         "settings": lambda: {
             "mask": mask.script,
             "hue_rotation": random.random(),
@@ -1360,9 +1360,9 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "electric-worms": {
-        "layers": ["voronoi", "worms", "density-map", "glowing-edges", "bloom"],
+        "layers": ["voronoi", "worms", "density-map", "glowing-edges", "lens"],
         "settings": lambda: {
-            "dist_metric": random_member([distance.manhattan, distance.octagram, distance.triangular]),
+            "dist_metric": random_member([d for d in distance if d.value is not None]),
             "freq": random.randint(3, 6),
             "lattice_drift": 1,
             "voronoi_alpha": 0.25 + random.random() * 0.25,
@@ -1375,7 +1375,9 @@ PRESETS = lambda: {  # noqa E731
             "worms_density": 1000,
             "worms_duration": 1,
             "worms_kink": random.randint(7, 9),
-            "worms_stride_deviation": 16,
+            "worms_stride": 1.0,
+            "worms_stride_deviation": 0,
+            "worms_quantize": coin_flip(),
         },
         "ai": {
             "prompt": "electric worms, electrified flow field, psychedelic fractal art",
@@ -1871,7 +1873,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "glyphic": {
-        "layers": ["value-mask", "posterize", "palette", "saturation", "maybe-invert", "distressed"],
+        "layers": ["value-mask", "posterize", "palette", "saturation", "maybe-rotate", "maybe-invert", "distressed"],
         "settings": lambda: {
             "corners": True,
             "mask": random_member(mask.procedural_members()),
@@ -3195,6 +3197,7 @@ PRESETS = lambda: {  # noqa E731
             "saturation": 0.0,
             "voronoi_point_freq": 3,
             "voronoi_alpha": 1.0,
+            "voronoi_point_distrib": point.random,
         }
     },
 
@@ -3814,7 +3817,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "soft-cells": {
-        "layers": ["voronoi", "maybe-rotate", "lens", "bloom"],
+        "layers": ["voronoi", "maybe-rotate", "grain"],
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
             "freq": 2,
@@ -4305,7 +4308,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "stylized psychedelic pattern with shapes and outlined regions of solid color",
-            "image_strength": 0.5,
+            "image_strength": 0.375,
         }
     },
 
@@ -4653,7 +4656,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal pattern with repeated bands of color",
-            "image_strength": 0.375,
+            "image_strength": 0.5,
             "cfg_scale": 25,
             "model": "stable-diffusion-xl-1024-v1-0",
         }

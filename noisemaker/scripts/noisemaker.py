@@ -346,7 +346,7 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
             util.check_call(["ffmpeg",
                              "-framerate", "30",
                              "-i", f"{tmp}/%04d.png",
-                             "-s", "1024x1024",
+                             "-s", f"{width}x{height}",
                              "-c:v", "libx264",
                              "-preset", "veryslow",
                              "-crf", "15",
