@@ -32,6 +32,6 @@ setup(name='noisemaker',
         "wheel==0.43.0",  # Needed by TF
         ],
 
-      tests_require=["pytest==8.2.0"],
+      tests_require=["pytest==8.2.2"],
       )
 
