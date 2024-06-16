@@ -28,7 +28,6 @@ setup(name='noisemaker',
         "protobuf<4.21,>=3.20.3",
         "requests>=2.4.2",
         "six>=1.15,<1.17",
-        "tensorflow-graphics==2021.12.3",
         "wheel==0.43.0",  # Needed by TF
         ],
 

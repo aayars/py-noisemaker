@@ -2,8 +2,7 @@
 
 import tensorflow as tf
 
-from tensorflow_graphics.image.color_space.linear_rgb import from_srgb
-from tensorflow_graphics.image.color_space.srgb import from_linear_rgb
+from noisemaker.util import from_srgb, from_linear_rgb
 
 
 def rgb_to_oklab(tensor):

@@ -154,6 +154,20 @@ def shape_from_file(filename):
     return [input_height, input_width, len(image.getbands())]
 
 
+def from_srgb(srgb):
+    """Converts an sRGB image to Linear RGB."""
+    condition = tf.less(srgb, 0.04045)
+    linear_rgb = tf.where(condition, srgb / 12.92, tf.pow((srgb + 0.055) / 1.055, 2.4))
+    return linear_rgb
+
+
+def from_linear_rgb(linear_rgb):
+    """Converts a Linear RGB image to sRGB."""
+    condition = tf.less(linear_rgb, 0.0031308)
+    srgb = tf.where(condition, linear_rgb * 12.92, 1.055 * tf.pow(linear_rgb, 1/2.4) - 0.055)
+    return srgb
+
+
 _LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')
 
 os.makedirs(_LOGS_DIR, exist_ok=True)
