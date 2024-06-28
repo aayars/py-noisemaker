@@ -25,7 +25,7 @@ setup(name='noisemaker',
         "loguru==0.7.2",
         "opensimplex==0.3",
         "Pillow==9.5.0",
-        "protobuf<4.21,>=3.20.3",
+        "protobuf>=5.27.2,<5.28",
         "requests>=2.4.2",
         "six>=1.15,<1.17",
         "wheel==0.43.0",  # Needed by TF
