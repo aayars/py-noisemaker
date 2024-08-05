@@ -28,7 +28,7 @@ setup(name='noisemaker',
         "protobuf<4.21,>=3.20.3",
         "requests>=2.4.2",
         "six>=1.15,<1.17",
-        "wheel==0.43.0",  # Needed by TF
+        "wheel==0.44.0",  # Needed by TF
         ],
 
       tests_require=["pytest==8.2.0"],
