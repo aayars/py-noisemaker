@@ -308,6 +308,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
                 tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
                                   stability_model=stability_model)
 
+                tensor = value.resample(tensor, shape)
+
                 preset.ai_success = True
 
             except Exception as e:

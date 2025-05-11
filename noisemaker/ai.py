@@ -31,6 +31,9 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
 def apply(settings, seed, input_filename, stability_model):
+    if stability_model in ('sd3', 'core', 'ultra'):
+        return apply_v2(settings, seed, input_filename, stability_model)
+
     model = stability_model if stability_model else settings['model']
 
     response = requests.post(
@@ -62,6 +65,45 @@ def apply(settings, seed, input_filename, stability_model):
     for i, image in enumerate(data["artifacts"]):
         tensor = tf.io.decode_png(base64.b64decode(image["base64"]))
 
+    return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
+
+def apply_v2(settings, seed, input_filename, stability_model=None):
+    model = stability_model if stability_model else settings['model']
+
+    response = requests.post(
+        f"{STABILITY_API_HOST}/v2beta/stable-image/generate/{model}",
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {_api_key('stability')}"
+        },
+        files={
+            "image": open(input_filename, "rb")
+        },
+        data={
+            "mode": "image-to-image",
+            "model": model,
+            "prompt": "abstract art: " + settings["prompt"] + " No people.",
+            "negative_prompt": settings.get("negative_prompt", ""),
+            "strength": settings["image_strength"],
+            "seed": seed,
+            "output_format": "png"
+        }
+    )
+
+    if response.status_code != 200:
+        raise Exception("Non-200 response: " + response.text)
+
+    result = response.json()
+
+    if result.get("finish_reason") != "SUCCESS":
+        raise Exception(result.get("finish_reason", str(result)))
+
+    image_b64 = result.get("image")
+    if not image_b64:
+        raise Exception("Image data not found in the response.")
+
+    tensor = tf.io.decode_png(base64.b64decode(image_b64))
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
