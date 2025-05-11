@@ -301,7 +301,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = f"{tmp}/temp.png"
-            tmp_path = "input.png"  # XXX
+            # tmp_path = "input.png"  # XXX
 
             util.save(tensor, tmp_path)
 
@@ -312,7 +312,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
                 style_tensor = value.resample(style_tensor, shape)
 
                 style_path = f"{tmp}/temp-style.png"
-                style_path = "style.png"  # XXX
+                # style_path = "style.png"  # XXX
 
                 util.save(style_tensor, style_path)
 
