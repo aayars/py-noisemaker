@@ -34,8 +34,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "1960s, kaleidoscopic, psychedelia, vintage poster art",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
         }
     },
 
@@ -51,8 +49,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "1970s, overlapping shapes, vintage poster art",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -71,8 +67,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "1980s, nostalgia, colorful, shapes, loud, retro",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -87,8 +81,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "2000s, retro futuristic, ocr, glitchy",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -110,8 +102,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "decorative tile design, chessboard",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -134,8 +124,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "old textured wall, exposed layers of old paint, paint chipping and peeling away",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -153,8 +141,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "corrosive liquid splatter, faded",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
         }
     },
 
@@ -172,8 +158,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic imagery, distorted geometric grid",
-            "cfg_scale": 30,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -215,8 +199,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "1980s, 1990s, vaporwave, cyber, analog",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
         }
     },
 
@@ -260,8 +242,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "sci-fi font, alien language glyphs",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -272,8 +252,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "sci-fi font, alien language glyphs",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -313,9 +291,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "blacklight arcade carpet, sci-fi, day-glow, bright colorful fluorescent shapes on black background, planets, stars, nebulas, comets, rockets, ufos, spaceships, asteroids, meteors, 1980s, 1990s",
-            "image_strength": 0.25,
-            "cfg_scale": 30,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -344,9 +319,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "artistic design with long bands of streaking color",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -404,8 +376,6 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "low-poly", "grain", "saturation"],
         "ai": {
             "prompt": "a basic low-poly design, low poly mesh, diffuse lighting",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
             "style_preset": "low-poly",
         }
     },
@@ -432,8 +402,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a basic voronoi diagram with cells that refract like glass",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -457,8 +425,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "simple water texture, ripples, waves, serene, calm",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -488,9 +454,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelia, vivid colors",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -543,8 +506,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail brightly colored fluorescent blacklight outlines of a high fantasy scene over a black background",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
             "style_preset": "fantasy-art",
         }
     },
@@ -582,9 +543,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery with overlapping ripples",
-            "image_strength": 0.225,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -601,9 +559,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a brightly colored trippy psychedelic design with overlapping waves",
-            "image_strength": 0.225,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -640,8 +595,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail brightly colored distorted hexagonal grid",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -657,9 +610,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail brightly colored layers of broken shapes with glowing edges",
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -695,8 +646,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high detail regions of color, complex fractal",
-            "image_strength": 0.5,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -720,9 +669,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract design, art, vintage psychedelia",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -758,8 +704,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "refractive voronoi cells, liquid glass, high detail fractal refraction",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
             "style_preset": "photographic",
         }
     },
@@ -776,8 +720,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "refractive voronoi cells, liquid glass, high detail fractal refraction",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
             "style_preset": "photographic",
         }
     },
@@ -796,9 +738,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fur, flow field, geometric shapes",
-            "image_strength": 0.375,
-            "cfg_scale": 20,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -816,7 +755,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "scribbles, doodles, style of chalk art",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -830,8 +768,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "chunky knit fabric, waffle knit",
-            "image_strength": 0.5,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -865,8 +801,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "realistic white clouds in a blue sky",
-            "image_strength": 0.875,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -905,9 +839,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "design motif, industry conference, truchet pattern",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -993,10 +924,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "cobblestones texture, smooth cobblestone path",
-            "image_strength": 0.75,
-            "cfg_scale": 20,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1097,7 +1025,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "low-poly, low poly mesh, diffuse lighting",
-            "image_strength": 0.5,
             "style_preset": "low-poly",
         }
     },
@@ -1164,8 +1091,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "hubble space telescope, hst, spitzer space telescope, deep field, galaxies",
-            "image_strength": 0.75,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -1202,7 +1127,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "density plot, wave",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1289,8 +1213,6 @@ PRESETS = lambda: {  # noqa E731
         ],
         "ai": {
             "prompt": "diffusion-limited aggregation, lichtenberg figure, electrical discharge, branching out, branched structure",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -1302,8 +1224,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "diffusion-limited aggregation, lichtenberg figure, electrical discharge, branching out, branched structure, tributaries, capillaries",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -1314,9 +1234,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "domain warping example, fractional brownian motion",
-            "image_strength": 0.75,
-            "cfg_scale": 10,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -1381,8 +1298,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "electric worms, electrified flow field, psychedelic fractal art",
-            "image_strength": .75,
-            "cfg_scale": 15,
         }
     },
 
@@ -1437,8 +1352,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         },
     },
 
@@ -1543,8 +1456,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies, flow field, fractal flame",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         },
     },
@@ -1621,8 +1532,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "buried fossils, paleontology, layered rock, plants, animals, fungi, bacteria",
-            "image_strength": 0.625,
-            "cfg_scale": 30,
             "style_preset": "photographic"
         }
     },
@@ -1634,8 +1543,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
         },
     },
 
@@ -1658,9 +1565,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence, swirling, unmixed, eddies",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -1672,8 +1576,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "smoke, psychedelic fractal turbulence, swirling, unmixed, eddies",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
         },
     },
 
@@ -1693,7 +1595,6 @@ PRESETS = lambda: {  # noqa E731
         "ai": {
             "prompt": "tile flooring, shower tiles, symmetrical decorative design, marble, granite, ceramic",
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -1867,8 +1768,6 @@ PRESETS = lambda: {  # noqa E731
         ],
         "ai": {
             "prompt": "a grid of glyphs and symbols, truchet pattern",
-            "image_strength": 0.925,
-            "cfg_scale": 15,
         }
     },
 
@@ -1945,8 +1844,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "grassy texture, grass and dirt, multi-colored grass, thatch, a dusty old lawn, turf",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
             "style_preset": "tile-texture",
         }
     },
@@ -1965,8 +1862,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a grid within a grid, recursive grids",
-            "image_strength": .5,
-            "cfg_scale": 20,
         }
     },
 
@@ -1983,8 +1878,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "groovy, psychedelia, peace and love, groove is stored in the heart, vintage",
-            "image_strength": 0.95,
-            "cfg_scale": 25,
         }
     },
 
@@ -2095,8 +1988,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "spilled ink on paper, unmixed paint",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -2113,7 +2004,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fractal flame, singularity, flow field, soupy",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2126,7 +2016,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "colorful fuzz, felt, fibers, fabric, lint, wool, flow field, soft",
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -2151,7 +2040,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "denim fabric texture, corduroy, blue jeans, levis",
-            "cfg_scale": 20,
             "style_preset": "tile-texture",
         }
     },
@@ -2180,8 +2068,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "great red spot of jupiter, jovian clouds, gas giant atmosphere, juno satellite imagery, storms, hurricanes, cyclones, jetstream, swirling, unmixed, eddies",
-            "image_strength": 0.35,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         },
     },
@@ -2195,8 +2081,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "distorted glass refracting a psychedelic fractal pattern",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
             "style_preset": "photographic"
         }
     },
@@ -2228,9 +2112,6 @@ PRESETS = lambda: {  # noqa E731
         ],
         "ai": {
             "prompt": "abstract psychedelic fractal pattern",
-            "image_strength": 0.05,
-            "cfg_scale": 35,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2248,8 +2129,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "flow field",
-            "image_strength": 0.95,
-            "cfg_scale": 25,
         }
     },
 
@@ -2286,8 +2165,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "distorted psychedelic grid, deformed lattice",
-            "image_strength": 0.975,
-            "cfg_scale": 30,
         }
     },
 
@@ -2356,8 +2233,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "night sky, stars, milky way, lens flare, stargazing",
-            "image_strength": 0.625,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -2382,8 +2257,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "low-poly mesh, diffuse lighting",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
             "style_preset": "low-poly",
         }
     },
@@ -2398,9 +2271,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal artwork, swirling, unmixed, trippy",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2463,8 +2333,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "macpaint, classic computing, truchet pattern, bitmap, 1-bit graphics",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
             "style_preset": "pixel-art",
         }
     },
@@ -2479,7 +2347,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "interference patterns, moire",
-            "image_strength": 0.875,
         }
     },
 
@@ -2491,10 +2358,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "molten glass, glass blowing art, melted paint, melting colors, unmixed",
-            "image_strength": 0.425,
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2505,9 +2369,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.125,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2522,9 +2383,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.125,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2535,9 +2393,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.125,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2549,9 +2404,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.125,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2574,8 +2426,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "flow field, colorful faux fur, furry, fuzzy, fluffy, rave culture, soft",
-            "image_strength": 0.5,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -2597,8 +2447,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "flow field, mycelium, roots, mycelial network",
-            "image_strength": 0.75,
-            "cfg_scale": 30,
             "style_preset": "photographic",
         }
     },
@@ -2616,8 +2464,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "groovy, psychedelia, peace and love, vintage",
-            "image_strength": 0.95,
-            "cfg_scale": 25,
         }
     },
 
@@ -2639,7 +2485,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "trippy kaleidoscopic imagery, symmetry, mandala, nirvana",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2657,8 +2502,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "artistic depiction of primordial underwater life, cambrian era, kelp, invertebrates",
-            "image_strength": 0.875,
-            "cfg_scale": 20,
         }
     },
 
@@ -2672,9 +2515,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal turbulence",
-            "image_strength": 0.25,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -2690,9 +2530,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal vibrations, lake ripples",
-            "image_strength": 0.375,
-            "cfg_scale": 20,
-            "model": "stable-diffusion-xl-1024-v1-0",
         },
     },
 
@@ -2704,8 +2541,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "tunnel of refracting light",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
         },
     },
 
@@ -2741,7 +2576,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "now, psychedelic fractal imagery",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2779,8 +2613,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "colorful overlapping squares",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
             "style_preset": "pixel-art",
         }
     },
@@ -2838,8 +2670,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a distorted psychedelic black and white checker pattern, groovy, psychedelia, peace and love, vintage, monochrome",
-            "image_strength": 0.625,
-            "cfg_scale": 30,
         }
     },
 
@@ -2848,7 +2678,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "oracle": {
-        "layers": ["value-mask", "random-hue", "maybe-invert", "crt"],
+        "layers": ["value-mask", "random-hue", "maybe-invert", "distressed"],
         "settings": lambda: {
             "corners": True,
             "mask": mask.iching,
@@ -2901,10 +2731,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "oxidation, oxidized metal, rusted iron, corrosive, corrosion, sulfurous, rough texture",
-            "image_strength": 0.625,
-            "cfg_scale": 30,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -2938,8 +2765,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract watercolor, fine art, painterly, textured canvas",
-            "image_strength": 0.375,
-            "cfg_scale": 30,
         }
     },
 
@@ -2965,8 +2790,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "ancient mayan gods, dieties, stone face carving, stone tablet, pantheon of mayan gods, ancient maya art and language",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         },
     },
@@ -2990,8 +2813,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "iridescent material, iridescence, mica, silicate mineral, mother-of-pearl",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3006,9 +2827,6 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [Effect("normalize")],
         "ai": {
             "prompt": "abstract psychedelic art, concentric shapes",
-            "image_strength": 0.25,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3042,8 +2860,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "light refracted through a pink gemstone with orange highlights",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3104,8 +2920,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "icy bladed terrain, geomorphology, nasa imagery, new horizons, terrain map, high-relief, ice, frozen",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3167,10 +2981,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "mayan glyph writing, codex, ancient mayan stone carving, maya stelae, mayan art and language, stone tablet, a grid of entities, pantheon of mayan gods, psychedelic visionary art, ancient language",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3182,9 +2993,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "flow field, abstract psychedelic fractal pattern",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3211,7 +3019,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "cut out pieces of paper",
-            "cfg_scale": 25,
             "style_preset": "origami",
         }
     },
@@ -3226,8 +3033,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract fractal design",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
         }
     },
 
@@ -3247,8 +3052,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "patchwork quilt, soft cotton fabric",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3303,10 +3106,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "reflect-octaves", "reflect-post", "grain"],
         "ai": {
             "prompt": "distorted funhouse mirror reflecting a psychedelic fractal pattern",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3349,8 +3149,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "a grid of glyphs and symbols, truchet pattern",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
         }
     },
 
@@ -3379,8 +3177,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "retro vector design",
-            "image_strength": 0.5,
-            "cfg_scale": 30,
         }
     },
 
@@ -3413,8 +3209,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract design, art, vintage psychedelia, rainbow, pride",
-            "image_strength": 0.75,
-            "cfg_scale": 25,
         }
     },
 
@@ -3461,8 +3255,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "alien glyph writing, codex, ancient alien stone carving, alien language, stone tablet",
-            "image_strength": 0.625,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -3481,8 +3273,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "sand blowing away in the wind, sand scattered to the wind, particles",
-            "image_strength": 0.75,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -3505,9 +3295,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "abstract psychedelic fractal pattern",
-            "image_strength": 0.25,
-            "cfg_scale": 20,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3570,9 +3357,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "scribbles, doodles, style of pencil drawing, sketch",
-            "image_strength": 0.5,
-            "cfg_scale": 20,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3594,8 +3378,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "outward ripples, serene, peaceful",
-            "image_strength": 0.5,
-            "cfg_scale": 20,
             "style_preset": "photographic",
         }
     },
@@ -3650,10 +3432,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "shattered shapes, broken, shards, fragments",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3672,8 +3451,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery, shimmering noise",
-            "image_strength": 0.375,
-            "cfg_scale": 25,
         }
     },
 
@@ -3726,9 +3503,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery",
-            "image_strength": 0.375,
-            "cfg_scale": 30,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3857,7 +3631,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "fractal flame, psychedelic fractal imagery, flow field",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -3931,9 +3704,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "high contrast design with distorted symbols and geometric shapes, alien glyphs and graffiti",
-            "image_strength": 0.333,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4004,8 +3774,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "rgb subpixels, red green blue pixel elements, monitor macro",
-            "image_strength": 0.75,
-            "cfg_scale": 30,
         }
     },
 
@@ -4025,9 +3793,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "soft blended colors, four-way symmetry, natural symmetry, kaleidoscope",
-            "image_strength": .125,
-            "cfg_scale": 20,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4120,8 +3885,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "parabolic tiling, flower with four petals, four-way symmetry",
-            "image_strength": 0.875,
-            "cfg_scale": 25,
         }
     },
 
@@ -4135,8 +3898,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "terra terribili, satellite photography, aerial photography, high detail, eroded sci-fi terrain, high-relief, geomorphology, molten hellscape, orbiter imagery, cratered rocky surface, fantasy rpg zone, scarred, io, volcanoes",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -4157,8 +3918,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "broadcast tv test pattern, visual distortion pattern, wavy test card, television test signal, color bars",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -4226,8 +3985,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "light refracted through a clear crystal with prismatic colors",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -4268,8 +4025,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "flow field, diverging, converging, timelines",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
         }
     },
 
@@ -4308,7 +4063,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "stylized psychedelic pattern with shapes and outlined regions of solid color",
-            "image_strength": 0.375,
         }
     },
 
@@ -4345,8 +4099,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "tribbles, furry, fuzzy, fluffy, puffs, soft",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
         }
     },
@@ -4375,8 +4127,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "maze generated with truchet tiles, `10 PRINT CHR$(205.5+RND(1)); : GOTO 10`",
-            "image_strength": .625,
-            "cfg_scale": 25,
         }
     },
 
@@ -4432,10 +4182,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "melted paint, melting colors, unmixed",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4506,7 +4253,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "vector display reminiscent of classic arcade game \"asteroids\", vectorized shapes, glowing outlines on a black background",
-            "image_strength": 0.875,
             "style_preset": "neon-punk",
         }
     },
@@ -4539,8 +4285,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal imagery, vibey, subdued mood",
-            "image_strength": 0.5,
-            "cfg_scale": 20,
         }
     },
 
@@ -4603,7 +4347,6 @@ PRESETS = lambda: {  # noqa E731
         ],
         "ai": {
             "prompt": "voronoi diagram overlayed on a field of value noise",
-            "image_strength": .75,
         },
     },
 
@@ -4615,7 +4358,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "value noise warped and deformed by a voronoi diagram, refracted colors",
-            "image_strength": .75,
         },
     },
 
@@ -4639,9 +4381,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "warped and distorted voronoi cells, colorful stretched shapes",
-            "image_strength": .375,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4656,9 +4395,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "psychedelic fractal pattern with repeated bands of color",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4681,10 +4417,7 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "microscopic view of single-celled organisms, glowing amoeba blobs, are they having a party?",
-            "image_strength": 0.5,
-            "cfg_scale": 25,
             "style_preset": "photographic",
-            "model": "stable-diffusion-xl-1024-v1-0",
         }
     },
 
@@ -4797,8 +4530,6 @@ PRESETS = lambda: {  # noqa E731
         },
         "ai": {
             "prompt": "8-bit tiled sprites, retro rpg map, classic arcade game, fantasy dungeon",
-            "image_strength": 0.625,
-            "cfg_scale": 30,
             "style_preset": "pixel-art",
         }
     },

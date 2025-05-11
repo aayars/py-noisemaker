@@ -93,10 +93,15 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         raise
 
     if preset.ai_success:
-        print(f"{preset_name} vs. {preset.ai_settings['model']} (seed: {seed})")
+        if preset.ai_settings['model'] in ('sd3', 'core', 'ultra'):
+            ai_label = 'stable-image ai'
+        else:
+            ai_label = 'ai'
+
+        print(f"{preset_name} (procedural) vs. {preset.ai_settings['model']} ({ai_label}) / seed: {seed}")
 
     else:
-        print(f"{preset_name} (seed: {seed})")
+        print(f"{preset_name} (procedural) (seed: {seed})")
 
     if with_alt_text:
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))

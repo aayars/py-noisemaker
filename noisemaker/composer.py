@@ -21,12 +21,17 @@ ALLOWED_KEYS = ["layers", SETTINGS_KEY, "generator", "octaves", "post", "final",
 # These correspond to https://platform.stability.ai/docs/api-reference#tag/v1generation/operation/textToImage
 ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset", "model"]
 
+# v1 models: stable-diffusion-v1-6, stable-diffusion-xl-1024-v1-0
+# v2 models: sd3, core, ultra
+AI_MODEL = "core"
+
 # Don't raise an exception if the following keys are unused in settings
 UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "speed"]
 
 # Populated by reload_presets() after setting random seed
 GENERATOR_PRESETS = {}
 EFFECT_PRESETS = {}
+
 
 _STASH = {}
 
@@ -90,11 +95,11 @@ class Preset:
                                  f"\"{k}\"")
 
         self.ai_settings = {
-            "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", psychedelic fractal imagery"),
+            "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", abstract art"),
             "image_strength": _ai_settings.get("image_strength", 0.5),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
             "style_preset": _ai_settings.get("style_preset", "digital-art"),
-            "model": _ai_settings.get("model", "stable-diffusion-v1-6")
+            "model": _ai_settings.get("model", AI_MODEL)
         }
 
         self.ai_settings.update(prototype.get("ai_settings", {}))

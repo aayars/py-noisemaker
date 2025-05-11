@@ -2588,7 +2588,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     else:
         splash = tf.zeros(shape)
 
-    return blend_layers(value.normalize(smear), shape, .005, tensor, splash)
+    return blend_layers(value.normalize(smear), shape, .005, tensor, splash * tensor)
 
 
 @effect()

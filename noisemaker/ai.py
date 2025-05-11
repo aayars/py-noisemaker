@@ -31,10 +31,10 @@ OPENAI_MODEL = "gpt-3.5-turbo"
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
 def apply(settings, seed, input_filename, stability_model):
-    if stability_model in ('sd3', 'core', 'ultra'):
-        return apply_v2(settings, seed, input_filename, stability_model)
-
     model = stability_model if stability_model else settings['model']
+
+    if model in ('sd3', 'core', 'ultra'):
+        return apply_v2(settings, seed, input_filename, stability_model)
 
     response = requests.post(
         f"{STABILITY_API_HOST}/v1/generation/{model}/image-to-image",
@@ -82,9 +82,8 @@ def apply_v2(settings, seed, input_filename, stability_model=None):
         },
         data={
             "mode": "image-to-image",
-            "model": model,
-            "prompt": "abstract art: " + settings["prompt"] + " No people.",
-            "negative_prompt": settings.get("negative_prompt", ""),
+            "prompt": settings["prompt"],
+            "negative_prompt": settings.get("negative_prompt", "People, Words"),
             "strength": settings["image_strength"],
             "seed": seed,
             "output_format": "png"
@@ -104,6 +103,34 @@ def apply_v2(settings, seed, input_filename, stability_model=None):
         raise Exception("Image data not found in the response.")
 
     tensor = tf.io.decode_png(base64.b64decode(image_b64))
+    return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
+
+
+def apply_style(settings, seed, content_filename, style_filename, output_format="png"):
+    response = requests.post(
+        f"{STABILITY_API_HOST}/v2beta/stable-image/control/style-transfer",
+        headers={
+            "Accept": "image/*",
+            'Authorization': f"Bearer {_api_key('stability')}"
+        },
+        files={
+            "init_image": open(content_filename, "rb"),
+            "style_image": open(style_filename, "rb")
+        },
+        data={
+            "prompt": settings["prompt"],
+            "negative_prompt": settings.get("negative_prompt", "People, Words"),
+            "style_strength": settings["image_strength"],
+            "seed": seed,
+            "output_format": output_format,
+        }
+    )
+
+    if response.status_code != 200:
+        raise Exception('Non-200 response: ' + response.text)
+
+    tensor = tf.io.decode_image(response.content, channels=0)
+
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 

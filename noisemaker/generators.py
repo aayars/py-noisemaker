@@ -301,14 +301,26 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = f"{tmp}/temp.png"
+            tmp_path = "input.png"  # XXX
 
             util.save(tensor, tmp_path)
 
             try:
-                tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
-                                  stability_model=stability_model)
+                style_tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
+                                      stability_model=stability_model)
 
-                tensor = value.resample(tensor, shape)
+                style_tensor = value.resample(style_tensor, shape)
+
+                style_path = f"{tmp}/temp-style.png"
+                style_path = "style.png"  # XXX
+
+                util.save(style_tensor, style_path)
+
+                new_tensor = ai.apply_style(preset.ai_settings, seed, tmp_path, style_path)
+
+                # tensor = new_tensor
+                tensor = value.blend(tensor, new_tensor, 0.5)
+                tensor = tf.image.adjust_contrast(tensor, 1.25)
 
                 preset.ai_success = True
 
