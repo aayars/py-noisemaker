@@ -51,7 +51,7 @@ def main():
 @click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
 @click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
-@click.option('--with-upscale', help="AI: Apply x2 upscale (requires stability.ai key)", is_flag=True, default=False)
+@click.option('--with-upscale', help="AI: Apply x4 upscale (requires stability.ai key)", is_flag=True, default=False)
 @click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
 @click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)

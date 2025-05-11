@@ -331,7 +331,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
             util.save(tensor, tmp_path)
 
             try:
-                tensor = ai.x2_upscale(tmp_path)
+                tensor = ai.x4_upscale(tmp_path)
 
             except Exception as e:
                 util.logger.error(f"preset.upscale() failed: {e}\nSeed: {seed}")

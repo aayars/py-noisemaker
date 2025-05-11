@@ -65,23 +65,25 @@ def apply(settings, seed, input_filename, stability_model):
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def x2_upscale(input_filename):
+def x4_upscale(input_filename):
     response = requests.post(
-        f"{STABILITY_API_HOST}/v1/generation/esrgan-v1-x2plus/image-to-image/upscale",
+        f"{STABILITY_API_HOST}/v2beta/stable-image/upscale/fast",
         headers={
-            "Accept": "image/png",
+            "Accept": "image/*",
             "Authorization": f"Bearer {_api_key('stability')}"
         },
         files={
             "image": open(input_filename, "rb")
+        },
+        data={
+            "output_format": "png"
         }
     )
 
     if response.status_code != 200:
-        raise Exception("Non-200 response: " + str(response.text))
+        raise Exception("Non-200 response: " + response.text)
 
     tensor = tf.io.decode_png(response.content)
-
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
