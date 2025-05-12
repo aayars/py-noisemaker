@@ -87,7 +87,7 @@ def watermark(text, filename):
     return check_call(['mood',
                        '--filename', filename,
                        '--text', text,
-                       '--font', 'Jura-Regular',
+                       '--font', 'Nunito-VariableFont_wght',
                        '--font-size', '16',
                        '--no-rect',
                        '--bottom',
