@@ -10,6 +10,7 @@ import noisemaker.ai as ai
 import noisemaker.composer as composer
 import noisemaker.generators as generators
 import noisemaker.util as util
+import noisemaker.value as value
 
 
 _ADJECTIVES = [
@@ -35,26 +36,21 @@ _ADJECTIVES = [
 ]
 
 _INTROS = [
-    "I'm having a dream about...",
-    "Last night I dreamed...",
-    "I was just reminded of a dream I had about...",
-    "I had a daydream where...",
-    "I vaguely recall dreaming about...",
-    "When I close my eyes, I can picture...",
-    "I keep having a recurring dream about...",
-    "I dream of...",
-    "I used to dream about...",
-    "I had a very realistic dream about...",
-    "I had a bizarre dream where...",
-    "I sometimes imagine...",
-    "I sometimes dream of...",
-    "I just remembered a recent dream where...",
+    "Imagine yourself standing in...",
+    "Imagine what it must be like to...",
+    "You find yourself in...",
+    "A scene appears in your mind...",
+    "Picture in your mind...",
+    "Imagine a real place in your mind...",
+    "Close your eyes and try to picture...",
+    "Imagine going to...",
+    "Imagine the sights, sounds, and smells of...",
 ]
 
 def dream(width, height, filename='dream.png'):
     adjective = composer.random_member(_ADJECTIVES)
 
-    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt for an image in a {adjective} style. Provide the data in semicolon-delimited format. Do not litter the data with useless labels like \"Name:\" or \"Description:\" or \"the name is\" or \"the description is\" or \"the name and description are as follows:\". Properly capitalize and use spaces where appropriate. The name must be between 8 and 25 characters. The description may be between 50 and 225 characters."
+    system_prompt = f"Imagine a system that generates images from a text prompt, and come up with a prompt for a natural scene rendered in a {adjective} style. Provide the data in semicolon-delimited format. Do not litter the data with useless labels like \"Name:\" or \"Description:\" or \"the name is\" or \"the description is\" or \"the name and description are as follows:\". Properly capitalize and use spaces where appropriate. The name must be between 8 and 25 characters. The description may be between 50 and 225 characters."
 
     user_prompt = "What is the name and description of the composition? Provide the data in semicolon-delimited format. Do not label the data."
 
@@ -72,33 +68,56 @@ def dream(width, height, filename='dream.png'):
 
     intro = composer.random_member(_INTROS)
 
-    system_prompt = f"Modify the received prompt to indicate that it's something from a dream. You may begin the statement by paraphrasing that it was from a dream. For example, come up with a variation for something like: \"{intro}\". The statement may not exceed 250 characters."
+    system_prompt = f"Modify the received prompt as a visualization aid. You may begin the statement by paraphrasing that the viewer should mentally transport themselves into this scene. For example, come up with a variation for something like: \"{intro}\". The statement may not exceed 250 characters."
 
     message = ai._openai_query(system_prompt, prompt)
 
     shape = [height, width, 3]
     color_space = composer.random_member([m for m in ColorSpace if m != ColorSpace.grayscale])
 
-    tensor = generators.basic(freq=[height, width], shape=shape, color_space=color_space,
+    seed = random.randint(1, 99999999)
+
+    value.set_seed(seed)
+
+    tensor = generators.basic(freq=[int(height * .5), int(width * .5)], shape=shape, color_space=color_space,
                               hue_range=0.125 + random.random() * 1.5)
+
+    new_tensor = generators.basic(freq=[int(height * .005), int(width * .005)], shape=shape, color_space=color_space,
+                                  hue_range=0.125 + random.random() * 1.0)
+
+    tensor = value.blend(tensor, new_tensor, 0.5)
 
     settings = {
         "image_strength": 0.0125,
+        "seed": seed,
         "cfg_scale": 20,
         "prompt": prompt,
         "style_preset": "photographic",
-        "model": "stable-diffusion-xl-1024-v1-0",
+        "model": "core",
     }
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_filename = f"{tmp}/noise.png"
+        # tmp_filename = f"input.png"  # XXX
 
         util.save(tensor, tmp_filename)
 
-        tensor = ai.apply(settings, random.randint(1, 2 ** 32 - 1), tmp_filename, None)
+        style_tensor = ai.apply(settings, random.randint(1, 2 ** 32 - 1), tmp_filename, None)
+        style_tensor = value.resample(style_tensor, shape)
+
+        style_filename = f"{tmp}/temp-style.png"
+        # style_filename = "style.png"  # XXX
+
+        util.save(style_tensor, style_filename)
+
+        new_tensor = ai.apply_style(settings, seed, tmp_filename, style_filename)
+
+        tensor = value.blend(new_tensor, tensor, 0.1)
 
         description = ai.describe(name, prompt, tmp_filename)
 
     composer.EFFECT_PRESETS["lens"].render(seed=random.randint(1, 2 ** 32 - 1), tensor=tensor, shape=shape, filename=filename)
+
+    util.save(ai.x4_upscale(filename), filename)
 
     return name, message, description

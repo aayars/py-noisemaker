@@ -25,7 +25,7 @@ import tensorflow as tf
 STABILITY_API_HOST = "https://api.stability.ai"
 
 OPENAI_API_HOST = "https://api.openai.com"
-OPENAI_MODEL = "gpt-3.5-turbo"
+OPENAI_MODEL = "o4-mini"
 
 
 # Adapted from stability.ai API usage example
@@ -245,7 +245,6 @@ def _openai_query(system_prompt, user_prompt):
                     "content": user_prompt,
                 }
             ],
-            "temperature": 0.75,
         }
     )
 

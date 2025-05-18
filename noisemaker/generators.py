@@ -318,6 +318,8 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
                 new_tensor = ai.apply_style(preset.ai_settings, seed, tmp_path, style_path)
 
+                new_tensor = value.resample(new_tensor, shape)
+
                 # tensor = new_tensor
                 tensor = value.blend(tensor, new_tensor, 0.5)
                 tensor = tf.image.adjust_contrast(tensor, 1.25)
