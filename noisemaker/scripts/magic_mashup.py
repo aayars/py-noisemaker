@@ -100,7 +100,8 @@ def frame(ctx, input_dir, frame, seed, filename, width, height):
 
         collage_images.append(tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32))
 
-    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), seed=seed, time=frame/50.0, speed=0.125)
+    value.set_seed(seed)
+    base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), time=frame/50.0, speed=0.125)
 
     control = value.value_map(collage_images.pop(), shape, keepdims=True)
 
