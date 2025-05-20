@@ -364,6 +364,116 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
             util.magick(f'{tmp}/*png', filename)
 
 
+@main.command(help="Animated collage from a directory of directory of frames")
+@cli.input_dir_option(required=True)
+@cli.width_option(default=512)
+@cli.height_option(default=512)
+@cli.seed_option()
+@cli.filename_option(default='mashup.mp4')
+@click.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
+@click.option('--frame-count', type=int, default=50, help="How many frames total")
+@click.option('--watermark', type=str)
+@click.option('--preview-filename', type=click.Path(exists=False))
+@click.pass_context
+
+def magic_mashup(ctx, input_dir, width, height, seed,
+                    filename, save_frames, frame_count,
+                    watermark, preview_filename):
+
+    if not seed:
+        seed = random.randint(1, MAX_SEED_VALUE)
+
+    dirnames = [d for d in os.listdir(input_dir)
+                if os.path.isdir(os.path.join(input_dir, d))]
+
+    if not dirnames:
+        click.echo(f"No subdirectories found in input dir {input_dir}")
+        sys.exit(1)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in range(frame_count):
+            frame_path = os.path.join(tmp, f"{i:04d}.png")
+
+            # Load collage images for this frame
+            collage_images = []
+            collage_count = min(random.randint(4, 6), len(dirnames))
+
+            for _ in range(collage_count + 1):
+                dirname = random.choice(dirnames)
+                files = sorted(f for f in os.listdir(os.path.join(input_dir, dirname))
+                               if f.endswith('.png'))
+
+                if not files:
+                    continue
+
+                try:
+                    src = os.path.join(input_dir, dirname, files[i])
+                except IndexError:
+                    continue
+
+                img = tf.image.convert_image_dtype(
+                    util.load(src, channels=3), dtype=tf.float32)
+                collage_images.append(img)
+
+            # Generate control and base noise
+            value.set_seed(seed)
+            shape = [height, width, 3]
+
+            base = generators.basic(
+                freq=random.randint(2, 4),
+                shape=shape,
+                hue_range=random.random(),
+                time=i / frame_count,
+                speed=0.125
+            )
+
+            control = value.value_map(collage_images.pop(), shape, keepdims=True)
+            control = value.convolve(
+                kernel=effects.ValueMask.conv2d_blur,
+                tensor=control,
+                shape=[shape[0], shape[1], 1]
+            )
+
+            tensor = effects.blend_layers(
+                control, shape, random.random() * 0.5, *collage_images
+            )
+            tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
+            tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
+            tensor = effects.shadow(
+                tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control
+            )
+            tensor = tf.image.adjust_brightness(tensor, 0.1)
+            tensor = tf.image.adjust_contrast(tensor, 1.5)
+
+            util.save(tensor, frame_path)
+
+            if save_frames:
+                shutil.copy(frame_path, save_frames)
+
+            if watermark:
+                util.watermark(watermark, frame_path)
+
+            if preview_filename and i == 0:
+                shutil.copy(frame_path, preview_filename)
+
+        # Assemble video using ffmpeg
+        util.check_call([
+            'ffmpeg',
+            '-framerate', '30',
+            '-i', os.path.join(tmp, '%04d.png'),
+            '-s', f'{width}x{height}',
+            '-c:v', 'libx264',
+            '-preset', 'veryslow',
+            '-crf', '15',
+            '-pix_fmt', 'yuv420p',
+            '-b:v', '8000k',
+            '-bufsize', '16000k',
+            filename
+        ])
+
+    print('magic-mashup')
+
+
 @main.command(help="Blend a directory of .png or .jpg images")
 @cli.input_dir_option(required=True)
 @cli.filename_option(default="collage.png")
@@ -373,57 +483,59 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
 @cli.seed_option()
 @click.pass_context
 def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
-    filenames = []
+    filenames_list = []
 
     for root, _, files in os.walk(input_dir):
         for f in files:
             if f.endswith(('.png', '.jpg')):
-                filenames.append(os.path.join(root, f))
+                filenames_list.append(os.path.join(root, f))
 
-    collage_count = min(random.randint(4, 6), len(filenames))
+    collage_count = min(random.randint(4, 6), len(filenames_list))
     collage_images = []
 
-    for i in range(collage_count + 1):
-        index = random.randint(0, len(filenames) - 1)
-
-        input_filename = os.path.join(input_dir, filenames[index])
-
-        collage_input = tf.image.convert_image_dtype(util.load(input_filename, channels=3), dtype=tf.float32)
-
-        collage_images.append(collage_input)
+    for _ in range(collage_count + 1):
+        src = random.choice(filenames_list)
+        img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
+        collage_images.append(img)
 
     if control_filename:
-        control_shape = util.shape_from_file(control_filename)
-        control = tf.image.convert_image_dtype(util.load(control_filename, channels=control_shape[2]), dtype=tf.float32)
-
+        shape_ctrl = util.shape_from_file(control_filename)
+        control_img = tf.image.convert_image_dtype(
+            util.load(control_filename, channels=shape_ctrl[2]), dtype=tf.float32)
     else:
-        control = collage_images.pop()
+        control_img = collage_images.pop()
 
-    shape = tf.shape(control)  # All images need to be the same size!
-
-    control = value.value_map(control, shape, keepdims=True)
+    shape = tf.shape(control_img)
+    control = value.value_map(control_img, shape, keepdims=True)
 
     value.set_seed(seed)
 
-    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random(),
-                            time=time, speed=speed)
+    base = generators.basic(
+        freq=random.randint(2, 5),
+        shape=shape,
+        lattice_drift=random.randint(0, 1),
+        hue_range=random.random(),
+        time=time,
+        speed=speed
+    )
 
-    value_shape = value.value_shape(shape)
+    val_shape = value.value_shape(shape)
+    control = value.convolve(
+        kernel=effects.ValueMask.conv2d_blur,
+        tensor=control,
+        shape=val_shape
+    )
 
-    control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=value_shape)
-
-    tensor = effects.blend_layers(control, shape, random.random() * .5, *collage_images)
-
-    tensor = value.blend(tensor, base, .125 + random.random() * .125)
-
-    tensor = effects.bloom(tensor, shape, alpha=.25 + random.random() * .125)
-    tensor = effects.shadow(tensor, shape, alpha=.25 + random.random() * .125, reference=control)
-
-    tensor = tf.image.adjust_brightness(tensor, .1)
+    tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
+    tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
+    tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
+    tensor = effects.shadow(
+        tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control
+    )
+    tensor = tf.image.adjust_brightness(tensor, 0.1)
     tensor = tf.image.adjust_contrast(tensor, 1.5)
 
     util.save(tensor, filename)
-
     print('mashup')
 
 
