@@ -364,7 +364,7 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
             util.magick(f'{tmp}/*png', filename)
 
 
-@main.command(help="Animated collage from a directory of directory of frames")
+@main.command('magic-mashup', help="Animated collage from a directory of directories of frames")
 @cli.input_dir_option(required=True)
 @cli.width_option(default=512)
 @cli.height_option(default=512)
@@ -375,44 +375,36 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
 @click.option('--watermark', type=str)
 @click.option('--preview-filename', type=click.Path(exists=False))
 @click.pass_context
-
 def magic_mashup(ctx, input_dir, width, height, seed,
-                    filename, save_frames, frame_count,
-                    watermark, preview_filename):
-
+                  filename, save_frames, frame_count,
+                  watermark, preview_filename):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
+    value.set_seed(seed)
+
     dirnames = [d for d in os.listdir(input_dir)
                 if os.path.isdir(os.path.join(input_dir, d))]
-
     if not dirnames:
         click.echo(f"No subdirectories found in input dir {input_dir}")
         sys.exit(1)
 
+    collage_count = min(random.randint(4, 6), len(dirnames))
+    selected_dirs = random.sample(dirnames, collage_count)
+
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
+            print(i)
             frame_path = os.path.join(tmp, f"{i:04d}.png")
 
-            # Load collage images for this frame
             collage_images = []
-            collage_count = min(random.randint(4, 6), len(dirnames))
-
-            for _ in range(collage_count + 1):
-                dirname = random.choice(dirnames)
-                files = sorted(f for f in os.listdir(os.path.join(input_dir, dirname))
-                               if f.endswith('.png'))
-
-                if not files:
+            for dirname in selected_dirs:
+                src_dir = os.path.join(input_dir, dirname)
+                files = sorted(f for f in os.listdir(src_dir) if f.endswith('.png'))
+                if i >= len(files):
                     continue
-
-                try:
-                    src = os.path.join(input_dir, dirname, files[i])
-                except IndexError:
-                    continue
-
-                img = tf.image.convert_image_dtype(
-                    util.load(src, channels=3), dtype=tf.float32)
+                src = os.path.join(src_dir, files[i])
+                img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
                 collage_images.append(img)
 
             # Generate control and base noise
@@ -427,16 +419,15 @@ def magic_mashup(ctx, input_dir, width, height, seed,
                 speed=0.125
             )
 
-            control = value.value_map(collage_images.pop(), shape, keepdims=True)
+            control_img = collage_images.pop() if collage_images else tf.zeros(shape)
+            control = value.value_map(control_img, shape, keepdims=True)
             control = value.convolve(
                 kernel=effects.ValueMask.conv2d_blur,
                 tensor=control,
                 shape=[shape[0], shape[1], 1]
             )
 
-            tensor = effects.blend_layers(
-                control, shape, random.random() * 0.5, *collage_images
-            )
+            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
             tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
             tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
             tensor = effects.shadow(
@@ -456,7 +447,6 @@ def magic_mashup(ctx, input_dir, width, height, seed,
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
 
-        # Assemble video using ffmpeg
         util.check_call([
             'ffmpeg',
             '-framerate', '30',
