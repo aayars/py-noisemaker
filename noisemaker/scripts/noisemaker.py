@@ -374,17 +374,35 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
 @click.option('--frame-count', type=int, default=50, help="How many frames total")
 @click.option('--watermark', type=str)
 @click.option('--preview-filename', type=click.Path(exists=False))
+@click.option(
+    '--target-duration',
+    type=float,
+    default=None,
+    help="Stretch output to this duration (seconds) using motion-compensated interpolation"
+)
 @click.pass_context
-def magic_mashup(ctx, input_dir, width, height, seed,
-                  filename, save_frames, frame_count,
-                  watermark, preview_filename):
+def magic_mashup(
+    ctx,
+    input_dir,
+    width,
+    height,
+    seed,
+    filename,
+    save_frames,
+    frame_count,
+    watermark,
+    preview_filename,
+    target_duration
+):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
 
-    dirnames = [d for d in os.listdir(input_dir)
-                if os.path.isdir(os.path.join(input_dir, d))]
+    dirnames = [
+        d for d in os.listdir(input_dir)
+        if os.path.isdir(os.path.join(input_dir, d))
+    ]
     if not dirnames:
         click.echo(f"No subdirectories found in input dir {input_dir}")
         sys.exit(1)
@@ -394,7 +412,6 @@ def magic_mashup(ctx, input_dir, width, height, seed,
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
-            print(i)
             frame_path = os.path.join(tmp, f"{i:04d}.png")
 
             collage_images = []
@@ -404,10 +421,12 @@ def magic_mashup(ctx, input_dir, width, height, seed,
                 if i >= len(files):
                     continue
                 src = os.path.join(src_dir, files[i])
-                img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
+                img = tf.image.convert_image_dtype(
+                    util.load(src, channels=3),
+                    dtype=tf.float32
+                )
                 collage_images.append(img)
 
-            # Generate control and base noise
             value.set_seed(seed)
             shape = [height, width, 3]
 
@@ -427,7 +446,9 @@ def magic_mashup(ctx, input_dir, width, height, seed,
                 shape=[shape[0], shape[1], 1]
             )
 
-            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
+            tensor = effects.blend_layers(
+                control, shape, random.random() * 0.5, *collage_images
+            )
             tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
             tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
             tensor = effects.shadow(
@@ -447,21 +468,38 @@ def magic_mashup(ctx, input_dir, width, height, seed,
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
 
-        util.check_call([
-            'ffmpeg',
-            '-framerate', '30',
-            '-i', os.path.join(tmp, '%04d.png'),
-            '-s', f'{width}x{height}',
-            '-c:v', 'libx264',
-            '-preset', 'veryslow',
-            '-crf', '15',
-            '-pix_fmt', 'yuv420p',
-            '-b:v', '8000k',
-            '-bufsize', '16000k',
-            filename
-        ])
+        if target_duration:
+            first = os.path.join(tmp, '0000.png')
+            last  = os.path.join(tmp, f'{frame_count:04d}.png')
+            shutil.copy(first, last)
 
-    print('magic-mashup')
+            factor = 30 * target_duration / frame_count
+
+            util.check_call([
+                "ffmpeg", "-y",
+                "-framerate", "30",
+                "-i", os.path.join(tmp, "%04d.png"),
+                "-s", f"{width}x{height}",
+                "-vf",
+                f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
+                "-c:v", "libx264", "-preset", "veryslow",
+                "-crf", "15", "-pix_fmt", "yuv420p",
+                "-b:v", "8000k", "-bufsize", "16000k",
+                filename
+            ])
+
+        else:
+            util.check_call([
+                "ffmpeg", "-y", "-framerate", "30",
+                "-i", os.path.join(tmp, "%04d.png"),
+                "-s", f"{width}x{height}",
+                "-c:v", "libx264", "-preset", "veryslow",
+                "-crf", "15", "-pix_fmt", "yuv420p",
+                "-b:v", "8000k", "-bufsize", "16000k",
+                filename
+            ])
+
+    print("magic-mashup")
 
 
 @main.command(help="Blend a directory of .png or .jpg images")
