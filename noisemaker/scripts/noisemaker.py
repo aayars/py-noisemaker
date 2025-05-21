@@ -98,10 +98,10 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         else:
             ai_label = 'ai'
 
-        print(f"{preset_name} (procedural) vs. {preset.ai_settings['model']} ({ai_label}) / seed: {seed}")
+        print(f"{preset_name} (procedural) vs. {preset.ai_settings['model']} ({ai_label})")
 
     else:
-        print(f"{preset_name} (procedural) (seed: {seed})")
+        print(preset_name)
 
     if with_alt_text:
         print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
@@ -240,7 +240,7 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
     if preset_name == "random":
         preset_name = list(EFFECT_PRESETS)[random.randint(0, len(EFFECT_PRESETS) - 1)]
 
-    print(f"{preset_name} (seed: {seed})")
+    print(preset_name)
 
     preset = EFFECT_PRESETS[preset_name]
 
@@ -311,9 +311,9 @@ def animate(
         effect_preset = random.choice(list(EFFECT_PRESETS))
 
     if effect_preset:
-        print(f"{preset_name} vs. {effect_preset} (seed: {seed})")
+        print(f"{preset_name} vs. {effect_preset}")
     else:
-        print(f"{preset_name} (seed: {seed})")
+        print(preset_name)
 
     generator = GENERATOR_PRESETS[preset_name]
     effect = EFFECT_PRESETS.get(effect_preset) if effect_preset else None
@@ -406,18 +406,19 @@ def animate(
             util.magick(f"{tmp}/*png", filename)
 
 
-@main.command('magic-mashup', help="Animated collage from a directory of directories of frames")
+@main.command("magic-mashup", help="Animated collage from a directory of directories of frames")
 @cli.input_dir_option(required=True)
 @cli.width_option(default=512)
 @cli.height_option(default=512)
 @cli.seed_option()
-@cli.filename_option(default='mashup.mp4')
-@click.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
-@click.option('--frame-count', type=int, default=50, help="How many frames total")
-@click.option('--watermark', type=str)
-@click.option('--preview-filename', type=click.Path(exists=False))
-@click.option(
-    '--target-duration',
+@cli.option("--effect-preset", type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
+@cli.filename_option(default="mashup.mp4")
+@cli.option("--save-frames", default=None, type=click.Path(exists=True, dir_okay=True))
+@cli.option("--frame-count", type=int, default=50, help="How many frames total")
+@cli.option("--watermark", type=str)
+@cli.option("--preview-filename", type=click.Path(exists=False))
+@cli.option(
+    "--target-duration",
     type=float,
     default=None,
     help="Stretch output to this duration (seconds) using motion-compensated interpolation"
@@ -429,6 +430,7 @@ def magic_mashup(
     width,
     height,
     seed,
+    effect_preset,
     filename,
     save_frames,
     frame_count,
@@ -436,10 +438,20 @@ def magic_mashup(
     preview_filename,
     target_duration
 ):
-    if not seed:
+    if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
+
+    if effect_preset == "random":
+        effect_preset = random.choice(list(EFFECT_PRESETS))
+
+    if effect_preset:
+        print(f"magic-mashup vs. {effect_preset}")
+    else:
+        print(f"magic-mashup")
+
+    effect = EFFECT_PRESETS.get(effect_preset) if effect_preset else None
 
     dirnames = [
         d for d in os.listdir(input_dir)
@@ -459,7 +471,7 @@ def magic_mashup(
             collage_images = []
             for dirname in selected_dirs:
                 src_dir = os.path.join(input_dir, dirname)
-                files = sorted(f for f in os.listdir(src_dir) if f.endswith('.png'))
+                files = sorted(f for f in os.listdir(src_dir) if f.endswith(".png"))
                 if i >= len(files):
                     continue
                 src = os.path.join(src_dir, files[i])
@@ -499,7 +511,22 @@ def magic_mashup(
             tensor = tf.image.adjust_brightness(tensor, 0.1)
             tensor = tf.image.adjust_contrast(tensor, 1.5)
 
-            util.save(tensor, frame_path)
+            if effect:
+                try:
+                    effect.render(
+                        seed=seed,
+                        tensor=tensor,
+                        shape=shape,
+                        time=i / frame_count,
+                        speed=_use_reasonable_speed(effect, frame_count),
+                        filename=frame_path,
+                    )
+                except Exception as e:
+                    util.logger.error(f"Effect render failed: {e}\nSeed: {seed}\nArgs: {effect.__dict__}")
+                    raise
+
+            else:
+                util.save(tensor, frame_path)
 
             if save_frames:
                 shutil.copy(frame_path, save_frames)
@@ -510,26 +537,35 @@ def magic_mashup(
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
 
-        if target_duration:
-            first = os.path.join(tmp, '0000.png')
-            last  = os.path.join(tmp, f'{frame_count:04d}.png')
-            shutil.copy(first, last)
+        if filename.endswith(".mp4"):
+            if target_duration is not None:
+                first = os.path.join(tmp, "0000.png")
+                last = os.path.join(tmp, f"{frame_count:04d}.png")
+                shutil.copy(first, last)
 
-            factor = 30 * target_duration / frame_count
+                factor = 30 * target_duration / frame_count
 
-            util.check_call([
-                "ffmpeg", "-y",
-                "-framerate", "30",
-                "-i", os.path.join(tmp, "%04d.png"),
-                "-s", f"{width}x{height}",
-                "-vf",
-                f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
-                "-c:v", "libx264", "-preset", "veryslow",
-                "-crf", "15", "-pix_fmt", "yuv420p",
-                "-b:v", "8000k", "-bufsize", "16000k",
-                filename
-            ])
-
+                util.check_call([
+                    "ffmpeg", "-y",
+                    "-framerate", "30",
+                    "-i", os.path.join(tmp, "%04d.png"),
+                    "-s", f"{width}x{height}",
+                    "-vf", f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
+                    "-c:v", "libx264", "-preset", "veryslow",
+                    "-crf", "15", "-pix_fmt", "yuv420p",
+                    "-b:v", "8000k", "-bufsize", "16000k",
+                    filename
+                ])
+            else:
+                util.check_call([
+                    "ffmpeg", "-y", "-framerate", "30",
+                    "-i", os.path.join(tmp, "%04d.png"),
+                    "-s", f"{width}x{height}",
+                    "-c:v", "libx264", "-preset", "veryslow",
+                    "-crf", "15", "-pix_fmt", "yuv420p",
+                    "-b:v", "8000k", "-bufsize", "16000k",
+                    filename
+                ])
         else:
             util.check_call([
                 "ffmpeg", "-y", "-framerate", "30",
@@ -540,8 +576,6 @@ def magic_mashup(
                 "-b:v", "8000k", "-bufsize", "16000k",
                 filename
             ])
-
-    print("magic-mashup")
 
 
 @main.command(help="Blend a directory of .png or .jpg images")

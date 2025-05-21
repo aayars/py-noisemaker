@@ -172,15 +172,14 @@ def describe(preset_name, prompt, filename):
         #
         system_prompt = "I will provide a name of a generative art composition, " \
                         "along with a comma-delimited list of descriptive terms. You " \
-                        "will use this information to generate a short summary, written " \
-                        "in the authoritative tone of a fine art critic. Put quotes " \
-                        "around the provided name of the composition, and properly " \
-                        "capitalize it. Additionally, input may specify RGB color codes " \
-                        "in the format of rgb(R,G,B) in the range of 0-255, but you must " \
-                        "convert these into human-readable color names and refer to them " \
-                        "as such. Do not refer to RGB color code representations or quote " \
-                        "the names. Do not put the entire summary in quotes. The summary " \
-                        "may not exceed 250 characters."
+                        "will use this information to generate a short alt text caption. " \
+                        "Put quotes around the provided name of the composition, and " \
+                        "properly capitalize it. Additionally, input may specify RGB color " \
+                        "codes in the format of rgb(R,G,B) in the range of 0-255, but you " \
+                        "must convert these into human-readable color names and refer to " \
+                        "them as such. Do not refer to RGB color code representations or " \
+                        "quote the names. Do not put the entire summary in quotes. The " \
+                        "summary may not exceed 250 characters."
 
         user_prompt =  "Create a human-readable English summary to be used as a " \
                        "descriptive \"alt text\" image caption, for those who are unable " \
