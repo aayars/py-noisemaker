@@ -182,7 +182,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
        :alt: Noisemaker example output (CC0)
 
     :param Preset preset: The Preset object being rendered
-    :param int seed: The current seed (informational only, use value.set_seed to set seed)
+    :param int seed: The generation seed to use
     :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
     :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
     :param int octaves: Octave count. Number of multi-res layers. Typically 1-8
@@ -218,6 +218,9 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
     """
+
+    if seed:
+        value.set_seed(seed)
 
     if with_ai and with_supersample:
         # Supersampling makes the input too large for current AI models

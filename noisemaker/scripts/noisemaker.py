@@ -264,22 +264,22 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 @cli.width_option(default=512)
 @cli.height_option(default=512)
 @cli.seed_option()
-@cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
-@cli.filename_option(default='animation.mp4')
-@cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
-@cli.option('--frame-count', type=int, default=50, help="How many frames total")
-@cli.option('--watermark', type=str)
-@cli.option('--preview-filename', type=click.Path(exists=False))
-@click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
-@click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
-@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
+@cli.option("--effect-preset", type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
+@cli.filename_option(default="animation.mp4")
+@cli.option("--save-frames", default=None, type=click.Path(exists=True, dir_okay=True))
+@cli.option("--frame-count", type=int, default=50, help="How many frames total")
+@cli.option("--watermark", type=str)
+@cli.option("--preview-filename", type=click.Path(exists=False))
+@click.option("--with-alt-text", help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
+@click.option("--with-supersample", help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
+@click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @click.option(
-    '--target-duration',
+    "--target-duration",
     type=float,
     default=None,
     help="Stretch output to this duration (seconds) using motion-compensated interpolation"
 )
-@click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
+@click.argument("preset_name", type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def animate(
     ctx,
@@ -315,42 +315,56 @@ def animate(
     else:
         print(f"{preset_name} (seed: {seed})")
 
-    preset = GENERATOR_PRESETS[preset_name]
+    generator = GENERATOR_PRESETS[preset_name]
+    effect = EFFECT_PRESETS.get(effect_preset) if effect_preset else None
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
+            print(i)
             frame_path = os.path.join(tmp, f"{i:04d}.png")
+            time_frac = i / frame_count
+            gen_speed = _use_reasonable_speed(generator, frame_count)
 
-            common_params = [
-                "--seed", str(seed),
-                "--time", f"{i / frame_count:.4f}",
-                "--filename", frame_path,
-                "--speed", str(_use_reasonable_speed(preset, frame_count)),
-                "--height", str(height),
-                "--width", str(width),
-            ]
+            try:
+                generator.render(
+                    seed=seed,
+                    shape=[height, width, None],
+                    time=time_frac,
+                    speed=gen_speed,
+                    filename=frame_path,
+                    with_alpha=False,
+                    with_supersample=with_supersample,
+                    with_fxaa=with_fxaa,
+                )
+            except Exception as e:
+                util.logger.error(f"Generator render failed: {e}\nSeed: {seed}\nArgs: {generator.__dict__}")
+                raise
 
-            extra_params = []
             if with_alt_text and i == 0:
-                extra_params.append("--with-alt-text")
+                print(ai.describe(generator.name.replace("-", " "), generator.ai_settings.get("prompt"), frame_path))
 
-            if with_supersample:
-                extra_params.append("--with-supersample")
+            if effect:
+                input_shape = util.shape_from_file(frame_path)
+                input_shape[2] = min(input_shape[2], 3)
+                tensor = tf.image.convert_image_dtype(
+                    util.load(frame_path, channels=input_shape[2]), dtype=tf.float32
+                )
 
-            if with_fxaa:
-                extra_params.append("--with-fxaa")
+                shape = input_shape
 
-            subprocess.check_output(
-                ["noisemaker", "generate", preset_name] + common_params + extra_params,
-                universal_newlines=True
-            )
-
-            if effect_preset:
-                util.check_call([
-                    "noisemaker", "apply", effect_preset, frame_path,
-                    "--no-resize",
-                    "--speed", str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))
-                ] + common_params + extra_params)
+                try:
+                    effect.render(
+                        seed=seed,
+                        tensor=tensor,
+                        shape=shape,
+                        with_fxaa=with_fxaa,
+                        time=time_frac,
+                        speed=_use_reasonable_speed(effect, frame_count),
+                        filename=frame_path,
+                    )
+                except Exception as e:
+                    util.logger.error(f"Effect render failed: {e}\nSeed: {seed}\nArgs: {effect.__dict__}")
+                    raise
 
             if save_frames:
                 shutil.copy(frame_path, save_frames)
@@ -364,7 +378,7 @@ def animate(
         if filename.endswith(".mp4"):
             if target_duration is not None:
                 first = os.path.join(tmp, "0000.png")
-                last  = os.path.join(tmp, f"{frame_count:04d}.png")
+                last = os.path.join(tmp, f"{frame_count:04d}.png")
                 shutil.copy(first, last)
 
                 factor = 30 * target_duration / frame_count
