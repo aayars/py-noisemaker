@@ -260,12 +260,12 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
         raise
 
 
-@main.command(help="Generate a .gif or .mp4 from preset")
+@main.command(help="Generate an animation from preset")
 @cli.width_option(default=512)
 @cli.height_option(default=512)
 @cli.seed_option()
 @cli.option('--effect-preset', type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
-@cli.filename_option(default='ani.gif')
+@cli.filename_option(default='animation.mp4')
 @cli.option('--save-frames', default=None, type=click.Path(exists=True, dir_okay=True))
 @cli.option('--frame-count', type=int, default=50, help="How many frames total")
 @cli.option('--watermark', type=str)
@@ -273,20 +273,42 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 @click.option('--with-alt-text', help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
 @click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
+@click.option(
+    '--target-duration',
+    type=float,
+    default=None,
+    help="Stretch output to this duration (seconds) using motion-compensated interpolation"
+)
 @click.argument('preset_name', type=click.Choice(['random'] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
-def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, with_alt_text, with_supersample, with_fxaa, preset_name):
+def animate(
+    ctx,
+    width,
+    height,
+    seed,
+    effect_preset,
+    filename,
+    save_frames,
+    frame_count,
+    watermark,
+    preview_filename,
+    with_alt_text,
+    with_supersample,
+    with_fxaa,
+    preset_name,
+    target_duration,
+):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
     reload_presets(PRESETS)
 
-    if preset_name == 'random':
-        preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
+    if preset_name == "random":
+        preset_name = random.choice(list(GENERATOR_PRESETS))
 
-    if effect_preset == 'random':
-        effect_preset = list(EFFECT_PRESETS)[random.randint(0, len(EFFECT_PRESETS) - 1)]
+    if effect_preset == "random":
+        effect_preset = random.choice(list(EFFECT_PRESETS))
 
     if effect_preset:
         print(f"{preset_name} vs. {effect_preset} (seed: {seed})")
@@ -295,73 +317,80 @@ def animate(ctx, width, height,  seed, effect_preset, filename, save_frames, fra
 
     preset = GENERATOR_PRESETS[preset_name]
 
-    caption = None
-
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
-            frame_filename = f'{tmp}/{i:04d}.png'
+            frame_path = os.path.join(tmp, f"{i:04d}.png")
 
-            common_params = ['--seed', str(seed),
-                             '--time', f'{i/frame_count:0.4f}',
-                             '--filename', frame_filename]
+            common_params = [
+                "--seed", str(seed),
+                "--time", f"{i / frame_count:.4f}",
+                "--filename", frame_path,
+                "--speed", str(_use_reasonable_speed(preset, frame_count)),
+                "--height", str(height),
+                "--width", str(width),
+            ]
 
             extra_params = []
             if with_alt_text and i == 0:
-                extra_params = ['--with-alt-text']
+                extra_params.append("--with-alt-text")
 
             if with_supersample:
-                extra_params += ['--with-supersample']
+                extra_params.append("--with-supersample")
 
             if with_fxaa:
-                extra_params += ['--with-fxaa']
+                extra_params.append("--with-fxaa")
 
-            output = subprocess.check_output(['noisemaker', 'generate', preset_name,
-                                              '--speed', str(_use_reasonable_speed(preset, frame_count)),
-                                              '--height', str(height),
-                                              '--width', str(width)] + common_params + extra_params,
-                                              universal_newlines=True).strip().split("\n")
-
-            if with_alt_text and i == 0:
-                if len(output) == 6:  # Useless extra crap that Tensorflow on Apple Silicon spews to stdout
-                    print(output[2])
-                else:
-                    print(output[1])
+            subprocess.check_output(
+                ["noisemaker", "generate", preset_name] + common_params + extra_params,
+                universal_newlines=True
+            )
 
             if effect_preset:
-                extra_params = []
-
-                if with_fxaa:
-                    extra_params += ['--with-fxaa']
-
-                util.check_call(['noisemaker', 'apply', effect_preset, frame_filename,
-                                 '--no-resize',
-                                 '--speed', str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))]
-                                + common_params + extra_params)
+                util.check_call([
+                    "noisemaker", "apply", effect_preset, frame_path,
+                    "--no-resize",
+                    "--speed", str(_use_reasonable_speed(EFFECT_PRESETS[effect_preset], frame_count))
+                ] + common_params + extra_params)
 
             if save_frames:
-                shutil.copy(frame_filename, save_frames)
+                shutil.copy(frame_path, save_frames)
 
             if watermark:
-                util.watermark(watermark, frame_filename)
+                util.watermark(watermark, frame_path)
 
             if preview_filename and i == 0:
-                shutil.copy(frame_filename, preview_filename)
+                shutil.copy(frame_path, preview_filename)
 
         if filename.endswith(".mp4"):
-            util.check_call(["ffmpeg",
-                             "-framerate", "30",
-                             "-i", f"{tmp}/%04d.png",
-                             "-s", f"{width}x{height}",
-                             "-c:v", "libx264",
-                             "-preset", "veryslow",
-                             "-crf", "15",
-                             "-pix_fmt", "yuv420p",
-                             "-b:v", "8000k",
-                             "-bufsize", "16000k",
-                             filename])
+            if target_duration is not None:
+                first = os.path.join(tmp, "0000.png")
+                last  = os.path.join(tmp, f"{frame_count:04d}.png")
+                shutil.copy(first, last)
 
+                factor = 30 * target_duration / frame_count
+
+                util.check_call([
+                    "ffmpeg", "-y", "-framerate", "30",
+                    "-i", os.path.join(tmp, "%04d.png"),
+                    "-s", f"{width}x{height}",
+                    "-vf", f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
+                    "-c:v", "libx264", "-preset", "veryslow",
+                    "-crf", "15", "-pix_fmt", "yuv420p",
+                    "-b:v", "8000k", "-bufsize", "16000k",
+                    filename,
+                ])
+            else:
+                util.check_call([
+                    "ffmpeg", "-y", "-framerate", "30",
+                    "-i", os.path.join(tmp, "%04d.png"),
+                    "-s", f"{width}x{height}",
+                    "-c:v", "libx264", "-preset", "veryslow",
+                    "-crf", "15", "-pix_fmt", "yuv420p",
+                    "-b:v", "8000k", "-bufsize", "16000k",
+                    filename,
+                ])
         else:
-            util.magick(f'{tmp}/*png', filename)
+            util.magick(f"{tmp}/*png", filename)
 
 
 @main.command('magic-mashup', help="Animated collage from a directory of directories of frames")
@@ -504,7 +533,7 @@ def magic_mashup(
 
 @main.command(help="Blend a directory of .png or .jpg images")
 @cli.input_dir_option(required=True)
-@cli.filename_option(default="collage.png")
+@cli.filename_option(default="mashup.png")
 @click.option("--control-filename", help="Control image filename (optional)")
 @cli.time_option()
 @click.option('--speed', help="Animation speed", type=float, default=0.25)
