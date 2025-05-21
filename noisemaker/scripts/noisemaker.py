@@ -320,7 +320,6 @@ def animate(
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
-            print(i)
             frame_path = os.path.join(tmp, f"{i:04d}.png")
             time_frac = i / frame_count
             gen_speed = _use_reasonable_speed(generator, frame_count)
