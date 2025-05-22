@@ -170,38 +170,48 @@ def describe(preset_name, prompt, filename):
         #
         #
         #
-        system_prompt = "I will provide a name of a generative art composition, " \
-                        "along with a comma-delimited list of descriptive terms. You " \
-                        "will use this information to generate a short alt text caption. " \
-                        "Put quotes around the provided name of the composition, and " \
-                        "properly capitalize it. Additionally, input may specify RGB color " \
-                        "codes in the format of rgb(R,G,B) in the range of 0-255, but you " \
-                        "must convert these into human-readable color names and refer to " \
-                        "them as such. Do not refer to RGB color code representations or " \
-                        "quote the names. Do not put the entire summary in quotes. The " \
-                        "summary may not exceed 250 characters."
+        system_prompt = """
+	        You will be provided with a name of a generative art
+	        composition, along with a comma-delimited list of
+	        descriptive terms. You will use this information to
+	        generate a brief but informative alt text caption.  Put
+	        quotes around the provided name of the composition, and
+	        properly capitalize it.  Additionally, input may specify
+	        RGB color codes in the format of rgb(R,G,B) in the range
+	        of 0-255, but you must convert these into human-readable
+	        color names and refer to them as such. Do not refer to
+	        RGB color code representations or quote the names.  Do
+	        not put the entire summary in quotes.  The summary may
+	        not exceed 250 characters.
+                        """
 
-        user_prompt =  "Create a human-readable English summary to be used as a " \
-                       "descriptive \"alt text\" image caption, for those who are unable " \
-                      f"to see the image. The name of the composition is \"{preset_name}\", " \
-                      f"and the list of terms is: \"{prompt}\""
+        user_prompt =  f"""
+	        Create a human-readable English summary to be used as
+	        a descriptive \"alt text\" image caption, for those who
+	        are unable to see the image. The name of the composition
+	        is \"{preset_name}\", and the list of terms is:
+	        \"{prompt}\"
+                      """
 
         summary = _openai_query(system_prompt, user_prompt)
 
         #
         #
         #
-        system_prompt = "Sometimes the previous OpenAI assistant makes mistakes, it is " \
-                        "your job to correct them. For the given summary of a generative " \
-                        "art piece, perform the following fixes as necessary: Shorten " \
-                        "the summary to 250 characters or fewer. Composition name must " \
-                        "be in quotes and properly capitalized. Any lingering RGB color " \
-                        "codes must be converted into human-readable color names. Color " \
-                        "names must be lower-case, and not in quotes. The summary " \
-                        "paragraph must not be in quotes. Take it easy with superlatives " \
-                        "such as \"captivating\" and \"mesmerizing\". Finally, check the " \
-                        "grammar and tone of the summary, and make sure it doesn't sound too " \
-                        "pretentious or repetitive."
+        system_prompt = """
+	        Sometimes the previous OpenAI assistant makes mistakes, it
+	        is your job to correct them. For the given summary of a
+	        generative art piece, perform the following fixes as
+	        necessary: Shorten the summary to 250 characters or fewer.
+	        Composition name must be in quotes and properly capitalized.
+	        Any lingering RGB color codes must be converted into
+	        human-readable color names. Color names must be lower-case,
+	        and not in quotes. The summary paragraph must not be in
+	        quotes. Take it easy with superlatives such as \"captivating\"
+	        and \"mesmerizing\". Finally, check the grammar and tone
+	        of the summary, and make sure it doesn't sound too pretentious
+	        or repetitive.
+                        """
 
         summary = _openai_query(system_prompt, summary)
 
