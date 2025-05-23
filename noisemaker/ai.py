@@ -164,26 +164,38 @@ def describe(preset_name, prompt, filename):
         thief = ColorThief(filename)
         palette = thief.get_palette(color_count=random.randint(2,3))
 
+        prompt += """
+                  The composition includes the following colors.
+                  Mention these in your description, but translate
+                  them to human-friendly names:
+                  """
+
         for color in reversed(palette):
-            prompt += f", rgb({color[0]},{color[1]},{color[2]})"
+            prompt += f"""
+                      rgb({color[0]},{color[1]},{color[2]})"""
 
         #
         #
         #
         system_prompt = """
+            Use only the information you are given. Do not make
+            assumptions or declarative statements that fall outside
+            of the information you are provided with.
+
 	        You will be provided with a name of a generative art
 	        composition, along with a comma-delimited list of
-	        descriptive terms. You will use this information to
-	        generate a brief but informative alt text caption.  Put
-	        quotes around the provided name of the composition, and
-	        properly capitalize it.  Additionally, input may specify
-	        RGB color codes in the format of rgb(R,G,B) in the range
-	        of 0-255, but you must convert these into human-readable
-	        color names and refer to them as such. Do not refer to
-	        RGB color code representations or quote the names.  Do
-	        not put the entire summary in quotes.  The summary may
-	        not exceed 250 characters.
-                        """
+		    descriptive terms and key colors. You will use this
+		    information to generate a brief but informative alt
+		    text caption. Put quotes around the provided name
+		    of the composition, and properly capitalize it.
+
+	        Input may specify RGB color codes in the format of
+	        rgb(R,G,B) in the range of 0-255, but you must convert
+	        these into human-readable color names and refer to them
+	        as such. Do not refer to RGB color code representations
+	        or quote the names.  Do not put the entire summary in
+	        quotes.  The summary may not exceed 250 characters.
+            """
 
         user_prompt =  f"""
 	        Create a human-readable English summary to be used as
@@ -191,7 +203,7 @@ def describe(preset_name, prompt, filename):
 	        are unable to see the image. The name of the composition
 	        is \"{preset_name}\", and the list of terms is:
 	        \"{prompt}\"
-                      """
+            """
 
         summary = _openai_query(system_prompt, user_prompt)
 
@@ -211,7 +223,7 @@ def describe(preset_name, prompt, filename):
 	        and \"mesmerizing\". Finally, check the grammar and tone
 	        of the summary, and make sure it doesn't sound too pretentious
 	        or repetitive.
-                        """
+            """
 
         summary = _openai_query(system_prompt, summary)
 
