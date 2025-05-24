@@ -26,6 +26,7 @@ setup(name='noisemaker',
         "opensimplex==0.3",
         "Pillow==9.5.0",
         "protobuf<4.21,>=3.20.3",
+        "qrcode==8.2",
         "requests>=2.4.2",
         "six>=1.15,<1.17",
         "wheel==0.43.0",  # Needed by TF

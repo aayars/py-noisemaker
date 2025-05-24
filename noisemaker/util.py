@@ -78,7 +78,7 @@ def magick(glob, name):
 
 def watermark(text, filename):
     """
-    Annotate an image.
+    Annotate an image with a text imprint.
 
     :param text:
     :param filename:
@@ -92,6 +92,24 @@ def watermark(text, filename):
                        '--no-rect',
                        '--bottom',
                        '--right'])
+
+
+def watermark_qr(text, filename):
+    """
+    Annotate an image with a QR code imprint.
+
+    :param text:
+    :param filename:
+    """
+
+    return check_call(['mood',
+                       '--filename', filename,
+                       '--text', text,
+                       '--no-rect',
+                       '--bottom',
+                       '--right',
+                       '--invert',
+                       '--qr'])
 
 
 def check_call(command, quiet=False):

@@ -369,7 +369,7 @@ def animate(
                 shutil.copy(frame_path, save_frames)
 
             if watermark:
-                util.watermark(watermark, frame_path)
+                util.watermark_qr(watermark, frame_path)
 
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
@@ -532,7 +532,7 @@ def magic_mashup(
                 shutil.copy(frame_path, save_frames)
 
             if watermark:
-                util.watermark(watermark, frame_path)
+                util.watermark_qr(watermark, frame_path)
 
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
