@@ -230,13 +230,13 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     color_space = value.coerce_enum(color_space, ColorSpace)
     octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
+    original_shape = shape.copy()
+
     if shape[-1] is None:
         shape = util.shape_from_params(shape[1], shape[0], color_space, with_alpha)
 
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
-
-    original_shape = shape.copy()
 
     if with_supersample:
         shape[0] *= 2
@@ -310,7 +310,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
             try:
                 style_tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
-                                      stability_model=stability_model)
+                                        stability_model=stability_model)
 
                 style_tensor = value.resample(style_tensor, shape)
 

@@ -509,6 +509,76 @@ def resample(tensor, shape, spline_order=3):
 
     input_shape = tf.shape(tensor)
 
+    input_shape = tf.shape(tensor)
+
+    if input_shape[2] != shape[2]:  # Channels differ; perform conversion
+        if input_shape[2] == 1:
+            if shape[2] == 2:
+                # Grayscale → Grayscale+Alpha: append alpha=1 channel
+                alpha = tf.ones_like(tensor)
+                tensor = tf.concat([tensor, alpha], axis=2)
+
+            elif shape[2] == 3:
+                # Grayscale → RGB: replicate grayscale value across R, G, B
+                tensor = tf.concat([tensor, tensor, tensor], axis=2)
+
+            elif shape[2] == 4:
+                # Grayscale → RGBA: replicate grayscale for RGB, then append alpha=1
+                rgb = tf.concat([tensor, tensor, tensor], axis=2)
+                alpha = tf.ones_like(tensor)
+                tensor = tf.concat([rgb, alpha], axis=2)
+
+        elif input_shape[2] == 2:
+            lum = tensor[..., 0:1]
+            alpha = tensor[..., 1:2]
+
+            if shape[2] == 1:
+                # Grayscale+Alpha → Grayscale: multiply lum by alpha
+                tensor = lum * alpha
+
+            elif shape[2] == 3:
+                # Grayscale+Alpha → RGB: multiply lum by alpha, then replicate for R, G, B
+                lum_alpha = lum * alpha
+                tensor = tf.concat([lum_alpha, lum_alpha, lum_alpha], axis=2)
+
+            elif shape[2] == 4:
+                # Grayscale+Alpha → RGBA: replicate lum for RGB, keep original alpha
+                rgb = tf.concat([lum, lum, lum], axis=2)
+                tensor = tf.concat([rgb, alpha], axis=2)
+
+        elif input_shape[2] == 3:
+            if shape[2] == 1:
+                # RGB → Grayscale: use value_map to compute luminance, keep dimensions
+                tensor = value_map(tensor, shape, keepdims=True)
+
+            elif shape[2] == 2:
+                # RGB → Grayscale+Alpha: compute grayscale, then append alpha=1
+                gray = value_map(tensor, shape, keepdims=True)
+                alpha = tf.ones_like(gray)
+                tensor = tf.concat([gray, alpha], axis=2)
+
+            elif shape[2] == 4:
+                # RGB → RGBA: append alpha=1 channel to RGB
+                alpha = tf.ones_like(tensor[..., 0:1])
+                tensor = tf.concat([tensor, alpha], axis=2)
+
+        elif input_shape[2] == 4:
+            rgb = tensor[..., 0:3]
+            alpha = tensor[..., 3:4]
+
+            if shape[2] == 1:
+                # RGBA → Grayscale: drop alpha, compute grayscale on RGB
+                tensor = value_map(rgb, shape, keepdims=True)
+
+            elif shape[2] == 2:
+                # RGBA → Grayscale+Alpha: compute grayscale from RGB, keep original alpha
+                gray = value_map(rgb, shape, keepdims=True)
+                tensor = tf.concat([gray, alpha], axis=2)
+
+            elif shape[2] == 3:
+                # RGBA → RGB: drop alpha channel
+                tensor = rgb
+
     # Blown up row and column indices. These map into input tensor, producing a big blocky version.
     resized_row_index = tf.cast(row_index(shape), tf.float32) \
         * (tf.cast(input_shape[1], tf.float32) / tf.cast(shape[1], tf.float32))   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
