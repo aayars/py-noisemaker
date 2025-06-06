@@ -118,15 +118,15 @@ class Preset:
 
     def render(self, seed, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png",
                with_alpha=False, with_supersample=False, with_fxaa=False, with_ai=False, with_upscale=False,
-               stability_model=None):
+               stability_model=None, style_filename=None):
         """Render the preset to an image file."""
 
         try:
             tensor = multires(self, seed, tensor=tensor, shape=shape, with_supersample=with_supersample,
                               octave_effects=self.octave_effects, post_effects=self.post_effects,
                               with_fxaa=with_fxaa, with_ai=with_ai, final_effects=self.final_effects, with_alpha=with_alpha,
-                              with_upscale=with_upscale, stability_model=stability_model, time=time, speed=speed,
-                              **self.generator_kwargs)
+                              with_upscale=with_upscale, stability_model=stability_model, style_filename=style_filename,
+                              time=time, speed=speed, **self.generator_kwargs)
 
             save(tensor, filename)
 

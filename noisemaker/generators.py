@@ -1,5 +1,6 @@
 """Noise generation interface for Noisemaker"""
 
+import os
 from functools import partial
 
 import tempfile
@@ -172,7 +173,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
              octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
              with_alpha=False, with_ai=False, final_effects=None, with_upscale=False, with_fxaa=False,
-             stability_model=None, time=0.0, speed=1.0, tensor=None):
+             stability_model=None, style_filename=None, time=0.0, speed=1.0, tensor=None):
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
@@ -214,6 +215,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
     :param bool with_upscale: AI: x2 upscale final results
     :param bool with_fxaa: Apply FXAA to results
     :param str stability_model: AI: Override the default stability.ai model
+    :param str|None style_filename: AI: Save the style reference, or load it if the file already exists.
     :param float speed: Displacement range for Z/W axis (simplex and periodic only)
     :param float time: Time argument for Z/W axis (simplex and periodic only)
     :return: Tensor
@@ -295,6 +297,9 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
 
     final = []
 
+    if tensor.shape != shape:
+        value.resample(tensor, shape)
+
     for effect_or_preset in post_effects:
         tensor, f = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
         final += f
@@ -309,15 +314,25 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
             util.save(tensor, tmp_path)
 
             try:
-                style_tensor = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
-                                        stability_model=stability_model)
+                # image-to-image as a style reference
+                style_reference = None
 
-                style_tensor = value.resample(style_tensor, shape)
+                if style_filename:
+                    if os.path.exists(style_filename):
+                        style_reference = tf.image.convert_image_dtype(util.load(style_filename), tf.float32)
 
-                style_path = f"{tmp}/temp-style.png"
-                # style_path = "style.png"  # XXX
+                    style_path = style_filename
 
-                util.save(style_tensor, style_path)
+                else:
+                    style_path = f"{tmp}/temp-style.png"
+
+                if style_reference is None:
+                    style_reference = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
+                                               stability_model=stability_model)
+
+                style_reference = value.resample(style_reference, shape)
+
+                util.save(style_reference, style_path)
 
                 new_tensor = ai.apply_style(preset.ai_settings, seed, tmp_path, style_path)
 

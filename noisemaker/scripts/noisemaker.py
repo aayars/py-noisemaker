@@ -273,6 +273,7 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 @click.option("--with-alt-text", help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.option("--with-supersample", help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
 @click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
+@click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
 @click.option(
     "--target-duration",
     type=float,
@@ -295,6 +296,7 @@ def animate(
     with_alt_text,
     with_supersample,
     with_fxaa,
+    with_ai,
     preset_name,
     target_duration,
 ):
@@ -334,6 +336,9 @@ def animate(
                     with_alpha=False,
                     with_supersample=with_supersample,
                     with_fxaa=with_fxaa,
+                    with_ai=with_ai,
+                    style_filename=f"{tmp}/style.png",
+                    stability_model="stable-diffusion-v1-6"
                 )
             except Exception as e:
                 util.logger.error(f"Generator render failed: {e}\nSeed: {seed}\nArgs: {generator.__dict__}")
