@@ -509,8 +509,6 @@ def resample(tensor, shape, spline_order=3):
 
     input_shape = tf.shape(tensor)
 
-    input_shape = tf.shape(tensor)
-
     if input_shape[2] != shape[2]:  # Channels differ; perform conversion
         if input_shape[2] == 1:
             if shape[2] == 2:
