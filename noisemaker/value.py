@@ -1139,33 +1139,112 @@ def clamp01(tensor):
 
 @effect()
 def fxaa(tensor, shape, time=0.0, speed=1.0):
+    # Determine the number of channels
+    channels = shape[2]
+
     # Pad tensor to handle boundary conditions
-    padded_tensor = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
+    padded = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
 
-    # Fetch neighbors
-    center = padded_tensor[1:-1, 1:-1, :]  # Center pixel
-    north = padded_tensor[:-2, 1:-1, :]    # North neighbor
-    south = padded_tensor[2:, 1:-1, :]     # South neighbor
-    west = padded_tensor[1:-1, :-2, :]     # West neighbor
-    east = padded_tensor[1:-1, 2:, :]      # East neighbor
+    # Extract neighbors for all channels
+    center = padded[1:-1, 1:-1, :]
+    north  = padded[:-2,  1:-1, :]
+    south  = padded[2:,   1:-1, :]
+    west   = padded[1:-1, :-2,  :]
+    east   = padded[1:-1, 2:,   :]
 
-    # Compute luminance using NTSC conversion weights
-    luma = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)
-    lumaC = tf.reduce_sum(center * luma, axis=-1, keepdims=True)
-    lumaN = tf.reduce_sum(north * luma, axis=-1, keepdims=True)
-    lumaS = tf.reduce_sum(south * luma, axis=-1, keepdims=True)
-    lumaW = tf.reduce_sum(west * luma, axis=-1, keepdims=True)
-    lumaE = tf.reduce_sum(east * luma, axis=-1, keepdims=True)
+    if channels == 1:
+        # Single-channel (grayscale): use the channel itself as luma
+        lC = center
+        lN = north
+        lS = south
+        lW = west
+        lE = east
 
-    # Calculate luminance differences and weights
-    weightC = 1.0  # Weight for the center pixel
-    weightN = tf.exp(-tf.abs(lumaC - lumaN))
-    weightS = tf.exp(-tf.abs(lumaC - lumaS))
-    weightW = tf.exp(-tf.abs(lumaC - lumaW))
-    weightE = tf.exp(-tf.abs(lumaC - lumaE))
-    sum_weights = weightC + weightN + weightS + weightW + weightE + 1e-10  # Avoid division by zero
+        # Compute weights based on luminance difference
+        wC = 1.0
+        wN = tf.exp(-tf.abs(lC - lN))
+        wS = tf.exp(-tf.abs(lC - lS))
+        wW = tf.exp(-tf.abs(lC - lW))
+        wE = tf.exp(-tf.abs(lC - lE))
+        sum_w = wC + wN + wS + wW + wE + 1e-10
 
-    # Compute weighted sum of the center and its neighbors
-    result = (center * weightC + north * weightN + south * weightS + west * weightW + east * weightE) / sum_weights
+        # Weighted blend on the single channel
+        result = (center * wC + north * wN + south * wS + west * wW + east * wE) / sum_w
+
+    elif channels == 2:
+        # Two-channel: [grayscale, alpha]
+        lumC   = center[..., 0:1]
+        alpha  = center[..., 1:2]
+        lumN   = north[...,  0:1]
+        lumS   = south[...,  0:1]
+        lumW   = west[...,   0:1]
+        lumE   = east[...,   0:1]
+
+        # Compute weights from grayscale channel only
+        wC = 1.0
+        wN = tf.exp(-tf.abs(lumC - lumN))
+        wS = tf.exp(-tf.abs(lumC - lumS))
+        wW = tf.exp(-tf.abs(lumC - lumW))
+        wE = tf.exp(-tf.abs(lumC - lumE))
+        sum_w = wC + wN + wS + wW + wE + 1e-10
+
+        # Blend only grayscale (first channel), keep alpha unchanged
+        blended_lum = (lumC * wC + lumN * wN + lumS * wS + lumW * wW + lumE * wE) / sum_w
+        result = tf.concat([blended_lum, alpha], axis=2)
+
+    elif channels == 3:
+        # Three-channel (RGB): compute luminance as NTSC weights
+        weights = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)
+
+        lC = tf.reduce_sum(center * weights, axis=-1, keepdims=True)
+        lN = tf.reduce_sum(north  * weights, axis=-1, keepdims=True)
+        lS = tf.reduce_sum(south  * weights, axis=-1, keepdims=True)
+        lW = tf.reduce_sum(west   * weights, axis=-1, keepdims=True)
+        lE = tf.reduce_sum(east   * weights, axis=-1, keepdims=True)
+
+        # Compute weights from luminance differences
+        wC = 1.0
+        wN = tf.exp(-tf.abs(lC - lN))
+        wS = tf.exp(-tf.abs(lC - lS))
+        wW = tf.exp(-tf.abs(lC - lW))
+        wE = tf.exp(-tf.abs(lC - lE))
+        sum_w = wC + wN + wS + wW + wE + 1e-10
+
+        # Blend RGB channels using those weights
+        result = (center * wC + north * wN + south * wS + west * wW + east * wE) / sum_w
+
+    elif channels == 4:
+        # Four-channel (RGBA): separate RGB and alpha
+        rgbC   = center[..., 0:3]
+        alpha  = center[..., 3:4]
+        rgbN   = north[...,  0:3]
+        rgbS   = south[...,  0:3]
+        rgbW   = west[...,   0:3]
+        rgbE   = east[...,   0:3]
+
+        # Compute luminance from RGB channels
+        weights = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)
+
+        lC = tf.reduce_sum(rgbC * weights, axis=-1, keepdims=True)
+        lN = tf.reduce_sum(rgbN * weights, axis=-1, keepdims=True)
+        lS = tf.reduce_sum(rgbS * weights, axis=-1, keepdims=True)
+        lW = tf.reduce_sum(rgbW * weights, axis=-1, keepdims=True)
+        lE = tf.reduce_sum(rgbE * weights, axis=-1, keepdims=True)
+
+        # Compute weights from luminance differences
+        wC = 1.0
+        wN = tf.exp(-tf.abs(lC - lN))
+        wS = tf.exp(-tf.abs(lC - lS))
+        wW = tf.exp(-tf.abs(lC - lW))
+        wE = tf.exp(-tf.abs(lC - lE))
+        sum_w = wC + wN + wS + wW + wE + 1e-10
+
+        # Blend only RGB channels; keep alpha unchanged
+        blended_rgb = (rgbC * wC + rgbN * wN + rgbS * wS + rgbW * wW + rgbE * wE) / sum_w
+        result = tf.concat([blended_rgb, alpha], axis=2)
+
+    else:
+        # Unexpected channel count: no-op
+        result = tensor
 
     return result
