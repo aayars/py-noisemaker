@@ -961,7 +961,7 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 @effect()
 def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha=1.0, time=0.0, speed=1.0):
     """
-    Diffusion-limited aggregation. Slow.
+    Diffusion-limited aggregation. Renders with respect to the `time` param (0..1)
 
     .. image:: images/dla.jpg
        :width: 1024
@@ -1026,13 +1026,9 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
                 expanded_neighborhoods.add((node[0] + y_offset, node[1] + x_offset))
 
         for i in range(walkers_per_seed):
-            # degrees = 360.0 * math.radians(1) * random.random()
-            # dist = random.random() * height / math.sqrt(seed_count) * 2.5
-            # walkers.append((node[0] + int(math.cos(degrees) * dist), node[1] + int(math.sin(degrees) * dist)))
-
             walkers.append((int(random.random() * half_height), int(random.random() * half_width)))
 
-    iterations = 2000
+    iterations = int(math.sqrt(walkers_count) * time * time)
 
     for i in range(iterations):
         remove_walkers = set()

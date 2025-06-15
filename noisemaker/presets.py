@@ -1202,10 +1202,10 @@ PRESETS = lambda: {  # noqa E731
     "dla": {
         "layers": ["basic", "contrast-final"],
         "settings": lambda: {
-            "dla_alpha": 0.666 + random.random() * 0.333,
-            "dla_padding": random.randint(2, 8),
-            "dla_seed_density": 0.2 + random.random() * 0.1,
-            "dla_density": 0.1 + random.random() * 0.05,
+            "dla_alpha": 0.875 + random.random() * 0.125,
+            "dla_padding": random.randint(1, 8),
+            "dla_seed_density": 0.1 + random.random() * 0.05,
+            "dla_density": 0.2 + random.random() * 0.1,
         },
         "post": lambda settings: [
             Effect("dla",
