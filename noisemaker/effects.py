@@ -2223,11 +2223,21 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     color = tf.stack([(tensor[:, :, 0] * .333 + random.random() * .333 + random.random()) % 1.0,
                       tensor[:, :, 1], tensor[:, :, 2]], 2)
 
+    alpha_chan = None
+    if shape[2] == 4:
+        alpha_chan = tensor[:, :, 3]
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
+
     colorized = tf.stack([color[:, :, 0], color[:, :, 1], tf.image.rgb_to_hsv([tensor])[0][:, :, 2]], 2)
 
     colorized = tf.image.hsv_to_rgb([colorized])[0]
 
-    return value.blend(tensor, colorized, alpha)
+    out = value.blend(tensor, colorized, alpha)
+
+    if shape[2] == 4:
+        out = tf.stack([out[:, :, 0], out[:, :, 1], out[:, :, 2], alpha_chan], 2)
+
+    return out
 
 
 @effect()

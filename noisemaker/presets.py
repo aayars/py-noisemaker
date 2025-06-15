@@ -1099,7 +1099,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "deeper": {
-        "layers": ["multires-alpha", "funhouse", "lens"],
+        "layers": ["multires-alpha", "funhouse", "lens", "contrast-final"],
         "settings": lambda: {
             "hue_range": 0.75,
             "octaves": 6,
