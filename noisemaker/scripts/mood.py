@@ -4,9 +4,6 @@ import random
 from PIL import Image, ImageDraw, ImageFont
 
 import click
-import qrcode
-from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
-from qrcode.image.styledpil import StyledPilImage
 
 import textwrap
 
@@ -66,44 +63,6 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
     image.save(input_filename)
 
 
-def mood_qr(input_filename, data, fill, rect, bottom, right, background):
-    image = Image.open(input_filename).convert('RGB')
-    input_width, input_height = image.size
-
-    qr_obj = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.ERROR_CORRECT_M,
-        box_size=10,
-        border=1
-    )
-    qr_obj.add_data(data)
-    qr_obj.make(fit=True)
-
-    qr_img = qr_obj.make_image(fill_color=fill[:3], back_color='black').convert('RGBA')
-    max_qr_size = 64
-    qr_width, qr_height = qr_img.size
-
-    scale = min(max_qr_size / qr_width, max_qr_size / qr_height, 1)
-    if scale < 1:
-        new_size = (int(qr_width * scale), int(qr_height * scale))
-        qr_img = qr_img.resize(new_size, Image.LANCZOS)
-        qr_width, qr_height = new_size
-
-    padding = 1
-    y = input_height - qr_height - padding if bottom else (input_height - qr_height) // 2
-    x = input_width - qr_width - padding - 1 if right else padding
-
-    draw = ImageDraw.Draw(image, 'RGBA')
-    if rect:
-        draw.rectangle(
-            ((x - padding, y - padding), (x + qr_width + padding, y + qr_height + padding)),
-            fill=(0, 0, 0, 128)
-        )
-
-    image.paste(qr_img, (x, y), qr_img)
-    image.save(input_filename)
-
-
 @click.command()
 @click.option('--filename', type=click.Path(dir_okay=False), required=True)
 @click.option('--text', type=str, required=True)
@@ -115,23 +74,17 @@ def mood_qr(input_filename, data, fill, rect, bottom, right, background):
 @click.option('--bottom', is_flag=True)
 @click.option('--right', is_flag=True)
 @click.option('--invert', is_flag=True)
-@click.option('--qr', is_flag=True, help='Output a QR code instead of text')
-def main(filename, text, font, font_size, color, no_rect, wrap_width, bottom, right, invert, qr):
+def main(filename, text, font, font_size, color, no_rect, wrap_width, bottom, right, invert):
     if color:
         if invert:
-            fill = (random.randint(128, 255), random.randint(128, 255), random.randint(128, 255), 255)
-        else:
             fill = (random.randint(0, 128), random.randint(0, 128), random.randint(0, 128), 255)
+        else:
+            fill = (random.randint(128, 255), random.randint(128, 255), random.randint(128, 255), 255)
 
     else:
         if invert:
-            fill = (255, 255, 255, 255)
+            fill = (0, 0, 0, 0)
         else:
-            fill = (0, 0, 0, 255)
+            fill = (255, 255, 255, 255)
 
-    if qr:
-        # QR defaults to black modules unless a color fill was requested
-        background = "black" if invert else "white"
-        mood_qr(filename, text, fill, not no_rect, bottom, right, background)
-    else:
-        mood_text(filename, text, font, font_size, fill, not no_rect, wrap_width, bottom, right, invert)
+    mood_text(filename, text, font, font_size, fill, not no_rect, wrap_width, bottom, right, invert)
