@@ -88,7 +88,7 @@ def watermark(text, filename):
                        '--filename', filename,
                        '--text', text,
                        '--font', 'Nunito-VariableFont_wght',
-                       '--font-size', '16',
+                       '--font-size', '12',
                        '--no-rect',
                        '--bottom',
                        '--right'])
