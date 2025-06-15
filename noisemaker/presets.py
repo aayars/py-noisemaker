@@ -912,8 +912,11 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "cobblestone": {
-        "layers": ["bringing-hexy-back", "saturation", "texture", "shadow", "contrast-post", "contrast-final"],
+        "layers": ["bringing-hexy-back", "saturation", "texture", "erosion-worms", "shadow", "contrast-post", "contrast-final"],
         "settings": lambda: {
+            "erosion_worms_alpha": random.random() * 0.05,
+            "erosion_worms_inverse": coin_flip(),
+            "erosion_worms_xy_blend": random.random() * 0.625,
             "hue_range": 0.1 + random.random() * 0.05,
             "saturation_final": 0.0 + random.random() * 0.05,
             "shadow_alpha": 0.5,
@@ -3844,18 +3847,18 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "teh-matrex-haz-u": {
-        "layers": ["glyph-map", "bloom", "contrast-post", "lens", "crt"],
+        "layers": ["swerve-v", "glyph-map", "bloom", "contrast-post", "lens", "crt"],
         "settings": lambda: {
             "contrast_post": 2.0,
-            "freq": (random.randint(2, 3), random.randint(24, 48)),
+            "freq": [stash("matrex_y", random_member([2, 4, 8])), stash("matrex_y") * 8],
             "glyph_map_colorize": True,
             "glyph_map_mask": random_member(mask.glyph_members()),
-            "glyph_map_zoom": random.randint(2, 6),
+            "glyph_map_zoom": random_member([2, 4, 8]),
             "hue_rotation": 0.4 + random.random() * 0.2,
             "hue_range": 0.25,
             "lattice_drift": 1,
             "mask": mask.dropout,
-            "spline_order": interp.cosine,
+            "spline_order": interp.constant,
         },
         "ai": {
             "prompt": "matrix computer code, hacker programming language, sci-fi font, language glyphs",

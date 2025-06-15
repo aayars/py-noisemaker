@@ -663,7 +663,12 @@ def proportional_downsample(tensor, shape, new_shape):
 
     kernel = tf.ones(kernel_shape)
 
-    out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
+    try:
+        out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
+    except Exception as e:
+        out = tensor
+        # ValueError(f"Could not convolve with kernel shape: {kernel_shape}: {e}")
+
 
     return resample(out, new_shape)
 
