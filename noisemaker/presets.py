@@ -3859,6 +3859,7 @@ PRESETS = lambda: {  # noqa E731
             "lattice_drift": 1,
             "mask": mask.dropout,
             "spline_order": interp.constant,
+            "speed": 0.025,
         },
         "ai": {
             "prompt": "matrix computer code, hacker programming language, sci-fi font, language glyphs",
