@@ -230,7 +230,7 @@ PRESETS = lambda: {  # noqa E731
     },
 
     "alien-glyphs": {
-        "layers": ["entities", "maybe-rotate", "smoothstep-narrow", "grain", "saturation"],
+        "layers": ["entities", "maybe-rotate", "smoothstep-narrow", "posterize", "grain", "saturation"],
         "settings": lambda: {
             "corners": True,
             "mask": random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
