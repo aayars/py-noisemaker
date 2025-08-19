@@ -1,8 +1,17 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from pathlib import Path
 
-setup(name='noisemaker',
+from setuptools import find_packages, setup
+
+def read_requirements():
+    reqs_path = Path(__file__).with_name("requirements.txt")
+    with reqs_path.open() as f:
+        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
+
+setup(
+      name='noisemaker',
       version='0.5.0',
       description='Generates procedural noise with Python 3 and TensorFlow',
       author='Alex Ayars',
@@ -17,20 +26,7 @@ setup(name='noisemaker',
         noisemaker=noisemaker.scripts.noisemaker:main
         ''',
 
-      install_requires=[
-        "absl-py>=0.9,<2.2",
-        "click==8.1.7",
-        "colorthief==0.2.1",
-        "h5py>=3.10.0",
-        "loguru==0.7.2",
-        "opensimplex==0.3",
-        "pillow>=10.0.1,<11",
-        "protobuf>=4.25.8,<7",
-        "requests>=2.4.2",
-        "six>=1.15,<1.17",
-        "wheel==0.45.1",  # Needed by TF
-        ],
-
+      install_requires=read_requirements(),
       tests_require=["pytest==8.4.1"],
       )
 
