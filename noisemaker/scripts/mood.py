@@ -28,7 +28,14 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
 
     lines = textwrap.wrap(text, width=wrap_width)
 
-    text_height = sum(draw.textsize(line, font=font)[1] + padding for line in lines)
+    line_metrics = []
+    text_height = 0
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        line_w = bbox[2] - bbox[0]
+        line_h = bbox[3] - bbox[1]
+        line_metrics.append((line, line_w, line_h))
+        text_height += line_h + padding
 
     text_y = input_height - text_height
 
@@ -46,9 +53,7 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
     if rect:
         draw.rectangle(((0, text_y - padding), (input_width, text_y + text_height + padding)), fill=shadow_color)
 
-    for i, line in enumerate(textwrap.wrap(text, width=wrap_width)):
-        line_w, line_h = draw.textsize(line, font=font)
-
+    for line, line_w, line_h in line_metrics:
         text_x = input_width - line_w
         if right:
             text_x -= padding + 4
