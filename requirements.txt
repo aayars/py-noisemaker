@@ -1,0 +1,12 @@
+absl-py>=0.9,<2.2
+click==8.1.7
+colorthief==0.2.1
+h5py>=3.10.0
+loguru==0.7.2
+opensimplex==0.3
+pillow>=10.0.1,<11
+protobuf>=4.25.8,<7
+requests>=2.4.2
+six>=1.15,<1.17
+wheel==0.45.1
+tensorflow==2.16.1
