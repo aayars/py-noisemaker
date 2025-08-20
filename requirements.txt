@@ -7,6 +7,6 @@ opensimplex==0.3
 pillow>=10.0.1,<11
 protobuf>=4.25.8,<7
 requests>=2.4.2
-six>=1.15,<1.17
+six>=1.15,<1.18
 wheel==0.45.1
 tensorflow==2.16.1
