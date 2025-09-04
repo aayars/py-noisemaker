@@ -42,7 +42,7 @@ The `noisemaker` CLI can generate images, animations, and apply post-processing 
 ```bash
 noisemaker generate acid -o acid.png
 noisemaker animate 2d-chess -o chess.gif
-noisemaker apply glitch input.jpg -o output.jpg
+noisemaker apply glitchin-out input.jpg -o output.jpg
 ```
 
 Run `noisemaker --help` to see the full command list.
