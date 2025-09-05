@@ -27,6 +27,6 @@ setup(
         ''',
 
       install_requires=read_requirements(),
-      tests_require=["pytest==8.4.1"],
+      tests_require=["pytest==8.4.2"],
       )
 
