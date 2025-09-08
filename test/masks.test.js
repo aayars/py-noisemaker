@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { ValueMask } from '../src/constants.js';
 import { maskValues, maskShape } from '../src/masks.js';
-import { loadGlyphs } from '../src/glyphs.js';
+import { loadGlyphs, loadFonts } from '../src/glyphs.js';
 
 // Static bitmap mask
 let shape = maskShape(ValueMask.chess);
@@ -17,6 +17,11 @@ const vals = Array.from(tensor.read());
 assert.strictEqual(vals.length, 16);
 assert(vals.some(v => v === 1));
 assert(vals.some(v => v === 0));
+
+// Font loading cache
+const fonts1 = loadFonts();
+const fonts2 = loadFonts();
+assert.strictEqual(fonts1, fonts2);
 
 // Glyph atlas caching
 const atlas1 = loadGlyphs([2, 2, 1]);
