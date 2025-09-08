@@ -233,3 +233,42 @@ export function randomHue(tensor, shape, time, speed, range = 0.05) {
   return adjustHue(tensor, shift);
 }
 register('randomHue', randomHue, { range: 0.05 });
+
+export function normalizeEffect(tensor, shape, time, speed) {
+  return normalize(tensor);
+}
+register('normalize', normalizeEffect, {});
+
+export function adjustBrightness(
+  tensor,
+  shape,
+  time,
+  speed,
+  amount = 0
+) {
+  const src = tensor.read();
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    const v = src[i] + amount;
+    out[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('adjustBrightness', adjustBrightness, { amount: 0 });
+
+export function adjustContrast(
+  tensor,
+  shape,
+  time,
+  speed,
+  amount = 1
+) {
+  const src = tensor.read();
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    const v = (src[i] - 0.5) * amount + 0.5;
+    out[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('adjustContrast', adjustContrast, { amount: 1 });

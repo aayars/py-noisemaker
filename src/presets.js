@@ -164,6 +164,78 @@ export function PRESETS() {
         Effect('shadow', { alpha: settings.shadow_alpha }),
       ],
     },
+
+    'reindex-post': {
+      settings: () => ({
+        reindex_range: 0.125 + random() * 2.5,
+      }),
+      post: (settings) => [
+        Effect('reindex', { displacement: settings.reindex_range }),
+      ],
+    },
+
+    normalize: {
+      post: () => [Effect('normalize')],
+    },
+
+    aberration: {
+      settings: () => ({
+        aberration_displacement: 0.0125 + random() * 0.000625,
+      }),
+      final: (settings) => [
+        Effect('aberration', { displacement: settings.aberration_displacement }),
+      ],
+    },
+
+    acid: {
+      layers: ['basic', 'reindex-post', 'normalize'],
+      settings: () => ({
+        color_space: color.rgb,
+        freq: randomInt(10, 15),
+        octaves: 8,
+        reindex_range: 1.25 + random() * 1.25,
+      }),
+    },
+
+    grain: {
+      unique: true,
+      settings: () => ({
+        grain_alpha: 0.0333 + random() * 0.01666,
+        grain_brightness: 0.0125 + random() * 0.00625,
+        grain_contrast: 1.025 + random() * 0.0125,
+      }),
+      final: (settings) => [
+        Effect('grain', { alpha: settings.grain_alpha }),
+        Effect('adjustBrightness', { amount: settings.grain_brightness }),
+        Effect('adjustContrast', { amount: settings.grain_contrast }),
+      ],
+    },
+
+    'vignette-bright': {
+      settings: () => ({
+        vignette_bright_alpha: 0.333 + random() * 0.333,
+        vignette_bright_brightness: 1.0,
+      }),
+      final: (settings) => [
+        Effect('vignette', {
+          alpha: settings.vignette_bright_alpha,
+          brightness: settings.vignette_bright_brightness,
+        }),
+      ],
+    },
+
+    'vignette-dark': {
+      settings: () => ({
+        vignette_dark_alpha: 0.5 + random() * 0.25,
+        vignette_dark_brightness: 0.0,
+      }),
+      final: (settings) => [
+        Effect('vignette', {
+          alpha: settings.vignette_dark_alpha,
+          brightness: settings.vignette_dark_brightness,
+        }),
+      ],
+    },
   };
 }
 
