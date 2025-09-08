@@ -383,3 +383,251 @@ export function valueMap(tensor, palette) {
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
+
+export function ridge(tensor) {
+  const data = tensor.read();
+  const out = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) {
+    out[i] = 1 - Math.abs(data[i] * 2 - 1);
+  }
+  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+}
+
+export function convolution(tensor, kernel, opts = {}) {
+  const { normalize: doNormalize = true, alpha = 1 } = opts;
+  const [h, w, c] = tensor.shape;
+  const kh = kernel.length;
+  const kw = kernel[0].length;
+  let maxVal = -Infinity;
+  let minVal = Infinity;
+  for (const row of kernel) {
+    for (const v of row) {
+      if (v > maxVal) maxVal = v;
+      if (v < minVal) minVal = v;
+    }
+  }
+  const scale = Math.max(Math.abs(maxVal), Math.abs(minVal)) || 1;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const halfH = Math.floor(kh / 2);
+  const halfW = Math.floor(kw / 2);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      for (let k = 0; k < c; k++) {
+        let sum = 0;
+        for (let j = 0; j < kh; j++) {
+          for (let i = 0; i < kw; i++) {
+            const yy = (y + j - halfH + h) % h;
+            const xx = (x + i - halfW + w) % w;
+            const val = src[(yy * w + xx) * c + k];
+            sum += (kernel[j][i] / scale) * val;
+          }
+        }
+        out[(y * w + x) * c + k] = sum;
+      }
+    }
+  }
+  let result = Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  if (doNormalize) result = normalize(result);
+  if (alpha !== 1) result = blend(tensor, result, alpha);
+  return result;
+}
+
+export function refract(tensor, referenceX = null, referenceY = null, displacement = 0.5) {
+  const [h, w, c] = tensor.shape;
+  const rx = (referenceX || tensor).read();
+  const ry = (referenceY || tensor).read();
+  const flowData = new Float32Array(h * w * 2);
+  for (let i = 0; i < h * w; i++) {
+    flowData[i * 2] = rx[i] * 2 - 1;
+    flowData[i * 2 + 1] = ry[i] * 2 - 1;
+  }
+  const flow = Tensor.fromArray(tensor.ctx, flowData, [h, w, 2]);
+  return warp(tensor, flow, displacement);
+}
+
+export function fft(tensor) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c * 2);
+  for (let k = 0; k < c; k++) {
+    for (let u = 0; u < h; u++) {
+      for (let v = 0; v < w; v++) {
+        let re = 0, im = 0;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const angle = -2 * Math.PI * ((u * y) / h + (v * x) / w);
+            const val = src[(y * w + x) * c + k];
+            re += val * Math.cos(angle);
+            im += val * Math.sin(angle);
+          }
+        }
+        const idx = (u * w + v) * c * 2 + k * 2;
+        out[idx] = re;
+        out[idx + 1] = im;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c * 2]);
+}
+
+export function ifft(tensor) {
+  const [h, w, c2] = tensor.shape;
+  const c = c2 / 2;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let k = 0; k < c; k++) {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let re = 0;
+        for (let u = 0; u < h; u++) {
+          for (let v = 0; v < w; v++) {
+            const idx = (u * w + v) * c * 2 + k * 2;
+            const real = src[idx];
+            const imag = src[idx + 1];
+            const angle = 2 * Math.PI * ((u * y) / h + (v * x) / w);
+            re += real * Math.cos(angle) - imag * Math.sin(angle);
+          }
+        }
+        out[(y * w + x) * c + k] = re / (h * w);
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+export function rotate(tensor, angle) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const rx = (x - cx) * cos + (y - cy) * sin + cx;
+      const ry = -(x - cx) * sin + (y - cy) * cos + cy;
+      const ix = Math.round(rx);
+      const iy = Math.round(ry);
+      for (let k = 0; k < c; k++) {
+        let val = 0;
+        if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
+          val = src[(iy * w + ix) * c + k];
+        }
+        out[(y * w + x) * c + k] = val;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+export function zoom(tensor, factor) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const rx = (x - cx) / factor + cx;
+      const ry = (y - cy) / factor + cy;
+      const ix = Math.round(rx);
+      const iy = Math.round(ry);
+      for (let k = 0; k < c; k++) {
+        let val = 0;
+        if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
+          val = src[(iy * w + ix) * c + k];
+        }
+        out[(y * w + x) * c + k] = val;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+export function fxaa(tensor) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const lumWeights = [0.299, 0.587, 0.114];
+  function idx(x, y, k) {
+    x = Math.max(0, Math.min(w - 1, x));
+    y = Math.max(0, Math.min(h - 1, y));
+    return (y * w + x) * c + k;
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (c === 1) {
+        const lC = src[idx(x, y, 0)];
+        const lN = src[idx(x, y - 1, 0)];
+        const lS = src[idx(x, y + 1, 0)];
+        const lW = src[idx(x - 1, y, 0)];
+        const lE = src[idx(x + 1, y, 0)];
+        const wC = 1.0;
+        const wN = Math.exp(-Math.abs(lC - lN));
+        const wS = Math.exp(-Math.abs(lC - lS));
+        const wW = Math.exp(-Math.abs(lC - lW));
+        const wE = Math.exp(-Math.abs(lC - lE));
+        const sum = wC + wN + wS + wW + wE + 1e-10;
+        out[idx(x, y, 0)] =
+          (lC * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
+      } else if (c === 2) {
+        const lum = src[idx(x, y, 0)];
+        const alpha = src[idx(x, y, 1)];
+        const lN = src[idx(x, y - 1, 0)];
+        const lS = src[idx(x, y + 1, 0)];
+        const lW = src[idx(x - 1, y, 0)];
+        const lE = src[idx(x + 1, y, 0)];
+        const wC = 1.0;
+        const wN = Math.exp(-Math.abs(lum - lN));
+        const wS = Math.exp(-Math.abs(lum - lS));
+        const wW = Math.exp(-Math.abs(lum - lW));
+        const wE = Math.exp(-Math.abs(lum - lE));
+        const sum = wC + wN + wS + wW + wE + 1e-10;
+        out[idx(x, y, 0)] =
+          (lum * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
+        out[idx(x, y, 1)] = alpha;
+      } else if (c === 3 || c === 4) {
+        const rgbC = [src[idx(x, y, 0)], src[idx(x, y, 1)], src[idx(x, y, 2)]];
+        const rgbN = [src[idx(x, y - 1, 0)], src[idx(x, y - 1, 1)], src[idx(x, y - 1, 2)]];
+        const rgbS = [src[idx(x, y + 1, 0)], src[idx(x, y + 1, 1)], src[idx(x, y + 1, 2)]];
+        const rgbW = [src[idx(x - 1, y, 0)], src[idx(x - 1, y, 1)], src[idx(x - 1, y, 2)]];
+        const rgbE = [src[idx(x + 1, y, 0)], src[idx(x + 1, y, 1)], src[idx(x + 1, y, 2)]];
+        const lC = rgbC[0] * lumWeights[0] + rgbC[1] * lumWeights[1] + rgbC[2] * lumWeights[2];
+        const lN = rgbN[0] * lumWeights[0] + rgbN[1] * lumWeights[1] + rgbN[2] * lumWeights[2];
+        const lS = rgbS[0] * lumWeights[0] + rgbS[1] * lumWeights[1] + rgbS[2] * lumWeights[2];
+        const lW = rgbW[0] * lumWeights[0] + rgbW[1] * lumWeights[1] + rgbW[2] * lumWeights[2];
+        const lE = rgbE[0] * lumWeights[0] + rgbE[1] * lumWeights[1] + rgbE[2] * lumWeights[2];
+        const wC = 1.0;
+        const wN = Math.exp(-Math.abs(lC - lN));
+        const wS = Math.exp(-Math.abs(lC - lS));
+        const wW = Math.exp(-Math.abs(lC - lW));
+        const wE = Math.exp(-Math.abs(lC - lE));
+        const sum = wC + wN + wS + wW + wE + 1e-10;
+        for (let k = 0; k < 3; k++) {
+          out[idx(x, y, k)] =
+            (rgbC[k] * wC + rgbN[k] * wN + rgbS[k] * wS + rgbW[k] * wW + rgbE[k] * wE) / sum;
+        }
+        if (c === 4) out[idx(x, y, 3)] = src[idx(x, y, 3)];
+      } else {
+        for (let k = 0; k < c; k++) out[idx(x, y, k)] = src[idx(x, y, k)];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+export function gaussianBlur(tensor, radius = 1) {
+  const size = radius * 2 + 1;
+  const sigma = radius / 2 || 1;
+  const kernel = [];
+  for (let y = -radius; y <= radius; y++) {
+    const row = [];
+    for (let x = -radius; x <= radius; x++) {
+      row.push(Math.exp(-(x * x + y * y) / (2 * sigma * sigma)));
+    }
+    kernel.push(row);
+  }
+  return convolution(tensor, kernel, { normalize: false });
+}

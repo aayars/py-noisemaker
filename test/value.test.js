@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp } from '../src/value.js';
+import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur } from '../src/value.js';
 import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
 import { ValueDistribution } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
@@ -77,5 +77,73 @@ const flow = Tensor.fromArray(null, new Float32Array(2*2*2).fill(0), [2,2,2]);
 const src = values(1, [2,2,1], { distrib: ValueDistribution.row_index });
 const warped = warp(src, flow, 1);
 arraysClose(src.read(), warped.read());
+
+// ridge
+const ridgeInput = Tensor.fromArray(null, new Float32Array([0, 0.5, 1]), [3, 1, 1]);
+arraysClose(ridge(ridgeInput).read(), new Float32Array([0, 1, 0]));
+
+// convolution
+const convInput = Tensor.fromArray(null, new Float32Array([
+  0, 1, 2,
+  3, 4, 5,
+  6, 7, 8,
+]), [3, 3, 1]);
+const convKernel = [[0, 1, 0], [1, 0, 1], [0, 1, 0]];
+const convResult = convolution(convInput, convKernel);
+arraysClose(convResult.read(), new Float32Array([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]));
+
+// refract
+const refrInput = Tensor.fromArray(null, new Float32Array([
+  0, 1, 2,
+  3, 4, 5,
+  6, 7, 8,
+]), [3, 3, 1]);
+const refX = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
+const refY = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
+const refracted = refract(refrInput, refX, refY, 1);
+arraysClose(refracted.read(), new Float32Array([1, 2, 2, 1, 2, 2, 4, 5, 5]));
+
+// fft / ifft
+const fftInput = Tensor.fromArray(null, new Float32Array([1, 2, 3, 4]), [2, 2, 1]);
+const fftOut = fft(fftInput);
+arraysClose(fftOut.read(), new Float32Array([10, 0, -2, 0, -4, 0, 0, 0]));
+const ifftOut = ifft(fftOut);
+arraysClose(ifftOut.read(), fftInput.read());
+
+// rotate
+const rotInput = Tensor.fromArray(null, new Float32Array([
+  0, 1, 2,
+  3, 4, 5,
+  6, 7, 8,
+]), [3, 3, 1]);
+const rotated = rotate(rotInput, Math.PI / 2);
+arraysClose(rotated.read(), new Float32Array([6, 3, 0, 7, 4, 1, 8, 5, 2]));
+
+// zoom
+const zoomInput = Tensor.fromArray(null, new Float32Array(Array.from({ length: 25 }, (_, i) => i)), [5, 5, 1]);
+const zoomed = zoom(zoomInput, 2);
+arraysClose(zoomed.read(), new Float32Array([6, 7, 7, 8, 8, 11, 12, 12, 13, 13, 11, 12, 12, 13, 13, 16, 17, 17, 18, 18, 16, 17, 17, 18, 18]));
+
+// fxaa
+const fxaaInput = Tensor.fromArray(null, new Float32Array([
+  0, 0, 0,
+  0, 1, 0,
+  0, 0, 0,
+]), [3, 3, 1]);
+const fxaaOut = fxaa(fxaaInput);
+arraysClose(fxaaOut.read(), new Float32Array([0, 0.08422381, 0, 0.08422381, 0.40460968, 0.08422381, 0, 0.08422381, 0]));
+
+// gaussian blur
+const gbData = new Float32Array(25);
+gbData[12] = 1;
+const gbInput = Tensor.fromArray(null, gbData, [5, 5, 1]);
+const gb = gaussianBlur(gbInput, 1);
+arraysClose(gb.read(), new Float32Array([
+  0, 0, 0, 0, 0,
+  0, 0.018315639, 0.13533528, 0.018315639, 0,
+  0, 0.13533528, 1, 0.13533528, 0,
+  0, 0.018315639, 0.13533528, 0.018315639, 0,
+  0, 0, 0, 0, 0,
+]));
 
 console.log('Value tests passed');
