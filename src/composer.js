@@ -1,5 +1,8 @@
 import { Context } from './context.js';
-import { values } from './value.js';
+import { values, rgbToHsv, hsvToRgb } from './value.js';
+import { rgbToOklab, oklabToRgb } from './oklab.js';
+import { ColorSpace } from './constants.js';
+import { shapeFromParams } from './util.js';
 import { EFFECTS } from './effectsRegistry.js';
 
 const SETTINGS_KEY = 'settings';
@@ -45,11 +48,23 @@ export class Preset {
       withAlpha = false,
     } = opts;
 
-    const shape = [height, width, withAlpha ? 4 : 3];
+    const colorSpace = this.settings.colorSpace || ColorSpace.rgb;
+    const shape = shapeFromParams(
+      width,
+      height,
+      colorSpace === ColorSpace.grayscale ? 'grayscale' : 'rgb',
+      withAlpha
+    );
     const g = this.generator || {};
     const freq = g.freq !== undefined ? g.freq : 1;
     const tensorOpts = { seed, time, speed, ...g };
     let tensor = values(freq, shape, tensorOpts);
+
+    if (colorSpace === ColorSpace.hsv) {
+      tensor = rgbToHsv(tensor);
+    } else if (colorSpace === ColorSpace.oklab) {
+      tensor = rgbToOklab(tensor);
+    }
 
     for (const e of this.octave_effects) {
       tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, 0);
@@ -66,6 +81,12 @@ export class Preset {
 
     for (const e of finalEffects) {
       tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+    }
+
+    if (colorSpace === ColorSpace.hsv) {
+      tensor = hsvToRgb(tensor);
+    } else if (colorSpace === ColorSpace.oklab) {
+      tensor = oklabToRgb(tensor);
     }
 
     // Present to canvas if available

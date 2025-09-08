@@ -19,6 +19,7 @@ const settings1 = presets.basic.settings();
 setSeed(123);
 const settings2 = PRESETS().basic.settings();
 assert.deepStrictEqual(settings1, settings2);
+assert.ok('colorSpace' in settings1);
 
 setSeed(456);
 const acid1 = presets.acid.settings();

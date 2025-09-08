@@ -77,7 +77,7 @@ export function PRESETS() {
       layers: ['maybe-palette'],
       settings: () => ({
         brightness_distrib: null,
-        color_space: randomMember(color),
+        colorSpace: randomMember(color),
         corners: false,
         distrib: distrib.uniform,
         freq: [randomInt(2, 4), randomInt(2, 4)],
@@ -98,7 +98,7 @@ export function PRESETS() {
       }),
       generator: (settings) => ({
         brightness_distrib: settings.brightness_distrib,
-        color_space: settings.color_space,
+        colorSpace: settings.colorSpace,
         corners: settings.corners,
         distrib: settings.distrib,
         freq: settings.freq,
@@ -190,7 +190,7 @@ export function PRESETS() {
     acid: {
       layers: ['basic', 'reindex-post', 'normalize'],
       settings: () => ({
-        color_space: color.rgb,
+        colorSpace: color.rgb,
         freq: randomInt(10, 15),
         octaves: 8,
         reindex_range: 1.25 + random() * 1.25,

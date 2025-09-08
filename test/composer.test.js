@@ -2,6 +2,8 @@ import assert from 'assert';
 import { register } from '../src/effectsRegistry.js';
 import { Preset, Effect } from '../src/composer.js';
 import { Context } from '../src/context.js';
+import { values, rgbToHsv } from '../src/value.js';
+import { ColorSpace } from '../src/constants.js';
 
 const log = [];
 function record(tensor, shape, time, speed, label = '') {
@@ -53,5 +55,28 @@ assert.deepStrictEqual(log, [
 
 assert.throws(() => Effect('missing'));
 assert.throws(() => Effect('record', { bad: 1 }));
+
+// colour-space test
+let captured = null;
+function capture(tensor, shape, time, speed) {
+  captured = Array.from(tensor.read());
+  return tensor;
+}
+register('capture', capture, {});
+
+const CS_PRESETS = {
+  cs: {
+    settings: () => ({ colorSpace: ColorSpace.hsv }),
+    post: () => [Effect('capture')],
+  },
+};
+
+const csPreset = new Preset('cs', CS_PRESETS);
+const seed = 42;
+const shape = [1, 1, 3];
+const rgb = values(1, shape, { seed });
+const expected = Array.from(rgbToHsv(rgb).read());
+csPreset.render(seed, { width: 1, height: 1 });
+assert.deepStrictEqual(captured.map((v) => +v.toFixed(6)), expected.map((v) => +v.toFixed(6)));
 
 console.log('composer tests passed');
