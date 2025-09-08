@@ -1,5 +1,15 @@
 import { Tensor } from './tensor.js';
-import { warp as warpOp, sobel, normalize, blend, values, adjustHue } from './value.js';
+import {
+  warp as warpOp,
+  sobel,
+  normalize,
+  blend,
+  values,
+  adjustHue,
+  rgbToHsv,
+  hsvToRgb,
+  clamp01,
+} from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
 import { random } from './util.js';
@@ -116,3 +126,110 @@ export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   return adjustHue(displaced, -hueShift);
 }
 register('aberration', aberration, { displacement: 0.005 });
+
+export function reindex(tensor, shape, time, speed, displacement = 0.5) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const lum = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    if (c === 1) {
+      lum[i] = src[i];
+    } else {
+      const base = i * c;
+      const r = src[base];
+      const g = src[base + 1] || 0;
+      const b = src[base + 2] || 0;
+      lum[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+  }
+  const mod = Math.min(h, w);
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const r = lum[idx];
+      const xo = Math.floor((r * displacement * mod + r) % w);
+      const yo = Math.floor((r * displacement * mod + r) % h);
+      const srcIdx = (yo * w + xo) * c;
+      for (let k = 0; k < c; k++) {
+        out[idx * c + k] = src[srcIdx + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('reindex', reindex, { displacement: 0.5 });
+
+export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1.0) {
+  const [h, w, c] = shape;
+  const norm = normalize(tensor);
+  const edgeData = new Float32Array(h * w * c);
+  edgeData.fill(brightness);
+  const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  const maskData = new Float32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+      maskData[y * w + x] = dist * dist;
+    }
+  }
+  const mask = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
+  const vignetted = blend(norm, edges, mask);
+  return blend(norm, vignetted, alpha);
+}
+register('vignette', vignette, { brightness: 0.0, alpha: 1.0 });
+
+export function dither(tensor, shape, time, speed, levels = 2) {
+  const [h, w, c] = shape;
+  const noise = values(Math.max(h, w), [h, w, 1], { time, seed: 0, speed: speed * 1000 });
+  const n = noise.read();
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const d = n[i] - 0.5;
+    for (let k = 0; k < c; k++) {
+      let v = src[i * c + k] + d / levels;
+      v = Math.floor(Math.min(1, Math.max(0, v)) * levels) / levels;
+      out[i * c + k] = v;
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('dither', dither, { levels: 2 });
+
+export function grain(tensor, shape, time, speed, alpha = 0.25) {
+  const [h, w, c] = shape;
+  const noise = values(Math.max(h, w), [h, w, 1], { time, speed: speed * 100 });
+  const n = noise.read();
+  const noiseData = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) {
+      noiseData[i * c + k] = n[i];
+    }
+  }
+  const noiseTensor = Tensor.fromArray(tensor.ctx, noiseData, shape);
+  return blend(tensor, noiseTensor, alpha);
+}
+register('grain', grain, { alpha: 0.25 });
+
+export function saturation(tensor, shape, time, speed, amount = 0.75) {
+  if (shape[2] !== 3) return tensor;
+  const hsv = rgbToHsv(tensor);
+  const data = hsv.read();
+  for (let i = 0; i < shape[0] * shape[1]; i++) {
+    data[i * 3 + 1] = Math.min(1, Math.max(0, data[i * 3 + 1] * amount));
+  }
+  return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
+}
+register('saturation', saturation, { amount: 0.75 });
+
+export function randomHue(tensor, shape, time, speed, range = 0.05) {
+  const shift = random() * range * 2 - range;
+  return adjustHue(tensor, shift);
+}
+register('randomHue', randomHue, { range: 0.05 });
