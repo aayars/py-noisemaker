@@ -16,7 +16,7 @@ The library is organised as ES modules inside `src/`.
 | Module | Responsibility |
 |---|---|
 | `constants.js` | Enumerations and static lookup tables. |
-| `simplex.js` | 4‑D OpenSimplex noise and loopable random helpers. |
+| `simplex.js` | 3‑D OpenSimplex noise and loopable random helpers. |
 | `value.js` | Core tensor math: value noise generation, resampling, convolution, derivatives, blending utilities. |
 | `points.js` | Procedural point‑cloud generators used by Voronoi and DLA algorithms. |
 | `masks.js` | Static bitmap/procedural masks and glyph atlas helpers. |
