@@ -7,14 +7,16 @@ import {
 } from './constants.js';
 import { PALETTES } from './palettes.js';
 import './effects.js';
+import { random } from './util.js';
+export { setSeed } from './util.js';
 
 // Random helper utilities adapted from the Python implementation
 function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(random() * (max - min + 1)) + min;
 }
 
 export function coinFlip() {
-  return Math.random() < 0.5;
+  return random() < 0.5;
 }
 
 export function enumRange(a, b) {
@@ -44,7 +46,7 @@ export function randomMember(...collections) {
       throw new Error('randomMember(arg) should be iterable');
     }
   }
-  const idx = Math.floor(Math.random() * out.length);
+  const idx = Math.floor(random() * out.length);
   return out[idx];
 }
 
@@ -60,7 +62,7 @@ export function PRESETS() {
   return {
     'maybe-palette': {
       settings: () => ({
-        palette_alpha: 0.5 + Math.random() * 0.5,
+        palette_alpha: 0.5 + random() * 0.5,
         palette_name: randomMember(Object.keys(PALETTES)),
         palette_on: coinFlip(),
       }),
@@ -80,8 +82,8 @@ export function PRESETS() {
         distrib: distrib.uniform,
         freq: [randomInt(2, 4), randomInt(2, 4)],
         hue_distrib: null,
-        hue_range: Math.random() * 0.25,
-        hue_rotation: Math.random(),
+        hue_range: random() * 0.25,
+        hue_rotation: random(),
         lattice_drift: 0.0,
         mask: null,
         mask_inverse: false,
@@ -132,7 +134,7 @@ export function PRESETS() {
       settings: () => ({
         warp_freq: randomInt(2, 4),
         warp_octaves: randomInt(1, 3),
-        warp_displacement: 0.5 + Math.random() * 0.5,
+        warp_displacement: 0.5 + random() * 0.5,
       }),
       post: (settings) => [
         Effect('warp', {
@@ -148,8 +150,8 @@ export function PRESETS() {
       settings: () => ({
         warp_freq: randomInt(2, 4),
         warp_octaves: randomInt(1, 3),
-        warp_displacement: 0.5 + Math.random() * 0.5,
-        shadow_alpha: 0.5 + Math.random() * 0.5,
+        warp_displacement: 0.5 + random() * 0.5,
+        shadow_alpha: 0.5 + random() * 0.5,
       }),
       post: (settings) => [
         Effect('warp', {
