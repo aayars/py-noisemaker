@@ -1,6 +1,7 @@
 import { Tensor } from './tensor.js';
 import { ValueDistribution, ValueMask, DistanceMetric } from './constants.js';
 import { maskValues } from './masks.js';
+import { random } from './util.js';
 
 function fract(x) {
   return x - Math.floor(x);
@@ -314,6 +315,21 @@ export function rgbToHsv(tensor) {
     out[i * 3 + 2] = max;
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+}
+
+export function adjustHue(tensor, amount) {
+  const hsv = rgbToHsv(tensor);
+  const data = hsv.read();
+  for (let i = 0; i < data.length; i += 3) {
+    data[i] = (data[i] + amount) % 1;
+    if (data[i] < 0) data[i] += 1;
+  }
+  return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape));
+}
+
+export function randomHue(tensor, range = 0.05) {
+  const shift = random() * range * 2 - range;
+  return adjustHue(tensor, shift);
 }
 
 export function valueMap(tensor, palette) {

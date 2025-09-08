@@ -1,7 +1,8 @@
 import { Tensor } from './tensor.js';
-import { warp as warpOp, sobel, normalize, blend, values } from './value.js';
+import { warp as warpOp, sobel, normalize, blend, values, adjustHue } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
+import { random } from './util.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -82,3 +83,36 @@ export function palette(tensor, shape, time, speed, name = null) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
 register('palette', palette, { name: null });
+
+export function invert(tensor, shape, time, speed) {
+  const src = tensor.read();
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    out[i] = 1 - src[i];
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('invert', invert, {});
+
+export function aberration(tensor, shape, time, speed, displacement = 0.005) {
+  const [h, w, c] = shape;
+  if (c !== 3) return tensor;
+  const disp = Math.round(w * displacement * random());
+  const hueShift = random() * 0.1 - 0.05;
+  const shifted = adjustHue(tensor, hueShift);
+  const src = shifted.read();
+  const out = new Float32Array(h * w * 3);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const base = (y * w + x) * 3;
+      const rIdx = (y * w + Math.min(w - 1, x + disp)) * 3;
+      const bIdx = (y * w + Math.max(0, x - disp)) * 3;
+      out[base] = src[rIdx];
+      out[base + 1] = src[base + 1];
+      out[base + 2] = src[bIdx + 2];
+    }
+  }
+  const displaced = Tensor.fromArray(tensor.ctx, out, shape);
+  return adjustHue(displaced, -hueShift);
+}
+register('aberration', aberration, { displacement: 0.005 });
