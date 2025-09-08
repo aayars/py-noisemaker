@@ -103,7 +103,7 @@ export function getAtlas(mask) {
 }
 
 export function maskValues(mask, glyphShape = null, opts = {}) {
-  const { atlas = null, inverse = false } = opts;
+  const { atlas = null, inverse = false, time = 0, speed = 1 } = opts;
   const shape = maskShape(mask);
   if (!glyphShape) glyphShape = [...shape];
   if (shape.length === 3) glyphShape[2] = shape[2];

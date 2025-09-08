@@ -1,30 +1,55 @@
 import { Tensor } from './tensor.js';
-import { ValueDistribution, ValueMask, DistanceMetric } from './constants.js';
+import { ValueDistribution } from './constants.js';
 import { maskValues } from './masks.js';
-import { random } from './util.js';
 
 function fract(x) {
   return x - Math.floor(x);
 }
 
-function rand2D(x, y, seed = 0, time = 0) {
-  const s = x * 374761393 + y * 668265263 + seed * 69069 + time * 43758.5453;
+function rand2D(x, y, seed = 0, time = 0, speed = 1) {
+  const s =
+    x * 374761393 + y * 668265263 + seed * 69069 + time * speed * 43758.5453;
   return fract(Math.sin(s) * 43758.5453);
 }
 
+/**
+ * Generate value noise or other simple distributions.
+ *
+ * @param {number} freq Frequency of the grid.
+ * @param {[number, number, number]} shape Output tensor shape `[height,width,channels]`.
+ * @param {Object} opts Options object.
+ * @param {ValueDistribution} [opts.distrib=ValueDistribution.uniform] Distribution type.
+ * @param {boolean} [opts.corners=false] Wrap noise coordinates for seamless tiling.
+ * @param {ValueMask} [opts.mask] Optional mask to multiply the result with.
+ * @param {boolean} [opts.maskInverse=false] Invert the mask values.
+ * @param {boolean} [opts.maskStatic=false] Ignore time/speed when generating masks.
+ * @param {number} [opts.splineOrder=3] Interpolation order (1=linear,3=cubic,5=quintic).
+ * @param {number} [opts.time=0] Animation time value.
+ * @param {number} [opts.seed=0] Random seed.
+ * @param {number} [opts.speed=1] Time multiplier for animation.
+ * @returns {Tensor} Generated tensor.
+ */
 export function values(freq, shape, opts = {}) {
   const [height, width, channels = 1] = shape;
   const {
     distrib = ValueDistribution.uniform,
+    corners = false,
     mask,
     maskInverse = false,
+    maskStatic = false,
+    splineOrder = 3,
     time = 0,
     seed = 0,
+    speed = 1,
   } = opts;
 
   let maskData = null;
   if (mask !== undefined && mask !== null) {
-    const [maskTensor] = maskValues(mask, [height, width, 1], { inverse: maskInverse });
+    const [maskTensor] = maskValues(mask, [height, width, 1], {
+      inverse: maskInverse,
+      time: maskStatic ? 0 : time,
+      speed,
+    });
     maskData = maskTensor.read();
   }
 
@@ -68,24 +93,35 @@ export function values(freq, shape, opts = {}) {
           val = width === 1 ? 0 : 1 - x / (width - 1);
           break;
         case ValueDistribution.exp: {
-          const r = rand2D(x, y, seed, time);
+          const r = rand2D(x, y, seed, time, speed);
           val = Math.pow(r, 3);
           break;
         }
         case ValueDistribution.uniform:
         default: {
-          const u = x / width * freq;
-          const v = y / height * freq;
+          const u = (x / width) * freq;
+          const v = (y / height) * freq;
           const x0 = Math.floor(u);
           const y0 = Math.floor(v);
           const xf = u - x0;
           const yf = v - y0;
-          const r00 = rand2D(x0, y0, seed, time);
-          const r10 = rand2D(x0 + 1, y0, seed, time);
-          const r01 = rand2D(x0, y0 + 1, seed, time);
-          const r11 = rand2D(x0 + 1, y0 + 1, seed, time);
-          const sx = xf * xf * (3 - 2 * xf);
-          const sy = yf * yf * (3 - 2 * yf);
+          const f = Math.max(1, Math.floor(freq));
+          const xb = corners ? x0 % f : x0;
+          const yb = corners ? y0 % f : y0;
+          const x1 = corners ? (xb + 1) % f : xb + 1;
+          const y1 = corners ? (yb + 1) % f : yb + 1;
+          const r00 = rand2D(xb, yb, seed, time, speed);
+          const r10 = rand2D(x1, yb, seed, time, speed);
+          const r01 = rand2D(xb, y1, seed, time, speed);
+          const r11 = rand2D(x1, y1, seed, time, speed);
+          function interp(t) {
+            if (splineOrder === 1) return t;
+            if (splineOrder === 5)
+              return t * t * t * (t * (t * 6 - 15) + 10);
+            return t * t * (3 - 2 * t);
+          }
+          const sx = interp(xf);
+          const sy = interp(yf);
           const nx0 = r00 * (1 - sx) + r10 * sx;
           const nx1 = r01 * (1 - sx) + r11 * sx;
           val = nx0 * (1 - sy) + nx1 * sy;
