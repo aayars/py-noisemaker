@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "node test/constants.test.js && node test/simplex.test.js && node test/value.test.js"
+    "test": "node test/constants.test.js && node test/simplex.test.js && node test/value.test.js && node test/points.test.js"
   }
 }
