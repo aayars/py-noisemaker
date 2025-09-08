@@ -11,8 +11,18 @@ import {
   grain,
   saturation,
   randomHue,
+  adjustHueEffect,
+  ridgeEffect,
+  sine,
+  blur,
 } from '../src/effects.js';
-import { adjustHue, rgbToHsv, hsvToRgb, values, blend } from '../src/value.js';
+import {
+  adjustHue as adjustHueValue,
+  rgbToHsv,
+  hsvToRgb,
+  values,
+  blend,
+} from '../src/value.js';
 import { setSeed, random } from '../src/util.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -60,7 +70,7 @@ const abData = new Float32Array([
 const abTensor = Tensor.fromArray(null, abData, abShape);
 const disp = Math.round(abShape[1] * 0.25 * random());
 const hueShift = random() * 0.1 - 0.05;
-const shifted = adjustHue(abTensor, hueShift).read();
+const shifted = adjustHueValue(abTensor, hueShift).read();
 const manual = new Float32Array(abShape[0] * abShape[1] * 3);
 for (let x = 0; x < abShape[1]; x++) {
   const base = x * 3;
@@ -70,7 +80,7 @@ for (let x = 0; x < abShape[1]; x++) {
   manual[base + 1] = shifted[base + 1];
   manual[base + 2] = shifted[bIdx + 2];
 }
-const expected = adjustHue(Tensor.fromArray(null, manual, abShape), -hueShift).read();
+const expected = adjustHueValue(Tensor.fromArray(null, manual, abShape), -hueShift).read();
 setSeed(123);
 const abResult = aberration(abTensor, abShape, 0, 1, 0.25).read();
 arraysClose(Array.from(abResult), Array.from(expected));
@@ -145,5 +155,36 @@ setSeed(5);
 const jsHue = randomHue(rhTensor,[2,1,3],0,1,0.05).read();
 const hueExpected = loadFixture('randomHue.json');
 arraysClose(Array.from(jsHue), hueExpected);
+
+// adjustHue regression
+const ahData = new Float32Array([0.2,0.4,0.6,0.8,0.1,0.3]);
+const ahTensor = Tensor.fromArray(null, ahData, [2,1,3]);
+const ahOut = adjustHueEffect(ahTensor, [2,1,3], 0, 1, 0.25).read();
+const ahExpected = loadFixture('adjustHue.json');
+arraysClose(Array.from(ahOut), ahExpected);
+
+// ridge regression
+const ridgeData = new Float32Array([0.2,0.8,0.4,0.6]);
+const ridgeTensor = Tensor.fromArray(null, ridgeData, [2,2,1]);
+const ridgeOut = ridgeEffect(ridgeTensor, [2,2,1], 0, 1).read();
+const ridgeExpected = loadFixture('ridge.json');
+arraysClose(Array.from(ridgeOut), ridgeExpected);
+
+// sine regression
+const sineData = new Float32Array([
+  0.1,0.2,0.3,
+  0.4,0.5,0.6,
+]);
+const sineTensor = Tensor.fromArray(null, sineData, [2,1,3]);
+const sineOut = sine(sineTensor, [2,1,3], 0, 1, 1.0, false).read();
+const sineExpected = loadFixture('sine.json');
+arraysClose(Array.from(sineOut), sineExpected);
+
+// blur regression
+const blurData = new Float32Array([0.1,0.5,0.3,0.7]);
+const blurTensor = Tensor.fromArray(null, blurData, [2,2,1]);
+const blurOut = blur(blurTensor, [2,2,1], 0, 1, 10.0).read();
+const blurExpected = loadFixture('blur.json');
+arraysClose(Array.from(blurOut), blurExpected);
 
 console.log('Effects tests passed');

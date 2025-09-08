@@ -9,10 +9,14 @@ import {
   rgbToHsv,
   hsvToRgb,
   clamp01,
+  ridge,
+  downsample,
+  upsample,
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
 import { random } from './util.js';
+import { InterpolationType } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -272,3 +276,82 @@ export function adjustContrast(
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('adjustContrast', adjustContrast, { amount: 1 });
+
+export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
+  if (shape[2] !== 3 || amount === 0 || amount === 1 || amount === null) return tensor;
+  return adjustHue(tensor, amount);
+}
+register('adjustHue', adjustHueEffect, { amount: 0.25 });
+
+export function ridgeEffect(tensor, shape, time, speed) {
+  return ridge(tensor);
+}
+register('ridge', ridgeEffect, {});
+
+export function sine(
+  tensor,
+  shape,
+  time,
+  speed,
+  amount = 1.0,
+  rgb = false
+) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const ns = (v) => (Math.sin(v) + 1) * 0.5;
+  for (let i = 0; i < h * w; i++) {
+    const base = i * c;
+    if (c === 1) {
+      out[i] = ns(src[i] * amount);
+    } else if (c === 2) {
+      out[base] = ns(src[base] * amount);
+      out[base + 1] = src[base + 1];
+    } else if (c === 3) {
+      if (rgb) {
+        out[base] = ns(src[base] * amount);
+        out[base + 1] = ns(src[base + 1] * amount);
+        out[base + 2] = ns(src[base + 2] * amount);
+      } else {
+        out[base] = src[base];
+        out[base + 1] = src[base + 1];
+        out[base + 2] = ns(src[base + 2] * amount);
+      }
+    } else if (c === 4) {
+      if (rgb) {
+        out[base] = ns(src[base] * amount);
+        out[base + 1] = ns(src[base + 1] * amount);
+        out[base + 2] = ns(src[base + 2] * amount);
+        out[base + 3] = src[base + 3];
+      } else {
+        out[base] = src[base];
+        out[base + 1] = src[base + 1];
+        out[base + 2] = ns(src[base + 2] * amount);
+        out[base + 3] = src[base + 3];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('sine', sine, { amount: 1.0, rgb: false });
+
+
+export function blur(
+  tensor,
+  shape,
+  time,
+  speed,
+  amount = 10.0,
+  splineOrder = InterpolationType.bicubic
+) {
+  const [h, w] = shape;
+  const targetH = Math.max(1, Math.floor(h / amount));
+  const factor = Math.max(1, Math.floor(h / targetH));
+  let small = downsample(tensor, factor);
+  const data = small.read();
+  for (let i = 0; i < data.length; i++) data[i] *= 4;
+  small = Tensor.fromArray(tensor.ctx, data, small.shape);
+  const out = upsample(small, factor);
+  return out;
+}
+register('blur', blur, { amount: 10.0, splineOrder: InterpolationType.bicubic });

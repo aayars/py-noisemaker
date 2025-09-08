@@ -8,7 +8,13 @@ import sys
 root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root))
 
-from noisemaker.effects import posterize
+from noisemaker.effects import (
+    posterize,
+    adjust_hue,
+    ridge,
+    sine,
+    blur,
+)
 from noisemaker.palettes import PALETTES
 from opensimplex import OpenSimplex
 
@@ -85,6 +91,34 @@ for i in range(0, len(rh_vals), 3):
     rh_out.extend([r2, g2, b2])
 with open(fixtures_dir / 'randomHue.json', 'w') as f:
     json.dump(rh_out, f)
+
+# Adjust hue fixture
+ah_vals = [0.2, 0.4, 0.6, 0.8, 0.1, 0.3]
+ah_tex = tf.constant(ah_vals, shape=[2,1,3], dtype=tf.float32)
+ah_out = adjust_hue(ah_tex, [2,1,3], amount=0.25).numpy().flatten().tolist()
+with open(fixtures_dir / 'adjustHue.json', 'w') as f:
+    json.dump(ah_out, f)
+
+# Ridge fixture
+ridge_vals = [0.2, 0.8, 0.4, 0.6]
+ridge_tex = tf.constant(ridge_vals, shape=[2,2,1], dtype=tf.float32)
+ridge_out = ridge(ridge_tex, [2,2,1]).numpy().flatten().tolist()
+with open(fixtures_dir / 'ridge.json', 'w') as f:
+    json.dump(ridge_out, f)
+
+# Sine fixture
+sine_vals = [0.1,0.2,0.3,0.4,0.5,0.6]
+sine_tex = tf.constant(sine_vals, shape=[2,1,3], dtype=tf.float32)
+sine_out = sine(sine_tex, [2,1,3], amount=1.0, rgb=False).numpy().flatten().tolist()
+with open(fixtures_dir / 'sine.json', 'w') as f:
+    json.dump(sine_out, f)
+
+# Blur fixture
+blur_vals = [0.1,0.5,0.3,0.7]
+blur_tex = tf.constant(blur_vals, shape=[2,2,1], dtype=tf.float32)
+blur_out = blur(blur_tex, [2,2,1]).numpy().flatten().tolist()
+with open(fixtures_dir / 'blur.json', 'w') as f:
+    json.dump(blur_out, f)
 
 # Simplex fixture
 shape = (2,2)
