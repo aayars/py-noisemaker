@@ -2,10 +2,16 @@
 <html>
 <body>
 <script type="module">
-import { values } from '../src/value.js';
-const t = values(4, [2,2,1], { seed: 1 });
-const len = t.read().length;
-if (len === 4) {
+import { Context } from '../src/context.js';
+import { values, downsample, upsample, blend, sobel } from '../src/value.js';
+const canvas = document.createElement('canvas');
+const ctx = new Context(canvas);
+const base = values(2, [4,4,1], { seed: 1, ctx });
+const down = downsample(base, 2);
+const up = upsample(down, 2);
+const mix = blend(base, base, 0.5);
+const edge = sobel(base);
+if (base.read().length === 16 && down.read().length === 4 && up.read().length === 16 && mix.read().length === 16 && edge.read().length === 16) {
   document.body.textContent = 'webgl ok';
 } else {
   document.body.textContent = 'webgl fail';

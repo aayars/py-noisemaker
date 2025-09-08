@@ -2,6 +2,10 @@ import { Tensor } from './tensor.js';
 import { ValueDistribution } from './constants.js';
 import { maskValues } from './masks.js';
 
+const FULLSCREEN_VS = `#version 300 es
+in vec2 position;
+void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+
 function fract(x) {
   return x - Math.floor(x);
 }
@@ -32,6 +36,7 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
 export function values(freq, shape, opts = {}) {
   const [height, width, channels = 1] = shape;
   const {
+    ctx = null,
     distrib = ValueDistribution.uniform,
     corners = false,
     mask,
@@ -42,6 +47,25 @@ export function values(freq, shape, opts = {}) {
     seed = 0,
     speed = 1,
   } = opts;
+
+  if (ctx && !ctx.isCPU && !mask && distrib === ValueDistribution.uniform) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nout vec4 outColor;\nuniform float u_freq;\nuniform float u_seed;\nuniform float u_time;\nuniform float u_speed;\nuniform float u_corners;\nuniform float u_spline;\nfloat rand2D(float x,float y,float seed,float time,float speed){\n float s=x*374761393.0+y*668265263.0+seed*69069.0+time*speed*43758.5453;\n return fract(sin(s)*43758.5453);\n}\nfloat interp(float t,float order){\n if(order==1.0)return t;\n if(order==5.0)return t*t*t*(t*(t*6.0-15.0)+10.0);\n return t*t*(3.0-2.0*t);\n}\nvoid main(){\n float u=(gl_FragCoord.x/float(${width}))*u_freq;\n float v=(gl_FragCoord.y/float(${height}))*u_freq;\n float x0=floor(u);\n float y0=floor(v);\n float xf=fract(u);\n float yf=fract(v);\n float f=max(1.0,floor(u_freq));\n float xb=u_corners>0.5?mod(x0,f):x0;\n float yb=u_corners>0.5?mod(y0,f):y0;\n float x1=u_corners>0.5?mod(xb+1.0,f):xb+1.0;\n float y1=u_corners>0.5?mod(yb+1.0,f):yb+1.0;\n float r00=rand2D(xb,yb,u_seed,u_time,u_speed);\n float r10=rand2D(x1,yb,u_seed,u_time,u_speed);\n float r01=rand2D(xb,y1,u_seed,u_time,u_speed);\n float r11=rand2D(x1,y1,u_seed,u_time,u_speed);\n float sx=interp(xf,u_spline);\n float sy=interp(yf,u_spline);\n float nx0=mix(r00,r10,sx);\n float nx1=mix(r01,r11,sx);\n float val=mix(nx0,nx1,sy);\n outColor=vec4(val);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(width, height);
+    gl.useProgram(prog);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_freq'), freq);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), seed);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), time);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), speed);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_corners'), corners ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_spline'), splineOrder);
+    ctx.bindFramebuffer(pp.writeFbo, width, height);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [height, width, channels]);
+  }
 
   let maskData = null;
   if (mask !== undefined && mask !== null) {
@@ -142,8 +166,25 @@ export function values(freq, shape, opts = {}) {
 
 export function downsample(tensor, factor) {
   const [h, w, c] = tensor.shape;
+  const ctx = tensor.ctx;
   const nh = Math.floor(h / factor);
   const nw = Math.floor(w / factor);
+  if (ctx && !ctx.isCPU && factor === 2) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (gl_FragCoord.xy*2.0 - vec2(1.0)) * u_texel;\n vec4 sum = texture(u_tex, uv) + texture(u_tex, uv + vec2(u_texel.x,0.0)) + texture(u_tex, uv + vec2(0.0,u_texel.y)) + texture(u_tex, uv + u_texel);\n outColor = sum * 0.25;\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(nw, nh);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_texel'), 1 / w, 1 / h);
+    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
+  }
   const src = tensor.read();
   const out = new Float32Array(nh * nw * c);
   for (let y = 0; y < nh; y++) {
@@ -160,13 +201,31 @@ export function downsample(tensor, factor) {
       }
     }
   }
-  return Tensor.fromArray(tensor.ctx, out, [nh, nw, c]);
+  return Tensor.fromArray(ctx, out, [nh, nw, c]);
 }
 
 export function upsample(tensor, factor) {
   const [h, w, c] = tensor.shape;
+  const ctx = tensor.ctx;
   const nh = h * factor;
   const nw = w * factor;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_factor;\nuniform vec2 u_srcSize;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (floor(gl_FragCoord.xy / u_factor) + 0.5) / u_srcSize;\n outColor = texture(u_tex, uv);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(nw, nh);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_factor'), factor);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_srcSize'), w, h);
+    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
+  }
   const src = tensor.read();
   const out = new Float32Array(nh * nw * c);
   for (let y = 0; y < nh; y++) {
@@ -178,7 +237,7 @@ export function upsample(tensor, factor) {
       }
     }
   }
-  return Tensor.fromArray(tensor.ctx, out, [nh, nw, c]);
+  return Tensor.fromArray(ctx, out, [nh, nw, c]);
 }
 
 export function warp(tensor, flow, amount = 1) {
@@ -207,6 +266,26 @@ export function warp(tensor, flow, amount = 1) {
 
 export function blend(a, b, t) {
   const [h, w, c] = a.shape;
+  const ctx = a.ctx;
+  if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number') {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, a.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_a'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, b.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_b'), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_t'), t);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+  }
   const da = a.read();
   const db = b.read();
   const dt = typeof t === 'number' ? null : t.read();
@@ -215,7 +294,7 @@ export function blend(a, b, t) {
     const tv = dt ? dt[i] : t;
     out[i] = da[i] * (1 - tv) + db[i] * tv;
   }
-  return Tensor.fromArray(a.ctx, out, [h, w, c]);
+  return Tensor.fromArray(ctx, out, [h, w, c]);
 }
 
 export function normalize(tensor) {
@@ -265,6 +344,23 @@ export function distance(dx, dy, metric = DistanceMetric.euclidean) {
 
 export function sobel(tensor) {
   const [h, w, c] = tensor.shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec2 t = u_texel;\n vec4 s00 = texture(u_tex, uv + vec2(-t.x,-t.y));\n vec4 s10 = texture(u_tex, uv + vec2(0.0,-t.y));\n vec4 s20 = texture(u_tex, uv + vec2(t.x,-t.y));\n vec4 s01 = texture(u_tex, uv + vec2(-t.x,0.0));\n vec4 s21 = texture(u_tex, uv + vec2(t.x,0.0));\n vec4 s02 = texture(u_tex, uv + vec2(-t.x,t.y));\n vec4 s12 = texture(u_tex, uv + vec2(0.0,t.y));\n vec4 s22 = texture(u_tex, uv + vec2(t.x,t.y));\n vec4 gx = -s00 + s20 - 2.0*s01 + 2.0*s21 - s02 + s22;\n vec4 gy = -s00 - 2.0*s10 - s20 + s02 + 2.0*s12 + s22;\n outColor = sqrt(gx*gx + gy*gy);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_texel'), 1 / w, 1 / h);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+  }
   const src = tensor.read();
   const out = new Float32Array(src.length);
   const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
@@ -290,7 +386,7 @@ export function sobel(tensor) {
       }
     }
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  return Tensor.fromArray(ctx, out, [h, w, c]);
 }
 
 export function hsvToRgb(tensor) {
