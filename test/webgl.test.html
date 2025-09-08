@@ -4,18 +4,55 @@
 <script type="module">
 import { Context } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel } from '../src/value.js';
+import { Tensor } from '../src/tensor.js';
+import {
+  adjustBrightness,
+  adjustContrast,
+  vignette,
+  reindex,
+  dither,
+  grain,
+} from '../src/effects.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
+const cpuCtx = new Context(null);
+
+function nearly(a, b, eps = 1e-3) { return Math.abs(a - b) < eps; }
+
+function testEffect(fn, args = [], time = 0, speed = 0) {
+  const shape = [2,2,3];
+  const base = values(1, shape, { seed: 1, ctx: cpuCtx }).read();
+  const cpuBase = Tensor.fromArray(cpuCtx, base, shape);
+  const gpuBase = Tensor.fromArray(ctx, base, shape);
+  const cpu = fn(cpuBase, shape, time, speed, ...args).read();
+  const gpu = fn(gpuBase, shape, time, speed, ...args).read();
+  if (cpu.length !== gpu.length) return false;
+  for (let i = 0; i < cpu.length; i++) {
+    if (!nearly(cpu[i], gpu[i])) return false;
+  }
+  return true;
+}
+
 const base = values(2, [4,4,1], { seed: 1, ctx });
 const down = downsample(base, 2);
 const up = upsample(down, 2);
 const mix = blend(base, base, 0.5);
 const edge = sobel(base);
-if (base.read().length === 16 && down.read().length === 4 && up.read().length === 16 && mix.read().length === 16 && edge.read().length === 16) {
-  document.body.textContent = 'webgl ok';
-} else {
-  document.body.textContent = 'webgl fail';
-}
+
+const ok =
+  base.read().length === 16 &&
+  down.read().length === 4 &&
+  up.read().length === 16 &&
+  mix.read().length === 16 &&
+  edge.read().length === 16 &&
+  testEffect(adjustBrightness, [0.1]) &&
+  testEffect(adjustContrast, [1.2]) &&
+  testEffect(grain, [0.25]) &&
+  testEffect(dither, [2]) &&
+  testEffect(vignette, [0.2, 0.5]) &&
+  testEffect(reindex, [0.5]);
+
+document.body.textContent = ok ? 'webgl ok' : 'webgl fail';
 </script>
 </body>
 </html>

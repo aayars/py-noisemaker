@@ -9,9 +9,13 @@ import {
   rgbToHsv,
   hsvToRgb,
   clamp01,
+<<<<<<< ours
   ridge,
   downsample,
   upsample,
+=======
+  FULLSCREEN_VS,
+>>>>>>> theirs
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
@@ -133,6 +137,25 @@ register('aberration', aberration, { displacement: 0.005 });
 
 export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_disp;\nuniform float u_mod;\nuniform float u_channels;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 col = texture(u_tex, uv);\n float lum = col.r;\n if(u_channels > 1.5){ lum = dot(col.rgb, vec3(0.2126,0.7152,0.0722)); }\n float off = lum * u_disp * u_mod + lum;\n float xo = floor(mod(off, res.x));\n float yo = floor(mod(off, res.y));\n vec2 suv = (vec2(xo, yo) + 0.5) / res;\n outColor = texture(u_tex, suv);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_mod'), Math.min(h, w));
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_channels'), c);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, shape);
+  }
   const src = tensor.read();
   const lum = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) {
@@ -167,6 +190,24 @@ register('reindex', reindex, { displacement: 0.5 });
 export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1.0) {
   const [h, w, c] = shape;
   const norm = normalize(tensor);
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_brightness;\nuniform float u_alpha;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 color = texture(u_tex, uv);\n float dist = distance(uv, vec2(0.5,0.5)) / length(vec2(0.5,0.5));\n vec4 vignetted = mix(color, vec4(u_brightness), dist*dist);\n outColor = mix(color, vignetted, u_alpha);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, norm.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_brightness'), brightness);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_alpha'), alpha);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+  }
   const edgeData = new Float32Array(h * w * c);
   edgeData.fill(brightness);
   const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
@@ -190,7 +231,38 @@ register('vignette', vignette, { brightness: 0.0, alpha: 1.0 });
 
 export function dither(tensor, shape, time, speed, levels = 2) {
   const [h, w, c] = shape;
-  const noise = values(Math.max(h, w), [h, w, 1], { time, seed: 0, speed: speed * 1000 });
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const noise = values(Math.max(h, w), [h, w, 1], {
+      ctx,
+      time,
+      seed: 0,
+      speed: speed * 1000,
+    });
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_noise;\nuniform float u_levels;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 c = texture(u_tex, uv);\n float n = texture(u_noise, uv).r - 0.5;\n vec4 v = c + n / u_levels;\n v = floor(clamp(v,0.0,1.0)*u_levels)/u_levels;\n outColor = v;\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, noise.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_noise'), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_levels'), levels);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, shape);
+  }
+  const noise = values(Math.max(h, w), [h, w, 1], {
+    ctx: tensor.ctx,
+    time,
+    seed: 0,
+    speed: speed * 1000,
+  });
   const n = noise.read();
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
@@ -208,16 +280,21 @@ register('dither', dither, { levels: 2 });
 
 export function grain(tensor, shape, time, speed, alpha = 0.25) {
   const [h, w, c] = shape;
-  const noise = values(Math.max(h, w), [h, w, 1], { time, speed: speed * 100 });
-  const n = noise.read();
-  const noiseData = new Float32Array(h * w * c);
-  for (let i = 0; i < h * w; i++) {
-    for (let k = 0; k < c; k++) {
-      noiseData[i * c + k] = n[i];
-    }
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const noise = values(Math.max(h, w), [h, w, c], {
+      ctx,
+      time,
+      speed: speed * 100,
+    });
+    return blend(tensor, noise, alpha);
   }
-  const noiseTensor = Tensor.fromArray(tensor.ctx, noiseData, shape);
-  return blend(tensor, noiseTensor, alpha);
+  const noise = values(Math.max(h, w), [h, w, c], {
+    ctx: tensor.ctx,
+    time,
+    speed: speed * 100,
+  });
+  return blend(tensor, noise, alpha);
 }
 register('grain', grain, { alpha: 0.25 });
 
@@ -250,6 +327,24 @@ export function adjustBrightness(
   speed,
   amount = 0
 ) {
+  const [h, w] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv) + u_amount;\n outColor = clamp(color, 0.0, 1.0);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_amount'), amount);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, shape);
+  }
   const src = tensor.read();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
@@ -267,6 +362,24 @@ export function adjustContrast(
   speed,
   amount = 1
 ) {
+  const [h, w] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv);\n vec4 v = (color - 0.5) * u_amount + 0.5;\n outColor = clamp(v, 0.0, 1.0);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_amount'), amount);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, shape);
+  }
   const src = tensor.read();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {

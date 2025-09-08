@@ -2,7 +2,7 @@ import { Tensor } from './tensor.js';
 import { ValueDistribution } from './constants.js';
 import { maskValues } from './masks.js';
 
-const FULLSCREEN_VS = `#version 300 es
+export const FULLSCREEN_VS = `#version 300 es
 in vec2 position;
 void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
 
