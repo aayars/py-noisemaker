@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "node test/constants.test.js && node test/simplex.test.js && node test/value.test.js && node test/points.test.js && node test/masks.test.js && node test/palettes.test.js && node test/effectsRegistry.test.js && node test/effects.test.js && node test/composer.test.js"
+    "test": "node test/constants.test.js && node test/simplex.test.js && node test/value.test.js && node test/points.test.js && node test/masks.test.js && node test/palettes.test.js && node test/effectsRegistry.test.js && node test/effects.test.js && node test/composer.test.js && node test/presets.test.js"
   }
 }
