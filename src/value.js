@@ -1,5 +1,6 @@
 import { Tensor } from './tensor.js';
 import { ValueDistribution, ValueMask, DistanceMetric } from './constants.js';
+import { maskValues } from './masks.js';
 
 function fract(x) {
   return x - Math.floor(x);
@@ -8,16 +9,6 @@ function fract(x) {
 function rand2D(x, y, seed = 0, time = 0) {
   const s = x * 374761393 + y * 668265263 + seed * 69069 + time * 43758.5453;
   return fract(Math.sin(s) * 43758.5453);
-}
-
-function maskValue(type, x, y, w, h, freq = 1) {
-  switch (type) {
-    case ValueMask.grid:
-      return (x % freq === 0 || y % freq === 0) ? 0 : 1;
-    case ValueMask.square:
-    default:
-      return 1;
-  }
 }
 
 export function values(freq, shape, opts = {}) {
@@ -29,6 +20,12 @@ export function values(freq, shape, opts = {}) {
     time = 0,
     seed = 0,
   } = opts;
+
+  let maskData = null;
+  if (mask !== undefined && mask !== null) {
+    const [maskTensor] = maskValues(mask, [height, width, 1], { inverse: maskInverse });
+    maskData = maskTensor.read();
+  }
 
   const data = new Float32Array(height * width * channels);
   for (let y = 0; y < height; y++) {
@@ -94,9 +91,9 @@ export function values(freq, shape, opts = {}) {
           break;
         }
       }
-      if (mask !== undefined && mask !== null) {
-        const m = maskValue(mask, x, y, width, height, freq);
-        val = maskInverse ? (1 - m) * val : m * val;
+      if (maskData) {
+        const m = maskData[y * width + x];
+        val *= m;
       }
       for (let c = 0; c < channels; c++) {
         data[(y * width + x) * channels + c] = val;
