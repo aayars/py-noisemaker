@@ -1,4 +1,7 @@
 import { Tensor } from './tensor.js';
+import { setSeed, getSeed, random as rngRandom } from './rng.js';
+
+export { setSeed, getSeed };
 
 const STRETCH_CONSTANT_2D = -0.211324865405187;
 const SQUISH_CONSTANT_2D = 0.366025403784439;
@@ -513,26 +516,11 @@ class OpenSimplex {
   }
 }
 
-let _seed = null;
-
-export function setSeed(s) {
-  _seed = (s >>> 0) || 0;
-}
-
-export function getSeed() {
-  if (_seed) {
-    _seed = (_seed + 1) >>> 0;
-  } else {
-    _seed = Math.floor(Math.random() * 65536) + 1;
-  }
-  return _seed >>> 0;
-}
-
 export function random(time = 0, seed, speed = 1) {
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;
-  const s = seed ?? getSeed();
+  const s = seed ?? Math.floor(rngRandom() * 0x100000000);
   const simplex = new OpenSimplex(s);
   const value = simplex.noise2D(z, w);
   return (value + 1) * 0.5;
@@ -540,12 +528,12 @@ export function random(time = 0, seed, speed = 1) {
 
 export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const [height, width, channels = 1] = shape;
-  if (seed === undefined || seed === null) seed = getSeed();
+  const baseSeed = seed ?? Math.floor(rngRandom() * 0x100000000);
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const data = new Float32Array(height * width * channels);
   for (let c = 0; c < channels; c++) {
-    const os = new OpenSimplex(seed + c * 65535);
+    const os = new OpenSimplex(baseSeed + c * 65535);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const val = os.noise3D(x, y, z);

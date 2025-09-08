@@ -1,6 +1,9 @@
 // Miscellaneous utilities: canvas export, logging, seeded random, shape and color helpers.
 
 import { Tensor } from './tensor.js';
+import { setSeed, getSeed, random } from './rng.js';
+
+export { setSeed, getSeed, random };
 
 // --------------------- Logger ---------------------
 let _logger = console;
@@ -17,21 +20,6 @@ export const logger = {
 };
 
 // --------------------- Seeded random utilities ---------------------
-let _seed = 0x12345678;
-
-export function setSeed(s) {
-  _seed = (s >>> 0) || 0;
-}
-
-export function getSeed() {
-  return _seed >>> 0;
-}
-
-export function random() {
-  _seed = (_seed * 1664525 + 1013904223) >>> 0; // LCG
-  return _seed / 0x100000000;
-}
-
 export function randomInt(min, max) {
   return Math.floor(random() * (max - min + 1)) + min;
 }

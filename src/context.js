@@ -1,22 +1,10 @@
 /**
- * WebGL2 context helper with CPU fallback, shader utilities, and deterministic RNG.
+ * WebGL2 context helper with CPU fallback and shader utilities.
  */
 
-let _seed = 0x12345678;
+import { setSeed, getSeed, random } from './rng.js';
 
-export function setSeed(s) {
-  _seed = (s >>> 0) || 0;
-}
-
-export function getSeed() {
-  return _seed >>> 0;
-}
-
-export function random() {
-  // simple LCG
-  _seed = (_seed * 1664525 + 1013904223) >>> 0;
-  return _seed / 0x100000000;
-}
+export { setSeed, getSeed, random };
 
 export class Context {
   constructor(canvas) {
