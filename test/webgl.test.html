@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { values } from '../src/value.js';
+const t = values(4, [2,2,1], { seed: 1 });
+const len = t.read().length;
+if (len === 4) {
+  document.body.textContent = 'webgl ok';
+} else {
+  document.body.textContent = 'webgl fail';
+}
+</script>
+</body>
+</html>

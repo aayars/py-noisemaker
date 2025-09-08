@@ -4,3 +4,4 @@ venv/
 *.png
 *.pyc
 noisemaker.egg-info
+dist/
