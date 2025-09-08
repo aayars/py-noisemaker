@@ -1,6 +1,7 @@
 import { PointDistribution, ValueMask } from './constants.js';
 import { Masks, maskShape } from './masks.js';
 import { random as simplexRandom } from './simplex.js';
+import { random as seededRandom, setSeed as setUtilSeed } from './util.js';
 
 function isGrid(distrib) {
   return distrib >= PointDistribution.square && distrib < PointDistribution.spiral;
@@ -20,9 +21,12 @@ export function pointCloud(
     drift = 0,
     time = 0,
     speed = 1,
+    seed,
   } = {}
 ) {
   if (!freq) return [[], []];
+
+  if (seed !== undefined) setUtilSeed(seed);
 
   const x = [];
   const y = [];
@@ -158,12 +162,14 @@ export function rand({
   rangeY = 0.5,
   width = 1,
   height = 1,
+  seed,
 } = {}) {
+  if (seed !== undefined) setUtilSeed(seed);
   const x = [];
   const y = [];
   for (let i = 0; i < freq * freq; i++) {
-    const _x = (centerX + (Math.random() * (rangeX * 2) - rangeX)) % width;
-    const _y = (centerY + (Math.random() * (rangeY * 2) - rangeY)) % height;
+    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width;
+    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height;
     x.push(_x);
     y.push(_y);
   }
@@ -222,8 +228,10 @@ export function spiral({
   rangeY = 1,
   width = 1,
   height = 1,
+  seed,
 } = {}) {
-  const kink = 0.5 + Math.random() * 0.5;
+  if (seed !== undefined) setUtilSeed(seed);
+  const kink = 0.5 + seededRandom() * 0.5;
   const x = [];
   const y = [];
   const count = freq * freq;
@@ -245,7 +253,9 @@ export function circular({
   rangeY = 1,
   width = 1,
   height = 1,
+  seed,
 } = {}) {
+  if (seed !== undefined) setUtilSeed(seed);
   const x = [];
   const y = [];
   const ringCount = freq;
@@ -253,7 +263,7 @@ export function circular({
   x.push(centerX);
   y.push(centerY);
   const rotation = (1 / dotCount) * 360 * (Math.PI / 180);
-  const kink = 0.5 + Math.random() * 0.5;
+  const kink = 0.5 + seededRandom() * 0.5;
   for (let i = 1; i <= ringCount; i++) {
     const distFract = i / ringCount;
     for (let j = 1; j <= dotCount; j++) {

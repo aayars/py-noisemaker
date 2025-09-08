@@ -1,10 +1,12 @@
 import assert from 'assert';
 import { PointDistribution, ValueMask } from '../src/constants.js';
 import { pointCloud } from '../src/points.js';
-import { setSeed } from '../src/simplex.js';
+import { setSeed as setSimplexSeed } from '../src/simplex.js';
+import { setSeed as setUtilSeed } from '../src/util.js';
 
-// deterministic seed for tests
-setSeed(1);
+// deterministic seeds for tests
+setSimplexSeed(1);
+setUtilSeed(1);
 
 function within(arr, max) {
   return arr.every(v => v >= 0 && v < max);
@@ -57,5 +59,12 @@ assert.ok(within(x, 64) && within(y, 64));
   drift: 0.5,
 });
 assert.ok(x.length > 1);
+
+// deterministic layout via seed
+let sx1, sy1, sx2, sy2;
+[sx1, sy1] = pointCloud(2, { distrib: PointDistribution.spiral, shape: [64, 64], seed: 123 });
+[sx2, sy2] = pointCloud(2, { distrib: PointDistribution.spiral, shape: [64, 64], seed: 123 });
+assert.deepStrictEqual(sx1, sx2);
+assert.deepStrictEqual(sy1, sy2);
 
 console.log('All points tests passed');
