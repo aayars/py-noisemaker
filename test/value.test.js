@@ -1,5 +1,6 @@
 import assert from 'assert';
 import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp } from '../src/value.js';
+import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
 import { ValueDistribution } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
 
@@ -56,6 +57,20 @@ const rgb = Tensor.fromArray(null, new Float32Array([1, 0, 0]), [1, 1, 3]);
 const hsv = rgbToHsv(rgb);
 const rgbBack = hsvToRgb(hsv);
 arraysClose(rgb.read(), rgbBack.read());
+
+// oklab conversions with reference values for primary colours
+const samples = [
+  { rgb: [1, 0, 0], lab: [0.62791519, 0.22490323, 0.12580287] },
+  { rgb: [0, 1, 0], lab: [0.86643975, -0.23392021, 0.17942364] },
+  { rgb: [0, 0, 1], lab: [0.45203033, -0.03237854, -0.31161998] },
+];
+for (const { rgb: vals, lab } of samples) {
+  const rgbT = Tensor.fromArray(null, new Float32Array(vals), [1, 1, 3]);
+  const labT = rgbToOklab(rgbT);
+  arraysClose(labT.read(), new Float32Array(lab));
+  const rgbRoundTrip = oklabToRgb(labT);
+  arraysClose(rgbT.read(), rgbRoundTrip.read(), 1e-5);
+}
 
 // warp with zero flow
 const flow = Tensor.fromArray(null, new Float32Array(2*2*2).fill(0), [2,2,2]);
