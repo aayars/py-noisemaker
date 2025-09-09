@@ -1593,6 +1593,129 @@ export function PRESETS() {
       }),
     },
 
+    galalaga: {
+      layers: ['value-mask', 'contrast-final', 'glitchin-out'],
+      settings: () => ({
+        distrib: distrib.uniform,
+        hue_range: random() * 2.5,
+        mask: mask.invaders_square,
+        mask_repeat: 4,
+        spline_order: interp.constant,
+      }),
+      post: () => [
+        Effect('glyphMap', { colorize: true, mask: mask.invaders_square, zoom: 32.0 }),
+        Effect('glyphMap', {
+          colorize: true,
+          mask: randomMember([mask.invaders_square, mask.rgb]),
+          zoom: 4.0,
+        }),
+        Effect('normalize'),
+      ],
+    },
+
+    'game-show': {
+      layers: ['basic', 'maybe-rotate', 'posterize', 'be-kind-rewind'],
+      settings: () => ({
+        freq: randomInt(8, 16) * 2,
+        mask: randomMember([mask.h_tri, mask.v_tri]),
+        posterize_levels: randomInt(2, 5),
+        spline_order: interp.cosine,
+      }),
+    },
+
+    glacial: {
+      layers: ['fractal-smoke'],
+      settings: () => ({
+        worms_quantize: true,
+      }),
+    },
+
+    'glitchin-out': {
+      layers: ['corrupt'],
+      final: () => [Effect('glitch'), Preset('crt'), Preset('bloom')],
+    },
+
+    globules: {
+      layers: ['multires-low', 'reflect-octaves', 'density-map', 'shadow', 'lens'],
+      settings: () => ({
+        distrib: distrib.ones,
+        freq: randomInt(3, 6),
+        hue_range: 0.25 + random() * 0.5,
+        lattice_drift: 1,
+        mask: mask.sparse,
+        mask_static: true,
+        octaves: randomInt(3, 6),
+        palette_on: false,
+        reflect_range: 2.5,
+        saturation: 0.175 + random() * 0.175,
+        speed: 0.125,
+      }),
+    },
+
+    glom: {
+      layers: ['basic', 'refract-octaves', 'reflect-octaves', 'refract-post', 'reflect-post', 'funhouse',
+               'bloom', 'shadow', 'contrast-post', 'lens'],
+      settings: () => ({
+        distrib: distrib.uniform,
+        freq: [2, 2],
+        hue_range: 0.25 + random() * 0.125,
+        lattice_drift: 1,
+        octaves: 2,
+        reflect_range: 0.625 + random() * 0.375,
+        refract_range: 0.333 + random() * 0.16667,
+        refract_signed_range: false,
+        refract_y_from_offset: true,
+        speed: 0.025,
+        warp_range: 0.0625 + random() * 0.030625,
+        warp_octaves: 1,
+      }),
+    },
+
+    'glowing-edges': {
+      final: () => [Effect('glowingEdges')],
+    },
+
+    'glyph-map': {
+      layers: ['basic'],
+      settings: () => ({
+        glyph_map_alpha: 1.0,
+        glyph_map_colorize: coinFlip(),
+        glyph_map_spline_order: interp.constant,
+        glyph_map_mask: randomMember(
+          valueMaskProceduralMembers.filter((m) => {
+            const [h, w] = maskShape(m);
+            return h === w;
+          })
+        ),
+        glyph_map_zoom: randomInt(6, 10),
+      }),
+      post: (settings) => [
+        Effect('glyphMap', {
+          alpha: settings.glyph_map_alpha,
+          colorize: settings.glyph_map_colorize,
+          mask: settings.glyph_map_mask,
+          spline_order: settings.glyph_map_spline_order,
+          zoom: settings.glyph_map_zoom,
+        }),
+      ],
+    },
+
+    glyphic: {
+      layers: ['value-mask', 'posterize', 'palette', 'saturation', 'maybe-rotate', 'maybe-invert', 'distressed'],
+      settings: () => ({
+        corners: true,
+        mask: randomMember(valueMaskProceduralMembers),
+        octave_blending: blend.reduce_max,
+        octaves: randomInt(3, 5),
+        posterize_levels: 1,
+        saturation: 0,
+        spline_order: interp.cosine,
+      }),
+      generator: (settings) => ({
+        freq: maskShape(settings.mask).slice(0, 2),
+      }),
+    },
+
     grain: {
       unique: true,
       settings: () => ({
@@ -1605,6 +1728,70 @@ export function PRESETS() {
         Effect('adjustBrightness', { amount: settings.grain_brightness }),
         Effect('adjustContrast', { amount: settings.grain_contrast }),
       ],
+    },
+
+    'graph-paper': {
+      layers: ['wobble', 'voronoi', 'derivative-post', 'maybe-rotate', 'lens', 'crt', 'bloom', 'contrast-final'],
+      settings: () => ({
+        color_space: color.rgb,
+        corners: true,
+        distrib: distrib.ones,
+        dist_metric: distance.euclidean,
+        freq: randomInt(3, 4) * 2,
+        mask: mask.chess,
+        spline_order: interp.constant,
+        voronoi_alpha: 0.5 + random() * 0.25,
+        voronoi_refract: 0.75 + random() * 0.375,
+        voronoi_refract_y_from_offset: true,
+        voronoi_diagram_type: voronoi.flow,
+      }),
+    },
+
+    grass: {
+      layers: ['multires', 'worms', 'grain'],
+      settings: () => ({
+        color_space: color.hsv,
+        freq: randomInt(6, 12),
+        hue_rotation: 0.25 + random() * 0.05,
+        lattice_drift: 1,
+        palette_on: false,
+        saturation: 0.625 + random() * 0.25,
+        worms_behavior: randomMember([worms.chaotic, worms.meandering]),
+        worms_alpha: 0.9,
+        worms_density: 50 + random() * 25,
+        worms_drunkenness: 0.125,
+        worms_duration: 1.125,
+        worms_stride: 0.875,
+        worms_stride_deviation: 0.125,
+        worms_kink: 0.125 + random() * 0.5,
+      }),
+    },
+
+    grayscale: {
+      final: () => [Effect('adjust_saturation', { amount: 0 })],
+    },
+
+    griddy: {
+      layers: ['basic', 'sobel', 'invert', 'bloom'],
+      settings: () => ({
+        freq: randomInt(3, 9),
+        mask: mask.chess,
+        octaves: randomInt(3, 8),
+        spline_order: interp.constant,
+      }),
+    },
+
+    grime: {
+      final: () => [Effect('grime')],
+    },
+
+    'groove-is-stored-in-the-heart': {
+      layers: ['basic', 'posterize', 'ripple', 'distressed'],
+      settings: () => ({
+        distrib: distrib.column_index,
+        posterize_levels: randomInt(1, 2),
+        ripple_range: 0.75 + random() * 0.375,
+      }),
     },
 
     'vignette-bright': {
