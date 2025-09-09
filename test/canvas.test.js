@@ -29,7 +29,8 @@ const ctx = new Context(fakeCanvas);
 // grayscale sanity check
 const presets = {
   gray: {
-    settings: () => ({ color_space: ColorSpace.grayscale })
+    settings: () => ({ color_space: ColorSpace.grayscale }),
+    generator: (settings) => ({ color_space: settings.color_space }),
   }
 };
 render('gray', 0, { ctx, width: 2, height: 2, presets });

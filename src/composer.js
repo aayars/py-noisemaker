@@ -4,9 +4,21 @@ import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
 import { shapeFromParams } from './util.js';
 import { EFFECTS } from './effectsRegistry.js';
+import { SettingsDict } from './settings.js';
 
 const SETTINGS_KEY = 'settings';
 const ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post', 'final', 'ai', 'unique'];
+const UNUSED_OKAY = [
+  'ai',
+  'angle',
+  'paletteAlpha',
+  'paletteName',
+  'speed',
+  'voronoiSdfSides',
+  'voronoiInverse',
+  'voronoiRefract',
+  'voronoiRefractYFromOffset',
+];
 
 function toCamel(str) {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -41,13 +53,21 @@ export class Preset {
     this.flattened_layers = [];
     _flattenAncestors(presetName, presets, {}, this.flattened_layers);
 
-    this.settings = _flattenAncestorMetadata(this, null, SETTINGS_KEY, {}, presets);
+    this.settings = new SettingsDict(
+      _flattenAncestorMetadata(this, null, SETTINGS_KEY, {}, presets)
+    );
     Object.assign(this.settings, toCamelKeys(settings));
 
     this.generator = _flattenAncestorMetadata(this, this.settings, 'generator', {}, presets);
     this.octave_effects = _flattenAncestorMetadata(this, this.settings, 'octaves', [], presets);
     this.post_effects = _flattenAncestorMetadata(this, this.settings, 'post', [], presets);
     this.final_effects = _flattenAncestorMetadata(this, this.settings, 'final', [], presets);
+
+    try {
+      this.settings.raiseIfUnaccessed(UNUSED_OKAY);
+    } catch (e) {
+      throw new Error(`Preset "${presetName}": ${e.message}`);
+    }
   }
 
   render(seed = 0, opts = {}) {

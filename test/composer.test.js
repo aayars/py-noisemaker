@@ -19,7 +19,8 @@ const PRESETS = {
     post: () => [Effect('record', { label: 'unique' })]
   },
   base: {
-    settings: () => ({ gain: 1 }),
+    settings: () => ({ freq: 1 }),
+    generator: (settings) => ({ freq: settings.freq }),
     octaves: () => [Effect('record', { label: 'base-oct' })],
     post: () => [Effect('record', { label: 'base-post' })]
   },
@@ -29,18 +30,19 @@ const PRESETS = {
   },
   child: {
     layers: ['base', 'unique', 'unique'], // unique should only apply once
-    settings: () => ({ gain: 2 }),
+    settings: () => ({ freq: 2 }),
+    generator: (settings) => ({ freq: settings.freq }),
     octaves: () => [Effect('record', { label: 'child-oct' })],
     post: () => [Effect('record', { label: 'child-post' }), new Preset('grand', PRESETS)],
     final: () => [Effect('record', { label: 'child-final' })]
   }
 };
 
-const preset = new Preset('child', PRESETS, { gain: 3 });
-assert.strictEqual(preset.settings.gain, 3);
+const preset = new Preset('child', PRESETS, { freq: 3 });
+assert.strictEqual(preset.settings.freq, 3);
 
 const ctx = new Context(null);
-preset.render(0, { ctx, width: 1, height: 1 });
+preset.render(0, { ctx, width: 8, height: 8 });
 
 assert.deepStrictEqual(log, [
   'base-oct',
@@ -67,6 +69,7 @@ register('capture', capture, {});
 const CS_PRESETS = {
   cs: {
     settings: () => ({ color_space: ColorSpace.hsv }),
+    generator: (settings) => ({ color_space: settings.colorSpace }),
     post: () => [Effect('capture')],
   },
 };
@@ -88,6 +91,7 @@ captured = null;
 const CS_PRESETS_SNAKE = {
   cs: {
     settings: () => ({ color_space: ColorSpace.hsv }),
+    generator: (settings) => ({ color_space: settings.colorSpace }),
     post: () => [Effect('capture')],
   },
 };
@@ -96,6 +100,14 @@ csPresetSnake.render(seed, { width: 1, height: 1 });
 assert.deepStrictEqual(
   captured.map((v) => +v.toFixed(6)),
   expected.map((v) => +v.toFixed(6))
+);
+
+// unused settings should throw
+assert.throws(() => new Preset('bad', { bad: { settings: () => ({ unused: 1 }) } }));
+
+// keys in UNUSED_OKAY should be ignored
+assert.doesNotThrow(
+  () => new Preset('ok', { ok: { settings: () => ({ palette_alpha: 0.5 }) } })
 );
 
 console.log('composer tests passed');
