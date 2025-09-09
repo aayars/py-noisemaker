@@ -2,6 +2,7 @@ __pycache__/
 docs-venv/
 venv/
 *.png
+!test/image-fixtures/*.png
 *.pyc
 noisemaker.egg-info
 dist/

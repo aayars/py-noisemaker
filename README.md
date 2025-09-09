@@ -84,6 +84,18 @@ python scripts/generate_fixtures.py
 
 This script rewrites the JSON files in `test/fixtures/`. Commit the updated fixtures along with your code changes.
 
+### Cross-language image regression
+
+To verify that the Python and JavaScript implementations stay in sync, generate
+small simplex-noise images for a set of seeds and compare the pixel values:
+
+```bash
+npm run image-regress
+```
+
+Baseline PNGs are written to `test/image-fixtures/`. Divergences are reported
+with the offending seed to help catch regressions.
+
 ## License
 
 Noisemaker is released under the [Apache 2.0 License](LICENSE).
