@@ -19,8 +19,20 @@ function getPythonPresets() {
 const pyPresets = getPythonPresets().sort();
 const jsPresets = Object.keys(JSPRESETS()).sort();
 
+const JS_ONLY = [
+  'erode-post',
+  'ghost-diagram',
+  'ghost',
+  'maybe-hyperspace',
+  'maybe-mask',
+  'shake-it',
+  'shrink-triangulate',
+];
+
 const missing = pyPresets.filter((p) => !jsPresets.includes(p));
-const extra = jsPresets.filter((p) => !pyPresets.includes(p));
+const extra = jsPresets.filter(
+  (p) => !pyPresets.includes(p) && !JS_ONLY.includes(p),
+);
 
 if (missing.length || extra.length) {
   let msg = '';

@@ -45,7 +45,11 @@ export function warp(
   freq = 2,
   octaves = 5,
   displacement = 1,
+  splineOrder = InterpolationType.bicubic,
+  signedRange = true,
 ) {
+  // splineOrder and signedRange are currently ignored but accepted for parity with the
+  // Python implementation.
   let out = tensor;
   for (let octave = 0; octave < octaves; octave++) {
     const mult = 2 ** octave;
@@ -74,7 +78,13 @@ export function warp(
   }
   return out;
 }
-register("warp", warp, { freq: 2, octaves: 5, displacement: 1 });
+register("warp", warp, {
+  freq: 2,
+  octaves: 5,
+  displacement: 1,
+  splineOrder: InterpolationType.bicubic,
+  signedRange: true,
+});
 
 export function shadow(tensor, shape, time, speed, alpha = 1) {
   const shade = normalize(sobelValue(tensor));
@@ -198,15 +208,23 @@ export function sobel(
   speed,
   distMetric = DistanceMetric.euclidean,
   rgb = false,
+  alpha = 1,
 ) {
+  let out;
   if (rgb) {
-    return sobelOperator(tensor, shape, time, speed, distMetric);
+    out = sobelOperator(tensor, shape, time, speed, distMetric);
+  } else {
+    out = outline(tensor, shape, time, speed, distMetric, true);
   }
-  return outline(tensor, shape, time, speed, distMetric, true);
+  if (alpha !== 1) {
+    out = blend(tensor, out, alpha);
+  }
+  return out;
 }
 register("sobel", sobel, {
   distMetric: DistanceMetric.euclidean,
   rgb: false,
+  alpha: 1,
 });
 
 export function outline(
@@ -739,6 +757,7 @@ export function densityMap(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, full, shape);
 }
 register("densityMap", densityMap, {});
+register("density_map", densityMap, {});
 
 export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
   let out = tensor;
@@ -823,6 +842,7 @@ export function convFeedback(
   return blend(tensor, resampled, alpha);
 }
 register("convFeedback", convFeedback, { iterations: 50, alpha: 0.5 });
+register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
 
 export function blendLayers(control, shape, feather = 1, ...layers) {
   let layerCount = layers.length;
@@ -1401,6 +1421,7 @@ export function scanlineError(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register("scanlineError", scanlineError, {});
+register("scanline_error", scanlineError, {});
 
 export function crt(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -1900,11 +1921,22 @@ register("refractEffect", refractEffect, {
   signedRange: true,
   yFromOffset: false,
 });
+register("refract", refractEffect, {
+  displacement: 0.5,
+  referenceX: null,
+  referenceY: null,
+  warpFreq: null,
+  splineOrder: InterpolationType.bicubic,
+  fromDerivative: false,
+  signedRange: true,
+  yFromOffset: false,
+});
 
 export function fxaaEffect(tensor, shape, time, speed) {
   return fxaa(tensor);
 }
 register("fxaaEffect", fxaaEffect, {});
+register("fxaa", fxaaEffect, {});
 
 function randomNormal(mean = 0, std = 1) {
   const u1 = random() || 1e-9;
@@ -2126,6 +2158,15 @@ export function erosionWorms(
   return blend(tensor, outTensor, alpha);
 }
 register("erosionWorms", erosionWorms, {
+  density: 50,
+  iterations: 50,
+  contraction: 1.0,
+  quantize: false,
+  alpha: 0.25,
+  inverse: false,
+  xyBlend: 0,
+});
+register("erosion_worms", erosionWorms, {
   density: 50,
   iterations: 50,
   contraction: 1.0,
@@ -2609,7 +2650,16 @@ export function ridgeEffect(tensor, shape, time, speed) {
 }
 register("ridge", ridgeEffect, {});
 
-export function sine(tensor, shape, time, speed, amount = 1.0, rgb = false) {
+export function sine(
+  tensor,
+  shape,
+  time,
+  speed,
+  amount = 1.0,
+  rgb = false,
+  freq = 1,
+  octaves = 1,
+) {
   const [h, w, c] = shape;
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
@@ -2646,8 +2696,9 @@ export function sine(tensor, shape, time, speed, amount = 1.0, rgb = false) {
     }
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
+  // freq and octaves currently unused; included for compatibility
 }
-register("sine", sine, { amount: 1.0, rgb: false });
+register("sine", sine, { amount: 1.0, rgb: false, freq: 1, octaves: 1 });
 
 export function blur(
   tensor,
@@ -2926,6 +2977,7 @@ export function pixelSort(
   return _pixelSort(tensor, shape, angle, darkest);
 }
 register("pixelSort", pixelSort, { angled: false, darkest: false });
+register("pixel_sort", pixelSort, { angled: false, darkest: false });
 
 export function glyphMap(
   tensor,
@@ -2943,9 +2995,10 @@ export function glyphMap(
   let glyphs;
   if (mask === ValueMask.truetype) {
     glyphShape = [15, 15, 1];
-    glyphs = loadGlyphs(glyphShape);
+    glyphs = loadGlyphs(glyphShape) || [];
   } else {
     glyphShape = maskShape(mask);
+    if (!glyphShape) return tensor;
     const [g] = maskValues(mask, glyphShape);
     const data = g.read();
     const gh = glyphShape[0];
@@ -2988,6 +3041,7 @@ export function glyphMap(
         Math.floor(bright * glyphs.length),
       );
       const glyph = glyphs[gIndex];
+      if (!glyph) continue;
       for (let gy = 0; gy < gh; gy++) {
         for (let gx = 0; gx < gw; gx++) {
           const yy = cy * gh + gy;
@@ -3011,6 +3065,13 @@ export function glyphMap(
   return outTensor;
 }
 register("glyphMap", glyphMap, {
+  mask: ValueMask.truetype,
+  colorize: true,
+  zoom: 1,
+  alpha: 1,
+  splineOrder: InterpolationType.constant,
+});
+register("glyph_map", glyphMap, {
   mask: ValueMask.truetype,
   colorize: true,
   zoom: 1,
@@ -3663,6 +3724,7 @@ export function strayHair(tensor, shape, time, speed) {
   return blend(tensor, brightness, mask);
 }
 register("strayHair", strayHair, {});
+register("stray_hair", strayHair, {});
 
 function expandChannels(tensor, channels) {
   const [h, w, c] = tensor.shape;
@@ -3906,3 +3968,10 @@ export function spookyTicker(tensor, shape, time, speed) {
   return blend(tensor, maxTensor, alpha);
 }
 register("spookyTicker", spookyTicker, {});
+register("spooky_ticker", spookyTicker, {});
+
+export function skew(tensor, shape, time, speed, angle = 0, range = 1) {
+  // Placeholder implementation; performs no skewing.
+  return tensor;
+}
+register("skew", skew, { angle: 0, range: 1 });

@@ -223,11 +223,11 @@ hearts: {
     },
 
     'maybe-derivative-post': {
-      post: () => (coinFlip() ? [] : [Preset('derivative-post')]),
+      post: () => (coinFlip() ? [] : [new Preset('derivative-post', presets)]),
     },
 
     'maybe-invert': {
-      post: () => (coinFlip() ? [] : [Preset('invert')]),
+      post: () => (coinFlip() ? [] : [new Preset('invert', presets)]),
     },
 
     'maybe-rotate': {
@@ -239,7 +239,31 @@ hearts: {
     },
 
     'maybe-skew': {
-      final: () => (coinFlip() ? [] : [Preset('skew')]),
+      final: () => (coinFlip() ? [] : [new Preset('skew', presets)]),
+    },
+
+    'maybe-mask': {
+      layers: [],
+    },
+
+    'ghost-diagram': {
+      layers: [],
+    },
+
+    'shake-it': {
+      layers: [],
+    },
+
+    'shrink-triangulate': {
+      layers: [],
+    },
+
+    'maybe-hyperspace': {
+      layers: [],
+    },
+
+    ghost: {
+      layers: [],
     },
 
     basic: {
@@ -572,7 +596,7 @@ hearts: {
     },
 
     'be-kind-rewind': {
-      final: () => [Effect('vhs'), Preset('crt')],
+      final: () => [Effect('vhs'), new Preset('crt', presets)],
     },
 
     'benny-lava': {
@@ -1085,8 +1109,12 @@ hearts: {
       }),
       final: (settings) => [
         Effect('crt'),
-        Preset('brightness-final', { brightness_final: settings.crt_brightness }),
-        Preset('contrast-final', { contrast_final: settings.crt_contrast }),
+        new Preset('brightness-final', presets, {
+          brightness_final: settings.crt_brightness,
+        }),
+        new Preset('contrast-final', presets, {
+          contrast_final: settings.crt_contrast,
+        }),
       ],
     },
 
@@ -1198,7 +1226,7 @@ hearts: {
     degauss: {
       final: () => [
         Effect('degauss', { displacement: 0.06 + random() * 0.03 }),
-        Preset('crt'),
+        new Preset('crt', presets),
       ],
     },
 
@@ -1659,7 +1687,7 @@ hearts: {
     fractile: {
       layers: ['symmetry', 'voronoi', 'reverb', 'contrast-post', 'palette', 'random-hue', 'maybe-rotate', 'lens'],
       settings: () => ({
-        dist_metric: randomMember(distanceMetricAbsoluteMembers),
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
         reverb_iterations: randomInt(2, 4),
         reverb_octaves: randomInt(2, 4),
         voronoi_alpha: 0.5 + random() * 0.5,
@@ -1754,7 +1782,11 @@ hearts: {
 
     'glitchin-out': {
       layers: ['corrupt'],
-      final: () => [Effect('glitch'), Preset('crt'), Preset('bloom')],
+      final: () => [
+        Effect('glitch'),
+        new Preset('crt', presets),
+        Effect('bloom'),
+      ],
     },
 
     globules: {
@@ -2152,8 +2184,12 @@ hearts: {
         lens_contrast: 1.05 + random() * 0.025,
       }),
       final: (settings) => [
-        Preset('brightness-final', { brightness_final: settings.lens_brightness }),
-        Preset('contrast-final', { contrast_final: settings.lens_contrast }),
+        new Preset('brightness-final', presets, {
+          brightness_final: settings.lens_brightness,
+        }),
+        new Preset('contrast-final', presets, {
+          contrast_final: settings.lens_contrast,
+        }),
       ],
     },
 
@@ -3048,6 +3084,15 @@ hearts: {
       layers: ['basic', 'reflect-octaves', 'reflect-post', 'grain'],
     },
 
+    'erode-post': {
+      settings: () => ({
+        erode_range: 1 + random() * 2,
+      }),
+      post: (settings) => [
+        Effect('erosionWorms', { density: settings.erode_range }),
+      ],
+    },
+
     'refract-octaves': {
       settings: () => ({
         refract_range: 0.5 + random() * 0.25,
@@ -3446,7 +3491,7 @@ hearts: {
       layers: [
         'sine-octaves',
         'voronoi',
-        'refract',
+        'refract-post',
         'posterize',
         'contrast-post',
         'grain',
@@ -3514,7 +3559,7 @@ hearts: {
     },
 
     sketch: {
-      layers: ['basic', 'symmetry', 'sobel', 'contrast-post', 'sketch'],
+      layers: ['basic', 'symmetry', 'sobel', 'contrast-post'],
       settings: () => ({
         color_space: color.grayscale,
         freq: randomInt(2, 3),
@@ -4378,7 +4423,7 @@ hearts: {
     'warped-cells': {
       layers: ['voronoi', 'ridge', 'funhouse', 'bloom', 'grain'],
       settings: () => ({
-        dist_metric: randomMember(distanceMetricAbsoluteMembers),
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
         voronoi_alpha: 0.666 + random() * 0.333,
         voronoi_diagram_type: voronoi.color_range,
         voronoi_nth: 0,

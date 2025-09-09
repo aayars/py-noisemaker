@@ -141,15 +141,35 @@ export function Effect(effectName, params = {}) {
     throw new Error(`"${effectName}" is not a registered effect name.`);
   }
   const keys = Object.keys(effect).filter((k) => k !== 'func');
-  for (const k of Object.keys(params)) {
+
+  // Normalize parameter keys: convert snake_case to camelCase and apply effect-specific aliases
+  const aliasMap = {
+    sine: { displacement: 'amount' },
+    smoothstep: { low: 'a', high: 'b' },
+  };
+
+  function toCamel(str) {
+    return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+  }
+
+  const mapped = {};
+  for (const [k, v] of Object.entries(params)) {
+    const camel = toCamel(k);
+    const finalKey = aliasMap[effectName]?.[camel] || camel;
+    mapped[finalKey] = v;
+  }
+
+  for (const k of Object.keys(mapped)) {
     if (!keys.includes(k)) {
       throw new Error(`Effect "${effectName}" does not accept a parameter named "${k}"`);
     }
   }
+
   const applied = {};
   for (const k of keys) {
-    applied[k] = params[k] !== undefined ? params[k] : effect[k];
+    applied[k] = mapped[k] !== undefined ? mapped[k] : effect[k];
   }
+
   const fn = function (tensor, shape, time, speed) {
     const args = keys.map((k) => applied[k]);
     return effect.func(tensor, shape, time, speed, ...args);
