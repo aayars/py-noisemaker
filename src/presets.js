@@ -20,6 +20,7 @@ import {
   gridMembers as pointGridMembers,
   isCenterDistribution,
   isScan,
+  isValueMaskRgb,
 } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
@@ -3068,7 +3069,7 @@ export function PRESETS() {
       post: (settings) => [Effect('rotate', { angle: settings.angle })],
     },
 
-    'runes-of-arecibo': {
+  'runes-of-arecibo': {
       layers: [
         'value-mask',
         'refract-octaves',
@@ -3100,6 +3101,626 @@ export function PRESETS() {
         refract_y_from_offset: true,
         spline_order: randomMember([interp.linear, interp.cosine]),
       }),
+    },
+    'sands-of-time': {
+      layers: ['basic', 'worms', 'lens'],
+      settings: () => ({
+        freq: randomInt(3, 5),
+        octaves: randomInt(1, 3),
+        worms_behavior: worms.unruly,
+        worms_alpha: 1,
+        worms_density: 750,
+        worms_duration: 0.25,
+        worms_kink: randomInt(1, 2),
+        worms_stride: randomInt(128, 256),
+      }),
+    },
+
+    satori: {
+      layers: [
+        'multires-low',
+        'sine-octaves',
+        'voronoi',
+        'contrast-post',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        color_space: randomMember(colorSpaceMembers()),
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+        freq: randomInt(3, 4),
+        hue_range: random(),
+        lattice_drift: 1,
+        ridges: true,
+        speed: 0.05,
+        voronoi_alpha: 1.0,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_refract: randomInt(6, 12) * 0.25,
+        voronoi_point_distrib: randomMember([point.random, ...pointCircularMembers]),
+        voronoi_point_freq: randomInt(2, 8),
+      }),
+    },
+
+    saturation: {
+      settings: () => ({
+        saturation_final: 0.333 + random() * 0.16667,
+      }),
+      final: (settings) => [
+        Effect('adjust_saturation', { amount: settings.saturation_final }),
+      ],
+    },
+
+    sblorp: {
+      layers: ['basic', 'posterize', 'invert', 'grain', 'saturation'],
+      settings: () => ({
+        color_space: color.rgb,
+        distrib: distrib.ones,
+        freq: randomInt(5, 9),
+        lattice_drift: 1.25 + random() * 1.25,
+        mask: mask.sparse,
+        octave_blending: blend.reduce_max,
+        octaves: randomInt(2, 3),
+        posterize_levels: 1,
+      }),
+    },
+
+    sbup: {
+      layers: ['basic', 'posterize', 'funhouse', 'falsetto', 'palette', 'distressed'],
+      settings: () => ({
+        distrib: distrib.ones,
+        freq: [2, 2],
+        mask: mask.square,
+        posterize_levels: randomInt(1, 2),
+        warp_range: 1.5 + random(),
+      }),
+    },
+
+    'scanline-error': {
+      final: () => [Effect('scanline_error')],
+    },
+
+    scratches: {
+      final: () => [Effect('scratches')],
+    },
+
+    scribbles: {
+      layers: [
+        'basic',
+        'derivative-octaves',
+        'derivative-post',
+        'derivative-post',
+        'contrast-post',
+        'invert',
+        'sketch',
+      ],
+      settings: () => ({
+        color_space: color.grayscale,
+        deriv_alpha: 0.925,
+        freq: randomInt(2, 4),
+        lattice_drift: 1.0,
+        octaves: randomInt(3, 4),
+        palette_on: false,
+        ridges: true,
+      }),
+    },
+
+    scuff: {
+      final: () => [Effect('scratches')],
+    },
+
+    serene: {
+      layers: ['basic-water', 'periodic-refract', 'refract-post', 'lens'],
+      settings: () => ({
+        freq: randomInt(2, 3),
+        octaves: 3,
+        refract_range: 0.0025 + random() * 0.00125,
+        refract_y_from_offset: false,
+        value_distrib: distrib.center_circle,
+        value_freq: randomInt(2, 3),
+        value_refract_range: 0.025 + random() * 0.0125,
+        speed: 0.25,
+      }),
+    },
+
+    shadow: {
+      final: () => [Effect('shadow')],
+    },
+
+    shadows: {
+      final: () => [Effect('shadow')],
+    },
+
+    'shake-it-like': {
+      layers: [
+        'multires-low',
+        'falsetto',
+        'shake-it',
+        'shake-it',
+        'worms',
+        'distressed',
+      ],
+      settings: () => ({
+        hue_range: random(),
+        mask: mask.rings,
+        octaves: randomInt(1, 3),
+        shake_it_octaves: 1,
+        speed: 0.025,
+        worms_alpha: 0.5,
+        worms_behavior: worms.deviant,
+        worms_density: 75,
+        worms_duration: 0.5,
+        worms_kink: randomInt(4, 8),
+        worms_stride: randomInt(50, 100),
+      }),
+    },
+
+    'shape-party': {
+      layers: ['value-mask', 'posterize', 'warp', 'grain', 'saturation'],
+      settings: () => ({
+        distrib: distrib.uniform,
+        mask: randomMember(valueMaskProceduralMembers),
+        mask_repeat: randomInt(1, 5),
+        palette_on: false,
+        posterize_levels: randomInt(1, 2),
+        warp_freq: randomInt(2, 4),
+        warp_octaves: randomInt(2, 4),
+        warp_range: 0.125 + random() * 0.125,
+        warp_spline_order: interp.constant,
+      }),
+    },
+
+    shatter: {
+      layers: [
+        'multires-low',
+        'ghost-diagram',
+        'refract-post',
+        'refract-post',
+        'contrast-post',
+        'scanline-error',
+        'grain',
+      ],
+      settings: () => ({
+        dist_metric: distance.chebyshev,
+        freq: randomInt(4, 6),
+        refract_range: 0.1 + random() * 0.05,
+        refract_signed_range: true,
+        refract_y_from_offset: true,
+      }),
+    },
+
+    shimmer: {
+      layers: ['basic', 'derivative-octaves', 'voronoi', 'refract-post', 'lens'],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        freq: randomInt(2, 3),
+        hue_range: 3.0 + random() * 1.5,
+        lattice_drift: 1.0,
+        refract_range: 1.25 * random() * 0.625,
+        ridges: true,
+        voronoi_alpha: 0.25 + random() * 0.125,
+        voronoi_diagram_type: voronoi.color_flow,
+        voronoi_point_freq: 10,
+      }),
+    },
+
+    shmoo: {
+      layers: [
+        'basic',
+        'refract-post',
+        'contrast-post',
+        'shrink-triangulate',
+        'bloom',
+        'grain',
+        'vignette-dark',
+      ],
+      settings: () => ({
+        freq: randomInt(3, 6),
+        mask: mask.void,
+        refract_range: 0.333 + random() * 0.16667,
+        saturation: 0.0,
+        spline_order: interp.bicubic,
+        vignette_dark_alpha: 0.125 + random() * 0.125,
+      }),
+    },
+
+    sideways: {
+      settings: () => ({
+        sideways_displacement: 0.5 + random() * 0.5,
+        sideways_freq: [randomInt(2, 5), 1],
+        sideways_octaves: 1,
+        sideways_spline_order: interp.bicubic,
+      }),
+      post: (settings) => [
+        Effect('warp', {
+          displacement: settings.sideways_displacement,
+          freq: settings.sideways_freq,
+          octaves: settings.sideways_octaves,
+          spline_order: settings.sideways_spline_order,
+        }),
+      ],
+    },
+
+    'simple-frame': {
+      final: () => [Effect('frame')],
+    },
+
+    'sined-multifractal': {
+      layers: [
+        'sine-octaves',
+        'voronoi',
+        'refract',
+        'posterize',
+        'contrast-post',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        freq: randomInt(4, 6),
+        hue_range: random() * 2.0,
+        octaves: randomInt(2, 4),
+        posterize_levels: randomInt(8, 24),
+        ridges: true,
+        sine_range: randomInt(5, 10) * 0.25,
+        sine_freq: randomInt(2, 4),
+        voronoi_diagram_type: voronoi.range,
+        voronoi_point_freq: randomInt(1, 4),
+      }),
+    },
+
+    'sine-octaves': {
+      settings: () => ({
+        sine_range: randomInt(1, 4) * 0.125,
+        sine_freq: [1, randomInt(1, 4)],
+        sine_octaves: randomInt(1, 3),
+      }),
+      octaves: (settings) => [
+        Effect('sine', {
+          displacement: settings.sine_range,
+          freq: settings.sine_freq,
+          octaves: settings.sine_octaves,
+        }),
+      ],
+    },
+
+    'sine-post': {
+      settings: () => ({
+        sine_post_range: randomInt(1, 4) * 0.125,
+        sine_post_freq: [1, randomInt(1, 4)],
+        sine_post_octaves: randomInt(1, 3),
+      }),
+      post: (settings) => [
+        Effect('sine', {
+          displacement: settings.sine_post_range,
+          freq: settings.sine_post_freq,
+          octaves: settings.sine_post_octaves,
+        }),
+      ],
+    },
+
+    singularity: {
+      layers: [
+        'multires',
+        'maybe-mask',
+        'invert',
+        'ghost',
+        'vignette-bright',
+        'brightness-final',
+      ],
+      settings: () => ({
+        brightness_final: random() * -0.333,
+        hue_range: 1.0,
+        octaves: randomInt(2, 3),
+        palette_on: false,
+        value_invert: true,
+      }),
+    },
+
+    sketch: {
+      layers: ['basic', 'symmetry', 'sobel', 'contrast-post', 'sketch'],
+      settings: () => ({
+        color_space: color.grayscale,
+        freq: randomInt(2, 3),
+        mask: mask.inside,
+        mask_static: true,
+        octaves: 2,
+        palette_on: false,
+      }),
+    },
+
+    skew: {
+      settings: () => ({
+        skew_angle: random() * 360.0,
+        skew_range: randomInt(1, 4) * 0.333,
+      }),
+      post: (settings) => [
+        Effect('skew', {
+          angle: settings.skew_angle,
+          range: settings.skew_range,
+        }),
+      ],
+    },
+
+    smoothstep: {
+      settings: () => ({
+        smoothstep_low: random(),
+        smoothstep_high: random(),
+      }),
+      post: (settings) => [
+        Effect('smoothstep', {
+          low: settings.smoothstep_low,
+          high: settings.smoothstep_high,
+        }),
+      ],
+    },
+
+    'smoothstep-narrow': {
+      settings: () => ({
+        smoothstep_narrow_low: random() * 0.05,
+        smoothstep_narrow_high: 0.95 + random() * 0.05,
+      }),
+      post: (settings) => [
+        Effect('smoothstep', {
+          low: settings.smoothstep_narrow_low,
+          high: settings.smoothstep_narrow_high,
+        }),
+      ],
+    },
+
+    'smoothstep-wide': {
+      settings: () => ({
+        smoothstep_wide_low: random() * 0.25,
+        smoothstep_wide_high: 0.75 + random() * 0.25,
+      }),
+      post: (settings) => [
+        Effect('smoothstep', {
+          low: settings.smoothstep_wide_low,
+          high: settings.smoothstep_wide_high,
+        }),
+      ],
+    },
+
+    snow: {
+      layers: ['basic', 'subpixels', 'maybe-invert', 'contrast-post', 'vignette-dark'],
+      settings: () => ({
+        brightness_distrib: distrib.ones,
+        color_space: color.grayscale,
+        saturation: 0.0,
+      }),
+    },
+
+    sobel: {
+      settings: () => ({
+        sobel_alpha: 1.0,
+      }),
+      post: (settings) => [
+        Effect('sobel', { alpha: settings.sobel_alpha }),
+      ],
+    },
+
+    'soft-cells': {
+      layers: [
+        'basic-voronoi',
+        'voronoi',
+        'emboss',
+        'contrast-post',
+        'bloom',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        dist_metric: distance.manhattan,
+        freq: randomInt(5, 7),
+        mask: mask.square,
+        octaves: randomInt(2, 3),
+        palette_on: false,
+        spline_order: randomMember([interp.linear, interp.cosine]),
+        voronoi_diagram_type: voronoi.color_regions,
+        voronoi_nth: randomInt(1, 3),
+        voronoi_point_distrib: point.grid,
+        voronoi_point_freq: randomInt(3, 4),
+        warp_range: 0.125,
+      }),
+    },
+
+    soup: {
+      layers: [
+        'multires-low',
+        'derivative-octaves',
+        'wormhole',
+        'posterize-outline',
+        'distressed',
+      ],
+      settings: () => ({
+        freq: 2,
+        lattice_drift: 0.333,
+        octaves: 5,
+        speed: 0.05,
+        worms_alpha: 1.0,
+        worms_behavior: worms.deviant,
+        worms_density: 150,
+        worms_duration: 0.2,
+        worms_kink: 0,
+        worms_stride: 25,
+      }),
+    },
+
+    spaghettification: {
+      layers: ['maybe-hyperspace', 'spatter-post', 'vignette-dark'],
+      settings: () => ({
+        spatter_alpha: random() * 0.5 + 0.25,
+        spatter_density: randomInt(1500, 3000),
+        spatter_iterations: randomInt(100, 250),
+        spatter_kink: random(),
+        spatter_signs: true,
+        spatter_stride: randomInt(2, 4),
+      }),
+    },
+
+    spectrogram: {
+      layers: ['basic', 'grain', 'filthy'],
+      settings: () => ({
+        distrib: distrib.row_index,
+        freq: randomInt(256, 512),
+        hue_range: 0.5 + random() * 0.5,
+        mask: mask.bar_code,
+        spline_order: interp.constant,
+      }),
+    },
+
+    'spatter-post': {
+      settings: () => ({
+        speed: 0.0333 + random() * 0.016667,
+        spatter_post_color: true,
+      }),
+      post: (settings) => [
+        Effect('spatter', { color: settings.spatter_post_color }),
+      ],
+    },
+
+    'spatter-final': {
+      settings: () => ({
+        speed: 0.0333 + random() * 0.016667,
+        spatter_final_color: true,
+      }),
+      final: (settings) => [
+        Effect('spatter', { color: settings.spatter_final_color }),
+      ],
+    },
+
+    splork: {
+      layers: ['voronoi', 'posterize', 'distressed'],
+      settings: () => ({
+        color_space: color.rgb,
+        dist_metric: distance.chebyshev,
+        distrib: distrib.ones,
+        freq: 33,
+        mask: mask.bank_ocr,
+        palette_on: true,
+        posterize_levels: randomInt(1, 3),
+        spline_order: interp.cosine,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_nth: 1,
+        voronoi_point_freq: 2,
+        voronoi_refract: 0.125,
+      }),
+    },
+
+    'spooky-ticker': {
+      final: () => [Effect('spooky_ticker')],
+    },
+
+    'stackin-bricks': {
+      layers: ['voronoi'],
+      settings: () => ({
+        dist_metric: distance.triangular,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_inverse: true,
+        voronoi_point_freq: 10,
+      }),
+    },
+
+    starfield: {
+      layers: [
+        'multires-low',
+        'brightness-post',
+        'nebula',
+        'contrast-post',
+        'lens',
+        'grain',
+        'vignette-dark',
+        'contrast-final',
+      ],
+      settings: () => ({
+        brightness_post: -0.075,
+        color_space: color.hsv,
+        contrast_post: 2.0,
+        distrib: distrib.exp,
+        freq: randomInt(400, 500),
+        hue_range: 1.0,
+        mask: mask.sparser,
+        mask_static: true,
+        palette_on: false,
+        saturation: 0.75,
+        spline_order: interp.linear,
+      }),
+    },
+
+    'stray-hair': {
+      final: () => [Effect('stray_hair')],
+    },
+
+    'string-theory': {
+      layers: ['multires-low', 'erosion-worms', 'bloom', 'lens'],
+      settings: () => ({
+        color_space: color.rgb,
+        erosion_worms_alpha: 0.875 + random() * 0.125,
+        erosion_worms_contraction: 4.0 + random() * 2.0,
+        erosion_worms_density: 0.25 + random() * 0.125,
+        erosion_worms_iterations: randomInt(1250, 2500),
+        octaves: randomInt(2, 4),
+        palette_on: false,
+        ridges: false,
+      }),
+    },
+
+    subpixelator: {
+      layers: ['basic', 'subpixels', 'funhouse'],
+      settings: () => ({
+        palette_on: false,
+      }),
+    },
+
+    subpixels: {
+      post: () => [
+        Effect('glyph_map', {
+          mask: randomMember(
+            Object.values(mask).filter((m) => isValueMaskRgb(m))
+          ),
+          zoom: randomMember([8, 16]),
+        }),
+      ],
+    },
+
+    symmetry: {
+      layers: ['basic'],
+      settings: () => ({
+        corners: true,
+        freq: [2, 2],
+      }),
+    },
+
+    'swerve-h': {
+      settings: () => ({
+        swerve_h_displacement: 0.5 + random() * 0.5,
+        swerve_h_freq: [randomInt(2, 5), 1],
+        swerve_h_octaves: 1,
+        swerve_h_spline_order: interp.bicubic,
+      }),
+      post: (settings) => [
+        Effect('warp', {
+          displacement: settings.swerve_h_displacement,
+          freq: settings.swerve_h_freq,
+          octaves: settings.swerve_h_octaves,
+          spline_order: settings.swerve_h_spline_order,
+        }),
+      ],
+    },
+
+    'swerve-v': {
+      settings: () => ({
+        swerve_v_displacement: 0.5 + random() * 0.5,
+        swerve_v_freq: [1, randomInt(2, 5)],
+        swerve_v_octaves: 1,
+        swerve_v_spline_order: interp.bicubic,
+      }),
+      post: (settings) => [
+        Effect('warp', {
+          displacement: settings.swerve_v_displacement,
+          freq: settings.swerve_v_freq,
+          octaves: settings.swerve_v_octaves,
+          spline_order: settings.swerve_v_spline_order,
+        }),
+      ],
     },
 
     'vignette-bright': {
