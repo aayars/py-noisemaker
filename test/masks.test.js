@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { ValueMask } from '../src/constants.js';
-import { maskValues, maskShape } from '../src/masks.js';
+import { maskValues, maskShape, getAtlas } from '../src/masks.js';
 import { loadGlyphs, loadFonts } from '../src/glyphs.js';
 import { setSeed } from '../src/util.js';
 
@@ -606,6 +606,30 @@ setSeed(888);
 [t2] = maskValues(ValueMask.white_bear, whiteBearShape);
 const wb2 = Array.from(t2.read());
 assert.deepStrictEqual(wb1, wb2);
+
+// Procedural atlas masks respect shapes
+const atlasMasks = [
+  [ValueMask.alphanum_binary, [6, 6, 1]],
+  [ValueMask.halftone, [4, 4, 1]],
+  [ValueMask.lcd, [8, 5, 1]],
+  [ValueMask.fat_lcd, [10, 10, 1]],
+  [ValueMask.bank_ocr, [8, 7, 1]],
+  [ValueMask.mcpaint, [8, 8, 1]],
+  [ValueMask.emoji, [13, 13, 1]],
+];
+for (const [mask, expected] of atlasMasks) {
+  const shape = maskShape(mask);
+  assert.deepStrictEqual(shape, expected);
+  const atlas = getAtlas(mask);
+  assert.ok(atlas && atlas.length > 0);
+  for (const glyph of atlas) {
+    assert.strictEqual(glyph.length, expected[0]);
+    assert.strictEqual(glyph[0].length, expected[1]);
+  }
+  const [tensor] = maskValues(mask, shape, { atlas });
+  const data = Array.from(tensor.read());
+  assert.strictEqual(data.length, expected[0] * expected[1]);
+}
 
 // Font loading cache
 const fonts1 = loadFonts();

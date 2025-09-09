@@ -1,4 +1,4 @@
-import { ValueMask } from './constants.js';
+import { ValueMask, isValueMaskProcedural } from './constants.js';
 import { Tensor } from './tensor.js';
 import { loadGlyphs } from './glyphs.js';
 import { simplex } from './simplex.js';
@@ -117,6 +117,13 @@ function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
     uvX,
     uvY,
   });
+}
+
+function _glyphFromAtlasRange({ x, y, shape, uvX, uvY, uvNoise, atlas }) {
+  if (!atlas || atlas.length === 0) return 0;
+  let glyphIndex = Math.floor(uvNoise[uvY][uvX] * atlas.length);
+  glyphIndex = Math.min(Math.max(glyphIndex, 0), atlas.length - 1);
+  return atlas[glyphIndex][y % shape[0]][x % shape[1]];
 }
 
 // Bitmap masks encoded as nested arrays or procedural functions
@@ -1723,6 +1730,27 @@ export const Masks = {
   ],
 
   // Procedural masks computed on demand
+  [ValueMask.alphanum_binary]: _glyphFromAtlasRange,
+  [ValueMask.alphanum_numeric]: _glyphFromAtlasRange,
+  [ValueMask.alphanum_hex]: _glyphFromAtlasRange,
+  [ValueMask.truetype]: ({ x, y, shape, uvX, uvY, uvNoise, atlas }) => {
+    if (!atlas || !atlas.length) return 0;
+    const value = Math.max(0, Math.min(1, uvNoise[uvY][uvX]));
+    const glyph = atlas[Math.floor(value * (atlas.length - 1))];
+    return glyph[y % shape[0]][x % shape[1]];
+  },
+  [ValueMask.halftone]: _glyphFromAtlasRange,
+  [ValueMask.lcd]: _glyphFromAtlasRange,
+  [ValueMask.lcd_binary]: _glyphFromAtlasRange,
+  [ValueMask.lcd_numeric]: _glyphFromAtlasRange,
+  [ValueMask.lcd_hex]: _glyphFromAtlasRange,
+  [ValueMask.fat_lcd]: _glyphFromAtlasRange,
+  [ValueMask.fat_lcd_binary]: _glyphFromAtlasRange,
+  [ValueMask.fat_lcd_numeric]: _glyphFromAtlasRange,
+  [ValueMask.fat_lcd_hex]: _glyphFromAtlasRange,
+  [ValueMask.bank_ocr]: _glyphFromAtlasRange,
+  [ValueMask.mcpaint]: _glyphFromAtlasRange,
+  [ValueMask.emoji]: _glyphFromAtlasRange,
   [ValueMask.arecibo_num]: areciboNum,
   [ValueMask.arecibo_bignum]: areciboNum,
   [ValueMask.arecibo_nucleotide]: areciboNucleotide,
@@ -1752,6 +1780,22 @@ export const Masks = {
 
 // Shapes for procedural masks
 const ProceduralShapes = {
+  [ValueMask.alphanum_binary]: [6, 6, 1],
+  [ValueMask.alphanum_numeric]: [6, 6, 1],
+  [ValueMask.alphanum_hex]: [6, 6, 1],
+  [ValueMask.truetype]: [15, 15, 1],
+  [ValueMask.halftone]: [4, 4, 1],
+  [ValueMask.lcd]: [8, 5, 1],
+  [ValueMask.lcd_binary]: [8, 5, 1],
+  [ValueMask.lcd_numeric]: [8, 5, 1],
+  [ValueMask.lcd_hex]: [8, 5, 1],
+  [ValueMask.fat_lcd]: [10, 10, 1],
+  [ValueMask.fat_lcd_binary]: [10, 10, 1],
+  [ValueMask.fat_lcd_numeric]: [10, 10, 1],
+  [ValueMask.fat_lcd_hex]: [10, 10, 1],
+  [ValueMask.bank_ocr]: [8, 7, 1],
+  [ValueMask.mcpaint]: [8, 8, 1],
+  [ValueMask.emoji]: [13, 13, 1],
   [ValueMask.arecibo_num]: [6, 3, 1],
   [ValueMask.arecibo_bignum]: [6, 5, 1],
   [ValueMask.arecibo_nucleotide]: [6, 6, 1],
@@ -1767,6 +1811,8 @@ const ProceduralShapes = {
   [ValueMask.white_bear]: [4, 4, 1],
 };
 
+export const maskAtlas = new Map();
+
 export function maskShape(mask) {
   if (ProceduralShapes[mask]) {
     const shape = ProceduralShapes[mask];
@@ -1780,17 +1826,67 @@ export function maskShape(mask) {
 }
 
 export function getAtlas(mask) {
+  if (maskAtlas.has(mask)) return maskAtlas.get(mask);
+  let atlas = null;
   if (mask === ValueMask.truetype) {
-    return loadGlyphs([15, 15, 1]);
+    atlas = loadGlyphs([15, 15, 1]);
+  } else if (isValueMaskProcedural(mask)) {
+    const entry = Object.entries(ValueMask).find(([, v]) => v === mask);
+    if (entry) {
+      const name = entry[0];
+      const base = name.replace(/_(binary|numeric|hex)$/, '');
+      if (name.endsWith('_binary')) {
+        atlas = [
+          Masks[ValueMask[`${base}_0`]],
+          Masks[ValueMask[`${base}_1`]],
+        ].filter(Boolean);
+      } else if (name.endsWith('_numeric')) {
+        atlas = Array.from('0123456789')
+          .map((d) => Masks[ValueMask[`${base}_${d}`]])
+          .filter(Boolean);
+      } else if (name.endsWith('_hex')) {
+        atlas = Object.entries(ValueMask)
+          .filter(([k]) => k.startsWith(`${base}_`) && /^[0-9a-f]$/.test(k.slice(base.length + 1)))
+          .map(([, v]) => Masks[v])
+          .filter(Boolean);
+      } else {
+        atlas = Object.entries(ValueMask)
+          .filter(([k, v]) => k.startsWith(`${name}_`) && Masks[v] && typeof Masks[v] !== 'function')
+          .map(([, v]) => Masks[v]);
+      }
+    }
   }
-  return null;
+  maskAtlas.set(mask, atlas);
+  return atlas;
 }
+
+const preloadMasks = [
+  ValueMask.alphanum_binary,
+  ValueMask.alphanum_numeric,
+  ValueMask.alphanum_hex,
+  ValueMask.truetype,
+  ValueMask.halftone,
+  ValueMask.lcd,
+  ValueMask.lcd_binary,
+  ValueMask.lcd_numeric,
+  ValueMask.lcd_hex,
+  ValueMask.fat_lcd,
+  ValueMask.fat_lcd_binary,
+  ValueMask.fat_lcd_numeric,
+  ValueMask.fat_lcd_hex,
+  ValueMask.bank_ocr,
+  ValueMask.mcpaint,
+  ValueMask.emoji,
+];
+preloadMasks.forEach((m) => getAtlas(m));
 
 export function maskValues(mask, glyphShape = null, opts = {}) {
   const { atlas = null, inverse = false, time = 0, speed = 1 } = opts;
   const shape = maskShape(mask);
   if (!glyphShape) glyphShape = [...shape];
   if (shape.length === 3) glyphShape[2] = shape[2];
+
+  const atlasData = atlas ?? getAtlas(mask);
 
   const [h, w, c] = glyphShape;
   const data = new Float32Array(h * w * c);
@@ -1819,7 +1915,7 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
       if (typeof fn === 'function') {
         const uvY = Math.floor((y / h) * uvShape[0]);
         const uvX = Math.floor((x / w) * uvShape[1]);
-        pixel = fn({ x, y, row: maskRow, shape, uvNoise, uvX, uvY, atlas, glyphShape });
+        pixel = fn({ x, y, row: maskRow, shape, uvNoise, uvX, uvY, atlas: atlasData, glyphShape });
       } else {
         pixel = fn[y % shape[0]][x % shape[1]];
       }
@@ -1832,5 +1928,5 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
     }
   }
 
-  return [Tensor.fromArray(null, data, glyphShape), atlas];
+  return [Tensor.fromArray(null, data, glyphShape), atlasData];
 }
