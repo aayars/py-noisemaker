@@ -25,7 +25,7 @@ For the Javascript port: Read the VANILLA_JS_PORT_SPEC.md porting document.
    noisemaker --help
    ```
 
-4. Run the test suite before submitting changes:
+4. Run the test suite before submitting changes (only if modifying Python code):
 
    ```bash
    pytest
