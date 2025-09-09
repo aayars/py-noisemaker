@@ -74,27 +74,9 @@ Full documentation, including the complete API reference and preset guide, is av
 
 Issues and pull requests are welcome! Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before contributing. Run the test suite with `pytest` before submitting changes.
 
-### Updating JavaScript test fixtures
+## Javascript Port
 
-The JavaScript tests use precomputed outputs from the Python reference implementation. If you change any algorithms that affect these expectations, regenerate the fixture data:
-
-```bash
-python scripts/generate_fixtures.py
-```
-
-This script rewrites the JSON files in `test/fixtures/`. Commit the updated fixtures along with your code changes.
-
-### Cross-language image regression
-
-To verify that the Python and JavaScript implementations stay in sync, generate
-small simplex-noise images for a set of seeds and compare the pixel values:
-
-```bash
-npm run image-regress
-```
-
-Baseline PNGs are written to `test/image-fixtures/`. Divergences are reported
-with the offending seed to help catch regressions.
+This document is for the Python version of Noisedeck. See the [Javascript README](README-JS.md).
 
 ## License
 
