@@ -2412,7 +2412,7 @@ const ProceduralShapes = {
   [ValueMask.arecibo_bignum]: [6, 5, 1],
   [ValueMask.arecibo_nucleotide]: [6, 6, 1],
   [ValueMask.arecibo_dna]: [11, 17, 1],
-  [ValueMask.arecibo]: [64, 64, 1],
+  [ValueMask.arecibo]: () => [64, 64, 1],
   [ValueMask.sparse]: [10, 10, 1],
   [ValueMask.sparser]: [10, 10, 1],
   [ValueMask.sparsest]: [10, 10, 1],
@@ -2428,10 +2428,13 @@ const ProceduralShapes = {
   [ValueMask.truchet_lines]: [2, 2, 1],
   [ValueMask.truchet_curves]: [6, 6, 1],
   [ValueMask.truchet_tile]: [6, 6, 1],
-  [ValueMask.bar_code]: [1, 1, 1],
-  [ValueMask.bar_code_short]: [1, 2, 1],
-  [ValueMask.fake_qr]: [1, 1, 1],
-  [ValueMask.dropout]: [1, 1, 1],
+  [ValueMask.bar_code]: [24, 1, 1],
+  [ValueMask.bar_code_short]: [10, 1, 1],
+  [ValueMask.fake_qr]: () => {
+    const s = randomInt(25, 50);
+    return [s, s, 1];
+  },
+  [ValueMask.dropout]: [10, 10, 1],
   [ValueMask.invaders]: () => [randomInt(5, 7), randomInt(6, 12), 1],
   [ValueMask.invaders_large]: [18, 18, 1],
   [ValueMask.invaders_square]: [6, 6, 1],
@@ -2556,4 +2559,15 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
   }
 
   return [Tensor.fromArray(null, data, glyphShape), atlasData];
+}
+
+export function squareMasks() {
+  const squares = [];
+  for (const mask of Object.values(ValueMask)) {
+    if (typeof mask !== 'number') continue;
+    if (typeof ProceduralShapes[mask] === 'function') continue;
+    const [h, w] = maskShape(mask);
+    if (h === w) squares.push(mask);
+  }
+  return squares;
 }
