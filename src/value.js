@@ -10,9 +10,17 @@ function fract(x) {
   return x - Math.floor(x);
 }
 
+// GPU fragment shader implementations operate in 32bit float precision. The
+// original hash used very large constants which, when combined with the limited
+// precision of GLSL `sin`, produced visible banding artifacts.  Using smaller
+// constants keeps the argument to `sin` within a sane range while still
+// providing a deterministic pseudo-random distribution.
 function rand2D(x, y, seed = 0, time = 0, speed = 1) {
   const s =
-    x * 374761393 + y * 668265263 + seed * 69069 + time * speed * 43758.5453;
+    x * 12.9898 +
+    y * 78.233 +
+    seed * 37.719 +
+    time * speed * 0.1;
   return fract(Math.sin(s) * 43758.5453);
 }
 
@@ -90,7 +98,7 @@ uniform int u_distrib;
 uniform sampler2D u_mask;
 uniform int u_useMask;
 float rand2D(float x,float y,float seed,float time,float speed){
- float s=x*374761393.0+y*668265263.0+seed*69069.0+time*speed*43758.5453;
+ float s=x*12.9898+y*78.233+seed*37.719+time*speed*0.1;
  return fract(sin(s)*43758.5453);
 }
 float interp(float t,float order){
