@@ -314,6 +314,14 @@ assert.deepStrictEqual(shape, [8, 8, 1]);
 assert.deepStrictEqual(data.slice(0, 8), Array(8).fill(0));
 assert.deepStrictEqual(data.slice(-8), Array(8).fill(0));
 
+// Emoji masks
+for (const mask of [ValueMask.emoji_00, ValueMask.emoji_01, ValueMask.emoji_02]) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  assert.deepStrictEqual(shape, [13, 13, 1]);
+  assert.strictEqual(tensor.read().length, 13 * 13);
+}
+
 // Procedural mask
 const procShape = [4, 4, 1];
 [tensor] = maskValues(ValueMask.truchet_lines, procShape);
