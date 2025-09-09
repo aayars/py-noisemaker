@@ -3,9 +3,27 @@ import { values, hsvToRgb, rgbToHsv, ridge, refract, normalize, freqForShape } f
 import { oklabToRgb } from './oklab.js';
 import { Tensor } from './tensor.js';
 import { random as simplexRandom } from './simplex.js';
+import { EFFECTS } from './effectsRegistry.js';
 
 function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
   if (typeof effect === 'function') {
+    if (
+      effect.__params &&
+      Object.prototype.hasOwnProperty.call(effect.__params, 'displacement')
+    ) {
+      const params = {
+        ...effect.__params,
+        displacement: effect.__params.displacement / 2 ** octave,
+      };
+      const args = effect.__paramNames.map((k) => params[k]);
+      return EFFECTS[effect.__effectName].func(
+        tensor,
+        shape,
+        time,
+        speed,
+        ...args,
+      );
+    }
     return effect(tensor, shape, time, speed);
   } else if (effect && effect.octave_effects) {
     for (const e of effect.octave_effects) {
