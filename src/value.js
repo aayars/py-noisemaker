@@ -1,5 +1,5 @@
 import { Tensor } from './tensor.js';
-import { ValueDistribution } from './constants.js';
+import { ValueDistribution, DistanceMetric } from './constants.js';
 import { maskValues } from './masks.js';
 
 export const FULLSCREEN_VS = `#version 300 es

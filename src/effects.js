@@ -24,7 +24,13 @@ import { maskValues, maskShape } from './masks.js';
 import { loadGlyphs } from './glyphs.js';
 import { random, randomInt } from './util.js';
 import { pointCloud } from './points.js';
-import { InterpolationType, DistanceMetric, ValueMask, PointDistribution } from './constants.js';
+import {
+  InterpolationType,
+  DistanceMetric,
+  ValueMask,
+  PointDistribution,
+  VoronoiDiagramType,
+} from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -238,6 +244,128 @@ export function normalMap(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
 register('normalMap', normalMap, {});
+
+export function voronoi(
+  tensor,
+  shape,
+  time,
+  speed,
+  diagramType = VoronoiDiagramType.range,
+  nth = 0,
+  distMetric = DistanceMetric.euclidean,
+  alpha = 1,
+  pointFreq = 3,
+  pointGenerations = 1,
+  pointDistrib = PointDistribution.random,
+  pointDrift = 0,
+  pointCorners = false,
+  xy = null,
+) {
+  const [h, w, c] = shape;
+  let xPts, yPts, count;
+  if (!xy) {
+    [xPts, yPts] = pointCloud(pointFreq, {
+      distrib: pointDistrib,
+      shape,
+      corners: pointCorners,
+      generations: pointGenerations,
+      drift: pointDrift,
+      time,
+      speed,
+    });
+    count = xPts.length;
+  } else {
+    [xPts, yPts, count] = xy;
+  }
+  if (count === 0) return tensor;
+  const distMap = new Float32Array(h * w);
+  const indexMap = new Int32Array(h * w);
+  let maxDist = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let best = Infinity;
+      let bestIdx = 0;
+      for (let i = 0; i < count; i++) {
+        let dx = Math.abs(x - xPts[i]);
+        dx = Math.min(dx, w - dx) / w;
+        let dy = Math.abs(y - yPts[i]);
+        dy = Math.min(dy, h - dy) / h;
+        const d = distance(dx, dy, distMetric);
+        if (d < best) {
+          best = d;
+          bestIdx = i;
+        }
+      }
+      const idx = y * w + x;
+      distMap[idx] = best;
+      indexMap[idx] = bestIdx;
+      if (best > maxDist) maxDist = best;
+    }
+  }
+  let outTensor;
+  if (diagramType === VoronoiDiagramType.range) {
+    const data = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      data[i] = Math.sqrt(distMap[i] / maxDist);
+    }
+    outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
+  } else if (diagramType === VoronoiDiagramType.regions) {
+    const data = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) data[i] = indexMap[i] / count;
+    outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
+  } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
+    const src = tensor.read();
+    const colors = new Float32Array(count * c);
+    for (let i = 0; i < count; i++) {
+      const px = Math.floor(yPts[i]) % h;
+      const py = Math.floor(xPts[i]) % w;
+      const base = (px * w + py) * c;
+      for (let k = 0; k < c; k++) colors[i * c + k] = src[base + k];
+    }
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      const region = indexMap[i];
+      for (let k = 0; k < c; k++) {
+        out[i * c + k] = colors[region * c + k];
+      }
+    }
+    outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  } else {
+    return tensor;
+  }
+  if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
+    return blend(tensor, outTensor, alpha);
+  }
+  return outTensor;
+}
+register('voronoi', voronoi, {
+  diagramType: VoronoiDiagramType.range,
+  nth: 0,
+  distMetric: DistanceMetric.euclidean,
+  alpha: 1,
+  pointFreq: 3,
+  pointGenerations: 1,
+  pointDistrib: PointDistribution.random,
+  pointDrift: 0,
+  pointCorners: false,
+  xy: null,
+});
+
+export function singularity(
+  tensor,
+  shape,
+  time,
+  speed,
+  diagramType = VoronoiDiagramType.range,
+  distMetric = DistanceMetric.euclidean,
+) {
+  const [x, y] = pointCloud(1, { distrib: PointDistribution.square, shape });
+  return voronoi(tensor, shape, time, speed, diagramType, 0, distMetric, 1, 1, 1, PointDistribution.square, 0, false, [x, y, 1]);
+}
+register('singularity', singularity, {
+  diagramType: VoronoiDiagramType.range,
+  distMetric: DistanceMetric.euclidean,
+});
 
 export function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;

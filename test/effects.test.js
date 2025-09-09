@@ -29,6 +29,8 @@ import {
   vortex,
   normalMap,
   densityMap,
+  voronoi,
+  singularity,
   jpegDecimate,
   convFeedback,
   wobble,
@@ -56,6 +58,7 @@ import { random as simplexRandom } from '../src/simplex.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { VoronoiDiagramType, DistanceMetric } from '../src/constants.js';
 
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);
@@ -167,6 +170,52 @@ const nmExpect = (() => {
   return Array.from(out);
 })();
 arraysClose(Array.from(nmRes), nmExpect);
+
+// singularity
+const sgTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
+const sgRes = singularity(sgTensor, [4, 4, 1], 0, 1).read();
+arraysClose(Array.from(sgRes), [
+  1,
+  0.889139711856842,
+  0.8408964276313782,
+  0.889139711856842,
+  0.889139711856842,
+  0.7071067690849304,
+  0.5946035385131836,
+  0.7071067690849304,
+  0.8408964276313782,
+  0.5946035385131836,
+  0,
+  0.5946035385131836,
+  0.889139711856842,
+  0.7071067690849304,
+  0.5946035385131836,
+  0.7071067690849304,
+]);
+
+// voronoi color regions
+const xPts = [1, 3];
+const yPts = [1, 3];
+const vorRes = voronoi(
+  edgeTensor,
+  [4, 4, 1],
+  0,
+  1,
+  VoronoiDiagramType.color_regions,
+  0,
+  DistanceMetric.euclidean,
+  1,
+  0,
+  0,
+  0,
+  0,
+  false,
+  [xPts, yPts, 2],
+).read();
+assert.strictEqual(vorRes[0], 0);
+assert.strictEqual(vorRes[3], 1);
+assert.strictEqual(vorRes[12], 1);
+assert.strictEqual(vorRes[15], 1);
 
 // densityMap regression
 const dmData = new Float32Array([0.1, 0.4, 0.4, 0.9]);
