@@ -27,10 +27,16 @@
     canvas {
       border: 1px solid #ccc;
       margin-top: 20px;
+      max-width: 512px;
     }
     button {
+      margin-left: 10px;
       margin-top: 10px;
-      padding: 8px 16px;
+      padding: 4px 8px;
+      width: 128px;
+    }
+    select {
+      width: 256px;
     }
     #info {
       margin-top: 20px;
@@ -44,7 +50,7 @@
       background: #f0f0f0;
       padding: 10px;
       overflow: auto;
-      max-height: 200px;
+      max-height: 600px;
       font-size: 12px;
     }
   </style>
@@ -52,19 +58,21 @@
 <body>
   <div id="left">
     <h1>Noisemaker JS Demo</h1>
+    <span>
     <label for="preset">Preset:</label>
     <select id="preset"></select>
-    <div>
-      <button id="randomPreset">Random Preset</button>
-      <button id="reroll">Re-roll</button>
-    </div>
+    <button id="randomPreset">Random Preset</button>
+    <button id="reroll">Re-roll</button>
+    </span>
     <canvas id="noise" width="256" height="256"></canvas>
   </div>
   <div id="right">
     <div id="info">
-      <div id="device"></div>
-      <div id="renderTime"></div>
       <pre id="presetDef"></pre>
+      <div style="text-align: right">
+        <span id="device"></span>
+        <span id="renderTime"></span>
+      </div>
     </div>
   </div>
   <script type="module">
@@ -116,7 +124,7 @@
 
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
-    deviceEl.textContent = ctx.isCPU ? 'CPU' : 'GPU';
+    deviceEl.textContent = ctx.isCPU ? 'cpu' : 'gpu';
 
     function draw(seed, preset) {
       const start = performance.now();
@@ -127,7 +135,7 @@
         presets,
       });
       const elapsed = performance.now() - start;
-      renderTimeEl.textContent = `Rendering time: ${elapsed.toFixed(2)} ms`;
+      renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
       presetDefEl.textContent = formatPreset(presets[preset]);
     }
 
