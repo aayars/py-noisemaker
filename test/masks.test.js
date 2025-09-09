@@ -10,6 +10,28 @@ let data = Array.from(tensor.read());
 assert.deepStrictEqual(shape, [2, 2, 1]);
 assert.deepStrictEqual(data, [0, 1, 1, 0]);
 
+// Color masks
+const colorMaskTests = [
+  [ValueMask.rgb, [4, 4, 3], [1, 0, 0], [0, 0, 0]],
+  [ValueMask.rbggbr, [6, 6, 3], [1, 0, 0], [1, 0, 0]],
+  [ValueMask.rgbgr, [7, 7, 3], [1, 0, 0], [1, 0, 0]],
+  [ValueMask.roygbiv, [8, 8, 3], [1, 0, 0.5], [0, 0, 0]],
+  [ValueMask.rggb, [2, 2, 3], [1, 0, 0], [0, 0, 1]],
+  [ValueMask.rainbow, [7, 7, 3], [1, 0, 0.5], [0.75, 0, 0.75]],
+  [ValueMask.ace, [4, 4, 3], [0, 0, 0], [0.625, 0, 0.625]],
+  [ValueMask.nb, [4, 4, 3], [1, 1, 0], [0, 0, 0]],
+  [ValueMask.trans, [6, 6, 3], [0, 1, 1], [0, 0, 0]],
+];
+for (const [mask, expectedShape, firstPixel, lastPixel] of colorMaskTests) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, expectedShape);
+  assert.strictEqual(data.length, expectedShape[0] * expectedShape[1] * expectedShape[2]);
+  assert.deepStrictEqual(data.slice(0, 3), firstPixel);
+  assert.deepStrictEqual(data.slice(-3), lastPixel);
+}
+
 // Alphanum masks
 shape = maskShape(ValueMask.alphanum_0);
 [tensor] = maskValues(ValueMask.alphanum_0, shape);
