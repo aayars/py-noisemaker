@@ -86,6 +86,19 @@ data = Array.from(tensor.read());
     1, 1, 1, 1, 1, 0,
   ]);
 
+for (const mask of [
+  ValueMask.alphanum_3,
+  ValueMask.alphanum_4,
+  ValueMask.alphanum_5,
+  ValueMask.alphanum_6,
+  ValueMask.alphanum_7,
+  ValueMask.alphanum_8,
+  ValueMask.alphanum_9,
+]) {
+  shape = maskShape(mask);
+  assert.deepStrictEqual(shape, [6, 6, 1]);
+}
+
 // Bank OCR masks
 const bankOcrMasks = [
   [ValueMask.bank_ocr_0, [
