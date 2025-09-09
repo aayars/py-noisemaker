@@ -34,3 +34,7 @@ For the Javascript port: Read the VANILLA_JS_PORT_SPEC.md porting document.
 ## Docs
 
 readthedocs content is for the *Python version only*
+
+## Javascript
+
+*NO NODE* allowed except for tests.
