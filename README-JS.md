@@ -1,6 +1,6 @@
 # Noisemaker JavaScript Port
 
-This document is for the experimental JS port of Noisemaker. See additional [porter's notes](VANILLA_JS_PORT_SPEC.md).
+This document is for the experimental JS port of Noisemaker. See additional [porter's notes](VANILLA_JS_PORT_SPEC.md). For a step-by-step introduction, read [QUICKSTART-JS.md](QUICKSTART-JS.md).
 
 ## Updating JavaScript test fixtures
  
