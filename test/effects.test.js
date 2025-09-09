@@ -393,17 +393,43 @@ const abData = new Float32Array([
   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.2, 0.4, 0.6,
 ]);
 const abTensor = Tensor.fromArray(null, abData, abShape);
-const disp = Math.round(abShape[1] * 0.25 * random());
+setSeed(123);
+const disp = Math.round(abShape[1] * 0.25 * simplexRandom(0, undefined, 1));
 const hueShift = random() * 0.1 - 0.05;
 const shifted = adjustHueValue(abTensor, hueShift).read();
 const manual = new Float32Array(abShape[0] * abShape[1] * 3);
-for (let x = 0; x < abShape[1]; x++) {
-  const base = x * 3;
-  const rIdx = Math.min(abShape[1] - 1, x + disp) * 3;
-  const bIdx = Math.max(0, x - disp) * 3;
-  manual[base] = shifted[rIdx];
-  manual[base + 1] = shifted[base + 1];
-  manual[base + 2] = shifted[bIdx + 2];
+const mask = new Float32Array(abShape[0] * abShape[1]);
+const cx = (abShape[1] - 1) / 2;
+const cy = (abShape[0] - 1) / 2;
+let max = 0;
+for (let y = 0; y < abShape[0]; y++) {
+  for (let x = 0; x < abShape[1]; x++) {
+    const dx = Math.abs(x - cx);
+    const dy = Math.abs(y - cy);
+    const d = Math.sqrt(dx * dx + dy * dy);
+    mask[y * abShape[1] + x] = d;
+    if (d > max) max = d;
+  }
+}
+for (let i = 0; i < mask.length; i++) mask[i] = Math.pow(mask[i] / max, 3);
+const lerp = (a, b, t) => a + (b - a) * t;
+for (let y = 0; y < abShape[0]; y++) {
+  for (let x = 0; x < abShape[1]; x++) {
+    const g = abShape[1] > 1 ? x / (abShape[1] - 1) : 0;
+    const m = mask[y * abShape[1] + x];
+    const base = (y * abShape[1] + x) * 3;
+    let rX = Math.min(abShape[1] - 1, x + disp);
+    rX = lerp(rX, x, g);
+    rX = lerp(x, rX, m);
+    rX = Math.round(rX);
+    let bX = Math.max(0, x - disp);
+    bX = lerp(x, bX, g);
+    bX = lerp(x, bX, m);
+    bX = Math.round(bX);
+    manual[base] = shifted[(y * abShape[1] + rX) * 3];
+    manual[base + 1] = shifted[base + 1];
+    manual[base + 2] = shifted[(y * abShape[1] + bX) * 3 + 2];
+  }
 }
 const expected = adjustHueValue(
   Tensor.fromArray(null, manual, abShape),

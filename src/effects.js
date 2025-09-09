@@ -1197,21 +1197,51 @@ register("vortex", vortex, { displacement: 64 });
 export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   const [h, w, c] = shape;
   if (c !== 3) return tensor;
-  const disp = Math.round(w * displacement * random());
+  const disp = Math.round(w * displacement * simplexRandom(time, undefined, speed));
   const hueShift = random() * 0.1 - 0.05;
   const shifted = adjustHue(tensor, hueShift);
   const src = shifted.read();
-  const out = new Float32Array(h * w * 3);
+
+  // radial mask to fade effect towards center
+  const mask = new Float32Array(h * w);
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  let max = 0;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const base = (y * w + x) * 3;
-      const rIdx = (y * w + Math.min(w - 1, x + disp)) * 3;
-      const bIdx = (y * w + Math.max(0, x - disp)) * 3;
-      out[base] = src[rIdx];
-      out[base + 1] = src[base + 1];
-      out[base + 2] = src[bIdx + 2];
+      const dx = Math.abs(x - cx);
+      const dy = Math.abs(y - cy);
+      const d = distance(dx, dy, DistanceMetric.euclidean);
+      mask[y * w + x] = d;
+      if (d > max) max = d;
     }
   }
+  for (let i = 0; i < mask.length; i++) mask[i] = Math.pow(mask[i] / (max || 1), 3);
+
+  const out = new Float32Array(h * w * 3);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const g = w > 1 ? x / (w - 1) : 0;
+      const m = mask[y * w + x];
+      const base = (y * w + x) * 3;
+
+      let rX = Math.min(w - 1, x + disp);
+      rX = lerp(rX, x, g);
+      rX = lerp(x, rX, m);
+      rX = Math.round(rX);
+
+      let bX = Math.max(0, x - disp);
+      bX = lerp(x, bX, g);
+      bX = lerp(x, bX, m);
+      bX = Math.round(bX);
+
+      out[base] = src[(y * w + rX) * 3];
+      out[base + 1] = src[base + 1];
+      out[base + 2] = src[(y * w + bX) * 3 + 2];
+    }
+  }
+
   const displaced = Tensor.fromArray(tensor.ctx, out, shape);
   return adjustHue(displaced, -hueShift);
 }
@@ -1959,12 +1989,21 @@ function centerMaskInternal(
   power = 2,
   distMetric = DistanceMetric.chebyshev,
 ) {
-  const [h, w] = shape;
-  const maskVal = Math.pow(0.5, 2 / power);
-  const maskData = new Float32Array(h * w);
-  maskData.fill(maskVal);
-  const mask = Tensor.fromArray(center.ctx, maskData, [h, w, 1]);
-  return blend(center, edges, mask);
+  const [h, w, c] = shape;
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const mask = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const d = Math.pow(Math.sqrt(dx * dx + dy * dy), power);
+      const m = Math.min(d, 1);
+      for (let k = 0; k < c; k++) mask[(y * w + x) * c + k] = m;
+    }
+  }
+  const maskT = Tensor.fromArray(center.ctx, mask, shape);
+  return blend(center, edges, maskT);
 }
 
 function voronoiColorRegions(tensor, shape, xPts, yPts) {
