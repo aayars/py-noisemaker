@@ -1,6 +1,6 @@
 import { Context } from './context.js';
-import { values, rgbToHsv, hsvToRgb, FULLSCREEN_VS } from './value.js';
-import { rgbToOklab, oklabToRgb } from './oklab.js';
+import { FULLSCREEN_VS } from './value.js';
+import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
 import { shapeFromParams } from './util.js';
 import { EFFECTS } from './effectsRegistry.js';
@@ -48,27 +48,24 @@ export class Preset {
       withAlpha = false,
     } = opts;
 
-    const colorSpace = this.settings.colorSpace || ColorSpace.rgb;
+    const g = this.generator || {};
+    const colorSpace = g.colorSpace || this.settings.colorSpace || ColorSpace.rgb;
     const shape = shapeFromParams(
       width,
       height,
       colorSpace === ColorSpace.grayscale ? 'grayscale' : 'rgb',
       withAlpha
     );
-    const g = this.generator || {};
     const freq = g.freq !== undefined ? g.freq : 1;
-    const tensorOpts = { ctx, seed, time, speed, ...g };
-    let tensor = values(freq, shape, tensorOpts);
-
-    if (colorSpace === ColorSpace.hsv) {
-      tensor = rgbToHsv(tensor);
-    } else if (colorSpace === ColorSpace.oklab) {
-      tensor = rgbToOklab(tensor);
-    }
-
-    for (const e of this.octave_effects) {
-      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, 0);
-    }
+    let tensor = multires(freq, shape, {
+      ...g,
+      colorSpace,
+      ctx,
+      seed,
+      time,
+      speed,
+      octaveEffects: this.octave_effects,
+    });
 
     let finalEffects = [];
     for (const e of this.post_effects) {
@@ -81,12 +78,6 @@ export class Preset {
 
     for (const e of finalEffects) {
       tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
-    }
-
-    if (colorSpace === ColorSpace.hsv) {
-      tensor = hsvToRgb(tensor);
-    } else if (colorSpace === ColorSpace.oklab) {
-      tensor = oklabToRgb(tensor);
     }
 
     // Present to canvas if available
@@ -187,24 +178,6 @@ export function render(presetName, seed = 0, opts = {}) {
       ? new Preset(presetName, presets, settings)
       : presetName;
   return preset.render(seed, opts);
-}
-
-function _applyOctaveEffectOrPreset(effectOrPreset, tensor, shape, time, speed, octave) {
-  if (typeof effectOrPreset === 'function') {
-    if (effectOrPreset.__params && 'displacement' in effectOrPreset.__params) {
-      const params = { ...effectOrPreset.__params };
-      params.displacement = params.displacement / 2 ** octave;
-      const effect = EFFECTS[effectOrPreset.__effectName];
-      const args = effectOrPreset.__paramNames.map((k) => params[k]);
-      return effect.func(tensor, shape, time, speed, ...args);
-    }
-    return effectOrPreset(tensor, shape, time, speed);
-  } else {
-    for (const e of effectOrPreset.octave_effects) {
-      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
-    }
-    return tensor;
-  }
 }
 
 function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {

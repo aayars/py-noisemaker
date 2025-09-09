@@ -6,7 +6,12 @@ import { random as simplexRandom } from './simplex.js';
 
 function applyOctaveEffect(effect, tensor, shape, time, speed, octave) {
   if (typeof effect === 'function') {
-    return effect({ tensor, shape, time, speed });
+    return effect(tensor, shape, time, speed);
+  } else if (effect && effect.octave_effects) {
+    for (const e of effect.octave_effects) {
+      tensor = applyOctaveEffect(e, tensor, shape, time, speed, octave);
+    }
+    return tensor;
   }
   return tensor;
 }
@@ -126,7 +131,7 @@ export function basic(freq, shape, opts = {}) {
     const hueRot =
       hueRotation === null || hueRotation === undefined
         ? originalColorSpace === ColorSpace.hsv
-          ? simplexRandom(time, undefined, speed)
+          ? simplexRandom(time, seed, speed)
           : 0
         : hueRotation;
     for (let i = 0; i < h * w; i++) {
