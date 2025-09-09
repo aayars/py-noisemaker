@@ -1,12 +1,53 @@
 import { spawnSync } from 'child_process';
+import { existsSync } from 'fs';
 
-const candidates = ['google-chrome', 'chromium-browser', 'chromium', 'chrome'];
-let chrome = null;
-for (const c of candidates) {
-  const which = spawnSync('which', [c]);
-  if (which.status === 0) {
-    chrome = c;
-    break;
+// Allow overriding the Chrome path via environment variables
+const envCandidates = [
+  process.env.CHROME,
+  process.env.CHROME_PATH,
+  process.env.CHROME_BIN
+];
+
+let chrome = envCandidates.find(p => p && existsSync(p)) || null;
+
+// Search common executable names in PATH
+if (!chrome) {
+  const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+  const candidates = [
+    'google-chrome',
+    'chromium-browser',
+    'chromium',
+    'chrome',
+    'google-chrome-stable'
+  ];
+  for (const c of candidates) {
+    const which = spawnSync(whichCmd, [c]);
+    if (which.status === 0) {
+      chrome = c;
+      break;
+    }
+  }
+}
+
+// macOS default install location
+if (!chrome && process.platform === 'darwin') {
+  const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  if (existsSync(macPath)) {
+    chrome = macPath;
+  }
+}
+
+// Windows default install locations
+if (!chrome && process.platform === 'win32') {
+  const winPaths = [
+    process.env['PROGRAMFILES'] && `${process.env['PROGRAMFILES']}\\Google\\Chrome\\Application\\chrome.exe`,
+    process.env['PROGRAMFILES(X86)'] && `${process.env['PROGRAMFILES(X86)']}\\Google\\Chrome\\Application\\chrome.exe`
+  ];
+  for (const p of winPaths) {
+    if (p && existsSync(p)) {
+      chrome = p;
+      break;
+    }
   }
 }
 
