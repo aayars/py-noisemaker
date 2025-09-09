@@ -453,7 +453,8 @@ export function warp(tensor, flow, amount = 1) {
 export function blend(a, b, t) {
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
-  if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number') {
+  const bc = b.shape[2];
+  if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number' && bc === c) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
@@ -475,7 +476,6 @@ export function blend(a, b, t) {
   const da = a.read();
   const db = b.read();
   const dt = typeof t === 'number' ? null : t.read();
-  const bc = b.shape[2];
   const tc = dt ? t.shape[2] : 0;
   const out = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {

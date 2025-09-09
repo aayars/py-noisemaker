@@ -69,6 +69,33 @@ for (let i = 0; i < 4; i++) {
 }
 arraysClose(blendedBroadcast.read(), expectedBroadcast);
 
+// GPU blend should handle channel mismatch by falling back to CPU
+let gpuCanvas = null;
+if (typeof document !== 'undefined' && document.createElement) {
+  gpuCanvas = document.createElement('canvas');
+} else if (typeof OffscreenCanvas !== 'undefined') {
+  gpuCanvas = new OffscreenCanvas(1, 1);
+}
+const gpuBlendCtx = new Context(gpuCanvas);
+if (!gpuBlendCtx.isCPU) {
+  const a3g = values(4, [2, 2, 3], { seed: 1, ctx: gpuBlendCtx });
+  const b1g = values(4, [2, 2, 1], { seed: 2, ctx: gpuBlendCtx });
+  const blendGPU = blend(a3g, b1g, 0.5);
+  const da = a3g.read();
+  const db = b1g.read();
+  const expected = new Float32Array(2 * 2 * 3);
+  for (let i = 0; i < 4; i++) {
+    const bVal = db[i];
+    for (let k = 0; k < 3; k++) {
+      const idx = i * 3 + k;
+      expected[idx] = da[idx] * 0.5 + bVal * 0.5;
+    }
+  }
+  arraysClose(blendGPU.read(), expected);
+} else {
+  console.log('Skipping GPU blend mismatch test');
+}
+
 // sobel edge detection
 const edgeData = new Float32Array([
   0, 0, 1, 1,
