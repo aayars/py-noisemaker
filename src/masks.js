@@ -1,6 +1,12 @@
 import { ValueMask } from './constants.js';
 import { Tensor } from './tensor.js';
 import { loadGlyphs } from './glyphs.js';
+import { simplex } from './simplex.js';
+import { random, randomInt } from './util.js';
+
+function uvRandom(uvNoise, uvX, uvY) {
+  return (uvNoise[uvY][uvX] + random()) % 1;
+}
 
 // Bitmap masks encoded as nested arrays or procedural functions
 export const Masks = {
@@ -536,6 +542,9 @@ export const Masks = {
   ],
 
   // Procedural masks computed on demand
+  [ValueMask.sparse]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.15 ? 1 : 0),
+  [ValueMask.sparser]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.05 ? 1 : 0),
+
   [ValueMask.truchet_lines]: ({ x, y, shape }) => {
     const tile = 2;
     const ox = Math.floor(x / tile);
@@ -556,7 +565,7 @@ export const Masks = {
       const rows = Array.from({ length: size }, () => Array(size).fill(0));
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < half; x++) {
-          const v = Math.random() > 0.5 ? 1 : 0;
+          const v = random() > 0.5 ? 1 : 0;
           rows[y][x] = v;
           rows[y][size - 1 - x] = v;
         }
@@ -570,6 +579,8 @@ export const Masks = {
 
 // Shapes for procedural masks
 const ProceduralShapes = {
+  [ValueMask.sparse]: [10, 10, 1],
+  [ValueMask.sparser]: [10, 10, 1],
   [ValueMask.truchet_lines]: [2, 2, 1],
   [ValueMask.invaders_square]: [8, 8, 1],
 };
@@ -600,11 +611,29 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
   const data = new Float32Array(h * w * c);
   const fn = Masks[mask];
 
+  let uvNoise = null;
+  let uvShape = null;
+  if (typeof fn === 'function') {
+    uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1];
+    const noiseTensor = simplex([...uvShape, 1], {
+      time,
+      seed: randomInt(1, 65536),
+      speed,
+    });
+    const noiseData = Array.from(noiseTensor.read());
+    uvNoise = [];
+    for (let yy = 0; yy < uvShape[0]; yy++) {
+      uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
+    }
+  }
+
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let pixel;
       if (typeof fn === 'function') {
-        pixel = fn({ x, y, shape });
+        const uvY = Math.floor((y / h) * uvShape[0]);
+        const uvX = Math.floor((x / w) * uvShape[1]);
+        pixel = fn({ x, y, shape, uvNoise, uvX, uvY, atlas, glyphShape });
       } else {
         pixel = fn[y % shape[0]][x % shape[1]];
       }

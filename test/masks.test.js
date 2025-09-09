@@ -2,6 +2,7 @@ import assert from 'assert';
 import { ValueMask } from '../src/constants.js';
 import { maskValues, maskShape } from '../src/masks.js';
 import { loadGlyphs, loadFonts } from '../src/glyphs.js';
+import { setSeed } from '../src/util.js';
 
 // Static bitmap mask
 let shape = maskShape(ValueMask.chess);
@@ -431,6 +432,27 @@ const vals = Array.from(tensor.read());
 assert.strictEqual(vals.length, 16);
 assert(vals.some(v => v === 1));
 assert(vals.some(v => v === 0));
+
+// Sparse masks deterministic with seed
+let sparseShape = maskShape(ValueMask.sparse);
+assert.deepStrictEqual(sparseShape, [10, 10, 1]);
+setSeed(123);
+let [t1] = maskValues(ValueMask.sparse, sparseShape);
+const d1 = Array.from(t1.read());
+setSeed(123);
+let [t2] = maskValues(ValueMask.sparse, sparseShape);
+const d2 = Array.from(t2.read());
+assert.deepStrictEqual(d1, d2);
+
+let sparserShape = maskShape(ValueMask.sparser);
+assert.deepStrictEqual(sparserShape, [10, 10, 1]);
+setSeed(321);
+[t1] = maskValues(ValueMask.sparser, sparserShape);
+const d3 = Array.from(t1.read());
+setSeed(321);
+[t2] = maskValues(ValueMask.sparser, sparserShape);
+const d4 = Array.from(t2.read());
+assert.deepStrictEqual(d3, d4);
 
 // Font loading cache
 const fonts1 = loadFonts();
