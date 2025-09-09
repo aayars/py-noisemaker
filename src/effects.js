@@ -16,6 +16,7 @@ import {
   FULLSCREEN_VS,
   refract,
   convolution,
+  fxaa,
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
@@ -1419,6 +1420,137 @@ register('valueRefract', valueRefract, {
   distrib: ValueDistribution.center_circle,
   displacement: 0.125,
 });
+
+export function refractEffect(
+  tensor,
+  shape,
+  time,
+  speed,
+  displacement = 0.5,
+  referenceX = null,
+  referenceY = null,
+  warpFreq = null,
+  splineOrder = InterpolationType.bicubic,
+  fromDerivative = false,
+  signedRange = true,
+  yFromOffset = false
+) {
+  const [h, w, c] = shape;
+  const valueShape = [h, w, 1];
+  let rx = referenceX;
+  let ry = referenceY;
+  if (fromDerivative) {
+    const kx = [
+      [-1, 0, 1],
+      [-2, 0, 2],
+      [-1, 0, 1],
+    ];
+    const ky = [
+      [-1, -2, -1],
+      [0, 0, 0],
+      [1, 2, 1],
+    ];
+    let gray = tensor;
+    if (c > 1) {
+      const src = tensor.read();
+      const out = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        out[i] = r * 0.299 + g * 0.587 + b * 0.114;
+      }
+      gray = Tensor.fromArray(tensor.ctx, out, valueShape);
+    }
+    rx = convolution(gray, kx, { normalize: true });
+    ry = convolution(gray, ky, { normalize: true });
+  } else if (warpFreq !== null && warpFreq !== undefined) {
+    rx = values(warpFreq, valueShape, {
+      ctx: tensor.ctx,
+      distrib: ValueDistribution.uniform,
+      time,
+      speed,
+      splineOrder,
+    });
+    ry = values(warpFreq, valueShape, {
+      ctx: tensor.ctx,
+      distrib: ValueDistribution.uniform,
+      time,
+      speed,
+      splineOrder,
+    });
+  } else {
+    if (!rx) rx = tensor;
+    if (!ry) {
+      if (yFromOffset) {
+        ry = offsetTensor(rx, Math.floor(w * 0.5), Math.floor(h * 0.5));
+      } else {
+        const rData = rx.read();
+        const cx = new Float32Array(rData.length);
+        const cy = new Float32Array(rData.length);
+        for (let i = 0; i < rData.length; i++) {
+          const ang = rData[i] * TAU;
+          cx[i] = Math.cos(ang);
+          cy[i] = Math.sin(ang);
+        }
+        rx = Tensor.fromArray(tensor.ctx, cx, valueShape);
+        ry = Tensor.fromArray(tensor.ctx, cy, valueShape);
+      }
+    }
+  }
+  const src = tensor.read();
+  const rxData = rx.read();
+  const ryData = ry.read();
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      let vx = rxData[idx];
+      let vy = ryData[idx];
+      if (signedRange && !fromDerivative) {
+        vx = vx * 2 - 1;
+        vy = vy * 2 - 1;
+      } else {
+        vx *= 2;
+        vy *= 2;
+      }
+      const xOff = x + vx * displacement * w;
+      const yOff = y + vy * displacement * h;
+      const x0 = Math.floor(xOff);
+      const y0 = Math.floor(yOff);
+      const x1 = x0 + 1;
+      const y1 = y0 + 1;
+      const fx = xOff - x0;
+      const fy = yOff - y0;
+      for (let k = 0; k < c; k++) {
+        const s00 = src[((((y0 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
+        const s10 = src[((((y0 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
+        const s01 = src[((((y1 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
+        const s11 = src[((((y1 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
+        const x_y0 = s00 * (1 - fx) + s10 * fx;
+        const x_y1 = s01 * (1 - fx) + s11 * fx;
+        out[(y * w + x) * c + k] = x_y0 * (1 - fy) + x_y1 * fy;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+register('refractEffect', refractEffect, {
+  displacement: 0.5,
+  referenceX: null,
+  referenceY: null,
+  warpFreq: null,
+  splineOrder: InterpolationType.bicubic,
+  fromDerivative: false,
+  signedRange: true,
+  yFromOffset: false,
+});
+
+export function fxaaEffect(tensor, shape, time, speed) {
+  return fxaa(tensor);
+}
+register('fxaaEffect', fxaaEffect, {});
 
 function randomNormal(mean = 0, std = 1) {
   const u1 = random() || 1e-9;

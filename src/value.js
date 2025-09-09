@@ -738,9 +738,15 @@ export function fxaa(tensor) {
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
   const lumWeights = [0.299, 0.587, 0.114];
+  function reflect(i, n) {
+    if (n === 1) return 0;
+    const m = (2 * n - 2);
+    i = ((i % m) + m) % m;
+    return i < n ? i : m - i;
+  }
   function idx(x, y, k) {
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
+    x = reflect(x, w);
+    y = reflect(y, h);
     return (y * w + x) * c + k;
   }
   for (let y = 0; y < h; y++) {

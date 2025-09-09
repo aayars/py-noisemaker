@@ -66,6 +66,8 @@ import {
   falseColor,
   tint,
   valueRefract,
+  refractEffect,
+  fxaaEffect,
   smoothstep,
   convolve,
   glowingEdges,
@@ -834,5 +836,48 @@ const cvOut = convolve(cvTensor, [2, 2, 1], 0, 1, ValueMask.conv2d_blur, true, 1
 const cvExpected = loadFixture('convolve.json');
 arraysClose(Array.from(cvOut), cvExpected);
 
+// refractEffect regression
+const rfTensor = Tensor.fromArray(
+  null,
+  new Float32Array([
+    0.0, 0.1, 0.2, 0.3,
+    0.4, 0.5, 0.6, 0.7,
+    0.8, 0.9, 1.0, 0.1,
+    0.2, 0.3, 0.4, 0.5,
+  ]),
+  [4, 4, 1]
+);
+const rfRef = Tensor.fromArray(
+  null,
+  new Float32Array([
+    0, 0, 1, 1,
+    0, 0, 1, 1,
+    0, 0, 1, 1,
+    0, 0, 1, 1,
+  ]),
+  [4, 4, 1]
+);
+const rfOut = refractEffect(rfTensor, [4, 4, 1], 0, 1, 0.5, rfRef, rfRef).read();
+const rfExpected = loadFixture('refractEffect.json');
+arraysClose(Array.from(rfOut), rfExpected);
+
+// fxaaEffect regression
+const fxData = new Float32Array([
+  0.1, 0.1, 0.1,
+  0.2, 0.2, 0.2,
+  0.3, 0.3, 0.3,
+
+  0.4, 0.4, 0.4,
+  0.5, 0.5, 0.5,
+  0.6, 0.6, 0.6,
+
+  0.7, 0.7, 0.7,
+  0.8, 0.8, 0.8,
+  0.9, 0.9, 0.9,
+]);
+const fxTensor = Tensor.fromArray(null, fxData, [3, 3, 3]);
+const fxOut = fxaaEffect(fxTensor, [3, 3, 3], 0, 1).read();
+const fxExpected = loadFixture('fxaaEffect.json');
+arraysClose(Array.from(fxOut), fxExpected);
 
 console.log('Effects tests passed');

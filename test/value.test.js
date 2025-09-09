@@ -132,7 +132,20 @@ const fxaaInput = Tensor.fromArray(null, new Float32Array([
   0, 0, 0,
 ]), [3, 3, 1]);
 const fxaaOut = fxaa(fxaaInput);
-arraysClose(fxaaOut.read(), new Float32Array([0, 0.08422381, 0, 0.08422381, 0.40460968, 0.08422381, 0, 0.08422381, 0]));
+arraysClose(
+  fxaaOut.read(),
+  new Float32Array([
+    0,
+    0.19695032,
+    0,
+    0.19695032,
+    0.40460968,
+    0.19695032,
+    0,
+    0.19695032,
+    0,
+  ])
+);
 
 // gaussian blur
 const gbData = new Float32Array(25);
