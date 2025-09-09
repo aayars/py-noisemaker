@@ -25,6 +25,7 @@ import { maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
 import { random, randomInt } from "./util.js";
 import { pointCloud } from "./points.js";
+import { rgbToOklab } from "./oklab.js";
 import {
   InterpolationType,
   DistanceMetric,
@@ -1021,28 +1022,64 @@ register("fbm", fbm, { freq: 4, octaves: 4, lacunarity: 2, gain: 0.5 });
 
 const TAU = Math.PI * 2;
 
-export function palette(tensor, shape, time, speed, name = null) {
+export function palette(tensor, shape, time, speed, name = null, alpha = 1) {
   if (!name) return tensor;
+  const [h, w, c] = shape;
+  if (c === 1 || c === 2) return tensor;
+
   const p = PALETTES[name];
   if (!p) return tensor;
-  const [h, w] = shape;
-  const src = tensor.read();
+
+  let alphaChan = null;
+  let rgbTensor = tensor;
+  if (c === 4) {
+    const src = tensor.read();
+    const rgbData = new Float32Array(h * w * 3);
+    alphaChan = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * 4;
+      rgbData[i * 3] = src[base];
+      rgbData[i * 3 + 1] = src[base + 1];
+      rgbData[i * 3 + 2] = src[base + 2];
+      alphaChan[i] = src[base + 3];
+    }
+    rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+  }
+
+  const norm = clamp01(rgbTensor);
+  const lab = rgbToOklab(norm).read();
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
-    const t = src[i];
+    const t = lab[i * 3];
     out[i * 3] =
       p.offset[0] +
-      p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0]));
+      p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0] + time));
     out[i * 3 + 1] =
       p.offset[1] +
-      p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1]));
+      p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1] + time));
     out[i * 3 + 2] =
       p.offset[2] +
-      p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2]));
+      p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2] + time));
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  const colored = Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  const tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
+  let blended = blend(norm, colored, tBlend);
+
+  if (alphaChan) {
+    const blendedData = blended.read();
+    const final = new Float32Array(h * w * 4);
+    for (let i = 0; i < h * w; i++) {
+      final[i * 4] = blendedData[i * 3];
+      final[i * 4 + 1] = blendedData[i * 3 + 1];
+      final[i * 4 + 2] = blendedData[i * 3 + 2];
+      final[i * 4 + 3] = alphaChan[i];
+    }
+    blended = Tensor.fromArray(tensor.ctx, final, [h, w, 4]);
+  }
+
+  return blended;
 }
-register("palette", palette, { name: null });
+register("palette", palette, { name: null, alpha: 1 });
 
 export function invert(tensor, shape, time, speed) {
   const src = tensor.read();

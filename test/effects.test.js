@@ -359,9 +359,14 @@ const posterExpected = loadFixture("posterize.json");
 arraysClose(Array.from(jsPoster), posterExpected);
 
 // palette regression
-const palData = new Float32Array([0.0, 0.5, 1.0, 0.25]);
-const palTensor = Tensor.fromArray(null, palData, [2, 2, 1]);
-const jsPal = palette(palTensor, [2, 2, 1], 0, 1, "grayscale").read();
+const palData = new Float32Array([
+  0.0, 0.0, 0.0,
+  0.5, 0.5, 0.5,
+  1.0, 1.0, 1.0,
+  0.25, 0.25, 0.25,
+]);
+const palTensor = Tensor.fromArray(null, palData, [2, 2, 3]);
+const jsPal = palette(palTensor, [2, 2, 3], 0, 1, "grayscale").read();
 const palExpected = loadFixture("palette.json");
 arraysClose(Array.from(jsPal), palExpected);
 
