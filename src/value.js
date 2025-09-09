@@ -416,9 +416,15 @@ export function warp(tensor, flow, amount = 1) {
   function sample(x, y, k) {
     x = Math.max(0, Math.min(w - 1, x));
     y = Math.max(0, Math.min(h - 1, y));
-    const ix = Math.floor(x);
-    const iy = Math.floor(y);
-    return src[(iy * w + ix) * c + k];
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = Math.min(w - 1, x0 + 1);
+    const y1 = Math.min(h - 1, y0 + 1);
+    const xFract = x - x0;
+    const yFract = y - y0;
+    const top = src[(y0 * w + x0) * c + k] * (1 - xFract) + src[(y0 * w + x1) * c + k] * xFract;
+    const bottom = src[(y1 * w + x0) * c + k] * (1 - xFract) + src[(y1 * w + x1) * c + k] * xFract;
+    return top * (1 - yFract) + bottom * yFract;
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {

@@ -140,6 +140,21 @@ const src = values(1, [2,2,1], { distrib: ValueDistribution.row_index });
 const warped = warp(src, flow, 1);
 arraysClose(src.read(), warped.read());
 
+// warp with fractional flow (bilinear interpolation)
+const flowFrac = Tensor.fromArray(
+  null,
+  new Float32Array([
+    0.5, 0,
+    0.5, 0,
+    0.5, 0,
+    0.5, 0,
+  ]),
+  [2, 2, 2]
+);
+const srcFrac = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3]), [2, 2, 1]);
+const warpedFrac = warp(srcFrac, flowFrac, 1);
+arraysClose(warpedFrac.read(), new Float32Array([0.5, 1, 2.5, 3]));
+
 // ridge
 const ridgeInput = Tensor.fromArray(null, new Float32Array([0, 0.5, 1]), [3, 1, 1]);
 arraysClose(ridge(ridgeInput).read(), new Float32Array([0, 1, 0]));
