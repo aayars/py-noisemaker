@@ -16,6 +16,97 @@ function randomNormal(mean = 0, std = 1) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std + mean;
 }
 
+const ARECIBO_DNA_TEMPLATE = [
+  [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1],
+  [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0],
+  [0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 1, 0, 0],
+  [0, 0, 0, 0, 1, 1, 0, 0, -1, 0, 0, 0, 1, 1, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 1, 1, 0, 0, 0, -1, 0, 0, 1, 1, 0, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 1, 0, 0],
+  [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0],
+  [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1],
+];
+
+function areciboNum({ x, y, shape, uvNoise, uvX, uvY }) {
+  const texX = x % shape[1];
+  const texY = y % shape[0];
+  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0;
+  if (texY === shape[0] - 2) return texX === 1 ? 1 : 0;
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+}
+
+function areciboNucleotide({ x, y, shape, uvNoise, uvX, uvY }) {
+  const texX = x % shape[1];
+  const texY = y % shape[0];
+  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0;
+  if (texY === shape[0] - 2) return 1;
+  if (texY < shape[0] - 3 && texX > shape[1] - 2) return 0;
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+}
+
+function areciboDna({ x, y, shape, uvNoise, uvX, uvY }) {
+  const texX = x % shape[1];
+  const texY = y % shape[0];
+  const value = ARECIBO_DNA_TEMPLATE[texY][texX];
+  return value === -1 ? (uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0) : value;
+}
+
+function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
+  const thirdHeight = glyphShape[0] / 3;
+  const halfWidth = glyphShape[1] / 2;
+  const dnaHalfWidth = maskShape(ValueMask.arecibo_dna)[1] * 0.5;
+
+  if (x > halfWidth - dnaHalfWidth && x < halfWidth + dnaHalfWidth) {
+    const dnaX = Math.floor(x - halfWidth - dnaHalfWidth);
+    return areciboDna({
+      x: dnaX,
+      y,
+      shape: maskShape(ValueMask.arecibo_dna),
+      uvNoise,
+      uvX,
+      uvY,
+    });
+  }
+
+  if (x > halfWidth - (dnaHalfWidth + 2) && x < halfWidth + dnaHalfWidth + 1) {
+    return 0;
+  }
+
+  if (y < thirdHeight) {
+    return areciboNum({
+      x,
+      y,
+      shape: maskShape(ValueMask.arecibo_num),
+      uvNoise,
+      uvX,
+      uvY,
+    });
+  }
+
+  if (y < thirdHeight * 2) {
+    return areciboNucleotide({
+      x,
+      y,
+      shape: maskShape(ValueMask.arecibo_nucleotide),
+      uvNoise,
+      uvX,
+      uvY,
+    });
+  }
+
+  return areciboNum({
+    x,
+    y,
+    shape: maskShape(ValueMask.arecibo_bignum),
+    uvNoise,
+    uvX,
+    uvY,
+  });
+}
+
 // Bitmap masks encoded as nested arrays or procedural functions
 export const Masks = {
   // Static bitmaps
@@ -917,6 +1008,11 @@ export const Masks = {
   ],
 
   // Procedural masks computed on demand
+  [ValueMask.arecibo_num]: areciboNum,
+  [ValueMask.arecibo_bignum]: areciboNum,
+  [ValueMask.arecibo_nucleotide]: areciboNucleotide,
+  [ValueMask.arecibo_dna]: areciboDna,
+  [ValueMask.arecibo]: arecibo,
   [ValueMask.sparse]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.15 ? 1 : 0),
   [ValueMask.sparser]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.05 ? 1 : 0),
 
@@ -954,6 +1050,11 @@ export const Masks = {
 
 // Shapes for procedural masks
 const ProceduralShapes = {
+  [ValueMask.arecibo_num]: [6, 3, 1],
+  [ValueMask.arecibo_bignum]: [6, 5, 1],
+  [ValueMask.arecibo_nucleotide]: [6, 6, 1],
+  [ValueMask.arecibo_dna]: [11, 17, 1],
+  [ValueMask.arecibo]: [64, 64, 1],
   [ValueMask.sparse]: [10, 10, 1],
   [ValueMask.sparser]: [10, 10, 1],
   [ValueMask.truchet_lines]: [2, 2, 1],
