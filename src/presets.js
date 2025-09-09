@@ -1794,6 +1794,179 @@ export function PRESETS() {
       }),
     },
 
+    'i-made-an-art': {
+      layers: ['basic', 'outline', 'distressed', 'contrast-final', 'saturation'],
+      settings: () => ({
+        spline_order: interp.constant,
+        lattice_drift: randomInt(5, 10),
+        hue_range: random() * 4,
+        hue_rotation: random(),
+      }),
+    },
+
+    inkling: {
+      layers: [
+        'voronoi',
+        'refract-post',
+        'funhouse',
+        'grayscale',
+        'density-map',
+        'contrast-post',
+        'maybe-invert',
+        'fibers',
+        'grime',
+        'scratches',
+      ],
+      settings: () => ({
+        distrib: distrib.ones,
+        dist_metric: distance.euclidean,
+        contrast_post: 2.5,
+        freq: randomInt(2, 4),
+        lattice_drift: 1.0,
+        mask: mask.dropout,
+        mask_static: true,
+        refract_range: 0.25 + random() * 0.125,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_freq: randomInt(3, 5),
+        voronoi_refract: 0.25 + random() * 0.125,
+        warp_range: 0.125 + random() * 0.0625,
+      }),
+    },
+
+    invert: {
+      post: () => [Effect('convolve', { kernel: mask.conv2d_invert })],
+    },
+
+    'is-this-anything': {
+      layers: ['soup'],
+      settings: () => ({
+        refract_range: 2.5 + random() * 1.25,
+        voronoi_point_freq: 1,
+      }),
+    },
+
+    'its-the-fuzz': {
+      layers: ['multires-low', 'muppet-fur'],
+      settings: () => ({
+        worms_behavior: worms.unruly,
+        worms_drunkenness: 0.5 + random() * 0.25,
+        worms_duration: 2.0 + random(),
+      }),
+    },
+
+    jorts: {
+      layers: [
+        'glyph-map',
+        'funhouse',
+        'skew',
+        'shadow',
+        'brightness-post',
+        'contrast-post',
+        'vignette-dark',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        angle: 0,
+        freq: [128, 512],
+        glyph_map_alpha: 0.5 + random() * 0.25,
+        glyph_map_colorize: true,
+        glyph_map_mask: mask.v_bar,
+        glyph_map_spline_order: interp.linear,
+        glyph_map_zoom: 4.0,
+        hue_rotation: 0.5 + random() * 0.05,
+        hue_range: 0.0625 + random() * 0.0625,
+        palette_on: false,
+        warp_freq: [randomInt(2, 3), randomInt(2, 3)],
+        warp_range: 0.0075 + random() * 0.00625,
+        warp_octaves: 1,
+      }),
+    },
+
+    'jovian-clouds': {
+      layers: [
+        'voronoi',
+        'worms',
+        'brightness-post',
+        'contrast-post',
+        'shadow',
+        'tint',
+        'grain',
+        'saturation',
+        'lens',
+      ],
+      settings: () => ({
+        contrast_post: 2.0,
+        dist_metric: distance.euclidean,
+        freq: [randomInt(4, 7), randomInt(1, 3)],
+        hue_range: 0.333 + random() * 0.16667,
+        hue_rotation: 0.5,
+        voronoi_alpha: 0.175 + random() * 0.25,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_distrib: point.random,
+        voronoi_point_freq: randomInt(8, 10),
+        voronoi_refract: 5.0 + random() * 3.0,
+        worms_behavior: worms.chaotic,
+        worms_alpha: 0.175 + random() * 0.25,
+        worms_density: 500,
+        worms_duration: 2.0,
+        worms_kink: 192,
+        worms_stride: 1.0,
+        worms_stride_deviation: 0.0625,
+      }),
+    },
+
+    'just-refracts-maam': {
+      layers: ['basic', 'refract-octaves', 'refract-post', 'shadow', 'lens'],
+      settings: () => ({
+        corners: true,
+        refract_range: 0.5 + random() * 0.5,
+        ridges: coinFlip(),
+      }),
+    },
+
+    kaleido: {
+      layers: ['voronoi-refract', 'wobble'],
+      settings: () => ({
+        colorSpace: color.hsv,
+        freq: randomInt(8, 12),
+        hue_range: 0.5 + random() * 2.5,
+        kaleido_point_corners: true,
+        kaleido_point_distrib: point.random,
+        kaleido_point_freq: 1,
+        kaleido_sdf_sides: randomInt(0, 10),
+        kaleido_sides: randomInt(3, 16),
+        kaleido_blend_edges: false,
+        palette_on: false,
+        speed: 0.125,
+        voronoi_point_freq: randomInt(8, 12),
+      }),
+      post: (settings) => [
+        Effect('kaleido', {
+          blend_edges: settings.kaleido_blend_edges,
+          point_corners: settings.kaleido_point_corners,
+          point_distrib: settings.kaleido_point_distrib,
+          point_freq: settings.kaleido_point_freq,
+          sdf_sides: settings.kaleido_sdf_sides,
+          sides: settings.kaleido_sides,
+        }),
+      ],
+    },
+
+    'knotty-clouds': {
+      layers: ['basic', 'voronoi', 'worms'],
+      settings: () => ({
+        voronoi_alpha: 0.125 + random() * 0.25,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_point_freq: randomInt(6, 10),
+        worms_alpha: 0.666 + random() * 0.333,
+        worms_behavior: worms.obedient,
+        worms_density: 1000,
+        worms_duration: 1,
+        worms_kink: 4,
+      }),
+    },
+
     'vignette-bright': {
       settings: () => ({
         vignette_bright_alpha: 0.333 + random() * 0.333,
