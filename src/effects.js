@@ -2344,8 +2344,8 @@ register("erosion_worms", erosionWorms, {
 export function worms(
   tensor,
   shape,
-  time,
-  speed,
+  time = 0,
+  speed = 1,
   behavior = 1,
   density = 4.0,
   duration = 4.0,
@@ -2409,20 +2409,38 @@ export function worms(
     return rot;
   }
   const wormsRot = makeRots(behavior, count);
-  const valuesArr = new Float32Array(h * w);
-  const tensorData = tensor.read();
-  for (let i = 0; i < h * w; i++) {
-    if (c === 1) valuesArr[i] = tensorData[i];
-    else {
-      const base = i * c;
-      const r = tensorData[base];
-      const g = tensorData[base + 1] || 0;
-      const b = tensorData[base + 2] || 0;
-      valuesArr[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  let valueData;
+  if (c === 1) {
+    valueData = tensor.read();
+  } else if (c === 2) {
+    const srcVals = tensor.read();
+    valueData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) valueData[i] = srcVals[i * 2];
+  } else {
+    let rgbTensor;
+    const clamped = clamp01(tensor);
+    if (c === 3) {
+      rgbTensor = clamped;
+    } else {
+      const srcVals = clamped.read();
+      const rgbVals = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        rgbVals[i * 3] = srcVals[base];
+        rgbVals[i * 3 + 1] = srcVals[base + 1];
+        rgbVals[i * 3 + 2] = srcVals[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgbVals, [h, w, 3]);
     }
+    const lab = rgbToOklab(rgbTensor);
+    const labData = lab.read();
+    valueData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) valueData[i] = labData[i * 3];
   }
+
   const indexArr = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) indexArr[i] = valuesArr[i] * TAU * kink;
+  for (let i = 0; i < h * w; i++) indexArr[i] = valueData[i] * TAU * kink;
   const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration);
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
