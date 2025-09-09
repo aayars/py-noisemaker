@@ -46,6 +46,9 @@ import {
   simpleFrame,
   frame,
   glitch,
+  lensWarp,
+  lensDistortion,
+  degauss,
   vhs,
   scanlineError,
   crt,
@@ -59,6 +62,7 @@ import {
   sobel,
   normalize,
   refract,
+  distance,
 } from '../src/value.js';
 import { setSeed, random } from '../src/util.js';
 import { random as simplexRandom } from '../src/simplex.js';
@@ -612,5 +616,59 @@ setSeed(1);
 const crtOut = crt(crtTensor, [2,2,3], 0.25, 1).read();
 const crtExpected = loadFixture('crt.json');
 arraysClose(Array.from(crtOut), crtExpected);
+
+// lensWarp extreme displacement
+setSeed(1);
+const lwOut = lensWarp(edgeTensor, [4,4,1], 0, 1, 5).read();
+for (const v of lwOut) {
+  assert.ok(Number.isFinite(v));
+  assert.ok(v >= 0 && v <= 1);
+}
+
+// lensDistortion negative displacement regression
+const ldDisp = -2;
+const ldRes = lensDistortion(edgeTensor, [4,4,1], 0, 1, ldDisp).read();
+const ldManual = (() => {
+  const h = 4, w = 4;
+  const out = new Float32Array(h * w);
+  const maxDist = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5);
+  const zoom = ldDisp < 0 ? ldDisp * -0.25 : 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const xIndex = x / w;
+      const yIndex = y / h;
+      const xDist = xIndex - 0.5;
+      const yDist = yIndex - 0.5;
+      const centerDist = 1 - distance(xDist, yDist) / maxDist;
+      const xOff = ((xIndex - xDist * zoom) - xDist * centerDist * centerDist * ldDisp) * w;
+      const yOff = ((yIndex - yDist * zoom) - yDist * centerDist * centerDist * ldDisp) * h;
+      const xi = ((Math.floor(xOff) % w) + w) % w;
+      const yi = ((Math.floor(yOff) % h) + h) % h;
+      out[y * w + x] = edgeData[yi * w + xi];
+    }
+  }
+  return out;
+})();
+arraysClose(Array.from(ldRes), Array.from(ldManual));
+
+// degauss per-channel lensWarp consistency
+setSeed(2);
+const dgTensor = Tensor.fromArray(null, glData, [2,2,3]);
+const dgOut = degauss(dgTensor, [2,2,3], 0, 1, 1).read();
+setSeed(2);
+const channelShape = [2,2,1];
+const rChan = Tensor.fromArray(null, new Float32Array([0.1, 0.4, 0.7, 0.1]), channelShape);
+const gChan = Tensor.fromArray(null, new Float32Array([0.2, 0.5, 0.8, 0.2]), channelShape);
+const bChan = Tensor.fromArray(null, new Float32Array([0.3, 0.6, 0.9, 0.3]), channelShape);
+const rWarp = lensWarp(rChan, channelShape, 0, 1, 1).read();
+const gWarp = lensWarp(gChan, channelShape, 0, 1, 1).read();
+const bWarp = lensWarp(bChan, channelShape, 0, 1, 1).read();
+const dgManual = new Float32Array(2 * 2 * 3);
+for (let i = 0; i < 4; i++) {
+  dgManual[i * 3] = rWarp[i];
+  dgManual[i * 3 + 1] = gWarp[i];
+  dgManual[i * 3 + 2] = bWarp[i];
+}
+arraysClose(Array.from(dgOut), Array.from(dgManual));
 
 console.log('Effects tests passed');

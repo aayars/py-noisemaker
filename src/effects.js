@@ -815,6 +815,71 @@ export function vhs(tensor, shape, time, speed) {
 }
 register('vhs', vhs, {});
 
+export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
+  const valueShape = [shape[0], shape[1], 1];
+  const mask = singularity(null, valueShape, time, speed).read();
+  for (let i = 0; i < mask.length; i++) mask[i] = mask[i] ** 5;
+  const noise = values(2, valueShape, {
+    ctx: tensor.ctx,
+    time,
+    speed,
+    splineOrder: 2,
+  }).read();
+  for (let i = 0; i < noise.length; i++) {
+    noise[i] = (noise[i] * 2 - 1) * mask[i];
+  }
+  const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
+  return refract(tensor, distortion, null, displacement);
+}
+register('lens_warp', lensWarp, { displacement: 0.0625 });
+
+export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const maxDist = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5) || 1;
+  const zoom = displacement < 0 ? displacement * -0.25 : 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const xIndex = x / w;
+      const yIndex = y / h;
+      const xDist = xIndex - 0.5;
+      const yDist = yIndex - 0.5;
+      const centerDist = 1 - distance(xDist, yDist) / maxDist;
+      const xOff =
+        ((xIndex - xDist * zoom) - xDist * centerDist * centerDist * displacement) * w;
+      const yOff =
+        ((yIndex - yDist * zoom) - yDist * centerDist * centerDist * displacement) * h;
+      const xi = ((Math.floor(xOff) % w) + w) % w;
+      const yi = ((Math.floor(yOff) % h) + h) % h;
+      const srcIdx = (yi * w + xi) * c;
+      const dstIdx = (y * w + x) * c;
+      for (let k = 0; k < c; k++) {
+        out[dstIdx + k] = src[srcIdx + k] || 0;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('lens_distortion', lensDistortion, { displacement: 1 });
+
+export function degauss(tensor, shape, time, speed, displacement = 0.0625) {
+  const [h, w, c] = shape;
+  const channelShape = [h, w, 1];
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const channels = Math.min(3, c);
+  for (let k = 0; k < channels; k++) {
+    const channelData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) channelData[i] = src[i * c + k] || 0;
+    const channelTensor = Tensor.fromArray(tensor.ctx, channelData, channelShape);
+    const warped = lensWarp(channelTensor, channelShape, time, speed, displacement).read();
+    for (let i = 0; i < h * w; i++) out[i * c + k] = warped[i];
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('degauss', degauss, { displacement: 0.0625 });
+
 export function scanlineError(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const errorFreq = Math.floor(h * 0.5) || 1;
