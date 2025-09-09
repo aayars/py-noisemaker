@@ -14,6 +14,7 @@ import {
   distanceMetricAll,
   valueMaskProceduralMembers,
   valueMaskGridMembers,
+  valueMaskGlyphMembers,
 } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
@@ -1366,6 +1367,229 @@ export function PRESETS() {
         distrib: randomMember([distrib.exp, distrib.uniform]),
         erosion_worms_contraction: 0.2 + random() * 0.1,
         erosion_worms_iterations: randomInt(625, 1125),
+      }),
+    },
+
+    'falsetto': {
+      final: () => [Effect('falseColor')],
+    },
+
+    fargate: {
+      layers: ['serene', 'contrast-post', 'crt', 'saturation'],
+      settings: () => ({
+        brightness_distrib: distrib.uniform,
+        freq: 3,
+        octaves: 3,
+        refract_range: 0.015 + random() * 0.0075,
+        saturation_distrib: distrib.uniform,
+        speed: -0.25,
+        value_distrib: distrib.center_circle,
+        value_freq: 3,
+        value_refract_range: 0.015 + random() * 0.0075,
+      }),
+    },
+
+    'fast-eddies': {
+      layers: ['basic', 'voronoi', 'worms', 'contrast-final', 'saturation'],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        hue_range: 0.25 + random() * 0.75,
+        hue_rotation: random(),
+        octaves: randomInt(1, 3),
+        palette_on: false,
+        ridges: coinFlip(),
+        voronoi_alpha: 0.5 + random() * 0.5,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_freq: randomInt(2, 6),
+        voronoi_refract: 1.0,
+        worms_alpha: 0.5 + random() * 0.5,
+        worms_behavior: worms.chaotic,
+        worms_density: 1000,
+        worms_duration: 6,
+        worms_kink: randomInt(125, 375),
+        worms_stride: 1.0,
+        worms_stride_deviation: 0.0,
+      }),
+    },
+
+    fibers: {
+      final: () => [Effect('fibers')],
+    },
+
+    figments: {
+      layers: [
+        'multires-low',
+        'voronoi',
+        'funhouse',
+        'wormhole',
+        'bloom',
+        'contrast-final',
+        'lens',
+      ],
+      settings: () => ({
+        freq: 2,
+        hue_range: 2,
+        lattice_drift: 1,
+        speed: 0.025,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_refract: 0.333 + random() * 0.333,
+        wormhole_stride: 0.02 + random() * 0.01,
+        wormhole_kink: 4,
+      }),
+    },
+
+    filthy: {
+      layers: ['grime', 'scratches', 'stray-hair'],
+    },
+
+    fireball: {
+      layers: [
+        'basic',
+        'periodic-refract',
+        'refract-post',
+        'refract-post',
+        'bloom',
+        'lens',
+        'contrast-final',
+      ],
+      settings: () => ({
+        contrast_final: 2.5,
+        distrib: distrib.center_circle,
+        hue_rotation: 0.925,
+        freq: 1,
+        refract_range: 0.025 + random() * 0.0125,
+        refract_y_from_offset: false,
+        value_distrib: distrib.center_circle,
+        value_freq: 1,
+        value_refract_range: 0.05 + random() * 0.025,
+        speed: 0.05,
+      }),
+    },
+
+    'financial-district': {
+      layers: ['voronoi', 'bloom', 'contrast-final', 'saturation'],
+      settings: () => ({
+        dist_metric: distance.manhattan,
+        voronoi_diagram_type: voronoi.range_regions,
+        voronoi_point_distrib: point.random,
+        voronoi_nth: randomInt(1, 3),
+        voronoi_point_freq: 2,
+      }),
+    },
+
+    'fossil-hunt': {
+      layers: ['voronoi', 'refract-octaves', 'posterize-outline', 'grain', 'saturation'],
+      settings: () => ({
+        freq: randomInt(3, 5),
+        lattice_drift: 1.0,
+        posterize_levels: randomInt(3, 5),
+        refract_range: randomInt(2, 4) * 0.5,
+        refract_y_from_offset: true,
+        voronoi_alpha: 0.5,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_point_freq: 10,
+      }),
+    },
+
+    'fractal-forms': {
+      layers: ['fractal-seed'],
+      settings: () => ({
+        worms_kink: randomInt(256, 512),
+      }),
+    },
+
+    'fractal-seed': {
+      layers: [
+        'multires-low',
+        'worms',
+        'density-map',
+        'random-hue',
+        'bloom',
+        'shadow',
+        'contrast-final',
+        'saturation',
+        'aberration',
+      ],
+      settings: () => ({
+        freq: randomInt(2, 3),
+        hue_range: 1.0 + random() * 3.0,
+        ridges: coinFlip(),
+        speed: 0.05,
+        palette_on: false,
+        worms_behavior: randomMember([worms.chaotic, worms.random]),
+        worms_alpha: 0.9 + random() * 0.1,
+        worms_density: randomInt(750, 1250),
+        worms_duration: randomInt(2, 3),
+        worms_kink: 1.0,
+        worms_stride: 1.0,
+        worms_stride_deviation: 0.0,
+      }),
+    },
+
+    'fractal-smoke': {
+      layers: ['fractal-seed'],
+      settings: () => ({
+        worms_behavior: worms.random,
+        worms_stride: randomInt(96, 192),
+      }),
+    },
+
+    fractile: {
+      layers: ['symmetry', 'voronoi', 'reverb', 'contrast-post', 'palette', 'random-hue', 'maybe-rotate', 'lens'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAbsoluteMembers),
+        reverb_iterations: randomInt(2, 4),
+        reverb_octaves: randomInt(2, 4),
+        voronoi_alpha: 0.5 + random() * 0.5,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_nth: randomInt(0, 2),
+        voronoi_point_distrib: randomMember([point.square, point.waffle, point.chess]),
+        voronoi_point_freq: randomInt(2, 3),
+      }),
+    },
+
+    fundamentals: {
+      layers: ['voronoi', 'derivative-post', 'density-map', 'grain', 'saturation'],
+      settings: () => ({
+        dist_metric: randomMember([distance.manhattan, distance.chebyshev]),
+        freq: randomInt(3, 5),
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_nth: randomInt(3, 5),
+        voronoi_point_freq: randomInt(3, 5),
+        voronoi_refract: 0.125 + random() * 0.0625,
+      }),
+    },
+
+    funhouse: {
+      settings: () => ({
+        warp_freq: [randomInt(2, 4), randomInt(2, 4)],
+        warp_octaves: randomInt(1, 4),
+        warp_range: 0.25 + random() * 0.125,
+        warp_signed_range: false,
+        warp_spline_order: interp.bicubic,
+      }),
+      post: (settings) => [
+        Effect('warp', {
+          displacement: settings.warp_range,
+          freq: settings.warp_freq,
+          octaves: settings.warp_octaves,
+          signed_range: settings.warp_signed_range,
+          spline_order: settings.warp_spline_order,
+        }),
+      ],
+    },
+
+    'funky-glyphs': {
+      layers: ['value-mask', 'refract-post', 'contrast-final', 'maybe-rotate', 'saturation', 'lens', 'grain'],
+      settings: () => ({
+        distrib: randomMember([distrib.ones, distrib.uniform]),
+        mask: randomMember(valueMaskGlyphMembers),
+        mask_repeat: randomInt(1, 6),
+        octaves: randomInt(1, 2),
+        refract_range: 0.125 + random() * 0.125,
+        refract_signed_range: false,
+        refract_y_from_offset: true,
+        spline_order: randomMember(enumRange(interp.linear, interp.bicubic)),
       }),
     },
 
