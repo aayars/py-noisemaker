@@ -1,56 +1,24 @@
-import { createRequire } from 'module';
 import { choice } from './util.js';
-
-const require = createRequire(import.meta.url);
-
-let createCanvas = null;
-let registerFont = null;
-try {
-  ({ createCanvas, registerFont } = require('canvas'));
-} catch (e) {
-  createCanvas = null;
-}
 
 let loadedFonts = null;
 
 /**
- * Read TrueType fonts from the user's Noisemaker directory and register them
- * with node-canvas. The directory can be overridden by setting the
- * `NOISEMAKER_DIR` environment variable.
+ * Discover available fonts in the current environment. In browsers we use the
+ * `document.fonts` API and fall back to a default font when unavailable.
  *
  * @returns {Array<string>} Array of loaded font family names
  */
 export function loadFonts() {
   if (loadedFonts) return loadedFonts;
 
-  if (!registerFont) {
-    loadedFonts = [];
-    return loadedFonts;
-  }
-
-  const fs = require('fs');
-  const path = require('path');
-  const os = require('os');
-
-  let dir = process.env.NOISEMAKER_DIR
-    ? path.join(process.env.NOISEMAKER_DIR, 'fonts')
-    : path.join(os.homedir(), '.noisemaker', 'fonts');
-
   loadedFonts = [];
 
-  try {
-    const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.ttf'));
-    for (const file of files) {
-      const family = path.basename(file, path.extname(file));
-      try {
-        registerFont(path.join(dir, file), { family });
-        loadedFonts.push(family);
-      } catch (e) {
-        // Ignore invalid fonts
-      }
-    }
-  } catch (e) {
-    // Directory doesn't exist or can't be read
+  if (typeof document !== 'undefined' && document.fonts) {
+    document.fonts.forEach((f) => loadedFonts.push(f.family));
+  }
+
+  if (!loadedFonts.length) {
+    loadedFonts.push('sans-serif');
   }
 
   return loadedFonts;
@@ -69,7 +37,7 @@ export function loadGlyphs(shape) {
   const key = shape.join('x');
   if (cache.has(key)) return cache.get(key);
 
-  if (!createCanvas) {
+  if (typeof document === 'undefined') {
     const empty = [];
     cache.set(key, empty);
     return empty;
@@ -86,9 +54,13 @@ export function loadGlyphs(shape) {
   const glyphs = [];
   const fontFamily = choice(fonts);
 
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
   for (let i = 32; i < 127; i++) {
-    const canvas = createCanvas(w, h);
-    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#fff';
