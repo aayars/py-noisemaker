@@ -42,7 +42,8 @@
       margin-top: 20px;
     }
     #device,
-    #renderTime {
+    #renderTime,
+    #seed {
       font-size: 14px;
       margin-bottom: 10px;
     }
@@ -72,6 +73,7 @@
       <div style="text-align: right">
         <span id="device"></span>
         <span id="renderTime"></span>
+        <span id="seed"></span>
       </div>
     </div>
   </div>
@@ -85,6 +87,7 @@
     const presetSelect = document.getElementById('preset');
     const renderTimeEl = document.getElementById('renderTime');
     const deviceEl = document.getElementById('device');
+    const seedEl = document.getElementById('seed');
     const presetDefEl = document.getElementById('presetDef');
     const presets = PRESETS();
     const presetNames = Object.keys(presets).filter(
@@ -136,6 +139,7 @@
         presets,
       });
       const elapsed = performance.now() - start;
+      seedEl.textContent = `seed: ${seed}`;
       renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
       presetDefEl.textContent = formatPreset(presets[preset]);
     }
