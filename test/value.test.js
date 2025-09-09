@@ -25,6 +25,12 @@ assert.ok(vxy.read().every((v) => !Number.isNaN(v)));
 const col = values(1, [1, 4, 1], { distrib: ValueDistribution.column_index });
 arraysClose(col.read(), new Float32Array([0, 1/3, 2/3, 1]));
 
+// ensure axes are not flipped
+const col2d = values(1, [2, 3, 1], { distrib: ValueDistribution.column_index });
+arraysClose(col2d.read(), new Float32Array([0, 0.5, 1, 0, 0.5, 1]));
+const row2d = values(1, [3, 2, 1], { distrib: ValueDistribution.row_index });
+arraysClose(row2d.read(), new Float32Array([0, 0, 0.5, 0.5, 1, 1]));
+
 // freqForShape helper
 assert.deepStrictEqual(freqForShape(4, [64, 64]), [4, 4]);
 assert.deepStrictEqual(freqForShape(4, [32, 64]), [4, 8]);
@@ -205,6 +211,8 @@ if (!gpuCtx.isCPU) {
     ValueDistribution.scan_left,
     ValueDistribution.scan_right,
     ValueDistribution.center_circle,
+    ValueDistribution.row_index,
+    ValueDistribution.column_index,
   ];
   for (const d of distribs) {
     const gpu = values(4, [4, 4, 1], { seed: 1, ctx: gpuCtx, distrib: d });
