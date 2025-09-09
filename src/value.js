@@ -30,10 +30,8 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
 const GPU_DISTRIBS = new Set([
   ValueDistribution.uniform,
   ValueDistribution.exp,
-  ValueDistribution.scan_up,
-  ValueDistribution.scan_down,
-  ValueDistribution.scan_left,
-  ValueDistribution.scan_right,
+  ValueDistribution.column_index,
+  ValueDistribution.row_index,
   ValueDistribution.center_circle,
 ]);
 
@@ -125,14 +123,10 @@ void main(){
  if(u_distrib==${ValueDistribution.exp}){
   float r=rand2D(gl_FragCoord.x,gl_FragCoord.y,u_seed,u_time,u_speed);
   val=pow(r,3.0);
- }else if(u_distrib==${ValueDistribution.scan_up}){
-  if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
- }else if(u_distrib==${ValueDistribution.scan_down}){
-  if(float(${height})<=1.0) val=0.0; else val=1.0-gl_FragCoord.y/float(${height - 1});
- }else if(u_distrib==${ValueDistribution.scan_left}){
+ }else if(u_distrib==${ValueDistribution.column_index}){
   if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
- }else if(u_distrib==${ValueDistribution.scan_right}){
-  if(float(${width})<=1.0) val=0.0; else val=1.0-gl_FragCoord.x/float(${width - 1});
+ }else if(u_distrib==${ValueDistribution.row_index}){
+  if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
  }else if(u_distrib==${ValueDistribution.center_circle}){
   float dx=(gl_FragCoord.x+0.5)/float(${width})-0.5;
   float dy=(gl_FragCoord.y+0.5)/float(${height})-0.5;
@@ -276,18 +270,6 @@ void main(){
           val = Math.max(0, 1 - d * 2);
           break;
         }
-        case ValueDistribution.scan_up:
-          val = height === 1 ? 0 : y / (height - 1);
-          break;
-        case ValueDistribution.scan_down:
-          val = height === 1 ? 0 : 1 - y / (height - 1);
-          break;
-        case ValueDistribution.scan_left:
-          val = width === 1 ? 0 : x / (width - 1);
-          break;
-        case ValueDistribution.scan_right:
-          val = width === 1 ? 0 : 1 - x / (width - 1);
-          break;
         case ValueDistribution.exp: {
           const r = rand2D(x, y, seed, time, speed);
           val = Math.pow(r, 3);

@@ -23,7 +23,7 @@ assert.ok(vxy.read().every((v) => !Number.isNaN(v)));
 
 // distribution check
 const col = values(1, [1, 4, 1], { distrib: ValueDistribution.column_index });
-arraysClose(col.read(), new Float32Array([0, 1/3, 2/3, 1]));
+arraysClose(col.read(), new Float32Array([0, 1 / 3, 2 / 3, 1]));
 
 // ensure axes are not flipped
 const col2d = values(1, [2, 3, 1], { distrib: ValueDistribution.column_index });
@@ -233,10 +233,6 @@ const cpuCtx = new Context(null);
 if (!gpuCtx.isCPU) {
   const distribs = [
     ValueDistribution.exp,
-    ValueDistribution.scan_up,
-    ValueDistribution.scan_down,
-    ValueDistribution.scan_left,
-    ValueDistribution.scan_right,
     ValueDistribution.center_circle,
     ValueDistribution.row_index,
     ValueDistribution.column_index,

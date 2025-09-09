@@ -113,27 +113,6 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         tensor = normalized_sine(singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
                                  - math.tau * time * rounded_speed) * tf.ones(shape)
 
-    elif ValueDistribution.is_scan(distrib):
-        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_down):
-            scan_distrib = ValueDistribution.column_index
-
-        elif distrib in (ValueDistribution.scan_left, ValueDistribution.scan_right):
-            scan_distrib = ValueDistribution.row_index
-
-        tensor = values([shape[0], shape[1]], value_shape(shape), distrib=scan_distrib)
-
-        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_left):
-            tensor = 1.0 - tensor
-
-        # make sure speed doesn't break looping
-        # XXX copied from center distance
-        if speed > 0:
-            rounded_speed = math.floor(1 + speed)
-        else:
-            rounded_speed = math.ceil(-1 + speed)
-
-        tensor = normalized_sine(tensor * math.tau - math.tau * time * rounded_speed) * tf.ones(shape)
-
     elif ValueDistribution.is_noise(distrib):
         # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
         # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.

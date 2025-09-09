@@ -20,7 +20,6 @@ import {
   circularMembers as pointCircularMembers,
   gridMembers as pointGridMembers,
   isCenterDistribution,
-  isScan,
   isFlowMember,
   isValueMaskRgb,
 } from './constants.js';
@@ -2771,7 +2770,10 @@ hearts: {
       settings: () => ({
         value_distrib: randomMember(
           Object.values(distrib).filter(
-            (m) => isCenterDistribution(m) || isScan(m)
+            (m) =>
+              isCenterDistribution(m) ||
+              m === distrib.column_index ||
+              m === distrib.row_index
           )
         ),
       }),
@@ -3943,9 +3945,7 @@ hearts: {
       ],
       settings: () => ({
         brightness_distrib: distrib.ones,
-        distrib: randomMember(
-          Object.values(distrib).filter((m) => isScan(m))
-        ),
+        distrib: randomMember([distrib.column_index, distrib.row_index]),
         freq: 1,
         hue_range: 0.5 + random() * 1.5,
         pixel_sort_angled: false,

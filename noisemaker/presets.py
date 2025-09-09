@@ -2836,7 +2836,7 @@ PRESETS = lambda: {  # noqa E731
     "periodic-refract": {
         "layers": ["value-refract"],
         "settings": lambda: {
-            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m) or distrib.is_scan(m)]),
+            "value_distrib": random_member([m for m in distrib if distrib.is_center_distance(m) or m in (distrib.column_index, distrib.row_index)]),
         },
     },
 
@@ -3910,7 +3910,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "posterize", "swerve-h", "pixel-sort", "snow", "be-kind-rewind", "lens"],
         "settings": lambda: {
             "brightness_distrib": distrib.ones,
-            "distrib": random_member([m for m in distrib if distrib.is_scan(m)]),
+            "distrib": random_member((distrib.column_index, distrib.row_index)),
             "freq": 1,
             "hue_range": 0.5 + random.random() * 1.5,
             "pixel_sort_angled": False,

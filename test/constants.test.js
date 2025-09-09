@@ -13,7 +13,6 @@ import {
   distanceMetricAbsoluteMembers,
   distanceMetricSignedMembers,
   isCenterDistribution,
-  isScan,
   isNativeSize,
   isGrid,
   isCircular,
@@ -63,11 +62,9 @@ assert.ok(!distanceMetricSignedMembers().includes(DistanceMetric.euclidean));
 
 assert.ok(isCenterDistribution(ValueDistribution.center_hexagon));
 assert.ok(!isCenterDistribution(ValueDistribution.uniform));
-assert.ok(isScan(ValueDistribution.scan_left));
-assert.ok(!isScan(ValueDistribution.center_hexagon));
-assert.ok(isNativeSize(ValueDistribution.scan_down));
 assert.ok(isNativeSize(ValueDistribution.center_circle));
 assert.ok(!isNativeSize(ValueDistribution.exp));
+assert.ok(!isNativeSize(ValueDistribution.column_index));
 
 assert.ok(isGrid(PointDistribution.square));
 assert.ok(!isGrid(PointDistribution.spiral));

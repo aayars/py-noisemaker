@@ -50,10 +50,6 @@ export const ValueDistribution = Object.freeze({
   center_decagon: 30,
   center_hendecagon: 31,
   center_dodecagon: 32,
-  scan_up: 40,
-  scan_down: 41,
-  scan_left: 42,
-  scan_right: 43,
 });
 
 export const ValueMask = Object.freeze({
@@ -330,7 +326,7 @@ export function isAbsolute(metric) {
 }
 
 export function isCenterDistribution(distrib) {
-  return distrib && distrib >= ValueDistribution.center_circle && distrib < ValueDistribution.scan_up;
+  return distrib && distrib >= ValueDistribution.center_circle && distrib < 40;
 }
 
 export function isSigned(metric) {
@@ -351,12 +347,8 @@ export function distanceMetricSignedMembers() {
   return distanceMetricAll().filter((m) => isSigned(m));
 }
 
-export function isScan(distrib) {
-  return distrib && distrib >= ValueDistribution.scan_up && distrib < ValueDistribution.scan_up + 10;
-}
-
 export function isNativeSize(distrib) {
-  return isCenterDistribution(distrib) || isScan(distrib);
+  return isCenterDistribution(distrib);
 }
 
 export function isGrid(distrib) {
