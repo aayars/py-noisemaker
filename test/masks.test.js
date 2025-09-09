@@ -477,7 +477,14 @@ assert.deepStrictEqual(data.slice(0, 8), Array(8).fill(0));
 assert.deepStrictEqual(data.slice(-8), Array(8).fill(0));
 
 // Emoji masks
-for (const mask of [ValueMask.emoji_00, ValueMask.emoji_01, ValueMask.emoji_02]) {
+for (const mask of [
+  ValueMask.emoji_00,
+  ValueMask.emoji_01,
+  ValueMask.emoji_02,
+  ValueMask.emoji_03,
+  ValueMask.emoji_04,
+  ValueMask.emoji_05,
+]) {
   shape = maskShape(mask);
   [tensor] = maskValues(mask, shape);
   assert.deepStrictEqual(shape, [13, 13, 1]);
