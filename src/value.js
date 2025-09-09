@@ -464,10 +464,19 @@ export function blend(a, b, t) {
   const da = a.read();
   const db = b.read();
   const dt = typeof t === 'number' ? null : t.read();
+  const bc = b.shape[2];
+  const tc = dt ? t.shape[2] : 0;
   const out = new Float32Array(h * w * c);
-  for (let i = 0; i < out.length; i++) {
-    const tv = dt ? dt[i] : t;
-    out[i] = da[i] * (1 - tv) + db[i] * tv;
+  for (let i = 0; i < h * w; i++) {
+    const baseA = i * c;
+    const baseB = i * bc;
+    const baseT = dt ? i * tc : 0;
+    for (let k = 0; k < c; k++) {
+      const aVal = da[baseA + k];
+      const bVal = db[baseB + (k < bc ? k : 0)];
+      const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
+      out[baseA + k] = aVal * (1 - tVal) + bVal * tVal;
+    }
   }
   return Tensor.fromArray(ctx, out, [h, w, c]);
 }

@@ -39,6 +39,25 @@ const blended = blend(a, b, 0.5);
 const expBlend = a.read().map((v, i) => (v + b.read()[i]) / 2);
 arraysClose(blended.read(), expBlend);
 
+// blend with channel broadcasting
+const a3 = values(4, [2, 2, 3], { seed: 1 });
+const b1 = values(4, [2, 2, 1], { seed: 2 });
+const mask1 = values(4, [2, 2, 1], { seed: 3 });
+const blendedBroadcast = blend(a3, b1, mask1);
+const da3 = a3.read();
+const db1 = b1.read();
+const dm1 = mask1.read();
+const expectedBroadcast = new Float32Array(2 * 2 * 3);
+for (let i = 0; i < 4; i++) {
+  for (let k = 0; k < 3; k++) {
+    const baseA = i * 3 + k;
+    const bVal = db1[i];
+    const tVal = dm1[i];
+    expectedBroadcast[baseA] = da3[baseA] * (1 - tVal) + bVal * tVal;
+  }
+}
+arraysClose(blendedBroadcast.read(), expectedBroadcast);
+
 // sobel edge detection
 const edgeData = new Float32Array([
   0, 0, 1, 1,
