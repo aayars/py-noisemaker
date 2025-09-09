@@ -34,6 +34,9 @@ import {
   wobble,
   reverb,
   dla,
+  rotate,
+  pixelSort,
+  glyphMap,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -458,5 +461,26 @@ setSeed(7);
 const dlaOut = dla(dlaTensor, [4,4,1], 1, 1, 1, 1, 0.5).read();
 const dlaExpected = loadFixture('dla.json');
 arraysClose(Array.from(dlaOut), dlaExpected);
+
+// rotate effect
+const rotData = new Float32Array([
+  1, 2,
+  3, 4,
+]);
+const rotTensor = Tensor.fromArray(null, rotData, [2,2,1]);
+const rotOut = rotate(rotTensor, [2,2,1], 0, 1, 90).read();
+assert.deepStrictEqual(Array.from(rotOut), [1,3,2,4]);
+
+// pixelSort effect
+const psData = new Float32Array([0.2, 0.8, 0.5, 0.1]);
+const psTensor = Tensor.fromArray(null, psData, [1,4,1]);
+const psOut = pixelSort(psTensor, [1,4,1], 0, 1).read();
+assert.strictEqual(psOut.length, 4);
+assert.notDeepStrictEqual(Array.from(psOut), [0.2,0.8,0.5,0.1]);
+
+// glyphMap shape test
+const gmTensor = Tensor.fromArray(null, edgeData, [4,4,1]);
+const gmOut = glyphMap(gmTensor, [4,4,1], 0, 1).read();
+assert.strictEqual(gmOut.length, 16);
 
 console.log('Effects tests passed');

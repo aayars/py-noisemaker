@@ -20,7 +20,8 @@ import {
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
 import { random as simplexRandom } from './simplex.js';
-import { maskValues } from './masks.js';
+import { maskValues, maskShape } from './masks.js';
+import { loadGlyphs } from './glyphs.js';
 import { random, randomInt } from './util.js';
 import { pointCloud } from './points.js';
 import { InterpolationType, DistanceMetric, ValueMask, PointDistribution } from './constants.js';
@@ -1419,6 +1420,220 @@ export function reverb(
   return normalize(outTensor);
 }
 register('reverb', reverb, { octaves: 2, iterations: 1, ridges: true });
+
+function expandTile(tensor, inputShape, outputShape) {
+  const [ih, iw, c] = inputShape;
+  const [oh, ow] = outputShape;
+  const src = tensor.read();
+  const out = new Float32Array(oh * ow * c);
+  const xOff = Math.floor(iw / 2);
+  const yOff = Math.floor(ih / 2);
+  for (let y = 0; y < oh; y++) {
+    const sy = (yOff + y) % ih;
+    for (let x = 0; x < ow; x++) {
+      const sx = (xOff + x) % iw;
+      const srcBase = (sy * iw + sx) * c;
+      const dstBase = (y * ow + x) * c;
+      for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [oh, ow, c]);
+}
+
+function rotate2D(tensor, shape, angle) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x / w - 0.5;
+      const dy = y / h - 0.5;
+      const sx = Math.floor((cos * dx + sin * dy + 0.5) * w);
+      const sy = Math.floor((-sin * dx + cos * dy + 0.5) * h);
+      const sxw = (sx % w + w) % w;
+      const syw = (sy % h + h) % h;
+      const srcBase = (syw * w + sxw) * c;
+      const dstBase = (y * w + x) * c;
+      for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+function cropTensor(tensor, inputShape, outputShape) {
+  const [H, W, c] = inputShape;
+  const [h, w] = outputShape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const yOff = Math.floor((H - h) / 2);
+  const xOff = Math.floor((W - w) / 2);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const srcBase = ((yOff + y) * W + (xOff + x)) * c;
+      const dstBase = (y * w + x) * c;
+      for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+export function rotate(tensor, shape, time, speed, angle = null) {
+  if (angle === null || angle === undefined) angle = random() * 360;
+  const [h, w, c] = shape;
+  const want = Math.max(h, w) * 2;
+  let padded = expandTile(tensor, shape, [want, want, c]);
+  padded = rotate2D(padded, [want, want, c], (angle * Math.PI) / 180);
+  return cropTensor(padded, [want, want, c], shape);
+}
+register('rotate', rotate, { angle: 0 });
+
+export function pixelSort(
+  tensor,
+  shape,
+  time,
+  speed,
+  angled = false,
+  darkest = false
+) {
+  const [h, w, c] = shape;
+  let srcData = tensor.read();
+  if (darkest) {
+    const inv = new Float32Array(srcData.length);
+    for (let i = 0; i < srcData.length; i++) inv[i] = 1 - srcData[i];
+    srcData = inv;
+  }
+  let srcTensor = Tensor.fromArray(tensor.ctx, srcData, shape);
+  const want = Math.max(h, w) * 2;
+  let working = expandTile(srcTensor, shape, [want, want, c]);
+  let angle = 0;
+  if (angled) {
+    angle = angled === true ? random() * 360 : angled;
+    working = rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
+  }
+  const data = working.read();
+  const sorted = new Float32Array(want * want * c);
+  for (let y = 0; y < want; y++) {
+    const brightness = new Float32Array(want);
+    for (let x = 0; x < want; x++) {
+      let b = 0;
+      for (let k = 0; k < c; k++) b += data[(y * want + x) * c + k];
+      brightness[x] = b / c;
+    }
+    let maxIdx = 0;
+    for (let x = 1; x < want; x++) if (brightness[x] > brightness[maxIdx]) maxIdx = x;
+    for (let k = 0; k < c; k++) {
+      const channel = new Array(want);
+      for (let x = 0; x < want; x++) channel[x] = data[(y * want + x) * c + k];
+      channel.sort((a, b) => b - a);
+      for (let x = 0; x < want; x++) {
+        const xx = (x - maxIdx + want) % want;
+        sorted[(y * want + x) * c + k] = channel[xx];
+      }
+    }
+  }
+  let sortedTensor = Tensor.fromArray(tensor.ctx, sorted, [want, want, c]);
+  if (angled) {
+    sortedTensor = rotate2D(sortedTensor, [want, want, c], (-angle * Math.PI) / 180);
+  }
+  sortedTensor = cropTensor(sortedTensor, [want, want, c], shape);
+  const sortedData = sortedTensor.read();
+  const out = new Float32Array(sortedData.length);
+  for (let i = 0; i < sortedData.length; i++) {
+    const v = Math.max(srcData[i], sortedData[i]);
+    out[i] = darkest ? 1 - v : v;
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('pixelSort', pixelSort, { angled: false, darkest: false });
+
+export function glyphMap(
+  tensor,
+  shape,
+  time,
+  speed,
+  mask = ValueMask.truetype,
+  colorize = true,
+  zoom = 1,
+  alpha = 1,
+  splineOrder = InterpolationType.constant
+) {
+  if (mask === null || mask === undefined) mask = ValueMask.truetype;
+  let glyphShape;
+  let glyphs;
+  if (mask === ValueMask.truetype) {
+    glyphShape = [15, 15, 1];
+    glyphs = loadGlyphs(glyphShape);
+  } else {
+    glyphShape = maskShape(mask);
+    const [g] = maskValues(mask, glyphShape);
+    const data = g.read();
+    const gh = glyphShape[0];
+    const gw = glyphShape[1];
+    const gc = glyphShape[2];
+    const glyph = [];
+    for (let y = 0; y < gh; y++) {
+      const row = [];
+      for (let x = 0; x < gw; x++) {
+        row.push([data[(y * gw + x) * gc]]);
+      }
+      glyph.push(row);
+    }
+    glyphs = [glyph];
+  }
+  if (!glyphs.length) return tensor;
+  const [h, w, c] = shape;
+  const gh = glyphShape[0];
+  const gw = glyphShape[1];
+  const uvH = Math.max(1, Math.floor(h / gh));
+  const uvW = Math.max(1, Math.floor(w / gw));
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let cy = 0; cy < uvH; cy++) {
+    for (let cx = 0; cx < uvW; cx++) {
+      const sy = Math.min(h - 1, cy * gh);
+      const sx = Math.min(w - 1, cx * gw);
+      let bright;
+      if (c === 1) {
+        bright = src[sy * w + sx];
+      } else {
+        const base = (sy * w + sx) * c;
+        const r = src[base];
+        const gVal = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        bright = 0.2126 * r + 0.7152 * gVal + 0.0722 * b;
+      }
+      const gIndex = Math.min(glyphs.length - 1, Math.floor(bright * glyphs.length));
+      const glyph = glyphs[gIndex];
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          const yy = cy * gh + gy;
+          const xx = cx * gw + gx;
+          if (yy >= h || xx >= w) continue;
+          const gv = glyph[gy][gx][0];
+          const outBase = (yy * w + xx) * c;
+          if (!colorize) {
+            for (let k = 0; k < c; k++) out[outBase + k] = gv;
+          } else {
+            const srcBase = (sy * w + sx) * c;
+            for (let k = 0; k < c; k++) out[outBase + k] = gv * src[srcBase + k];
+          }
+        }
+      }
+    }
+  }
+  let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  if (alpha !== 1) outTensor = blend(tensor, outTensor, alpha);
+  return outTensor;
+}
+register('glyphMap', glyphMap, {
+  mask: ValueMask.truetype,
+  colorize: true,
+  zoom: 1,
+  alpha: 1,
+  splineOrder: InterpolationType.constant,
+});
 
 export function dla(
   tensor,
