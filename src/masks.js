@@ -28,6 +28,95 @@ function _invaders({ x, y, row, shape, uvNoise, uvX, uvY }) {
   return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
 }
 
+function whiteBear(opts) {
+  return _invaders(opts);
+}
+
+function matrix({ x, y, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  if (y % height === 0 || x % width === 0) return 0;
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+}
+
+function letters({ x, y, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  const xMod = x % width;
+  const yMod = y % height;
+  if (xMod === 0 || yMod === 0) return 0;
+  if (width - xMod === 1 || height - yMod === 1) return 0;
+  if (xMod % 2 === 0 && yMod % 2 === 0) return 0;
+  if (x % 2 === 0 || y % 2 === 0) {
+    return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0;
+  }
+  return uvRandom(uvNoise, uvX, uvY) > 0.75 ? 1 : 0;
+}
+
+function iching({ x, y, row, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  const xMod = x % width;
+  const yMod = y % height;
+  if (xMod === 0 || yMod === 0) return 0;
+  if (width - xMod === 1 || height - yMod === 1) return 0;
+  if (y % 2 === 0) return 0;
+  if (x % 2 === 1 && xMod !== 3 && xMod !== 4) return 1;
+  if (x % 2 === 0) return row[x - 1];
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+}
+
+function ideogram({ x, y, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  const xMod = x % width;
+  const yMod = y % height;
+  if (xMod === 0 || yMod === 0) return 0;
+  if (width - xMod === 1 || height - yMod === 1) return 0;
+  if (xMod % 2 === 1 && yMod % 2 === 1) return 0;
+  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0;
+}
+
+function script({ x, y, row, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  const xStep = x % width;
+  const yStep = y % height;
+  if (x > 0 && (x + y) % 2 === 1) return row[x - 1];
+  if (yStep === 0) return 0;
+  if ([1, 3, 6].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0;
+  if ([2, 4, 5].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.9 ? 1 : 0;
+  if (xStep === 0) return 0;
+  if (width - xStep === 0 || height - yStep === 0) return 0;
+  if (xStep % 2 === 0 && yStep % 2 === 0) return 0;
+  if (yStep === height - 1) return 0;
+  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0;
+}
+
+function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
+  let texX = x % shape[1];
+  let texY = y % shape[0];
+  const uvValue = uvNoise[uvY][uvX] * (atlas.length - 1);
+  const uvFloor = Math.floor(uvValue);
+  const uvFract = uvValue - uvFloor;
+  const uvHeight = uvNoise.length;
+  const uvWidth = uvNoise[0].length;
+  const float2 = uvNoise[(uvY + Math.floor(shape[0] * 0.5)) % uvHeight][uvX];
+  const float3 = uvNoise[uvY][(uvX + Math.floor(shape[1] * 0.5)) % uvWidth];
+  if (uvFract < 0.5) {
+    const _x = texX;
+    texX = texY;
+    texY = _x;
+  }
+  if (float2 < 0.5) {
+    texX = shape[1] - texX - 1;
+  }
+  if (float3 < 0.5) {
+    texY = shape[0] - texY - 1;
+  }
+  return atlas[uvFloor][texX][texY];
+}
+
 const ARECIBO_DNA_TEMPLATE = [
   [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1],
   [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0],
@@ -1760,6 +1849,13 @@ export const Masks = {
   [ValueMask.sparser]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.05 ? 1 : 0),
   [ValueMask.sparsest]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.0125 ? 1 : 0),
 
+  [ValueMask.matrix]: matrix,
+  [ValueMask.letters]: letters,
+  [ValueMask.iching]: iching,
+  [ValueMask.ideogram]: ideogram,
+  [ValueMask.script]: script,
+  [ValueMask.tromino]: tromino,
+
   [ValueMask.truchet_lines]: ({ x, y, shape }) => {
     const tile = 2;
     const ox = Math.floor(x / tile);
@@ -1775,7 +1871,7 @@ export const Masks = {
   [ValueMask.invaders]: _invaders,
   [ValueMask.invaders_large]: _invaders,
   [ValueMask.invaders_square]: _invaders,
-  [ValueMask.white_bear]: _invaders,
+  [ValueMask.white_bear]: whiteBear,
 };
 
 // Shapes for procedural masks
@@ -1804,6 +1900,15 @@ const ProceduralShapes = {
   [ValueMask.sparse]: [10, 10, 1],
   [ValueMask.sparser]: [10, 10, 1],
   [ValueMask.sparsest]: [10, 10, 1],
+  [ValueMask.matrix]: [6, 4, 1],
+  [ValueMask.letters]: () => [randomInt(3, 4) * 2 + 1, randomInt(3, 4) * 2 + 1, 1],
+  [ValueMask.iching]: [14, 8, 1],
+  [ValueMask.ideogram]: () => {
+    const s = randomInt(4, 6) * 2;
+    return [s, s, 1];
+  },
+  [ValueMask.script]: () => [randomInt(7, 9), randomInt(12, 24), 1],
+  [ValueMask.tromino]: [4, 4, 1],
   [ValueMask.truchet_lines]: [2, 2, 1],
   [ValueMask.invaders]: () => [randomInt(5, 7), randomInt(6, 12), 1],
   [ValueMask.invaders_large]: [18, 18, 1],

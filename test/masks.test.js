@@ -568,6 +568,76 @@ setSeed(213);
 const d6 = Array.from(t2.read());
 assert.deepStrictEqual(d5, d6);
 
+// Additional procedural masks deterministic with seed
+const matrixShape = maskShape(ValueMask.matrix);
+assert.deepStrictEqual(matrixShape, [6, 4, 1]);
+setSeed(42);
+[t1] = maskValues(ValueMask.matrix, matrixShape);
+const m1 = Array.from(t1.read());
+setSeed(42);
+[t2] = maskValues(ValueMask.matrix, matrixShape);
+const m2 = Array.from(t2.read());
+assert.deepStrictEqual(m1, m2);
+
+setSeed(101);
+const lettersShape1 = maskShape(ValueMask.letters);
+setSeed(101);
+const lettersShape2 = maskShape(ValueMask.letters);
+assert.deepStrictEqual(lettersShape1, lettersShape2);
+setSeed(101);
+[t1] = maskValues(ValueMask.letters, lettersShape1);
+const l1 = Array.from(t1.read());
+setSeed(101);
+[t2] = maskValues(ValueMask.letters, lettersShape1);
+const l2 = Array.from(t2.read());
+assert.deepStrictEqual(l1, l2);
+
+const ichingShape = maskShape(ValueMask.iching);
+assert.deepStrictEqual(ichingShape, [14, 8, 1]);
+setSeed(202);
+[t1] = maskValues(ValueMask.iching, ichingShape);
+const i1 = Array.from(t1.read());
+setSeed(202);
+[t2] = maskValues(ValueMask.iching, ichingShape);
+const i2 = Array.from(t2.read());
+assert.deepStrictEqual(i1, i2);
+
+setSeed(303);
+const ideogramShape1 = maskShape(ValueMask.ideogram);
+setSeed(303);
+const ideogramShape2 = maskShape(ValueMask.ideogram);
+assert.deepStrictEqual(ideogramShape1, ideogramShape2);
+setSeed(303);
+[t1] = maskValues(ValueMask.ideogram, ideogramShape1);
+const id1 = Array.from(t1.read());
+setSeed(303);
+[t2] = maskValues(ValueMask.ideogram, ideogramShape1);
+const id2 = Array.from(t2.read());
+assert.deepStrictEqual(id1, id2);
+
+setSeed(404);
+const scriptShape1 = maskShape(ValueMask.script);
+setSeed(404);
+const scriptShape2 = maskShape(ValueMask.script);
+assert.deepStrictEqual(scriptShape1, scriptShape2);
+setSeed(404);
+[t1] = maskValues(ValueMask.script, scriptShape1);
+const s1 = Array.from(t1.read());
+setSeed(404);
+[t2] = maskValues(ValueMask.script, scriptShape1);
+const s2 = Array.from(t2.read());
+assert.deepStrictEqual(s1, s2);
+
+const trominoShape = maskShape(ValueMask.tromino);
+assert.deepStrictEqual(trominoShape, [4, 4, 1]);
+setSeed(505);
+[t1] = maskValues(ValueMask.tromino, trominoShape);
+const tr1 = Array.from(t1.read());
+setSeed(505);
+[t2] = maskValues(ValueMask.tromino, trominoShape);
+const tr2 = Array.from(t2.read());
+assert.deepStrictEqual(tr1, tr2);
+
 // Invader-style masks
 setSeed(999);
 const invShape1 = maskShape(ValueMask.invaders);
