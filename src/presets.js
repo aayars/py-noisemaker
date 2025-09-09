@@ -11,8 +11,10 @@ import {
   WormBehavior as worms,
   colorSpaceMembers,
   distanceMetricAbsoluteMembers,
+  valueMaskProceduralMembers,
 } from './constants.js';
 import { PALETTES } from './palettes.js';
+import { maskShape } from './masks.js';
 import './effects.js';
 import { random } from './util.js';
 export { setSeed } from './util.js';
@@ -278,92 +280,111 @@ export function PRESETS() {
     },
 
     'alien-terrain': {
-      layers: ['multires', 'refract-octaves', 'sobel', 'density-map', 'lens'],
+      layers: [
+        'multires-ridged',
+        'invert',
+        'voronoi',
+        'derivative-octaves',
+        'invert',
+        'erosion-worms',
+        'bloom',
+        'shadow',
+        'grain',
+        'saturation',
+      ],
       settings: () => ({
-        colorSpace: color.hsv,
+        grain_contrast: 1.5,
+        deriv_alpha: 0.25 + random() * 0.125,
         dist_metric: distance.euclidean,
-        freq: randomInt(2, 4),
-        hue_range: 0.35 + random() * 0.35,
-        lsystem_bias: random(),
-        octaves: randomInt(3, 5),
+        erosion_worms_alpha: 0.05 + random() * 0.025,
+        erosion_worms_density: randomInt(150, 200),
+        erosion_worms_inverse: true,
+        erosion_worms_xy_blend: 0.333 + random() * 0.16667,
+        freq: randomInt(3, 5),
+        hue_rotation: 0.875,
+        hue_range: 0.25 + random() * 0.25,
         palette_on: false,
-        reflect_range: 3,
-        refract_range: random() * 0.375,
-        saturate: 0.75,
-        spline_order: interp.linear,
-        voronoi_alpha: 0.25 + random() * 0.125,
+        voronoi_alpha: 0.5 + random() * 0.25,
         voronoi_diagram_type: voronoi.flow,
-        voronoi_freq: randomInt(2, 3),
+        voronoi_point_freq: 10,
+        voronoi_point_distrib: point.random,
+        voronoi_refract: 0.25 + random() * 0.125,
       }),
     },
 
     'alien-glyphs': {
-      layers: ['value-mask', 'gloaming', 'lens'],
+      layers: ['entities', 'maybe-rotate', 'smoothstep-narrow', 'posterize', 'grain', 'saturation'],
       settings: () => ({
-        colorSpace: color.hsv,
-        freq: randomInt(3, 5) * 2,
-        mask: randomMember([mask.letters, mask.script, mask.ideogram, mask.iching]),
-        palette_on: false,
-        spline_order: interp.constant,
+        corners: true,
+        mask: randomMember([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
+        mask_repeat: randomInt(6, 12),
+        refract_range: 0.025 + random() * 0.0125,
+        refract_signed_range: false,
+        refract_y_from_offset: true,
+        spline_order: randomMember([interp.linear, interp.cosine]),
       }),
     },
 
     'alien-transmission': {
-      layers: ['basic', 'gloaming', 'lens'],
+      layers: ['analog-glitch', 'sobel', 'glitchin-out'],
       settings: () => ({
-        freq: randomInt(3, 5) * 2,
-        mask: mask.matrix,
-        palette_on: false,
-        spline_order: interp.constant,
+        mask: randomMember(valueMaskProceduralMembers),
       }),
     },
 
     'analog-glitch': {
-      layers: ['glitch', 'random-hue', 'bloom'],
+      layers: ['value-mask'],
       settings: () => ({
-        glitch_alpha: 0.25 + random() * 0.25,
+        mask: randomMember([mask.alphanum_hex, mask.lcd, mask.fat_lcd]),
+        mask_repeat: randomInt(20, 30),
       }),
-      post: (settings) => [Effect('glitch', { alpha: settings.glitch_alpha })],
+      generator: (settings) => {
+        const [h, w] = maskShape(settings.mask);
+        return {
+          freq: [
+            Math.floor(h * 0.5 + h * settings.mask_repeat),
+            Math.floor(w * 0.5 + w * settings.mask_repeat),
+          ],
+        };
+      },
     },
 
     'arcade-carpet': {
-      layers: ['multires', 'posterize', 'sobel', 'bloom', 'vignette-dark'],
+      layers: ['multires-alpha', 'funhouse', 'posterize', 'nudge-hue', 'carpet', 'bloom', 'contrast-final'],
       settings: () => ({
-        dist_metric: distance.euclidean,
-        octaves: 4,
-        posterize_levels: randomInt(2, 4),
-        spline_order: interp.linear,
-        saturation: 0,
-        palette_name: randomMember(Object.keys(PALETTES)),
+        colorSpace: color.rgb,
+        distrib: distrib.exp,
+        hue_range: 1,
+        mask: mask.sparser,
+        mask_static: true,
+        octaves: 2,
+        palette_on: false,
+        posterize_levels: 3,
+        warp_freq: randomInt(25, 25),
+        warp_range: 0.03 + random() * 0.015,
+        warp_octaves: 1,
       }),
-      post: (settings) => [Effect('palette', { name: settings.palette_name })],
+      generator: (settings) => ({
+        freq: settings.warp_freq,
+      }),
     },
 
     'are-you-human': {
-      layers: ['value-mask', 'sine-octaves', 'contrast-final'],
+      layers: [
+        'multires',
+        'value-mask',
+        'funhouse',
+        'density-map',
+        'saturation',
+        'maybe-invert',
+        'aberration',
+        'snow',
+      ],
       settings: () => ({
-        freq: randomInt(6, 8),
-        mask: randomMember([
-          mask.alphanum_a,
-          mask.alphanum_b,
-          mask.alphanum_c,
-          mask.alphanum_d,
-          mask.alphanum_e,
-          mask.alphanum_f,
-          mask.alphanum_0,
-          mask.alphanum_1,
-          mask.alphanum_2,
-          mask.alphanum_3,
-          mask.alphanum_4,
-          mask.alphanum_5,
-          mask.alphanum_6,
-          mask.alphanum_7,
-          mask.alphanum_8,
-          mask.alphanum_9,
-        ]),
-        mask_inverse: true,
-        mask_static: true,
-        palette_on: false,
+        freq: 15,
+        hue_range: random() * 0.25,
+        hue_rotation: random(),
+        mask: mask.truetype,
       }),
     },
 
