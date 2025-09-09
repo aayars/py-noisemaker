@@ -31,6 +31,41 @@ arraysClose(col2d.read(), new Float32Array([0, 0.5, 1, 0, 0.5, 1]));
 const row2d = values(1, [3, 2, 1], { distrib: ValueDistribution.row_index });
 arraysClose(row2d.read(), new Float32Array([0, 0, 0.5, 0.5, 1, 1]));
 
+// constant distributions
+arraysClose(
+  values(1, [2, 2, 1], { distrib: ValueDistribution.ones }).read(),
+  new Float32Array(4).fill(1)
+);
+arraysClose(
+  values(1, [2, 2, 1], { distrib: ValueDistribution.mids }).read(),
+  new Float32Array(4).fill(0.5)
+);
+arraysClose(
+  values(1, [2, 2, 1], { distrib: ValueDistribution.zeros }).read(),
+  new Float32Array(4)
+);
+
+// center distributions should peak at the middle and fade towards corners
+const centerDistribs = Object.values(ValueDistribution).filter(
+  (d) =>
+    d >= ValueDistribution.center_circle &&
+    d <= ValueDistribution.center_dodecagon
+);
+for (const d of centerDistribs) {
+  const t = values(1, [3, 3, 1], { distrib: d });
+  const arr = t.read();
+  assert.ok(arr[4] > arr[0], `center greater than corner for distrib ${d}`);
+}
+
+// ensure all distributions produce values within [0,1]
+for (const d of Object.values(ValueDistribution)) {
+  const arr = values(2, [3, 3, 1], { distrib: d }).read();
+  assert.ok(
+    Array.from(arr).every((v) => v >= 0 && v <= 1),
+    `range check for distrib ${d}`
+  );
+}
+
 // freqForShape helper
 assert.deepStrictEqual(freqForShape(4, [64, 64]), [4, 4]);
 assert.deepStrictEqual(freqForShape(4, [32, 64]), [4, 8]);
@@ -260,12 +295,7 @@ if (typeof document !== 'undefined' && document.createElement) {
 const gpuCtx = new Context(canvas);
 const cpuCtx = new Context(null);
 if (!gpuCtx.isCPU) {
-  const distribs = [
-    ValueDistribution.exp,
-    ValueDistribution.center_circle,
-    ValueDistribution.row_index,
-    ValueDistribution.column_index,
-  ];
+  const distribs = Object.values(ValueDistribution);
   for (const d of distribs) {
     const gpu = values(4, [4, 4, 1], { seed: 1, ctx: gpuCtx, distrib: d });
     const cpu = values(4, [4, 4, 1], { seed: 1, ctx: cpuCtx, distrib: d });

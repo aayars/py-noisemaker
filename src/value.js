@@ -32,13 +32,9 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
   return fract(Math.sin(s) * 43758.5453);
 }
 
-const GPU_DISTRIBS = new Set([
-  ValueDistribution.uniform,
-  ValueDistribution.exp,
-  ValueDistribution.column_index,
-  ValueDistribution.row_index,
-  ValueDistribution.center_circle,
-]);
+// All ValueDistribution members are supported on the GPU path.  Keep the set
+// in sync with the enumeration so any new distributions automatically opt in.
+const GPU_DISTRIBS = new Set(Object.values(ValueDistribution));
 
 export function freqForShape(freq, shape) {
   const [height, width] = shape;
@@ -138,6 +134,11 @@ float rand2D(float x,float y,float seed,float time,float speed){
  float s=x*12.9898+y*78.233+mod(seed,65536.0)*37.719+time*speed*0.1;
  return fract(sin(s)*43758.5453);
 }
+float sdfPolygon(float dx,float dy,float sides){
+ float an=atan(dx,-dy)+3.141592653589793;
+ float r=6.283185307179586/sides;
+ return cos(floor(0.5+an/r)*r-an)*sqrt(dx*dx+dy*dy);
+}
 float interp(float t){
  if(u_interp==${InterpolationType.linear}) return t;
  if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;
@@ -145,6 +146,8 @@ float interp(float t){
 }
 void main(){
  float val=0.0;
+ float dx=(gl_FragCoord.x+0.5)/float(${width})-0.5;
+ float dy=(gl_FragCoord.y+0.5)/float(${height})-0.5;
  if(u_distrib==${ValueDistribution.exp}){
   float r=rand2D(gl_FragCoord.x,gl_FragCoord.y,u_seed,u_time,u_speed);
   val=pow(r,3.0);
@@ -152,10 +155,47 @@ void main(){
   if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
  }else if(u_distrib==${ValueDistribution.row_index}){
   if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
+ }else if(u_distrib==${ValueDistribution.ones}){
+  val=1.0;
+ }else if(u_distrib==${ValueDistribution.mids}){
+  val=0.5;
+ }else if(u_distrib==${ValueDistribution.zeros}){
+  val=0.0;
  }else if(u_distrib==${ValueDistribution.center_circle}){
-  float dx=(gl_FragCoord.x+0.5)/float(${width})-0.5;
-  float dy=(gl_FragCoord.y+0.5)/float(${height})-0.5;
   float d=sqrt(dx*dx+dy*dy);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_triangle}){
+  float d=max(abs(dx)-dy*0.5,dy);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_diamond}){
+  float d=abs(dx)+abs(dy);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_square}){
+  float d=max(abs(dx),abs(dy));
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_pentagon}){
+  float d=sdfPolygon(dx,dy,5.0);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_hexagon}){
+  float d=max(max(abs(dx)-dy*0.5,dy),max(abs(dx)+dy*0.5,-dy));
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_heptagon}){
+  float d=sdfPolygon(dx,dy,7.0);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_octagon}){
+  float d=max((abs(dx)+abs(dy))/1.4142135623730951,max(abs(dx),abs(dy)));
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_nonagon}){
+  float d=sdfPolygon(dx,dy,9.0);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_decagon}){
+  float d=sdfPolygon(dx,dy,10.0);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_hendecagon}){
+  float d=sdfPolygon(dx,dy,11.0);
+  val=max(0.0,1.0-d*2.0);
+ }else if(u_distrib==${ValueDistribution.center_dodecagon}){
+  float d=sdfPolygon(dx,dy,12.0);
   val=max(0.0,1.0-d*2.0);
  }else{
   float u=(gl_FragCoord.x/float(${width}))*u_freq.x;
