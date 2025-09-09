@@ -50,6 +50,48 @@ data = Array.from(tensor.read());
     1, 1, 1, 1, 1, 0,
   ]);
 
+// Bank OCR masks
+const bankOcrMasks = [
+  [ValueMask.bank_ocr_0, [
+    [0, 1, 1, 1, 1, 0, 0],
+    [1, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ]],
+  [ValueMask.bank_ocr_1, [
+    [0, 0, 1, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ]],
+  [ValueMask.bank_ocr_2, [
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ]],
+];
+
+for (const [mask, expected] of bankOcrMasks) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, [8, 7, 1]);
+  assert.deepStrictEqual(data, expected.flat());
+}
+
 // Truchet curve and tile masks
 shape = maskShape(ValueMask.truchet_curves_00);
 [tensor] = maskValues(ValueMask.truchet_curves_00, shape);
