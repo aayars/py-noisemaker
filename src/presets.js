@@ -11,6 +11,7 @@ import {
   WormBehavior as worms,
   colorSpaceMembers,
   distanceMetricAbsoluteMembers,
+  distanceMetricAll,
   valueMaskProceduralMembers,
   valueMaskGridMembers,
 } from './constants.js';
@@ -1225,6 +1226,146 @@ export function PRESETS() {
         octave_blending: blend.reduce_max,
         octaves: randomInt(4, 6),
         spline_order: interp.constant,
+      }),
+    },
+
+    'eat-static': {
+      layers: ['basic', 'be-kind-rewind', 'scanline-error', 'crt'],
+      settings: () => ({
+        freq: 512,
+        saturation: 0,
+        speed: 2.0,
+      }),
+    },
+
+    'educational-video-film': {
+      layers: ['basic', 'be-kind-rewind'],
+      settings: () => ({
+        colorSpace: color.oklab,
+        ridges: true,
+      }),
+    },
+
+    'electric-worms': {
+      layers: ['voronoi', 'worms', 'density-map', 'glowing-edges', 'lens'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAll()),
+        freq: randomInt(3, 6),
+        lattice_drift: 1,
+        voronoi_alpha: 0.25 + random() * 0.25,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_nth: randomInt(0, 3),
+        voronoi_point_freq: randomInt(3, 6),
+        voronoi_point_distrib: point.random,
+        worms_alpha: 0.666 + random() * 0.333,
+        worms_behavior: worms.random,
+        worms_density: 1000,
+        worms_duration: 1,
+        worms_kink: randomInt(7, 9),
+        worms_stride: 1.0,
+        worms_stride_deviation: 0,
+        worms_quantize: coinFlip(),
+      }),
+    },
+
+    emboss: {
+      post: () => [Effect('convolve', { kernel: mask.conv2d_emboss })],
+    },
+
+    emo: {
+      layers: [
+        'value-mask',
+        'voronoi',
+        'contrast-final',
+        'maybe-rotate',
+        'saturation',
+        'tint',
+        'lens',
+      ],
+      settings: () => ({
+        contrast_final: 4.0,
+        dist_metric: randomMember([distance.manhattan, distance.chebyshev]),
+        mask: mask.emoji,
+        spline_order: interp.cosine,
+        voronoi_diagram_type: voronoi.range,
+        voronoi_refract: 0.125 + random() * 0.25,
+      }),
+    },
+
+    emu: {
+      layers: ['value-mask', 'voronoi', 'saturation', 'distressed'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAll()),
+        distrib: distrib.ones,
+        mask: stash('mask', randomMember(enumRange(mask.emoji_00, mask.emoji_26))),
+        mask_repeat: 1,
+        spline_order: interp.constant,
+        voronoi_alpha: 1.0,
+        voronoi_diagram_type: voronoi.range,
+        voronoi_point_distrib: stash('mask'),
+        voronoi_refract: 0.125 + random() * 0.125,
+        voronoi_refract_y_from_offset: false,
+      }),
+    },
+
+    entities: {
+      layers: ['value-mask', 'refract-octaves', 'normalize'],
+      settings: () => ({
+        hue_range: 2.0 + random() * 2.0,
+        mask: mask.invaders_square,
+        mask_repeat: randomInt(3, 4) * 2,
+        refract_range: 0.1 + random() * 0.05,
+        refract_signed_range: false,
+        refract_y_from_offset: true,
+        spline_order: interp.cosine,
+      }),
+    },
+
+    entity: {
+      layers: ['entities', 'sobel', 'invert', 'bloom', 'random-hue', 'lens'],
+      settings: () => ({
+        corners: true,
+        distrib: distrib.ones,
+        hue_range: 1.0 + random() * 0.5,
+        mask_repeat: 1,
+        refract_range: 0.025 + random() * 0.0125,
+        refract_signed_range: true,
+        refract_y_from_offset: false,
+        speed: 0.05,
+      }),
+    },
+
+    'erosion-worms': {
+      settings: () => ({
+        erosion_worms_alpha: 0.5 + random() * 0.5,
+        erosion_worms_contraction: 0.5 + random() * 0.5,
+        erosion_worms_density: randomInt(25, 100),
+        erosion_worms_inverse: false,
+        erosion_worms_iterations: randomInt(25, 100),
+        erosion_worms_quantize: false,
+        erosion_worms_xy_blend: 0.75 + random() * 0.25,
+      }),
+      post: (settings) => [
+        Effect('erosion_worms', {
+          alpha: settings.erosion_worms_alpha,
+          contraction: settings.erosion_worms_contraction,
+          density: settings.erosion_worms_density,
+          inverse: settings.erosion_worms_inverse,
+          iterations: settings.erosion_worms_iterations,
+          quantize: settings.erosion_worms_quantize,
+          xy_blend: settings.erosion_worms_xy_blend,
+        }),
+        Effect('normalize'),
+      ],
+    },
+
+    'escape-velocity': {
+      layers: ['multires-low', 'erosion-worms', 'lens'],
+      settings: () => ({
+        colorSpace: randomMember(colorSpaceMembers()),
+        distrib: randomMember([distrib.exp, distrib.uniform]),
+        erosion_worms_contraction: 0.2 + random() * 0.1,
+        erosion_worms_iterations: randomInt(625, 1125),
       }),
     },
 
