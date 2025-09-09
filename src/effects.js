@@ -1,4 +1,4 @@
-import { Tensor } from './tensor.js';
+import { Tensor } from "./tensor.js";
 import {
   warp as warpOp,
   sobel,
@@ -17,14 +17,14 @@ import {
   refract,
   convolution,
   fxaa,
-} from './value.js';
-import { PALETTES } from './palettes.js';
-import { register } from './effectsRegistry.js';
-import { random as simplexRandom } from './simplex.js';
-import { maskValues, maskShape } from './masks.js';
-import { loadGlyphs } from './glyphs.js';
-import { random, randomInt } from './util.js';
-import { pointCloud } from './points.js';
+} from "./value.js";
+import { PALETTES } from "./palettes.js";
+import { register } from "./effectsRegistry.js";
+import { random as simplexRandom } from "./simplex.js";
+import { maskValues, maskShape } from "./masks.js";
+import { loadGlyphs } from "./glyphs.js";
+import { random, randomInt } from "./util.js";
+import { pointCloud } from "./points.js";
 import {
   InterpolationType,
   DistanceMetric,
@@ -33,15 +33,29 @@ import {
   PointDistribution,
   VoronoiDiagramType,
   WormBehavior,
-} from './constants.js';
+} from "./constants.js";
 
-export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
+export function warp(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 2,
+  octaves = 5,
+  displacement = 1,
+) {
   let out = tensor;
   for (let octave = 0; octave < octaves; octave++) {
     const mult = 2 ** octave;
     const f = freq * mult;
-    const flowX = values(f, [shape[0], shape[1], 1], { seed: 100 + octave, time });
-    const flowY = values(f, [shape[0], shape[1], 1], { seed: 200 + octave, time });
+    const flowX = values(f, [shape[0], shape[1], 1], {
+      seed: 100 + octave,
+      time,
+    });
+    const flowY = values(f, [shape[0], shape[1], 1], {
+      seed: 200 + octave,
+      time,
+    });
     const dx = flowX.read();
     const dy = flowY.read();
     const flowData = new Float32Array(shape[0] * shape[1] * 2);
@@ -49,18 +63,22 @@ export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displace
       flowData[i * 2] = dx[i] * 2 - 1;
       flowData[i * 2 + 1] = dy[i] * 2 - 1;
     }
-    const flow = Tensor.fromArray(tensor.ctx, flowData, [shape[0], shape[1], 2]);
+    const flow = Tensor.fromArray(tensor.ctx, flowData, [
+      shape[0],
+      shape[1],
+      2,
+    ]);
     out = warpOp(out, flow, displacement / mult);
   }
   return out;
 }
-register('warp', warp, { freq: 2, octaves: 1, displacement: 1 });
+register("warp", warp, { freq: 2, octaves: 5, displacement: 1 });
 
 export function shadow(tensor, shape, time, speed, alpha = 1) {
   const shade = normalize(sobel(tensor));
   return blend(tensor, shade, alpha);
 }
-register('shadow', shadow, { alpha: 1 });
+register("shadow", shadow, { alpha: 1 });
 
 export function bloom(tensor, shape, time, speed, alpha = 0.5) {
   const [h, w, c] = shape;
@@ -95,12 +113,13 @@ export function bloom(tensor, shape, time, speed, alpha = 0.5) {
   }
   blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
   const mixData = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) mixData[i] = (src[i] + blurRead[i]) * 0.5;
+  for (let i = 0; i < src.length; i++)
+    mixData[i] = (src[i] + blurRead[i]) * 0.5;
   const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
   const clamped = clamp01(tensor);
   return blend(clamped, mixed, alpha);
 }
-register('bloom', bloom, { alpha: 0.5 });
+register("bloom", bloom, { alpha: 0.5 });
 
 export function derivative(
   tensor,
@@ -109,14 +128,14 @@ export function derivative(
   speed,
   distMetric = DistanceMetric.euclidean,
   withNormalize = true,
-  alpha = 1
+  alpha = 1,
 ) {
   let out = sobel(tensor);
   if (withNormalize) out = normalize(out);
   if (alpha === 1) return out;
   return blend(tensor, out, alpha);
 }
-register('derivative', derivative, {
+register("derivative", derivative, {
   distMetric: DistanceMetric.euclidean,
   withNormalize: true,
   alpha: 1,
@@ -127,7 +146,7 @@ export function sobelOperator(
   shape,
   time,
   speed,
-  distMetric = DistanceMetric.euclidean
+  distMetric = DistanceMetric.euclidean,
 ) {
   const blurred = blur(tensor, shape, time, speed);
   let out = sobel(blurred);
@@ -138,7 +157,7 @@ export function sobelOperator(
   }
   return Tensor.fromArray(tensor.ctx, data, shape);
 }
-register('sobel', sobelOperator, {
+register("sobel", sobelOperator, {
   distMetric: DistanceMetric.euclidean,
 });
 
@@ -183,7 +202,7 @@ export function outline(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('outline', outline, {
+register("outline", outline, {
   sobelMetric: DistanceMetric.euclidean,
   invert: false,
 });
@@ -239,7 +258,11 @@ export function glowingEdges(
   const gyData = gy.read();
   const distData = new Float32Array(gxData.length);
   for (let i = 0; i < gxData.length; i++) {
-    distData[i] = distance(Math.abs(gxData[i]), Math.abs(gyData[i]), sobelMetric);
+    distData[i] = distance(
+      Math.abs(gxData[i]),
+      Math.abs(gyData[i]),
+      sobelMetric,
+    );
   }
   edges = normalize(Tensor.fromArray(tensor.ctx, distData, [h, w, 1]));
   let eData = edges.read();
@@ -278,7 +301,7 @@ export function glowingEdges(
   if (alpha < 1) result = blend(tensor, result, alpha);
   return result;
 }
-register('glowingEdges', glowingEdges, {
+register("glowingEdges", glowingEdges, {
   sobelMetric: DistanceMetric.chebyshev,
   alpha: 1,
 });
@@ -309,7 +332,9 @@ export function normalMap(tensor, shape, time, speed) {
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let sx = 0, sy = 0, idx = 0;
+      let sx = 0,
+        sy = 0,
+        idx = 0;
       for (let yy = -1; yy <= 1; yy++) {
         for (let xx = -1; xx <= 1; xx++) {
           const v = get(x + xx, y + yy);
@@ -341,7 +366,7 @@ export function normalMap(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
-register('normalMap', normalMap, {});
+register("normalMap", normalMap, {});
 
 export function voronoi(
   tensor,
@@ -436,7 +461,7 @@ export function voronoi(
   }
   return outTensor;
 }
-register('voronoi', voronoi, {
+register("voronoi", voronoi, {
   diagramType: VoronoiDiagramType.range,
   nth: 0,
   distMetric: DistanceMetric.euclidean,
@@ -458,9 +483,24 @@ export function singularity(
   distMetric = DistanceMetric.euclidean,
 ) {
   const [x, y] = pointCloud(1, { distrib: PointDistribution.square, shape });
-  return voronoi(tensor, shape, time, speed, diagramType, 0, distMetric, 1, 1, 1, PointDistribution.square, 0, false, [x, y, 1]);
+  return voronoi(
+    tensor,
+    shape,
+    time,
+    speed,
+    diagramType,
+    0,
+    distMetric,
+    1,
+    1,
+    1,
+    PointDistribution.square,
+    0,
+    false,
+    [x, y, 1],
+  );
 }
-register('singularity', singularity, {
+register("singularity", singularity, {
   diagramType: VoronoiDiagramType.range,
   distMetric: DistanceMetric.euclidean,
 });
@@ -518,7 +558,7 @@ export function lowpoly(
   );
   return normalize(blend(distance, color, 0.5));
 }
-register('lowpoly', lowpoly, {
+register("lowpoly", lowpoly, {
   distrib: PointDistribution.random,
   freq: 10,
   distMetric: DistanceMetric.euclidean,
@@ -600,7 +640,7 @@ export function kaleido(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('kaleido', kaleido, {
+register("kaleido", kaleido, {
   sides: 6,
   sdfSides: 5,
   xy: null,
@@ -627,7 +667,7 @@ export function texture(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('texture', texture, {});
+register("texture", texture, {});
 
 export function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -650,15 +690,9 @@ export function densityMap(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, full, shape);
 }
-register('densityMap', densityMap, {});
+register("densityMap", densityMap, {});
 
-export function jpegDecimate(
-  tensor,
-  shape,
-  time,
-  speed,
-  iterations = 25
-) {
+export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
   let out = tensor;
   for (let i = 0; i < iterations; i++) {
     const src = out.read();
@@ -676,7 +710,7 @@ export function jpegDecimate(
   }
   return out;
 }
-register('jpegDecimate', jpegDecimate, { iterations: 25 });
+register("jpegDecimate", jpegDecimate, { iterations: 25 });
 
 const BLUR_KERNEL = maskValues(ValueMask.conv2d_blur)[0].read();
 const SHARPEN_KERNEL = maskValues(ValueMask.conv2d_sharpen)[0].read();
@@ -718,7 +752,7 @@ export function convFeedback(
   time,
   speed,
   iterations = 50,
-  alpha = 0.5
+  alpha = 0.5,
 ) {
   let convolved = downsample(tensor, 2);
   for (let i = 0; i < iterations; i++) {
@@ -735,11 +769,15 @@ export function convFeedback(
   }
   const combined = new Float32Array(data.length);
   for (let i = 0; i < data.length; i++) combined[i] = up[i] + (1 - downArr[i]);
-  const combinedTensor = Tensor.fromArray(convolved.ctx, combined, convolved.shape);
+  const combinedTensor = Tensor.fromArray(
+    convolved.ctx,
+    combined,
+    convolved.shape,
+  );
   const resampled = upsample(combinedTensor, 2);
   return blend(tensor, resampled, alpha);
 }
-register('convFeedback', convFeedback, { iterations: 50, alpha: 0.5 });
+register("convFeedback", convFeedback, { iterations: 50, alpha: 0.5 });
 
 export function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
@@ -750,7 +788,7 @@ export function posterize(tensor, shape, time, speed, levels = 9) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('posterize', posterize, { levels: 9 });
+register("posterize", posterize, { levels: 9 });
 
 export function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
   const src = tensor.read();
@@ -764,7 +802,7 @@ export function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('smoothstep', smoothstep, { a: 0, b: 1 });
+register("smoothstep", smoothstep, { a: 0, b: 1 });
 
 export function convolve(
   tensor,
@@ -793,13 +831,22 @@ export function convolve(
   if (alpha < 1) out = blend(tensor, out, alpha);
   return out;
 }
-register('convolve', convolve, {
+register("convolve", convolve, {
   kernel: ValueMask.conv2d_blur,
   withNormalize: true,
   alpha: 1,
 });
 
-export function fbm(tensor, shape, time, speed, freq = 4, octaves = 4, lacunarity = 2, gain = 0.5) {
+export function fbm(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 4,
+  octaves = 4,
+  lacunarity = 2,
+  gain = 0.5,
+) {
   const [h, w, c] = shape;
   let f = freq;
   let amp = 1;
@@ -820,7 +867,7 @@ export function fbm(tensor, shape, time, speed, freq = 4, octaves = 4, lacunarit
   }
   return Tensor.fromArray(tensor ? tensor.ctx : null, data, shape);
 }
-register('fbm', fbm, { freq: 4, octaves: 4, lacunarity: 2, gain: 0.5 });
+register("fbm", fbm, { freq: 4, octaves: 4, lacunarity: 2, gain: 0.5 });
 
 const TAU = Math.PI * 2;
 
@@ -833,13 +880,19 @@ export function palette(tensor, shape, time, speed, name = null) {
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const t = src[i];
-    out[i * 3] = p.offset[0] + p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0]));
-    out[i * 3 + 1] = p.offset[1] + p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1]));
-    out[i * 3 + 2] = p.offset[2] + p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2]));
+    out[i * 3] =
+      p.offset[0] +
+      p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0]));
+    out[i * 3 + 1] =
+      p.offset[1] +
+      p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1]));
+    out[i * 3 + 2] =
+      p.offset[2] +
+      p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2]));
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
-register('palette', palette, { name: null });
+register("palette", palette, { name: null });
 
 export function invert(tensor, shape, time, speed) {
   const src = tensor.read();
@@ -849,7 +902,7 @@ export function invert(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('invert', invert, {});
+register("invert", invert, {});
 
 export function vortex(tensor, shape, time, speed, displacement = 64) {
   const [h, w, c] = shape;
@@ -875,7 +928,7 @@ export function vortex(tensor, shape, time, speed, displacement = 64) {
   const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
   return refract(tensor, xTensor, yTensor, disp);
 }
-register('vortex', vortex, { displacement: 64 });
+register("vortex", vortex, { displacement: 64 });
 
 export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   const [h, w, c] = shape;
@@ -898,7 +951,7 @@ export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   const displaced = Tensor.fromArray(tensor.ctx, out, shape);
   return adjustHue(displaced, -hueShift);
 }
-register('aberration', aberration, { displacement: 0.005 });
+register("aberration", aberration, { displacement: 0.005 });
 
 export function glitch(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -921,7 +974,7 @@ export function glitch(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('glitch', glitch, {});
+register("glitch", glitch, {});
 
 export function vhs(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -957,7 +1010,7 @@ export function vhs(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('vhs', vhs, {});
+register("vhs", vhs, {});
 
 export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
   const valueShape = [shape[0], shape[1], 1];
@@ -975,7 +1028,7 @@ export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
   const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
   return refract(tensor, distortion, null, displacement);
 }
-register('lens_warp', lensWarp, { displacement: 0.0625 });
+register("lens_warp", lensWarp, { displacement: 0.0625 });
 
 export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
   const [h, w, c] = shape;
@@ -991,9 +1044,15 @@ export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
       const yDist = yIndex - 0.5;
       const centerDist = 1 - distance(xDist, yDist) / maxDist;
       const xOff =
-        ((xIndex - xDist * zoom) - xDist * centerDist * centerDist * displacement) * w;
+        (xIndex -
+          xDist * zoom -
+          xDist * centerDist * centerDist * displacement) *
+        w;
       const yOff =
-        ((yIndex - yDist * zoom) - yDist * centerDist * centerDist * displacement) * h;
+        (yIndex -
+          yDist * zoom -
+          yDist * centerDist * centerDist * displacement) *
+        h;
       const xi = ((Math.floor(xOff) % w) + w) % w;
       const yi = ((Math.floor(yOff) % h) + h) % h;
       const srcIdx = (yi * w + xi) * c;
@@ -1005,7 +1064,7 @@ export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('lens_distortion', lensDistortion, { displacement: 1 });
+register("lens_distortion", lensDistortion, { displacement: 1 });
 
 export function degauss(tensor, shape, time, speed, displacement = 0.0625) {
   const [h, w, c] = shape;
@@ -1016,13 +1075,23 @@ export function degauss(tensor, shape, time, speed, displacement = 0.0625) {
   for (let k = 0; k < channels; k++) {
     const channelData = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) channelData[i] = src[i * c + k] || 0;
-    const channelTensor = Tensor.fromArray(tensor.ctx, channelData, channelShape);
-    const warped = lensWarp(channelTensor, channelShape, time, speed, displacement).read();
+    const channelTensor = Tensor.fromArray(
+      tensor.ctx,
+      channelData,
+      channelShape,
+    );
+    const warped = lensWarp(
+      channelTensor,
+      channelShape,
+      time,
+      speed,
+      displacement,
+    ).read();
     for (let i = 0; i < h * w; i++) out[i * c + k] = warped[i];
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('degauss', degauss, { displacement: 0.0625 });
+register("degauss", degauss, { displacement: 0.0625 });
 
 export function scanlineError(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -1069,7 +1138,7 @@ export function scanlineError(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('scanlineError', scanlineError, {});
+register("scanlineError", scanlineError, {});
 
 export function crt(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -1088,7 +1157,13 @@ export function crt(tensor, shape, time, speed) {
   }
   let outTensor = clamp01(Tensor.fromArray(tensor.ctx, blended, shape));
   if (c === 3) {
-    outTensor = aberration(outTensor, shape, time, speed, 0.0125 + random() * 0.00625);
+    outTensor = aberration(
+      outTensor,
+      shape,
+      time,
+      speed,
+      0.0125 + random() * 0.00625,
+    );
     outTensor = randomHue(outTensor, shape, time, speed, 0.125);
     outTensor = saturation(outTensor, shape, time, speed, 1.125);
   }
@@ -1119,7 +1194,7 @@ export function crt(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(outTensor.ctx, data, shape);
 }
-register('crt', crt, {});
+register("crt", crt, {});
 
 export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;
@@ -1132,10 +1207,10 @@ export function reindex(tensor, shape, time, speed, displacement = 0.5) {
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_mod'), Math.min(h, w));
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_channels'), c);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_mod"), Math.min(h, w));
+    gl.uniform1f(gl.getUniformLocation(prog, "u_channels"), c);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1171,7 +1246,7 @@ export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('reindex', reindex, { displacement: 0.5 });
+register("reindex", reindex, { displacement: 0.5 });
 
 export function ripple(
   tensor,
@@ -1187,8 +1262,12 @@ export function ripple(
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
-    const refTensor = reference || values(freq, [h, w, 1], { ctx, time, speed, splineOrder });
-    const refTex = refTensor.ctx === ctx ? refTensor : Tensor.fromArray(ctx, refTensor.read(), refTensor.shape);
+    const refTensor =
+      reference || values(freq, [h, w, 1], { ctx, time, speed, splineOrder });
+    const refTex =
+      refTensor.ctx === ctx
+        ? refTensor
+        : Tensor.fromArray(ctx, refTensor.read(), refTensor.shape);
     const gl = ctx.gl;
     const rand = simplexRandom(time, undefined, speed);
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_ref;\nuniform float u_disp;\nuniform float u_kink;\nuniform float u_rand;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n float ref = texture(u_ref, uv).r;\n float ang = ref * ${TAU} * u_kink * u_rand;\n vec2 offset = vec2(cos(ang), sin(ang)) * u_disp;\n vec2 uv2 = fract(uv + offset);\n outColor = texture(u_tex, uv2);\n}`;
@@ -1197,13 +1276,13 @@ export function ripple(
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, refTex.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_ref'), 1);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_kink'), kink);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_rand'), rand);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_ref"), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_kink"), kink);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_rand"), rand);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1241,13 +1320,13 @@ export function ripple(
         const c11 = src[(y1m * w + x1m) * c + k];
         const c0 = c00 * (1 - sx) + c10 * sx;
         const c1 = c01 * (1 - sx) + c11 * sx;
-        out[(idx) * c + k] = c0 * (1 - sy) + c1 * sy;
+        out[idx * c + k] = c0 * (1 - sy) + c1 * sy;
       }
     }
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('ripple', ripple, {
+register("ripple", ripple, {
   freq: 2,
   displacement: 1,
   kink: 1,
@@ -1275,13 +1354,16 @@ export function colorMap(
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, clut.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_clut'), 1);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_horizontal'), horizontal ? 1 : 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_channels'), c);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_clut"), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
+    gl.uniform1f(
+      gl.getUniformLocation(prog, "u_horizontal"),
+      horizontal ? 1 : 0,
+    );
+    gl.uniform1f(gl.getUniformLocation(prog, "u_channels"), c);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1308,8 +1390,8 @@ export function colorMap(
       const ref = lum * displacement;
       const xi = (x + Math.floor(ref * (w - 1))) % w;
       const yi = horizontal ? y : (y + Math.floor(ref * (h - 1))) % h;
-      const sx = Math.floor(xi * cw / w);
-      const sy = Math.floor(yi * ch / h);
+      const sx = Math.floor((xi * cw) / w);
+      const sy = Math.floor((yi * ch) / h);
       const srcIdx = (sy * cw + sx) * cc;
       const outIdx = (y * w + x) * cc;
       for (let k = 0; k < cc; k++) {
@@ -1319,7 +1401,11 @@ export function colorMap(
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, cc]);
 }
-register('colorMap', colorMap, { clut: null, horizontal: false, displacement: 0.5 });
+register("colorMap", colorMap, {
+  clut: null,
+  horizontal: false,
+  displacement: 0.5,
+});
 
 export function falseColor(
   tensor,
@@ -1330,9 +1416,11 @@ export function falseColor(
   displacement = 0.5,
 ) {
   const clut = values(2, shape, { ctx: tensor.ctx, time, speed });
-  return normalize(colorMap(tensor, shape, time, speed, clut, horizontal, displacement));
+  return normalize(
+    colorMap(tensor, shape, time, speed, clut, horizontal, displacement),
+  );
 }
-register('falseColor', falseColor, { horizontal: false, displacement: 0.5 });
+register("falseColor", falseColor, { horizontal: false, displacement: 0.5 });
 
 export function tint(tensor, shape, time, speed, alpha = 0.5) {
   const [h, w, c] = shape;
@@ -1395,7 +1483,7 @@ export function tint(tensor, shape, time, speed, alpha = 0.5) {
 
   return out;
 }
-register('tint', tint, { alpha: 0.5 });
+register("tint", tint, { alpha: 0.5 });
 
 export function valueRefract(
   tensor,
@@ -1415,7 +1503,7 @@ export function valueRefract(
   });
   return refract(tensor, blendValues, null, displacement);
 }
-register('valueRefract', valueRefract, {
+register("valueRefract", valueRefract, {
   freq: 4,
   distrib: ValueDistribution.center_circle,
   displacement: 0.125,
@@ -1433,7 +1521,7 @@ export function refractEffect(
   splineOrder = InterpolationType.bicubic,
   fromDerivative = false,
   signedRange = true,
-  yFromOffset = false
+  yFromOffset = false,
 ) {
   const [h, w, c] = shape;
   const valueShape = [h, w, 1];
@@ -1524,10 +1612,14 @@ export function refractEffect(
       const fx = xOff - x0;
       const fy = yOff - y0;
       for (let k = 0; k < c; k++) {
-        const s00 = src[((((y0 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
-        const s10 = src[((((y0 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
-        const s01 = src[((((y1 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
-        const s11 = src[((((y1 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
+        const s00 =
+          src[((((y0 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
+        const s10 =
+          src[((((y0 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
+        const s01 =
+          src[((((y1 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
+        const s11 =
+          src[((((y1 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
         const x_y0 = s00 * (1 - fx) + s10 * fx;
         const x_y1 = s01 * (1 - fx) + s11 * fx;
         out[(y * w + x) * c + k] = x_y0 * (1 - fy) + x_y1 * fy;
@@ -1536,7 +1628,7 @@ export function refractEffect(
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
-register('refractEffect', refractEffect, {
+register("refractEffect", refractEffect, {
   displacement: 0.5,
   referenceX: null,
   referenceY: null,
@@ -1550,7 +1642,7 @@ register('refractEffect', refractEffect, {
 export function fxaaEffect(tensor, shape, time, speed) {
   return fxaa(tensor);
 }
-register('fxaaEffect', fxaaEffect, {});
+register("fxaaEffect", fxaaEffect, {});
 
 function randomNormal(mean = 0, std = 1) {
   const u1 = random() || 1e-9;
@@ -1583,9 +1675,9 @@ function offsetTensor(tensor, xOff, yOff) {
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
-    const yy = ((y + yOff) % h + h) % h;
+    const yy = (((y + yOff) % h) + h) % h;
     for (let x = 0; x < w; x++) {
-      const xx = ((x + xOff) % w + w) % w;
+      const xx = (((x + xOff) % w) + w) % w;
       const srcIdx = (yy * w + xx) * c;
       const dstIdx = (y * w + x) * c;
       for (let k = 0; k < c; k++) out[dstIdx + k] = src[srcIdx + k];
@@ -1594,7 +1686,13 @@ function offsetTensor(tensor, xOff, yOff) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 
-function centerMask(center, edges, shape, power = 2, distMetric = DistanceMetric.chebyshev) {
+function centerMask(
+  center,
+  edges,
+  shape,
+  power = 2,
+  distMetric = DistanceMetric.chebyshev,
+) {
   const [h, w] = shape;
   const maskVal = Math.pow(0.5, 2 / power);
   const maskData = new Float32Array(h * w);
@@ -1631,9 +1729,9 @@ function voronoiColorRegions(tensor, shape, xPts, yPts) {
   }
   const upIndex = new Int32Array(h * w);
   for (let y = 0; y < h; y++) {
-    const sy = Math.floor(y * h2 / h);
+    const sy = Math.floor((y * h2) / h);
     for (let x = 0; x < w; x++) {
-      const sx = Math.floor(x * w2 / w);
+      const sx = Math.floor((x * w2) / w);
       upIndex[y * w + x] = index[sy * w2 + sx];
     }
   }
@@ -1663,7 +1761,7 @@ export function erosionWorms(
   quantize = false,
   alpha = 0.25,
   inverse = false,
-  xyBlend = 0
+  xyBlend = 0,
 ) {
   const [h, w, c] = shape;
   const count = Math.floor(Math.sqrt(h * w) * density);
@@ -1708,7 +1806,8 @@ export function erosionWorms(
   }
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
-    const exposure = iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
+    const exposure =
+      iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
     for (let j = 0; j < count; j++) {
       const xi = Math.floor(x[j]) % w;
       const yi = Math.floor(y[j]) % h;
@@ -1747,11 +1846,15 @@ export function erosionWorms(
     const valMask = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) valMask[i] = valuesArr[i] * xyBlend;
     const mask = Tensor.fromArray(tensor.ctx, valMask, [h, w, 1]);
-    tensor = blend(shadow(tensor, shape, time, speed), reindex(tensor, shape, time, speed, 1), mask);
+    tensor = blend(
+      shadow(tensor, shape, time, speed),
+      reindex(tensor, shape, time, speed, 1),
+      mask,
+    );
   }
   return blend(tensor, outTensor, alpha);
 }
-register('erosionWorms', erosionWorms, {
+register("erosionWorms", erosionWorms, {
   density: 50,
   iterations: 50,
   contraction: 1.0,
@@ -1775,7 +1878,7 @@ export function worms(
   kink = 1.0,
   drunkenness = 0.0,
   quantize = false,
-  colors = null
+  colors = null,
 ) {
   const [h, w, c] = shape;
   const count = Math.floor(Math.max(w, h) * density);
@@ -1785,7 +1888,8 @@ export function worms(
   for (let i = 0; i < count; i++) {
     wormsY[i] = random() * (h - 1);
     wormsX[i] = random() * (w - 1);
-    wormsStride[i] = randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0);
+    wormsStride[i] =
+      randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0);
   }
   const colorSrc = colors ? colors : tensor;
   const src = colorSrc.read();
@@ -1820,7 +1924,8 @@ export function worms(
       rot.set(makeRots(3, q), q * 2);
       rot.set(makeRots(4, n - q * 3), q * 3);
     } else if (beh === 10) {
-      for (let i = 0; i < n; i++) rot[i] = periodicValue(time * speed, random());
+      for (let i = 0; i < n; i++)
+        rot[i] = periodicValue(time * speed, random());
     } else {
       rot.fill(base);
     }
@@ -1845,12 +1950,16 @@ export function worms(
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
     if (drunkenness) {
-      const start = Math.floor(Math.min(h, w) * time * speed + iter * speed * 10);
+      const start = Math.floor(
+        Math.min(h, w) * time * speed + iter * speed * 10,
+      );
       for (let i = 0; i < count; i++) {
-        wormsRot[i] += (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI;
+        wormsRot[i] +=
+          (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI;
       }
     }
-    const exposure = iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
+    const exposure =
+      iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
     for (let i = 0; i < count; i++) {
       const yi = Math.floor(wormsY[i]) % h;
       const xi = Math.floor(wormsX[i]) % w;
@@ -1872,7 +1981,7 @@ export function worms(
   outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
   return blend(tensor, outTensor, alpha);
 }
-register('worms', worms, {
+register("worms", worms, {
   behavior: 1,
   density: 4.0,
   duration: 4.0,
@@ -1892,7 +2001,7 @@ export function wormhole(
   speed,
   kink = 1.0,
   inputStride = 1.0,
-  alpha = 1.0
+  alpha = 1.0,
 ) {
   const [h, w, c] = shape;
   const src = tensor.read();
@@ -1919,8 +2028,8 @@ export function wormhole(
       const deg = valuesArr[idx] * TAU * kink;
       const xo = (Math.cos(deg) + 1) * stride;
       const yo = (Math.sin(deg) + 1) * stride;
-      xArr[idx] = Math.floor((x + xo)) % w;
-      yArr[idx] = Math.floor((y + yo)) % h;
+      xArr[idx] = Math.floor(x + xo) % w;
+      yArr[idx] = Math.floor(y + yo) % h;
     }
   }
   const offs = offsetIndex(yArr, h, xArr, w);
@@ -1953,9 +2062,16 @@ export function wormhole(
   const outTensor = Tensor.fromArray(tensor.ctx, out, shape);
   return blend(tensor, outTensor, alpha);
 }
-register('wormhole', wormhole, { kink: 1.0, inputStride: 1.0, alpha: 1.0 });
+register("wormhole", wormhole, { kink: 1.0, inputStride: 1.0, alpha: 1.0 });
 
-export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1.0) {
+export function vignette(
+  tensor,
+  shape,
+  time,
+  speed,
+  brightness = 0.0,
+  alpha = 1.0,
+) {
   const [h, w, c] = shape;
   const norm = normalize(tensor);
   const ctx = tensor.ctx;
@@ -1967,9 +2083,9 @@ export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, norm.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_brightness'), brightness);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_alpha'), alpha);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_brightness"), brightness);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_alpha"), alpha);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1995,14 +2111,14 @@ export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1
   const vignetted = blend(norm, edges, mask);
   return blend(norm, vignetted, alpha);
 }
-register('vignette', vignette, { brightness: 0.0, alpha: 1.0 });
+register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 
 export function vaseline(tensor, shape, time, speed, alpha = 1.0) {
   const blurred = bloom(tensor, shape, time, speed, 1.0);
   const masked = centerMask(tensor, blurred, shape);
   return blend(tensor, masked, alpha);
 }
-register('vaseline', vaseline, { alpha: 1.0 });
+register("vaseline", vaseline, { alpha: 1.0 });
 
 export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   const gridMembers = [
@@ -2013,7 +2129,13 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     PointDistribution.v_hex,
   ];
   const distrib = gridMembers[randomInt(0, gridMembers.length)];
-  const [xPts, yPts] = pointCloud(6, { distrib, drift: 0.05, shape, time, speed });
+  const [xPts, yPts] = pointCloud(6, {
+    distrib,
+    drift: 0.05,
+    shape,
+    time,
+    speed,
+  });
   let leak = voronoiColorRegions(tensor, shape, xPts, yPts);
   leak = wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
   leak = bloom(leak, shape, time, speed, 1.0);
@@ -2028,7 +2150,7 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   const blended = blend(tensor, leak, alpha);
   return vaseline(blended, shape, time, speed, alpha);
 }
-register('lightLeak', lightLeak, { alpha: 0.25 });
+register("lightLeak", lightLeak, { alpha: 0.25 });
 
 export function dither(tensor, shape, time, speed, levels = 2) {
   const [h, w, c] = shape;
@@ -2047,11 +2169,11 @@ export function dither(tensor, shape, time, speed, levels = 2) {
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, noise.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_noise'), 1);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_levels'), levels);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_noise"), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_levels"), levels);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -2077,7 +2199,7 @@ export function dither(tensor, shape, time, speed, levels = 2) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('dither', dither, { levels: 2 });
+register("dither", dither, { levels: 2 });
 
 export function grain(tensor, shape, time, speed, alpha = 0.25) {
   const [h, w, c] = shape;
@@ -2097,7 +2219,7 @@ export function grain(tensor, shape, time, speed, alpha = 0.25) {
   });
   return blend(tensor, noise, alpha);
 }
-register('grain', grain, { alpha: 0.25 });
+register("grain", grain, { alpha: 0.25 });
 
 export function snow(tensor, shape, time, speed, alpha = 0.25) {
   const [h, w, c] = shape;
@@ -2120,7 +2242,7 @@ export function snow(tensor, shape, time, speed, alpha = 0.25) {
   limiter = Tensor.fromArray(ctx, lData, shape);
   return blend(tensor, staticNoise, limiter);
 }
-register('snow', snow, { alpha: 0.25 });
+register("snow", snow, { alpha: 0.25 });
 
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] !== 3) return tensor;
@@ -2131,26 +2253,20 @@ export function saturation(tensor, shape, time, speed, amount = 0.75) {
   }
   return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
 }
-register('saturation', saturation, { amount: 0.75 });
+register("saturation", saturation, { amount: 0.75 });
 
 export function randomHue(tensor, shape, time, speed, range = 0.05) {
   const shift = random() * range * 2 - range;
   return adjustHue(tensor, shift);
 }
-register('randomHue', randomHue, { range: 0.05 });
+register("randomHue", randomHue, { range: 0.05 });
 
 export function normalizeEffect(tensor, shape, time, speed) {
   return normalize(tensor);
 }
-register('normalize', normalizeEffect, {});
+register("normalize", normalizeEffect, {});
 
-export function adjustBrightness(
-  tensor,
-  shape,
-  time,
-  speed,
-  amount = 0
-) {
+export function adjustBrightness(tensor, shape, time, speed, amount = 0) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
@@ -2161,8 +2277,8 @@ export function adjustBrightness(
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_amount'), amount);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_amount"), amount);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -2177,15 +2293,9 @@ export function adjustBrightness(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('adjustBrightness', adjustBrightness, { amount: 0 });
+register("adjustBrightness", adjustBrightness, { amount: 0 });
 
-export function adjustContrast(
-  tensor,
-  shape,
-  time,
-  speed,
-  amount = 1
-) {
+export function adjustContrast(tensor, shape, time, speed, amount = 1) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
@@ -2196,8 +2306,8 @@ export function adjustContrast(
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_amount'), amount);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_amount"), amount);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -2212,27 +2322,21 @@ export function adjustContrast(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('adjustContrast', adjustContrast, { amount: 1 });
+register("adjustContrast", adjustContrast, { amount: 1 });
 
 export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
-  if (shape[2] !== 3 || amount === 0 || amount === 1 || amount === null) return tensor;
+  if (shape[2] !== 3 || amount === 0 || amount === 1 || amount === null)
+    return tensor;
   return adjustHue(tensor, amount);
 }
-register('adjustHue', adjustHueEffect, { amount: 0.25 });
+register("adjustHue", adjustHueEffect, { amount: 0.25 });
 
 export function ridgeEffect(tensor, shape, time, speed) {
   return ridge(tensor);
 }
-register('ridge', ridgeEffect, {});
+register("ridge", ridgeEffect, {});
 
-export function sine(
-  tensor,
-  shape,
-  time,
-  speed,
-  amount = 1.0,
-  rgb = false
-) {
+export function sine(tensor, shape, time, speed, amount = 1.0, rgb = false) {
   const [h, w, c] = shape;
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
@@ -2270,8 +2374,7 @@ export function sine(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('sine', sine, { amount: 1.0, rgb: false });
-
+register("sine", sine, { amount: 1.0, rgb: false });
 
 export function blur(
   tensor,
@@ -2279,7 +2382,7 @@ export function blur(
   time,
   speed,
   amount = 10.0,
-  splineOrder = InterpolationType.bicubic
+  splineOrder = InterpolationType.bicubic,
 ) {
   const [h, w] = shape;
   const targetH = Math.max(1, Math.floor(h / amount));
@@ -2291,14 +2394,21 @@ export function blur(
   const out = upsample(small, factor);
   return out;
 }
-register('blur', blur, { amount: 10.0, splineOrder: InterpolationType.bicubic });
+register("blur", blur, {
+  amount: 10.0,
+  splineOrder: InterpolationType.bicubic,
+});
 
 export function wobble(tensor, shape, time, speed) {
-  const xOffset = Math.floor(simplexRandom(time, undefined, speed * 0.5) * shape[1]);
-  const yOffset = Math.floor(simplexRandom(time, undefined, speed * 0.5) * shape[0]);
+  const xOffset = Math.floor(
+    simplexRandom(time, undefined, speed * 0.5) * shape[1],
+  );
+  const yOffset = Math.floor(
+    simplexRandom(time, undefined, speed * 0.5) * shape[0],
+  );
   return offsetTensor(tensor, xOffset, yOffset);
 }
-register('wobble', wobble, {});
+register("wobble", wobble, {});
 
 export function reverb(
   tensor,
@@ -2307,7 +2417,7 @@ export function reverb(
   speed,
   octaves = 2,
   iterations = 1,
-  ridges = true
+  ridges = true,
 ) {
   if (!octaves) return tensor;
   const [h, w, c] = shape;
@@ -2331,7 +2441,7 @@ export function reverb(
   const outTensor = Tensor.fromArray(tensor.ctx, outData, shape);
   return normalize(outTensor);
 }
-register('reverb', reverb, { octaves: 2, iterations: 1, ridges: true });
+register("reverb", reverb, { octaves: 2, iterations: 1, ridges: true });
 
 function expandTile(tensor, inputShape, outputShape) {
   const [ih, iw, c] = inputShape;
@@ -2364,8 +2474,8 @@ function rotate2D(tensor, shape, angle) {
       const dy = y / h - 0.5;
       const sx = Math.floor((cos * dx + sin * dy + 0.5) * w);
       const sy = Math.floor((-sin * dx + cos * dy + 0.5) * h);
-      const sxw = (sx % w + w) % w;
-      const syw = (sy % h + h) % h;
+      const sxw = ((sx % w) + w) % w;
+      const syw = ((sy % h) + h) % h;
       const srcBase = (syw * w + sxw) * c;
       const dstBase = (y * w + x) * c;
       for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
@@ -2399,7 +2509,7 @@ export function rotate(tensor, shape, time, speed, angle = null) {
   padded = rotate2D(padded, [want, want, c], (angle * Math.PI) / 180);
   return cropTensor(padded, [want, want, c], shape);
 }
-register('rotate', rotate, { angle: 0 });
+register("rotate", rotate, { angle: 0 });
 
 export function pixelSort(
   tensor,
@@ -2407,7 +2517,7 @@ export function pixelSort(
   time,
   speed,
   angled = false,
-  darkest = false
+  darkest = false,
 ) {
   const [h, w, c] = shape;
   let srcData = tensor.read();
@@ -2434,7 +2544,8 @@ export function pixelSort(
       brightness[x] = b / c;
     }
     let maxIdx = 0;
-    for (let x = 1; x < want; x++) if (brightness[x] > brightness[maxIdx]) maxIdx = x;
+    for (let x = 1; x < want; x++)
+      if (brightness[x] > brightness[maxIdx]) maxIdx = x;
     for (let k = 0; k < c; k++) {
       const channel = new Array(want);
       for (let x = 0; x < want; x++) channel[x] = data[(y * want + x) * c + k];
@@ -2447,7 +2558,11 @@ export function pixelSort(
   }
   let sortedTensor = Tensor.fromArray(tensor.ctx, sorted, [want, want, c]);
   if (angled) {
-    sortedTensor = rotate2D(sortedTensor, [want, want, c], (-angle * Math.PI) / 180);
+    sortedTensor = rotate2D(
+      sortedTensor,
+      [want, want, c],
+      (-angle * Math.PI) / 180,
+    );
   }
   sortedTensor = cropTensor(sortedTensor, [want, want, c], shape);
   const sortedData = sortedTensor.read();
@@ -2458,7 +2573,7 @@ export function pixelSort(
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('pixelSort', pixelSort, { angled: false, darkest: false });
+register("pixelSort", pixelSort, { angled: false, darkest: false });
 
 export function glyphMap(
   tensor,
@@ -2469,7 +2584,7 @@ export function glyphMap(
   colorize = true,
   zoom = 1,
   alpha = 1,
-  splineOrder = InterpolationType.constant
+  splineOrder = InterpolationType.constant,
 ) {
   if (mask === null || mask === undefined) mask = ValueMask.truetype;
   let glyphShape;
@@ -2516,7 +2631,10 @@ export function glyphMap(
         const b = src[base + 2] || 0;
         bright = 0.2126 * r + 0.7152 * gVal + 0.0722 * b;
       }
-      const gIndex = Math.min(glyphs.length - 1, Math.floor(bright * glyphs.length));
+      const gIndex = Math.min(
+        glyphs.length - 1,
+        Math.floor(bright * glyphs.length),
+      );
       const glyph = glyphs[gIndex];
       for (let gy = 0; gy < gh; gy++) {
         for (let gx = 0; gx < gw; gx++) {
@@ -2529,7 +2647,8 @@ export function glyphMap(
             for (let k = 0; k < c; k++) out[outBase + k] = gv;
           } else {
             const srcBase = (sy * w + sx) * c;
-            for (let k = 0; k < c; k++) out[outBase + k] = gv * src[srcBase + k];
+            for (let k = 0; k < c; k++)
+              out[outBase + k] = gv * src[srcBase + k];
           }
         }
       }
@@ -2539,7 +2658,7 @@ export function glyphMap(
   if (alpha !== 1) outTensor = blend(tensor, outTensor, alpha);
   return outTensor;
 }
-register('glyphMap', glyphMap, {
+register("glyphMap", glyphMap, {
   mask: ValueMask.truetype,
   colorize: true,
   zoom: 1,
@@ -2556,7 +2675,7 @@ export function dla(
   seedDensity = 0.01,
   density = 0.125,
   xy = null,
-  alpha = 1
+  alpha = 1,
 ) {
   const [height, width, channels] = shape;
   const neighborhoods = new Set();
@@ -2568,7 +2687,9 @@ export function dla(
   const halfHeight = Math.floor(height * scale);
   let x, y, seedCount;
   if (xy === null) {
-    seedCount = Math.floor(Math.sqrt(Math.floor(halfHeight * seedDensity) || 1));
+    seedCount = Math.floor(
+      Math.sqrt(Math.floor(halfHeight * seedDensity) || 1),
+    );
     [x, y] = pointCloud(seedCount, {
       distrib: PointDistribution.random,
       shape,
@@ -2617,18 +2738,18 @@ export function dla(
       for (const xo of offsets) {
         for (const yo of offsets) {
           neighborhoods.add(
-            `${(walker[0] + yo + halfHeight) % halfHeight},${(
-              walker[1] + xo + halfWidth
-            ) % halfWidth}`
+            `${(walker[0] + yo + halfHeight) % halfHeight},${
+              (walker[1] + xo + halfWidth) % halfWidth
+            }`,
           );
         }
       }
       for (const xo of expandedOffsets) {
         for (const yo of expandedOffsets) {
           expandedNeighborhoods.add(
-            `${(walker[0] + yo + halfHeight) % halfHeight},${(
-              walker[1] + xo + halfWidth
-            ) % halfWidth}`
+            `${(walker[0] + yo + halfHeight) % halfHeight},${
+              (walker[1] + xo + halfWidth) % halfWidth
+            }`,
           );
         }
       }
@@ -2689,7 +2810,7 @@ export function dla(
   const out = Tensor.fromArray(tensor.ctx, mult, shape);
   return blend(tensor, out, alpha);
 }
-register('dla', dla, {
+register("dla", dla, {
   padding: 2,
   seedDensity: 0.01,
   density: 0.125,
@@ -2697,13 +2818,7 @@ register('dla', dla, {
   alpha: 1,
 });
 
-export function simpleFrame(
-  tensor,
-  shape,
-  time,
-  speed,
-  brightness = 0
-) {
+export function simpleFrame(tensor, shape, time, speed, brightness = 0) {
   const [h, w, c] = shape;
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
@@ -2733,7 +2848,7 @@ export function simpleFrame(
   const brightTensor = Tensor.fromArray(tensor.ctx, bright, shape);
   return blend(tensor, brightTensor, maskTensor);
 }
-register('simpleFrame', simpleFrame, { brightness: 0 });
+register("simpleFrame", simpleFrame, { brightness: 0 });
 
 export function frame(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -2777,7 +2892,7 @@ export function frame(tensor, shape, time, speed) {
   out = upsample(out, 2);
   return out;
 }
-register('frame', frame, {});
+register("frame", frame, {});
 
 export function sketch(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -2850,7 +2965,7 @@ export function sketch(tensor, shape, time, speed) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register('sketch', sketch, {});
+register("sketch", sketch, {});
 
 export function nebula(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -2889,7 +3004,8 @@ export function nebula(tensor, shape, time, speed) {
   const subtractor = simpleMultires(randomInt(2, 4), 4);
   let oData = overlay.read();
   const sData = subtractor.read();
-  for (let i = 0; i < oData.length; i++) oData[i] = (oData[i] - sData[i]) * 0.125;
+  for (let i = 0; i < oData.length; i++)
+    oData[i] = (oData[i] - sData[i]) * 0.125;
   overlay = Tensor.fromArray(ctx, oData, valueShape);
 
   overlay = rotate(overlay, valueShape, time, speed, randomInt(-15, 15));
@@ -2936,7 +3052,7 @@ export function nebula(tensor, shape, time, speed) {
 
   return Tensor.fromArray(ctx, baseData, shape);
 }
-register('nebula', nebula, {});
+register("nebula", nebula, {});
 
 export function spatter(tensor, shape, time, speed, color = true) {
   const [h, w, c] = shape;
@@ -2948,7 +3064,15 @@ export function spatter(tensor, shape, time, speed, color = true) {
     speed,
     distrib: ValueDistribution.exp,
   });
-  smear = warp(smear, valueShape, time, speed, randomInt(2, 3), randomInt(1, 2), 1 + random());
+  smear = warp(
+    smear,
+    valueShape,
+    time,
+    speed,
+    randomInt(2, 3),
+    randomInt(1, 2),
+    1 + random(),
+  );
   let sp1 = values(randomInt(32, 64), valueShape, {
     ctx,
     time,
@@ -2965,7 +3089,8 @@ export function spatter(tensor, shape, time, speed, color = true) {
   sp1 = Tensor.fromArray(ctx, d1, valueShape);
   let smData = smear.read();
   let spData = sp1.read();
-  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(smData[i], spData[i]);
+  for (let i = 0; i < smData.length; i++)
+    smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
   let sp2 = values(randomInt(150, 200), valueShape, {
     ctx,
@@ -2983,7 +3108,8 @@ export function spatter(tensor, shape, time, speed, color = true) {
   sp2 = Tensor.fromArray(ctx, d2, valueShape);
   smData = smear.read();
   spData = sp2.read();
-  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(smData[i], spData[i]);
+  for (let i = 0; i < smData.length; i++)
+    smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
   const remover = values(randomInt(2, 3), valueShape, {
     ctx,
@@ -2993,7 +3119,8 @@ export function spatter(tensor, shape, time, speed, color = true) {
   });
   const remData = remover.read();
   smData = smear.read();
-  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(0, smData[i] - remData[i]);
+  for (let i = 0; i < smData.length; i++)
+    smData[i] = Math.max(0, smData[i] - remData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
   let mask = normalize(smear);
   let maskData = mask.read();
@@ -3030,7 +3157,7 @@ export function spatter(tensor, shape, time, speed, color = true) {
   }
   return blend(tensor, overlay, alphaTensor);
 }
-register('spatter', spatter, { color: true });
+register("spatter", spatter, { color: true });
 
 export function clouds(tensor, shape, time, speed) {
   const [h, w] = shape;
@@ -3046,13 +3173,10 @@ export function clouds(tensor, shape, time, speed) {
     seed: randomInt(0, 1000),
   });
   control = warp(control, preShape, time, speed, 3, 2, 0.125);
-  let shaded = offsetTensor(
-    control,
-    randomInt(-15, 15),
-    randomInt(-15, 15)
-  );
+  let shaded = offsetTensor(control, randomInt(-15, 15), randomInt(-15, 15));
   let shadeData = shaded.read();
-  for (let i = 0; i < shadeData.length; i++) shadeData[i] = Math.min(1, shadeData[i] * 2.5);
+  for (let i = 0; i < shadeData.length; i++)
+    shadeData[i] = Math.min(1, shadeData[i] * 2.5);
   shaded = Tensor.fromArray(ctx, shadeData, preShape);
   const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
   const kData = blurTensor.read();
@@ -3074,7 +3198,7 @@ export function clouds(tensor, shape, time, speed) {
   out = blend(out, ones, combined);
   return shadow(out, shape, time, speed, 0.5);
 }
-register('clouds', clouds, {});
+register("clouds", clouds, {});
 
 export function fibers(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3096,7 +3220,7 @@ export function fibers(tensor, shape, time, speed) {
       0.75,
       0.125,
       1,
-      kink
+      kink,
     );
     const brightness = values(128, shape, { ctx, time, speed });
     let maskData = mask.read();
@@ -3106,7 +3230,7 @@ export function fibers(tensor, shape, time, speed) {
   }
   return out;
 }
-register('fibers', fibers, {});
+register("fibers", fibers, {});
 
 export function scratches(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3115,7 +3239,9 @@ export function scratches(tensor, shape, time, speed) {
   let out = tensor;
   for (let i = 0; i < 4; i++) {
     let mask = values(randomInt(2, 4), valueShape, { ctx, time, speed });
-    const behavior = [WormBehavior.obedient, WormBehavior.unruly][randomInt(0, 1)];
+    const behavior = [WormBehavior.obedient, WormBehavior.unruly][
+      randomInt(0, 1)
+    ];
     const density = 0.25 + random() * 0.25;
     const duration = 2 + random() * 2;
     const kink = 0.125 + random() * 0.125;
@@ -3130,7 +3256,7 @@ export function scratches(tensor, shape, time, speed) {
       0.75,
       0.5,
       1,
-      kink
+      kink,
     );
     const sub = values(randomInt(2, 4), valueShape, { ctx, time, speed });
     let maskData = mask.read();
@@ -3152,7 +3278,7 @@ export function scratches(tensor, shape, time, speed) {
   }
   return out;
 }
-register('scratches', scratches, {});
+register("scratches", scratches, {});
 
 export function strayHair(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3173,7 +3299,7 @@ export function strayHair(tensor, shape, time, speed) {
     0.5,
     0.25,
     1,
-    kink
+    kink,
   );
   let brightness = values(32, valueShape, { ctx, time, speed });
   let bData = brightness.read();
@@ -3184,7 +3310,7 @@ export function strayHair(tensor, shape, time, speed) {
   mask = Tensor.fromArray(ctx, mData, valueShape);
   return blend(tensor, brightness, mask);
 }
-register('strayHair', strayHair, {});
+register("strayHair", strayHair, {});
 
 function expandChannels(tensor, channels) {
   const [h, w, c] = tensor.shape;
@@ -3229,7 +3355,15 @@ export function grime(tensor, shape, time, speed) {
   const valueShape = [h, w, 1];
   let mask = fbm(null, valueShape, time, speed, 5, 8);
   mask = refract(mask);
-  mask = derivative(mask, valueShape, time, speed, DistanceMetric.chebyshev, true, 0.125);
+  mask = derivative(
+    mask,
+    valueShape,
+    time,
+    speed,
+    DistanceMetric.chebyshev,
+    true,
+    0.125,
+  );
   let gateData = mask.read();
   const gate = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
@@ -3266,7 +3400,8 @@ export function grime(tensor, shape, time, speed) {
   dusty = blend(dusty, noise, 0.075);
   let dustyData = dusty.read();
   sData = specks.read();
-  for (let i = 0; i < dustyData.length; i++) dustyData[i] *= sData[Math.floor(i / c)];
+  for (let i = 0; i < dustyData.length; i++)
+    dustyData[i] *= sData[Math.floor(i / c)];
   dusty = Tensor.fromArray(ctx, dustyData, shape);
   gateData = mask.read();
   const maskScaled = new Float32Array(h * w * c);
@@ -3277,7 +3412,7 @@ export function grime(tensor, shape, time, speed) {
   const maskTensor = Tensor.fromArray(ctx, maskScaled, shape);
   return blend(tensor, dusty, maskTensor);
 }
-register('grime', grime, {});
+register("grime", grime, {});
 
 export function watermark(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3311,7 +3446,7 @@ export function watermark(tensor, shape, time, speed) {
   mask = Tensor.fromArray(ctx, mData, shape);
   return blend(tensor, brightness, mask);
 }
-register('watermark', watermark, {});
+register("watermark", watermark, {});
 
 export function onScreenDisplay(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3345,11 +3480,12 @@ export function onScreenDisplay(tensor, shape, time, speed) {
   const alpha = 0.5 + random() * 0.25;
   const maxData = rendered.read();
   const tData = tensor.read();
-  for (let i = 0; i < maxData.length; i++) maxData[i] = Math.max(maxData[i], tData[i]);
+  for (let i = 0; i < maxData.length; i++)
+    maxData[i] = Math.max(maxData[i], tData[i]);
   const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
   return blend(tensor, maxTensor, alpha);
 }
-register('onScreenDisplay', onScreenDisplay, {});
+register("onScreenDisplay", onScreenDisplay, {});
 
 export function spookyTicker(tensor, shape, time, speed) {
   const [h, w, c] = shape;
@@ -3393,16 +3529,17 @@ export function spookyTicker(tensor, shape, time, speed) {
   const tData = tensor.read();
   const oData = offsetMask.read();
   const diff = new Float32Array(tData.length);
-  for (let i = 0; i < tData.length; i++) diff[i] = tData[i] - oData[i % (h * w)];
+  for (let i = 0; i < tData.length; i++)
+    diff[i] = tData[i] - oData[i % (h * w)];
   const diffTensor = Tensor.fromArray(tensor.ctx, diff, shape);
   tensor = blend(tensor, diffTensor, alpha * 0.333);
   let renderedC = rendered;
   if (c > 1) renderedC = expandChannels(rendered, c);
   const maxData = renderedC.read();
   const tData2 = tensor.read();
-  for (let i = 0; i < maxData.length; i++) maxData[i] = Math.max(maxData[i], tData2[i]);
+  for (let i = 0; i < maxData.length; i++)
+    maxData[i] = Math.max(maxData[i], tData2[i]);
   const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
   return blend(tensor, maxTensor, alpha);
 }
-register('spookyTicker', spookyTicker, {});
-
+register("spookyTicker", spookyTicker, {});
