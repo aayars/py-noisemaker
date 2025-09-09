@@ -20,6 +20,9 @@ import {
   wormhole,
   ripple,
   colorMap,
+  derivative,
+  sobelOperator,
+  normalMap,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -27,6 +30,8 @@ import {
   hsvToRgb,
   values,
   blend,
+  sobel,
+  normalize,
 } from '../src/value.js';
 import { setSeed, random } from '../src/util.js';
 import { readFileSync } from 'fs';
@@ -42,6 +47,97 @@ function arraysClose(a, b, eps = 1e-6) {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name) => JSON.parse(readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'));
+
+// gradient effects edge accuracy
+const edgeData = new Float32Array([
+  0, 0, 1, 1,
+  0, 0, 1, 1,
+  0, 0, 1, 1,
+  0, 0, 1, 1,
+]);
+const edgeTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
+
+// derivative
+const manualDeriv = (() => {
+  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+  const mag = new Float32Array(16);
+  function get(x, y) {
+    x = Math.max(0, Math.min(3, x));
+    y = Math.max(0, Math.min(3, y));
+    return edgeData[y * 4 + x];
+  }
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) {
+      let gx = 0, gy = 0, idx = 0;
+      for (let yy = -1; yy <= 1; yy++) {
+        for (let xx = -1; xx <= 1; xx++) {
+          const v = get(x + xx, y + yy);
+          gx += gxKernel[idx] * v;
+          gy += gyKernel[idx] * v;
+          idx++;
+        }
+      }
+      mag[y * 4 + x] = Math.sqrt(gx * gx + gy * gy);
+    }
+  }
+  return Array.from(normalize(Tensor.fromArray(null, mag, [4, 4, 1])).read());
+})();
+const derivRes = derivative(edgeTensor, [4, 4, 1], 0, 1).read();
+arraysClose(Array.from(derivRes), manualDeriv);
+
+// sobel operator
+const blurred = blur(edgeTensor, [4, 4, 1], 0, 1);
+let sob = sobel(blurred);
+sob = normalize(sob);
+const sobData = sob.read();
+for (let i = 0; i < sobData.length; i++) sobData[i] = Math.abs(sobData[i] * 2 - 1);
+const sobRes = sobelOperator(edgeTensor, [4, 4, 1], 0, 1).read();
+arraysClose(Array.from(sobRes), Array.from(sobData));
+
+// normal map
+const nmRes = normalMap(edgeTensor, [4, 4, 1], 0, 1).read();
+const nmExpect = (() => {
+  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+  const gx = new Float32Array(16);
+  const gy = new Float32Array(16);
+  function get(x, y) {
+    x = Math.max(0, Math.min(3, x));
+    y = Math.max(0, Math.min(3, y));
+    return edgeData[y * 4 + x];
+  }
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) {
+      let sx = 0, sy = 0, idx = 0;
+      for (let yy = -1; yy <= 1; yy++) {
+        for (let xx = -1; xx <= 1; xx++) {
+          const v = get(x + xx, y + yy);
+          sx += gxKernel[idx] * v;
+          sy += gyKernel[idx] * v;
+          idx++;
+        }
+      }
+      const i = y * 4 + x;
+      gx[i] = 1 - sx;
+      gy[i] = sy;
+    }
+  }
+  const xNorm = normalize(Tensor.fromArray(null, gx, [4, 4, 1])).read();
+  const yNorm = normalize(Tensor.fromArray(null, gy, [4, 4, 1])).read();
+  const mag = new Float32Array(16);
+  for (let i = 0; i < 16; i++) mag[i] = Math.sqrt(xNorm[i] * xNorm[i] + yNorm[i] * yNorm[i]);
+  const zNorm = normalize(Tensor.fromArray(null, mag, [4, 4, 1])).read();
+  const out = new Float32Array(16 * 3);
+  for (let i = 0; i < 16; i++) {
+    const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
+    out[i * 3] = xNorm[i];
+    out[i * 3 + 1] = yNorm[i];
+    out[i * 3 + 2] = z;
+  }
+  return Array.from(out);
+})();
+arraysClose(Array.from(nmRes), nmExpect);
 
 // posterize regression
 const posterData = new Float32Array([0.1, 0.5, 0.9, 0.3]);

@@ -17,9 +17,8 @@ import {
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
-import { random } from './util.js';
 import { random as simplexRandom } from './simplex.js';
-import { InterpolationType } from './constants.js';
+import { InterpolationType, DistanceMetric } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -47,6 +46,106 @@ export function shadow(tensor, shape, time, speed, alpha = 1) {
   return blend(tensor, shade, alpha);
 }
 register('shadow', shadow, { alpha: 1 });
+
+export function derivative(
+  tensor,
+  shape,
+  time,
+  speed,
+  distMetric = DistanceMetric.euclidean,
+  withNormalize = true,
+  alpha = 1
+) {
+  let out = sobel(tensor);
+  if (withNormalize) out = normalize(out);
+  if (alpha === 1) return out;
+  return blend(tensor, out, alpha);
+}
+register('derivative', derivative, {
+  distMetric: DistanceMetric.euclidean,
+  withNormalize: true,
+  alpha: 1,
+});
+
+export function sobelOperator(
+  tensor,
+  shape,
+  time,
+  speed,
+  distMetric = DistanceMetric.euclidean
+) {
+  const blurred = blur(tensor, shape, time, speed);
+  let out = sobel(blurred);
+  out = normalize(out);
+  const data = out.read();
+  for (let i = 0; i < data.length; i++) {
+    data[i] = Math.abs(data[i] * 2 - 1);
+  }
+  return Tensor.fromArray(tensor.ctx, data, shape);
+}
+register('sobel', sobelOperator, {
+  distMetric: DistanceMetric.euclidean,
+});
+
+export function normalMap(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const gray = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    if (c === 1) {
+      gray[i] = src[i];
+    } else {
+      const base = i * c;
+      const r = src[base];
+      const g = src[base + 1] || 0;
+      const b = src[base + 2] || 0;
+      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+  }
+  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+  const gx = new Float32Array(h * w);
+  const gy = new Float32Array(h * w);
+  function get(x, y) {
+    x = Math.max(0, Math.min(w - 1, x));
+    y = Math.max(0, Math.min(h - 1, y));
+    return gray[y * w + x];
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sx = 0, sy = 0, idx = 0;
+      for (let yy = -1; yy <= 1; yy++) {
+        for (let xx = -1; xx <= 1; xx++) {
+          const v = get(x + xx, y + yy);
+          sx += gxKernel[idx] * v;
+          sy += gyKernel[idx] * v;
+          idx++;
+        }
+      }
+      const i = y * w + x;
+      gx[i] = 1 - sx;
+      gy[i] = sy;
+    }
+  }
+  let xTensor = normalize(Tensor.fromArray(tensor.ctx, gx, [h, w, 1]));
+  let yTensor = normalize(Tensor.fromArray(tensor.ctx, gy, [h, w, 1]));
+  const xData = xTensor.read();
+  const yData = yTensor.read();
+  const mag = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
+  }
+  const zNorm = normalize(Tensor.fromArray(tensor.ctx, mag, [h, w, 1])).read();
+  const out = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
+    out[i * 3] = xData[i];
+    out[i * 3 + 1] = yData[i];
+    out[i * 3 + 2] = z;
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+}
+register('normalMap', normalMap, {});
 
 export function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
