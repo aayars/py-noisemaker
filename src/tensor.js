@@ -13,7 +13,20 @@ export class Tensor {
   static fromArray(ctx, array, shape) {
     const [h, w, c] = shape;
     if (ctx && !ctx.isCPU) {
-      const tex = ctx.createTexture(w, h, array);
+      let data = array;
+      if (!data) {
+        data = new Float32Array(h * w * 4);
+      } else if (data.length !== h * w * 4) {
+        // WebGL textures are always RGBA; pad incoming data if it has fewer channels
+        const padded = new Float32Array(h * w * 4);
+        for (let i = 0, j = 0; i < h * w; i++) {
+          for (let k = 0; k < c; k++, j++) {
+            padded[i * 4 + k] = data[j];
+          }
+        }
+        data = padded;
+      }
+      const tex = ctx.createTexture(w, h, data);
       return new Tensor(ctx, tex, shape, null);
     }
     const data = array ? array.slice() : new Float32Array(h * w * c);
