@@ -117,7 +117,8 @@ export class Preset {
             const r = data[i * c];
             const gch = data[i * c + 1] || 0;
             const b = data[i * c + 2] || 0;
-            const a = c > 3 ? data[i * c + 3] : 1;
+            const aVal = c > 3 ? data[i * c + 3] : 1;
+            const a = Number.isFinite(aVal) ? aVal : 1;
             img.data[i * 4] = Math.max(0, Math.min(255, Math.round(r * 255)));
             img.data[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(gch * 255)));
             img.data[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));

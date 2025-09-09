@@ -71,13 +71,23 @@ export function savePNG(tensor, filename = 'image.png') {
   canvas.height = h;
   const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
   const imgData = ctx2d.createImageData(w, h);
+  let useAlpha = false;
+  if (c > 3) {
+    for (let i = 0; i < h * w; ++i) {
+      if (data[i * c + 3] > 0) {
+        useAlpha = true;
+        break;
+      }
+    }
+  }
   for (let i = 0; i < h * w; ++i) {
     const idx = i * 4;
     const src = i * c;
     imgData.data[idx] = Math.round((data[src] || 0) * 255);
     imgData.data[idx + 1] = Math.round((data[src + 1] || 0) * 255);
     imgData.data[idx + 2] = Math.round((data[src + 2] || 0) * 255);
-    imgData.data[idx + 3] = Math.round((c > 3 ? data[src + 3] : 1) * 255);
+    const alpha = useAlpha ? data[src + 3] : 1;
+    imgData.data[idx + 3] = Math.round(alpha * 255);
   }
   ctx2d.putImageData(imgData, 0, 0);
   const link = document.createElement('a');

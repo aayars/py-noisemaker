@@ -38,6 +38,8 @@ export class Context {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);
       } else {
+        // Lose the WebGL context so a 2D context can be acquired later
+        gl.getExtension('WEBGL_lose_context')?.loseContext?.();
         this.gl = null;
       }
     }
