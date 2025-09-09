@@ -11,6 +11,19 @@ let data = Array.from(tensor.read());
 assert.deepStrictEqual(shape, [2, 2, 1]);
 assert.deepStrictEqual(data, [0, 1, 1, 0]);
 
+// Triangular masks
+shape = maskShape(ValueMask.h_tri);
+[tensor] = maskValues(ValueMask.h_tri, shape);
+ data = Array.from(tensor.read());
+ assert.deepStrictEqual(shape, [4, 2, 1]);
+ assert.deepStrictEqual(data, [0, 1, 0, 0, 1, 0, 0, 0]);
+
+shape = maskShape(ValueMask.v_tri);
+[tensor] = maskValues(ValueMask.v_tri, shape);
+ data = Array.from(tensor.read());
+ assert.deepStrictEqual(shape, [2, 4, 1]);
+ assert.deepStrictEqual(data, [1, 0, 0, 0, 0, 0, 1, 0]);
+
 // Color masks
 const colorMaskTests = [
   [ValueMask.rgb, [4, 4, 3], [1, 0, 0], [0, 0, 0]],
