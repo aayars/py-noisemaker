@@ -1,5 +1,5 @@
 import { Context } from './context.js';
-import { values, rgbToHsv, hsvToRgb } from './value.js';
+import { values, rgbToHsv, hsvToRgb, FULLSCREEN_VS } from './value.js';
 import { rgbToOklab, oklabToRgb } from './oklab.js';
 import { ColorSpace } from './constants.js';
 import { shapeFromParams } from './util.js';
@@ -90,25 +90,41 @@ export class Preset {
     }
 
     // Present to canvas if available
-    if (ctx.canvas && ctx.canvas.getContext) {
+    if (ctx.canvas) {
       const [h, w, c] = tensor.shape;
-      const data = tensor.read();
-      const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });
-      if (ctx2d) {
+      if (ctx.gl && !ctx.isCPU) {
+        const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;
-        const img = ctx2d.createImageData(w, h);
-        for (let i = 0; i < h * w; i++) {
-          const r = data[i * c];
-          const gch = data[i * c + 1] || 0;
-          const b = data[i * c + 2] || 0;
-          const a = c > 3 ? data[i * c + 3] : 1;
-          img.data[i * 4] = Math.max(0, Math.min(255, Math.round(r * 255)));
-          img.data[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(gch * 255)));
-          img.data[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
-          img.data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+        const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n outColor = texture(u_tex, uv);\n}`;
+        const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+        gl.useProgram(prog);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+        gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+        ctx.bindFramebuffer(null, w, h);
+        ctx.drawQuad();
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.deleteProgram(prog);
+      } else if (ctx.canvas.getContext) {
+        const data = tensor.read();
+        const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });
+        if (ctx2d) {
+          ctx.canvas.width = w;
+          ctx.canvas.height = h;
+          const img = ctx2d.createImageData(w, h);
+          for (let i = 0; i < h * w; i++) {
+            const r = data[i * c];
+            const gch = data[i * c + 1] || 0;
+            const b = data[i * c + 2] || 0;
+            const a = c > 3 ? data[i * c + 3] : 1;
+            img.data[i * 4] = Math.max(0, Math.min(255, Math.round(r * 255)));
+            img.data[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(gch * 255)));
+            img.data[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+            img.data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+          }
+          ctx2d.putImageData(img, 0, 0);
         }
-        ctx2d.putImageData(img, 0, 0);
       }
     }
 

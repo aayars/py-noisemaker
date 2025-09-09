@@ -10,29 +10,36 @@ export class Context {
   constructor(canvas) {
     this.canvas = canvas;
     this.gl = canvas && canvas.getContext ? canvas.getContext('webgl2') : null;
-    this.isCPU = !this.gl;
+    this.isCPU = true;
 
     if (this.gl) {
       const gl = this.gl;
-      gl.getExtension('EXT_color_buffer_float');
-      gl.getExtension('OES_texture_float_linear');
+      const hasColorBufferFloat = gl.getExtension('EXT_color_buffer_float');
+      const hasFloatLinear = gl.getExtension('OES_texture_float_linear');
 
-      // setup a fullscreen quad
-      this.quadVao = gl.createVertexArray();
-      gl.bindVertexArray(this.quadVao);
-      const buf = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-          -1, -1, 1, -1, -1, 1,
-          -1, 1, 1, -1, 1, 1
-        ]),
-        gl.STATIC_DRAW
-      );
-      gl.enableVertexAttribArray(0);
-      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-      gl.bindVertexArray(null);
+      // If required extensions are missing, fall back to CPU mode.
+      if (hasColorBufferFloat && hasFloatLinear) {
+        this.isCPU = false;
+
+        // setup a fullscreen quad
+        this.quadVao = gl.createVertexArray();
+        gl.bindVertexArray(this.quadVao);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(
+          gl.ARRAY_BUFFER,
+          new Float32Array([
+            -1, -1, 1, -1, -1, 1,
+            -1, 1, 1, -1, 1, 1
+          ]),
+          gl.STATIC_DRAW
+        );
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
+      } else {
+        this.gl = null;
+      }
     }
   }
 
