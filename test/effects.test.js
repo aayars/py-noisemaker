@@ -37,6 +37,9 @@ import {
   rotate,
   pixelSort,
   glyphMap,
+  sketch,
+  simpleFrame,
+  frame,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -477,6 +480,29 @@ const psTensor = Tensor.fromArray(null, psData, [1,4,1]);
 const psOut = pixelSort(psTensor, [1,4,1], 0, 1).read();
 assert.strictEqual(psOut.length, 4);
 assert.notDeepStrictEqual(Array.from(psOut), [0.2,0.8,0.5,0.1]);
+
+// sketch regression
+setSeed(1);
+const skData = new Float32Array([0.1, 0.5, 0.3, 0.8]);
+const skTensor = Tensor.fromArray(null, skData, [2,2,1]);
+setSeed(1);
+const skOut = sketch(skTensor, [2,2,1], 0, 1).read();
+const skExpected = loadFixture('sketch.json');
+arraysClose(Array.from(skOut), skExpected);
+
+// simpleFrame regression
+const sfTensor = Tensor.fromArray(null, skData, [2,2,1]);
+const sfOut = simpleFrame(sfTensor, [2,2,1], 0, 1, 0.5).read();
+const sfExpected = loadFixture('simpleFrame.json');
+arraysClose(Array.from(sfOut), sfExpected);
+
+// frame regression
+setSeed(1);
+const frTensor = Tensor.fromArray(null, skData, [2,2,1]);
+setSeed(1);
+const frOut = frame(frTensor, [2,2,1], 0, 1).read();
+const frExpected = loadFixture('frame.json');
+arraysClose(Array.from(frOut), frExpected);
 
 // glyphMap shape test
 const gmTensor = Tensor.fromArray(null, edgeData, [4,4,1]);

@@ -1784,3 +1784,158 @@ register('dla', dla, {
   xy: null,
   alpha: 1,
 });
+
+export function simpleFrame(
+  tensor,
+  shape,
+  time,
+  speed,
+  brightness = 0
+) {
+  const [h, w, c] = shape;
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const maskData = new Float32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = Math.abs(x - cx) / (cx || 1);
+      const dy = Math.abs(y - cy) / (cy || 1);
+      maskData[y * w + x] = Math.max(dx, dy);
+    }
+  }
+  let border = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
+  border = blend(
+    Tensor.fromArray(tensor.ctx, new Float32Array(h * w), [h, w, 1]),
+    border,
+    0.55,
+  );
+  border = posterize(border, [h, w, 1], time, speed, 1);
+  const maskC = new Float32Array(h * w * c);
+  const bData = border.read();
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) maskC[i * c + k] = bData[i];
+  }
+  const maskTensor = Tensor.fromArray(tensor.ctx, maskC, shape);
+  const bright = new Float32Array(h * w * c);
+  bright.fill(brightness);
+  const brightTensor = Tensor.fromArray(tensor.ctx, bright, shape);
+  return blend(tensor, brightTensor, maskTensor);
+}
+register('simpleFrame', simpleFrame, { brightness: 0 });
+
+export function frame(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const halfH = Math.max(1, Math.floor(h * 0.5));
+  const halfW = Math.max(1, Math.floor(w * 0.5));
+  const halfShape = [halfH, halfW, c];
+  const noise = values(64, halfShape, { seed: 0, time });
+  const nData = noise.read();
+  const cx = (halfW - 1) / 2;
+  const cy = (halfH - 1) / 2;
+  const maskData = new Float32Array(halfH * halfW);
+  for (let y = 0; y < halfH; y++) {
+    for (let x = 0; x < halfW; x++) {
+      const dx = Math.abs(x - cx) / (cx || 1);
+      const dy = Math.abs(y - cy) / (cy || 1);
+      let m = 1 - Math.max(dx, dy);
+      m = Math.max(0, Math.min(1, m + nData[y * halfW + x] * 0.005));
+      maskData[y * halfW + x] = Math.sqrt(m);
+    }
+  }
+  const maskC = new Float32Array(halfH * halfW * c);
+  for (let i = 0; i < halfH * halfW; i++) {
+    for (let k = 0; k < c; k++) maskC[i * c + k] = maskData[i];
+  }
+  const maskTensor = Tensor.fromArray(tensor.ctx, maskC, halfShape);
+  let faded = downsample(tensor, 2);
+  faded = adjustBrightness(faded, halfShape, time, speed, 0.1);
+  faded = adjustContrast(faded, halfShape, time, speed, 0.75);
+  if (halfH > 1 && halfW > 1) {
+    faded = lightLeak(faded, halfShape, time, speed, 0.125);
+    faded = vignette(faded, halfShape, time, speed, 0.05, 0.75);
+  }
+  const shade = shadow(noise, [halfH, halfW, 1], time, speed, 1.0).read();
+  const edgeData = new Float32Array(halfH * halfW * c);
+  for (let i = 0; i < halfH * halfW; i++) {
+    for (let k = 0; k < c; k++) edgeData[i * c + k] = 0.9 + shade[i] * 0.1;
+  }
+  const edgeTex = Tensor.fromArray(tensor.ctx, edgeData, halfShape);
+  let out = blend(faded, edgeTex, maskTensor);
+  out = aberration(out, halfShape, time, speed, 0.00666);
+  out = upsample(out, 2);
+  return out;
+}
+register('frame', frame, {});
+
+export function sketch(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  let valuesTensor = tensor;
+  if (c !== 1) {
+    const src = tensor.read();
+    const gray = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * c;
+      const r = src[base];
+      const g = src[base + 1] || 0;
+      const b = src[base + 2] || 0;
+      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    valuesTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  }
+  valuesTensor = adjustContrast(valuesTensor, [h, w, 1], time, speed, 2.0);
+  valuesTensor = clamp01(valuesTensor);
+  let outline = derivative(valuesTensor, [h, w, 1], time, speed).read();
+  const invValues = valuesTensor.read();
+  const invData = new Float32Array(invValues.length);
+  for (let i = 0; i < invValues.length; i++) invData[i] = 1 - invValues[i];
+  const d2 = derivative(
+    Tensor.fromArray(tensor.ctx, invData, [h, w, 1]),
+    [h, w, 1],
+    time,
+    speed,
+  ).read();
+  for (let i = 0; i < outline.length; i++) {
+    outline[i] = Math.min(1 - outline[i], 1 - d2[i]);
+  }
+  let outlineTensor = Tensor.fromArray(tensor.ctx, outline, [h, w, 1]);
+  outlineTensor = adjustContrast(outlineTensor, [h, w, 1], time, speed, 0.25);
+  outlineTensor = normalize(outlineTensor);
+  valuesTensor = vignette(valuesTensor, [h, w, 1], time, speed, 1.0, 0.875);
+  const invValTensor = Tensor.fromArray(tensor.ctx, invData, [h, w, 1]);
+  let wormsOut = worms(
+    invValTensor,
+    [h, w, 1],
+    time,
+    speed,
+    2,
+    125,
+    0.5,
+    1,
+    0.25,
+    1.0,
+  ).read();
+  for (let i = 0; i < wormsOut.length; i++) wormsOut[i] = 1 - wormsOut[i];
+  let cross = Tensor.fromArray(tensor.ctx, wormsOut, [h, w, 1]);
+  cross = normalize(cross);
+  let combined = blend(cross, outlineTensor, 0.75);
+  combined = warp(
+    combined,
+    [h, w, 1],
+    time,
+    speed,
+    Math.max(1, Math.floor(Math.max(h, w) * 0.125)),
+    1,
+    0.0025,
+  );
+  const combData = combined.read();
+  for (let i = 0; i < combData.length; i++) combData[i] *= combData[i];
+  combined = Tensor.fromArray(tensor.ctx, combData, [h, w, 1]);
+  if (c === 1) return combined;
+  const out = new Float32Array(h * w * c);
+  const src = combined.read();
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) out[i * c + k] = src[i];
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('sketch', sketch, {});
