@@ -1,5 +1,9 @@
 # Noisemaker Vanilla JavaScript Port Specification
 
+The JS porting project aims for a 1:1 surface-level port of the Python library to Javascript.
+
+CLI tools are not included.
+
 ## 1. Goals and Scope
 
 * Reproduce the reusable library portion of the Python project in plain JavaScript.
