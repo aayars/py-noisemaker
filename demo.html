@@ -8,6 +8,9 @@
     body { margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; background:#fafafa; color:#333; }
     canvas { border:1px solid #ccc; margin-top:20px; }
     button { margin-top:10px; padding:8px 16px; }
+    #info { margin-top:20px; max-width:600px; width:100%; }
+    #renderTime { font-weight:bold; margin-bottom:10px; }
+    #presetDef { background:#f0f0f0; padding:10px; overflow:auto; }
   </style>
 </head>
 <body>
@@ -19,15 +22,21 @@
     <button id="reroll">Re-roll</button>
   </div>
   <canvas id="noise" width="256" height="256"></canvas>
+  <div id="info">
+    <div id="renderTime"></div>
+    <pre id="presetDef"></pre>
+  </div>
   <script type="module">
     import { Context } from './src/context.js';
     import { render } from './src/composer.js';
     import PRESETS from './src/presets.js';
-
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
     const presetSelect = document.getElementById('preset');
-    const presetNames = Object.keys(PRESETS()).filter(
+    const renderTimeEl = document.getElementById('renderTime');
+    const presetDefEl = document.getElementById('presetDef');
+    const presets = PRESETS();
+    const presetNames = Object.keys(presets).filter(
       (name) => !name.startsWith('maybe-')
     );
 
@@ -38,16 +47,45 @@
       presetSelect.appendChild(option);
     });
 
+    function formatPreset(obj, indent = 0) {
+      const pad = '  '.repeat(indent);
+      if (typeof obj === 'function') {
+        return obj.toString();
+      }
+      if (Array.isArray(obj)) {
+        return '[\n' +
+          obj
+            .map((v) => pad + '  ' + formatPreset(v, indent + 1))
+            .join(',\n') +
+          '\n' + pad + ']';
+      }
+      if (obj && typeof obj === 'object') {
+        return '{\n' +
+          Object.entries(obj)
+            .map(
+              ([k, v]) =>
+                pad + '  ' + JSON.stringify(k) + ': ' + formatPreset(v, indent + 1)
+            )
+            .join(',\n') +
+          '\n' + pad + '}';
+      }
+      return JSON.stringify(obj);
+    }
+
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
 
     function draw(seed, preset) {
+      const start = performance.now();
       render(preset, seed, {
         width: canvas.width,
         height: canvas.height,
         ctx,
-        presets: PRESETS(),
+        presets,
       });
+      const elapsed = performance.now() - start;
+      renderTimeEl.textContent = `Rendering time: ${elapsed.toFixed(2)} ms`;
+      presetDefEl.textContent = formatPreset(presets[preset]);
     }
 
     draw(42, currentPreset);
