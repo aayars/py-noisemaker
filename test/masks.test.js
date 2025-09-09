@@ -40,14 +40,41 @@ assert.deepStrictEqual(data, [
 shape = maskShape(ValueMask.alphanum_2);
 [tensor] = maskValues(ValueMask.alphanum_2, shape);
 data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, [6, 6, 1]);
+  assert.deepStrictEqual(data, [
+    0, 0, 0, 0, 0, 0,
+    0, 1, 1, 1, 0, 0,
+    0, 0, 0, 0, 1, 0,
+    0, 1, 1, 1, 0, 0,
+    1, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 0,
+  ]);
+
+// Truchet curve and tile masks
+shape = maskShape(ValueMask.truchet_curves_00);
+[tensor] = maskValues(ValueMask.truchet_curves_00, shape);
+data = Array.from(tensor.read());
 assert.deepStrictEqual(shape, [6, 6, 1]);
 assert.deepStrictEqual(data, [
-  0, 0, 0, 0, 0, 0,
-  0, 1, 1, 1, 0, 0,
-  0, 0, 0, 0, 1, 0,
-  0, 1, 1, 1, 0, 0,
-  1, 0, 0, 0, 0, 0,
-  1, 1, 1, 1, 1, 0,
+  0, 0, 0, 1, 0, 0,
+  0, 0, 0, 1, 0, 0,
+  0, 0, 0, 0, 1, 1,
+  1, 1, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0,
+  0, 0, 1, 0, 0, 0,
+]);
+
+shape = maskShape(ValueMask.truchet_tile_00);
+[tensor] = maskValues(ValueMask.truchet_tile_00, shape);
+data = Array.from(tensor.read());
+assert.deepStrictEqual(shape, [6, 6, 1]);
+assert.deepStrictEqual(data, [
+  0, 0, 0, 0, 0, 1,
+  0, 0, 0, 0, 1, 1,
+  0, 0, 0, 1, 1, 1,
+  0, 0, 1, 1, 1, 1,
+  0, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1,
 ]);
 
 // Halftone masks
