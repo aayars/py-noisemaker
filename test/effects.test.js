@@ -66,6 +66,9 @@ import {
   falseColor,
   tint,
   valueRefract,
+  smoothstep,
+  convolve,
+  glowingEdges,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -83,7 +86,7 @@ import { random as simplexRandom } from '../src/simplex.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { VoronoiDiagramType, DistanceMetric } from '../src/constants.js';
+import { VoronoiDiagramType, DistanceMetric, ValueMask } from '../src/constants.js';
 
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);
@@ -818,5 +821,18 @@ for (let i = 0; i < 4; i++) {
   dgManual[i * 3 + 2] = bWarp[i];
 }
 arraysClose(Array.from(dgOut), Array.from(dgManual));
+
+// smoothstep regression
+const smTensor = Tensor.fromArray(null, new Float32Array([0.2, 0.5, 0.8, 1.2]), [2, 2, 1]);
+const smOut = smoothstep(smTensor, [2, 2, 1], 0, 1, 0.25, 0.75).read();
+const smExpected = loadFixture('smoothstep.json');
+arraysClose(Array.from(smOut), smExpected);
+
+// convolve regression
+const cvTensor = Tensor.fromArray(null, new Float32Array([0.1, 0.5, 0.3, 0.7]), [2, 2, 1]);
+const cvOut = convolve(cvTensor, [2, 2, 1], 0, 1, ValueMask.conv2d_blur, true, 1).read();
+const cvExpected = loadFixture('convolve.json');
+arraysClose(Array.from(cvOut), cvExpected);
+
 
 console.log('Effects tests passed');

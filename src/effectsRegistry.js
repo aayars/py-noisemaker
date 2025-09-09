@@ -43,3 +43,5 @@ export function register(name, fn, defaults = {}) {
   }
   EFFECTS[name] = { ...defaults, func: fn };
 }
+
+export default EFFECTS;

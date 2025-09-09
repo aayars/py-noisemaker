@@ -187,6 +187,101 @@ register('outline', outline, {
   invert: false,
 });
 
+export function glowingEdges(
+  tensor,
+  shape,
+  time,
+  speed,
+  sobelMetric = DistanceMetric.chebyshev,
+  alpha = 1,
+) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const gray = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    if (c === 1) {
+      gray[i] = src[i];
+    } else {
+      const base = i * c;
+      const r = src[base];
+      const g = src[base + 1] || 0;
+      const b = src[base + 2] || 0;
+      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+  }
+  const levels = randomInt(3, 5);
+  let edges = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  edges = posterize(edges, [h, w, 1], time, speed, levels);
+  const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const [bh, bw] = maskShape(ValueMask.conv2d_blur);
+  const blurFlat = blurTensor.read();
+  const blurArr = [];
+  for (let y = 0; y < bh; y++) {
+    const row = [];
+    for (let x = 0; x < bw; x++) row.push(blurFlat[y * bw + x]);
+    blurArr.push(row);
+  }
+  edges = convolution(edges, blurArr);
+  const sxArr = [
+    [-1, 0, 1],
+    [-2, 0, 2],
+    [-1, 0, 1],
+  ];
+  const syArr = [
+    [-1, -2, -1],
+    [0, 0, 0],
+    [1, 2, 1],
+  ];
+  const gx = convolution(edges, sxArr, { normalize: false });
+  const gy = convolution(edges, syArr, { normalize: false });
+  const gxData = gx.read();
+  const gyData = gy.read();
+  const distData = new Float32Array(gxData.length);
+  for (let i = 0; i < gxData.length; i++) {
+    distData[i] = distance(Math.abs(gxData[i]), Math.abs(gyData[i]), sobelMetric);
+  }
+  edges = normalize(Tensor.fromArray(tensor.ctx, distData, [h, w, 1]));
+  let eData = edges.read();
+  for (let i = 0; i < eData.length; i++) eData[i] = 1 - eData[i];
+  const mult = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const e = Math.min(eData[i] * 8, 1);
+    for (let k = 0; k < c; k++) {
+      const tVal = Math.min(src[i * c + k] * 1.25, 1);
+      mult[i * c + k] = e * tVal;
+    }
+  }
+  edges = Tensor.fromArray(tensor.ctx, mult, shape);
+  edges = bloom(edges, shape, time, speed, 0.5);
+  const kTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const [kh, kw] = maskShape(ValueMask.conv2d_blur);
+  const kFlat = kTensor.read();
+  const kArr = [];
+  for (let y = 0; y < kh; y++) {
+    const row = [];
+    for (let x = 0; x < kw; x++) row.push(kFlat[y * kw + x]);
+    kArr.push(row);
+  }
+  let blurred = convolution(edges, kArr);
+  const eData2 = edges.read();
+  const bData = blurred.read();
+  const sum = new Float32Array(eData2.length);
+  for (let i = 0; i < eData2.length; i++) sum[i] = eData2[i] + bData[i];
+  edges = normalize(Tensor.fromArray(tensor.ctx, sum, shape));
+  const edgesData = edges.read();
+  const final = new Float32Array(edgesData.length);
+  for (let i = 0; i < edgesData.length; i++) {
+    final[i] = 1 - (1 - edgesData[i]) * (1 - src[i]);
+  }
+  let result = Tensor.fromArray(tensor.ctx, final, shape);
+  if (alpha < 1) result = blend(tensor, result, alpha);
+  return result;
+}
+register('glowingEdges', glowingEdges, {
+  sobelMetric: DistanceMetric.chebyshev,
+  alpha: 1,
+});
+
 export function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const src = tensor.read();
@@ -655,6 +750,53 @@ export function posterize(tensor, shape, time, speed, levels = 9) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('posterize', posterize, { levels: 9 });
+
+export function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
+  const src = tensor.read();
+  const out = new Float32Array(src.length);
+  const inv = 1 / (b - a || 1);
+  for (let i = 0; i < src.length; i++) {
+    let t = (src[i] - a) * inv;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    out[i] = t * t * (3 - 2 * t);
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('smoothstep', smoothstep, { a: 0, b: 1 });
+
+export function convolve(
+  tensor,
+  shape,
+  time,
+  speed,
+  kernel = ValueMask.conv2d_blur,
+  withNormalize = true,
+  alpha = 1,
+) {
+  let kernelArr = kernel;
+  if (!Array.isArray(kernelArr[0])) {
+    const kTensor = maskValues(kernel)[0];
+    const [kh, kw] = maskShape(kernel);
+    const flat = kTensor.read();
+    kernelArr = [];
+    for (let y = 0; y < kh; y++) {
+      const row = [];
+      for (let x = 0; x < kw; x++) {
+        row.push(flat[y * kw + x]);
+      }
+      kernelArr.push(row);
+    }
+  }
+  let out = convolution(tensor, kernelArr, { normalize: withNormalize });
+  if (alpha < 1) out = blend(tensor, out, alpha);
+  return out;
+}
+register('convolve', convolve, {
+  kernel: ValueMask.conv2d_blur,
+  withNormalize: true,
+  alpha: 1,
+});
 
 export function fbm(tensor, shape, time, speed, freq = 4, octaves = 4, lacunarity = 2, gain = 0.5) {
   const [h, w, c] = shape;
