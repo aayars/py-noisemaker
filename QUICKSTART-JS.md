@@ -4,7 +4,11 @@ This guide walks through rendering your first image with the experimental Noisem
 
 ## Setup
 
+<<<<<<< ours
 1. Clone the repository and install dependencies:
+=======
+1. Clone the repository and install dependencies (for tests):
+>>>>>>> theirs
 
 ```bash
 git clone https://github.com/aayars/py-noisemaker
@@ -12,6 +16,7 @@ cd py-noisemaker
 npm install
 ```
 
+<<<<<<< ours
 2. Build the distributable bundles:
 
 ```bash
@@ -23,12 +28,23 @@ This writes `dist/noisemaker.mjs` (ES module) and `dist/noisemaker.umd.js` (UMD)
 ## Render your first preset
 
 Create an HTML file and import the built library:
+=======
+## Render your first preset
+
+Create an HTML file that imports the source modules directly:
+>>>>>>> theirs
 
 ```html
 <!doctype html>
 <canvas id="noise"></canvas>
 <script type="module">
+<<<<<<< ours
   import { Context, render, savePNG } from './dist/noisemaker.mjs';
+=======
+  import { Context } from './src/context.js';
+  import { render } from './src/composer.js';
+  import { savePNG } from './src/util.js';
+>>>>>>> theirs
 
   const canvas = document.getElementById('noise');
   const ctx = new Context(canvas);
@@ -41,6 +57,11 @@ Create an HTML file and import the built library:
 </script>
 ```
 
+<<<<<<< ours
+=======
+Serve this file via a local web server (for example, `python -m http.server`) before opening it in your browser.
+
+>>>>>>> theirs
 The `render` function writes directly to the supplied canvas and returns a `Tensor` containing the raw pixel data. When running under Node or without a canvas, use `ctx: new Context(null)` and inspect the tensor via `tensor.read()`.
 
 ## Run the test suite
