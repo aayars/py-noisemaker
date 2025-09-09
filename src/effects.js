@@ -2649,17 +2649,8 @@ export function dither(tensor, shape, time, speed, levels = 2) {
 register("dither", dither, { levels: 2 });
 
 export function grain(tensor, shape, time, speed, alpha = 0.25) {
-  const [h, w, c] = shape;
-  const ctx = tensor.ctx;
-  if (ctx && !ctx.isCPU) {
-    const noise = values(Math.max(h, w), [h, w, c], {
-      ctx,
-      time,
-      speed: speed * 100,
-    });
-    return blend(tensor, noise, alpha);
-  }
-  const noise = values(Math.max(h, w), [h, w, c], {
+  const [h, w] = shape;
+  const noise = values([h, w], [h, w, 1], {
     ctx: tensor.ctx,
     time,
     speed: speed * 100,
