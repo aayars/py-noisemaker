@@ -86,11 +86,145 @@ register("warp", warp, {
   signedRange: true,
 });
 
-export function shadow(tensor, shape, time, speed, alpha = 1) {
-  const shade = normalize(sobelValue(tensor));
-  return blend(tensor, shade, alpha);
+export function shadow(
+  tensor,
+  shape,
+  time,
+  speed,
+  alpha = 1,
+  reference = null,
+) {
+  const [h, w, c] = shape;
+  let ref = reference || tensor;
+  const rShape = ref.shape;
+  const rData = ref.read();
+  const gray = new Float32Array(h * w);
+  if (rShape[2] === 1) {
+    gray.set(rData);
+  } else {
+    for (let i = 0; i < h * w; i++) {
+      const base = i * rShape[2];
+      if (rShape[2] === 2) {
+        gray[i] = rData[base];
+      } else {
+        const r = rData[base];
+        const g = rData[base + 1] || 0;
+        const b = rData[base + 2] || 0;
+        gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+    }
+  }
+  const grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  const kx = [
+    [1, 0, -1],
+    [2, 0, -2],
+    [1, 0, -1],
+  ];
+  const ky = [
+    [1, 2, 1],
+    [0, 0, 0],
+    [-1, -2, -1],
+  ];
+  const dx = convolution(grayTensor, kx).read();
+  const dy = convolution(grayTensor, ky).read();
+  const dist = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    dist[i] = distance(dx[i], dy[i], DistanceMetric.euclidean);
+  }
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < h * w; i++) {
+    if (dist[i] < min) min = dist[i];
+    if (dist[i] > max) max = dist[i];
+  }
+  let shadeValues;
+  if (min === max) {
+    shadeValues = dist;
+  } else {
+    shadeValues = new Float32Array(h * w);
+    const range = max - min;
+    for (let i = 0; i < h * w; i++) {
+      shadeValues[i] = (dist[i] - min) / range;
+    }
+  }
+  let shade = Tensor.fromArray(tensor.ctx, shadeValues, [h, w, 1]);
+  const sharpen = [
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0],
+  ];
+  shade = convolution(shade, sharpen, { alpha: 0.5 });
+  const shadeArr = shade.read();
+  const highlight = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) highlight[i] = shadeArr[i] * shadeArr[i];
+  const src = tensor.read();
+  const shaded = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const sh = shadeArr[i];
+    const hi = highlight[i];
+    for (let k = 0; k < c; k++) {
+      const val = src[i * c + k];
+      shaded[i * c + k] = (1 - (1 - val) * (1 - hi)) * sh;
+    }
+  }
+  const shadeTensor = Tensor.fromArray(tensor.ctx, shaded, shape);
+  if (c === 1) {
+    return blend(tensor, shadeTensor, alpha);
+  } else if (c === 2) {
+    const out = src.slice();
+    for (let i = 0; i < h * w; i++) {
+      out[i * 2] = (1 - alpha) * src[i * 2] + alpha * shaded[i * 2];
+    }
+    return Tensor.fromArray(tensor.ctx, out, shape);
+  } else {
+    let rgbData;
+    let aData = null;
+    if (c === 4) {
+      rgbData = new Float32Array(h * w * 3);
+      aData = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * 4;
+        rgbData[i * 3] = src[base];
+        rgbData[i * 3 + 1] = src[base + 1];
+        rgbData[i * 3 + 2] = src[base + 2];
+        aData[i] = src[base + 3];
+      }
+    } else {
+      rgbData = src;
+    }
+    const rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+    const hsv = rgbToHsv(rgbTensor);
+    const hsvData = hsv.read();
+    const shadeRgb = new Float32Array(h * w * 3);
+    for (let i = 0; i < h * w; i++) {
+      shadeRgb[i * 3] = shaded[i * c];
+      shadeRgb[i * 3 + 1] = shaded[i * c + 1];
+      shadeRgb[i * 3 + 2] = shaded[i * c + 2];
+    }
+    const shadeHsv = rgbToHsv(
+      Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
+    );
+    const shadeHsvData = shadeHsv.read();
+    for (let i = 0; i < h * w; i++) {
+      hsvData[i * 3 + 2] =
+        (1 - alpha) * hsvData[i * 3 + 2] + alpha * shadeHsvData[i * 3 + 2];
+    }
+    let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
+    if (c === 4) {
+      const res = result.read();
+      const out = new Float32Array(h * w * 4);
+      for (let i = 0; i < h * w; i++) {
+        out[i * 4] = res[i * 3];
+        out[i * 4 + 1] = res[i * 3 + 1];
+        out[i * 4 + 2] = res[i * 3 + 2];
+        out[i * 4 + 3] = aData[i];
+      }
+      result = Tensor.fromArray(tensor.ctx, out, [h, w, 4]);
+    }
+    return result;
+  }
 }
-register("shadow", shadow, { alpha: 1 });
+register("shadow", shadow, { alpha: 1, reference: null });
 
 export function bloom(tensor, shape, time, speed, alpha = 0.5) {
   const [h, w, c] = shape;

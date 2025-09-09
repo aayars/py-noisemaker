@@ -202,10 +202,66 @@ void main(){
         case ValueDistribution.row_index:
           val = height === 1 ? 0 : y / (height - 1);
           break;
-        case ValueDistribution.center_circle: {
+        case ValueDistribution.center_circle:
+        case ValueDistribution.center_triangle:
+        case ValueDistribution.center_diamond:
+        case ValueDistribution.center_square:
+        case ValueDistribution.center_pentagon:
+        case ValueDistribution.center_hexagon:
+        case ValueDistribution.center_heptagon:
+        case ValueDistribution.center_octagon:
+        case ValueDistribution.center_nonagon:
+        case ValueDistribution.center_decagon:
+        case ValueDistribution.center_hendecagon:
+        case ValueDistribution.center_dodecagon: {
           const dx = (x + 0.5) / width - 0.5;
           const dy = (y + 0.5) / height - 0.5;
-          const d = Math.sqrt(dx * dx + dy * dy);
+          let metric = DistanceMetric.euclidean;
+          let sdfSides = 5;
+          switch (distrib) {
+            case ValueDistribution.center_triangle:
+              metric = DistanceMetric.triangular;
+              break;
+            case ValueDistribution.center_diamond:
+              metric = DistanceMetric.manhattan;
+              break;
+            case ValueDistribution.center_square:
+              metric = DistanceMetric.chebyshev;
+              break;
+            case ValueDistribution.center_pentagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 5;
+              break;
+            case ValueDistribution.center_hexagon:
+              metric = DistanceMetric.hexagram;
+              break;
+            case ValueDistribution.center_heptagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 7;
+              break;
+            case ValueDistribution.center_octagon:
+              metric = DistanceMetric.octagram;
+              break;
+            case ValueDistribution.center_nonagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 9;
+              break;
+            case ValueDistribution.center_decagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 10;
+              break;
+            case ValueDistribution.center_hendecagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 11;
+              break;
+            case ValueDistribution.center_dodecagon:
+              metric = DistanceMetric.sdf;
+              sdfSides = 12;
+              break;
+            default:
+              metric = DistanceMetric.euclidean;
+          }
+          const d = distance(dx, dy, metric, sdfSides);
           val = Math.max(0, 1 - d * 2);
           break;
         }
@@ -258,12 +314,25 @@ void main(){
           break;
         }
       }
+      const idx = (y * width + x) * channels;
       if (maskData) {
         const m = maskData[y * width + x];
-        val *= m;
+        if (channels === 2) {
+          data[idx] = val;
+          data[idx + 1] = m;
+          continue;
+        } else if (channels === 4) {
+          data[idx] = val;
+          data[idx + 1] = val;
+          data[idx + 2] = val;
+          data[idx + 3] = m;
+          continue;
+        } else {
+          val *= m;
+        }
       }
       for (let c = 0; c < channels; c++) {
-        data[(y * width + x) * channels + c] = val;
+        data[idx + c] = val;
       }
     }
   }
@@ -432,16 +501,37 @@ export function clamp01(tensor) {
   return Tensor.fromArray(tensor.ctx, out, tensor.shape);
 }
 
-export function distance(dx, dy, metric = DistanceMetric.euclidean) {
+export function distance(
+  dx,
+  dy,
+  metric = DistanceMetric.euclidean,
+  sdfSides = 5
+) {
   switch (metric) {
     case DistanceMetric.manhattan:
       return Math.abs(dx) + Math.abs(dy);
     case DistanceMetric.chebyshev:
       return Math.max(Math.abs(dx), Math.abs(dy));
     case DistanceMetric.octagram:
-      return Math.abs(dx) + Math.abs(dy) + Math.abs(dx - dy);
+      return Math.max(
+        (Math.abs(dx) + Math.abs(dy)) / Math.SQRT2,
+        Math.max(Math.abs(dx), Math.abs(dy))
+      );
     case DistanceMetric.triangular:
-      return Math.abs(dx) + Math.abs(dy) + Math.abs(dx + dy);
+      return Math.max(Math.abs(dx) - dy * 0.5, dy);
+    case DistanceMetric.hexagram:
+      return Math.max(
+        Math.max(Math.abs(dx) - dy * 0.5, dy),
+        Math.max(Math.abs(dx) + dy * 0.5, -dy)
+      );
+    case DistanceMetric.sdf: {
+      const arctan = Math.atan2(dx, -dy) + Math.PI;
+      const r = (Math.PI * 2) / sdfSides;
+      return (
+        Math.cos(Math.floor(0.5 + arctan / r) * r - arctan) *
+        Math.sqrt(dx * dx + dy * dy)
+      );
+    }
     case DistanceMetric.euclidean:
     default:
       return Math.sqrt(dx * dx + dy * dy);

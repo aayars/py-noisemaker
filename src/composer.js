@@ -245,32 +245,42 @@ function _flattenAncestors(presetName, presets, unique, ancestors) {
   ancestors.push(presetName);
 }
 
-function _flattenAncestorMetadata(preset, settings, key, defaultVal, presets) {
-  let flattened = Array.isArray(defaultVal) ? [] : {};
-  for (const ancestorName of preset.flattened_layers) {
-    const prototype = presets[ancestorName][key];
-    let ancestor;
-    if (key === SETTINGS_KEY) {
-      ancestor = prototype ? prototype() : defaultVal;
-    } else {
-      ancestor = prototype ? prototype(settings) : defaultVal;
-    }
-    if (Array.isArray(defaultVal)) {
-      if (!Array.isArray(ancestor)) {
-        throw new Error(
-          `${ancestorName}: Key "${key}" should be an array, not ${typeof ancestor}.`
-        );
+  function _flattenAncestorMetadata(preset, settings, key, defaultVal, presets) {
+    const flattened = Array.isArray(defaultVal) ? [] : {};
+    for (const ancestorName of preset.flattened_layers) {
+      const prototype = presets[ancestorName][key];
+      let ancestor;
+      if (prototype) {
+        if (typeof prototype !== 'function') {
+          throw new Error(
+            `${ancestorName}: Key "${key}" wasn't wrapped in a function. This can cause unexpected results for the given seed.`
+          );
+        }
+        try {
+          ancestor = key === SETTINGS_KEY ? prototype() : prototype(settings);
+        } catch (e) {
+          if (ancestorName === preset.name) throw e;
+          throw new Error(`In ancestor "${ancestorName}": ${e}`);
+        }
+      } else {
+        ancestor = defaultVal;
       }
-      flattened = flattened.concat(ancestor);
-    } else {
-      if (typeof ancestor !== 'object') {
-        throw new Error(
-          `${ancestorName}: Key "${key}" should be object, not ${typeof ancestor}.`
-        );
+      if (Array.isArray(defaultVal)) {
+        if (!Array.isArray(ancestor)) {
+          throw new Error(
+            `${ancestorName}: Key "${key}" should be an array, not ${typeof ancestor}.`
+          );
+        }
+        flattened.push(...ancestor);
+      } else {
+        if (typeof ancestor !== 'object') {
+          throw new Error(
+            `${ancestorName}: Key "${key}" should be object, not ${typeof ancestor}.`
+          );
+        }
+        Object.assign(flattened, ancestor);
       }
-      Object.assign(flattened, ancestor);
     }
+    return flattened;
   }
-  return flattened;
-}
 
