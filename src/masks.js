@@ -8,6 +8,14 @@ function uvRandom(uvNoise, uvX, uvY) {
   return (uvNoise[uvY][uvX] + random()) % 1;
 }
 
+function randomNormal(mean = 0, std = 1) {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = random();
+  while (v === 0) v = random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std + mean;
+}
+
 // Bitmap masks encoded as nested arrays or procedural functions
 export const Masks = {
   // Static bitmaps
@@ -718,10 +726,46 @@ export const Masks = {
     [2, -12, 2],
     [1, 2, 1],
   ],
+  [ValueMask.conv2d_emboss]: [
+    [0, 2, 4],
+    [-2, 1, 2],
+    [-4, -2, 0],
+  ],
+  [ValueMask.conv2d_invert]: [
+    [0, 0, 0],
+    [0, -1, 0],
+    [0, 0, 0],
+  ],
+  [ValueMask.conv2d_rand]: (() => {
+    const kernel = [];
+    for (let y = 0; y < 5; y++) {
+      const row = [];
+      for (let x = 0; x < 5; x++) {
+        row.push(randomNormal(0.5, 0.5));
+      }
+      kernel.push(row);
+    }
+    return kernel;
+  })(),
   [ValueMask.conv2d_sharpen]: [
     [0, -1, 0],
     [-1, 5, -1],
     [0, -1, 0],
+  ],
+  [ValueMask.conv2d_sobel_x]: [
+    [1, 0, -1],
+    [2, 0, -2],
+    [1, 0, -1],
+  ],
+  [ValueMask.conv2d_sobel_y]: [
+    [1, 2, 1],
+    [0, 0, 0],
+    [-1, -2, -1],
+  ],
+  [ValueMask.conv2d_box_blur]: [
+    [1, 2, 1],
+    [2, 4, 2],
+    [1, 2, 1],
   ],
 
   // Procedural masks computed on demand
