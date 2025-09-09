@@ -2896,7 +2896,7 @@ export function PRESETS() {
     },
 
     'random-hue': {
-      final: () => [Effect('adjust_hue', { amount: random() })],
+      final: () => [Effect('adjustHue', { amount: random() })],
     },
 
     rasteroids: {
