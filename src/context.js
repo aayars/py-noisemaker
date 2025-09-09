@@ -15,10 +15,11 @@ export class Context {
     if (this.gl) {
       const gl = this.gl;
       const hasColorBufferFloat = gl.getExtension('EXT_color_buffer_float');
-      const hasFloatLinear = gl.getExtension('OES_texture_float_linear');
-
-      // If required extensions are missing, fall back to CPU mode.
-      if (hasColorBufferFloat && hasFloatLinear) {
+      // Linear filtering for float textures is core in WebGL2 and we only use
+      // NEAREST sampling, so `OES_texture_float_linear` isn't required. Some
+      // browsers omit this extension which previously forced a CPU fallback
+      // and produced glitchy output.
+      if (hasColorBufferFloat) {
         this.isCPU = false;
 
         // setup a fullscreen quad

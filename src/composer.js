@@ -114,15 +114,17 @@ export class Preset {
           ctx.canvas.height = h;
           const img = ctx2d.createImageData(w, h);
           for (let i = 0; i < h * w; i++) {
-            const r = data[i * c];
-            const gch = data[i * c + 1] || 0;
-            const b = data[i * c + 2] || 0;
-            const aVal = c > 3 ? data[i * c + 3] : 1;
+            const src = i * c;
+            const r = data[src];
+            const g = c > 2 ? data[src + 1] : r;
+            const b = c > 2 ? data[src + 2] : r;
+            const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
             const a = Number.isFinite(aVal) ? aVal : 1;
-            img.data[i * 4] = Math.max(0, Math.min(255, Math.round(r * 255)));
-            img.data[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(gch * 255)));
-            img.data[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
-            img.data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+            const base = i * 4;
+            img.data[base] = Math.max(0, Math.min(255, Math.round(r * 255)));
+            img.data[base + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
+            img.data[base + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+            img.data[base + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
           }
           ctx2d.putImageData(img, 0, 0);
         }

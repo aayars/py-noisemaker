@@ -16,6 +16,9 @@ function fract(x) {
 // constants keeps the argument to `sin` within a sane range while still
 // providing a deterministic pseudo-random distribution.
 function rand2D(x, y, seed = 0, time = 0, speed = 1) {
+  // Keep the original high‑precision hash for CPU paths to preserve existing
+  // test fixtures. The GPU shader uses a reduced version to avoid float
+  // precision issues.
   const s =
     x * 12.9898 +
     y * 78.233 +
@@ -98,7 +101,7 @@ uniform int u_distrib;
 uniform sampler2D u_mask;
 uniform int u_useMask;
 float rand2D(float x,float y,float seed,float time,float speed){
- float s=x*12.9898+y*78.233+seed*37.719+time*speed*0.1;
+ float s=x*12.9898+y*78.233+mod(seed,1000.0)*0.1+time*speed;
  return fract(sin(s)*43758.5453);
 }
 float interp(float t,float order){
