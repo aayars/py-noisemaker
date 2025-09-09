@@ -58,6 +58,9 @@ import {
   fibers,
   scratches,
   strayHair,
+  grime,
+  watermark,
+  spookyTicker,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -674,6 +677,30 @@ const shExpected = loadFixture('strayHair.json');
 arraysClose(Array.from(shOut), shExpected);
 const shArr = Array.from(shOut);
 assert.ok(shArr.every(v => v >= 0 && v <= 1));
+
+// grime regression
+setSeed(1);
+const grimeTensor = Tensor.fromArray(null, new Float32Array(64), [8,8,1]);
+setSeed(1);
+const grOut = grime(grimeTensor, [8,8,1], 0, 1).read();
+const grExpected = loadFixture('grime.json');
+arraysClose(Array.from(grOut), grExpected);
+
+// watermark regression
+setSeed(1);
+const watermarkTensor = Tensor.fromArray(null, new Float32Array(64), [8,8,1]);
+setSeed(1);
+const wmOut = watermark(watermarkTensor, [8,8,1], 0, 1).read();
+const wmExpected = loadFixture('watermark.json');
+arraysClose(Array.from(wmOut), wmExpected);
+
+// spookyTicker regression
+setSeed(1);
+const spookyTensor = Tensor.fromArray(null, new Float32Array(64), [8,8,1]);
+setSeed(1);
+const stOut = spookyTicker(spookyTensor, [8,8,1], 0, 1).read();
+const stExpected = loadFixture('spookyTicker.json');
+arraysClose(Array.from(stOut), stExpected);
 
 // lensWarp extreme displacement
 setSeed(1);

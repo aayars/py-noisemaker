@@ -2725,3 +2725,224 @@ export function strayHair(tensor, shape, time, speed) {
   return blend(tensor, brightness, mask);
 }
 register('strayHair', strayHair, {});
+
+function expandChannels(tensor, channels) {
+  const [h, w, c] = tensor.shape;
+  if (c === channels) return tensor;
+  const data = tensor.read();
+  const out = new Float32Array(h * w * channels);
+  for (let i = 0; i < h * w; i++) {
+    const v = data[i * c];
+    for (let k = 0; k < channels; k++) out[i * channels + k] = v;
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, channels]);
+}
+
+function randomGlyphMask(shape, glyphs) {
+  const [h, w, c = 1] = shape;
+  const gShape = maskShape(glyphs[0]);
+  const gh = gShape[0];
+  const gw = gShape[1];
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y += gh) {
+    for (let x = 0; x < w; x += gw) {
+      const id = glyphs[randomInt(0, glyphs.length - 1)];
+      const [g] = maskValues(id, gShape);
+      const gData = g.read();
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          const yy = y + gy;
+          const xx = x + gx;
+          if (yy >= h || xx >= w) continue;
+          const v = gData[gy * gw + gx];
+          for (let k = 0; k < c; k++) out[(yy * w + xx) * c + k] = v;
+        }
+      }
+    }
+  }
+  return Tensor.fromArray(null, out, [h, w, c]);
+}
+
+export function grime(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let mask = fbm(null, valueShape, time, speed, 5, 8);
+  mask = refract(mask);
+  mask = derivative(mask, valueShape, time, speed, DistanceMetric.chebyshev, true, 0.125);
+  let gateData = mask.read();
+  const gate = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const v = gateData[i] * gateData[i] * 0.075;
+    for (let k = 0; k < c; k++) gate[i * c + k] = v;
+  }
+  const gateTensor = Tensor.fromArray(ctx, gate, shape);
+  const baseData = new Float32Array(h * w * c).fill(0.25);
+  const baseTensor = Tensor.fromArray(ctx, baseData, shape);
+  let dusty = blend(tensor, baseTensor, gateTensor);
+  let specks = values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+    splineOrder: 0,
+  });
+  specks = refract(specks, null, null, 0.25);
+  let sData = specks.read();
+  for (let i = 0; i < sData.length; i++) {
+    sData[i] = Math.max(sData[i] - 0.625, 0);
+  }
+  specks = Tensor.fromArray(ctx, sData, valueShape);
+  specks = normalize(specks);
+  sData = specks.read();
+  for (let i = 0; i < sData.length; i++) sData[i] = 1 - Math.sqrt(sData[i]);
+  specks = Tensor.fromArray(ctx, sData, valueShape);
+  let noise = values(Math.max(h, w), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+  });
+  dusty = blend(dusty, noise, 0.075);
+  let dustyData = dusty.read();
+  sData = specks.read();
+  for (let i = 0; i < dustyData.length; i++) dustyData[i] *= sData[Math.floor(i / c)];
+  dusty = Tensor.fromArray(ctx, dustyData, shape);
+  gateData = mask.read();
+  const maskScaled = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const v = gateData[i] * 0.75;
+    for (let k = 0; k < c; k++) maskScaled[i * c + k] = v;
+  }
+  const maskTensor = Tensor.fromArray(ctx, maskScaled, shape);
+  return blend(tensor, dusty, maskTensor);
+}
+register('grime', grime, {});
+
+export function watermark(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  const glyphs = [
+    ValueMask.lcd_0,
+    ValueMask.lcd_1,
+    ValueMask.lcd_2,
+    ValueMask.lcd_3,
+    ValueMask.lcd_4,
+    ValueMask.lcd_5,
+    ValueMask.lcd_6,
+    ValueMask.lcd_7,
+    ValueMask.lcd_8,
+    ValueMask.lcd_9,
+  ];
+  let mask = randomGlyphMask(valueShape, glyphs);
+  mask = warp(mask, valueShape, time, speed, 2, 1, 0.5);
+  const noise = values(2, valueShape, { ctx, time, speed }).read();
+  let mData = mask.read();
+  for (let i = 0; i < mData.length; i++) mData[i] *= noise[i] * noise[i];
+  mask = Tensor.fromArray(ctx, mData, valueShape);
+  let brightness = values(16, valueShape, { ctx, time, speed });
+  if (c > 1) {
+    mask = expandChannels(mask, c);
+    brightness = expandChannels(brightness, c);
+  }
+  mData = mask.read();
+  for (let i = 0; i < mData.length; i++) mData[i] *= 0.125;
+  mask = Tensor.fromArray(ctx, mData, shape);
+  return blend(tensor, brightness, mask);
+}
+register('watermark', watermark, {});
+
+export function onScreenDisplay(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const glyphs = [
+    ValueMask.lcd_0,
+    ValueMask.lcd_1,
+    ValueMask.lcd_2,
+    ValueMask.lcd_3,
+    ValueMask.lcd_4,
+    ValueMask.lcd_5,
+    ValueMask.lcd_6,
+    ValueMask.lcd_7,
+    ValueMask.lcd_8,
+    ValueMask.lcd_9,
+  ];
+  const glyphShape = maskShape(glyphs[0]);
+  const height = glyphShape[0];
+  const width = Math.min(w, glyphShape[1] * randomInt(3, 6));
+  const rowMask = randomGlyphMask([height, width, 1], glyphs);
+  const pad = new Float32Array(h * w);
+  const rData = rowMask.read();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const yy = Math.min(h - 1, 25 + y);
+      const xx = Math.min(w - 1, w - width - 25 + x);
+      pad[yy * w + xx] = rData[y * width + x];
+    }
+  }
+  let rendered = Tensor.fromArray(null, pad, [h, w, 1]);
+  if (c > 1) rendered = expandChannels(rendered, c);
+  const alpha = 0.5 + random() * 0.25;
+  const maxData = rendered.read();
+  const tData = tensor.read();
+  for (let i = 0; i < maxData.length; i++) maxData[i] = Math.max(maxData[i], tData[i]);
+  const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
+  return blend(tensor, maxTensor, alpha);
+}
+register('onScreenDisplay', onScreenDisplay, {});
+
+export function spookyTicker(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  if (random() > 0.75) {
+    tensor = onScreenDisplay(tensor, shape, time, speed);
+  }
+  const glyphs = [
+    ValueMask.lcd_0,
+    ValueMask.lcd_1,
+    ValueMask.lcd_2,
+    ValueMask.lcd_3,
+    ValueMask.lcd_4,
+    ValueMask.lcd_5,
+    ValueMask.lcd_6,
+    ValueMask.lcd_7,
+    ValueMask.lcd_8,
+    ValueMask.lcd_9,
+  ];
+  let rendered = Tensor.fromArray(null, new Float32Array(h * w), [h, w, 1]);
+  let bottom = 2;
+  const rows = randomInt(1, 3);
+  for (let i = 0; i < rows; i++) {
+    const gShape = maskShape(glyphs[0]);
+    const rh = gShape[0];
+    const rowMask = randomGlyphMask([rh, w, 1], glyphs);
+    const rData = rowMask.read();
+    const base = rendered.read();
+    for (let y = 0; y < rh; y++) {
+      const yy = h - bottom - rh + y;
+      if (yy < 0 || yy >= h) continue;
+      for (let x = 0; x < w; x++) {
+        const idx = yy * w + x;
+        base[idx] = Math.max(base[idx], rData[y * w + x]);
+      }
+    }
+    rendered = Tensor.fromArray(null, base, [h, w, 1]);
+    bottom += rh + 2;
+  }
+  const alpha = 0.5 + random() * 0.25;
+  const offsetMask = offsetTensor(rendered, -1, -1);
+  const tData = tensor.read();
+  const oData = offsetMask.read();
+  const diff = new Float32Array(tData.length);
+  for (let i = 0; i < tData.length; i++) diff[i] = tData[i] - oData[i % (h * w)];
+  const diffTensor = Tensor.fromArray(tensor.ctx, diff, shape);
+  tensor = blend(tensor, diffTensor, alpha * 0.333);
+  let renderedC = rendered;
+  if (c > 1) renderedC = expandChannels(rendered, c);
+  const maxData = renderedC.read();
+  const tData2 = tensor.read();
+  for (let i = 0; i < maxData.length; i++) maxData[i] = Math.max(maxData[i], tData2[i]);
+  const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
+  return blend(tensor, maxTensor, alpha);
+}
+register('spookyTicker', spookyTicker, {});
+
