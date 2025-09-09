@@ -85,6 +85,26 @@ export function PRESETS() {
           : [Effect('palette', { name: settings.palette_name })],
     },
 
+    'maybe-derivative-post': {
+      post: () => (coinFlip() ? [] : [Preset('derivative-post')]),
+    },
+
+    'maybe-invert': {
+      post: () => (coinFlip() ? [] : [Preset('invert')]),
+    },
+
+    'maybe-rotate': {
+      settings: () => ({
+        angle: random() * 360.0,
+      }),
+      post: (settings) =>
+        coinFlip() ? [] : [Effect('rotate', { angle: settings.angle })],
+    },
+
+    'maybe-skew': {
+      final: () => (coinFlip() ? [] : [Preset('skew')]),
+    },
+
     basic: {
       unique: true,
       layers: ['maybe-palette'],
@@ -2117,6 +2137,143 @@ export function PRESETS() {
         freq: randomInt(3, 4),
         hue_range: randomInt(3, 4),
         speed: 0.025,
+      }),
+    },
+
+    'magic-smoke': {
+      layers: ['multires', 'worms', 'lens'],
+      settings: () => ({
+        octaves: randomInt(2, 3),
+        worms_alpha: 1,
+        worms_behavior: randomMember([worms.obedient, worms.crosshatch]),
+        worms_density: 750,
+        worms_duration: 0.25,
+        worms_kink: randomInt(1, 3),
+        worms_stride: randomInt(64, 256),
+      }),
+    },
+
+    mcpaint: {
+      layers: [
+        'glyph-map',
+        'skew',
+        'grain',
+        'vignette-dark',
+        'brightness-final',
+        'contrast-final',
+        'saturation',
+      ],
+      settings: () => ({
+        corners: true,
+        freq: randomInt(2, 8),
+        glyph_map_colorize: false,
+        glyph_map_mask: mask.mcpaint,
+        glyph_map_zoom: randomInt(2, 4),
+        spline_order: interp.cosine,
+      }),
+    },
+
+    'moire-than-a-feeling': {
+      layers: ['basic', 'wormhole', 'density-map', 'invert', 'contrast-post'],
+      settings: () => ({
+        octaves: randomInt(1, 2),
+        saturation: 0,
+        wormhole_kink: 128,
+        wormhole_stride: 0.0005,
+      }),
+    },
+
+    'molten-glass': {
+      layers: [
+        'basic',
+        'sine-octaves',
+        'octave-warp-post',
+        'brightness-post',
+        'contrast-post',
+        'bloom',
+        'shadow',
+        'normalize',
+        'lens',
+      ],
+      settings: () => ({
+        hue_range: random() * 3.0,
+      }),
+    },
+
+    multires: {
+      layers: ['basic'],
+      settings: () => ({
+        octaves: randomInt(6, 8),
+      }),
+    },
+
+    'multires-alpha': {
+      layers: ['multires'],
+      settings: () => ({
+        distrib: distrib.exp,
+        lattice_drift: 1,
+        octave_blending: blend.alpha,
+        octaves: 5,
+        palette_on: false,
+      }),
+    },
+
+    'multires-low': {
+      layers: ['basic'],
+      settings: () => ({
+        octaves: randomInt(2, 4),
+      }),
+    },
+
+    'multires-ridged': {
+      layers: ['multires'],
+      settings: () => ({
+        lattice_drift: random(),
+        ridges: true,
+      }),
+    },
+
+    'muppet-fur': {
+      layers: ['basic', 'worms', 'rotate', 'bloom', 'lens'],
+      settings: () => ({
+        colorSpace: randomMember([color.oklab, color.hsv]),
+        freq: randomInt(2, 3),
+        hue_range: random() * 0.25,
+        hue_rotation: random(),
+        lattice_drift: random() * 0.333,
+        palette_on: false,
+        worms_alpha: 0.875 + random() * 0.125,
+        worms_behavior: worms.unruly,
+        worms_density: randomInt(500, 1250),
+        worms_drunkenness: random() * 0.025,
+        worms_duration: 2.0 + random() * 1.0,
+        worms_stride: 1.0,
+        worms_stride_deviation: 0.0,
+      }),
+    },
+
+    mycelium: {
+      layers: [
+        'multires',
+        'grayscale',
+        'octave-warp-octaves',
+        'derivative-post',
+        'normalize',
+        'fractal-seed',
+        'vignette-dark',
+        'contrast-post',
+      ],
+      settings: () => ({
+        colorSpace: color.grayscale,
+        distrib: distrib.ones,
+        freq: [randomInt(3, 4), randomInt(3, 4)],
+        lattice_drift: 1.0,
+        mask: mask.h_tri,
+        mask_static: true,
+        speed: 0.05,
+        warp_freq: [randomInt(2, 3), randomInt(2, 3)],
+        warp_range: 2.5 + random() * 1.25,
+        worms_behavior: worms.random,
       }),
     },
 
