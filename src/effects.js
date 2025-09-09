@@ -1,7 +1,7 @@
 import { Tensor } from "./tensor.js";
 import {
   warp as warpOp,
-  sobel,
+  sobel as sobelValue,
   normalize,
   blend,
   values,
@@ -75,7 +75,7 @@ export function warp(
 register("warp", warp, { freq: 2, octaves: 5, displacement: 1 });
 
 export function shadow(tensor, shape, time, speed, alpha = 1) {
-  const shade = normalize(sobel(tensor));
+  const shade = normalize(sobelValue(tensor));
   return blend(tensor, shade, alpha);
 }
 register("shadow", shadow, { alpha: 1 });
@@ -130,7 +130,7 @@ export function derivative(
   withNormalize = true,
   alpha = 1,
 ) {
-  let out = sobel(tensor);
+  let out = sobelValue(tensor);
   if (withNormalize) out = normalize(out);
   if (alpha === 1) return out;
   return blend(tensor, out, alpha);
@@ -149,7 +149,7 @@ export function sobelOperator(
   distMetric = DistanceMetric.euclidean,
 ) {
   const blurred = blur(tensor, shape, time, speed);
-  let out = sobel(blurred);
+  let out = sobelValue(blurred);
   out = normalize(out);
   const data = out.read();
   for (let i = 0; i < data.length; i++) {
@@ -157,8 +157,26 @@ export function sobelOperator(
   }
   return Tensor.fromArray(tensor.ctx, data, shape);
 }
-register("sobel", sobelOperator, {
+register("sobelOperator", sobelOperator, {
   distMetric: DistanceMetric.euclidean,
+});
+
+export function sobel(
+  tensor,
+  shape,
+  time,
+  speed,
+  distMetric = DistanceMetric.euclidean,
+  rgb = false,
+) {
+  if (rgb) {
+    return sobelOperator(tensor, shape, time, speed, distMetric);
+  }
+  return outline(tensor, shape, time, speed, distMetric, true);
+}
+register("sobel", sobel, {
+  distMetric: DistanceMetric.euclidean,
+  rgb: false,
 });
 
 export function outline(
@@ -778,6 +796,138 @@ export function convFeedback(
   return blend(tensor, resampled, alpha);
 }
 register("convFeedback", convFeedback, { iterations: 50, alpha: 0.5 });
+
+export function blendLayers(control, shape, feather = 1, ...layers) {
+  let layerCount = layers.length;
+  const controlNorm = normalize(control);
+  const ctrl = controlNorm.read();
+  const [h, w, c] = shape;
+  const scaled = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) scaled[i] = ctrl[i] * layerCount;
+  const floors = new Int32Array(h * w);
+  for (let i = 0; i < h * w; i++) floors[i] = Math.floor(scaled[i]);
+  const layerData = layers.map((l) => l.read());
+  layerData.push(layerData[layerData.length - 1]);
+  layerCount += 1;
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const f0 = floors[i] % layerCount;
+    const f1 = (floors[i] + 1) % layerCount;
+    const base = i * c;
+    let t = scaled[i] - floors[i];
+    t = Math.min(Math.max(t - (1 - feather), 0) / feather, 1);
+    const l0 = layerData[f0];
+    const l1 = layerData[f1];
+    for (let k = 0; k < c; k++) {
+      out[base + k] = l0[base + k] * (1 - t) + l1[base + k] * t;
+    }
+  }
+  return Tensor.fromArray(control.ctx, out, shape);
+}
+
+export function centerMask(
+  center,
+  edges,
+  shape,
+  distMetric = DistanceMetric.chebyshev,
+  power = 2,
+) {
+  const [h, w, c] = shape;
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const dists = new Float32Array(h * w);
+  let max = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = Math.abs(x - cx);
+      const dy = Math.abs(y - cy);
+      const d = distance(dx, dy, distMetric);
+      dists[y * w + x] = d;
+      if (d > max) max = d;
+    }
+  }
+  const mask = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const d = dists[y * w + x] / (max || 1);
+      const m = Math.pow(d, power);
+      for (let k = 0; k < c; k++) mask[(y * w + x) * c + k] = m;
+    }
+  }
+  const maskTensor = Tensor.fromArray(center.ctx, mask, shape);
+  return blend(center, edges, maskTensor);
+}
+
+export function innerTile(tensor, shape, freq) {
+  let fy, fx;
+  if (typeof freq === "number") {
+    fy = fx = freq;
+  } else {
+    fy = freq[0];
+    fx = freq[1];
+  }
+  const [h, w, c] = shape;
+  const smallH = Math.max(1, Math.floor(h / fy));
+  const smallW = Math.max(1, Math.floor(w / fx));
+  const src = tensor.read();
+  const patch = new Float32Array(smallH * smallW * c);
+  for (let y = 0; y < smallH; y++) {
+    for (let x = 0; x < smallW; x++) {
+      for (let k = 0; k < c; k++) {
+        patch[(y * smallW + x) * c + k] =
+          src[(y * fy * w + x * fx) * c + k];
+      }
+    }
+  }
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.floor(y / fy);
+    for (let x = 0; x < w; x++) {
+      const sx = Math.floor(x / fx);
+      for (let k = 0; k < c; k++) {
+        out[(y * w + x) * c + k] = patch[(sy * smallW + sx) * c + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+
+export function expandTile(
+  tensor,
+  inputShape,
+  outputShape,
+  withOffset = true,
+) {
+  const [inH, inW, c] = inputShape;
+  const [outH, outW] = outputShape;
+  const xOff = withOffset ? Math.floor(inW / 2) : 0;
+  const yOff = withOffset ? Math.floor(inH / 2) : 0;
+  const src = tensor.read();
+  const out = new Float32Array(outH * outW * c);
+  for (let y = 0; y < outH; y++) {
+    const sy = (y + yOff) % inH;
+    for (let x = 0; x < outW; x++) {
+      const sx = (x + xOff) % inW;
+      for (let k = 0; k < c; k++) {
+        out[(y * outW + x) * c + k] = src[(sy * inW + sx) * c + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [outH, outW, c]);
+}
+
+export function offsetIndex(yIndex, height, xIndex, width) {
+  const yData = yIndex.read();
+  const xData = xIndex.read();
+  const out = new Float32Array(height * width * 2);
+  const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
+  const xOff = Math.floor(random() * width * 0.5);
+  for (let i = 0; i < height * width; i++) {
+    out[i * 2] = (yData[i] + yOff) % height;
+    out[i * 2 + 1] = (xData[i] + xOff) % width;
+  }
+  return Tensor.fromArray(yIndex.ctx, out, [height, width, 2]);
+}
 
 export function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
@@ -1656,7 +1806,7 @@ function periodicValue(t, v) {
   return (Math.sin((t - v) * TAU) + 1) * 0.5;
 }
 
-function offsetIndex(yArr, height, xArr, width) {
+function offsetIndexInternal(yArr, height, xArr, width) {
   const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
   const xOff = Math.floor(random() * width * 0.5);
   const n = yArr.length;
@@ -1686,7 +1836,7 @@ function offsetTensor(tensor, xOff, yOff) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 
-function centerMask(
+function centerMaskInternal(
   center,
   edges,
   shape,
@@ -2032,7 +2182,7 @@ export function wormhole(
       yArr[idx] = Math.floor(y + yo) % h;
     }
   }
-  const offs = offsetIndex(yArr, h, xArr, w);
+  const offs = offsetIndexInternal(yArr, h, xArr, w);
   const out = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const dest = (offs.y[i] * w + offs.x[i]) * c;
@@ -2115,7 +2265,7 @@ register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 
 export function vaseline(tensor, shape, time, speed, alpha = 1.0) {
   const blurred = bloom(tensor, shape, time, speed, 1.0);
-  const masked = centerMask(tensor, blurred, shape);
+  const masked = centerMaskInternal(tensor, blurred, shape);
   return blend(tensor, masked, alpha);
 }
 register("vaseline", vaseline, { alpha: 1.0 });
@@ -2146,7 +2296,7 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     screened[i] = 1 - (1 - src[i]) * (1 - leakData[i]);
   }
   leak = Tensor.fromArray(tensor.ctx, screened, shape);
-  leak = centerMask(tensor, leak, shape, 4);
+  leak = centerMaskInternal(tensor, leak, shape, 4);
   const blended = blend(tensor, leak, alpha);
   return vaseline(blended, shape, time, speed, alpha);
 }
@@ -2443,7 +2593,7 @@ export function reverb(
 }
 register("reverb", reverb, { octaves: 2, iterations: 1, ridges: true });
 
-function expandTile(tensor, inputShape, outputShape) {
+function expandTileInternal(tensor, inputShape, outputShape) {
   const [ih, iw, c] = inputShape;
   const [oh, ow] = outputShape;
   const src = tensor.read();
@@ -2580,7 +2730,7 @@ export function rotate(tensor, shape, time, speed, angle = null) {
   if (angle === null || angle === undefined) angle = random() * 360;
   const [h, w, c] = shape;
   const want = Math.max(h, w) * 2;
-  let padded = expandTile(tensor, shape, [want, want, c]);
+  let padded = expandTileInternal(tensor, shape, [want, want, c]);
   padded = rotate2D(padded, [want, want, c], (angle * Math.PI) / 180);
   return cropTensor(padded, [want, want, c], shape);
 }
@@ -2596,8 +2746,15 @@ function _pixelSort(tensor, shape, angle, darkest) {
   }
   let working = Tensor.fromArray(tensor.ctx, srcData, shape);
   const want = Math.max(h, w) * 2;
+<<<<<<< ours
   working = resizeWithCropOrPad(working, shape, want);
   if (angle !== false) {
+=======
+  let working = expandTileInternal(srcTensor, shape, [want, want, c]);
+  let angle = 0;
+  if (angled) {
+    angle = angled === true ? random() * 360 : angled;
+>>>>>>> theirs
     working = rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
   const data = working.read();

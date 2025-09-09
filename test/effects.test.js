@@ -31,6 +31,7 @@ import {
   colorMap,
   derivative,
   sobelOperator,
+  sobel,
   outline,
   vortex,
   normalMap,
@@ -39,6 +40,11 @@ import {
   singularity,
   jpegDecimate,
   convFeedback,
+  blendLayers,
+  centerMask,
+  innerTile,
+  expandTile,
+  offsetIndex,
   wobble,
   reverb,
   dla,
@@ -85,7 +91,7 @@ import {
   hsvToRgb,
   values,
   blend,
-  sobel,
+  sobel as sobelValue,
   normalize,
   refract,
   distance,
@@ -165,7 +171,7 @@ arraysClose(Array.from(derivRes), manualDeriv);
 
 // sobel operator
 const blurred = blur(edgeTensor, [4, 4, 1], 0, 1);
-let sob = sobel(blurred);
+let sob = sobelValue(blurred);
 sob = normalize(sob);
 const sobData = sob.read();
 for (let i = 0; i < sobData.length; i++)
@@ -293,6 +299,53 @@ const cfTensor = Tensor.fromArray(null, cfData, [2, 2, 1]);
 const cfOut = convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5).read();
 const cfExpected = loadFixture("convFeedback.json");
 arraysClose(Array.from(cfOut), cfExpected);
+
+// blendLayers regression
+const blControl = Tensor.fromArray(
+  null,
+  new Float32Array([0.25, 0.75, 0.5, 0.1]),
+  [2, 2, 1],
+);
+const blLayer0 = Tensor.fromArray(null, new Float32Array([0, 0, 0, 0]), [2, 2, 1]);
+const blLayer1 = Tensor.fromArray(null, new Float32Array([1, 1, 1, 1]), [2, 2, 1]);
+const blOut = blendLayers(blControl, [2, 2, 1], 1, blLayer0, blLayer1).read();
+const blExpected = loadFixture("blendLayers.json");
+arraysClose(Array.from(blOut), blExpected);
+
+// centerMask regression
+const cmCenter = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
+const cmEdges = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
+const cmOut = centerMask(cmCenter, cmEdges, [3, 3, 1]).read();
+const cmExpected = loadFixture("centerMask.json");
+arraysClose(Array.from(cmOut), cmExpected);
+
+// innerTile regression
+const itData = new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+const itTensor = Tensor.fromArray(null, itData, [4, 4, 1]);
+const itOut = innerTile(itTensor, [4, 4, 1], 2).read();
+const itExpected = loadFixture("innerTile.json");
+arraysClose(Array.from(itOut), itExpected);
+
+// expandTile regression
+const etData = new Float32Array([1, 2, 3, 4]);
+const etTensor = Tensor.fromArray(null, etData, [2, 2, 1]);
+const etOut = expandTile(etTensor, [2, 2, 1], [3, 3, 1]).read();
+const etExpected = loadFixture("expandTile.json");
+arraysClose(Array.from(etOut), etExpected);
+
+// offsetIndex regression
+const yIdx = Tensor.fromArray(null, new Float32Array([0, 0, 1, 1]), [2, 2, 1]);
+const xIdx = Tensor.fromArray(null, new Float32Array([0, 1, 0, 1]), [2, 2, 1]);
+setSeed(1);
+const oiOut = offsetIndex(yIdx, 2, xIdx, 2).read();
+const oiExpected = loadFixture("offsetIndex.json");
+arraysClose(Array.from(oiOut), oiExpected);
+
+// sobel regression
+const sobelOut = sobel(edgeTensor, [4, 4, 1], 0, 1).read();
+arraysClose(Array.from(sobelOut), Array.from(manualOutlineInv));
+const sobelRgb = sobel(edgeTensor, [4, 4, 1], 0, 1, undefined, true).read();
+arraysClose(Array.from(sobelRgb), Array.from(sobData));
 
 // posterize regression
 const posterData = new Float32Array([0.1, 0.5, 0.9, 0.3]);
