@@ -337,6 +337,20 @@ export function isSigned(metric) {
   return metric !== DistanceMetric.none && !isAbsolute(metric);
 }
 
+export function distanceMetricAll() {
+  return Object.values(DistanceMetric).filter(
+    (m) => m !== DistanceMetric.none
+  );
+}
+
+export function distanceMetricAbsoluteMembers() {
+  return distanceMetricAll().filter((m) => isAbsolute(m));
+}
+
+export function distanceMetricSignedMembers() {
+  return distanceMetricAll().filter((m) => isSigned(m));
+}
+
 export function isScan(distrib) {
   return distrib && distrib >= ValueDistribution.scan_up && distrib < ValueDistribution.scan_up + 10;
 }

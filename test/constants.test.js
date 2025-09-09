@@ -9,6 +9,9 @@ import {
   ColorSpace,
   isAbsolute,
   isSigned,
+  distanceMetricAll,
+  distanceMetricAbsoluteMembers,
+  distanceMetricSignedMembers,
   isCenterDistribution,
   isScan,
   isNativeSize,
@@ -41,6 +44,13 @@ assert.ok(isAbsolute(DistanceMetric.euclidean));
 assert.ok(!isAbsolute(DistanceMetric.triangular));
 assert.ok(isSigned(DistanceMetric.triangular));
 assert.ok(!isSigned(DistanceMetric.euclidean));
+assert.ok(distanceMetricAll().includes(DistanceMetric.euclidean));
+assert.ok(distanceMetricAll().includes(DistanceMetric.triangular));
+assert.ok(!distanceMetricAll().includes(DistanceMetric.none));
+assert.ok(distanceMetricAbsoluteMembers().includes(DistanceMetric.euclidean));
+assert.ok(!distanceMetricAbsoluteMembers().includes(DistanceMetric.triangular));
+assert.ok(distanceMetricSignedMembers().includes(DistanceMetric.triangular));
+assert.ok(!distanceMetricSignedMembers().includes(DistanceMetric.euclidean));
 
 assert.ok(isCenterDistribution(ValueDistribution.center_hexagon));
 assert.ok(!isCenterDistribution(ValueDistribution.uniform));
