@@ -202,10 +202,10 @@ void main(){
           val = 0;
           break;
         case ValueDistribution.column_index:
-          val = width === 1 ? 0 : x / (width - 1);
+          val = height === 1 ? 0 : y / (height - 1);
           break;
         case ValueDistribution.row_index:
-          val = height === 1 ? 0 : y / (height - 1);
+          val = width === 1 ? 0 : x / (width - 1);
           break;
         case ValueDistribution.center_circle:
         case ValueDistribution.center_triangle:

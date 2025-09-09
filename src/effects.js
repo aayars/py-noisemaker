@@ -2844,7 +2844,8 @@ export function blur(
 ) {
   const [h, w] = shape;
   const targetH = Math.max(1, Math.floor(h / amount));
-  const factor = Math.max(1, Math.floor(h / targetH));
+  let factor = Math.max(1, Math.floor(h / targetH));
+  while ((h % factor !== 0 || w % factor !== 0) && factor > 1) factor--;
   let small = downsample(tensor, factor);
   const data = small.read();
   for (let i = 0; i < data.length; i++) data[i] *= 4;
