@@ -1,5 +1,9 @@
 import { Tensor } from './tensor.js';
-import { ValueDistribution, DistanceMetric } from './constants.js';
+import {
+  ValueDistribution,
+  DistanceMetric,
+  InterpolationType,
+} from './constants.js';
 import { maskValues } from './masks.js';
 
 export const FULLSCREEN_VS = `#version 300 es
@@ -58,7 +62,8 @@ export function freqForShape(freq, shape) {
  * @param {ValueMask} [opts.mask] Optional mask to multiply the result with.
  * @param {boolean} [opts.maskInverse=false] Invert the mask values.
  * @param {boolean} [opts.maskStatic=false] Ignore time/speed when generating masks.
- * @param {number} [opts.splineOrder=3] Interpolation order (1=linear,3=cubic,5=quintic).
+ * @param {InterpolationType} [opts.splineOrder=InterpolationType.bicubic]
+ *   Interpolation type.
  * @param {number} [opts.time=0] Animation time value.
  * @param {number} [opts.seed=0] Random seed.
  * @param {number} [opts.speed=1] Time multiplier for animation.
@@ -75,7 +80,7 @@ export function values(freq, shape, opts = {}) {
     mask,
     maskInverse = false,
     maskStatic = false,
-    splineOrder = 3,
+    splineOrder = InterpolationType.bicubic,
     time = 0,
     seed = 0,
     speed = 1,
@@ -115,7 +120,7 @@ uniform float u_seed;
 uniform float u_time;
 uniform float u_speed;
 uniform float u_corners;
-uniform float u_spline;
+uniform int u_interp;
 uniform int u_distrib;
 uniform sampler2D u_mask;
 uniform int u_useMask;
@@ -123,9 +128,9 @@ float rand2D(float x,float y,float seed,float time,float speed){
  float s=x*12.9898+y*78.233+mod(seed,65536.0)*37.719+time*speed*0.1;
  return fract(sin(s)*43758.5453);
 }
-float interp(float t,float order){
- if(order==1.0)return t;
- if(order==5.0)return t*t*t*(t*(t*6.0-15.0)+10.0);
+float interp(float t){
+ if(u_interp==${InterpolationType.linear}) return t;
+ if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;
  return t*t*(3.0-2.0*t);
 }
 void main(){
@@ -159,11 +164,15 @@ void main(){
   float r10=rand2D(x1,yb,u_seed,u_time,u_speed);
   float r01=rand2D(xb,y1,u_seed,u_time,u_speed);
   float r11=rand2D(x1,y1,u_seed,u_time,u_speed);
-  float sx=interp(xf,u_spline);
-  float sy=interp(yf,u_spline);
-  float nx0=mix(r00,r10,sx);
-  float nx1=mix(r01,r11,sx);
-  val=mix(nx0,nx1,sy);
+  if(u_interp==${InterpolationType.constant}){
+   val=r00;
+  }else{
+   float sx=interp(xf);
+   float sy=interp(yf);
+   float nx0=mix(r00,r10,sx);
+   float nx1=mix(r01,r11,sx);
+   val=mix(nx0,nx1,sy);
+  }
  }
  if(u_useMask==1){
   vec2 uv=gl_FragCoord.xy/vec2(float(${width}),float(${height}));
@@ -180,7 +189,7 @@ void main(){
     gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), time);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), speed);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_corners'), corners ? 1 : 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_spline'), splineOrder);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
     gl.uniform1i(gl.getUniformLocation(prog, 'u_distrib'), distrib);
     if (maskTex) {
       gl.activeTexture(gl.TEXTURE0);
@@ -212,11 +221,9 @@ void main(){
           val = 0;
           break;
         case ValueDistribution.column_index:
-          // Column index varies along the x-axis, matching the GPU shader.
           val = width === 1 ? 0 : x / (width - 1);
           break;
         case ValueDistribution.row_index:
-          // Row index varies along the y-axis, matching the GPU shader.
           val = height === 1 ? 0 : y / (height - 1);
           break;
         case ValueDistribution.center_circle:
@@ -306,10 +313,18 @@ void main(){
           const r01 = rand2D(xb, y1, seed, time, speed);
           const r11 = rand2D(x1, y1, seed, time, speed);
           function interp(t) {
-            if (splineOrder === 1) return t;
-            if (splineOrder === 5)
-              return t * t * t * (t * (t * 6 - 15) + 10);
-            return t * t * (3 - 2 * t);
+            switch (splineOrder) {
+              case InterpolationType.linear:
+                return t;
+              case InterpolationType.cosine:
+                return 0.5 - Math.cos(t * Math.PI) * 0.5;
+              default:
+                return t * t * (3 - 2 * t);
+            }
+          }
+          if (splineOrder === InterpolationType.constant) {
+            val = r00;
+            break;
           }
           const sx = interp(xf);
           const sy = interp(yf);

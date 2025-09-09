@@ -1434,7 +1434,7 @@ export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
     ctx: tensor.ctx,
     time,
     speed,
-    splineOrder: 2,
+    splineOrder: InterpolationType.cosine,
   }).read();
   for (let i = 0; i < noise.length; i++) {
     noise[i] = (noise[i] * 2 - 1) * mask[i];
@@ -2675,14 +2675,14 @@ export function snow(tensor, shape, time, speed, alpha = 0.25) {
     ctx,
     time,
     speed: speed * 100,
-    splineOrder: 0,
+    splineOrder: InterpolationType.constant,
   });
   let limiter = values(Math.max(h, w), shape, {
     ctx,
     time,
     speed: speed * 100,
     distrib: ValueDistribution.exp,
-    splineOrder: 0,
+    splineOrder: InterpolationType.constant,
   });
   const lData = limiter.read();
   for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
@@ -3928,7 +3928,7 @@ export function grime(tensor, shape, time, speed) {
     time,
     speed,
     distrib: ValueDistribution.exp,
-    splineOrder: 0,
+    splineOrder: InterpolationType.constant,
   });
   specks = refract(specks, null, null, 0.25);
   let sData = specks.read();
