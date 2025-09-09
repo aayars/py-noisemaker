@@ -82,12 +82,21 @@ export function values(freq, shape, opts = {}) {
   const gpuDistrib = GPU_DISTRIBS.has(distrib);
   let maskData = null;
   let maskTex = null;
+  let maskWidth = 0;
+  let maskHeight = 0;
+  let maskChannels = 0;
   if (mask !== undefined && mask !== null) {
-    const [maskTensor] = maskValues(mask, [height, width, 1], {
+    const maskShape = [
+      Math.max(1, Math.floor(freqX)),
+      Math.max(1, Math.floor(freqY)),
+      1,
+    ];
+    const [maskTensor] = maskValues(mask, maskShape, {
       inverse: maskInverse,
       time: maskStatic ? 0 : time,
       speed,
     });
+    [maskHeight, maskWidth, maskChannels] = maskTensor.shape;
     if (ctx && !ctx.isCPU && gpuDistrib) {
       maskTex = Tensor.fromArray(ctx, maskTensor.read(), maskTensor.shape);
     } else {
@@ -309,7 +318,9 @@ void main(){
       }
       const idx = (y * width + x) * channels;
       if (maskData) {
-        const m = maskData[y * width + x];
+        const mx = Math.floor((x / width) * maskWidth);
+        const my = Math.floor((y / height) * maskHeight);
+        const m = maskData[(my * maskWidth + mx) * maskChannels];
         if (channels === 2) {
           data[idx] = val;
           data[idx + 1] = m;
