@@ -28,6 +28,7 @@ import {
   InterpolationType,
   DistanceMetric,
   ValueMask,
+  ValueDistribution,
   PointDistribution,
   VoronoiDiagramType,
 } from './constants.js';
@@ -813,6 +814,103 @@ export function vhs(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('vhs', vhs, {});
+
+export function scanlineError(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const errorFreq = Math.floor(h * 0.5) || 1;
+  let errorLine = values(errorFreq, [h, w, 1], {
+    time,
+    speed: speed * 10,
+    distrib: ValueDistribution.exp,
+  }).read();
+  let errorSwerve = values(Math.floor(h * 0.01) || 1, [h, w, 1], {
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+  }).read();
+  const whiteNoise = values(errorFreq, [h, w, 1], {
+    time,
+    speed: speed * 100,
+  }).read();
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    let el = errorLine[i] - 0.5;
+    if (el < 0) el = 0;
+    let es = errorSwerve[i] - 0.5;
+    if (es < 0) es = 0;
+    el *= es;
+    es *= 2;
+    let wn = whiteNoise[i] * es;
+    errorLine[i] = el;
+    whiteNoise[i] = wn;
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const shift = Math.floor((errorLine[idx] + whiteNoise[idx]) * w * 0.025);
+      const srcX = (x - shift + w) % w;
+      const srcIdx = (y * w + srcX) * c;
+      for (let k = 0; k < c; k++) {
+        let val = src[srcIdx + k];
+        val = Math.min(val + errorLine[idx] * whiteNoise[idx] * 4, 1);
+        out[idx * c + k] = val;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('scanlineError', scanlineError, {});
+
+export function crt(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const scan = values(Math.floor(h * 0.5) || 1, [h, w, 1], {
+    time,
+    speed: speed * 0.1,
+  }).read();
+  const src = tensor.read();
+  const blended = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const s = scan[i];
+    for (let k = 0; k < c; k++) {
+      const t = src[i * c + k];
+      blended[i * c + k] = t * 0.95 + (t + s) * s * 0.05;
+    }
+  }
+  let outTensor = clamp01(Tensor.fromArray(tensor.ctx, blended, shape));
+  if (c === 3) {
+    outTensor = aberration(outTensor, shape, time, speed, 0.0125 + random() * 0.00625);
+    outTensor = randomHue(outTensor, shape, time, speed, 0.125);
+    outTensor = saturation(outTensor, shape, time, speed, 1.125);
+  }
+  const vigAlpha = random() * 0.175;
+  const vigData = outTensor.read();
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy) || 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+      const vig = dist * dist * vigAlpha;
+      for (let k = 0; k < c; k++) {
+        const idx = (y * w + x) * c + k;
+        vigData[idx] = vigData[idx] * (1 - vig);
+      }
+    }
+  }
+  outTensor = Tensor.fromArray(outTensor.ctx, vigData, shape);
+  const data = outTensor.read();
+  let mean = 0;
+  for (let i = 0; i < data.length; i++) mean += data[i];
+  mean /= data.length;
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (data[i] - mean) * 1.25 + mean;
+  }
+  return Tensor.fromArray(outTensor.ctx, data, shape);
+}
+register('crt', crt, {});
 
 export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;

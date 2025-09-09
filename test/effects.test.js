@@ -47,6 +47,8 @@ import {
   frame,
   glitch,
   vhs,
+  scanlineError,
+  crt,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -595,5 +597,20 @@ const vhsTensor = Tensor.fromArray(null, glData, [2,2,3]);
 const vhsOut = vhs(vhsTensor, [2,2,3], 0.25, 1).read();
 const vhsExpected = loadFixture('vhs.json');
 arraysClose(Array.from(vhsOut), vhsExpected);
+
+// scanlineError regression
+const sleData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const sleTensor = Tensor.fromArray(null, sleData, [2,2,1]);
+const sleOut = scanlineError(sleTensor, [2,2,1], 0.25, 1).read();
+const sleExpected = loadFixture('scanlineError.json');
+arraysClose(Array.from(sleOut), sleExpected);
+
+// crt regression
+setSeed(1);
+const crtTensor = Tensor.fromArray(null, glData, [2,2,3]);
+setSeed(1);
+const crtOut = crt(crtTensor, [2,2,3], 0.25, 1).read();
+const crtExpected = loadFixture('crt.json');
+arraysClose(Array.from(crtOut), crtExpected);
 
 console.log('Effects tests passed');
