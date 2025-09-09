@@ -2404,6 +2404,7 @@ export function saturation(tensor, shape, time, speed, amount = 0.75) {
   return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
 }
 register("saturation", saturation, { amount: 0.75 });
+register("adjust_saturation", saturation, { amount: 0.75 });
 
 export function randomHue(tensor, shape, time, speed, range = 0.05) {
   const shift = random() * range * 2 - range;
