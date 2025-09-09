@@ -20,8 +20,17 @@ import {
   gridMembers,
   circularMembers,
   isNoise,
-  isProcedural,
-  glyphMembers,
+  valueMaskConv2dMembers,
+  isValueMaskConv2d,
+  valueMaskGridMembers,
+  isValueMaskGrid,
+  valueMaskRgbMembers,
+  isValueMaskRgb,
+  valueMaskProceduralMembers,
+  valueMaskNonproceduralMembers,
+  isValueMaskProcedural,
+  valueMaskGlyphMembers,
+  isValueMaskGlyph,
   flowMembers,
   isFlowMember,
   wormBehaviorAll,
@@ -74,12 +83,29 @@ assert.ok(!circularMembers.includes(PointDistribution.square));
 assert.ok(isNoise(ValueDistribution.uniform));
 assert.ok(!isNoise(ValueDistribution.ones));
 
-assert.ok(isProcedural(ValueMask.sparse));
-assert.ok(isProcedural(ValueMask.emoji));
-assert.ok(!isProcedural(ValueMask.square));
-assert.ok(glyphMembers.includes(ValueMask.emoji));
-assert.ok(glyphMembers.includes(ValueMask.bank_ocr));
-assert.ok(!glyphMembers.includes(ValueMask.square));
+assert.ok(isValueMaskProcedural(ValueMask.sparse));
+assert.ok(isValueMaskProcedural(ValueMask.emoji));
+assert.ok(!isValueMaskProcedural(ValueMask.square));
+assert.ok(valueMaskProceduralMembers.includes(ValueMask.sparse));
+assert.ok(valueMaskNonproceduralMembers.includes(ValueMask.square));
+
+assert.ok(valueMaskConv2dMembers.includes(ValueMask.conv2d_blur));
+assert.ok(isValueMaskConv2d(ValueMask.conv2d_blur));
+assert.ok(!isValueMaskConv2d(ValueMask.square));
+
+assert.ok(valueMaskGridMembers.includes(ValueMask.chess));
+assert.ok(!valueMaskGridMembers.includes(ValueMask.alphanum_0));
+assert.ok(isValueMaskGrid(ValueMask.square));
+assert.ok(!isValueMaskGrid(ValueMask.alphanum_0));
+
+assert.ok(valueMaskRgbMembers.includes(ValueMask.rgb));
+assert.ok(!valueMaskRgbMembers.includes(ValueMask.sparse));
+assert.ok(isValueMaskRgb(ValueMask.rgb));
+assert.ok(!isValueMaskRgb(ValueMask.square));
+
+assert.ok(valueMaskGlyphMembers.includes(ValueMask.emoji));
+assert.ok(isValueMaskGlyph(ValueMask.bank_ocr));
+assert.ok(!isValueMaskGlyph(ValueMask.square));
 
 assert.ok(flowMembers.includes(VoronoiDiagramType.flow));
 assert.ok(isFlowMember(VoronoiDiagramType.color_flow));

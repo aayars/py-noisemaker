@@ -382,11 +382,47 @@ export function isNoise(distrib) {
   return distrib && distrib < ValueDistribution.ones;
 }
 
-export function isProcedural(mask) {
+export function isValueMaskProcedural(mask) {
   return mask >= ValueMask.sparse;
 }
 
-export const glyphMembers = Object.freeze(
+export const valueMaskNonproceduralMembers = Object.freeze(
+  Object.values(ValueMask).filter((m) => !isValueMaskProcedural(m))
+);
+
+export const valueMaskProceduralMembers = Object.freeze(
+  Object.values(ValueMask).filter((m) => isValueMaskProcedural(m))
+);
+
+export const valueMaskConv2dMembers = Object.freeze(
+  Object.entries(ValueMask)
+    .filter(([k]) => k.startsWith("conv2d"))
+    .map(([, v]) => v)
+);
+
+export function isValueMaskConv2d(mask) {
+  return valueMaskConv2dMembers.includes(mask);
+}
+
+export const valueMaskGridMembers = Object.freeze(
+  Object.values(ValueMask).filter((m) => m < ValueMask.alphanum_0)
+);
+
+export function isValueMaskGrid(mask) {
+  return mask < ValueMask.alphanum_0;
+}
+
+export const valueMaskRgbMembers = Object.freeze(
+  Object.values(ValueMask).filter(
+    (m) => m >= ValueMask.rgb && m < ValueMask.sparse
+  )
+);
+
+export function isValueMaskRgb(mask) {
+  return mask >= ValueMask.rgb && mask < ValueMask.sparse;
+}
+
+export const valueMaskGlyphMembers = Object.freeze(
   Object.values(ValueMask).filter(
     (m) =>
       (m >= ValueMask.invaders && m <= ValueMask.tromino) ||
@@ -395,6 +431,10 @@ export const glyphMembers = Object.freeze(
       m === ValueMask.bank_ocr
   )
 );
+
+export function isValueMaskGlyph(mask) {
+  return valueMaskGlyphMembers.includes(mask);
+}
 
 export const flowMembers = Object.freeze([
   VoronoiDiagramType.flow,
