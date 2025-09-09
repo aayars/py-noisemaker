@@ -15,6 +15,9 @@ import {
   ridgeEffect,
   sine,
   blur,
+  erosionWorms,
+  worms,
+  wormhole,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -186,5 +189,24 @@ const blurTensor = Tensor.fromArray(null, blurData, [2,2,1]);
 const blurOut = blur(blurTensor, [2,2,1], 0, 1, 10.0).read();
 const blurExpected = loadFixture('blur.json');
 arraysClose(Array.from(blurOut), blurExpected);
+
+// wormhole regression
+const whTensor = Tensor.fromArray(null, new Float32Array([0.5]), [1,1,1]);
+const whOut = wormhole(whTensor, [1,1,1], 0, 1, 1.0, 1.0, 1.0).read();
+const whExpected = loadFixture('wormhole.json');
+arraysClose(Array.from(whOut), whExpected);
+
+// worms regression with zero density
+const wormsTensor = Tensor.fromArray(null, new Float32Array([0.4]), [1,1,1]);
+const wormsOut = worms(wormsTensor, [1,1,1], 0, 1, 1, 0.0, 4.0, 1.0, 0.05, 0.5).read();
+const wormsExpected = loadFixture('worms.json');
+arraysClose(Array.from(wormsOut), wormsExpected);
+
+// erosionWorms regression with zero density
+const ewData = new Float32Array(25); ewData[0] = 0.6;
+const ewTensor = Tensor.fromArray(null, ewData, [5,5,1]);
+const ewOut = erosionWorms(ewTensor, [5,5,1], 0, 1, 0.0, 5, 1.0, false, 0.25).read();
+const ewExpected = loadFixture('erosionWorms.json');
+arraysClose(Array.from(ewOut), ewExpected);
 
 console.log('Effects tests passed');

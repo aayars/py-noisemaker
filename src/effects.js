@@ -9,6 +9,7 @@ import {
   rgbToHsv,
   hsvToRgb,
   clamp01,
+  distance,
   ridge,
   downsample,
   upsample,
@@ -183,6 +184,334 @@ export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('reindex', reindex, { displacement: 0.5 });
+
+function randomNormal(mean = 0, std = 1) {
+  const u1 = random() || 1e-9;
+  const u2 = random();
+  const mag = Math.sqrt(-2 * Math.log(u1));
+  const z0 = mag * Math.cos(TAU * u2);
+  return z0 * std + mean;
+}
+
+function periodicValue(t, v) {
+  return (Math.sin((t - v) * TAU) + 1) * 0.5;
+}
+
+function offsetIndex(yArr, height, xArr, width) {
+  const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
+  const xOff = Math.floor(random() * width * 0.5);
+  const n = yArr.length;
+  const oy = new Int32Array(n);
+  const ox = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    oy[i] = (yArr[i] + yOff) % height;
+    ox[i] = (xArr[i] + xOff) % width;
+  }
+  return { y: oy, x: ox };
+}
+
+export function erosionWorms(
+  tensor,
+  shape,
+  time,
+  speed,
+  density = 50,
+  iterations = 50,
+  contraction = 1.0,
+  quantize = false,
+  alpha = 0.25,
+  inverse = false,
+  xyBlend = 0
+) {
+  const [h, w, c] = shape;
+  const count = Math.floor(Math.sqrt(h * w) * density);
+  const x = new Float32Array(count);
+  const y = new Float32Array(count);
+  const xDir = new Float32Array(count);
+  const yDir = new Float32Array(count);
+  const inertia = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    x[i] = random() * (w - 1);
+    y[i] = random() * (h - 1);
+    const ang = random() * TAU;
+    xDir[i] = Math.cos(ang);
+    yDir[i] = Math.sin(ang);
+    inertia[i] = randomNormal(0.75, 0.25);
+  }
+  const src = tensor.read();
+  const startColors = new Float32Array(count * c);
+  for (let i = 0; i < count; i++) {
+    const xi = Math.floor(x[i]);
+    const yi = Math.floor(y[i]);
+    const base = (yi * w + xi) * c;
+    for (let k = 0; k < c; k++) {
+      startColors[i * c + k] = src[base + k];
+    }
+  }
+  // grayscale values
+  const valuesArr = new Float32Array(h * w);
+  for (let yi = 0; yi < h; yi++) {
+    for (let xi = 0; xi < w; xi++) {
+      const idx = yi * w + xi;
+      if (c === 1) {
+        valuesArr[idx] = src[idx];
+      } else {
+        const base = idx * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+    }
+  }
+  const out = new Float32Array(h * w * c);
+  for (let iter = 0; iter < iterations; iter++) {
+    const exposure = iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
+    for (let j = 0; j < count; j++) {
+      const xi = Math.floor(x[j]) % w;
+      const yi = Math.floor(y[j]) % h;
+      const idx = yi * w + xi;
+      const base = idx * c;
+      for (let k = 0; k < c; k++) {
+        out[base + k] += startColors[j * c + k] * exposure;
+      }
+      const x1 = (xi + 1) % w;
+      const y1 = (yi + 1) % h;
+      const sv = valuesArr[idx];
+      const x1v = valuesArr[yi * w + x1];
+      const y1v = valuesArr[y1 * w + xi];
+      const x1y1v = valuesArr[y1 * w + x1];
+      const u = x[j] - Math.floor(x[j]);
+      const v = y[j] - Math.floor(y[j]);
+      const gX = (y1v - sv) * (1 - u) + (x1y1v - x1v) * u;
+      const gY = (x1v - sv) * (1 - v) + (x1y1v - y1v) * v;
+      const gx = quantize ? Math.floor(gX) : gX;
+      const gy = quantize ? Math.floor(gY) : gY;
+      const len = distance(gx, gy) * contraction || 1;
+      xDir[j] = xDir[j] * (1 - inertia[j]) + (gx / len) * inertia[j];
+      yDir[j] = yDir[j] * (1 - inertia[j]) + (gy / len) * inertia[j];
+      x[j] = (x[j] + xDir[j]) % w;
+      y[j] = (y[j] + yDir[j]) % h;
+    }
+  }
+  let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  outTensor = clamp01(outTensor);
+  if (inverse) {
+    const d = outTensor.read();
+    for (let i = 0; i < d.length; i++) d[i] = 1 - d[i];
+    outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
+  }
+  if (xyBlend) {
+    const valMask = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) valMask[i] = valuesArr[i] * xyBlend;
+    const mask = Tensor.fromArray(tensor.ctx, valMask, [h, w, 1]);
+    tensor = blend(shadow(tensor, shape, time, speed), reindex(tensor, shape, time, speed, 1), mask);
+  }
+  return blend(tensor, outTensor, alpha);
+}
+register('erosionWorms', erosionWorms, {
+  density: 50,
+  iterations: 50,
+  contraction: 1.0,
+  quantize: false,
+  alpha: 0.25,
+  inverse: false,
+  xyBlend: 0,
+});
+
+export function worms(
+  tensor,
+  shape,
+  time,
+  speed,
+  behavior = 1,
+  density = 4.0,
+  duration = 4.0,
+  stride = 1.0,
+  strideDeviation = 0.05,
+  alpha = 0.5,
+  kink = 1.0,
+  drunkenness = 0.0,
+  quantize = false,
+  colors = null
+) {
+  const [h, w, c] = shape;
+  const count = Math.floor(Math.max(w, h) * density);
+  const wormsY = new Float32Array(count);
+  const wormsX = new Float32Array(count);
+  const wormsStride = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    wormsY[i] = random() * (h - 1);
+    wormsX[i] = random() * (w - 1);
+    wormsStride[i] = randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0);
+  }
+  const colorSrc = colors ? colors : tensor;
+  const src = colorSrc.read();
+  const wormColors = new Float32Array(count * c);
+  for (let i = 0; i < count; i++) {
+    const xi = Math.floor(wormsX[i]);
+    const yi = Math.floor(wormsY[i]);
+    const base = (yi * w + xi) * c;
+    for (let k = 0; k < c; k++) {
+      wormColors[i * c + k] = src[base + k];
+    }
+  }
+  function makeRots(beh, n) {
+    const rot = new Float32Array(n);
+    const base = random() * TAU;
+    if (beh === 1) {
+      rot.fill(base);
+    } else if (beh === 2) {
+      for (let i = 0; i < n; i++) {
+        rot[i] = base + (Math.floor(random() * 100) % 4) * (Math.PI / 2);
+      }
+    } else if (beh === 3) {
+      for (let i = 0; i < n; i++) {
+        rot[i] = base + random() * 0.25 - 0.125;
+      }
+    } else if (beh === 4) {
+      for (let i = 0; i < n; i++) rot[i] = random() * TAU;
+    } else if (beh === 5) {
+      const q = Math.floor(n * 0.25);
+      rot.set(makeRots(1, q), 0);
+      rot.set(makeRots(2, q), q);
+      rot.set(makeRots(3, q), q * 2);
+      rot.set(makeRots(4, n - q * 3), q * 3);
+    } else if (beh === 10) {
+      for (let i = 0; i < n; i++) rot[i] = periodicValue(time * speed, random());
+    } else {
+      rot.fill(base);
+    }
+    return rot;
+  }
+  const wormsRot = makeRots(behavior, count);
+  const valuesArr = new Float32Array(h * w);
+  const tensorData = tensor.read();
+  for (let i = 0; i < h * w; i++) {
+    if (c === 1) valuesArr[i] = tensorData[i];
+    else {
+      const base = i * c;
+      const r = tensorData[base];
+      const g = tensorData[base + 1] || 0;
+      const b = tensorData[base + 2] || 0;
+      valuesArr[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+  }
+  const indexArr = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) indexArr[i] = valuesArr[i] * TAU * kink;
+  const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration);
+  const out = new Float32Array(h * w * c);
+  for (let iter = 0; iter < iterations; iter++) {
+    if (drunkenness) {
+      const start = Math.floor(Math.min(h, w) * time * speed + iter * speed * 10);
+      for (let i = 0; i < count; i++) {
+        wormsRot[i] += (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI;
+      }
+    }
+    const exposure = iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
+    for (let i = 0; i < count; i++) {
+      const yi = Math.floor(wormsY[i]) % h;
+      const xi = Math.floor(wormsX[i]) % w;
+      const idx = yi * w + xi;
+      const base = idx * c;
+      for (let k = 0; k < c; k++) {
+        out[base + k] += wormColors[i * c + k] * exposure;
+      }
+      let next = indexArr[idx] + wormsRot[i];
+      if (quantize) next = Math.round(next);
+      wormsY[i] = (wormsY[i] + Math.cos(next) * wormsStride[i]) % h;
+      wormsX[i] = (wormsX[i] + Math.sin(next) * wormsStride[i]) % w;
+    }
+  }
+  let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  outTensor = normalize(outTensor);
+  const d = outTensor.read();
+  for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
+  outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
+  return blend(tensor, outTensor, alpha);
+}
+register('worms', worms, {
+  behavior: 1,
+  density: 4.0,
+  duration: 4.0,
+  stride: 1.0,
+  strideDeviation: 0.05,
+  alpha: 0.5,
+  kink: 1.0,
+  drunkenness: 0.0,
+  quantize: false,
+  colors: null,
+});
+
+export function wormhole(
+  tensor,
+  shape,
+  time,
+  speed,
+  kink = 1.0,
+  inputStride = 1.0,
+  alpha = 1.0
+) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const valuesArr = new Float32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (c === 1) valuesArr[idx] = src[idx];
+      else {
+        const base = idx * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+    }
+  }
+  const stride = 1024 * inputStride;
+  const xArr = new Int32Array(h * w);
+  const yArr = new Int32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const deg = valuesArr[idx] * TAU * kink;
+      const xo = (Math.cos(deg) + 1) * stride;
+      const yo = (Math.sin(deg) + 1) * stride;
+      xArr[idx] = Math.floor((x + xo)) % w;
+      yArr[idx] = Math.floor((y + yo)) % h;
+    }
+  }
+  const offs = offsetIndex(yArr, h, xArr, w);
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const dest = (offs.y[i] * w + offs.x[i]) * c;
+    const lum = valuesArr[i];
+    const l2 = lum * lum;
+    const base = i * c;
+    for (let k = 0; k < c; k++) {
+      out[dest + k] += src[base + k] * l2;
+    }
+  }
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] < min) min = out[i];
+    if (out[i] > max) max = out[i];
+  }
+  if (max > min) {
+    const range = max - min;
+    for (let i = 0; i < out.length; i++) {
+      out[i] = Math.sqrt((out[i] - min) / range);
+    }
+  } else {
+    for (let i = 0; i < out.length; i++) {
+      out[i] = Math.sqrt(out[i]);
+    }
+  }
+  const outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  return blend(tensor, outTensor, alpha);
+}
+register('wormhole', wormhole, { kink: 1.0, inputStride: 1.0, alpha: 1.0 });
 
 export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1.0) {
   const [h, w, c] = shape;
