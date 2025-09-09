@@ -63,6 +63,9 @@ import {
   watermark,
   onScreenDisplay,
   spookyTicker,
+  falseColor,
+  tint,
+  valueRefract,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -719,6 +722,48 @@ setSeed(1);
 const nebOut = nebula(nebTensor, [32, 32, 3], 0, 1).read();
 const nebExpected = loadFixture('nebula.json');
 arraysClose(Array.from(nebOut), nebExpected);
+
+// falseColor regression
+const fcData = new Float32Array([
+  0.1, 0.1, 0.1,
+  0.2, 0.2, 0.2,
+  0.3, 0.3, 0.3,
+  0.4, 0.4, 0.4,
+]);
+const fcTensor = Tensor.fromArray(null, fcData, [2, 2, 3]);
+const fcOut = falseColor(fcTensor, [2, 2, 3], 0, 1).read();
+const fcExpected = loadFixture('falseColor.json');
+arraysClose(Array.from(fcOut), fcExpected);
+
+// tint regression
+setSeed(1);
+const tintData = new Float32Array([
+  0.1, 0.2, 0.3,
+  0.4, 0.5, 0.6,
+  0.7, 0.8, 0.9,
+  0.2, 0.3, 0.4,
+]);
+const tintTensor = Tensor.fromArray(null, tintData, [2, 2, 3]);
+setSeed(1);
+const tintOut = tint(tintTensor, [2, 2, 3], 0, 1, 0.5).read();
+const tintExpected = loadFixture('tint.json');
+arraysClose(Array.from(tintOut), tintExpected);
+const tintArr = Array.from(tintOut);
+assert.ok(tintArr.every((v) => v >= 0 && v <= 1));
+
+// valueRefract regression
+const vrData = new Float32Array([
+  0.0, 0.1, 0.2, 0.3,
+  0.4, 0.5, 0.6, 0.7,
+  0.8, 0.9, 1.0, 0.1,
+  0.2, 0.3, 0.4, 0.5,
+]);
+const vrTensor = Tensor.fromArray(null, vrData, [4, 4, 1]);
+const vrOut = valueRefract(vrTensor, [4, 4, 1], 0, 1).read();
+const vrExpected = loadFixture('valueRefract.json');
+arraysClose(Array.from(vrOut), vrExpected);
+const vrArr = Array.from(vrOut);
+assert.ok(vrArr.every((v) => v >= 0 && v <= 1));
 
 // lensWarp extreme displacement
 setSeed(1);

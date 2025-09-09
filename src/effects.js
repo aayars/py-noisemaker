@@ -1178,6 +1178,106 @@ export function colorMap(
 }
 register('colorMap', colorMap, { clut: null, horizontal: false, displacement: 0.5 });
 
+export function falseColor(
+  tensor,
+  shape,
+  time,
+  speed,
+  horizontal = false,
+  displacement = 0.5,
+) {
+  const clut = values(2, shape, { ctx: tensor.ctx, time, speed });
+  return normalize(colorMap(tensor, shape, time, speed, clut, horizontal, displacement));
+}
+register('falseColor', falseColor, { horizontal: false, displacement: 0.5 });
+
+export function tint(tensor, shape, time, speed, alpha = 0.5) {
+  const [h, w, c] = shape;
+  if (c < 3) return tensor;
+  // Consume similar noise to maintain randomness parity with Python impl
+  values(3, shape, { ctx: tensor.ctx, time, speed, corners: true });
+
+  const src = tensor.read();
+  let alphaChan = null;
+  let rgbData;
+
+  if (c === 4) {
+    rgbData = new Float32Array(h * w * 3);
+    alphaChan = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * 4;
+      rgbData[i * 3] = src[base];
+      rgbData[i * 3 + 1] = src[base + 1];
+      rgbData[i * 3 + 2] = src[base + 2];
+      alphaChan[i] = src[base + 3];
+    }
+  } else {
+    rgbData = src.slice();
+  }
+
+  const rand1 = random() * 0.333;
+  const rand2 = random();
+  const colorData = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    const r = rgbData[i * 3];
+    const g = rgbData[i * 3 + 1];
+    const b = rgbData[i * 3 + 2];
+    colorData[i * 3] = (r * 0.333 + rand1 + rand2) % 1.0;
+    colorData[i * 3 + 1] = g;
+    colorData[i * 3 + 2] = b;
+  }
+
+  const baseTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+  const hsv = rgbToHsv(baseTensor).read();
+  const hsvMix = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    hsvMix[i * 3] = colorData[i * 3];
+    hsvMix[i * 3 + 1] = colorData[i * 3 + 1];
+    hsvMix[i * 3 + 2] = hsv[i * 3 + 2];
+  }
+  const colorized = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvMix, [h, w, 3]));
+  let out = blend(baseTensor, colorized, alpha);
+
+  if (c === 4) {
+    const outData = out.read();
+    const final = new Float32Array(h * w * 4);
+    for (let i = 0; i < h * w; i++) {
+      final[i * 4] = outData[i * 3];
+      final[i * 4 + 1] = outData[i * 3 + 1];
+      final[i * 4 + 2] = outData[i * 3 + 2];
+      final[i * 4 + 3] = alphaChan[i];
+    }
+    out = Tensor.fromArray(tensor.ctx, final, [h, w, 4]);
+  }
+
+  return out;
+}
+register('tint', tint, { alpha: 0.5 });
+
+export function valueRefract(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 4,
+  distrib = ValueDistribution.center_circle,
+  displacement = 0.125,
+) {
+  const valueShape = [shape[0], shape[1], 1];
+  const blendValues = values(freq, valueShape, {
+    ctx: tensor.ctx,
+    distrib,
+    time,
+    speed,
+  });
+  return refract(tensor, blendValues, null, displacement);
+}
+register('valueRefract', valueRefract, {
+  freq: 4,
+  distrib: ValueDistribution.center_circle,
+  displacement: 0.125,
+});
+
 function randomNormal(mean = 0, std = 1) {
   const u1 = random() || 1e-9;
   const u2 = random();
