@@ -367,6 +367,170 @@ register('singularity', singularity, {
   distMetric: DistanceMetric.euclidean,
 });
 
+export function lowpoly(
+  tensor,
+  shape,
+  time,
+  speed,
+  distrib = PointDistribution.random,
+  freq = 10,
+  distMetric = DistanceMetric.euclidean,
+) {
+  const [xPts, yPts] = pointCloud(freq, {
+    distrib,
+    shape,
+    drift: 1.0,
+    time,
+    speed,
+  });
+  const count = xPts.length;
+  if (count === 0) return tensor;
+  const xy = [xPts, yPts, count];
+  const distance = voronoi(
+    null,
+    shape,
+    time,
+    speed,
+    VoronoiDiagramType.range,
+    1,
+    distMetric,
+    1,
+    1,
+    1,
+    PointDistribution.square,
+    0,
+    false,
+    xy,
+  );
+  const color = voronoi(
+    tensor,
+    shape,
+    time,
+    speed,
+    VoronoiDiagramType.color_regions,
+    0,
+    distMetric,
+    1,
+    1,
+    1,
+    PointDistribution.square,
+    0,
+    false,
+    xy,
+  );
+  return normalize(blend(distance, color, 0.5));
+}
+register('lowpoly', lowpoly, {
+  distrib: PointDistribution.random,
+  freq: 10,
+  distMetric: DistanceMetric.euclidean,
+});
+
+export function kaleido(
+  tensor,
+  shape,
+  time,
+  speed,
+  sides = 6,
+  sdfSides = 5,
+  xy = null,
+  blendEdges = true,
+  pointFreq = 1,
+  pointGenerations = 1,
+  pointDistrib = PointDistribution.random,
+  pointDrift = 0,
+  pointCorners = false,
+) {
+  const [h, w, c] = shape;
+  const valueShape = [h, w, 1];
+  const xyArg = xy ? [xy[0], xy[1], xy[0].length] : null;
+  const r = voronoi(
+    null,
+    valueShape,
+    time,
+    speed,
+    VoronoiDiagramType.range,
+    0,
+    DistanceMetric.euclidean,
+    1,
+    pointFreq,
+    pointGenerations,
+    pointDistrib,
+    pointDrift,
+    pointCorners,
+    xyArg,
+  ).read();
+  const fader = blendEdges
+    ? (() => {
+        const f = singularity(
+          null,
+          valueShape,
+          time,
+          speed,
+          VoronoiDiagramType.range,
+          DistanceMetric.chebyshev,
+        ).read();
+        for (let i = 0; i < f.length; i++) f[i] = Math.pow(f[i], 5);
+        return f;
+      })()
+    : null;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const step = (Math.PI * 2) / sides;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const xi = x / (w - 1) - 0.5;
+      const yi = y / (h - 1) - 0.5;
+      const radius = r[idx];
+      let a = Math.atan2(yi, xi) + Math.PI / 2;
+      a = ((a % step) + step) % step;
+      a = Math.abs(a - step / 2);
+      let nx = radius * w * Math.sin(a);
+      let ny = radius * h * Math.cos(a);
+      if (blendEdges) {
+        const fade = fader[idx];
+        nx = nx * (1 - fade) + x * fade;
+        ny = ny * (1 - fade) + y * fade;
+      }
+      nx = ((Math.floor(nx) % w) + w) % w;
+      ny = ((Math.floor(ny) % h) + h) % h;
+      const srcBase = (ny * w + nx) * c;
+      const dstBase = idx * c;
+      for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('kaleido', kaleido, {
+  sides: 6,
+  sdfSides: 5,
+  xy: null,
+  blendEdges: true,
+  pointFreq: 1,
+  pointGenerations: 1,
+  pointDistrib: PointDistribution.random,
+  pointDrift: 0,
+  pointCorners: false,
+});
+
+export function texture(tensor, shape, time, speed) {
+  const valueShape = [shape[0], shape[1], 1];
+  let noise = values(64, valueShape, { ctx: tensor.ctx, time, speed });
+  noise = warp(noise, valueShape, time, speed, 2, 8, 1);
+  noise = ridge(noise);
+  const shade = shadow(noise, valueShape, time, speed, 1).read();
+  const src = tensor.read();
+  const [h, w, c] = shape;
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const m = 0.9 + shade[i] * 0.1;
+    for (let k = 0; k < c; k++) out[i * c + k] = src[i * c + k] * m;
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('texture', texture, {});
+
 export function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const bins = Math.max(h, w);

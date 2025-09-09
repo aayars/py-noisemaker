@@ -40,6 +40,9 @@ import {
   pixelSort,
   glyphMap,
   sketch,
+  lowpoly,
+  kaleido,
+  texture,
   simpleFrame,
   frame,
 } from '../src/effects.js';
@@ -552,6 +555,23 @@ setSeed(1);
 const frOut = frame(frTensor, [2,2,1], 0, 1).read();
 const frExpected = loadFixture('frame.json');
 arraysClose(Array.from(frOut), frExpected);
+
+// lowpoly regression
+setSeed(1);
+const lpOut = lowpoly(edgeTensor, [4,4,1], 0, 1, undefined, 2).read();
+const lpExpected = loadFixture('lowpoly.json');
+arraysClose(Array.from(lpOut), lpExpected);
+
+// kaleido regression
+setSeed(1);
+const kalOut = kaleido(edgeTensor, [4,4,1], 0, 1, 3).read();
+const kalExpected = loadFixture('kaleido.json');
+arraysClose(Array.from(kalOut), kalExpected);
+
+// texture regression
+const texOut = texture(edgeTensor, [4,4,1], 0, 1).read();
+const texExpected = loadFixture('texture.json');
+arraysClose(Array.from(texOut), texExpected);
 
 // glyphMap shape test
 const gmTensor = Tensor.fromArray(null, edgeData, [4,4,1]);
