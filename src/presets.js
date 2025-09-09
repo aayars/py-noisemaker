@@ -12,6 +12,7 @@ import {
   colorSpaceMembers,
   distanceMetricAbsoluteMembers,
   valueMaskProceduralMembers,
+  valueMaskGridMembers,
 } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
@@ -389,122 +390,138 @@ export function PRESETS() {
     },
 
     'band-together': {
-      layers: ['multires', 'sobel', 'reindex-post', 'warp', 'grain'],
+      layers: ['basic', 'reindex-post', 'funhouse', 'shadow', 'normalize', 'grain'],
       settings: () => ({
-        freq: randomInt(7, 9),
-        lattice_drift: coinFlip(),
-        mask: mask.chess,
-        mask_static: true,
-        reindex_range: 0.75 + random() * 0.75,
-        warp_freq: 3,
-        warp_displacement: 0.5 + random() * 0.5,
+        freq: randomInt(6, 12),
+        reindex_range: randomInt(8, 12),
+        warp_range: 0.333 + random() * 0.16667,
+        warp_octaves: 8,
+        warp_freq: randomInt(2, 3),
       }),
     },
 
     'basic-low-poly': {
-      layers: ['basic'],
-      post: () => [Effect('lowpoly')],
+      layers: ['basic', 'low-poly', 'grain', 'saturation'],
     },
 
     'basic-voronoi': {
-      layers: ['basic'],
-      post: () => [Effect('voronoi')],
+      layers: ['basic', 'voronoi'],
+      settings: () => ({
+        voronoi_diagram_type: randomMember([
+          voronoi.color_range,
+          voronoi.color_regions,
+          voronoi.range_regions,
+          voronoi.color_flow,
+        ]),
+      }),
     },
 
     'basic-voronoi-refract': {
-      layers: ['basic'],
-      post: () => [Effect('voronoi'), Effect('refract')],
+      layers: ['basic', 'voronoi'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+        hue_range: 0.25 + random() * 0.5,
+        voronoi_diagram_type: voronoi.range,
+        voronoi_nth: 0,
+        voronoi_refract: 1.0 + random() * 0.5,
+      }),
     },
 
     'basic-water': {
-      layers: ['basic', 'refract-post', 'invert'],
+      layers: ['multires', 'refract-octaves', 'reflect-octaves', 'ripple'],
       settings: () => ({
-        refract_range: 0.1 + random() * 0.1,
-        speed: 0.05,
+        colorSpace: color.hsv,
+        distrib: distrib.uniform,
+        freq: randomInt(7, 10),
+        hue_range: 0.05 + random() * 0.05,
+        hue_rotation: 0.5125 + random() * 0.025,
+        lattice_drift: 1.0,
+        octaves: 4,
+        palette_on: false,
+        reflect_range: 0.16667 + random() * 0.16667,
+        refract_range: 0.25 + random() * 0.125,
+        refract_y_from_offset: true,
+        ripple_range: 0.005 + random() * 0.0025,
+        ripple_kink: randomInt(2, 4),
+        ripple_freq: randomInt(2, 4),
       }),
     },
 
     'be-kind-rewind': {
-      final: () => [Effect('vhs')],
+      final: () => [Effect('vhs'), Preset('crt')],
     },
 
     'benny-lava': {
-      layers: ['voronoi', 'reindex-post', 'bloom', 'normalize'],
+      layers: ['basic', 'posterize', 'funhouse', 'distressed'],
       settings: () => ({
-        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
-        palette_on: false,
-        reindex_range: 0.125 + random() * 0.125,
-        voronoi_alpha: 0.5 + random() * 0.5,
-        voronoi_diagram_type: voronoi.color_range,
-        voronoi_point_freq: randomInt(3, 5),
+        distrib: distrib.column_index,
+        posterize_levels: 1,
+        warp_range: 1 + random() * 0.5,
       }),
     },
 
     berkeley: {
-      layers: ['basic', 'reindex-post', 'pixel-sort', 'sine-post'],
+      layers: ['multires-ridged', 'reindex-octaves', 'sine-octaves', 'ridge', 'shadow', 'grain', 'saturation'],
       settings: () => ({
-        freq: randomInt(4, 7),
-        lattice_drift: coinFlip(),
+        freq: randomInt(12, 16),
         palette_on: false,
-        pixel_sort_darkest: coinFlip(),
-        pixel_sort_angled: coinFlip(),
-        reindex_range: 0.333 + random() * 0.333,
-        sine_range: randomInt(3, 5),
+        reindex_range: 0.75 + random() * 0.25,
+        sine_range: 2.0 + random() * 2.0,
       }),
     },
 
     'big-data-startup': {
-      layers: ['basic', 'sobel', 'posterize', 'bloom'],
+      layers: ['glyphic'],
       settings: () => ({
-        dist_metric: distance.triangular,
-        octaves: randomInt(4, 5),
-        posterize_levels: randomInt(3, 4),
-        saturation: 0,
+        mask: mask.script,
+        hue_rotation: random(),
+        hue_range: 0.0625 + random() * 0.5,
+        posterize_levels: randomInt(2, 4),
       }),
     },
 
     'bit-by-bit': {
-      layers: ['multires', 'density-map', 'posterize', 'sobel', 'contrast-final'],
+      layers: ['value-mask', 'bloom', 'crt'],
       settings: () => ({
-        freq: randomInt(5, 7),
-        octaves: randomInt(3, 5),
-        posterize_levels: randomInt(1, 2),
-        saturation: 0,
+        mask: randomMember([mask.alphanum_binary, mask.alphanum_hex, mask.alphanum_numeric]),
+        mask_repeat: randomInt(20, 40),
       }),
     },
 
     bitmask: {
-      layers: ['basic', 'value-mask', 'pixel-sort', 'contrast-final'],
+      layers: ['multires-low', 'value-mask', 'bloom'],
       settings: () => ({
-        freq: randomInt(4, 7),
-        mask: randomMember([mask.alphanum_a, mask.alphanum_b, mask.alphanum_c]),
-        mask_static: true,
-        pixel_sort_darkest: coinFlip(),
-        pixel_sort_angled: coinFlip(),
+        mask: randomMember(valueMaskProceduralMembers),
+        mask_repeat: randomInt(7, 15),
+        ridges: true,
       }),
     },
 
     'blacklight-fantasy': {
-      layers: ['multires', 'refract-octaves', 'random-hue', 'posterize', 'bloom'],
+      layers: ['voronoi', 'funhouse', 'posterize', 'sobel', 'invert', 'bloom', 'grain', 'nudge-hue', 'contrast-final'],
       settings: () => ({
-        freq: randomInt(2, 3),
-        hue_range: 1,
-        octaves: randomInt(2, 3),
-        posterize_levels: randomInt(2, 3),
-        refract_range: 0.5 + random() * 0.5,
+        colorSpace: color.rgb,
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+        posterize_levels: 3,
+        voronoi_refract: 0.5 + random() * 1.25,
+        warp_octaves: randomInt(1, 4),
+        warp_range: randomInt(0, 1) * random(),
       }),
     },
 
     bloom: {
-      layers: ['basic'],
-      final: () => [Effect('bloom')],
+      settings: () => ({
+        bloom_alpha: 0.025 + random() * 0.0125,
+      }),
+      final: (settings) => [Effect('bloom', { alpha: settings.bloom_alpha })],
     },
 
     blotto: {
-      layers: ['multires', 'gloaming', 'light-leak'],
+      layers: ['basic', 'random-hue', 'spatter-post', 'maybe-palette', 'maybe-invert'],
       settings: () => ({
-        octaves: randomInt(3, 4),
-        palette_on: false,
+        colorSpace: randomMember(color),
+        distrib: distrib.ones,
+        spatter_post_color: false,
       }),
     },
 
@@ -520,69 +537,93 @@ export function PRESETS() {
     },
 
     branewaves: {
-      layers: ['multires', 'sobel', 'erode-post', 'refract-post', 'gloaming'],
+      layers: ['value-mask', 'ripple', 'bloom'],
       settings: () => ({
-        lattice_drift: 1,
-        freq: randomInt(3, 5),
-        erode_range: 1 + random() * 2,
-        refract_range: 0.125 + random() * 0.125,
-        speed: 0.05,
+        mask: randomMember(valueMaskGridMembers),
+        mask_repeat: randomInt(5, 10),
+        ridges: true,
+        ripple_freq: 2,
+        ripple_kink: 1.5 + random() * 2,
+        ripple_range: 0.15 + random() * 0.15,
+        spline_order: randomMember(enumRange(interp.linear, interp.bicubic)),
       }),
     },
 
     'brightness-post': {
       settings: () => ({
-        brightness_amount: 0.25 + random() * 0.25,
+        brightness_post: 0.125 + random() * 0.0625,
       }),
       post: (settings) => [
-        Effect('adjustBrightness', { amount: settings.brightness_amount }),
+        Effect('adjustBrightness', { amount: settings.brightness_post }),
       ],
     },
 
     'brightness-final': {
       settings: () => ({
-        brightness_amount: 0.25 + random() * 0.25,
+        brightness_final: 0.125 + random() * 0.0625,
       }),
       final: (settings) => [
-        Effect('adjustBrightness', { amount: settings.brightness_amount }),
+        Effect('adjustBrightness', { amount: settings.brightness_final }),
       ],
     },
 
     'bringing-hexy-back': {
-      layers: ['multires', 'sobel', 'contrast-final', 'maybe-rotate'],
+      layers: ['voronoi', 'funhouse', 'maybe-invert', 'bloom'],
       settings: () => ({
-        freq: randomInt(2, 3),
-        octaves: randomInt(3, 5),
-        voronoi_point_distrib: point.h_hex,
+        colorSpace: randomMember(color),
+        dist_metric: distance.euclidean,
+        hue_range: 0.25 + random() * 0.75,
+        voronoi_alpha: 0.333 + random() * 0.333,
+        voronoi_diagram_type: voronoi.range_regions,
+        voronoi_nth: 0,
+        voronoi_point_distrib: coinFlip() ? point.v_hex : point.h_hex,
+        voronoi_point_freq: randomInt(4, 7) * 2,
+        warp_range: 0.05 + random() * 0.25,
+        warp_octaves: randomInt(1, 4),
+      }),
+      generator: (settings) => ({
+        freq: settings.voronoi_point_freq,
       }),
     },
 
     broken: {
-      layers: ['multires', 'sobel', 'refract-post', 'invert', 'brightness-post', 'contrast-post', 'lens'],
+      layers: ['multires-low', 'reindex-octaves', 'posterize', 'glowing-edges', 'grain', 'saturation'],
       settings: () => ({
-        dist_metric: distance.euclidean,
-        octaves: randomInt(1, 3),
-        refract_range: 0.5 + random() * 0.5,
+        colorSpace: color.rgb,
+        freq: randomInt(3, 4),
+        lattice_drift: 2,
+        posterize_levels: 3,
+        reindex_range: randomInt(3, 4),
+        speed: 0.025,
       }),
     },
 
     'bubble-machine': {
-      layers: ['multires', 'refract-octaves', 'posterize', 'sobel', 'bloom'],
+      layers: ['basic', 'posterize', 'wormhole', 'reverb', 'outline', 'maybe-invert'],
       settings: () => ({
-        dist_metric: distance.euclidean,
-        hue_range: 0.75,
-        posterize_levels: randomInt(2, 4),
-        refract_range: 0.5 + random() * 0.5,
+        corners: true,
+        distrib: distrib.uniform,
+        freq: randomInt(3, 6) * 2,
+        mask: randomMember([mask.h_hex, mask.v_hex]),
+        posterize_levels: randomInt(8, 16),
+        reverb_iterations: randomInt(1, 3),
+        reverb_octaves: randomInt(3, 5),
+        spline_order: randomMember(enumRange(interp.linear, interp.bicubic)),
+        wormhole_stride: 0.1 + random() * 0.05,
+        wormhole_kink: 0.5 + random() * 4,
       }),
     },
 
     'bubble-multiverse': {
-      layers: ['multires', 'refract-octaves', 'posterize', 'sobel', 'bloom', 'density-map'],
+      layers: ['voronoi', 'refract-post', 'density-map', 'random-hue', 'bloom', 'shadow'],
       settings: () => ({
         dist_metric: distance.euclidean,
-        hue_range: 0.75,
-        posterize_levels: randomInt(2, 4),
-        refract_range: 0.5 + random() * 0.5,
+        refract_range: 0.125 + random() * 0.05,
+        speed: 0.05,
+        voronoi_alpha: 1.0,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_freq: 10,
+        voronoi_refract: 0.625 + random() * 0.25,
       }),
     },
 
