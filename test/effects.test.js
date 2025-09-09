@@ -52,6 +52,9 @@ import {
   vhs,
   scanlineError,
   crt,
+  snow,
+  spatter,
+  clouds,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -616,6 +619,29 @@ setSeed(1);
 const crtOut = crt(crtTensor, [2,2,3], 0.25, 1).read();
 const crtExpected = loadFixture('crt.json');
 arraysClose(Array.from(crtOut), crtExpected);
+
+// snow regression
+const snowData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const snowTensor = Tensor.fromArray(null, snowData, [2,2,1]);
+const snowOut = snow(snowTensor, [2,2,1], 0, 1).read();
+const snowExpected = loadFixture('snow.json');
+arraysClose(Array.from(snowOut), snowExpected);
+
+// spatter regression
+setSeed(1);
+const spTensor = Tensor.fromArray(null, new Float32Array(16), [4,4,1]);
+setSeed(1);
+const spOut = spatter(spTensor, [4,4,1], 0, 1).read();
+const spExpected = loadFixture('spatter.json');
+arraysClose(Array.from(spOut), spExpected);
+
+// clouds regression
+setSeed(1);
+const clTensor = Tensor.fromArray(null, new Float32Array(16), [4,4,1]);
+setSeed(1);
+const clOut = clouds(clTensor, [4,4,1], 0, 1).read();
+const clExpected = loadFixture('clouds.json');
+arraysClose(Array.from(clOut), clExpected);
 
 // lensWarp extreme displacement
 setSeed(1);

@@ -1724,6 +1724,29 @@ export function grain(tensor, shape, time, speed, alpha = 0.25) {
 }
 register('grain', grain, { alpha: 0.25 });
 
+export function snow(tensor, shape, time, speed, alpha = 0.25) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const staticNoise = values(Math.max(h, w), shape, {
+    ctx,
+    time,
+    speed: speed * 100,
+    splineOrder: 0,
+  });
+  let limiter = values(Math.max(h, w), shape, {
+    ctx,
+    time,
+    speed: speed * 100,
+    distrib: ValueDistribution.exp,
+    splineOrder: 0,
+  });
+  const lData = limiter.read();
+  for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
+  limiter = Tensor.fromArray(ctx, lData, shape);
+  return blend(tensor, staticNoise, limiter);
+}
+register('snow', snow, { alpha: 0.25 });
+
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] !== 3) return tensor;
   const hsv = rgbToHsv(tensor);
@@ -2453,3 +2476,141 @@ export function sketch(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('sketch', sketch, {});
+
+export function spatter(tensor, shape, time, speed, color = true) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let smear = values(randomInt(3, 6), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+  });
+  smear = warp(smear, valueShape, time, speed, randomInt(2, 3), randomInt(1, 2), 1 + random());
+  let sp1 = values(randomInt(32, 64), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+    splineOrder: InterpolationType.linear,
+  });
+  let d1 = sp1.read();
+  for (let i = 0; i < d1.length; i++) {
+    let v = d1[i] - 1.0;
+    v = (v - 0.5) * 4 + 0.5;
+    d1[i] = Math.min(1, Math.max(0, v));
+  }
+  sp1 = Tensor.fromArray(ctx, d1, valueShape);
+  let smData = smear.read();
+  let spData = sp1.read();
+  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(smData[i], spData[i]);
+  smear = Tensor.fromArray(ctx, smData, valueShape);
+  let sp2 = values(randomInt(150, 200), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+    splineOrder: InterpolationType.linear,
+  });
+  let d2 = sp2.read();
+  for (let i = 0; i < d2.length; i++) {
+    let v = d2[i] - 1.25;
+    v = (v - 0.5) * 4 + 0.5;
+    d2[i] = Math.min(1, Math.max(0, v));
+  }
+  sp2 = Tensor.fromArray(ctx, d2, valueShape);
+  smData = smear.read();
+  spData = sp2.read();
+  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(smData[i], spData[i]);
+  smear = Tensor.fromArray(ctx, smData, valueShape);
+  const remover = values(randomInt(2, 3), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+  });
+  const remData = remover.read();
+  smData = smear.read();
+  for (let i = 0; i < smData.length; i++) smData[i] = Math.max(0, smData[i] - remData[i]);
+  smear = Tensor.fromArray(ctx, smData, valueShape);
+  let mask = normalize(smear);
+  let maskData = mask.read();
+  for (let i = 0; i < maskData.length; i++) maskData[i] *= 0.005;
+  const alphaTensor = Tensor.fromArray(ctx, maskData, valueShape);
+  let overlay;
+  if (c === 3 && color) {
+    if (Array.isArray(color)) {
+      const colData = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        colData[i * 3] = color[0];
+        colData[i * 3 + 1] = color[1];
+        colData[i * 3 + 2] = color[2];
+      }
+      overlay = Tensor.fromArray(ctx, colData, shape);
+    } else {
+      const baseData = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        baseData[i * 3] = 0.875;
+        baseData[i * 3 + 1] = 0.125;
+        baseData[i * 3 + 2] = 0.125;
+      }
+      let base = Tensor.fromArray(ctx, baseData, shape);
+      const hsv = rgbToHsv(base);
+      const hsvData = hsv.read();
+      const delta = random() - 0.5;
+      for (let i = 0; i < h * w; i++) {
+        hsvData[i * 3] = (hsvData[i * 3] + delta + 1) % 1;
+      }
+      overlay = hsvToRgb(Tensor.fromArray(ctx, hsvData, hsv.shape));
+    }
+  } else {
+    overlay = values(1, shape, { ctx, distrib: ValueDistribution.ones });
+  }
+  return blend(tensor, overlay, alphaTensor);
+}
+register('spatter', spatter, { color: true });
+
+export function clouds(tensor, shape, time, speed) {
+  const [h, w] = shape;
+  const ctx = tensor.ctx;
+  const preH = Math.max(1, Math.floor(h * 0.25));
+  const preW = Math.max(1, Math.floor(w * 0.25));
+  const preShape = [preH, preW, 1];
+  let control = values(randomInt(2, 4), preShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+    seed: randomInt(0, 1000),
+  });
+  control = warp(control, preShape, time, speed, 3, 2, 0.125);
+  let shaded = offsetTensor(
+    control,
+    randomInt(-15, 15),
+    randomInt(-15, 15)
+  );
+  let shadeData = shaded.read();
+  for (let i = 0; i < shadeData.length; i++) shadeData[i] = Math.min(1, shadeData[i] * 2.5);
+  shaded = Tensor.fromArray(ctx, shadeData, preShape);
+  const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const kData = blurTensor.read();
+  const kSize = blurTensor.shape[0];
+  const blurKernel = [];
+  for (let i = 0; i < kSize; i++) {
+    blurKernel.push(Array.from(kData.slice(i * kSize, i * kSize + kSize)));
+  }
+  for (let i = 0; i < 3; i++) shaded = convolution(shaded, blurKernel);
+  const factor = Math.max(1, Math.floor(h / preH));
+  let shadedUp = upsample(shaded, factor);
+  let combined = upsample(control, factor);
+  let shadedDataUp = shadedUp.read();
+  for (let i = 0; i < shadedDataUp.length; i++) shadedDataUp[i] *= 0.75;
+  shadedUp = Tensor.fromArray(ctx, shadedDataUp, [h, w, 1]);
+  const zeros = values(1, shape, { ctx, distrib: ValueDistribution.zeros });
+  const ones = values(1, shape, { ctx, distrib: ValueDistribution.ones });
+  let out = blend(tensor, zeros, shadedUp);
+  out = blend(out, ones, combined);
+  return shadow(out, shape, time, speed, 0.5);
+}
+register('clouds', clouds, {});
