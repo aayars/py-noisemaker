@@ -93,7 +93,7 @@ export class Preset {
     if (ctx.canvas && ctx.canvas.getContext) {
       const [h, w, c] = tensor.shape;
       const data = tensor.read();
-      const ctx2d = ctx.canvas.getContext('2d');
+      const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });
       if (ctx2d) {
         ctx.canvas.width = w;
         ctx.canvas.height = h;

@@ -57,7 +57,8 @@ export function loadGlyphs(shape) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d');
+  // willReadFrequently improves performance when repeatedly calling getImageData
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   for (let i = 32; i < 127; i++) {
     ctx.clearRect(0, 0, w, h);

@@ -50,7 +50,7 @@ export function tensorFromImage(image) {
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
   canvas.height = image.height;
-  const ctx2d = canvas.getContext('2d');
+  const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
   ctx2d.drawImage(image, 0, 0);
   const imgData = ctx2d.getImageData(0, 0, canvas.width, canvas.height).data;
   const arr = new Float32Array(canvas.width * canvas.height * 4);
@@ -69,7 +69,7 @@ export function savePNG(tensor, filename = 'image.png') {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const ctx2d = canvas.getContext('2d');
+  const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
   const imgData = ctx2d.createImageData(w, h);
   for (let i = 0; i < h * w; ++i) {
     const idx = i * 4;
