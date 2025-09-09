@@ -499,8 +499,8 @@ export function warp(tensor, flow, amount = 1) {
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const dx = flowData[(y * w + x) * 2] * amount;
-      const dy = flowData[(y * w + x) * 2 + 1] * amount;
+      const dx = flowData[(y * w + x) * 2] * amount * w;
+      const dy = flowData[(y * w + x) * 2 + 1] * amount * h;
       for (let k = 0; k < c; k++) {
         out[(y * w + x) * c + k] = sample(x + dx, y + dy, k);
       }

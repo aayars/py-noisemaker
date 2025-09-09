@@ -158,10 +158,10 @@ arraysClose(src.read(), warped.read());
 const flowFrac = Tensor.fromArray(
   null,
   new Float32Array([
-    0.5, 0,
-    0.5, 0,
-    0.5, 0,
-    0.5, 0,
+    0.25, 0,
+    0.25, 0,
+    0.25, 0,
+    0.25, 0,
   ]),
   [2, 2, 2]
 );
@@ -191,7 +191,7 @@ const refrInput = Tensor.fromArray(null, new Float32Array([
 ]), [3, 3, 1]);
 const refX = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
 const refY = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
-const refracted = refract(refrInput, refX, refY, 1);
+const refracted = refract(refrInput, refX, refY, 1 / 3);
 arraysClose(refracted.read(), new Float32Array([1, 2, 2, 1, 2, 2, 4, 5, 5]));
 
 // fft / ifft
