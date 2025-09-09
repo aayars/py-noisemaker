@@ -47,12 +47,26 @@
       font-size: 14px;
       margin-bottom: 10px;
     }
-    #presetDef {
+    #tabs {
+      margin-bottom: 10px;
+    }
+    #tabs button {
+      margin-right: 5px;
+      padding: 4px 8px;
+    }
+    #tabs button.active {
+      font-weight: bold;
+    }
+    #presetRecipe,
+    #presetEvaluated {
       background: #f0f0f0;
       padding: 10px;
       overflow: auto;
       max-height: 600px;
       font-size: 12px;
+    }
+    #presetEvaluated {
+      display: none;
     }
   </style>
 </head>
@@ -69,7 +83,12 @@
   </div>
   <div id="right">
     <div id="info">
-      <pre id="presetDef"></pre>
+      <div id="tabs">
+        <button id="tabRecipe" class="active">Recipe</button>
+        <button id="tabEvaluated">Evaluated</button>
+      </div>
+      <pre id="presetRecipe"></pre>
+      <pre id="presetEvaluated"></pre>
       <div style="text-align: right">
         <span id="device"></span>
         <span id="renderTime"></span>
@@ -79,7 +98,7 @@
   </div>
   <script type="module">
     import { Context } from './src/context.js';
-    import { render } from './src/composer.js';
+    import { render, Preset } from './src/composer.js';
     import PRESETS from './src/presets.js';
     import { random } from './src/util.js';
     const canvas = document.getElementById('noise');
@@ -88,7 +107,10 @@
     const renderTimeEl = document.getElementById('renderTime');
     const deviceEl = document.getElementById('device');
     const seedEl = document.getElementById('seed');
-    const presetDefEl = document.getElementById('presetDef');
+    const presetRecipeEl = document.getElementById('presetRecipe');
+    const presetEvalEl = document.getElementById('presetEvaluated');
+    const tabRecipeBtn = document.getElementById('tabRecipe');
+    const tabEvalBtn = document.getElementById('tabEvaluated');
     const presets = PRESETS();
     const presetNames = Object.keys(presets).filter(
       (name) => !name.startsWith('maybe-')
@@ -126,13 +148,40 @@
       return JSON.stringify(obj);
     }
 
+    function serializePreset(preset) {
+      const toPlain = (effects) =>
+        effects.map((fn) => ({
+          effect: fn.__effectName || fn.name || 'fn',
+          ...(fn.__params || {}),
+        }));
+      return {
+        settings: Object.fromEntries(Object.entries(preset.settings)),
+        generator: preset.generator,
+        octaves: toPlain(preset.octave_effects),
+        post: toPlain(preset.post_effects),
+        final: toPlain(preset.final_effects),
+      };
+    }
+
+    function showTab(which) {
+      const recipe = which === 'recipe';
+      presetRecipeEl.style.display = recipe ? 'block' : 'none';
+      presetEvalEl.style.display = recipe ? 'none' : 'block';
+      tabRecipeBtn.classList.toggle('active', recipe);
+      tabEvalBtn.classList.toggle('active', !recipe);
+    }
+
+    tabRecipeBtn.addEventListener('click', () => showTab('recipe'));
+    tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
+
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
     deviceEl.textContent = ctx.isCPU ? 'cpu' : 'gpu';
 
-    function draw(seed, preset) {
+    function draw(seed, presetName) {
+      const presetObj = new Preset(presetName, presets);
       const start = performance.now();
-      render(preset, seed, {
+      render(presetObj, seed, {
         width: canvas.width,
         height: canvas.height,
         ctx,
@@ -141,7 +190,8 @@
       const elapsed = performance.now() - start;
       seedEl.textContent = `seed: ${seed}`;
       renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
-      presetDefEl.textContent = formatPreset(presets[preset]);
+      presetRecipeEl.textContent = formatPreset(presets[presetName]);
+      presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
     }
 
     draw(42, currentPreset);
@@ -167,6 +217,8 @@
         const seed = Math.floor(random() * 1e9);
         draw(seed, currentPreset);
       });
+
+    showTab('recipe');
   </script>
 </body>
 </html>

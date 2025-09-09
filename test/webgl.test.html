@@ -14,7 +14,7 @@ import {
   grain,
 } from '../src/effects.js';
 import { render } from '../src/composer.js';
-import { ValueDistribution } from '../src/constants.js';
+import { ValueDistribution, ColorSpace } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
 const cpuCtx = new Context(null);
@@ -64,6 +64,13 @@ const edge = sobel(base);
 
   const orientOk = vTop < vBottom && hLeft < hRight;
 
+  const grayPreset = {
+    gray: { generator: () => ({ distrib: ValueDistribution.column_index, color_space: ColorSpace.grayscale }) },
+  };
+  render('gray', 0, { ctx, width: 2, height: 2, presets: grayPreset });
+  const gImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
+  const grayOk = gImg[0] === gImg[1] && gImg[0] === gImg[2];
+
   const ok =
     baseEqual &&
     baseGpu.length === 16 &&
@@ -77,7 +84,8 @@ const edge = sobel(base);
   testEffect(dither, [2]) &&
     testEffect(vignette, [0.2, 0.5]) &&
     testEffect(reindex, [0.5]) &&
-    orientOk;
+    orientOk &&
+    grayOk;
 
 document.body.textContent = ok ? 'webgl ok' : 'webgl fail';
 </script>

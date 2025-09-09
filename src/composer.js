@@ -112,7 +112,15 @@ export class Preset {
         const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;
-        const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${c > 3 ? 'color' : 'vec4(color.rgb, 1.0)'};\n}`;
+        const colorExpr =
+          c > 3
+            ? 'color'
+            : c === 1
+            ? 'vec4(color.rrr, 1.0)'
+            : c === 2
+            ? 'vec4(color.rrr, color.g)'
+            : 'vec4(color.rgb, 1.0)';
+        const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${colorExpr};\n}`;
         const prog = ctx.createProgram(FULLSCREEN_VS, fs);
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
