@@ -9,6 +9,7 @@ import {
   ValueMask as mask,
   VoronoiDiagramType as voronoi,
   WormBehavior as worms,
+  wormBehaviorAll,
   colorSpaceMembers,
   distanceMetricAbsoluteMembers,
   distanceMetricAll,
@@ -4270,11 +4271,186 @@ export function PRESETS() {
 
     vortex: {
       settings: () => ({
-        vortex_range: randomInt(16, 48),
+    vortex_range: randomInt(16, 48),
       }),
       post: (settings) => [
         Effect('vortex', { displacement: settings.vortex_range }),
       ],
+    },
+
+    'warped-cells': {
+      layers: ['voronoi', 'ridge', 'funhouse', 'bloom', 'grain'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAbsoluteMembers),
+        voronoi_alpha: 0.666 + random() * 0.333,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_nth: 0,
+        voronoi_point_distrib: randomMember(point, valueMaskNonproceduralMembers),
+        voronoi_point_freq: randomInt(6, 10),
+        warp_range: 0.25 + random() * 0.25,
+      }),
+    },
+
+    whatami: {
+      layers: [
+        'voronoi',
+        'reindex-octaves',
+        'reindex-post',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        freq: randomInt(7, 9),
+        hue_range: randomInt(3, 12),
+        reindex_range: 1.5 + random() * 1.5,
+        voronoi_alpha: 0.75 + random() * 0.125,
+        voronoi_diagram_type: voronoi.color_range,
+      }),
+    },
+
+    'wild-kingdom': {
+      layers: [
+        'basic',
+        'funhouse',
+        'posterize-outline',
+        'shadow',
+        'maybe-invert',
+        'lens',
+        'grain',
+        'nudge-hue',
+      ],
+      settings: () => ({
+        color_space: color.rgb,
+        freq: 20,
+        lattice_drift: 0.333,
+        mask: mask.sparse,
+        mask_static: true,
+        palette_on: false,
+        posterize_levels: randomInt(2, 6),
+        ridges: true,
+        spline_order: interp.cosine,
+        vaseline_alpha: 0.1 + random() * 0.05,
+        vignette_dark_alpha: 0.1 + random() * 0.05,
+        warp_octaves: 3,
+        warp_range: 0.0333,
+      }),
+    },
+
+    woahdude: {
+      layers: [
+        'wobble',
+        'voronoi',
+        'sine-octaves',
+        'refract-post',
+        'bloom',
+        'saturation',
+        'lens',
+      ],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        freq: randomInt(3, 5),
+        hue_range: 2,
+        lattice_drift: 1,
+        refract_range: 0.0005 + random() * 0.00025,
+        saturation_final: 1.5,
+        sine_range: randomInt(40, 60),
+        speed: 0.025,
+        tint_alpha: 0.05 + random() * 0.025,
+        voronoi_refract: 0.333 + random() * 0.333,
+        voronoi_diagram_type: voronoi.range,
+        voronoi_nth: 0,
+        voronoi_point_distrib: randomMember(pointCircularMembers),
+        voronoi_point_freq: 6,
+      }),
+    },
+
+    wobble: {
+      post: () => [Effect('wobble')],
+    },
+
+    wormhole: {
+      settings: () => ({
+        wormhole_kink: 1.0 + random() * 0.5,
+        wormhole_stride: 0.05 + random() * 0.025,
+      }),
+      post: (settings) => [
+        Effect('wormhole', {
+          kink: settings.wormhole_kink,
+          inputStride: settings.wormhole_stride,
+        }),
+      ],
+    },
+
+    worms: {
+      settings: () => ({
+        worms_alpha: 0.75 + random() * 0.25,
+        worms_behavior: randomMember(wormBehaviorAll),
+        worms_density: randomInt(250, 500),
+        worms_drunkenness: 0.0,
+        worms_duration: 1.0 + random() * 0.5,
+        worms_kink: 1.0 + random() * 0.5,
+        worms_quantize: false,
+        worms_stride: 0.75 + random() * 0.5,
+        worms_stride_deviation: random() + 0.5,
+      }),
+      post: (settings) => [
+        Effect('worms', {
+          alpha: settings.worms_alpha,
+          behavior: settings.worms_behavior,
+          density: settings.worms_density,
+          drunkenness: settings.worms_drunkenness,
+          duration: settings.worms_duration,
+          kink: settings.worms_kink,
+          quantize: settings.worms_quantize,
+          stride: settings.worms_stride,
+          strideDeviation: settings.worms_stride_deviation,
+        }),
+        Effect('fxaa'),
+      ],
+    },
+
+    wormstep: {
+      layers: ['basic', 'worms'],
+      settings: () => ({
+        corners: true,
+        lattice_drift: coinFlip(),
+        octaves: randomInt(1, 3),
+        palette_name: null,
+        worms_alpha: 0.5 + random() * 0.5,
+        worms_behavior: worms.chaotic,
+        worms_density: 500,
+        worms_kink: 1.0 + random() * 4.0,
+        worms_stride: 8.0 + random() * 4.0,
+      }),
+    },
+
+    writhe: {
+      layers: [
+        'multires-alpha',
+        'octave-warp-octaves',
+        'brightness-post',
+        'shadow',
+        'grain',
+        'lens',
+      ],
+      settings: () => ({
+        color_space: color.oklab,
+        ridges: true,
+        speed: 0.025,
+        warp_freq: [randomInt(2, 3), randomInt(2, 3)],
+        warp_range: 5.0 + random() * 2.5,
+      }),
+    },
+
+    zeldo: {
+      layers: ['glyph-map', 'posterize', 'crt'],
+      settings: () => ({
+        freq: randomInt(3, 9),
+        glyph_map_colorize: true,
+        glyph_map_mask: mask.mcpaint,
+        glyph_map_zoom: randomInt(2, 4),
+        spline_order: randomMember([interp.constant, interp.linear]),
+      }),
     },
   };
 }
