@@ -2277,6 +2277,281 @@ export function PRESETS() {
       }),
     },
 
+    nausea: {
+      layers: ['value-mask', 'ripple', 'normalize', 'aberration'],
+      settings: () => ({
+        colorSpace: color.rgb,
+        mask: randomMember([mask.h_bar, mask.v_bar]),
+        mask_repeat: randomInt(5, 8),
+        ripple_kink: 1.25 + random() * 1.25,
+        ripple_freq: randomInt(2, 3),
+        ripple_range: 1.25 + random(),
+        spline_order: interp.constant,
+      }),
+    },
+
+    nebula: {
+      final: () => [Effect('nebula')],
+    },
+
+    nerdvana: {
+      layers: ['symmetry', 'voronoi', 'density-map', 'reverb', 'bloom'],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        palette_on: false,
+        reverb_octaves: 2,
+        reverb_ridges: false,
+        voronoi_diagram_type: voronoi.color_range,
+        voronoi_point_distrib: randomMember(pointCircularMembers),
+        voronoi_point_freq: randomInt(5, 10),
+        voronoi_nth: 1,
+      }),
+    },
+
+    'neon-cambrian': {
+      layers: [
+        'voronoi',
+        'posterize',
+        'wormhole',
+        'derivative-post',
+        'brightness-final',
+        'bloom',
+        'contrast-final',
+        'aberration',
+      ],
+      settings: () => ({
+        contrast_final: 4.0,
+        dist_metric: distance.euclidean,
+        freq: 12,
+        hue_range: 4,
+        posterize_levels: randomInt(20, 25),
+        voronoi_diagram_type: voronoi.color_flow,
+        voronoi_point_distrib: point.random,
+        wormhole_stride: 0.2 + random() * 0.1,
+      }),
+    },
+
+    'noise-blaster': {
+      layers: ['multires', 'reindex-octaves', 'reindex-post', 'grain'],
+      settings: () => ({
+        freq: randomInt(3, 4),
+        lattice_drift: 1,
+        reindex_range: 3,
+        speed: 0.025,
+      }),
+    },
+
+    'noise-lake': {
+      layers: ['multires-low', 'value-refract', 'snow', 'lens'],
+      settings: () => ({
+        hue_range: 0.75 + random() * 0.375,
+        freq: randomInt(4, 6),
+        lattice_drift: 1.0,
+        ridges: true,
+        value_freq: randomInt(4, 6),
+        value_refract_range: 0.25 + random() * 0.125,
+      }),
+    },
+
+    'noise-tunnel': {
+      layers: ['basic', 'periodic-distance', 'periodic-refract', 'lens'],
+      settings: () => ({
+        hue_range: 2.0 + random(),
+        speed: 1.0,
+      }),
+    },
+
+    noirmaker: {
+      layers: ['grain', 'grayscale', 'light-leak', 'bloom', 'contrast-final', 'vignette-dark'],
+    },
+
+    normals: {
+      final: () => [Effect('normalMap')],
+    },
+
+    now: {
+      layers: [
+        'multires-low',
+        'normalize',
+        'wobble',
+        'voronoi',
+        'funhouse',
+        'outline',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        freq: randomInt(3, 10),
+        hue_range: random(),
+        lattice_drift: coinFlip(),
+        saturation: 0.5 + random() * 0.5,
+        spline_order: interp.constant,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_distrib: point.random,
+        voronoi_point_freq: randomInt(3, 10),
+        voronoi_refract: 2.0 + random(),
+        warp_freq: randomInt(2, 4),
+        warp_octaves: 1,
+        warp_range: 0.0375 + random() * 0.0375,
+        warp_spline_order: interp.bicubic,
+      }),
+    },
+
+    'nudge-hue': {
+      final: () => [Effect('adjustHue', { amount: -0.125 })],
+    },
+
+    numberwang: {
+      layers: [
+        'value-mask',
+        'funhouse',
+        'posterize',
+        'palette',
+        'maybe-invert',
+        'random-hue',
+        'grain',
+        'saturation',
+      ],
+      settings: () => ({
+        mask: mask.alphanum_numeric,
+        mask_repeat: randomInt(5, 10),
+        posterize_levels: 2,
+        spline_order: interp.cosine,
+        warp_range: 0.25 + random() * 0.75,
+        warp_freq: randomInt(2, 4),
+        warp_octaves: 1,
+        warp_spline_order: interp.bicubic,
+      }),
+    },
+
+    'octave-blend': {
+      layers: ['multires-alpha'],
+      settings: () => ({
+        corners: true,
+        distrib: randomMember([distrib.ones, distrib.uniform]),
+        freq: randomInt(2, 5),
+        lattice_drift: 0,
+        mask: randomMember(valueMaskProceduralMembers),
+        spline_order: interp.constant,
+      }),
+    },
+
+    'octave-warp-octaves': {
+      settings: () => ({
+        warp_freq: [randomInt(2, 4), randomInt(2, 4)],
+        warp_octaves: randomInt(1, 4),
+        warp_range: 0.5 + random() * 0.25,
+        warp_signed_range: false,
+        warp_spline_order: interp.bicubic,
+      }),
+      octaves: (settings) => [
+        Effect('warp', {
+          displacement: settings.warp_range,
+          freq: settings.warp_freq,
+          octaves: settings.warp_octaves,
+          signed_range: settings.warp_signed_range,
+          spline_order: settings.warp_spline_order,
+        }),
+      ],
+    },
+
+    'octave-warp-post': {
+      settings: () => ({
+        speed: 0.025 + random() * 0.0125,
+        warp_freq: randomInt(2, 3),
+        warp_octaves: randomInt(2, 4),
+        warp_range: 2.0 + random(),
+        warp_spline_order: interp.bicubic,
+      }),
+      post: (settings) => [
+        Effect('warp', {
+          displacement: settings.warp_range,
+          freq: settings.warp_freq,
+          octaves: settings.warp_octaves,
+          spline_order: settings.warp_spline_order,
+        }),
+      ],
+    },
+
+    oldschool: {
+      layers: ['voronoi', 'normalize', 'random-hue', 'saturation', 'distressed'],
+      settings: () => ({
+        colorSpace: color.rgb,
+        corners: true,
+        dist_metric: distance.euclidean,
+        distrib: distrib.ones,
+        freq: randomInt(2, 5) * 2,
+        mask: mask.chess,
+        spline_order: interp.constant,
+        speed: 0.05,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_distrib: point.random,
+        voronoi_point_freq: randomInt(4, 8),
+        voronoi_refract: randomInt(8, 12) * 0.5,
+      }),
+    },
+
+    'one-art-please': {
+      layers: ['contrast-post', 'grain', 'light-leak', 'saturation', 'texture'],
+    },
+
+    oracle: {
+      layers: ['value-mask', 'random-hue', 'maybe-invert', 'distressed'],
+      settings: () => ({
+        corners: true,
+        mask: mask.iching,
+        mask_repeat: randomInt(1, 8),
+        spline_order: interp.constant,
+      }),
+    },
+
+    'outer-limits': {
+      layers: [
+        'symmetry',
+        'reindex-post',
+        'normalize',
+        'grain',
+        'be-kind-rewind',
+        'vignette-dark',
+        'contrast-post',
+      ],
+      settings: () => ({
+        palette_on: false,
+        reindex_range: randomInt(8, 16),
+        saturation: 0,
+      }),
+    },
+
+    outline: {
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        outline_invert: false,
+      }),
+      post: (settings) => [
+        Effect('outline', {
+          sobelMetric: settings.dist_metric,
+          invert: settings.outline_invert,
+        }),
+        Effect('fxaa'),
+      ],
+    },
+
+    oxidize: {
+      layers: ['multires', 'refract-post', 'contrast-post', 'bloom', 'shadow', 'saturation', 'lens'],
+      settings: () => ({
+        distrib: distrib.exp,
+        freq: 4,
+        hue_range: 0.875 + random() * 0.25,
+        lattice_drift: 1,
+        octave_blending: blend.reduce_max,
+        octaves: 8,
+        refract_range: 0.1 + random() * 0.05,
+        saturation_final: 0.5,
+        speed: 0.05,
+      }),
+    },
+
     'vignette-bright': {
       settings: () => ({
         vignette_bright_alpha: 0.333 + random() * 0.333,
