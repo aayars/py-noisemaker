@@ -1926,6 +1926,34 @@ register("valueRefract", valueRefract, {
   displacement: 0.125,
 });
 
+function toValueMap(t) {
+  const [h, w, c] = t.shape;
+  if (c === 1) return t;
+  if (c === 2) {
+    const src = t.read();
+    const out = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) out[i] = src[i * 2];
+    return Tensor.fromArray(t.ctx, out, [h, w, 1]);
+  }
+  let rgbTensor;
+  if (c === 3) {
+    rgbTensor = clamp01(t);
+  } else {
+    const clamped = clamp01(t).read();
+    const rgbData = new Float32Array(h * w * 3);
+    for (let i = 0; i < h * w; i++) {
+      rgbData[i * 3] = clamped[i * 4];
+      rgbData[i * 3 + 1] = clamped[i * 4 + 1];
+      rgbData[i * 3 + 2] = clamped[i * 4 + 2];
+    }
+    rgbTensor = Tensor.fromArray(t.ctx, rgbData, [h, w, 3]);
+  }
+  const lab = rgbToOklab(rgbTensor).read();
+  const out = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) out[i] = lab[i * 3];
+  return Tensor.fromArray(t.ctx, out, [h, w, 1]);
+}
+
 export function refractEffect(
   tensor,
   shape,
@@ -1994,16 +2022,19 @@ export function refractEffect(
         const rData = rx.read();
         const cx = new Float32Array(rData.length);
         const cy = new Float32Array(rData.length);
+        const tau32 = Math.fround(TAU);
         for (let i = 0; i < rData.length; i++) {
-          const ang = rData[i] * TAU;
-          cx[i] = Math.cos(ang);
-          cy[i] = Math.sin(ang);
+          const ang = Math.fround(rData[i]) * tau32;
+          cx[i] = Math.fround(Math.cos(ang));
+          cy[i] = Math.fround(Math.sin(ang));
         }
-        rx = Tensor.fromArray(tensor.ctx, cx, valueShape);
-        ry = Tensor.fromArray(tensor.ctx, cy, valueShape);
+        rx = Tensor.fromArray(tensor.ctx, cx, rx.shape);
+        ry = Tensor.fromArray(tensor.ctx, cy, rx.shape);
       }
     }
   }
+  rx = toValueMap(rx);
+  ry = toValueMap(ry);
   const src = tensor.read();
   const rxData = rx.read();
   const ryData = ry.read();
