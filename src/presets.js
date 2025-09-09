@@ -15,6 +15,7 @@ import {
   valueMaskProceduralMembers,
   valueMaskGridMembers,
   valueMaskGlyphMembers,
+  circularMembers as pointCircularMembers,
 } from './constants.js';
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
@@ -1964,6 +1965,158 @@ export function PRESETS() {
         worms_density: 1000,
         worms_duration: 1,
         worms_kink: 4,
+      }),
+    },
+
+    later: {
+      layers: [
+        'value-mask',
+        'multires',
+        'wobble',
+        'voronoi',
+        'funhouse',
+        'glowing-edges',
+        'crt',
+        'vignette-dark',
+      ],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        freq: randomInt(2, 5),
+        mask: randomMember(valueMaskProceduralMembers),
+        spline_order: interp.constant,
+        voronoi_diagram_type: voronoi.flow,
+        voronoi_point_distrib: point.random,
+        voronoi_point_freq: randomInt(3, 6),
+        voronoi_refract: 1.0 + random() * 0.5,
+        warp_freq: randomInt(2, 4),
+        warp_spline_order: interp.bicubic,
+        warp_octaves: 2,
+        warp_range: 0.05 + random() * 0.025,
+      }),
+    },
+
+    'lattice-noise': {
+      layers: [
+        'basic',
+        'derivative-octaves',
+        'derivative-post',
+        'density-map',
+        'shadow',
+        'grain',
+        'saturation',
+        'vignette-dark',
+      ],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+        freq: randomInt(2, 5),
+        lattice_drift: 1.0,
+        octaves: randomInt(2, 3),
+        ridges: coinFlip(),
+      }),
+    },
+
+    lcd: {
+      layers: ['value-mask', 'invert', 'skew', 'shadow', 'vignette-bright', 'grain'],
+      settings: () => ({
+        mask: randomMember([mask.lcd, mask.lcd_binary]),
+        mask_repeat: randomInt(8, 12),
+        saturation: 0.0,
+      }),
+    },
+
+    lens: {
+      layers: ['lens-distortion', 'aberration', 'vaseline', 'tint', 'vignette-dark'],
+      settings: () => ({
+        lens_brightness: 0.05 + random() * 0.025,
+        lens_contrast: 1.05 + random() * 0.025,
+      }),
+      final: (settings) => [
+        Preset('brightness-final', { brightness_final: settings.lens_brightness }),
+        Preset('contrast-final', { contrast_final: settings.lens_contrast }),
+      ],
+    },
+
+    'lens-distortion': {
+      final: () => [
+        Effect('lens_distortion', {
+          displacement: (0.125 + random() * 0.0625) * (coinFlip() ? 1 : -1),
+        }),
+      ],
+    },
+
+    'lens-warp': {
+      post: () => [
+        Effect('lens_warp', { displacement: 0.125 + random() * 0.0625 }),
+        Effect('lens_distortion', {
+          displacement: 0.25 + random() * 0.125 * (coinFlip() ? 1 : -1),
+        }),
+      ],
+    },
+
+    'light-leak': {
+      layers: ['vignette-bright'],
+      settings: () => ({
+        light_leak_alpha: 0.25 + random() * 0.125,
+      }),
+      final: (settings) => [
+        Effect('light_leak', { alpha: settings.light_leak_alpha }),
+      ],
+    },
+
+    'look-up': {
+      layers: [
+        'multires-alpha',
+        'brightness-post',
+        'contrast-post',
+        'contrast-final',
+        'saturation',
+        'lens',
+        'bloom',
+      ],
+      settings: () => ({
+        brightness_post: -0.075,
+        colorSpace: color.hsv,
+        contrast_final: 1.5,
+        distrib: distrib.exp,
+        freq: randomInt(30, 40),
+        hue_range: 0.333 + random() * 0.333,
+        lattice_drift: 0,
+        mask: mask.sparsest,
+        octaves: 10,
+        ridges: true,
+        saturation: 0.5,
+        speed: 0.025,
+      }),
+    },
+
+    'low-poly': {
+      settings: () => ({
+        lowpoly_distrib: randomMember(pointCircularMembers),
+        lowpoly_freq: randomInt(10, 20),
+      }),
+      post: (settings) => [
+        Effect('lowpoly', {
+          distrib: settings.lowpoly_distrib,
+          freq: settings.lowpoly_freq,
+        }),
+      ],
+    },
+
+    'low-poly-regions': {
+      layers: ['voronoi', 'low-poly'],
+      settings: () => ({
+        voronoi_diagram_type: voronoi.color_regions,
+        voronoi_point_freq: randomInt(2, 3),
+      }),
+    },
+
+    lsd: {
+      layers: ['basic', 'refract-post', 'invert', 'random-hue', 'lens', 'grain'],
+      settings: () => ({
+        brightness_distrib: distrib.ones,
+        freq: randomInt(3, 4),
+        hue_range: randomInt(3, 4),
+        speed: 0.025,
       }),
     },
 
