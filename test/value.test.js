@@ -3,6 +3,7 @@ import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHs
 import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
 import { ValueDistribution } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
+import { Context } from '../src/context.js';
 
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);
@@ -145,5 +146,32 @@ arraysClose(gb.read(), new Float32Array([
   0, 0.018315639, 0.13533528, 0.018315639, 0,
   0, 0, 0, 0, 0,
 ]));
+
+// GPU vs CPU parity for additional distributions
+let canvas = null;
+if (typeof document !== 'undefined' && document.createElement) {
+  canvas = document.createElement('canvas');
+} else if (typeof OffscreenCanvas !== 'undefined') {
+  canvas = new OffscreenCanvas(1, 1);
+}
+const gpuCtx = new Context(canvas);
+const cpuCtx = new Context(null);
+if (!gpuCtx.isCPU) {
+  const distribs = [
+    ValueDistribution.exp,
+    ValueDistribution.scan_up,
+    ValueDistribution.scan_down,
+    ValueDistribution.scan_left,
+    ValueDistribution.scan_right,
+    ValueDistribution.center_circle,
+  ];
+  for (const d of distribs) {
+    const gpu = values(4, [4, 4, 1], { seed: 1, ctx: gpuCtx, distrib: d });
+    const cpu = values(4, [4, 4, 1], { seed: 1, ctx: cpuCtx, distrib: d });
+    arraysClose(gpu.read(), cpu.read());
+  }
+} else {
+  console.log('Skipping GPU vs CPU distribution comparisons');
+}
 
 console.log('Value tests passed');

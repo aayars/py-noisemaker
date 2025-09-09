@@ -57,7 +57,7 @@ export class Preset {
     );
     const g = this.generator || {};
     const freq = g.freq !== undefined ? g.freq : 1;
-    const tensorOpts = { seed, time, speed, ...g };
+    const tensorOpts = { ctx, seed, time, speed, ...g };
     let tensor = values(freq, shape, tensorOpts);
 
     if (colorSpace === ColorSpace.hsv) {

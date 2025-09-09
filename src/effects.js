@@ -9,13 +9,10 @@ import {
   rgbToHsv,
   hsvToRgb,
   clamp01,
-<<<<<<< ours
   ridge,
   downsample,
   upsample,
-=======
   FULLSCREEN_VS,
->>>>>>> theirs
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';

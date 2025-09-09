@@ -16,6 +16,16 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
   return fract(Math.sin(s) * 43758.5453);
 }
 
+const GPU_DISTRIBS = new Set([
+  ValueDistribution.uniform,
+  ValueDistribution.exp,
+  ValueDistribution.scan_up,
+  ValueDistribution.scan_down,
+  ValueDistribution.scan_left,
+  ValueDistribution.scan_right,
+  ValueDistribution.center_circle,
+]);
+
 /**
  * Generate value noise or other simple distributions.
  *
@@ -47,10 +57,92 @@ export function values(freq, shape, opts = {}) {
     seed = 0,
     speed = 1,
   } = opts;
+  const gpuDistrib = GPU_DISTRIBS.has(distrib);
+  let maskData = null;
+  let maskTex = null;
+  if (mask !== undefined && mask !== null) {
+    const [maskTensor] = maskValues(mask, [height, width, 1], {
+      inverse: maskInverse,
+      time: maskStatic ? 0 : time,
+      speed,
+    });
+    if (ctx && !ctx.isCPU && gpuDistrib) {
+      maskTex = Tensor.fromArray(ctx, maskTensor.read(), maskTensor.shape);
+    } else {
+      maskData = maskTensor.read();
+    }
+  }
 
-  if (ctx && !ctx.isCPU && !mask && distrib === ValueDistribution.uniform) {
+  if (ctx && !ctx.isCPU && gpuDistrib) {
     const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nout vec4 outColor;\nuniform float u_freq;\nuniform float u_seed;\nuniform float u_time;\nuniform float u_speed;\nuniform float u_corners;\nuniform float u_spline;\nfloat rand2D(float x,float y,float seed,float time,float speed){\n float s=x*374761393.0+y*668265263.0+seed*69069.0+time*speed*43758.5453;\n return fract(sin(s)*43758.5453);\n}\nfloat interp(float t,float order){\n if(order==1.0)return t;\n if(order==5.0)return t*t*t*(t*(t*6.0-15.0)+10.0);\n return t*t*(3.0-2.0*t);\n}\nvoid main(){\n float u=(gl_FragCoord.x/float(${width}))*u_freq;\n float v=(gl_FragCoord.y/float(${height}))*u_freq;\n float x0=floor(u);\n float y0=floor(v);\n float xf=fract(u);\n float yf=fract(v);\n float f=max(1.0,floor(u_freq));\n float xb=u_corners>0.5?mod(x0,f):x0;\n float yb=u_corners>0.5?mod(y0,f):y0;\n float x1=u_corners>0.5?mod(xb+1.0,f):xb+1.0;\n float y1=u_corners>0.5?mod(yb+1.0,f):yb+1.0;\n float r00=rand2D(xb,yb,u_seed,u_time,u_speed);\n float r10=rand2D(x1,yb,u_seed,u_time,u_speed);\n float r01=rand2D(xb,y1,u_seed,u_time,u_speed);\n float r11=rand2D(x1,y1,u_seed,u_time,u_speed);\n float sx=interp(xf,u_spline);\n float sy=interp(yf,u_spline);\n float nx0=mix(r00,r10,sx);\n float nx1=mix(r01,r11,sx);\n float val=mix(nx0,nx1,sy);\n outColor=vec4(val);\n}`;
+    const fs = `#version 300 es
+precision highp float;
+out vec4 outColor;
+uniform float u_freq;
+uniform float u_seed;
+uniform float u_time;
+uniform float u_speed;
+uniform float u_corners;
+uniform float u_spline;
+uniform int u_distrib;
+uniform sampler2D u_mask;
+uniform int u_useMask;
+float rand2D(float x,float y,float seed,float time,float speed){
+ float s=x*374761393.0+y*668265263.0+seed*69069.0+time*speed*43758.5453;
+ return fract(sin(s)*43758.5453);
+}
+float interp(float t,float order){
+ if(order==1.0)return t;
+ if(order==5.0)return t*t*t*(t*(t*6.0-15.0)+10.0);
+ return t*t*(3.0-2.0*t);
+}
+void main(){
+ float val=0.0;
+ if(u_distrib==${ValueDistribution.exp}){
+  float r=rand2D(gl_FragCoord.x,gl_FragCoord.y,u_seed,u_time,u_speed);
+  val=pow(r,3.0);
+ }else if(u_distrib==${ValueDistribution.scan_up}){
+  if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
+ }else if(u_distrib==${ValueDistribution.scan_down}){
+  if(float(${height})<=1.0) val=0.0; else val=1.0-gl_FragCoord.y/float(${height - 1});
+ }else if(u_distrib==${ValueDistribution.scan_left}){
+  if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
+ }else if(u_distrib==${ValueDistribution.scan_right}){
+  if(float(${width})<=1.0) val=0.0; else val=1.0-gl_FragCoord.x/float(${width - 1});
+ }else if(u_distrib==${ValueDistribution.center_circle}){
+  float dx=(gl_FragCoord.x+0.5)/float(${width})-0.5;
+  float dy=(gl_FragCoord.y+0.5)/float(${height})-0.5;
+  float d=sqrt(dx*dx+dy*dy);
+  val=max(0.0,1.0-d*2.0);
+ }else{
+  float u=(gl_FragCoord.x/float(${width}))*u_freq;
+  float v=(gl_FragCoord.y/float(${height}))*u_freq;
+  float x0=floor(u);
+  float y0=floor(v);
+  float xf=fract(u);
+  float yf=fract(v);
+  float f=max(1.0,floor(u_freq));
+  float xb=u_corners>0.5?mod(x0,f):x0;
+  float yb=u_corners>0.5?mod(y0,f):y0;
+  float x1=u_corners>0.5?mod(xb+1.0,f):xb+1.0;
+  float y1=u_corners>0.5?mod(yb+1.0,f):yb+1.0;
+  float r00=rand2D(xb,yb,u_seed,u_time,u_speed);
+  float r10=rand2D(x1,yb,u_seed,u_time,u_speed);
+  float r01=rand2D(xb,y1,u_seed,u_time,u_speed);
+  float r11=rand2D(x1,y1,u_seed,u_time,u_speed);
+  float sx=interp(xf,u_spline);
+  float sy=interp(yf,u_spline);
+  float nx0=mix(r00,r10,sx);
+  float nx1=mix(r01,r11,sx);
+  val=mix(nx0,nx1,sy);
+ }
+ if(u_useMask==1){
+  vec2 uv=gl_FragCoord.xy/vec2(float(${width}),float(${height}));
+  float m=texture(u_mask,uv).r;
+  val*=m;
+ }
+ outColor=vec4(val);
+}`;
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(width, height);
     gl.useProgram(prog);
@@ -60,21 +152,20 @@ export function values(freq, shape, opts = {}) {
     gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), speed);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_corners'), corners ? 1 : 0);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_spline'), splineOrder);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_distrib'), distrib);
+    if (maskTex) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, maskTex.handle);
+      gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 0);
+      gl.uniform1i(gl.getUniformLocation(prog, 'u_useMask'), 1);
+    } else {
+      gl.uniform1i(gl.getUniformLocation(prog, 'u_useMask'), 0);
+    }
     ctx.bindFramebuffer(pp.writeFbo, width, height);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [height, width, channels]);
-  }
-
-  let maskData = null;
-  if (mask !== undefined && mask !== null) {
-    const [maskTensor] = maskValues(mask, [height, width, 1], {
-      inverse: maskInverse,
-      time: maskStatic ? 0 : time,
-      speed,
-    });
-    maskData = maskTensor.read();
   }
 
   const data = new Float32Array(height * width * channels);
