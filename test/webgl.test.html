@@ -13,6 +13,8 @@ import {
   dither,
   grain,
 } from '../src/effects.js';
+import { render } from '../src/composer.js';
+import { ValueDistribution } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
 const cpuCtx = new Context(null);
@@ -39,19 +41,33 @@ const up = upsample(down, 2);
 const mix = blend(base, base, 0.5);
 const edge = sobel(base);
 
-const baseCpu = values(2, [4,4,1], { seed: 1, ctx: cpuCtx }).read();
-const baseGpu = base.read();
-let baseEqual = baseCpu.length === baseGpu.length;
-if (baseEqual) {
-  for (let i = 0; i < baseCpu.length; i++) {
-    if (!nearly(baseCpu[i], baseGpu[i])) { baseEqual = false; break; }
+  const baseCpu = values(2, [4,4,1], { seed: 1, ctx: cpuCtx }).read();
+  const baseGpu = base.read();
+  let baseEqual = baseCpu.length === baseGpu.length;
+  if (baseEqual) {
+    for (let i = 0; i < baseCpu.length; i++) {
+      if (!nearly(baseCpu[i], baseGpu[i])) { baseEqual = false; break; }
+    }
   }
-}
 
-const ok =
-  baseEqual &&
-  baseGpu.length === 16 &&
-  down.read().length === 4 &&
+  const vertPresets = { vert: { generator: () => ({ distrib: ValueDistribution.scan_up }) } };
+  render('vert', 0, { ctx, width: 2, height: 2, presets: vertPresets });
+  const vImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
+  const vTop = vImg[0];
+  const vBottom = vImg[8];
+
+  const horizPresets = { horiz: { generator: () => ({ distrib: ValueDistribution.scan_left }) } };
+  render('horiz', 0, { ctx, width: 2, height: 2, presets: horizPresets });
+  const hImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
+  const hLeft = hImg[0];
+  const hRight = hImg[4];
+
+  const orientOk = vTop > vBottom && hLeft < hRight;
+
+  const ok =
+    baseEqual &&
+    baseGpu.length === 16 &&
+    down.read().length === 4 &&
   up.read().length === 16 &&
   mix.read().length === 16 &&
   edge.read().length === 16 &&
@@ -59,8 +75,9 @@ const ok =
   testEffect(adjustContrast, [1.2]) &&
   testEffect(grain, [0.25]) &&
   testEffect(dither, [2]) &&
-  testEffect(vignette, [0.2, 0.5]) &&
-  testEffect(reindex, [0.5]);
+    testEffect(vignette, [0.2, 0.5]) &&
+    testEffect(reindex, [0.5]) &&
+    orientOk;
 
 document.body.textContent = ok ? 'webgl ok' : 'webgl fail';
 </script>
