@@ -4,12 +4,12 @@ import { oklabToRgb } from './oklab.js';
 import { Tensor } from './tensor.js';
 import { random as simplexRandom } from './simplex.js';
 
-function applyOctaveEffect(effect, tensor, shape, time, speed, octave) {
+function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
   if (typeof effect === 'function') {
     return effect(tensor, shape, time, speed);
   } else if (effect && effect.octave_effects) {
     for (const e of effect.octave_effects) {
-      tensor = applyOctaveEffect(e, tensor, shape, time, speed, octave);
+      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
     }
     return tensor;
   }
@@ -64,7 +64,7 @@ export function basic(freq, shape, opts = {}) {
 
   if (octaveEffects) {
     for (const e of octaveEffects) {
-      tensor = applyOctaveEffect(e, tensor, shape, time, speed, octave);
+      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
     }
   }
 
@@ -228,6 +228,8 @@ export function multires(freq, shape, opts = {}) {
     brightnessFreq = null,
     octaveBlending = OctaveBlending.falloff,
     octaveEffects = [],
+    postEffects = [],
+    finalEffects = [],
     time = 0,
     speed = 1,
     ctx = null,
@@ -294,5 +296,44 @@ export function multires(freq, shape, opts = {}) {
     tensor = Tensor.fromArray(ctx, out, shape);
   }
   tensor = normalize(tensor);
+
+  let final = [];
+  for (const e of postEffects) {
+    const res = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
+    tensor = res.tensor;
+    final = final.concat(res.final);
+  }
+
+  final = final.concat(finalEffects);
+  for (const e of final) {
+    tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+  }
+
+  tensor = normalize(tensor);
   return tensor;
+}
+
+function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
+  if (typeof effectOrPreset === 'function') {
+    return { tensor: effectOrPreset(tensor, shape, time, speed), final: [] };
+  } else {
+    let final = [...effectOrPreset.final_effects];
+    for (const e of effectOrPreset.post_effects) {
+      const res = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
+      tensor = res.tensor;
+      final = final.concat(res.final);
+    }
+    return { tensor, final };
+  }
+}
+
+function _applyFinalEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
+  if (typeof effectOrPreset === 'function') {
+    return effectOrPreset(tensor, shape, time, speed);
+  } else {
+    for (const e of effectOrPreset.post_effects.concat(effectOrPreset.final_effects)) {
+      tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+    }
+    return tensor;
+  }
 }

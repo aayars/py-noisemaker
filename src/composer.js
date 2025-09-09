@@ -65,20 +65,9 @@ export class Preset {
       time,
       speed,
       octaveEffects: this.octave_effects,
+      postEffects: this.post_effects,
+      finalEffects: this.final_effects,
     });
-
-    let finalEffects = [];
-    for (const e of this.post_effects) {
-      const { tensor: t, final } = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
-      tensor = t;
-      finalEffects = finalEffects.concat(final);
-    }
-
-    finalEffects = finalEffects.concat(this.final_effects);
-
-    for (const e of finalEffects) {
-      tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
-    }
 
     // Present to canvas if available
     if (ctx.canvas) {
@@ -178,31 +167,6 @@ export function render(presetName, seed = 0, opts = {}) {
       ? new Preset(presetName, presets, settings)
       : presetName;
   return preset.render(seed, opts);
-}
-
-function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
-  if (typeof effectOrPreset === 'function') {
-    return { tensor: effectOrPreset(tensor, shape, time, speed), final: [] };
-  } else {
-    let final = [...effectOrPreset.final_effects];
-    for (const e of effectOrPreset.post_effects) {
-      const res = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
-      tensor = res.tensor;
-      final = final.concat(res.final);
-    }
-    return { tensor, final };
-  }
-}
-
-function _applyFinalEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
-  if (typeof effectOrPreset === 'function') {
-    return effectOrPreset(tensor, shape, time, speed);
-  } else {
-    for (const e of effectOrPreset.post_effects.concat(effectOrPreset.final_effects)) {
-      tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
-    }
-    return tensor;
-  }
 }
 
 function _flattenAncestors(presetName, presets, unique, ancestors) {
