@@ -306,8 +306,8 @@ export function PRESETS() {
         const [h, w] = maskShape(settings.mask);
         return {
           freq: [
-            Math.floor(h * 0.5 + h * settings.mask_repeat),
-            Math.floor(w * 0.5 + w * settings.mask_repeat),
+            Math.floor(h * 0.5 + h * settings.maskRepeat),
+            Math.floor(w * 0.5 + w * settings.maskRepeat),
           ],
         };
       },
@@ -329,7 +329,7 @@ export function PRESETS() {
         warp_octaves: 1,
       }),
       generator: (settings) => ({
-        freq: settings.warp_freq,
+        freq: settings.warpFreq,
       }),
     },
 
@@ -388,25 +388,25 @@ export function PRESETS() {
         spline_order: interp.bicubic,
       }),
       generator: (settings) => ({
-        brightness_distrib: settings.brightness_distrib,
-        color_space: settings.color_space,
+        brightness_distrib: settings.brightnessDistrib,
+        color_space: settings.colorSpace,
         corners: settings.corners,
         distrib: settings.distrib,
         freq: settings.freq,
-        hue_distrib: settings.hue_distrib,
-        hue_range: settings.hue_range,
-        hue_rotation: settings.hue_rotation,
-        lattice_drift: settings.lattice_drift,
+        hue_distrib: settings.hueDistrib,
+        hue_range: settings.hueRange,
+        hue_rotation: settings.hueRotation,
+        lattice_drift: settings.latticeDrift,
         mask: settings.mask,
-        mask_inverse: settings.mask_inverse,
-        mask_static: settings.mask_static,
-        octave_blending: settings.octave_blending,
+        mask_inverse: settings.maskInverse,
+        mask_static: settings.maskStatic,
+        octave_blending: settings.octaveBlending,
         octaves: settings.octaves,
         ridges: settings.ridges,
         saturation: settings.saturation,
-        saturation_distrib: settings.saturation_distrib,
+        saturation_distrib: settings.saturationDistrib,
         sin: settings.sin,
-        spline_order: settings.spline_order,
+        spline_order: settings.splineOrder,
       }),
     },
 
@@ -601,7 +601,7 @@ export function PRESETS() {
         warp_octaves: randomInt(1, 4),
       }),
       generator: (settings) => ({
-        freq: settings.voronoi_point_freq,
+        freq: settings.voronoiPointFreq,
       }),
     },
 
@@ -2258,9 +2258,9 @@ hearts: {
         palette_on: coinFlip(),
       }),
       post: (settings) =>
-        !settings.palette_on
+        !settings.paletteOn
           ? []
-          : [Effect('palette', { name: settings.palette_name })],
+          : [Effect('palette', { name: settings.paletteName, alpha: settings.paletteAlpha })],
     },
 
     'maybe-rotate': {
@@ -2816,7 +2816,7 @@ hearts: {
         vaseline_alpha: 0.125 + random() * 0.0625,
       }),
       generator: (settings) => ({
-        distrib: settings.value_distrib,
+        distrib: settings.valueDistrib,
       }),
     },
 
@@ -4104,7 +4104,7 @@ hearts: {
         worms_stride_deviation: 0.0,
       }),
       generator: (settings) => ({
-        freq: [settings.voronoi_point_freq, settings.voronoi_point_freq],
+        freq: [settings.voronoiPointFreq, settings.voronoiPointFreq],
       }),
     },
 
@@ -4209,8 +4209,8 @@ hearts: {
         const [h, w] = maskShape(settings.mask);
         return {
           freq: [
-            Math.floor(h * settings.mask_repeat),
-            Math.floor(w * settings.mask_repeat),
+            Math.floor(h * settings.maskRepeat),
+            Math.floor(w * settings.maskRepeat),
           ],
         };
       },

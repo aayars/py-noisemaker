@@ -65,7 +65,7 @@ export class Preset {
     const colorSpace =
       g.color_space ?? g.colorSpace ??
       this.settings.color_space ?? this.settings.colorSpace ??
-      ColorSpace.rgb;
+      ColorSpace.hsv;
     const shape = shapeFromParams(
       width,
       height,
