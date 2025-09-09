@@ -12,7 +12,12 @@
 </head>
 <body>
   <h1>Noisemaker JS Demo</h1>
-  <button id="reroll">Re-roll</button>
+  <label for="preset">Preset:</label>
+  <select id="preset"></select>
+  <div>
+    <button id="randomPreset">Random Preset</button>
+    <button id="reroll">Re-roll</button>
+  </div>
   <canvas id="noise" width="256" height="256"></canvas>
   <script type="module">
     import { Context } from './src/context.js';
@@ -21,9 +26,23 @@
 
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
+    const presetSelect = document.getElementById('preset');
+    const presetNames = Object.keys(PRESETS()).filter(
+      (name) => !name.startsWith('maybe-')
+    );
 
-    function draw(seed) {
-      render('basic', seed, {
+    presetNames.sort().forEach((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      presetSelect.appendChild(option);
+    });
+
+    presetSelect.value = 'basic';
+    let currentPreset = presetSelect.value;
+
+    function draw(seed, preset) {
+      render(preset, seed, {
         width: canvas.width,
         height: canvas.height,
         ctx,
@@ -31,12 +50,29 @@
       });
     }
 
-    draw(42);
+    draw(42, currentPreset);
 
     document.getElementById('reroll').addEventListener('click', () => {
       const seed = Math.floor(Math.random() * 1e9);
-      draw(seed);
+      draw(seed, currentPreset);
     });
+
+    presetSelect.addEventListener('change', (e) => {
+      currentPreset = e.target.value;
+      const seed = Math.floor(Math.random() * 1e9);
+      draw(seed, currentPreset);
+    });
+
+    document
+      .getElementById('randomPreset')
+      .addEventListener('click', () => {
+        const randomPreset =
+          presetNames[Math.floor(Math.random() * presetNames.length)];
+        presetSelect.value = randomPreset;
+        currentPreset = randomPreset;
+        const seed = Math.floor(Math.random() * 1e9);
+        draw(seed, currentPreset);
+      });
   </script>
 </body>
 </html>
