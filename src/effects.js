@@ -14,6 +14,7 @@ import {
   downsample,
   upsample,
   FULLSCREEN_VS,
+  refract,
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
@@ -87,6 +88,52 @@ export function sobelOperator(
 }
 register('sobel', sobelOperator, {
   distMetric: DistanceMetric.euclidean,
+});
+
+export function outline(
+  tensor,
+  shape,
+  time,
+  speed,
+  sobelMetric = DistanceMetric.euclidean,
+  invert = false,
+) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const valueData = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    if (c === 1) {
+      valueData[i] = src[i];
+    } else {
+      const base = i * c;
+      const r = src[base];
+      const g = src[base + 1] || 0;
+      const b = src[base + 2] || 0;
+      valueData[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+  }
+  let edges = sobelOperator(
+    Tensor.fromArray(tensor.ctx, valueData, [h, w, 1]),
+    [h, w, 1],
+    time,
+    speed,
+    sobelMetric,
+  ).read();
+  if (invert) {
+    for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
+  }
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const e = edges[i];
+    for (let k = 0; k < c; k++) {
+      out[i * c + k] = src[i * c + k] * e;
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('outline', outline, {
+  sobelMetric: DistanceMetric.euclidean,
+  invert: false,
 });
 
 export function normalMap(tensor, shape, time, speed) {
@@ -323,6 +370,32 @@ export function invert(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('invert', invert, {});
+
+export function vortex(tensor, shape, time, speed, displacement = 64) {
+  const [h, w, c] = shape;
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const xArr = new Float32Array(h * w);
+  const yArr = new Float32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+      const fade = 1 - Math.max(Math.abs(dx) / centerX, Math.abs(dy) / centerY);
+      const nx = (-dy / dist) * fade;
+      const ny = (dx / dist) * fade;
+      const idx = y * w + x;
+      xArr[idx] = nx * 0.5 + 0.5;
+      yArr[idx] = ny * 0.5 + 0.5;
+    }
+  }
+  const xTensor = Tensor.fromArray(tensor.ctx, xArr, [h, w, 1]);
+  const yTensor = Tensor.fromArray(tensor.ctx, yArr, [h, w, 1]);
+  const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
+  return refract(tensor, xTensor, yTensor, disp);
+}
+register('vortex', vortex, { displacement: 64 });
 
 export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   const [h, w, c] = shape;

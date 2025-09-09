@@ -22,6 +22,8 @@ import {
   colorMap,
   derivative,
   sobelOperator,
+  outline,
+  vortex,
   normalMap,
   densityMap,
   jpegDecimate,
@@ -35,8 +37,10 @@ import {
   blend,
   sobel,
   normalize,
+  refract,
 } from '../src/value.js';
 import { setSeed, random } from '../src/util.js';
+import { random as simplexRandom } from '../src/simplex.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -97,6 +101,16 @@ const sobData = sob.read();
 for (let i = 0; i < sobData.length; i++) sobData[i] = Math.abs(sobData[i] * 2 - 1);
 const sobRes = sobelOperator(edgeTensor, [4, 4, 1], 0, 1).read();
 arraysClose(Array.from(sobRes), Array.from(sobData));
+
+// outline
+const outlineRes = outline(edgeTensor, [4, 4, 1], 0, 1).read();
+const manualOutline = new Float32Array(16);
+for (let i = 0; i < 16; i++) manualOutline[i] = sobData[i] * edgeData[i];
+arraysClose(Array.from(outlineRes), Array.from(manualOutline));
+const outlineInv = outline(edgeTensor, [4, 4, 1], 0, 1, undefined, true).read();
+const manualOutlineInv = new Float32Array(16);
+for (let i = 0; i < 16; i++) manualOutlineInv[i] = (1 - sobData[i]) * edgeData[i];
+arraysClose(Array.from(outlineInv), Array.from(manualOutlineInv));
 
 // normal map
 const nmRes = normalMap(edgeTensor, [4, 4, 1], 0, 1).read();
@@ -347,6 +361,36 @@ const whTensor = Tensor.fromArray(null, new Float32Array([0.5]), [1,1,1]);
 const whOut = wormhole(whTensor, [1,1,1], 0, 1, 1.0, 1.0, 1.0).read();
 const whExpected = loadFixture('wormhole.json');
 arraysClose(Array.from(whOut), whExpected);
+
+// vortex deterministic
+const vxData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const vxTensor = Tensor.fromArray(null, vxData, [2,2,1]);
+const randV = simplexRandom(0, undefined, 1);
+const centerX = 2 / 2;
+const centerY = 2 / 2;
+const vxX = new Float32Array(4);
+const vxY = new Float32Array(4);
+for (let y = 0; y < 2; y++) {
+  for (let x = 0; x < 2; x++) {
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+    const fade = 1 - Math.max(Math.abs(dx) / centerX, Math.abs(dy) / centerY);
+    const nx = (-dy / dist) * fade;
+    const ny = (dx / dist) * fade;
+    const idx = y * 2 + x;
+    vxX[idx] = nx * 0.5 + 0.5;
+    vxY[idx] = ny * 0.5 + 0.5;
+  }
+}
+const vxManual = refract(
+  vxTensor,
+  Tensor.fromArray(null, vxX, [2,2,1]),
+  Tensor.fromArray(null, vxY, [2,2,1]),
+  randV * 100 * 64,
+).read();
+const vxResult = vortex(vxTensor, [2,2,1], 0, 1, 64).read();
+arraysClose(Array.from(vxResult), Array.from(vxManual));
 
 // worms regression with zero density
 const wormsTensor = Tensor.fromArray(null, new Float32Array([0.4]), [1,1,1]);
