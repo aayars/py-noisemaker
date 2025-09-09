@@ -8,7 +8,37 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 
 function getPythonEnums() {
+<<<<<<< ours
   const py = `import json, enum\nimport noisemaker.constants as c\nresult = {}\nfor name, obj in vars(c).items():\n    if name != 'Enum' and isinstance(obj, enum.EnumMeta):\n        result[name] = {m.name: m.value for m in obj}\nprint(json.dumps(result))`;
+=======
+  const py = `
+import json, enum
+import noisemaker.constants as c
+result = {}
+for name, obj in vars(c).items():
+    if name != 'Enum' and isinstance(obj, enum.EnumMeta):
+        result[name] = {m.name: m.value for m in obj}
+print(json.dumps(result))
+`;
+  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  if (res.status !== 0) {
+    console.error(res.stderr);
+    process.exit(1);
+  }
+  return JSON.parse(res.stdout);
+}
+
+function getPythonMasks() {
+  const py = `
+import json
+from noisemaker.masks import Masks, mask_shape
+result = {}
+for mask, value in Masks.items():
+    if not callable(value):
+        result[mask.name] = mask_shape(mask)
+print(json.dumps(result))
+`;
+>>>>>>> theirs
   const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     console.error(res.stderr);
@@ -33,6 +63,25 @@ async function getJsEnums() {
   return enums;
 }
 
+<<<<<<< ours
+=======
+async function getJsMasks() {
+  const constMod = await import(resolve(repoRoot, 'src/constants.js'));
+  const { Masks } = await import(resolve(repoRoot, 'src/masks.js'));
+  const masks = {};
+  for (const [name, value] of Object.entries(constMod.ValueMask || {})) {
+    const entry = Masks[value];
+    if (entry && typeof entry !== 'function') {
+      const height = entry.length;
+      const width = entry[0].length;
+      const channels = Array.isArray(entry[0][0]) ? entry[0][0].length : 1;
+      masks[name] = [height, width, channels];
+    }
+  }
+  return masks;
+}
+
+>>>>>>> theirs
 function compare(pyEnums, jsEnums) {
   const mismatches = [];
   for (const [name, pyEnum] of Object.entries(pyEnums)) {
@@ -62,6 +111,24 @@ function compare(pyEnums, jsEnums) {
   return mismatches;
 }
 
+<<<<<<< ours
+=======
+function compareMasks(pyMasks, jsMasks) {
+  const mismatches = [];
+  for (const [name, jsShape] of Object.entries(jsMasks)) {
+    const pyShape = pyMasks[name];
+    if (!pyShape) {
+      mismatches.push(`Missing mask ${name} in Python`);
+      continue;
+    }
+    if (JSON.stringify(pyShape) !== JSON.stringify(jsShape)) {
+      mismatches.push(`Mask ${name} shape differs: python=${pyShape} js=${jsShape}`);
+    }
+  }
+  return mismatches;
+}
+
+>>>>>>> theirs
 function generateEnums(pyEnums) {
   const lines = ['// Auto-generated enumeration maps'];
   for (const name of Object.keys(pyEnums)) {
@@ -79,10 +146,19 @@ async function main() {
   const update = process.argv.includes('--update');
   const pyEnums = getPythonEnums();
   const jsEnums = await getJsEnums();
+<<<<<<< ours
   const mismatches = compare(pyEnums, jsEnums);
 
   if (mismatches.length) {
     console.error('Enum mismatches:\n' + mismatches.join('\n'));
+=======
+  const pyMasks = getPythonMasks();
+  const jsMasks = await getJsMasks();
+  const mismatches = [...compare(pyEnums, jsEnums), ...compareMasks(pyMasks, jsMasks)];
+
+  if (mismatches.length) {
+    console.error('Enum/mask mismatches:\n' + mismatches.join('\n'));
+>>>>>>> theirs
     if (!update) {
       process.exit(1);
     }
@@ -104,7 +180,11 @@ async function main() {
   }
 
   if (!mismatches.length || update) {
+<<<<<<< ours
     console.log('Enum check passed');
+=======
+    console.log('Enum/mask check passed');
+>>>>>>> theirs
   }
 }
 
