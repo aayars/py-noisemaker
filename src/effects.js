@@ -1169,28 +1169,45 @@ export function invert(tensor, shape, time, speed) {
 register("invert", invert, {});
 
 export function vortex(tensor, shape, time, speed, displacement = 64) {
-  const [h, w, c] = shape;
-  const centerX = w / 2;
-  const centerY = h / 2;
-  const xArr = new Float32Array(h * w);
-  const yArr = new Float32Array(h * w);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = x - centerX;
-      const dy = y - centerY;
-      const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-      const fade = 1 - Math.max(Math.abs(dx) / centerX, Math.abs(dy) / centerY);
-      const nx = (-dy / dist) * fade;
-      const ny = (dx / dist) * fade;
-      const idx = y * w + x;
-      xArr[idx] = nx * 0.5 + 0.5;
-      yArr[idx] = ny * 0.5 + 0.5;
-    }
+  const valueShape = [shape[0], shape[1], 1];
+  let dispMap = singularity(null, valueShape, time, speed);
+  dispMap = normalize(dispMap);
+  let x = convolve(
+    dispMap,
+    valueShape,
+    time,
+    speed,
+    ValueMask.conv2d_deriv_x,
+    false,
+  );
+  let y = convolve(
+    dispMap,
+    valueShape,
+    time,
+    speed,
+    ValueMask.conv2d_deriv_y,
+    false,
+  );
+  let fader = singularity(
+    null,
+    valueShape,
+    time,
+    speed,
+    VoronoiDiagramType.range,
+    DistanceMetric.chebyshev,
+  );
+  fader = invert(normalize(fader), valueShape, time, speed);
+  const xData = x.read();
+  const yData = y.read();
+  const fData = fader.read();
+  for (let i = 0; i < xData.length; i++) {
+    xData[i] *= fData[i];
+    yData[i] *= fData[i];
   }
-  const xTensor = Tensor.fromArray(tensor.ctx, xArr, [h, w, 1]);
-  const yTensor = Tensor.fromArray(tensor.ctx, yArr, [h, w, 1]);
+  x = Tensor.fromArray(tensor.ctx, xData, valueShape);
+  y = Tensor.fromArray(tensor.ctx, yData, valueShape);
   const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
-  return refract(tensor, xTensor, yTensor, disp);
+  return refract(tensor, x, y, disp);
 }
 register("vortex", vortex, { displacement: 64 });
 

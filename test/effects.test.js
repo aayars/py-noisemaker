@@ -611,30 +611,45 @@ arraysClose(Array.from(whOut), whExpected);
 const vxData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const vxTensor = Tensor.fromArray(null, vxData, [2, 2, 1]);
 const randV = simplexRandom(0, undefined, 1);
-const centerX = 2 / 2;
-const centerY = 2 / 2;
-const vxX = new Float32Array(4);
-const vxY = new Float32Array(4);
-for (let y = 0; y < 2; y++) {
-  for (let x = 0; x < 2; x++) {
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-    const fade = 1 - Math.max(Math.abs(dx) / centerX, Math.abs(dy) / centerY);
-    const nx = (-dy / dist) * fade;
-    const ny = (dx / dist) * fade;
-    const idx = y * 2 + x;
-    vxX[idx] = nx * 0.5 + 0.5;
-    vxY[idx] = ny * 0.5 + 0.5;
-  }
+const vShape = [2, 2, 1];
+let dispMap = singularity(null, vShape, 0, 1);
+dispMap = normalize(dispMap);
+let vxX = convolve(
+  dispMap,
+  vShape,
+  0,
+  1,
+  ValueMask.conv2d_deriv_x,
+  false,
+).read();
+let vxY = convolve(
+  dispMap,
+  vShape,
+  0,
+  1,
+  ValueMask.conv2d_deriv_y,
+  false,
+).read();
+let fader = singularity(
+  null,
+  vShape,
+  0,
+  1,
+  VoronoiDiagramType.range,
+  DistanceMetric.chebyshev,
+);
+fader = invert(normalize(fader), vShape, 0, 1).read();
+for (let i = 0; i < vxX.length; i++) {
+  vxX[i] *= fader[i];
+  vxY[i] *= fader[i];
 }
 const vxManual = refract(
   vxTensor,
-  Tensor.fromArray(null, vxX, [2, 2, 1]),
-  Tensor.fromArray(null, vxY, [2, 2, 1]),
+  Tensor.fromArray(null, vxX, vShape),
+  Tensor.fromArray(null, vxY, vShape),
   randV * 100 * 64,
 ).read();
-const vxResult = vortex(vxTensor, [2, 2, 1], 0, 1, 64).read();
+const vxResult = vortex(vxTensor, vShape, 0, 1, 64).read();
 arraysClose(Array.from(vxResult), Array.from(vxManual));
 
 // worms regression with zero density
