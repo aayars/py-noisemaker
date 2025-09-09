@@ -31,6 +31,9 @@ import {
   densityMap,
   jpegDecimate,
   convFeedback,
+  wobble,
+  reverb,
+  dla,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -425,5 +428,35 @@ setSeed(1);
 const leakOut = lightLeak(bloomTensor, [2,2,1], 0, 1, 0.25).read();
 const leakExpected = loadFixture('lightLeak.json');
 arraysClose(Array.from(leakOut), leakExpected);
+
+// wobble regression
+setSeed(1);
+const wobData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const wobTensor = Tensor.fromArray(null, wobData, [2,2,1]);
+setSeed(1);
+const wobOut = wobble(wobTensor, [2,2,1], 0.8, 1).read();
+const wobExpected = loadFixture('wobble.json');
+arraysClose(Array.from(wobOut), wobExpected);
+
+// reverb regression
+const revData = new Float32Array([0.1, 0.4, 0.6, 0.9]);
+const revTensor = Tensor.fromArray(null, revData, [2,2,1]);
+const revOut = reverb(revTensor, [2,2,1], 0, 1, 2, 1, true).read();
+const revExpected = loadFixture('reverb.json');
+arraysClose(Array.from(revOut), revExpected);
+
+// dla regression
+setSeed(7);
+const dlaData = new Float32Array([
+  0.1, 0.2, 0.3, 0.4,
+  0.5, 0.6, 0.7, 0.8,
+  0.9, 0.8, 0.7, 0.6,
+  0.5, 0.4, 0.3, 0.2,
+]);
+const dlaTensor = Tensor.fromArray(null, dlaData, [4,4,1]);
+setSeed(7);
+const dlaOut = dla(dlaTensor, [4,4,1], 1, 1, 1, 1, 0.5).read();
+const dlaExpected = loadFixture('dla.json');
+arraysClose(Array.from(dlaOut), dlaExpected);
 
 console.log('Effects tests passed');

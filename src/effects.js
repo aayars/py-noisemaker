@@ -15,6 +15,7 @@ import {
   upsample,
   FULLSCREEN_VS,
   refract,
+  convolution,
 } from './value.js';
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
@@ -1378,3 +1379,193 @@ export function blur(
   return out;
 }
 register('blur', blur, { amount: 10.0, splineOrder: InterpolationType.bicubic });
+
+export function wobble(tensor, shape, time, speed) {
+  const xOffset = Math.floor(simplexRandom(time, undefined, speed * 0.5) * shape[1]);
+  const yOffset = Math.floor(simplexRandom(time, undefined, speed * 0.5) * shape[0]);
+  return offsetTensor(tensor, xOffset, yOffset);
+}
+register('wobble', wobble, {});
+
+export function reverb(
+  tensor,
+  shape,
+  time,
+  speed,
+  octaves = 2,
+  iterations = 1,
+  ridges = true
+) {
+  if (!octaves) return tensor;
+  const [h, w, c] = shape;
+  const reference = ridges ? ridge(tensor) : tensor;
+  const base = reference.read();
+  const outData = base.slice();
+  for (let i = 0; i < iterations; i++) {
+    for (let octave = 1; octave <= octaves; octave++) {
+      const mult = 2 ** octave;
+      const nh = Math.floor(h / mult);
+      const nw = Math.floor(w / mult);
+      if (nh === 0 || nw === 0) break;
+      let layer = downsample(reference, mult);
+      layer = upsample(layer, mult);
+      const layerData = layer.read();
+      for (let j = 0; j < outData.length; j++) {
+        outData[j] += layerData[j] / mult;
+      }
+    }
+  }
+  const outTensor = Tensor.fromArray(tensor.ctx, outData, shape);
+  return normalize(outTensor);
+}
+register('reverb', reverb, { octaves: 2, iterations: 1, ridges: true });
+
+export function dla(
+  tensor,
+  shape,
+  time,
+  speed,
+  padding = 2,
+  seedDensity = 0.01,
+  density = 0.125,
+  xy = null,
+  alpha = 1
+) {
+  const [height, width, channels] = shape;
+  const neighborhoods = new Set();
+  const expandedNeighborhoods = new Set();
+  const clustered = [];
+  const walkers = [];
+  const scale = 1 / padding;
+  const halfWidth = Math.floor(width * scale);
+  const halfHeight = Math.floor(height * scale);
+  let x, y, seedCount;
+  if (xy === null) {
+    seedCount = Math.floor(Math.sqrt(Math.floor(halfHeight * seedDensity) || 1));
+    [x, y] = pointCloud(seedCount, {
+      distrib: PointDistribution.random,
+      shape,
+      time,
+      speed,
+    });
+  } else {
+    [x, y, seedCount] = xy;
+  }
+  const walkersCount = halfHeight * halfWidth * density;
+  const walkersPerSeed = Math.floor(walkersCount / seedCount);
+  const offsets = [-1, 0, 1];
+  const expandedRange = 8;
+  const expandedOffsets = [];
+  for (let i = -expandedRange; i <= expandedRange; i++) expandedOffsets.push(i);
+  for (let i = 0; i < seedCount; i++) {
+    const node = [Math.floor(y[i] * scale), Math.floor(x[i] * scale)];
+    clustered.push(node);
+    for (const xo of offsets) {
+      for (const yo of offsets) {
+        neighborhoods.add(`${node[0] + yo},${node[1] + xo}`);
+      }
+    }
+    for (const xo of expandedOffsets) {
+      for (const yo of expandedOffsets) {
+        expandedNeighborhoods.add(`${node[0] + yo},${node[1] + xo}`);
+      }
+    }
+    for (let w = 0; w < walkersPerSeed; w++) {
+      walkers.push([
+        Math.floor(random() * halfHeight),
+        Math.floor(random() * halfWidth),
+      ]);
+    }
+  }
+  const iterations = Math.floor(Math.sqrt(walkersCount) * time * time);
+  for (let i = 0; i < iterations; i++) {
+    const remove = [];
+    for (const walker of walkers) {
+      const key = `${walker[0]},${walker[1]}`;
+      if (neighborhoods.has(key)) remove.push(walker);
+    }
+    for (const walker of remove) {
+      const idx = walkers.indexOf(walker);
+      if (idx !== -1) walkers.splice(idx, 1);
+      for (const xo of offsets) {
+        for (const yo of offsets) {
+          neighborhoods.add(
+            `${(walker[0] + yo + halfHeight) % halfHeight},${(
+              walker[1] + xo + halfWidth
+            ) % halfWidth}`
+          );
+        }
+      }
+      for (const xo of expandedOffsets) {
+        for (const yo of expandedOffsets) {
+          expandedNeighborhoods.add(
+            `${(walker[0] + yo + halfHeight) % halfHeight},${(
+              walker[1] + xo + halfWidth
+            ) % halfWidth}`
+          );
+        }
+      }
+      clustered.push(walker);
+    }
+    if (!walkers.length) break;
+    for (let w = 0; w < walkers.length; w++) {
+      const walker = walkers[w];
+      const key = `${walker[0]},${walker[1]}`;
+      let yo, xo;
+      if (expandedNeighborhoods.has(key)) {
+        yo = offsets[randomInt(0, offsets.length - 1)];
+        xo = offsets[randomInt(0, offsets.length - 1)];
+      } else {
+        yo = expandedOffsets[randomInt(0, expandedOffsets.length - 1)];
+        xo = expandedOffsets[randomInt(0, expandedOffsets.length - 1)];
+      }
+      walker[0] = (walker[0] + yo + halfHeight) % halfHeight;
+      walker[1] = (walker[1] + xo + halfWidth) % halfWidth;
+    }
+  }
+  const uniqueMap = new Map();
+  for (const c of clustered) {
+    const key = `${c[0]},${c[1]}`;
+    if (!uniqueMap.has(key)) uniqueMap.set(key, c);
+  }
+  const unique = Array.from(uniqueMap.values());
+  const count = unique.length;
+  const hot = new Float32Array(count * channels);
+  for (let i = 0; i < count; i++) {
+    const val = count - 1 - i;
+    for (let k = 0; k < channels; k++) hot[i * channels + k] = val;
+  }
+  const grid = new Float32Array(height * width * channels);
+  for (let i = 0; i < count; i++) {
+    const [yy, xx] = unique[i];
+    const sy = yy * padding;
+    const sx = xx * padding;
+    const base = (sy * width + sx) * channels;
+    for (let k = 0; k < channels; k++) {
+      grid[base + k] = hot[i * channels + k];
+    }
+  }
+  const scattered = Tensor.fromArray(tensor.ctx, grid, shape);
+  const kernelTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const kData = kernelTensor.read();
+  const kernel = [];
+  for (let i = 0; i < 5; i++) {
+    kernel.push(Array.from(kData.slice(i * 5, i * 5 + 5)));
+  }
+  const convolved = convolution(scattered, kernel);
+  const convData = convolved.read();
+  const tensorData = tensor.read();
+  const mult = new Float32Array(convData.length);
+  for (let i = 0; i < convData.length; i++) {
+    mult[i] = convData[i] * tensorData[i];
+  }
+  const out = Tensor.fromArray(tensor.ctx, mult, shape);
+  return blend(tensor, out, alpha);
+}
+register('dla', dla, {
+  padding: 2,
+  seedDensity: 0.01,
+  density: 0.125,
+  xy: null,
+  alpha: 1,
+});
