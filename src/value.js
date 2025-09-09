@@ -29,7 +29,7 @@ const GPU_DISTRIBS = new Set([
 /**
  * Generate value noise or other simple distributions.
  *
- * @param {number} freq Frequency of the grid.
+ * @param {number|[number, number]} freq Frequency of the grid (scalar or `[fx, fy]`).
  * @param {[number, number, number]} shape Output tensor shape `[height,width,channels]`.
  * @param {Object} opts Options object.
  * @param {ValueDistribution} [opts.distrib=ValueDistribution.uniform] Distribution type.
@@ -45,6 +45,8 @@ const GPU_DISTRIBS = new Set([
  */
 export function values(freq, shape, opts = {}) {
   const [height, width, channels = 1] = shape;
+  const freqX = Array.isArray(freq) ? freq[0] : freq;
+  const freqY = Array.isArray(freq) ? freq[1] : freq;
   const {
     ctx = null,
     distrib = ValueDistribution.uniform,
@@ -78,7 +80,7 @@ export function values(freq, shape, opts = {}) {
     const fs = `#version 300 es
 precision highp float;
 out vec4 outColor;
-uniform float u_freq;
+uniform vec2 u_freq;
 uniform float u_seed;
 uniform float u_time;
 uniform float u_speed;
@@ -115,17 +117,18 @@ void main(){
   float d=sqrt(dx*dx+dy*dy);
   val=max(0.0,1.0-d*2.0);
  }else{
-  float u=(gl_FragCoord.x/float(${width}))*u_freq;
-  float v=(gl_FragCoord.y/float(${height}))*u_freq;
+  float u=(gl_FragCoord.x/float(${width}))*u_freq.x;
+  float v=(gl_FragCoord.y/float(${height}))*u_freq.y;
   float x0=floor(u);
   float y0=floor(v);
   float xf=fract(u);
   float yf=fract(v);
-  float f=max(1.0,floor(u_freq));
-  float xb=u_corners>0.5?mod(x0,f):x0;
-  float yb=u_corners>0.5?mod(y0,f):y0;
-  float x1=u_corners>0.5?mod(xb+1.0,f):xb+1.0;
-  float y1=u_corners>0.5?mod(yb+1.0,f):yb+1.0;
+  float fx=max(1.0,floor(u_freq.x));
+  float fy=max(1.0,floor(u_freq.y));
+  float xb=u_corners>0.5?mod(x0,fx):x0;
+  float yb=u_corners>0.5?mod(y0,fy):y0;
+  float x1=u_corners>0.5?mod(xb+1.0,fx):xb+1.0;
+  float y1=u_corners>0.5?mod(yb+1.0,fy):yb+1.0;
   float r00=rand2D(xb,yb,u_seed,u_time,u_speed);
   float r10=rand2D(x1,yb,u_seed,u_time,u_speed);
   float r01=rand2D(xb,y1,u_seed,u_time,u_speed);
@@ -146,7 +149,7 @@ void main(){
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(width, height);
     gl.useProgram(prog);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_freq'), freq);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_freq'), freqX, freqY);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), seed);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), time);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), speed);
@@ -214,17 +217,18 @@ void main(){
         }
         case ValueDistribution.uniform:
         default: {
-          const u = (x / width) * freq;
-          const v = (y / height) * freq;
+          const u = (x / width) * freqX;
+          const v = (y / height) * freqY;
           const x0 = Math.floor(u);
           const y0 = Math.floor(v);
           const xf = u - x0;
           const yf = v - y0;
-          const f = Math.max(1, Math.floor(freq));
-          const xb = corners ? x0 % f : x0;
-          const yb = corners ? y0 % f : y0;
-          const x1 = corners ? (xb + 1) % f : xb + 1;
-          const y1 = corners ? (yb + 1) % f : yb + 1;
+          const fx = Math.max(1, Math.floor(freqX));
+          const fy = Math.max(1, Math.floor(freqY));
+          const xb = corners ? x0 % fx : x0;
+          const yb = corners ? y0 % fy : y0;
+          const x1 = corners ? (xb + 1) % fx : xb + 1;
+          const y1 = corners ? (yb + 1) % fy : yb + 1;
           const r00 = rand2D(xb, yb, seed, time, speed);
           const r10 = rand2D(x1, yb, seed, time, speed);
           const r01 = rand2D(xb, y1, seed, time, speed);

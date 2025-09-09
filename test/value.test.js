@@ -17,6 +17,10 @@ const v1 = values(4, [4, 4, 1], { seed: 42, time: 0 });
 const v2 = values(4, [4, 4, 1], { seed: 42, time: 0 });
 arraysClose(v1.read(), v2.read());
 
+// frequency as [x, y] should produce valid numbers
+const vxy = values([4, 2], [4, 4, 1], { seed: 7 });
+assert.ok(vxy.read().every((v) => !Number.isNaN(v)));
+
 // distribution check
 const col = values(1, [1, 4, 1], { distrib: ValueDistribution.column_index });
 arraysClose(col.read(), new Float32Array([0, 1/3, 2/3, 1]));

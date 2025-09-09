@@ -748,6 +748,7 @@ export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
     return out;
   }
   for (let i = 0; i < iterations; i++) {
+    const maxFactor = Math.max(2, Math.min(shape[0], shape[1]));
     const factor = Math.min(randomInt(2, 8), maxFactor);
     out = upsample(downsample(out, factor), factor);
   }
