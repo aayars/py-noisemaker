@@ -8,7 +8,7 @@ assert.strictEqual(typeof PRESETS, 'function');
 setSeed(123);
 const presets = PRESETS();
 assert('basic' in presets);
-assert('warp-shadow' in presets);
+assert('1976' in presets);
 assert('aberration' in presets);
 assert('acid' in presets);
 assert('grain' in presets);
@@ -56,8 +56,8 @@ const ctx = new Context(null);
 const basic = new Preset('basic', presets);
 basic.render(0, { ctx, width: 1, height: 1 });
 
-const warp = new Preset('warp-shadow', presets);
-warp.render(0, { ctx, width: 1, height: 1 });
+const preset1976 = new Preset('1976', presets);
+preset1976.render(0, { ctx, width: 1, height: 1 });
 
 const acidPreset = new Preset('acid', presets);
 acidPreset.render(0, { ctx, width: 1, height: 1 });
