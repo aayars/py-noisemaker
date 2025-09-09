@@ -31,6 +31,7 @@ import {
   ValueDistribution,
   PointDistribution,
   VoronoiDiagramType,
+  WormBehavior,
 } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
@@ -2614,3 +2615,113 @@ export function clouds(tensor, shape, time, speed) {
   return shadow(out, shape, time, speed, 0.5);
 }
 register('clouds', clouds, {});
+
+export function fibers(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let out = tensor;
+  for (let i = 0; i < 4; i++) {
+    let mask = values(4, valueShape, { ctx, time, speed });
+    const density = 0.05 + random() * 0.00125;
+    const kink = randomInt(5, 10);
+    mask = worms(
+      mask,
+      valueShape,
+      time,
+      speed,
+      WormBehavior.chaotic,
+      density,
+      1,
+      0.75,
+      0.125,
+      1,
+      kink
+    );
+    const brightness = values(128, shape, { ctx, time, speed });
+    let maskData = mask.read();
+    for (let j = 0; j < maskData.length; j++) maskData[j] *= 0.5;
+    mask = Tensor.fromArray(ctx, maskData, valueShape);
+    out = blend(out, brightness, mask);
+  }
+  return out;
+}
+register('fibers', fibers, {});
+
+export function scratches(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let out = tensor;
+  for (let i = 0; i < 4; i++) {
+    let mask = values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    const behavior = [WormBehavior.obedient, WormBehavior.unruly][randomInt(0, 1)];
+    const density = 0.25 + random() * 0.25;
+    const duration = 2 + random() * 2;
+    const kink = 0.125 + random() * 0.125;
+    mask = worms(
+      mask,
+      valueShape,
+      time,
+      speed,
+      behavior,
+      density,
+      duration,
+      0.75,
+      0.5,
+      1,
+      kink
+    );
+    const sub = values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    let maskData = mask.read();
+    const subData = sub.read();
+    for (let j = 0; j < maskData.length; j++) {
+      maskData[j] = Math.max(maskData[j] - subData[j] * 2.0, 0);
+    }
+    mask = Tensor.fromArray(ctx, maskData, valueShape);
+    const outData = out.read();
+    maskData = mask.read();
+    for (let j = 0; j < h * w; j++) {
+      const m = Math.min(maskData[j] * 8.0, 1.0);
+      for (let k = 0; k < c; k++) {
+        const idx = j * c + k;
+        outData[idx] = Math.max(outData[idx], m);
+      }
+    }
+    out = Tensor.fromArray(ctx, outData, shape);
+  }
+  return out;
+}
+register('scratches', scratches, {});
+
+export function strayHair(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let mask = values(4, valueShape, { ctx, time, speed });
+  const density = 0.0025 + random() * 0.00125;
+  const duration = randomInt(8, 16);
+  const kink = randomInt(5, 50);
+  mask = worms(
+    mask,
+    valueShape,
+    time,
+    speed,
+    WormBehavior.unruly,
+    density,
+    duration,
+    0.5,
+    0.25,
+    1,
+    kink
+  );
+  let brightness = values(32, valueShape, { ctx, time, speed });
+  let bData = brightness.read();
+  for (let i = 0; i < bData.length; i++) bData[i] *= 0.333;
+  brightness = Tensor.fromArray(ctx, bData, valueShape);
+  let mData = mask.read();
+  for (let i = 0; i < mData.length; i++) mData[i] *= 0.666;
+  mask = Tensor.fromArray(ctx, mData, valueShape);
+  return blend(tensor, brightness, mask);
+}
+register('strayHair', strayHair, {});

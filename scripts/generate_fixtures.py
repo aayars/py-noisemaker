@@ -14,8 +14,12 @@ from noisemaker.effects import (
     ridge,
     sine,
     blur,
+    fibers,
+    scratches,
+    stray_hair,
 )
 from noisemaker.palettes import PALETTES
+from noisemaker import value
 from opensimplex import OpenSimplex
 
 # JS RNG equivalent
@@ -132,5 +136,26 @@ rows = [[(simp.noise3d(x, y, z) + 1) / 2 for x in range(shape[1])] for y in rang
 rand = (OpenSimplex(seed).noise2d(math.cos(angle)*speed, math.sin(angle)*speed) + 1) / 2
 with open(fixtures_dir / 'simplex.json', 'w') as f:
     json.dump({'tensor': rows, 'random': rand}, f)
+
+# Fibers fixture
+value.set_seed(1)
+base = tf.zeros([4,4,1], dtype=tf.float32)
+fib_out = fibers(base, [4,4,1]).numpy().flatten().tolist()
+with open(fixtures_dir / 'fibers.json', 'w') as f:
+    json.dump(fib_out, f)
+
+# Scratches fixture
+value.set_seed(1)
+base = tf.zeros([4,4,1], dtype=tf.float32)
+scr_out = scratches(base, [4,4,1]).numpy().flatten().tolist()
+with open(fixtures_dir / 'scratches.json', 'w') as f:
+    json.dump(scr_out, f)
+
+# Stray hair fixture
+value.set_seed(1)
+base = tf.zeros([4,4,1], dtype=tf.float32)
+sh_out = stray_hair(base, [4,4,1]).numpy().flatten().tolist()
+with open(fixtures_dir / 'strayHair.json', 'w') as f:
+    json.dump(sh_out, f)
 
 print(f'Wrote fixtures to {fixtures_dir}')

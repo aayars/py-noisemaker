@@ -55,6 +55,9 @@ import {
   snow,
   spatter,
   clouds,
+  fibers,
+  scratches,
+  strayHair,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -642,6 +645,35 @@ setSeed(1);
 const clOut = clouds(clTensor, [4,4,1], 0, 1).read();
 const clExpected = loadFixture('clouds.json');
 arraysClose(Array.from(clOut), clExpected);
+
+// fibers regression
+setSeed(1);
+const fbTensor = Tensor.fromArray(null, new Float32Array(16), [4,4,1]);
+setSeed(1);
+const fbOut = fibers(fbTensor, [4,4,1], 0, 1).read();
+const fbExpected = loadFixture('fibers.json');
+arraysClose(Array.from(fbOut), fbExpected);
+const fbArr = Array.from(fbOut);
+assert.ok(fbArr.every(v => v >= 0 && v <= 1));
+
+// scratches regression
+setSeed(1);
+const scTensor = Tensor.fromArray(null, new Float32Array(16), [4,4,1]);
+setSeed(1);
+const scOut = scratches(scTensor, [4,4,1], 0, 1).read();
+const scArr = Array.from(scOut);
+assert.ok(scArr.some(v => v > 0));
+assert.ok(scArr.every(v => v >= 0 && v <= 1));
+
+// strayHair regression
+setSeed(1);
+const shTensor = Tensor.fromArray(null, new Float32Array(16), [4,4,1]);
+setSeed(1);
+const shOut = strayHair(shTensor, [4,4,1], 0, 1).read();
+const shExpected = loadFixture('strayHair.json');
+arraysClose(Array.from(shOut), shExpected);
+const shArr = Array.from(shOut);
+assert.ok(shArr.every(v => v >= 0 && v <= 1));
 
 // lensWarp extreme displacement
 setSeed(1);
