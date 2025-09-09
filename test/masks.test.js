@@ -232,6 +232,53 @@ for (const [mask, expected] of lcdMasks) {
   assert.deepStrictEqual(data, expected.flat());
 }
 
+// Fat LCD masks
+const fatLcdMasks = [
+  [ValueMask.fat_lcd_0, [
+    [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+    [1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+    [1, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  ]],
+  [ValueMask.fat_lcd_1, [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  ]],
+  [ValueMask.fat_lcd_2, [
+    [0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  ]],
+];
+for (const [mask, expected] of fatLcdMasks) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, [10, 10, 1]);
+  assert.deepStrictEqual(data, expected.flat());
+}
+
 // Procedural mask
 const procShape = [4, 4, 1];
 [tensor] = maskValues(ValueMask.truchet_lines, procShape);
