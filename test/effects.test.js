@@ -18,6 +18,8 @@ import {
   erosionWorms,
   worms,
   wormhole,
+  ripple,
+  colorMap,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -104,6 +106,29 @@ for (let y = 0; y < 2; y++) {
 }
 const jsRe = reindex(reTensor, [2, 2, 1], 0, 1, 0.5).read();
 arraysClose(Array.from(jsRe), Array.from(manualRe));
+
+// ripple deterministic
+setSeed(10);
+const ripData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const ripTensor = Tensor.fromArray(null, ripData, [2, 2, 1]);
+setSeed(10);
+const jsRipple = ripple(ripTensor, [2, 2, 1], 0, 1, 2, 0.5, 1).read();
+const rippleExpected = loadFixture('ripple.json');
+arraysClose(Array.from(jsRipple), rippleExpected);
+
+// colorMap regression
+const cmData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const cmTensor = Tensor.fromArray(null, cmData, [2, 2, 1]);
+const clutData = new Float32Array([
+  0.0, 0.1, 0.2,
+  0.3, 0.4, 0.5,
+  0.6, 0.7, 0.8,
+  0.9, 1.0, 0.1,
+]);
+const clutTensor = Tensor.fromArray(null, clutData, [2, 2, 3]);
+const jsColorMap = colorMap(cmTensor, [2, 2, 1], 0, 1, clutTensor, false, 0.5).read();
+const colorMapExpected = loadFixture('colorMap.json');
+arraysClose(Array.from(jsColorMap), colorMapExpected);
 
 // vignette regression (numpy impl)
 const vigData = new Float32Array([0.1, 0.5, 0.3, 0.8]);

@@ -18,6 +18,7 @@ import {
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
 import { random } from './util.js';
+import { random as simplexRandom } from './simplex.js';
 import { InterpolationType } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
@@ -184,6 +185,154 @@ export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register('reindex', reindex, { displacement: 0.5 });
+
+export function ripple(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 2,
+  displacement = 1,
+  kink = 1,
+  reference = null,
+  splineOrder = InterpolationType.bicubic,
+) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const refTensor = reference || values(freq, [h, w, 1], { ctx, time, speed, splineOrder });
+    const refTex = refTensor.ctx === ctx ? refTensor : Tensor.fromArray(ctx, refTensor.read(), refTensor.shape);
+    const gl = ctx.gl;
+    const rand = simplexRandom(time, undefined, speed);
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_ref;\nuniform float u_disp;\nuniform float u_kink;\nuniform float u_rand;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n float ref = texture(u_ref, uv).r;\n float ang = ref * ${TAU} * u_kink * u_rand;\n vec2 offset = vec2(cos(ang), sin(ang)) * u_disp;\n vec2 uv2 = fract(uv + offset);\n outColor = texture(u_tex, uv2);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, refTex.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_ref'), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_kink'), kink);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_rand'), rand);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, shape);
+  }
+  let ref = reference;
+  if (!ref) {
+    ref = values(freq, [h, w, 1], { time, speed, splineOrder });
+  }
+  const refData = ref.read();
+  const rand = simplexRandom(time, undefined, speed);
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const angle = refData[idx] * TAU * kink * rand;
+      const fx = x + Math.cos(angle) * displacement * w;
+      const fy = y + Math.sin(angle) * displacement * h;
+      const x0 = Math.floor(fx);
+      const y0 = Math.floor(fy);
+      const x1 = x0 + 1;
+      const y1 = y0 + 1;
+      const sx = fx - x0;
+      const sy = fy - y0;
+      const x0m = ((x0 % w) + w) % w;
+      const x1m = ((x1 % w) + w) % w;
+      const y0m = ((y0 % h) + h) % h;
+      const y1m = ((y1 % h) + h) % h;
+      for (let k = 0; k < c; k++) {
+        const c00 = src[(y0m * w + x0m) * c + k];
+        const c10 = src[(y0m * w + x1m) * c + k];
+        const c01 = src[(y1m * w + x0m) * c + k];
+        const c11 = src[(y1m * w + x1m) * c + k];
+        const c0 = c00 * (1 - sx) + c10 * sx;
+        const c1 = c01 * (1 - sx) + c11 * sx;
+        out[(idx) * c + k] = c0 * (1 - sy) + c1 * sy;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('ripple', ripple, {
+  freq: 2,
+  displacement: 1,
+  kink: 1,
+  reference: null,
+  splineOrder: InterpolationType.bicubic,
+});
+
+export function colorMap(
+  tensor,
+  shape,
+  time,
+  speed,
+  clut = null,
+  horizontal = false,
+  displacement = 0.5,
+) {
+  if (!clut) return tensor;
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU && clut.ctx === ctx) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_clut;\nuniform float u_disp;\nuniform float u_horizontal;\nuniform float u_channels;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 col = texture(u_tex, uv);\n float lum = col.r;\n if(u_channels > 1.5){ lum = dot(col.rgb, vec3(0.2126,0.7152,0.0722)); }\n float ref = lum * u_disp;\n float xo = floor(ref * float(${w - 1})) / float(${w});\n float yo = u_horizontal > 0.5 ? 0.0 : floor(ref * float(${h - 1})) / float(${h});\n vec2 uv2 = fract(uv + vec2(xo, yo));\n outColor = texture(u_clut, uv2);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, clut.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_clut'), 1);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_horizontal'), horizontal ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_channels'), c);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [h, w, clut.shape[2]]);
+  }
+  const [ch, cw, cc] = clut.shape;
+  const clutData = clut.read();
+  const src = tensor.read();
+  const out = new Float32Array(h * w * cc);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      let lum;
+      if (c === 1) {
+        lum = src[idx];
+      } else {
+        const base = idx * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+      const ref = lum * displacement;
+      const xi = (x + Math.floor(ref * (w - 1))) % w;
+      const yi = horizontal ? y : (y + Math.floor(ref * (h - 1))) % h;
+      const sx = Math.floor(xi * cw / w);
+      const sy = Math.floor(yi * ch / h);
+      const srcIdx = (sy * cw + sx) * cc;
+      const outIdx = (y * w + x) * cc;
+      for (let k = 0; k < cc; k++) {
+        out[outIdx + k] = clutData[srcIdx + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, cc]);
+}
+register('colorMap', colorMap, { clut: null, horizontal: false, displacement: 0.5 });
 
 function randomNormal(mean = 0, std = 1) {
   const u1 = random() || 1e-9;
