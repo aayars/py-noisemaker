@@ -23,6 +23,9 @@ import {
   derivative,
   sobelOperator,
   normalMap,
+  densityMap,
+  jpegDecimate,
+  convFeedback,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -138,6 +141,34 @@ const nmExpect = (() => {
   return Array.from(out);
 })();
 arraysClose(Array.from(nmRes), nmExpect);
+
+// densityMap regression
+const dmData = new Float32Array([0.1, 0.4, 0.4, 0.9]);
+const dmTensor = Tensor.fromArray(null, dmData, [2, 2, 1]);
+const dmOut = densityMap(dmTensor, [2, 2, 1], 0, 1).read();
+const dmExpected = loadFixture('densityMap.json');
+arraysClose(Array.from(dmOut), dmExpected);
+
+// jpegDecimate regression
+setSeed(7);
+const jdData = new Float32Array([
+  0.1, 0.2, 0.3,
+  0.4, 0.5, 0.6,
+  0.7, 0.8, 0.9,
+  0.2, 0.4, 0.6,
+]);
+const jdTensor = Tensor.fromArray(null, jdData, [2, 2, 3]);
+setSeed(7);
+const jdOut = jpegDecimate(jdTensor, [2, 2, 3], 0, 1, 1).read();
+const jdExpected = loadFixture('jpegDecimate.json');
+arraysClose(Array.from(jdOut), jdExpected);
+
+// convFeedback regression
+const cfData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const cfTensor = Tensor.fromArray(null, cfData, [2, 2, 1]);
+const cfOut = convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5).read();
+const cfExpected = loadFixture('convFeedback.json');
+arraysClose(Array.from(cfOut), cfExpected);
 
 // posterize regression
 const posterData = new Float32Array([0.1, 0.5, 0.9, 0.3]);

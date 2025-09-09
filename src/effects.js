@@ -18,7 +18,9 @@ import {
 import { PALETTES } from './palettes.js';
 import { register } from './effectsRegistry.js';
 import { random as simplexRandom } from './simplex.js';
-import { InterpolationType, DistanceMetric } from './constants.js';
+import { maskValues } from './masks.js';
+import { random, randomInt } from './util.js';
+import { InterpolationType, DistanceMetric, ValueMask } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -146,6 +148,118 @@ export function normalMap(tensor, shape, time, speed) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
 register('normalMap', normalMap, {});
+
+export function densityMap(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const bins = Math.max(h, w);
+  const vals = normalize(tensor).read();
+  const countIdx = new Int32Array(h * w);
+  const counts = new Int32Array(bins);
+  for (let i = 0; i < h * w; i++) {
+    const v = vals[i * c];
+    const b = Math.min(bins - 1, Math.floor(v * (bins - 1)));
+    countIdx[i] = b;
+    counts[b]++;
+  }
+  const out = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) out[i] = counts[countIdx[i]];
+  const norm = normalize(Tensor.fromArray(tensor.ctx, out, [h, w, 1])).read();
+  const full = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) full[i * c + k] = norm[i];
+  }
+  return Tensor.fromArray(tensor.ctx, full, shape);
+}
+register('densityMap', densityMap, {});
+
+export function jpegDecimate(
+  tensor,
+  shape,
+  time,
+  speed,
+  iterations = 25
+) {
+  let out = tensor;
+  for (let i = 0; i < iterations; i++) {
+    const src = out.read();
+    const q = randomInt(5, 50);
+    const shift = Math.floor((100 - q) / 10) + 1;
+    const tmp = new Uint8Array(src.length);
+    for (let j = 0; j < src.length; j++) {
+      let v = Math.min(255, Math.max(0, Math.round(src[j] * 255)));
+      v = (v >> shift) << shift;
+      tmp[j] = v;
+    }
+    const f32 = new Float32Array(src.length);
+    for (let j = 0; j < src.length; j++) f32[j] = tmp[j] / 255;
+    out = Tensor.fromArray(tensor.ctx, f32, shape);
+  }
+  return out;
+}
+register('jpegDecimate', jpegDecimate, { iterations: 25 });
+
+const BLUR_KERNEL = maskValues(ValueMask.conv2d_blur)[0].read();
+const SHARPEN_KERNEL = maskValues(ValueMask.conv2d_sharpen)[0].read();
+
+function convolveKernel(tensor, kernel, size, normalizeKernel = true) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  const r = Math.floor(size / 2);
+  let norm = 0;
+  if (normalizeKernel) {
+    for (let i = 0; i < kernel.length; i++) norm += kernel[i];
+  } else {
+    norm = 1;
+  }
+  if (norm === 0) norm = 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      for (let k = 0; k < c; k++) {
+        let sum = 0;
+        let idx = 0;
+        for (let yy = -r; yy <= r; yy++) {
+          const ycl = Math.max(0, Math.min(h - 1, y + yy));
+          for (let xx = -r; xx <= r; xx++) {
+            const xcl = Math.max(0, Math.min(w - 1, x + xx));
+            sum += kernel[idx++] * src[(ycl * w + xcl) * c + k];
+          }
+        }
+        out[(y * w + x) * c + k] = sum / norm;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+}
+
+export function convFeedback(
+  tensor,
+  shape,
+  time,
+  speed,
+  iterations = 50,
+  alpha = 0.5
+) {
+  let convolved = downsample(tensor, 2);
+  for (let i = 0; i < iterations; i++) {
+    convolved = convolveKernel(convolved, BLUR_KERNEL, 5, true);
+    convolved = convolveKernel(convolved, SHARPEN_KERNEL, 3, false);
+  }
+  convolved = normalize(convolved);
+  const data = convolved.read();
+  const up = new Float32Array(data.length);
+  const downArr = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) {
+    up[i] = Math.max((data[i] - 0.5) * 2, 0);
+    downArr[i] = Math.min(data[i] * 2, 1);
+  }
+  const combined = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) combined[i] = up[i] + (1 - downArr[i]);
+  const combinedTensor = Tensor.fromArray(convolved.ctx, combined, convolved.shape);
+  const resampled = upsample(combinedTensor, 2);
+  return blend(tensor, resampled, alpha);
+}
+register('convFeedback', convFeedback, { iterations: 50, alpha: 0.5 });
 
 export function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;

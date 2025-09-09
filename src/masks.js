@@ -47,6 +47,20 @@ export const Masks = {
     [0, 0, 0, 0, 0, 0],
   ],
 
+  // Convolution kernels
+  [ValueMask.conv2d_blur]: [
+    [1, 4, 6, 4, 1],
+    [4, 16, 24, 16, 4],
+    [6, 24, 36, 24, 6],
+    [4, 16, 24, 16, 4],
+    [1, 4, 6, 4, 1],
+  ],
+  [ValueMask.conv2d_sharpen]: [
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0],
+  ],
+
   // Procedural masks computed on demand
   [ValueMask.truchet_lines]: ({ x, y, shape }) => {
     const tile = 2;
