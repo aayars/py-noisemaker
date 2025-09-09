@@ -48,6 +48,7 @@ The library is organised as ES modules inside `src/`.
 * Implement enumerations as `Object.freeze`d maps.
 * Provide: `DistanceMetric`, `InterpolationType`, `PointDistribution`, `ValueDistribution`, `ValueMask`, `VoronoiDiagramType`, `ColorSpace`, `WormBehavior`, etc.
 * Include helper predicates (e.g. `isAbsolute(metric)`, `isCenterDistribution(distrib)`).
+* Keep JavaScript enums aligned with the Python source by running `node scripts/checkEnums.js --update` after editing `noisemaker/constants.py`. `npm test` runs `scripts/checkEnums.js` and will fail if the files diverge.
 
 ### 3.2 `simplex.js`
 * Port the 4‑D OpenSimplex algorithm to produce loopable noise.
