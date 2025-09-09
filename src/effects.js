@@ -755,6 +755,65 @@ export function aberration(tensor, shape, time, speed, displacement = 0.005) {
 }
 register('aberration', aberration, { displacement: 0.005 });
 
+export function glitch(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const base = values(4, [h, w, 1], { time, speed: speed * 50 });
+  const noise = base.read();
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const shiftAmt = Math.floor(noise[idx] * 4);
+      for (let k = 0; k < c; k++) {
+        let sx = x;
+        if (k === 0) sx = (x + shiftAmt) % w;
+        else if (k === 2) sx = (x - shiftAmt + w) % w;
+        const srcBase = (y * w + sx) * c + k;
+        out[idx * c + k] = src[srcBase];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('glitch', glitch, {});
+
+export function vhs(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const scanNoise = values(Math.floor(h * 0.5) + 1, [h, w, 1], {
+    time,
+    speed: speed * 100,
+  }).read();
+  const gradNoise = values(5, [h, w, 1], { time, speed }).read();
+  const src = tensor.read();
+  const blended = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    let g = gradNoise[i] - 0.5;
+    if (g < 0) g = 0;
+    g = Math.min(g * 2, 1);
+    const noise = scanNoise[i];
+    for (let k = 0; k < c; k++) {
+      blended[i * c + k] = src[i * c + k] * (1 - g) + noise * g;
+    }
+  }
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      let g = gradNoise[idx] - 0.5;
+      if (g < 0) g = 0;
+      g = Math.min(g * 2, 1);
+      const xOff = Math.floor(scanNoise[idx] * w * g * g);
+      const srcX = (x - xOff + w) % w;
+      for (let k = 0; k < c; k++) {
+        out[idx * c + k] = blended[(y * w + srcX) * c + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+register('vhs', vhs, {});
+
 export function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;

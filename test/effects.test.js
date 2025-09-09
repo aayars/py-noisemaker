@@ -45,6 +45,8 @@ import {
   texture,
   simpleFrame,
   frame,
+  glitch,
+  vhs,
 } from '../src/effects.js';
 import {
   adjustHue as adjustHueValue,
@@ -577,5 +579,21 @@ arraysClose(Array.from(texOut), texExpected);
 const gmTensor = Tensor.fromArray(null, edgeData, [4,4,1]);
 const gmOut = glyphMap(gmTensor, [4,4,1], 0, 1).read();
 assert.strictEqual(gmOut.length, 16);
+
+// glitch regression
+const glData = new Float32Array([
+  0.1, 0.2, 0.3, 0.4, 0.5, 0.6,
+  0.7, 0.8, 0.9, 0.1, 0.2, 0.3,
+]);
+const glTensor = Tensor.fromArray(null, glData, [2,2,3]);
+const glOut = glitch(glTensor, [2,2,3], 0.25, 1).read();
+const glExpected = loadFixture('glitch.json');
+arraysClose(Array.from(glOut), glExpected);
+
+// vhs regression
+const vhsTensor = Tensor.fromArray(null, glData, [2,2,3]);
+const vhsOut = vhs(vhsTensor, [2,2,3], 0.25, 1).read();
+const vhsExpected = loadFixture('vhs.json');
+arraysClose(Array.from(vhsOut), vhsExpected);
 
 console.log('Effects tests passed');
