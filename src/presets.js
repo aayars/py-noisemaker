@@ -4077,6 +4077,127 @@ export function PRESETS() {
       }),
     },
 
+    'unicorn-puddle': {
+      layers: ['multires', 'reflect-octaves', 'refract-post', 'random-hue', 'bloom', 'lens'],
+      settings: () => ({
+        color_space: color.oklab,
+        distrib: distrib.uniform,
+        freq: 2,
+        hue_range: 2.0 + random(),
+        lattice_drift: 1.0,
+        palette_on: false,
+        reflect_range: 0.5 + random() * 0.25,
+        refract_range: 0.5 + random() * 0.25,
+      }),
+    },
+
+    unmasked: {
+      layers: ['basic', 'sobel', 'invert', 'reindex-octaves', 'maybe-rotate', 'bloom', 'lens'],
+      settings: () => ({
+        distrib: distrib.uniform,
+        freq: randomInt(3, 5),
+        mask: randomMember(valueMaskProceduralMembers),
+        octave_blending: blend.alpha,
+        octaves: randomInt(2, 4),
+        reindex_range: 1 + random() * 1.5,
+      }),
+    },
+
+    'value-mask': {
+      layers: ['basic'],
+      settings: () => ({
+        distrib: distrib.ones,
+        mask: randomMember(mask),
+        mask_repeat: randomInt(2, 8),
+        spline_order: randomMember(
+          Object.values(interp).filter((m) => m !== interp.bicubic),
+        ),
+      }),
+      generator: (settings) => {
+        const [h, w] = maskShape(settings.mask);
+        return {
+          freq: [
+            Math.floor(h * settings.mask_repeat),
+            Math.floor(w * settings.mask_repeat),
+          ],
+        };
+      },
+    },
+
+    'value-refract': {
+      settings: () => ({
+        value_freq: randomInt(2, 4),
+        value_refract_range: 0.125 + random() * 0.0625,
+      }),
+      post: (settings) => [
+        Effect('valueRefract', {
+          displacement: settings.value_refract_range,
+          distrib:
+            settings.value_distrib !== undefined
+              ? settings.value_distrib
+              : distrib.uniform,
+          freq: settings.value_freq,
+        }),
+      ],
+    },
+
+    vaseline: {
+      settings: () => ({
+        vaseline_alpha: 0.375 + random() * 0.1875,
+      }),
+      final: (settings) => [
+        Effect('vaseline', { alpha: settings.vaseline_alpha }),
+      ],
+    },
+
+    vectoroids: {
+      layers: ['voronoi', 'derivative-post', 'glowing-edges', 'bloom', 'crt', 'lens'],
+      settings: () => ({
+        dist_metric: distance.euclidean,
+        distrib: distrib.ones,
+        freq: 40,
+        mask: mask.sparse,
+        mask_static: true,
+        spline_order: interp.constant,
+        voronoi_diagram_type: voronoi.color_regions,
+        voronoi_nth: 0,
+        voronoi_point_freq: 15,
+        voronoi_point_drift: 0.25 + random() * 0.75,
+      }),
+    },
+
+    veil: {
+      layers: ['voronoi', 'fractal-seed'],
+      settings: () => ({
+        dist_metric: randomMember([
+          distance.manhattan,
+          distance.octagram,
+          distance.triangular,
+        ]),
+        voronoi_diagram_type: randomMember([
+          voronoi.color_range,
+          voronoi.range,
+        ]),
+        voronoi_inverse: true,
+        voronoi_point_distrib: randomMember(pointGridMembers),
+        voronoi_point_freq: randomInt(2, 3),
+        worms_behavior: worms.random,
+        worms_kink: 0.5 + random(),
+        worms_stride: randomInt(48, 96),
+      }),
+    },
+
+    vibe: {
+      layers: ['basic', 'reflect-post', 'posterize-outline', 'grain'],
+      settings: () => ({
+        brightness_distrib: null,
+        color_space: color.oklab,
+        lattice_drift: 1.0,
+        palette_on: false,
+        reflect_range: 0.5 + random() * 0.5,
+      }),
+    },
+
     'vignette-bright': {
       settings: () => ({
         vignette_bright_alpha: 0.333 + random() * 0.333,
@@ -4100,6 +4221,59 @@ export function PRESETS() {
           alpha: settings.vignette_dark_alpha,
           brightness: settings.vignette_dark_brightness,
         }),
+      ],
+    },
+
+    voronoi: {
+      layers: ['basic'],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAll),
+        voronoi_alpha: 1.0,
+        voronoi_diagram_type: randomMember(
+          Object.values(voronoi).filter((t) => t !== voronoi.none),
+        ),
+        voronoi_sdf_sides: randomInt(2, 8),
+        voronoi_inverse: false,
+        voronoi_nth: randomInt(0, 2),
+        voronoi_point_corners: false,
+        voronoi_point_distrib: coinFlip()
+          ? point.random
+          : randomMember(point, valueMaskNonproceduralMembers),
+        voronoi_point_drift: 0.0,
+        voronoi_point_freq: randomInt(8, 15),
+        voronoi_point_generations: 1,
+        voronoi_refract: 0,
+        voronoi_refract_y_from_offset: true,
+      }),
+      post: (settings) => [
+        Effect('voronoi', {
+          alpha: settings.voronoi_alpha,
+          diagramType: settings.voronoi_diagram_type,
+          distMetric: settings.dist_metric,
+          nth: settings.voronoi_nth,
+          pointCorners: settings.voronoi_point_corners,
+          pointDistrib: settings.voronoi_point_distrib,
+          pointDrift: settings.voronoi_point_drift,
+          pointFreq: settings.voronoi_point_freq,
+          pointGenerations: settings.voronoi_point_generations,
+        }),
+      ],
+    },
+
+    'voronoi-refract': {
+      layers: ['voronoi'],
+      settings: () => ({
+        palette_on: false,
+        voronoi_refract: 0.25 + random() * 0.75,
+      }),
+    },
+
+    vortex: {
+      settings: () => ({
+        vortex_range: randomInt(16, 48),
+      }),
+      post: (settings) => [
+        Effect('vortex', { displacement: settings.vortex_range }),
       ],
     },
   };
