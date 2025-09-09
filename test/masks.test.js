@@ -99,6 +99,41 @@ for (const mask of [
   assert.deepStrictEqual(shape, [6, 6, 1]);
 }
 
+// Tromino masks
+const trominoMasks = [
+  [ValueMask.tromino_i, [
+    [1, 0, 0, 0],
+    [1, 0, 0, 0],
+    [1, 0, 0, 0],
+    [1, 0, 0, 0],
+  ]],
+  [ValueMask.tromino_l, [
+    [0, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+  ]],
+  [ValueMask.tromino_o, [
+    [0, 0, 0, 0],
+    [0, 1, 1, 0],
+    [0, 1, 1, 0],
+    [0, 0, 0, 0],
+  ]],
+  [ValueMask.tromino_s, [
+    [0, 0, 0, 0],
+    [0, 1, 1, 0],
+    [1, 1, 0, 0],
+    [0, 0, 0, 0],
+  ]],
+];
+for (const [mask, expected] of trominoMasks) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, [4, 4, 1]);
+  assert.deepStrictEqual(data, expected.flat());
+}
+
 // Bank OCR masks
 const bankOcrMasks = [
   [ValueMask.bank_ocr_0, [
