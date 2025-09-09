@@ -2462,8 +2462,41 @@ function expandTile(tensor, inputShape, outputShape) {
   return Tensor.fromArray(tensor.ctx, out, [oh, ow, c]);
 }
 
+function resizeWithCropOrPad(tensor, shape, size) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const out = new Float32Array(size * size * c);
+  const yOff = Math.floor((size - h) / 2);
+  const xOff = Math.floor((size - w) / 2);
+  for (let y = 0; y < size; y++) {
+    const sy = y - yOff;
+    if (sy < 0 || sy >= h) continue;
+    for (let x = 0; x < size; x++) {
+      const sx = x - xOff;
+      if (sx < 0 || sx >= w) continue;
+      const srcBase = (sy * w + sx) * c;
+      const dstBase = (y * size + x) * c;
+      for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [size, size, c]);
+}
+
 function rotate2D(tensor, shape, angle) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_angle;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n uv -= 0.5;\n float c = cos(u_angle);\n float s = sin(u_angle);\n uv = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y) + 0.5;\n uv = fract(uv);\n outColor = texture(u_tex, uv);\n}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    ctx.bindTexture(prog, "u_tex", tensor.tex);
+    gl.uniform1f(gl.getUniformLocation(prog, "u_angle"), angle);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+  }
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
   const cos = Math.cos(angle);
@@ -2501,6 +2534,48 @@ function cropTensor(tensor, inputShape, outputShape) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 
+function resizeBilinear(tensor, size) {
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
+  const out = new Float32Array(size * size * c);
+  for (let y = 0; y < size; y++) {
+    const sy = (y + 0.5) * h / size - 0.5;
+    const y0 = Math.max(0, Math.floor(sy));
+    const y1 = Math.min(h - 1, y0 + 1);
+    const wy = sy - y0;
+    for (let x = 0; x < size; x++) {
+      const sx = (x + 0.5) * w / size - 0.5;
+      const x0 = Math.max(0, Math.floor(sx));
+      const x1 = Math.min(w - 1, x0 + 1);
+      const wx = sx - x0;
+      const dstBase = (y * size + x) * c;
+      for (let k = 0; k < c; k++) {
+        const v00 = src[(y0 * w + x0) * c + k];
+        const v01 = src[(y0 * w + x1) * c + k];
+        const v10 = src[(y1 * w + x0) * c + k];
+        const v11 = src[(y1 * w + x1) * c + k];
+        const v0 = v00 * (1 - wx) + v01 * wx;
+        const v1 = v10 * (1 - wx) + v11 * wx;
+        out[dstBase + k] = v0 * (1 - wy) + v1 * wy;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [size, size, c]);
+}
+
+export function squareCropAndResize(tensor, shape, length = 1024) {
+  const [h, w, c] = shape;
+  const have = Math.min(h, w);
+  let out = tensor;
+  if (h !== w) {
+    out = cropTensor(tensor, shape, [have, have]);
+  }
+  if (have !== length) {
+    out = resizeBilinear(out, length);
+  }
+  return out;
+}
+
 export function rotate(tensor, shape, time, speed, angle = null) {
   if (angle === null || angle === undefined) angle = random() * 360;
   const [h, w, c] = shape;
@@ -2511,14 +2586,7 @@ export function rotate(tensor, shape, time, speed, angle = null) {
 }
 register("rotate", rotate, { angle: 0 });
 
-export function pixelSort(
-  tensor,
-  shape,
-  time,
-  speed,
-  angled = false,
-  darkest = false,
-) {
+function _pixelSort(tensor, shape, angle, darkest) {
   const [h, w, c] = shape;
   let srcData = tensor.read();
   if (darkest) {
@@ -2526,12 +2594,10 @@ export function pixelSort(
     for (let i = 0; i < srcData.length; i++) inv[i] = 1 - srcData[i];
     srcData = inv;
   }
-  let srcTensor = Tensor.fromArray(tensor.ctx, srcData, shape);
+  let working = Tensor.fromArray(tensor.ctx, srcData, shape);
   const want = Math.max(h, w) * 2;
-  let working = expandTile(srcTensor, shape, [want, want, c]);
-  let angle = 0;
-  if (angled) {
-    angle = angled === true ? random() * 360 : angled;
+  working = resizeWithCropOrPad(working, shape, want);
+  if (angle !== false) {
     working = rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
   const data = working.read();
@@ -2557,7 +2623,7 @@ export function pixelSort(
     }
   }
   let sortedTensor = Tensor.fromArray(tensor.ctx, sorted, [want, want, c]);
-  if (angled) {
+  if (angle !== false) {
     sortedTensor = rotate2D(
       sortedTensor,
       [want, want, c],
@@ -2572,6 +2638,19 @@ export function pixelSort(
     out[i] = darkest ? 1 - v : v;
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
+}
+
+export function pixelSort(
+  tensor,
+  shape,
+  time,
+  speed,
+  angled = false,
+  darkest = false,
+) {
+  let angle = false;
+  if (angled) angle = angled === true ? random() * 360 : angled;
+  return _pixelSort(tensor, shape, angle, darkest);
 }
 register("pixelSort", pixelSort, { angled: false, darkest: false });
 

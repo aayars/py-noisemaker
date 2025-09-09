@@ -41,6 +41,7 @@ import {
   dla,
   rotate,
   pixelSort,
+  squareCropAndResize,
   glyphMap,
   sketch,
   lowpoly,
@@ -599,14 +600,21 @@ arraysClose(Array.from(dlaOut), dlaExpected);
 const rotData = new Float32Array([1, 2, 3, 4]);
 const rotTensor = Tensor.fromArray(null, rotData, [2, 2, 1]);
 const rotOut = rotate(rotTensor, [2, 2, 1], 0, 1, 90).read();
-assert.deepStrictEqual(Array.from(rotOut), [1, 3, 2, 4]);
+const rotExpected = loadFixture("rotate.json");
+arraysClose(Array.from(rotOut), rotExpected);
 
 // pixelSort effect
 const psData = new Float32Array([0.2, 0.8, 0.5, 0.1]);
 const psTensor = Tensor.fromArray(null, psData, [1, 4, 1]);
 const psOut = pixelSort(psTensor, [1, 4, 1], 0, 1).read();
-assert.strictEqual(psOut.length, 4);
-assert.notDeepStrictEqual(Array.from(psOut), [0.2, 0.8, 0.5, 0.1]);
+const psExpected = loadFixture("pixelSort.json");
+arraysClose(Array.from(psOut), psExpected);
+
+// squareCropAndResize utility
+const scData = new Float32Array([0, 1, 2, 3, 4, 5]);
+const scTensorUtil = Tensor.fromArray(null, scData, [2, 3, 1]);
+const scUtilOut = squareCropAndResize(scTensorUtil, [2, 3, 1], 2).read();
+assert.deepStrictEqual(Array.from(scUtilOut), [0, 1, 3, 4]);
 
 // sketch regression
 setSeed(1);
