@@ -8,6 +8,18 @@ import { EFFECTS } from './effectsRegistry.js';
 const SETTINGS_KEY = 'settings';
 const ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post', 'final', 'ai', 'unique'];
 
+function toCamel(str) {
+  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+function toCamelKeys(obj = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[toCamel(k)] = v;
+  }
+  return out;
+}
+
 export class Preset {
   constructor(presetName, presets, settings = {}) {
     this.name = presetName;
@@ -30,7 +42,7 @@ export class Preset {
     _flattenAncestors(presetName, presets, {}, this.flattened_layers);
 
     this.settings = _flattenAncestorMetadata(this, null, SETTINGS_KEY, {}, presets);
-    Object.assign(this.settings, settings);
+    Object.assign(this.settings, toCamelKeys(settings));
 
     this.generator = _flattenAncestorMetadata(this, this.settings, 'generator', {}, presets);
     this.octave_effects = _flattenAncestorMetadata(this, this.settings, 'octaves', [], presets);
@@ -39,6 +51,7 @@ export class Preset {
   }
 
   render(seed = 0, opts = {}) {
+    opts = toCamelKeys(opts);
     const {
       ctx = new Context(null),
       width = 256,
@@ -131,10 +144,6 @@ export function Effect(effectName, params = {}) {
     smoothstep: { low: 'a', high: 'b' },
   };
 
-  function toCamel(str) {
-    return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-  }
-
   const mapped = {};
   for (const [k, v] of Object.entries(params)) {
     const camel = toCamel(k);
@@ -218,7 +227,7 @@ function _flattenAncestors(presetName, presets, unique, ancestors) {
             `${ancestorName}: Key "${key}" should be object, not ${typeof ancestor}.`
           );
         }
-        Object.assign(flattened, ancestor);
+        Object.assign(flattened, toCamelKeys(ancestor));
       }
     }
     return flattened;

@@ -83,4 +83,19 @@ assert.deepStrictEqual(
   expected.map((v) => +v.toFixed(6))
 );
 
+// snake_case colour-space
+captured = null;
+const CS_PRESETS_SNAKE = {
+  cs: {
+    settings: () => ({ color_space: ColorSpace.hsv }),
+    post: () => [Effect('capture')],
+  },
+};
+const csPresetSnake = new Preset('cs', CS_PRESETS_SNAKE);
+csPresetSnake.render(seed, { width: 1, height: 1 });
+assert.deepStrictEqual(
+  captured.map((v) => +v.toFixed(6)),
+  expected.map((v) => +v.toFixed(6))
+);
+
 console.log('composer tests passed');
