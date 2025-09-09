@@ -3,6 +3,7 @@ import { ValueDistribution, DistanceMetric } from './constants.js';
 import { maskValues } from './masks.js';
 
 export const FULLSCREEN_VS = `#version 300 es
+precision highp float;
 in vec2 position;
 void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
 
@@ -211,10 +212,12 @@ void main(){
           val = 0;
           break;
         case ValueDistribution.column_index:
-          val = height === 1 ? 0 : y / (height - 1);
+          // Column index varies along the x-axis, matching the GPU shader.
+          val = width === 1 ? 0 : x / (width - 1);
           break;
         case ValueDistribution.row_index:
-          val = width === 1 ? 0 : x / (width - 1);
+          // Row index varies along the y-axis, matching the GPU shader.
+          val = height === 1 ? 0 : y / (height - 1);
           break;
         case ValueDistribution.center_circle:
         case ValueDistribution.center_triangle:
