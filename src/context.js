@@ -2,9 +2,9 @@
  * WebGL2 context helper with CPU fallback and shader utilities.
  */
 
-import { setSeed, getSeed, random } from './rng.js';
+import { Random, setSeed, getSeed, random } from './rng.js';
 
-export { setSeed, getSeed, random };
+export { Random, setSeed, getSeed, random };
 
 export class Context {
   constructor(canvas) {
