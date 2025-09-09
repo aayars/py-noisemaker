@@ -262,6 +262,8 @@ export const Masks = {
     [1, 1, 1, 1],
     [1, 0, 1, 0],
   ],
+  // 4x4 halftone patterns, ported from Python's noisemaker/masks.py
+  // Each successive mask adds ink to increase darkness
   [ValueMask.halftone_7]: [
     [1, 1, 1, 1],
     [1, 0, 1, 1],
