@@ -1,6 +1,6 @@
 # Noisemaker Vanilla JavaScript Port Specification
 
-The JS porting project aims for a 1:1 surface-level port of the Python library to Javascript.
+The JS porting project aims for a 1:1 surface-level port of Noisemaker's Python libraries and presets to Javascript.
 
 CLI tools are not included.
 
