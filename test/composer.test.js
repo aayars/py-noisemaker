@@ -66,7 +66,7 @@ register('capture', capture, {});
 
 const CS_PRESETS = {
   cs: {
-    settings: () => ({ colorSpace: ColorSpace.hsv }),
+    settings: () => ({ color_space: ColorSpace.hsv }),
     post: () => [Effect('capture')],
   },
 };
@@ -75,7 +75,7 @@ const csPreset = new Preset('cs', CS_PRESETS);
 const seed = 42;
 const shape = [1, 1, 3];
 const expected = Array.from(
-  multires(1, shape, { seed, colorSpace: ColorSpace.hsv }).read()
+  multires(1, shape, { seed, color_space: ColorSpace.hsv }).read()
 );
 csPreset.render(seed, { width: 1, height: 1 });
 assert.deepStrictEqual(

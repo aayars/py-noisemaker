@@ -45,7 +45,7 @@ export function basic(freq, shape, opts = {}) {
     maskInverse = false,
     maskStatic = false,
     latticeDrift = 0,
-    colorSpace = ColorSpace.hsv,
+    color_space = ColorSpace.hsv,
     hueRange = 0.125,
     hueRotation = null,
     saturation = 1.0,
@@ -112,8 +112,8 @@ export function basic(freq, shape, opts = {}) {
     tensor = Tensor.fromArray(ctx, rgb, [shape[0], shape[1], 1]);
   }
 
-  let cSpace = colorSpace;
-  const originalColorSpace = colorSpace;
+  let cSpace = color_space;
+  const originalColorSpace = color_space;
   if (cSpace === ColorSpace.oklab) {
     tensor = oklabToRgb(tensor);
     cSpace = ColorSpace.rgb;
@@ -236,7 +236,7 @@ export function multires(freq, shape, opts = {}) {
     maskInverse = false,
     maskStatic = false,
     latticeDrift = 0,
-    colorSpace = ColorSpace.hsv,
+    color_space = ColorSpace.hsv,
     hueRange = 0.125,
     hueRotation = null,
     saturation = 1.0,
@@ -275,7 +275,7 @@ export function multires(freq, shape, opts = {}) {
       maskInverse,
       maskStatic,
       latticeDrift,
-      colorSpace,
+      color_space,
       hueRange,
       hueRotation,
       saturation,

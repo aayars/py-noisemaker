@@ -49,7 +49,10 @@ export class Preset {
     } = opts;
 
     const g = this.generator || {};
-    const colorSpace = g.colorSpace || this.settings.colorSpace || ColorSpace.rgb;
+    const colorSpace =
+      g.color_space ?? g.colorSpace ??
+      this.settings.color_space ?? this.settings.colorSpace ??
+      ColorSpace.rgb;
     const shape = shapeFromParams(
       width,
       height,
@@ -59,7 +62,7 @@ export class Preset {
     const freq = g.freq !== undefined ? g.freq : 1;
     let tensor = multires(freq, shape, {
       ...g,
-      colorSpace,
+      color_space: colorSpace,
       ctx,
       seed,
       time,

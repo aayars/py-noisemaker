@@ -29,7 +29,7 @@ const ctx = new Context(fakeCanvas);
 // grayscale sanity check
 const presets = {
   gray: {
-    settings: () => ({ colorSpace: ColorSpace.grayscale })
+    settings: () => ({ color_space: ColorSpace.grayscale })
   }
 };
 render('gray', 0, { ctx, width: 2, height: 2, presets });
@@ -47,7 +47,7 @@ render('column', 0, {
   presets: {
     column: {
       generator: () => ({
-        colorSpace: ColorSpace.grayscale,
+        color_space: ColorSpace.grayscale,
         distrib: ValueDistribution.column_index,
       }),
     },
@@ -70,7 +70,7 @@ render('row', 0, {
   presets: {
     row: {
       generator: () => ({
-        colorSpace: ColorSpace.grayscale,
+        color_space: ColorSpace.grayscale,
         distrib: ValueDistribution.row_index,
       }),
     },
