@@ -742,8 +742,13 @@ register("densityMap", densityMap, {});
 
 export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
   let out = tensor;
+  const [h, w] = shape;
+  const maxFactor = Math.min(h, w);
+  if (maxFactor < 2) {
+    return out;
+  }
   for (let i = 0; i < iterations; i++) {
-    const factor = randomInt(2, 8);
+    const factor = Math.min(randomInt(2, 8), maxFactor);
     out = upsample(downsample(out, factor), factor);
   }
   return out;

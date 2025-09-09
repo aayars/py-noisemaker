@@ -26,8 +26,8 @@ import {
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
 import './effects.js';
-import { random } from './util.js';
-export { setSeed } from './util.js';
+import { random, getSeed, setSeed } from './util.js';
+export { setSeed };
 
 // Random helper utilities adapted from the Python implementation
 function randomInt(min, max) {
@@ -78,7 +78,8 @@ export function stash(key, value) {
 }
 
 export function PRESETS() {
-  return {
+  const seed = getSeed();
+  const presets = {
     'maybe-palette': {
       settings: () => ({
         palette_alpha: 0.5 + random() * 0.5,
@@ -4453,6 +4454,8 @@ export function PRESETS() {
       }),
     },
   };
+  setSeed(seed);
+  return presets;
 }
 
 export default PRESETS;
