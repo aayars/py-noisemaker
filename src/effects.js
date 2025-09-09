@@ -2478,6 +2478,92 @@ export function sketch(tensor, shape, time, speed) {
 }
 register('sketch', sketch, {});
 
+export function nebula(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+
+  function simpleMultires(freq, octaves, distrib = ValueDistribution.uniform) {
+    const out = new Float32Array(h * w);
+    for (let octave = 1; octave <= octaves; octave++) {
+      const mult = 2 ** octave;
+      const baseFreq = Math.floor(freq * 0.5 * mult);
+      if (baseFreq > h && baseFreq > w) break;
+      let layer = values(baseFreq, valueShape, {
+        ctx,
+        time,
+        speed,
+        distrib,
+        seed: octave,
+      });
+      layer = ridge(layer);
+      const lData = layer.read();
+      for (let i = 0; i < out.length; i++) out[i] += lData[i] / mult;
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of out) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    const range = max - min || 1;
+    for (let i = 0; i < out.length; i++) out[i] = (out[i] - min) / range;
+    return Tensor.fromArray(ctx, out, valueShape);
+  }
+
+  let overlay = simpleMultires(randomInt(3, 4), 6, ValueDistribution.exp);
+  const subtractor = simpleMultires(randomInt(2, 4), 4);
+  let oData = overlay.read();
+  const sData = subtractor.read();
+  for (let i = 0; i < oData.length; i++) oData[i] = (oData[i] - sData[i]) * 0.125;
+  overlay = Tensor.fromArray(ctx, oData, valueShape);
+
+  overlay = rotate(overlay, valueShape, time, speed, randomInt(-15, 15));
+  const baseData = tensor.read();
+  const ovData = overlay.read();
+  for (let i = 0; i < h * w; i++) {
+    const v = ovData[i];
+    const mult = 1 - v;
+    for (let k = 0; k < c; k++) baseData[i * c + k] *= mult;
+  }
+
+  if (c >= 3) {
+    const color = values(3, shape, {
+      ctx,
+      time,
+      speed,
+      corners: true,
+      seed: randomInt(0, 65536),
+    }).read();
+    const hsv = new Float32Array(h * w * 3);
+    const off1 = random();
+    const off2 = random();
+    for (let i = 0; i < h * w; i++) {
+      const v = Math.max(ovData[i], 0);
+      hsv[i * 3] = (ovData[i] * 0.333 + off1 * 0.333 + off2) % 1;
+      hsv[i * 3 + 1] = color[i * 3 + 1];
+      hsv[i * 3 + 2] = v;
+    }
+    const rgb = hsvToRgb(Tensor.fromArray(ctx, hsv, [h, w, 3])).read();
+    for (let i = 0; i < h * w; i++) {
+      for (let k = 0; k < 3; k++) baseData[i * c + k] += rgb[i * 3 + k];
+    }
+  } else {
+    for (let i = 0; i < h * w; i++) {
+      const v = Math.max(ovData[i], 0);
+      for (let k = 0; k < c; k++) baseData[i * c + k] += v;
+    }
+  }
+
+  for (let i = 0; i < baseData.length; i++) {
+    if (baseData[i] < 0) baseData[i] = 0;
+    if (baseData[i] > 1) baseData[i] = 1;
+  }
+
+  return Tensor.fromArray(ctx, baseData, shape);
+}
+register('nebula', nebula, {});
+
 export function spatter(tensor, shape, time, speed, color = true) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;

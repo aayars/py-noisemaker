@@ -54,12 +54,14 @@ import {
   crt,
   snow,
   spatter,
+  nebula,
   clouds,
   fibers,
   scratches,
   strayHair,
   grime,
   watermark,
+  onScreenDisplay,
   spookyTicker,
 } from '../src/effects.js';
 import {
@@ -701,6 +703,22 @@ setSeed(1);
 const stOut = spookyTicker(spookyTensor, [8,8,1], 0, 1).read();
 const stExpected = loadFixture('spookyTicker.json');
 arraysClose(Array.from(stOut), stExpected);
+
+// onScreenDisplay regression
+setSeed(1);
+const osdTensor = Tensor.fromArray(null, new Float32Array(64 * 64), [64, 64, 1]);
+setSeed(1);
+const osdOut = onScreenDisplay(osdTensor, [64, 64, 1], 0, 1).read();
+const osdExpected = loadFixture('onScreenDisplay.json');
+arraysClose(Array.from(osdOut), osdExpected);
+
+// nebula regression
+setSeed(1);
+const nebTensor = Tensor.fromArray(null, new Float32Array(32 * 32 * 3), [32, 32, 3]);
+setSeed(1);
+const nebOut = nebula(nebTensor, [32, 32, 3], 0, 1).read();
+const nebExpected = loadFixture('nebula.json');
+arraysClose(Array.from(nebOut), nebExpected);
 
 // lensWarp extreme displacement
 setSeed(1);
