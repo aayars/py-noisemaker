@@ -37,6 +37,17 @@ const GPU_DISTRIBS = new Set([
   ValueDistribution.center_circle,
 ]);
 
+export function freqForShape(freq, shape) {
+  const [height, width] = shape;
+  if (height === width) {
+    return [freq, freq];
+  }
+  if (height < width) {
+    return [freq, Math.floor((freq * width) / height)];
+  }
+  return [Math.floor((freq * height) / width), freq];
+}
+
 /**
  * Generate value noise or other simple distributions.
  *

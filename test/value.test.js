@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur } from '../src/value.js';
+import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur, freqForShape } from '../src/value.js';
 import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
 import { ValueDistribution } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
@@ -24,6 +24,11 @@ assert.ok(vxy.read().every((v) => !Number.isNaN(v)));
 // distribution check
 const col = values(1, [1, 4, 1], { distrib: ValueDistribution.column_index });
 arraysClose(col.read(), new Float32Array([0, 1/3, 2/3, 1]));
+
+// freqForShape helper
+assert.deepStrictEqual(freqForShape(4, [64, 64]), [4, 4]);
+assert.deepStrictEqual(freqForShape(4, [32, 64]), [4, 8]);
+assert.deepStrictEqual(freqForShape(4, [64, 32]), [8, 4]);
 
 // resampling
 const base = values(4, [4, 4, 1], { seed: 1 });
