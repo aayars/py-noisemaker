@@ -1011,6 +1011,223 @@ export function PRESETS() {
       }),
     },
 
+    deadbeef: {
+      layers: ['value-mask', 'corrupt', 'bloom', 'crt', 'vignette-dark'],
+      settings: () => ({
+        freq: 6 * randomInt(9, 24),
+        mask: mask.alphanum_hex,
+      }),
+    },
+
+    'death-star-plans': {
+      layers: [
+        'voronoi',
+        'refract-post',
+        'maybe-rotate',
+        'posterize',
+        'sobel',
+        'invert',
+        'crt',
+        'vignette-dark',
+      ],
+      settings: () => ({
+        dist_metric: randomMember([distance.chebyshev, distance.manhattan]),
+        posterize_levels: randomInt(3, 4),
+        refract_range: 0.5 + random() * 0.25,
+        refract_y_from_offset: true,
+        voronoi_alpha: 1,
+        voronoi_diagram_type: voronoi.range,
+        voronoi_nth: randomInt(1, 3),
+        voronoi_point_distrib: point.random,
+        voronoi_point_freq: randomInt(2, 3),
+      }),
+    },
+
+    'deep-field': {
+      layers: ['multires', 'refract-octaves', 'octave-warp-octaves', 'bloom', 'lens'],
+      settings: () => ({
+        distrib: distrib.uniform,
+        freq: randomInt(8, 10),
+        hue_range: 1,
+        mask: mask.sparser,
+        mask_static: true,
+        lattice_drift: 1,
+        octave_blending: blend.alpha,
+        octaves: 5,
+        palette_on: false,
+        speed: 0.05,
+        refract_range: 0.2 + random() * 0.1,
+        warp_freq: 2,
+        warp_signed_range: true,
+      }),
+    },
+
+    deeper: {
+      layers: ['multires-alpha', 'funhouse', 'lens', 'contrast-final'],
+      settings: () => ({
+        hue_range: 0.75,
+        octaves: 6,
+        ridges: true,
+      }),
+    },
+
+    degauss: {
+      final: () => [
+        Effect('degauss', { displacement: 0.06 + random() * 0.03 }),
+        Preset('crt'),
+      ],
+    },
+
+    'density-map': {
+      layers: ['grain'],
+      post: () => [
+        Effect('density_map'),
+        Effect('convolve', { kernel: mask.conv2d_invert }),
+      ],
+    },
+
+    'density-wave': {
+      layers: ['basic', 'reflect-post', 'density-map', 'invert', 'bloom'],
+      settings: () => ({
+        reflect_range: randomInt(3, 8),
+        saturation: randomInt(0, 1),
+      }),
+    },
+
+    'derivative-octaves': {
+      settings: () => ({
+        deriv_alpha: 1.0,
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+      }),
+      octaves: (settings) => [
+        Effect('derivative', {
+          dist_metric: settings.dist_metric,
+          alpha: settings.deriv_alpha,
+        }),
+      ],
+      post: () => [Effect('fxaa')],
+    },
+
+    'derivative-post': {
+      settings: () => ({
+        deriv_alpha: 1.0,
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+      }),
+      post: (settings) => [
+        Effect('derivative', {
+          dist_metric: settings.dist_metric,
+          alpha: settings.deriv_alpha,
+        }),
+        Effect('fxaa'),
+      ],
+    },
+
+    dexter: {
+      layers: ['spatter-final'],
+      settings: () => ({
+        spatter_final_color: [
+          0.35 + random() * 0.15,
+          0.025 + random() * 0.0125,
+          0.075 + random() * 0.0375,
+        ],
+      }),
+    },
+
+    different: {
+      layers: [
+        'multires',
+        'sine-octaves',
+        'reflect-octaves',
+        'reindex-octaves',
+        'funhouse',
+        'lens',
+      ],
+      settings: () => ({
+        freq: [randomInt(4, 6), randomInt(4, 6)],
+        reflect_range: 7.5 + random() * 5.0,
+        reindex_range: 0.25 + random() * 0.25,
+        sine_range: randomInt(7, 12),
+        speed: 0.025,
+        warp_range: 0.0375 * random() * 0.0375,
+      }),
+    },
+
+    distressed: {
+      layers: ['grain', 'filthy', 'saturation'],
+    },
+
+    distance: {
+      layers: [
+        'multires',
+        'derivative-octaves',
+        'bloom',
+        'shadow',
+        'contrast-final',
+        'maybe-rotate',
+        'lens',
+      ],
+      settings: () => ({
+        dist_metric: randomMember(distanceMetricAbsoluteMembers()),
+        distrib: distrib.exp,
+        freq: [randomInt(4, 5), randomInt(2, 3)],
+        lattice_drift: 1,
+        saturation: 0.0625 + random() * 0.125,
+      }),
+    },
+
+    dla: {
+      layers: ['basic', 'contrast-final'],
+      settings: () => ({
+        dla_alpha: 0.875 + random() * 0.125,
+        dla_padding: randomInt(1, 8),
+        dla_seed_density: 0.1 + random() * 0.05,
+        dla_density: 0.2 + random() * 0.1,
+      }),
+      post: (settings) => [
+        Effect('dla', {
+          alpha: settings.dla_alpha,
+          padding: settings.dla_padding,
+          seed_density: settings.dla_seed_density,
+          density: settings.dla_density,
+        }),
+      ],
+    },
+
+    'dla-forest': {
+      layers: ['dla', 'reverb', 'contrast-final', 'bloom'],
+      settings: () => ({
+        dla_padding: randomInt(2, 8),
+        reverb_iterations: randomInt(2, 4),
+      }),
+    },
+
+    'domain-warp': {
+      layers: [
+        'multires-ridged',
+        'refract-post',
+        'vaseline',
+        'grain',
+        'vignette-dark',
+        'saturation',
+      ],
+      settings: () => ({
+        refract_range: 0.5 + random() * 0.5,
+      }),
+    },
+
+    dropout: {
+      layers: ['basic', 'maybe-rotate', 'derivative-post', 'maybe-invert', 'grain'],
+      settings: () => ({
+        colorSpace: randomMember(colorSpaceMembers()),
+        distrib: distrib.ones,
+        freq: [randomInt(4, 6), randomInt(2, 4)],
+        mask: mask.dropout,
+        octave_blending: blend.reduce_max,
+        octaves: randomInt(4, 6),
+        spline_order: interp.constant,
+      }),
+    },
+
     grain: {
       unique: true,
       settings: () => ({
