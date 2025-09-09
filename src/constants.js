@@ -344,3 +344,61 @@ export function isScan(distrib) {
 export function isNativeSize(distrib) {
   return isCenterDistribution(distrib) || isScan(distrib);
 }
+
+export function isGrid(distrib) {
+  return (
+    distrib >= PointDistribution.square &&
+    distrib < PointDistribution.spiral
+  );
+}
+
+export function isCircular(distrib) {
+  return distrib >= PointDistribution.circular;
+}
+
+export const gridMembers = Object.freeze(
+  Object.values(PointDistribution).filter((d) => isGrid(d))
+);
+
+export const circularMembers = Object.freeze(
+  Object.values(PointDistribution).filter((d) => isCircular(d))
+);
+
+export function isNoise(distrib) {
+  return distrib && distrib < ValueDistribution.ones;
+}
+
+export function isProcedural(mask) {
+  return mask >= ValueMask.sparse;
+}
+
+export const glyphMembers = Object.freeze(
+  Object.values(ValueMask).filter(
+    (m) =>
+      (m >= ValueMask.invaders && m <= ValueMask.tromino) ||
+      (m >= ValueMask.lcd && m <= ValueMask.arecibo_dna) ||
+      m === ValueMask.emoji ||
+      m === ValueMask.bank_ocr
+  )
+);
+
+export const flowMembers = Object.freeze([
+  VoronoiDiagramType.flow,
+  VoronoiDiagramType.color_flow,
+]);
+
+export function isFlowMember(member) {
+  return flowMembers.includes(member);
+}
+
+export const wormBehaviorAll = Object.freeze(
+  Object.values(WormBehavior).filter((m) => m !== WormBehavior.none)
+);
+
+export function isColor(space) {
+  return space && space > ColorSpace.grayscale;
+}
+
+export const colorMembers = Object.freeze(
+  Object.values(ColorSpace).filter((c) => isColor(c))
+);
