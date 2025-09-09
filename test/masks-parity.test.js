@@ -11,6 +11,8 @@ const repoRoot = resolve(__dirname, '..');
 function getPythonMasks() {
   const py = `
 import json
+import numpy as np
+np.random.seed(0)
 from noisemaker.masks import Masks
 result = {}
 for mask, value in Masks.items():

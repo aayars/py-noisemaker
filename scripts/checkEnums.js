@@ -8,9 +8,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 
 function getPythonEnums() {
-<<<<<<< ours
-  const py = `import json, enum\nimport noisemaker.constants as c\nresult = {}\nfor name, obj in vars(c).items():\n    if name != 'Enum' and isinstance(obj, enum.EnumMeta):\n        result[name] = {m.name: m.value for m in obj}\nprint(json.dumps(result))`;
-=======
   const py = `
 import json, enum
 import noisemaker.constants as c
@@ -38,7 +35,6 @@ for mask, value in Masks.items():
         result[mask.name] = mask_shape(mask)
 print(json.dumps(result))
 `;
->>>>>>> theirs
   const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     console.error(res.stderr);
@@ -63,8 +59,6 @@ async function getJsEnums() {
   return enums;
 }
 
-<<<<<<< ours
-=======
 async function getJsMasks() {
   const constMod = await import(resolve(repoRoot, 'src/constants.js'));
   const { Masks } = await import(resolve(repoRoot, 'src/masks.js'));
@@ -81,7 +75,6 @@ async function getJsMasks() {
   return masks;
 }
 
->>>>>>> theirs
 function compare(pyEnums, jsEnums) {
   const mismatches = [];
   for (const [name, pyEnum] of Object.entries(pyEnums)) {
@@ -111,8 +104,6 @@ function compare(pyEnums, jsEnums) {
   return mismatches;
 }
 
-<<<<<<< ours
-=======
 function compareMasks(pyMasks, jsMasks) {
   const mismatches = [];
   for (const [name, jsShape] of Object.entries(jsMasks)) {
@@ -128,7 +119,6 @@ function compareMasks(pyMasks, jsMasks) {
   return mismatches;
 }
 
->>>>>>> theirs
 function generateEnums(pyEnums) {
   const lines = ['// Auto-generated enumeration maps'];
   for (const name of Object.keys(pyEnums)) {
@@ -146,19 +136,12 @@ async function main() {
   const update = process.argv.includes('--update');
   const pyEnums = getPythonEnums();
   const jsEnums = await getJsEnums();
-<<<<<<< ours
-  const mismatches = compare(pyEnums, jsEnums);
-
-  if (mismatches.length) {
-    console.error('Enum mismatches:\n' + mismatches.join('\n'));
-=======
   const pyMasks = getPythonMasks();
   const jsMasks = await getJsMasks();
   const mismatches = [...compare(pyEnums, jsEnums), ...compareMasks(pyMasks, jsMasks)];
 
   if (mismatches.length) {
     console.error('Enum/mask mismatches:\n' + mismatches.join('\n'));
->>>>>>> theirs
     if (!update) {
       process.exit(1);
     }
@@ -180,11 +163,7 @@ async function main() {
   }
 
   if (!mismatches.length || update) {
-<<<<<<< ours
-    console.log('Enum check passed');
-=======
     console.log('Enum/mask check passed');
->>>>>>> theirs
   }
 }
 
