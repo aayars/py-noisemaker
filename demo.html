@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Noisemaker JS Demo</title>
+  <link rel="icon" href="data:," />
   <style>
     body { margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; background:#fafafa; color:#333; }
     canvas { border:1px solid #ccc; margin-top:20px; }
@@ -16,12 +17,18 @@
   <script type="module">
     import { Context } from './src/context.js';
     import { render } from './src/composer.js';
+    import PRESETS from './src/presets.js';
 
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
 
     function draw(seed) {
-      render('basic', seed, { width: canvas.width, height: canvas.height, ctx });
+      render('basic', seed, {
+        width: canvas.width,
+        height: canvas.height,
+        ctx,
+        presets: PRESETS(),
+      });
     }
 
     draw(42);
