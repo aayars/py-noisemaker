@@ -79,6 +79,7 @@
     import { Context } from './src/context.js';
     import { render } from './src/composer.js';
     import PRESETS from './src/presets.js';
+    import { random } from './src/util.js';
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
     const presetSelect = document.getElementById('preset');
@@ -142,13 +143,13 @@
     draw(42, currentPreset);
 
     document.getElementById('reroll').addEventListener('click', () => {
-      const seed = Math.floor(Math.random() * 1e9);
+      const seed = Math.floor(random() * 1e9);
       draw(seed, currentPreset);
     });
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
-      const seed = Math.floor(Math.random() * 1e9);
+      const seed = Math.floor(random() * 1e9);
       draw(seed, currentPreset);
     });
 
@@ -156,10 +157,10 @@
       .getElementById('randomPreset')
       .addEventListener('click', () => {
         const randomPreset =
-          presetNames[Math.floor(Math.random() * presetNames.length)];
+          presetNames[Math.floor(random() * presetNames.length)];
         presetSelect.value = randomPreset;
         currentPreset = randomPreset;
-        const seed = Math.floor(Math.random() * 1e9);
+        const seed = Math.floor(random() * 1e9);
         draw(seed, currentPreset);
       });
   </script>
