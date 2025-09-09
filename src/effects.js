@@ -1178,6 +1178,7 @@ export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
   const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
   return refract(tensor, distortion, null, displacement);
 }
+register("lensWarp", lensWarp, { displacement: 0.0625 });
 register("lens_warp", lensWarp, { displacement: 0.0625 });
 
 export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
@@ -1214,6 +1215,7 @@ export function lensDistortion(tensor, shape, time, speed, displacement = 1) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
+register("lensDistortion", lensDistortion, { displacement: 1 });
 register("lens_distortion", lensDistortion, { displacement: 1 });
 
 export function degauss(tensor, shape, time, speed, displacement = 0.0625) {

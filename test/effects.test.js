@@ -137,6 +137,10 @@ arraysClose(Array.from(shadowOut), shadowExpected);
 const effectList = listEffects();
 assert.ok(effectList.includes("warp"));
 assert.ok(effectList.includes("shadow"));
+assert.ok(effectList.includes("lensWarp"));
+assert.ok(effectList.includes("lensDistortion"));
+assert.ok(effectList.includes("lens_warp"));
+assert.ok(effectList.includes("lens_distortion"));
 
 // derivative
 const manualDeriv = (() => {
