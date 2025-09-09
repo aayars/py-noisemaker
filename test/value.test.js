@@ -25,11 +25,58 @@ assert.ok(vxy.read().every((v) => !Number.isNaN(v)));
 const col = values(1, [1, 4, 1], { distrib: ValueDistribution.column_index });
 arraysClose(col.read(), new Float32Array([0, 1/3, 2/3, 1]));
 
+<<<<<<< ours
 // ensure axes are not flipped
 const col2d = values(1, [2, 3, 1], { distrib: ValueDistribution.column_index });
 arraysClose(col2d.read(), new Float32Array([0, 0.5, 1, 0, 0.5, 1]));
 const row2d = values(1, [3, 2, 1], { distrib: ValueDistribution.row_index });
 arraysClose(row2d.read(), new Float32Array([0, 0, 0.5, 0.5, 1, 1]));
+=======
+// orientation sanity checks
+const scanUp = values(1, [4, 4, 1], { distrib: ValueDistribution.scan_up });
+arraysClose(
+  scanUp.read(),
+  new Float32Array([
+    0, 0, 0, 0,
+    1/3, 1/3, 1/3, 1/3,
+    2/3, 2/3, 2/3, 2/3,
+    1, 1, 1, 1,
+  ]),
+);
+
+const scanDown = values(1, [4, 4, 1], { distrib: ValueDistribution.scan_down });
+arraysClose(
+  scanDown.read(),
+  new Float32Array([
+    1, 1, 1, 1,
+    2/3, 2/3, 2/3, 2/3,
+    1/3, 1/3, 1/3, 1/3,
+    0, 0, 0, 0,
+  ]),
+);
+
+const scanLeft = values(1, [4, 4, 1], { distrib: ValueDistribution.scan_left });
+arraysClose(
+  scanLeft.read(),
+  new Float32Array([
+    0, 1/3, 2/3, 1,
+    0, 1/3, 2/3, 1,
+    0, 1/3, 2/3, 1,
+    0, 1/3, 2/3, 1,
+  ]),
+);
+
+const scanRight = values(1, [4, 4, 1], { distrib: ValueDistribution.scan_right });
+arraysClose(
+  scanRight.read(),
+  new Float32Array([
+    1, 2/3, 1/3, 0,
+    1, 2/3, 1/3, 0,
+    1, 2/3, 1/3, 0,
+    1, 2/3, 1/3, 0,
+  ]),
+);
+>>>>>>> theirs
 
 // freqForShape helper
 assert.deepStrictEqual(freqForShape(4, [64, 64]), [4, 4]);
