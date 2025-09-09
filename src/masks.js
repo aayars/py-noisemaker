@@ -438,6 +438,21 @@ export const Masks = {
     [4, 16, 24, 16, 4],
     [1, 4, 6, 4, 1],
   ],
+  [ValueMask.conv2d_deriv_x]: [
+    [0, 0, 0],
+    [0, 1, -1],
+    [0, 0, 0],
+  ],
+  [ValueMask.conv2d_deriv_y]: [
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, -1, 0],
+  ],
+  [ValueMask.conv2d_edges]: [
+    [1, 2, 1],
+    [2, -12, 2],
+    [1, 2, 1],
+  ],
   [ValueMask.conv2d_sharpen]: [
     [0, -1, 0],
     [-1, 5, -1],

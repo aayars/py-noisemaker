@@ -364,6 +364,44 @@ for (const mask of [ValueMask.emoji_00, ValueMask.emoji_01, ValueMask.emoji_02])
   assert.strictEqual(tensor.read().length, 13 * 13);
 }
 
+// Convolution kernels
+const conv2dMasks = [
+  [ValueMask.conv2d_blur, [
+    [1, 4, 6, 4, 1],
+    [4, 16, 24, 16, 4],
+    [6, 24, 36, 24, 6],
+    [4, 16, 24, 16, 4],
+    [1, 4, 6, 4, 1],
+  ]],
+  [ValueMask.conv2d_deriv_x, [
+    [0, 0, 0],
+    [0, 1, -1],
+    [0, 0, 0],
+  ]],
+  [ValueMask.conv2d_deriv_y, [
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, -1, 0],
+  ]],
+  [ValueMask.conv2d_edges, [
+    [1, 2, 1],
+    [2, -12, 2],
+    [1, 2, 1],
+  ]],
+  [ValueMask.conv2d_sharpen, [
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0],
+  ]],
+];
+for (const [mask, expected] of conv2dMasks) {
+  shape = maskShape(mask);
+  [tensor] = maskValues(mask, shape);
+  data = Array.from(tensor.read());
+  assert.deepStrictEqual(shape, [expected.length, expected[0].length, 1]);
+  assert.deepStrictEqual(data, expected.flat());
+}
+
 // Procedural mask
 const procShape = [4, 4, 1];
 [tensor] = maskValues(ValueMask.truchet_lines, procShape);
