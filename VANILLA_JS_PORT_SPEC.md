@@ -80,6 +80,7 @@ The library is organised as ES modules inside `src/`.
 ### 3.6 `effectsRegistry.js`
 * `register(name, fn, defaults)` records effect metadata.
 * `EFFECTS` map is exported for lookups.
+* `EFFECT_METADATA` exposes default parameters for each effect without the callback.
 * Validation ensures every effect accepts `(tensor, shape, time, speed, ...params)`.
 
 ### 3.7 `effects.js`
