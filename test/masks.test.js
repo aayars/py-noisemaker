@@ -306,6 +306,14 @@ for (const [mask, expected] of fatLcdMasks) {
   assert.deepStrictEqual(data, expected.flat());
 }
 
+// McPaint masks
+shape = maskShape(ValueMask.mcpaint_00);
+[tensor] = maskValues(ValueMask.mcpaint_00, shape);
+data = Array.from(tensor.read());
+assert.deepStrictEqual(shape, [8, 8, 1]);
+assert.deepStrictEqual(data.slice(0, 8), Array(8).fill(0));
+assert.deepStrictEqual(data.slice(-8), Array(8).fill(0));
+
 // Procedural mask
 const procShape = [4, 4, 1];
 [tensor] = maskValues(ValueMask.truchet_lines, procShape);
