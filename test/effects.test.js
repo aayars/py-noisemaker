@@ -10,9 +10,12 @@ import {
   vignette,
   dither,
   grain,
+  adjustBrightness,
+  adjustContrast,
   saturation,
   randomHue,
   adjustHueEffect,
+  normalizeEffect,
   ridgeEffect,
   sine,
   warp,
@@ -457,6 +460,27 @@ const ahTensor = Tensor.fromArray(null, ahData, [2, 1, 3]);
 const ahOut = adjustHueEffect(ahTensor, [2, 1, 3], 0, 1, 0.25).read();
 const ahExpected = loadFixture("adjustHue.json");
 arraysClose(Array.from(ahOut), ahExpected);
+
+// adjustBrightness regression
+const brightData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
+const brightTensor = Tensor.fromArray(null, brightData, [2, 2, 1]);
+const brightOut = adjustBrightness(brightTensor, [2, 2, 1], 0, 1, 0.125).read();
+const brightExpected = loadFixture("adjustBrightness.json");
+arraysClose(Array.from(brightOut), brightExpected);
+
+// adjustContrast regression
+const contrastData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
+const contrastTensor = Tensor.fromArray(null, contrastData, [2, 2, 1]);
+const contrastOut = adjustContrast(contrastTensor, [2, 2, 1], 0, 1, 1.25).read();
+const contrastExpected = loadFixture("adjustContrast.json");
+arraysClose(Array.from(contrastOut), contrastExpected);
+
+// normalize regression
+const normData = new Float32Array([0.2, 0.5, 0.8, 1.2]);
+const normTensor = Tensor.fromArray(null, normData, [2, 2, 1]);
+const normOut = normalizeEffect(normTensor, [2, 2, 1], 0, 1).read();
+const normExpected = loadFixture("normalize.json");
+arraysClose(Array.from(normOut), normExpected);
 
 // ridge regression
 const ridgeData = new Float32Array([0.2, 0.8, 0.4, 0.6]);

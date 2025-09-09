@@ -2266,7 +2266,7 @@ export function normalizeEffect(tensor, shape, time, speed) {
 }
 register("normalize", normalizeEffect, {});
 
-export function adjustBrightness(tensor, shape, time, speed, amount = 0) {
+export function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
@@ -2293,9 +2293,9 @@ export function adjustBrightness(tensor, shape, time, speed, amount = 0) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register("adjustBrightness", adjustBrightness, { amount: 0 });
+register("adjustBrightness", adjustBrightness, { amount: 0.125 });
 
-export function adjustContrast(tensor, shape, time, speed, amount = 1) {
+export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
@@ -2322,7 +2322,7 @@ export function adjustContrast(tensor, shape, time, speed, amount = 1) {
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register("adjustContrast", adjustContrast, { amount: 1 });
+register("adjustContrast", adjustContrast, { amount: 1.25 });
 
 export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
   if (shape[2] !== 3 || amount === 0 || amount === 1 || amount === null)
