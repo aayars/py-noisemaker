@@ -101,7 +101,7 @@ uniform int u_distrib;
 uniform sampler2D u_mask;
 uniform int u_useMask;
 float rand2D(float x,float y,float seed,float time,float speed){
- float s=x*12.9898+y*78.233+mod(seed,1000.0)*0.1+time*speed;
+ float s=x*12.9898+y*78.233+mod(seed,65536.0)*37.719+time*speed*0.1;
  return fract(sin(s)*43758.5453);
 }
 float interp(float t,float order){
