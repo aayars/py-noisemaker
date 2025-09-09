@@ -558,6 +558,55 @@ setSeed(321);
 const d4 = Array.from(t2.read());
 assert.deepStrictEqual(d3, d4);
 
+let sparsestShape = maskShape(ValueMask.sparsest);
+assert.deepStrictEqual(sparsestShape, [10, 10, 1]);
+setSeed(213);
+[t1] = maskValues(ValueMask.sparsest, sparsestShape);
+const d5 = Array.from(t1.read());
+setSeed(213);
+[t2] = maskValues(ValueMask.sparsest, sparsestShape);
+const d6 = Array.from(t2.read());
+assert.deepStrictEqual(d5, d6);
+
+// Invader-style masks
+setSeed(999);
+const invShape1 = maskShape(ValueMask.invaders);
+setSeed(999);
+const invShape2 = maskShape(ValueMask.invaders);
+assert.deepStrictEqual(invShape1, invShape2);
+assert(invShape1[0] >= 5 && invShape1[0] <= 7);
+assert(invShape1[1] >= 6 && invShape1[1] <= 12);
+
+const invLargeShape = maskShape(ValueMask.invaders_large);
+assert.deepStrictEqual(invLargeShape, [18, 18, 1]);
+setSeed(555);
+[t1] = maskValues(ValueMask.invaders_large, invLargeShape);
+const il1 = Array.from(t1.read());
+setSeed(555);
+[t2] = maskValues(ValueMask.invaders_large, invLargeShape);
+const il2 = Array.from(t2.read());
+assert.deepStrictEqual(il1, il2);
+
+const invSquareShape = maskShape(ValueMask.invaders_square);
+assert.deepStrictEqual(invSquareShape, [6, 6, 1]);
+setSeed(777);
+[t1] = maskValues(ValueMask.invaders_square, invSquareShape);
+const is1 = Array.from(t1.read());
+setSeed(777);
+[t2] = maskValues(ValueMask.invaders_square, invSquareShape);
+const is2 = Array.from(t2.read());
+assert.deepStrictEqual(is1, is2);
+
+const whiteBearShape = maskShape(ValueMask.white_bear);
+assert.deepStrictEqual(whiteBearShape, [4, 4, 1]);
+setSeed(888);
+[t1] = maskValues(ValueMask.white_bear, whiteBearShape);
+const wb1 = Array.from(t1.read());
+setSeed(888);
+[t2] = maskValues(ValueMask.white_bear, whiteBearShape);
+const wb2 = Array.from(t2.read());
+assert.deepStrictEqual(wb1, wb2);
+
 // Font loading cache
 const fonts1 = loadFonts();
 const fonts2 = loadFonts();

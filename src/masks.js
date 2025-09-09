@@ -16,6 +16,18 @@ function randomNormal(mean = 0, std = 1) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std + mean;
 }
 
+function _invaders({ x, y, row, shape, uvNoise, uvX, uvY }) {
+  const height = shape[0];
+  const width = shape[1];
+  if (y % height === 0 || x % width === 0) {
+    return 0;
+  }
+  if (x % width > width / 2) {
+    return row[x - Math.floor(((x % width) - width / 2) * 2)];
+  }
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+}
+
 const ARECIBO_DNA_TEMPLATE = [
   [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1],
   [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0],
@@ -1015,6 +1027,7 @@ export const Masks = {
   [ValueMask.arecibo]: arecibo,
   [ValueMask.sparse]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.15 ? 1 : 0),
   [ValueMask.sparser]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.05 ? 1 : 0),
+  [ValueMask.sparsest]: ({ uvNoise, uvX, uvY }) => (uvRandom(uvNoise, uvX, uvY) < 0.0125 ? 1 : 0),
 
   [ValueMask.truchet_lines]: ({ x, y, shape }) => {
     const tile = 2;
@@ -1028,24 +1041,10 @@ export const Masks = {
     }
     return lx + ly === tile - 1 ? 1 : 0;
   },
-
-  [ValueMask.invaders_square]: (() => {
-    const size = 8;
-    const pattern = (() => {
-      const half = Math.ceil(size / 2);
-      const rows = Array.from({ length: size }, () => Array(size).fill(0));
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < half; x++) {
-          const v = random() > 0.5 ? 1 : 0;
-          rows[y][x] = v;
-          rows[y][size - 1 - x] = v;
-        }
-      }
-      return rows;
-    })();
-
-    return ({ x, y }) => pattern[y % size][x % size];
-  })(),
+  [ValueMask.invaders]: _invaders,
+  [ValueMask.invaders_large]: _invaders,
+  [ValueMask.invaders_square]: _invaders,
+  [ValueMask.white_bear]: _invaders,
 };
 
 // Shapes for procedural masks
@@ -1057,12 +1056,19 @@ const ProceduralShapes = {
   [ValueMask.arecibo]: [64, 64, 1],
   [ValueMask.sparse]: [10, 10, 1],
   [ValueMask.sparser]: [10, 10, 1],
+  [ValueMask.sparsest]: [10, 10, 1],
   [ValueMask.truchet_lines]: [2, 2, 1],
-  [ValueMask.invaders_square]: [8, 8, 1],
+  [ValueMask.invaders]: () => [randomInt(5, 7), randomInt(6, 12), 1],
+  [ValueMask.invaders_large]: [18, 18, 1],
+  [ValueMask.invaders_square]: [6, 6, 1],
+  [ValueMask.white_bear]: [4, 4, 1],
 };
 
 export function maskShape(mask) {
-  if (ProceduralShapes[mask]) return [...ProceduralShapes[mask]];
+  if (ProceduralShapes[mask]) {
+    const shape = ProceduralShapes[mask];
+    return typeof shape === 'function' ? shape() : [...shape];
+  }
   const m = Masks[mask];
   const height = m.length;
   const width = m[0].length;
@@ -1104,12 +1110,13 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
   }
 
   for (let y = 0; y < h; y++) {
+    const maskRow = [];
     for (let x = 0; x < w; x++) {
       let pixel;
       if (typeof fn === 'function') {
         const uvY = Math.floor((y / h) * uvShape[0]);
         const uvX = Math.floor((x / w) * uvShape[1]);
-        pixel = fn({ x, y, shape, uvNoise, uvX, uvY, atlas, glyphShape });
+        pixel = fn({ x, y, row: maskRow, shape, uvNoise, uvX, uvY, atlas, glyphShape });
       } else {
         pixel = fn[y % shape[0]][x % shape[1]];
       }
@@ -1118,6 +1125,7 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
       for (let k = 0; k < c; k++) {
         data[(y * w + x) * c + k] = pixel[k % pixel.length];
       }
+      maskRow.push(pixel[0]);
     }
   }
 
