@@ -141,10 +141,27 @@ export function derivative(
   withNormalize = true,
   alpha = 1,
 ) {
-  let out = sobelValue(tensor);
-  if (withNormalize) out = normalize(out);
-  if (alpha === 1) return out;
-  return blend(tensor, out, alpha);
+  const [h, w, c] = shape;
+  const kx = [
+    [0, 0, 0],
+    [0, 1, -1],
+    [0, 0, 0],
+  ];
+  const ky = [
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, -1, 0],
+  ];
+  const dx = convolution(tensor, kx, { normalize: false }).read();
+  const dy = convolution(tensor, ky, { normalize: false }).read();
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = distance(dx[i], dy[i], distMetric);
+  }
+  let result = Tensor.fromArray(tensor.ctx, out, shape);
+  if (withNormalize) result = normalize(result);
+  if (alpha !== 1) result = blend(tensor, result, alpha);
+  return result;
 }
 register("derivative", derivative, {
   distMetric: DistanceMetric.euclidean,
@@ -166,7 +183,18 @@ export function sobelOperator(
   for (let i = 0; i < data.length; i++) {
     data[i] = Math.abs(data[i] * 2 - 1);
   }
-  return Tensor.fromArray(tensor.ctx, data, shape);
+  const [h, w, c] = shape;
+  const shifted = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const yi = (y - 1 + h) % h;
+      const xi = (x - 1 + w) % w;
+      for (let k = 0; k < c; k++) {
+        shifted[(y * w + x) * c + k] = data[(yi * w + xi) * c + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, shifted, shape);
 }
 register("sobelOperator", sobelOperator, {
   distMetric: DistanceMetric.euclidean,
