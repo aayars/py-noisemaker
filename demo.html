@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Noisemaker JS Demo</title>
+  <style>
+    body { margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; background:#fafafa; color:#333; }
+    canvas { border:1px solid #ccc; margin-top:20px; }
+    button { margin-top:10px; padding:8px 16px; }
+  </style>
+</head>
+<body>
+  <h1>Noisemaker JS Demo</h1>
+  <button id="reroll">Re-roll</button>
+  <canvas id="noise" width="256" height="256"></canvas>
+  <script type="module">
+    import { Context } from './src/context.js';
+    import { render } from './src/composer.js';
+
+    const canvas = document.getElementById('noise');
+    const ctx = new Context(canvas);
+
+    function draw(seed) {
+      render('basic', seed, { width: canvas.width, height: canvas.height, ctx });
+    }
+
+    draw(42);
+
+    document.getElementById('reroll').addEventListener('click', () => {
+      const seed = Math.floor(Math.random() * 1e9);
+      draw(seed);
+    });
+  </script>
+</body>
+</html>
