@@ -15,6 +15,9 @@ import {
   ridgeEffect,
   sine,
   blur,
+  bloom,
+  lightLeak,
+  vaseline,
   erosionWorms,
   worms,
   wormhole,
@@ -404,5 +407,23 @@ const ewTensor = Tensor.fromArray(null, ewData, [5,5,1]);
 const ewOut = erosionWorms(ewTensor, [5,5,1], 0, 1, 0.0, 5, 1.0, false, 0.25).read();
 const ewExpected = loadFixture('erosionWorms.json');
 arraysClose(Array.from(ewOut), ewExpected);
+
+// bloom regression
+const bloomData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
+const bloomTensor = Tensor.fromArray(null, bloomData, [2,2,1]);
+const bloomOut = bloom(bloomTensor, [2,2,1], 0, 1, 1.0).read();
+const bloomExpected = loadFixture('bloom.json');
+arraysClose(Array.from(bloomOut), bloomExpected);
+
+// vaseline regression
+const vasOut = vaseline(bloomTensor, [2,2,1], 0, 1, 1.0).read();
+const vasExpected = loadFixture('vaseline.json');
+arraysClose(Array.from(vasOut), vasExpected);
+
+// lightLeak regression
+setSeed(1);
+const leakOut = lightLeak(bloomTensor, [2,2,1], 0, 1, 0.25).read();
+const leakExpected = loadFixture('lightLeak.json');
+arraysClose(Array.from(leakOut), leakExpected);
 
 console.log('Effects tests passed');

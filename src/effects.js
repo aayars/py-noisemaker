@@ -21,7 +21,8 @@ import { register } from './effectsRegistry.js';
 import { random as simplexRandom } from './simplex.js';
 import { maskValues } from './masks.js';
 import { random, randomInt } from './util.js';
-import { InterpolationType, DistanceMetric, ValueMask } from './constants.js';
+import { pointCloud } from './points.js';
+import { InterpolationType, DistanceMetric, ValueMask, PointDistribution } from './constants.js';
 
 export function warp(tensor, shape, time, speed, freq = 2, octaves = 1, displacement = 1) {
   let out = tensor;
@@ -49,6 +50,46 @@ export function shadow(tensor, shape, time, speed, alpha = 1) {
   return blend(tensor, shade, alpha);
 }
 register('shadow', shadow, { alpha: 1 });
+
+export function bloom(tensor, shape, time, speed, alpha = 0.5) {
+  const [h, w, c] = shape;
+  const src = tensor.read();
+  const data = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    let v = src[i] * 2 - 1;
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    data[i] = v;
+  }
+  let blurred = Tensor.fromArray(tensor.ctx, data, shape);
+  const targetH = Math.max(1, Math.floor(h / 100));
+  const factor = Math.max(1, Math.floor(h / targetH));
+  blurred = downsample(blurred, factor);
+  const bData = blurred.read();
+  for (let i = 0; i < bData.length; i++) bData[i] *= 4;
+  blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
+  blurred = upsample(blurred, factor);
+  const xOff = Math.floor(w * -0.05);
+  const yOff = Math.floor(h * -0.05);
+  blurred = offsetTensor(blurred, xOff, yOff);
+  const blurRead = blurred.read();
+  for (let i = 0; i < blurRead.length; i++) {
+    blurRead[i] += 0.25;
+  }
+  let mean = 0;
+  for (let i = 0; i < blurRead.length; i++) mean += blurRead[i];
+  mean /= blurRead.length;
+  for (let i = 0; i < blurRead.length; i++) {
+    blurRead[i] = (blurRead[i] - mean) * 1.5 + mean;
+  }
+  blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
+  const mixData = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) mixData[i] = (src[i] + blurRead[i]) * 0.5;
+  const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
+  const clamped = clamp01(tensor);
+  return blend(clamped, mixed, alpha);
+}
+register('bloom', bloom, { alpha: 0.5 });
 
 export function derivative(
   tensor,
@@ -645,6 +686,81 @@ function offsetIndex(yArr, height, xArr, width) {
   return { y: oy, x: ox };
 }
 
+function offsetTensor(tensor, xOff, yOff) {
+  const [h, w, c] = tensor.shape;
+  if (xOff === 0 && yOff === 0) return tensor;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    const yy = ((y + yOff) % h + h) % h;
+    for (let x = 0; x < w; x++) {
+      const xx = ((x + xOff) % w + w) % w;
+      const srcIdx = (yy * w + xx) * c;
+      const dstIdx = (y * w + x) * c;
+      for (let k = 0; k < c; k++) out[dstIdx + k] = src[srcIdx + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+function centerMask(center, edges, shape, power = 2, distMetric = DistanceMetric.chebyshev) {
+  const [h, w] = shape;
+  const maskVal = Math.pow(0.5, 2 / power);
+  const maskData = new Float32Array(h * w);
+  maskData.fill(maskVal);
+  const mask = Tensor.fromArray(center.ctx, maskData, [h, w, 1]);
+  return blend(center, edges, mask);
+}
+
+function voronoiColorRegions(tensor, shape, xPts, yPts) {
+  const [h, w, c] = shape;
+  const count = xPts.length;
+  const h2 = Math.max(1, Math.floor(h * 0.5));
+  const w2 = Math.max(1, Math.floor(w * 0.5));
+  const index = new Int32Array(h2 * w2);
+  for (let y = 0; y < h2; y++) {
+    for (let x = 0; x < w2; x++) {
+      const ox = (x + 0.5) * (w / w2) - 0.5;
+      const oy = (y + 0.5) * (h / h2) - 0.5;
+      let best = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < count; i++) {
+        let dx = Math.abs(ox - xPts[i]);
+        dx = Math.min(dx, w - dx);
+        let dy = Math.abs(oy - yPts[i]);
+        dy = Math.min(dy, h - dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      }
+      index[y * w2 + x] = best;
+    }
+  }
+  const upIndex = new Int32Array(h * w);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.floor(y * h2 / h);
+    for (let x = 0; x < w; x++) {
+      const sx = Math.floor(x * w2 / w);
+      upIndex[y * w + x] = index[sy * w2 + sx];
+    }
+  }
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = upIndex[y * w + x];
+      const px = xPts[idx];
+      const py = yPts[idx];
+      const srcIdx = (py * w + px) * c;
+      const dstIdx = (y * w + x) * c;
+      for (let k = 0; k < c; k++) out[dstIdx + k] = src[srcIdx + k];
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, shape);
+}
+
 export function erosionWorms(
   tensor,
   shape,
@@ -989,6 +1105,39 @@ export function vignette(tensor, shape, time, speed, brightness = 0.0, alpha = 1
   return blend(norm, vignetted, alpha);
 }
 register('vignette', vignette, { brightness: 0.0, alpha: 1.0 });
+
+export function vaseline(tensor, shape, time, speed, alpha = 1.0) {
+  const blurred = bloom(tensor, shape, time, speed, 1.0);
+  const masked = centerMask(tensor, blurred, shape);
+  return blend(tensor, masked, alpha);
+}
+register('vaseline', vaseline, { alpha: 1.0 });
+
+export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
+  const gridMembers = [
+    PointDistribution.square,
+    PointDistribution.waffle,
+    PointDistribution.chess,
+    PointDistribution.h_hex,
+    PointDistribution.v_hex,
+  ];
+  const distrib = gridMembers[randomInt(0, gridMembers.length)];
+  const [xPts, yPts] = pointCloud(6, { distrib, drift: 0.05, shape, time, speed });
+  let leak = voronoiColorRegions(tensor, shape, xPts, yPts);
+  leak = wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
+  leak = bloom(leak, shape, time, speed, 1.0);
+  const src = tensor.read();
+  const leakData = leak.read();
+  const screened = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    screened[i] = 1 - (1 - src[i]) * (1 - leakData[i]);
+  }
+  leak = Tensor.fromArray(tensor.ctx, screened, shape);
+  leak = centerMask(tensor, leak, shape, 4);
+  const blended = blend(tensor, leak, alpha);
+  return vaseline(blended, shape, time, speed, alpha);
+}
+register('lightLeak', lightLeak, { alpha: 0.25 });
 
 export function dither(tensor, shape, time, speed, levels = 2) {
   const [h, w, c] = shape;
