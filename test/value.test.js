@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur, freqForShape } from '../src/value.js';
 import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
-import { ValueDistribution } from '../src/constants.js';
+import { ValueDistribution, ValueMask, InterpolationType } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
 import { Context } from '../src/context.js';
 
@@ -42,6 +42,20 @@ const down = downsample(base, 2);
 assert.deepStrictEqual(down.shape, [2, 2, 1]);
 const up = upsample(down, 2);
 assert.deepStrictEqual(up.shape, [4, 4, 1]);
+
+// mask interpolation
+const maskConst = values(4, [8, 8, 1], {
+  distrib: ValueDistribution.ones,
+  mask: ValueMask.square,
+  splineOrder: InterpolationType.constant,
+});
+assert.ok(Array.from(maskConst.read()).every((v) => v === 0 || v === 1));
+const maskLinear = values(4, [8, 8, 1], {
+  distrib: ValueDistribution.ones,
+  mask: ValueMask.square,
+  splineOrder: InterpolationType.linear,
+});
+assert.ok(Array.from(maskLinear.read()).some((v) => v > 0 && v < 1));
 
 // blend
 const a = values(4, [2, 2, 1], { seed: 1 });

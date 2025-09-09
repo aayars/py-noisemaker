@@ -91,6 +91,16 @@ export function values(freq, shape, opts = {}) {
   let maskWidth = 0;
   let maskHeight = 0;
   let maskChannels = 0;
+  const interp = (t) => {
+    switch (splineOrder) {
+      case InterpolationType.linear:
+        return t;
+      case InterpolationType.cosine:
+        return 0.5 - Math.cos(t * Math.PI) * 0.5;
+      default:
+        return t * t * (3 - 2 * t);
+    }
+  };
   if (mask !== undefined && mask !== null) {
     const maskShape = [
       Math.max(1, Math.floor(freqX)),
@@ -175,9 +185,32 @@ void main(){
   }
  }
  if(u_useMask==1){
-  vec2 uv=gl_FragCoord.xy/vec2(float(${width}),float(${height}));
-  float m=texture(u_mask,uv).r;
-  val*=m;
+  vec2 msize=vec2(textureSize(u_mask,0));
+  float mu=(gl_FragCoord.x/float(${width}))*msize.x;
+  float mv=(gl_FragCoord.y/float(${height}))*msize.y;
+  float mx0=floor(mu);
+  float my0=floor(mv);
+  float mxf=fract(mu);
+  float myf=fract(mv);
+  vec2 uv00=(vec2(mx0,my0)+0.5)/msize;
+  vec2 uv10=(vec2(mx0+1.0,my0)+0.5)/msize;
+  vec2 uv01=(vec2(mx0,my0+1.0)+0.5)/msize;
+  vec2 uv11=(vec2(mx0+1.0,my0+1.0)+0.5)/msize;
+  float m00=texture(u_mask,uv00).r;
+  float m10=texture(u_mask,uv10).r;
+  float m01=texture(u_mask,uv01).r;
+  float m11=texture(u_mask,uv11).r;
+  float mval;
+  if(u_interp==${InterpolationType.constant}){
+   mval=m00;
+  }else{
+   float sx=interp(mxf);
+   float sy=interp(myf);
+   float mx0v=mix(m00,m10,sx);
+   float mx1v=mix(m01,m11,sx);
+   mval=mix(mx0v,mx1v,sy);
+  }
+  val*=mval;
  }
  outColor=vec4(val);
 }`;
@@ -312,16 +345,6 @@ void main(){
           const r10 = rand2D(x1, yb, seed, time, speed);
           const r01 = rand2D(xb, y1, seed, time, speed);
           const r11 = rand2D(x1, y1, seed, time, speed);
-          function interp(t) {
-            switch (splineOrder) {
-              case InterpolationType.linear:
-                return t;
-              case InterpolationType.cosine:
-                return 0.5 - Math.cos(t * Math.PI) * 0.5;
-              default:
-                return t * t * (3 - 2 * t);
-            }
-          }
           if (splineOrder === InterpolationType.constant) {
             val = r00;
             break;
@@ -336,9 +359,28 @@ void main(){
       }
       const idx = (y * width + x) * channels;
       if (maskData) {
-        const mx = Math.floor((x / width) * maskWidth);
-        const my = Math.floor((y / height) * maskHeight);
-        const m = maskData[(my * maskWidth + mx) * maskChannels];
+        const mu = (x / width) * maskWidth;
+        const mv = (y / height) * maskHeight;
+        const mx0 = Math.floor(mu);
+        const my0 = Math.floor(mv);
+        let m;
+        if (splineOrder === InterpolationType.constant) {
+          m = maskData[(my0 * maskWidth + mx0) * maskChannels];
+        } else {
+          const mx1 = Math.min(mx0 + 1, maskWidth - 1);
+          const my1 = Math.min(my0 + 1, maskHeight - 1);
+          const xf = mu - mx0;
+          const yf = mv - my0;
+          const sx = interp(xf);
+          const sy = interp(yf);
+          const m00 = maskData[(my0 * maskWidth + mx0) * maskChannels];
+          const m10 = maskData[(my0 * maskWidth + mx1) * maskChannels];
+          const m01 = maskData[(my1 * maskWidth + mx0) * maskChannels];
+          const m11 = maskData[(my1 * maskWidth + mx1) * maskChannels];
+          const mx0v = m00 * (1 - sx) + m10 * sx;
+          const mx1v = m01 * (1 - sx) + m11 * sx;
+          m = mx0v * (1 - sy) + mx1v * sy;
+        }
         if (channels === 2) {
           data[idx] = val;
           data[idx + 1] = m;
