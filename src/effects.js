@@ -1159,6 +1159,13 @@ export function convolve(
     }
   }
   let out = convolution(tensor, kernelArr, { normalize: withNormalize });
+  if (kernel === ValueMask.conv2d_edges) {
+    const data = out.read();
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.abs(data[i] - 0.5) * 2;
+    }
+    out = Tensor.fromArray(out.ctx, data, out.shape);
+  }
   if (alpha < 1) out = blend(tensor, out, alpha);
   return out;
 }

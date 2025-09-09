@@ -1059,6 +1059,19 @@ const cvOut = convolve(
 const cvExpected = loadFixture("convolve.json");
 arraysClose(Array.from(cvOut), cvExpected);
 
+// convolve edges regression
+const cvEdgesOut = convolve(
+  cvTensor,
+  [2, 2, 1],
+  0,
+  1,
+  ValueMask.conv2d_edges,
+  true,
+  1,
+).read();
+const cvEdgesExpected = loadFixture("convolveEdges.json");
+arraysClose(Array.from(cvEdgesOut), cvEdgesExpected);
+
 // refractEffect regression
 const rfTensor = Tensor.fromArray(
   null,
