@@ -379,6 +379,7 @@ const palTensor = Tensor.fromArray(null, palData, [2, 2, 3]);
 const jsPal = palette(palTensor, [2, 2, 3], 0, 1, "grayscale").read();
 const palExpected = loadFixture("palette.json");
 arraysClose(Array.from(jsPal), palExpected);
+assert.throws(() => palette(palTensor, [2, 2, 3], 0, 1, "bogus"));
 
 // invert
 const invData = new Float32Array([0.2, 0.5, 0.8]);

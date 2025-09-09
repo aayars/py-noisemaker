@@ -1215,7 +1215,7 @@ export function palette(tensor, shape, time, speed, name = null, alpha = 1) {
   if (c === 1 || c === 2) return tensor;
 
   const p = PALETTES[name];
-  if (!p) return tensor;
+  if (!p) throw new Error(`Unknown palette ${name}`);
 
   let alphaChan = null;
   let rgbTensor = tensor;

@@ -52,11 +52,16 @@ export function randomMember(...collections) {
     if (Array.isArray(c)) {
       out.push(...c.slice().sort());
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
-      out.push(
-        ...Object.keys(c)
-          .sort()
-          .map((k) => c[k])
+      const keys = Object.keys(c).sort();
+      const values = keys.map((k) => c[k]);
+      const primitives = values.every(
+        (v) => v === null || ['number', 'string', 'boolean'].includes(typeof v)
       );
+      if (primitives) {
+        out.push(...values);
+      } else {
+        out.push(...keys);
+      }
     } else if (c && typeof c[Symbol.iterator] === 'function') {
       const arr = Array.from(c);
       arr.sort();
