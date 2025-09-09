@@ -2746,15 +2746,8 @@ function _pixelSort(tensor, shape, angle, darkest) {
   }
   let working = Tensor.fromArray(tensor.ctx, srcData, shape);
   const want = Math.max(h, w) * 2;
-<<<<<<< ours
   working = resizeWithCropOrPad(working, shape, want);
   if (angle !== false) {
-=======
-  let working = expandTileInternal(srcTensor, shape, [want, want, c]);
-  let angle = 0;
-  if (angled) {
-    angle = angled === true ? random() * 360 : angled;
->>>>>>> theirs
     working = rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
   const data = working.read();

@@ -117,6 +117,89 @@ function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
   return atlas[uvFloor][texX][texY];
 }
 
+function _randomAtlasTile({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
+  if (!atlas || atlas.length === 0) return 0;
+  const uvHeight = uvNoise.length;
+  const uvWidth = uvNoise[0].length;
+
+  let texX = x % shape[1];
+  let texY = y % shape[0];
+
+  const uvValue = uvNoise[uvY][uvX] * atlas.length;
+  const index = Math.floor(uvValue);
+  const frac = uvValue - index;
+
+  const rot = Math.floor(frac * 4);
+  if (rot === 1) {
+    const t = texX;
+    texX = texY;
+    texY = shape[0] - t - 1;
+  } else if (rot === 2) {
+    texX = shape[1] - texX - 1;
+    texY = shape[0] - texY - 1;
+  } else if (rot === 3) {
+    const t = texX;
+    texX = shape[1] - texY - 1;
+    texY = t;
+  }
+
+  const flip = uvNoise[(uvY + 1) % uvHeight][uvX];
+  if (flip < 0.5) {
+    texX = shape[1] - texX - 1;
+  }
+
+  return atlas[index % atlas.length][texY][texX];
+}
+
+function truchetCurves(opts) {
+  return _randomAtlasTile(opts);
+}
+
+function truchetTile(opts) {
+  return _randomAtlasTile(opts);
+}
+
+function barCode({ uvNoise, uvX }) {
+  return (uvNoise[0][uvX] + 1) / 2 > 0.5 ? 1 : 0;
+}
+
+function barCodeShort({ uvNoise, uvX }) {
+  return (uvNoise[0][uvX] + 1) / 2 > 0.5 ? 1 : 0;
+}
+
+function fakeQr({ x, y, glyphShape, uvNoise }) {
+  const modules = 33;
+  const h = glyphShape[0];
+  const w = glyphShape[1];
+  const moduleX = Math.floor((x / w) * modules);
+  const moduleY = Math.floor((y / h) * modules);
+
+  const finderAt = (ox, oy) =>
+    moduleX >= ox && moduleX < ox + 7 && moduleY >= oy && moduleY < oy + 7;
+
+  if (
+    finderAt(0, 0) ||
+    finderAt(modules - 7, 0) ||
+    finderAt(0, modules - 7)
+  ) {
+    const ox = finderAt(modules - 7, 0) ? modules - 7 : 0;
+    const oy = finderAt(0, modules - 7) ? modules - 7 : 0;
+    const lx = moduleX - ox;
+    const ly = moduleY - oy;
+    if (lx === 0 || ly === 0 || lx === 6 || ly === 6) return 1;
+    if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) return 1;
+    return 0;
+  }
+
+  const noiseY = Math.floor((moduleY / modules) * uvNoise.length) % uvNoise.length;
+  const noiseX = Math.floor((moduleX / modules) * uvNoise[0].length) % uvNoise[0].length;
+  return uvRandom(uvNoise, noiseX, noiseY) > 0.5 ? 1 : 0;
+}
+
+function dropout({ uvNoise, uvX, uvY }) {
+  return uvRandom(uvNoise, uvX, uvY) < 0.25 ? 0 : 1;
+}
+
 const ARECIBO_DNA_TEMPLATE = [
   [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1],
   [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0],
@@ -1868,6 +1951,12 @@ export const Masks = {
     }
     return lx + ly === tile - 1 ? 1 : 0;
   },
+  [ValueMask.truchet_curves]: truchetCurves,
+  [ValueMask.truchet_tile]: truchetTile,
+  [ValueMask.bar_code]: barCode,
+  [ValueMask.bar_code_short]: barCodeShort,
+  [ValueMask.fake_qr]: fakeQr,
+  [ValueMask.dropout]: dropout,
   [ValueMask.invaders]: _invaders,
   [ValueMask.invaders_large]: _invaders,
   [ValueMask.invaders_square]: _invaders,
@@ -1910,6 +1999,12 @@ const ProceduralShapes = {
   [ValueMask.script]: () => [randomInt(7, 9), randomInt(12, 24), 1],
   [ValueMask.tromino]: [4, 4, 1],
   [ValueMask.truchet_lines]: [2, 2, 1],
+  [ValueMask.truchet_curves]: [6, 6, 1],
+  [ValueMask.truchet_tile]: [6, 6, 1],
+  [ValueMask.bar_code]: [1, 1, 1],
+  [ValueMask.bar_code_short]: [1, 2, 1],
+  [ValueMask.fake_qr]: [1, 1, 1],
+  [ValueMask.dropout]: [1, 1, 1],
   [ValueMask.invaders]: () => [randomInt(5, 7), randomInt(6, 12), 1],
   [ValueMask.invaders_large]: [18, 18, 1],
   [ValueMask.invaders_square]: [6, 6, 1],

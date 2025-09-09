@@ -677,6 +677,62 @@ setSeed(888);
 const wb2 = Array.from(t2.read());
 assert.deepStrictEqual(wb1, wb2);
 
+// Bar code masks produce vertical bars
+const barShape = [20, 30, 1];
+setSeed(111);
+[t1] = maskValues(ValueMask.bar_code, barShape);
+const barData = Array.from(t1.read());
+for (let x = 0; x < barShape[1]; x++) {
+  const col = barData[x];
+  for (let y = 1; y < barShape[0]; y++) {
+    assert.strictEqual(barData[y * barShape[1] + x], col);
+  }
+}
+
+setSeed(111);
+[t1] = maskValues(ValueMask.bar_code_short, barShape);
+const barShort = Array.from(t1.read());
+for (let x = 0; x < barShape[1]; x += 2) {
+  const col = barShort[x];
+  for (let y = 0; y < barShape[0]; y++) {
+    assert.strictEqual(barShort[y * barShape[1] + x], col);
+    if (x + 1 < barShape[1]) {
+      assert.strictEqual(barShort[y * barShape[1] + x + 1], col);
+    }
+  }
+}
+
+// Fake QR code has finder patterns in three corners
+const qrShape = [33, 33, 1];
+setSeed(222);
+[t1] = maskValues(ValueMask.fake_qr, qrShape);
+const qr = Array.from(t1.read());
+const qrPix = (x, y) => qr[y * qrShape[1] + x];
+function verifyFinder(ox, oy) {
+  for (let y = 0; y < 7; y++) {
+    for (let x = 0; x < 7; x++) {
+      const val = qrPix(ox + x, oy + y);
+      if (x === 0 || y === 0 || x === 6 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4)) {
+        assert.strictEqual(val, 1);
+      } else {
+        assert.strictEqual(val, 0);
+      }
+    }
+  }
+}
+verifyFinder(0, 0);
+verifyFinder(26, 0);
+verifyFinder(0, 26);
+
+// Dropout mask drops ~25% of pixels
+const dropShape = [40, 40, 1];
+setSeed(333);
+[t1] = maskValues(ValueMask.dropout, dropShape);
+const dropData = Array.from(t1.read());
+const zeroCount = dropData.filter((v) => v === 0).length;
+const dropRatio = zeroCount / dropData.length;
+assert(dropRatio > 0.2 && dropRatio < 0.3);
+
 // Procedural atlas masks respect shapes
 const atlasMasks = [
   [ValueMask.alphanum_binary, [6, 6, 1]],
