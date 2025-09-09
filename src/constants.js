@@ -453,6 +453,8 @@ export function isColor(space) {
   return space && space > ColorSpace.grayscale;
 }
 
-export const colorMembers = Object.freeze(
-  Object.values(ColorSpace).filter((c) => isColor(c))
-);
+export function colorSpaceMembers() {
+  return Object.freeze(
+    Object.values(ColorSpace).filter((c) => isColor(c))
+  );
+}

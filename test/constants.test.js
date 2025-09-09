@@ -35,7 +35,7 @@ import {
   isFlowMember,
   wormBehaviorAll,
   isColor,
-  colorMembers
+  colorSpaceMembers
 } from '../src/constants.js';
 
 // enumeration integrity
@@ -116,6 +116,7 @@ assert.ok(!wormBehaviorAll.includes(WormBehavior.none));
 
 assert.ok(isColor(ColorSpace.rgb));
 assert.ok(!isColor(ColorSpace.grayscale));
+const colorMembers = colorSpaceMembers();
 assert.ok(colorMembers.includes(ColorSpace.hsv));
 assert.ok(!colorMembers.includes(ColorSpace.grayscale));
 
