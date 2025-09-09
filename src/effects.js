@@ -36,6 +36,16 @@ import {
   WormBehavior,
 } from "./constants.js";
 
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+let createCanvas = null;
+let CanvasImage = null;
+try {
+  ({ createCanvas, Image: CanvasImage } = require("canvas"));
+} catch (e) {
+  createCanvas = null;
+}
+
 export function warp(
   tensor,
   shape,
@@ -713,23 +723,62 @@ register("densityMap", densityMap, {});
 
 export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
   let out = tensor;
+  const [h, w, c] = shape;
   for (let i = 0; i < iterations; i++) {
-    const src = out.read();
-    const q = randomInt(5, 50);
-    const shift = Math.floor((100 - q) / 10) + 1;
-    const tmp = new Uint8Array(src.length);
-    for (let j = 0; j < src.length; j++) {
-      let v = Math.min(255, Math.max(0, Math.round(src[j] * 255)));
-      v = (v >> shift) << shift;
-      tmp[j] = v;
+    if (createCanvas) {
+      const canvas = createCanvas(w, h);
+      const ctx2d = canvas.getContext("2d");
+      const src = out.read();
+      const imgData = ctx2d.createImageData(w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const base = (y * w + x) * c;
+          const dst = (y * w + x) * 4;
+          imgData.data[dst] = Math.round((src[base] || 0) * 255);
+          imgData.data[dst + 1] = Math.round((src[base + 1] || 0) * 255);
+          imgData.data[dst + 2] = Math.round((src[base + 2] || 0) * 255);
+          imgData.data[dst + 3] = 255;
+        }
+      }
+      ctx2d.putImageData(imgData, 0, 0);
+      const q = randomInt(5, 50) / 100;
+      const buf = canvas.toBuffer("image/jpeg", { quality: q });
+      const img = new CanvasImage();
+      img.src = buf;
+      ctx2d.clearRect(0, 0, w, h);
+      ctx2d.drawImage(img, 0, 0);
+      const decoded = ctx2d.getImageData(0, 0, w, h).data;
+      const f32 = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const dst = (y * w + x) * 4;
+          const base = (y * w + x) * c;
+          f32[base] = decoded[dst] / 255;
+          if (c > 1) f32[base + 1] = decoded[dst + 1] / 255;
+          if (c > 2) f32[base + 2] = decoded[dst + 2] / 255;
+          if (c > 3) f32[base + 3] = decoded[dst + 3] / 255;
+        }
+      }
+      out = Tensor.fromArray(tensor.ctx, f32, shape);
+    } else {
+      const src = out.read();
+      const q = randomInt(5, 50);
+      const shift = Math.floor((100 - q) / 10) + 1;
+      const tmp = new Uint8Array(src.length);
+      for (let j = 0; j < src.length; j++) {
+        let v = Math.min(255, Math.max(0, Math.round(src[j] * 255)));
+        v = (v >> shift) << shift;
+        tmp[j] = v;
+      }
+      const f32 = new Float32Array(src.length);
+      for (let j = 0; j < src.length; j++) f32[j] = tmp[j] / 255;
+      out = Tensor.fromArray(tensor.ctx, f32, shape);
     }
-    const f32 = new Float32Array(src.length);
-    for (let j = 0; j < src.length; j++) f32[j] = tmp[j] / 255;
-    out = Tensor.fromArray(tensor.ctx, f32, shape);
   }
   return out;
 }
 register("jpegDecimate", jpegDecimate, { iterations: 25 });
+register("jpeg_decimate", jpegDecimate, { iterations: 25 });
 
 const BLUR_KERNEL = maskValues(ValueMask.conv2d_blur)[0].read();
 const SHARPEN_KERNEL = maskValues(ValueMask.conv2d_sharpen)[0].read();
@@ -2340,6 +2389,7 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   return vaseline(blended, shape, time, speed, alpha);
 }
 register("lightLeak", lightLeak, { alpha: 0.25 });
+register("light_leak", lightLeak, { alpha: 0.25 });
 
 export function dither(tensor, shape, time, speed, levels = 2) {
   const [h, w, c] = shape;
