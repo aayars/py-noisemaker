@@ -3797,38 +3797,49 @@ register("watermark", watermark, {});
 
 export function onScreenDisplay(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const glyphs = [
-    ValueMask.lcd_0,
-    ValueMask.lcd_1,
-    ValueMask.lcd_2,
-    ValueMask.lcd_3,
-    ValueMask.lcd_4,
-    ValueMask.lcd_5,
-    ValueMask.lcd_6,
-    ValueMask.lcd_7,
-    ValueMask.lcd_8,
-    ValueMask.lcd_9,
+  const glyphCount = randomInt(3, 6);
+  const masks = [
+    ValueMask.bank_ocr,
+    ValueMask.alphanum_hex,
+    ValueMask.alphanum_numeric,
   ];
-  const glyphShape = maskShape(glyphs[0]);
-  const height = glyphShape[0];
-  const width = Math.min(w, glyphShape[1] * randomInt(3, 6));
-  const rowMask = randomGlyphMask([height, width, 1], glyphs);
-  const pad = new Float32Array(h * w);
+  const mask = masks[randomInt(0, masks.length - 1)];
+  const gShape = maskShape(mask);
+  let width = Math.floor(w / 24);
+  width = gShape[1] * Math.floor(width / gShape[1]);
+  const height = gShape[0] * Math.floor(width / gShape[1]);
+  width *= glyphCount;
+  const freq = [gShape[0], gShape[1] * glyphCount];
+  const rowMask = values(freq, [height, width, c], {
+    ctx: tensor.ctx,
+    corners: true,
+    mask,
+    splineOrder: InterpolationType.constant,
+    distrib: ValueDistribution.ones,
+    time,
+    speed,
+  });
+  const pad = new Float32Array(h * w * c);
   const rData = rowMask.read();
+  const yOff = 25;
+  const xOff = w - width - 25;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const yy = Math.min(h - 1, 25 + y);
-      const xx = Math.min(w - 1, w - width - 25 + x);
-      pad[yy * w + xx] = rData[y * width + x];
+      const yy = yOff + y;
+      const xx = xOff + x;
+      if (yy >= h || xx >= w) continue;
+      for (let k = 0; k < c; k++) {
+        pad[(yy * w + xx) * c + k] = rData[(y * width + x) * c + k];
+      }
     }
   }
-  let rendered = Tensor.fromArray(null, pad, [h, w, 1]);
-  if (c > 1) rendered = expandChannels(rendered, c);
+  const rendered = Tensor.fromArray(tensor.ctx, pad, shape);
   const alpha = 0.5 + random() * 0.25;
   const maxData = rendered.read();
   const tData = tensor.read();
-  for (let i = 0; i < maxData.length; i++)
+  for (let i = 0; i < maxData.length; i++) {
     maxData[i] = Math.max(maxData[i], tData[i]);
+  }
   const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
   return blend(tensor, maxTensor, alpha);
 }
