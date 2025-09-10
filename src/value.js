@@ -443,6 +443,106 @@ void main(){
   return Tensor.fromArray(null, data, [height, width, channels]);
 }
 
+
+
+export function resample(tensor, shape, splineOrder = InterpolationType.bicubic) {
+  const [h, w, c] = tensor.shape;
+  const [nh, nw, nc = c] = shape;
+  const ctx = tensor.ctx;
+  const interp = (t) => {
+    switch (splineOrder) {
+      case InterpolationType.linear:
+        return t;
+      case InterpolationType.cosine:
+        return 0.5 - Math.cos(t * Math.PI) * 0.5;
+      default:
+        return t * t * (3 - 2 * t);
+    }
+  };
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    const fs = `#version 300 es
+precision highp float;
+uniform sampler2D u_tex;
+uniform vec2 u_srcSize;
+uniform vec2 u_dstSize;
+uniform int u_interp;
+out vec4 outColor;
+float interp(float t){
+ if(u_interp==${InterpolationType.linear}) return t;
+ if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;
+ return t*t*(3.0-2.0*t);
+}
+void main(){
+ vec2 uv = (gl_FragCoord.xy - 0.5) / u_dstSize;
+ vec2 coord = uv * (u_srcSize - 1.0);
+ vec2 c0 = floor(coord);
+ vec2 f = coord - c0;
+ vec2 c1 = min(c0 + 1.0, u_srcSize - 1.0);
+ vec2 uv00 = (c0 + 0.5) / u_srcSize;
+ vec2 uv10 = (vec2(c1.x, c0.y) + 0.5) / u_srcSize;
+ vec2 uv01 = (vec2(c0.x, c1.y) + 0.5) / u_srcSize;
+ vec2 uv11 = (c1 + 0.5) / u_srcSize;
+ vec4 v00 = texture(u_tex, uv00);
+ vec4 v10 = texture(u_tex, uv10);
+ vec4 v01 = texture(u_tex, uv01);
+ vec4 v11 = texture(u_tex, uv11);
+ if(u_interp==${InterpolationType.constant}){
+  outColor = v00;
+ }else{
+  float sx = interp(f.x);
+  float sy = interp(f.y);
+  vec4 mx0 = mix(v00, v10, sx);
+  vec4 mx1 = mix(v01, v11, sx);
+  outColor = mix(mx0, mx1, sy);
+ }
+}`;
+    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(nw, nh);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_srcSize'), w, h);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_dstSize'), nw, nh);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
+    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
+    return new Tensor(ctx, pp.writeTex, [nh, nw, nc]);
+  }
+  const src = tensor.read();
+  const out = new Float32Array(nh * nw * nc);
+  for (let y = 0; y < nh; y++) {
+    const sy = y * (h / nh);
+    const y0 = Math.floor(sy);
+    const y1 = Math.min(y0 + 1, h - 1);
+    const yf = sy - y0;
+    for (let x = 0; x < nw; x++) {
+      const sx = x * (w / nw);
+      const x0 = Math.floor(sx);
+      const x1 = Math.min(x0 + 1, w - 1);
+      const xf = sx - x0;
+      for (let k = 0; k < nc; k++) {
+        const v00 = src[(y0 * w + x0) * c + Math.min(k, c - 1)];
+        if (splineOrder === InterpolationType.constant) {
+          out[(y * nw + x) * nc + k] = v00;
+          continue;
+        }
+        const v10 = src[(y0 * w + x1) * c + Math.min(k, c - 1)];
+        const v01 = src[(y1 * w + x0) * c + Math.min(k, c - 1)];
+        const v11 = src[(y1 * w + x1) * c + Math.min(k, c - 1)];
+        const sxw = interp(xf);
+        const syw = interp(yf);
+        const mx0 = v00 * (1 - sxw) + v10 * sxw;
+        const mx1 = v01 * (1 - sxw) + v11 * sxw;
+        out[(y * nw + x) * nc + k] = mx0 * (1 - syw) + mx1 * syw;
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [nh, nw, nc]);
+}
 export function downsample(tensor, factor) {
   const [h, w, c] = tensor.shape;
   const ctx = tensor.ctx;
@@ -483,40 +583,9 @@ export function downsample(tensor, factor) {
   return Tensor.fromArray(ctx, out, [nh, nw, c]);
 }
 
-export function upsample(tensor, factor) {
+export function upsample(tensor, factor, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
-  const ctx = tensor.ctx;
-  const nh = h * factor;
-  const nw = w * factor;
-  if (ctx && !ctx.isCPU) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_factor;\nuniform vec2 u_srcSize;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (floor(gl_FragCoord.xy / u_factor) + 0.5) / u_srcSize;\n outColor = texture(u_tex, uv);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(nw, nh);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_factor'), factor);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_srcSize'), w, h);
-    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
-  }
-  const src = tensor.read();
-  const out = new Float32Array(nh * nw * c);
-  for (let y = 0; y < nh; y++) {
-    const y0 = Math.floor(y / factor);
-    for (let x = 0; x < nw; x++) {
-      const x0 = Math.floor(x / factor);
-      for (let k = 0; k < c; k++) {
-        out[(y * nw + x) * c + k] = src[(y0 * w + x0) * c + k];
-      }
-    }
-  }
-  return Tensor.fromArray(ctx, out, [nh, nw, c]);
+  return resample(tensor, [h * factor, w * factor, c], splineOrder);
 }
 
 function cubicInterpolate(a, b, c, d, t) {
