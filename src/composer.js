@@ -156,7 +156,7 @@ export class Preset {
         if (ctx2d) {
           ctx.canvas.width = w;
           ctx.canvas.height = h;
-          const img = ctx2d.createImageData(w, h);
+          const img = new ImageData(new Uint8ClampedArray(w * h * 4), w, h);
           for (let i = 0; i < h * w; i++) {
             const src = i * c;
             const r = data[src];

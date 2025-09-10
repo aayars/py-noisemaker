@@ -248,7 +248,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
         shape[2] += 1
 
     if tensor is None:
-        tensor = tf.zeros(shape)
+        tensor = tf.zeros(shape, dtype=tf.float32)
 
         for octave in range(1, octaves + 1):
             multiplier = 2 ** octave

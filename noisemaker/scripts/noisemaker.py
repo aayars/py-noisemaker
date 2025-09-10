@@ -497,7 +497,7 @@ def magic_mashup(
                 speed=0.125
             )
 
-            control_img = collage_images.pop() if collage_images else tf.zeros(shape)
+            control_img = collage_images.pop() if collage_images else tf.zeros(shape, dtype=tf.float32)
             control = value.value_map(control_img, shape, keepdims=True)
             control = value.convolve(
                 kernel=effects.ValueMask.conv2d_blur,

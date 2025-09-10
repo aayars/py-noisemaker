@@ -72,19 +72,23 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     mask = coerce_enum(mask, ValueMask)
 
     if distrib == ValueDistribution.ones:
-        tensor = tf.ones(initial_shape)
+        tensor = tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.mids:
-        tensor = tf.ones(initial_shape) * .5
+        tensor = tf.ones(initial_shape, dtype=tf.float32) * .5
 
     elif distrib == ValueDistribution.zeros:
-        tensor = tf.zeros(initial_shape)
+        tensor = tf.zeros(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.column_index:
-        tensor = tf.expand_dims(normalize(tf.cast(column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(
+            normalize(tf.cast(column_index(initial_shape), tf.float32)), -1
+        ) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.row_index:
-        tensor = tf.expand_dims(normalize(tf.cast(row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(
+            normalize(tf.cast(row_index(initial_shape), tf.float32)), -1
+        ) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif ValueDistribution.is_center_distance(distrib):
         sdf_sides = None
@@ -126,8 +130,10 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         else:
             rounded_speed = math.ceil(-1 + speed)
 
-        tensor = normalized_sine(singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
-                                 - math.tau * time * rounded_speed) * tf.ones(shape)
+        tensor = normalized_sine(
+            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
+            - math.tau * time * rounded_speed
+        ) * tf.ones(shape, dtype=tf.float32)
 
     elif ValueDistribution.is_noise(distrib):
         # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
@@ -658,7 +664,7 @@ def proportional_downsample(tensor, shape, new_shape):
 
     kernel_shape = [max(int(shape[0] / new_shape[0]), 1), max(int(shape[1] / new_shape[1]), 1), shape[2], 1]
 
-    kernel = tf.ones(kernel_shape)
+    kernel = tf.ones(kernel_shape, dtype=tf.float32)
 
     try:
         out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
@@ -861,7 +867,7 @@ def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicub
     if isinstance(freq, int):
         freq = freq_for_shape(freq, shape)
 
-    tensor = tf.zeros(shape)
+    tensor = tf.zeros(shape, dtype=tf.float32)
 
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave

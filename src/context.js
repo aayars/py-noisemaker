@@ -21,6 +21,9 @@ export class Context {
       // and produced glitchy output.
       if (hasColorBufferFloat) {
         this.isCPU = false;
+        // Explicitly operate on 32-bit float textures
+        this.textureFormat = gl.RGBA32F;
+        this.textureType = gl.FLOAT;
 
         // setup a fullscreen quad
         this.quadVao = gl.createVertexArray();
@@ -80,7 +83,7 @@ export class Context {
 
   createTexture(width, height, data = null) {
     if (this.isCPU) {
-      const arr = data || new Float32Array(width * height * 4);
+      const arr = data ? new Float32Array(data) : new Float32Array(width * height * 4);
       return { width, height, channels: 4, data: arr };
     }
     const gl = this.gl;
@@ -95,12 +98,12 @@ export class Context {
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
-      gl.RGBA32F,
+      this.textureFormat,
       width,
       height,
       0,
       gl.RGBA,
-      gl.FLOAT,
+      this.textureType,
       initData
     );
     if (data) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);

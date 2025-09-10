@@ -72,7 +72,7 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, qua
 
     inertia = rng.normal([count], mean=0.75, stddev=0.25)
 
-    out = tf.zeros(shape)
+    out = tf.zeros(shape, dtype=tf.float32)
 
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
@@ -302,7 +302,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     rots = {
         WormBehavior.obedient: lambda n:
-            tf.ones([n]) * rng.random() * math.tau,  # RNG[4]
+            tf.ones([n], dtype=tf.float32) * rng.random() * math.tau,  # RNG[4]
 
         WormBehavior.crosshatch: lambda n:
             rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),  # RNG[5]
@@ -331,7 +331,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = tf.zeros(shape)
+    out = tf.zeros(shape, dtype=tf.float32)
 
     scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
 
@@ -547,7 +547,7 @@ def density_map(tensor, shape, time=0.0, speed=1.0):
 
     out = tf.gather(counts, tf.cast(values[:, :] * (bins - 1), tf.int32))
 
-    return tf.ones(shape) * value.normalize(tf.cast(out, tf.float32))
+    return tf.ones(shape, dtype=tf.float32) * value.normalize(tf.cast(out, tf.float32))
 
 
 @effect()
@@ -1109,7 +1109,9 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
     count = len(unique)
 
     # hot = tf.ones([count, channels])
-    hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
+    hot = tf.ones([count, channels], dtype=tf.float32) * tf.cast(
+        tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32
+    )
 
     out = value.convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape=shape)
 
@@ -1196,7 +1198,9 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0, time=0.0, speed=1.0):
 
     tensor = value.normalize(tensor)
 
-    edges = center_mask(tensor, tf.ones(shape) * brightness, shape, dist_metric=DistanceMetric.euclidean)
+    edges = center_mask(
+        tensor, tf.ones(shape, dtype=tf.float32) * brightness, shape, dist_metric=DistanceMetric.euclidean
+    )
 
     return value.blend(tensor, edges, alpha)
 
@@ -1329,7 +1333,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0,
     out = value.resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=spline_order)
 
     if not colorize:
-        return out * tf.ones(shape)
+        return out * tf.ones(shape, dtype=tf.float32)
 
     out *= value.resample(value.proportional_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=spline_order)
 
@@ -1471,7 +1475,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time, speed=speed)
     combined *= combined
 
-    return combined * tf.ones(shape)
+    return combined * tf.ones(shape, dtype=tf.float32)
 
 
 @effect()
@@ -1481,11 +1485,11 @@ def simple_frame(tensor, shape, brightness=0.0, time=0.0, speed=1.0):
 
     border = value.singularity(None, shape, dist_metric=DistanceMetric.chebyshev)
 
-    border = value.blend(tf.zeros(shape), border, .55)
+    border = value.blend(tf.zeros(shape, dtype=tf.float32), border, .55)
 
     border = posterize(border, shape, 1)
 
-    return value.blend(tensor, tf.ones(shape) * brightness, border)
+    return value.blend(tensor, tf.ones(shape, dtype=tf.float32) * brightness, border)
 
 
 @effect()
@@ -1611,10 +1615,10 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
 
     p = palettes[name]
 
-    offset = p["offset"] * tf.ones(rgb_shape)
-    amp = p["amp"] * tf.ones(rgb_shape)
-    freq = p["freq"] * tf.ones(rgb_shape)
-    phase = p["phase"] * tf.ones(rgb_shape) + time
+    offset = p["offset"] * tf.ones(rgb_shape, dtype=tf.float32)
+    amp = p["amp"] * tf.ones(rgb_shape, dtype=tf.float32)
+    freq = p["freq"] * tf.ones(rgb_shape, dtype=tf.float32)
+    phase = p["phase"] * tf.ones(rgb_shape, dtype=tf.float32) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
     colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(
@@ -1968,8 +1972,8 @@ def frame(tensor, shape, time=0.0, speed=1.0):
 
     noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, octaves=8)
 
-    black = tf.zeros(half_value_shape)
-    white = tf.ones(half_value_shape)
+    black = tf.zeros(half_value_shape, dtype=tf.float32)
+    white = tf.ones(half_value_shape, dtype=tf.float32)
 
     mask = value.singularity(None, half_value_shape, VoronoiDiagramType.range, dist_metric=DistanceMetric.chebyshev, inverse=True)
     mask = value.normalize(mask + noise * .005)
@@ -2009,7 +2013,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
                                   octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape) * .9 + shadow(noise, value_shape, 1.0) * .1)
+    return tensor * (tf.ones(value_shape, dtype=tf.float32) * .9 + shadow(noise, value_shape, 1.0) * .1)
 
 
 @effect()
@@ -2062,7 +2066,7 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
 
     bottom_padding = 2
 
-    rendered_mask = tf.zeros(shape)
+    rendered_mask = tf.zeros(shape, dtype=tf.float32)
 
     for _ in range(rng.random_int(1, 3)):
         mask = _masks[rng.random_int(0, len(_masks) - 1)]
@@ -2144,7 +2148,13 @@ def nebula(tensor, shape, time=0.0, speed=1.0):
 
     tensor *= 1.0 - overlay
 
-    tensor += tint(tf.maximum(overlay * tf.ones(shape), 0), shape, alpha=1.0, time=time, speed=1.0)
+    tensor += tint(
+        tf.maximum(overlay * tf.ones(shape, dtype=tf.float32), 0),
+        shape,
+        alpha=1.0,
+        time=time,
+        speed=1.0,
+    )
 
     return tensor
 
@@ -2192,13 +2202,17 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     #
     if color and shape[2] == 3:
         if color is True:
-            splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5, seed=rng.random_int(0, 0xFFFFFFFF))
+            splash = tf.image.random_hue(
+                tf.ones(shape, dtype=tf.float32) * tf.stack([.875, 0.125, 0.125]),
+                .5,
+                seed=rng.random_int(0, 0xFFFFFFFF)
+            )
 
         else:  # Pass in [r, g, b]
-            splash = tf.ones(shape) * tf.stack(color)
+            splash = tf.ones(shape, dtype=tf.float32) * tf.stack(color)
 
     else:
-        splash = tf.zeros(shape)
+        splash = tf.zeros(shape, dtype=tf.float32)
 
     return blend_layers(value.normalize(smear), shape, .005, tensor, splash * tensor)
 
@@ -2214,8 +2228,8 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     control = warp(control, pre_shape, freq=3, displacement=.125, octaves=2)
 
-    layer_0 = tf.ones(pre_shape)
-    layer_1 = tf.zeros(pre_shape)
+    layer_0 = tf.ones(pre_shape, dtype=tf.float32)
+    layer_1 = tf.zeros(pre_shape, dtype=tf.float32)
 
     combined = blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
 
@@ -2230,8 +2244,8 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
     shaded = value.resample(shaded, post_shape)
     combined = value.resample(combined, post_shape)
 
-    tensor = value.blend(tensor, tf.zeros(shape), shaded * .75)
-    tensor = value.blend(tensor, tf.ones(shape), combined)
+    tensor = value.blend(tensor, tf.zeros(shape, dtype=tf.float32), shaded * .75)
+    tensor = value.blend(tensor, tf.ones(shape, dtype=tf.float32), combined)
 
     tensor = shadow(tensor, shape, alpha=.5)
 
