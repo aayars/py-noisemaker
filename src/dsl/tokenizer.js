@@ -16,80 +16,186 @@ function isIdent(ch) {
   return isIdentStart(ch) || isDigit(ch);
 }
 
+function makeError(message, line, column) {
+  const err = new Error(`${message} at line ${line} column ${column}`);
+  err.line = line;
+  err.column = column;
+  return err;
+}
+
+/**
+ * Convert source string to a list of tokens.
+ *
+ * Each token has shape: { type, value, line, column }
+ *
+ * @param {string} source
+ * @returns {Array<object>}
+ */
 export function tokenize(source) {
   const tokens = [];
   let i = 0;
-  while (i < source.length) {
-    const ch = source[i];
-    if (/\s/.test(ch)) {
-      i++;
-      continue;
-    }
-    const start = i;
+  let line = 1;
+  let column = 1;
 
-    // Number (with optional leading dot)
-    if (
-      isDigit(ch) ||
-      (ch === '.' && isDigit(source[i + 1]))
-    ) {
-      let num = '';
+  const length = source.length;
+
+  function peek(offset = 0) {
+    return source[i + offset];
+  }
+
+  function advance() {
+    const ch = source[i++];
+    if (ch === '\n') {
+      line++;
+      column = 1;
+    } else {
+      column++;
+    }
+    return ch;
+  }
+
+  function skipWhitespace() {
+    while (i < length) {
+      const ch = peek();
+      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') {
+        advance();
+      } else {
+        break;
+      }
+    }
+  }
+
+  while (i < length) {
+    skipWhitespace();
+    if (i >= length) break;
+
+    const ch = peek();
+    const tokenLine = line;
+    const tokenColumn = column;
+
+    // Number literal (support optional leading dot)
+    if (isDigit(ch) || (ch === '.' && isDigit(peek(1)))) {
+      let numStr = '';
       if (ch === '.') {
-        num = '0';
+        numStr = '0';
+        advance();
       }
-      while (isDigit(source[i])) {
-        num += source[i++];
+      while (isDigit(peek())) {
+        numStr += advance();
       }
-      if (source[i] === '.') {
-        num += source[i++];
-        while (isDigit(source[i])) num += source[i++];
+      if (peek() === '.') {
+        numStr += advance();
+        while (isDigit(peek())) {
+          numStr += advance();
+        }
       }
-      tokens.push({ type: 'number', value: parseFloat(num), raw: num, start, end: i });
+      tokens.push({
+        type: 'number',
+        value: parseFloat(numStr),
+        line: tokenLine,
+        column: tokenColumn,
+      });
       continue;
     }
 
-    if (PUNCT.has(ch)) {
-      tokens.push({ type: ch, value: ch, start, end: i + 1 });
-      i++;
-      continue;
-    }
-
-    if (ch === '#') {
-      i++;
-      let hex = '';
-      while (isHex(source[i])) hex += source[i++];
-      if (hex.length !== 3 && hex.length !== 6) {
-        throw new Error(`Invalid color at ${start}`);
-      }
-      tokens.push({ type: 'color', value: `#${hex}`, start, end: i });
-      continue;
-    }
-
-    if (ch === '"') {
-      i++;
+    // String literal (single or double quotes)
+    if (ch === '"' || ch === '\'') {
+      const quote = advance();
       let str = '';
-      while (i < source.length && source[i] !== '"') {
-        str += source[i++];
+      while (i < length && peek() !== quote) {
+        const c = advance();
+        if (c === '\\') {
+          if (i >= length) {
+            throw makeError('Unterminated string literal', tokenLine, tokenColumn);
+          }
+          const esc = advance();
+          const map = { n: '\n', r: '\r', t: '\t', '\\': '\\', '"': '"', '\'': '\'' };
+          str += map[esc] !== undefined ? map[esc] : esc;
+        } else if (c === '\n') {
+          throw makeError('Unterminated string literal', tokenLine, tokenColumn);
+        } else {
+          str += c;
+        }
       }
-      if (source[i] !== '"') {
-        throw new Error('Unterminated string literal');
+      if (peek() !== quote) {
+        throw makeError('Unterminated string literal', tokenLine, tokenColumn);
       }
-      i++;
-      tokens.push({ type: 'string', value: str, start, end: i });
+      advance();
+      tokens.push({
+        type: 'string',
+        value: str,
+        line: tokenLine,
+        column: tokenColumn,
+      });
       continue;
     }
 
+    // Hex colour literal
+    if (ch === '#') {
+      advance();
+      let hex = '';
+      while (i < length && isHex(peek())) {
+        hex += advance();
+      }
+      if (hex.length !== 3 && hex.length !== 6) {
+        throw makeError('Invalid color', tokenLine, tokenColumn);
+      }
+      tokens.push({
+        type: 'color',
+        value: `#${hex}`,
+        line: tokenLine,
+        column: tokenColumn,
+      });
+      continue;
+    }
+
+    // Punctuation
+    if (PUNCT.has(ch)) {
+      advance();
+      tokens.push({
+        type: ch,
+        value: ch,
+        line: tokenLine,
+        column: tokenColumn,
+      });
+      continue;
+    }
+
+    // Identifier / keywords
     if (isIdentStart(ch)) {
       let id = '';
-      while (isIdent(source[i])) id += source[i++];
+      while (i < length && isIdent(peek())) {
+        id += advance();
+      }
       if (id === 'true' || id === 'false') {
-        tokens.push({ type: 'boolean', value: id === 'true', start, end: i });
+        tokens.push({
+          type: 'boolean',
+          value: id === 'true',
+          line: tokenLine,
+          column: tokenColumn,
+        });
+      } else if (id === 'null') {
+        tokens.push({
+          type: 'null',
+          value: null,
+          line: tokenLine,
+          column: tokenColumn,
+        });
       } else {
-        tokens.push({ type: 'identifier', value: id, start, end: i });
+        tokens.push({
+          type: 'identifier',
+          value: id,
+          line: tokenLine,
+          column: tokenColumn,
+        });
       }
       continue;
     }
 
-    throw new Error(`Unexpected character '${ch}' at ${i}`);
+    // Unrecognised character
+    throw makeError(`Unexpected character '${ch}'`, tokenLine, tokenColumn);
   }
+
   return tokens;
 }
+
