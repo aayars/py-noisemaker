@@ -1,4 +1,5 @@
-const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ':', '.', '+', '-', '*', '/']);
+// Support ternary operator
+const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ':', '.', '+', '-', '*', '/', '?']);
 
 function isDigit(ch) {
   return ch >= '0' && ch <= '9';

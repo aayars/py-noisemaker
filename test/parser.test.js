@@ -27,4 +27,12 @@ try {
 assert.ok(error instanceof Error);
 assert.ok(error.message.includes('Duplicate key'));
 
+// Ternary parsing
+let tern = parse(tokenize('coin_flip() ? 1 : 2'));
+assert.strictEqual(tern.body.type, 'TernaryExpr');
+
+// Null literal parsing
+let n = parse(tokenize('null'));
+assert.strictEqual(n.body.type, 'NullLiteral');
+
 console.log('parser tests passed');

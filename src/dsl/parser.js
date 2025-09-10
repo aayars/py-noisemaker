@@ -90,23 +90,12 @@ export function parse(tokens) {
   function parseExpression() {
     const t = peek();
     if (!t) unexpected(t);
-    if (
-      t.type === 'number' ||
-      t.type === '(' ||
-      (t.type === 'identifier' && t.value === 'Math')
-    ) {
+    if (t.type === 'number' || t.type === '(' || t.type === 'identifier' || t.type === 'boolean' || t.type === 'null') {
       return parseNumberExpr();
-    }
-    if (t.type === 'identifier' && peek(1)?.type === '(') {
-      return parseCallChain();
     }
     if (t.type === 'string') {
       consume('string');
       return { type: 'StringLiteral', value: t.value };
-    }
-    if (t.type === 'boolean') {
-      consume('boolean');
-      return { type: 'NumberLiteral', value: t.value ? 1 : 0 };
     }
     if (t.type === 'color') {
       consume('color');
@@ -117,14 +106,6 @@ export function parse(tokens) {
     }
     if (t.type === '{') {
       return parseObjectExpr();
-    }
-    if (t.type === 'identifier') {
-      const id = parseIdentifier();
-      if (match('.')) {
-        const member = parseIdentifier();
-        return { type: 'MemberExpr', object: id, property: member };
-      }
-      return id;
     }
     unexpected(t);
   }
@@ -193,7 +174,14 @@ export function parse(tokens) {
   }
 
   function parseNumberExpr() {
-    return parseAdd();
+    let node = parseAdd();
+    if (match('?')) {
+      const trueExpr = parseNumberExpr();
+      consume(':');
+      const falseExpr = parseNumberExpr();
+      node = { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr };
+    }
+    return node;
   }
 
   function parseAdd() {
@@ -249,6 +237,40 @@ export function parse(tokens) {
       consume('.');
       consume('identifier');
       return { type: 'NumberLiteral', value: Math.PI };
+    }
+    if (t.type === 'identifier') {
+      if (peek(1)?.type === '(') {
+        return parseCallChain();
+      }
+      const id = parseIdentifier();
+      if (match('.')) {
+        let member = parseIdentifier();
+        let node = { type: 'MemberExpr', object: id, property: member };
+        while (match('.')) {
+          member = parseIdentifier();
+          node = { type: 'MemberExpr', object: node, property: member };
+        }
+        if (match('(')) {
+          const args = parseArgList(')');
+          node = { type: 'CallExpr', callee: node, args };
+          while (match('.')) {
+            const next = parseSingleCall();
+            next.input = node;
+            node = next;
+          }
+          return node;
+        }
+        return node;
+      }
+      return id;
+    }
+    if (t.type === 'boolean') {
+      consume('boolean');
+      return { type: 'NumberLiteral', value: t.value ? 1 : 0 };
+    }
+    if (t.type === 'null') {
+      consume('null');
+      return { type: 'NullLiteral', value: null };
     }
     unexpected(t);
   }

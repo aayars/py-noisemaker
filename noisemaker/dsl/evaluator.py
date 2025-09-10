@@ -6,16 +6,24 @@ def _eval_node(node, ctx):
         return node['value']
     if t == 'StringLiteral':
         return node['value']
+    if t == 'NullLiteral':
+        return None
     if t == 'Identifier':
         operations = ctx.get('operations', {})
         surfaces = ctx.get('surfaces', {})
-        return operations.get(node['name']) or surfaces.get(node['name']) or node['name']
-    if t == 'MemberExpr':
-        obj = node['object']['name']
-        prop = node['property']['name']
         enums = ctx.get('enums')
-        enum_obj = getattr(enums, obj, None) if enums else None
-        return getattr(enum_obj, prop, None) if enum_obj else None
+        name = node['name']
+        if name in operations:
+            return operations[name]
+        if name in surfaces:
+            return surfaces[name]
+        if enums and hasattr(enums, name):
+            return getattr(enums, name)
+        return name
+    if t == 'MemberExpr':
+        obj_val = _eval_node(node['object'], ctx)
+        prop = node['property']['name']
+        return getattr(obj_val, prop, None)
     if t == 'ArrayExpr':
         return [_eval_node(el, ctx) for el in node['elements']]
     if t == 'ObjectExpr':
@@ -36,6 +44,10 @@ def _eval_node(node, ctx):
         if op == '/':
             return l / r
         raise ValueError(f"Unknown operator {op}")
+    if t == 'TernaryExpr':
+        test = _eval_node(node['test'], ctx)
+        branch = node['consequent'] if test else node['alternate']
+        return _eval_node(branch, ctx)
     if t == 'CallExpr':
         return _eval_call(node, ctx)
     raise ValueError(f"Unsupported node type: {t}")
@@ -53,20 +65,26 @@ def _eval_args(arglist, ctx):
 
 def _eval_call(node, ctx):
     input_val = _eval_node(node['input'], ctx) if node.get('input') else None
-    name = node['callee']['name']
     evaled = _eval_args(node['args'], ctx)
     args = evaled['args']
     params = evaled['params']
     param_names = evaled['paramNames']
-    fn = ctx.get('operations', {}).get(name)
+    callee = node['callee']
+    if callee['type'] == 'Identifier':
+        name = callee['name']
+        fn = ctx.get('operations', {}).get(name)
+        if callable(fn):
+            return fn(*args)
+        out = {'op': name, 'args': args, 'input': input_val}
+        out['__effectName'] = name
+        if param_names:
+            out['__paramNames'] = param_names
+            out['__params'] = params
+        return out
+    fn = _eval_node(callee, ctx)
     if callable(fn):
         return fn(*args)
-    out = {'op': name, 'args': args, 'input': input_val}
-    out['__effectName'] = name
-    if param_names:
-        out['__paramNames'] = param_names
-        out['__params'] = params
-    return out
+    raise ValueError('Unsupported callee')
 
 def evaluate(ast, ctx=defaultContext):
     return _eval_node(ast['body'], ctx)

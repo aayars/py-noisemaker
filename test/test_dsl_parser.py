@@ -16,3 +16,13 @@ def test_duplicate_key():
     with pytest.raises(Exception) as e:
         parse(tokenize('{ layers: [], layers: [] }'))
     assert 'Duplicate key' in str(e.value)
+
+
+def test_ternary_parse():
+    ast = parse(tokenize('coin_flip() ? 1 : 2'))
+    assert ast['body']['type'] == 'TernaryExpr'
+
+
+def test_null_parse():
+    ast = parse(tokenize('null'))
+    assert ast['body']['type'] == 'NullLiteral'

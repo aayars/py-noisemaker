@@ -6,12 +6,19 @@ function evalNode(node, ctx) {
       return node.value;
     case 'StringLiteral':
       return node.value;
-    case 'Identifier':
-      return ctx.operations[node.name] ?? ctx.surfaces[node.name] ?? node.name;
+    case 'NullLiteral':
+      return null;
+    case 'Identifier': {
+      const name = node.name;
+      if (ctx.operations[name]) return ctx.operations[name];
+      if (ctx.surfaces[name]) return ctx.surfaces[name];
+      if (ctx.enums && ctx.enums[name]) return ctx.enums[name];
+      return name;
+    }
     case 'MemberExpr': {
-      const obj = node.object.name;
+      const objVal = evalNode(node.object, ctx);
       const prop = node.property.name;
-      return ctx.enums?.[obj]?.[prop];
+      return objVal?.[prop];
     }
     case 'ArrayExpr':
       return node.elements.map((el) => evalNode(el, ctx));
@@ -38,6 +45,8 @@ function evalNode(node, ctx) {
           throw new Error(`Unknown operator ${node.operator}`);
       }
     }
+    case 'TernaryExpr':
+      return evalNode(evalNode(node.test, ctx) ? node.consequent : node.alternate, ctx);
     case 'CallExpr':
       return evalCall(node, ctx);
     default:
@@ -61,19 +70,27 @@ function evalArgs(arglist, ctx) {
 
 function evalCall(node, ctx) {
   const input = node.input ? evalNode(node.input, ctx) : undefined;
-  const name = node.callee.name;
   const { args, params, paramNames } = evalArgs(node.args, ctx);
-  const fn = ctx.operations[name];
+  const callee = node.callee;
+  if (callee.type === 'Identifier') {
+    const name = callee.name;
+    const fn = ctx.operations[name];
+    if (typeof fn === 'function') {
+      return fn(...args);
+    }
+    const out = { op: name, args, input };
+    out.__effectName = name;
+    if (paramNames) {
+      out.__paramNames = paramNames;
+      out.__params = params;
+    }
+    return out;
+  }
+  const fn = evalNode(callee, ctx);
   if (typeof fn === 'function') {
     return fn(...args);
   }
-  const out = { op: name, args, input };
-  out.__effectName = name;
-  if (paramNames) {
-    out.__paramNames = paramNames;
-    out.__params = params;
-  }
-  return out;
+  throw new Error('Unsupported callee');
 }
 
 export function evaluate(ast, ctx = defaultContext) {

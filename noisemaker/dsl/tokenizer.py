@@ -1,10 +1,11 @@
-PUNCT = set('(){}[],.:+-*/')
+# Support ternary operator
+PUNCT = set('(){}[],.:+-*/?')
 
 def is_digit(ch):
-    return '0' <= ch <= '9'
+    return ch is not None and '0' <= ch <= '9'
 
 def is_hex(ch):
-    return is_digit(ch) or ('a' <= ch <= 'f') or ('A' <= ch <= 'F')
+    return ch is not None and (is_digit(ch) or ('a' <= ch <= 'f') or ('A' <= ch <= 'F'))
 
 def is_ident_start(ch):
     return ('A' <= ch <= 'Z') or ('a' <= ch <= 'z') or ch == '_'

@@ -42,12 +42,16 @@ Expr           ::= Ident '(' ArgList? ')'
 Call           ::= Ident '(' ArgList? ')'
 ArgList        ::= Arg (',' Arg)* ','?
 Arg            ::= NumberExpr | String | Boolean | Color
-                 | Ident | Enum | OutputRef | SourceRef
+                 | Ident | Enum | OutputRef | SourceRef | Null
                  | List | Dict
-NumberExpr     ::= Number
-                 | 'Math.PI'
-                 | '(' NumberExpr ')'
+NumberExpr     ::= Primary
                  | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
+                 | NumberExpr '?' NumberExpr ':' NumberExpr
+Primary        ::= Number | Boolean | Null | 'Math.PI'
+                 | Ident | Enum | Call | MemberExpr
+                 | '(' NumberExpr ')'
+Call           ::= (Ident | MemberExpr) '(' ArgList? ')'
+MemberExpr     ::= Ident '.' Ident
 List           ::= '[' ArgList? ']'
 Dict           ::= '{' (DictEntry (',' DictEntry)* ','?)? '}'
 DictEntry      ::= (String | Ident) ':' Arg
@@ -60,6 +64,7 @@ String         ::= '"' [^"\n]* '"'
 Digit          ::= '0'…'9'
 Letter         ::= 'A'…'Z' | 'a'…'z'
 Boolean        ::= 'true' | 'false'
+Null           ::= 'null'
 Color          ::= '#' HexDigit HexDigit HexDigit
                  (HexDigit HexDigit HexDigit)?
 HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
@@ -73,9 +78,10 @@ HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
 
 | Type        | Description |
 |-------------|-------------|
-| `Number`    | Supports inline arithmetic and the `Math.PI` constant. |
+| `Number`    | Supports inline arithmetic, ternary conditionals, function/method results, and the `Math.PI` constant. |
 | `String`    | Double‑quoted strings without escapes. |
 | `Boolean`   | Keywords `true` and `false`, coerced to `1` and `0`. |
+| `Null`      | Keyword `null`. |
 | `Color`     | Hex colours `#RGB` or `#RRGGBB`. |
 | `OutputRef` | References a previously named output (`o1`–`o9`). |
 | `SourceRef` | References built‑in surfaces. |

@@ -2,6 +2,8 @@ import assert from 'assert';
 import { render } from '../src/composer.js';
 import { Context } from '../src/context.js';
 import { ColorSpace, ValueDistribution } from '../src/constants.js';
+import { ImageData } from 'canvas';
+global.ImageData = ImageData;
 
 const fakeCtx2d = {
   img: null,

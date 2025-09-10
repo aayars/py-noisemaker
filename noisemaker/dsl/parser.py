@@ -70,16 +70,11 @@ def parse(tokens):
         t = peek()
         if not t:
             unexpected(t)
-        if t['type'] == 'number' or t['type'] == '(' or (t['type'] == 'identifier' and t['value'] == 'Math'):
+        if t['type'] in ('number', '(', 'identifier', 'boolean', 'null'):
             return parseNumberExpr()
-        if t['type'] == 'identifier' and (peek(1) and peek(1)['type'] == '('):
-            return parseCallChain()
         if t['type'] == 'string':
             consume('string')
             return {'type': 'StringLiteral', 'value': t['value']}
-        if t['type'] == 'boolean':
-            consume('boolean')
-            return {'type': 'NumberLiteral', 'value': 1 if t['value'] else 0}
         if t['type'] == 'color':
             consume('color')
             return {'type': 'StringLiteral', 'value': t['value']}
@@ -87,12 +82,6 @@ def parse(tokens):
             return parseArrayExpr()
         if t['type'] == '{':
             return parseObjectExpr()
-        if t['type'] == 'identifier':
-            id_ = parseIdentifier()
-            if match('.'):
-                member = parseIdentifier()
-                return {'type': 'MemberExpr', 'object': id_, 'property': member}
-            return id_
         unexpected(t)
     def parseCallChain():
         node = parseSingleCall()
@@ -140,7 +129,13 @@ def parse(tokens):
         token = consume('identifier')
         return {'type': 'Identifier', 'name': token['value']}
     def parseNumberExpr():
-        return parseAdd()
+        node = parseAdd()
+        if match('?'):
+            true_expr = parseNumberExpr()
+            consume(':')
+            false_expr = parseNumberExpr()
+            node = {'type': 'TernaryExpr', 'test': node, 'consequent': true_expr, 'alternate': false_expr}
+        return node
     def parseAdd():
         node = parseMul()
         while True:
@@ -182,5 +177,31 @@ def parse(tokens):
             consume('identifier')
             import math
             return {'type': 'NumberLiteral', 'value': math.pi}
+        if t['type'] == 'identifier':
+            if peek(1) and peek(1)['type'] == '(':
+                return parseCallChain()
+            id_ = parseIdentifier()
+            if match('.'):
+                member = parseIdentifier()
+                node = {'type': 'MemberExpr', 'object': id_, 'property': member}
+                while match('.'):
+                    member = parseIdentifier()
+                    node = {'type': 'MemberExpr', 'object': node, 'property': member}
+                if match('('):
+                    args = parseArgList(')')
+                    node = {'type': 'CallExpr', 'callee': node, 'args': args}
+                    while match('.'):
+                        next_node = parseSingleCall()
+                        next_node['input'] = node
+                        node = next_node
+                    return node
+                return node
+            return id_
+        if t['type'] == 'boolean':
+            consume('boolean')
+            return {'type': 'NumberLiteral', 'value': 1 if t['value'] else 0}
+        if t['type'] == 'null':
+            consume('null')
+            return {'type': 'NullLiteral', 'value': None}
         unexpected(t)
     return parseProgram()

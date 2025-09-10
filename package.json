@@ -9,6 +9,7 @@
     "image-regress": "python scripts/image_regression.py"
   },
   "devDependencies": {
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "canvas": "^3.2.0"
   }
 }
