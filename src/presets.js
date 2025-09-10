@@ -26,13 +26,8 @@ import {
 import { PALETTES } from './palettes.js';
 import { maskShape } from './masks.js';
 import './effects.js';
-import { random, getSeed, setSeed } from './util.js';
+import { random, getSeed, setSeed, randomInt } from './util.js';
 export { setSeed };
-
-// Random helper utilities adapted from the Python implementation
-function randomInt(min, max) {
-  return Math.floor(random() * (max - min + 1)) + min;
-}
 
 export function coinFlip() {
   return random() < 0.5;
@@ -133,7 +128,7 @@ export function PRESETS() {
     mask_repeat: randomInt(9, 12),
     spline_order: interp.cosine,
     vignette_bright_alpha: 0.75 + random() * 0.25,
-    posterize_levels: randomInt(1, 2),
+    posterize_levels: 2,
   }),
 },
 
@@ -2113,8 +2108,8 @@ hearts: {
         dist_metric: randomMember(distanceMetricAbsoluteMembers()),
         freq: randomInt(2, 5),
         lattice_drift: 1.0,
-        octaves: randomInt(2, 3),
-        ridges: coinFlip(),
+        octaves: 3,
+        ridges: true,
       }),
     },
 
@@ -2260,7 +2255,7 @@ hearts: {
       settings: () => ({
         palette_alpha: 0.5 + random() * 0.5,
         palette_name: randomMember(Object.keys(PALETTES)),
-        palette_on: coinFlip(),
+        palette_on: random() < 0.375,
       }),
       post: (settings) =>
         !settings.paletteOn

@@ -21,7 +21,14 @@ export const logger = {
 
 // --------------------- Seeded random utilities ---------------------
 export function randomInt(min, max) {
-  return Math.floor(random() * (max - min + 1)) + min;
+  const range = max - min + 1;
+  const maxRand = 0x20000000000000; // 2**53
+  let r;
+  let limit = Math.floor(maxRand / range) * range;
+  do {
+    r = Math.floor(random() * maxRand);
+  } while (r >= limit);
+  return min + (r % range);
 }
 
 export function choice(arr) {
