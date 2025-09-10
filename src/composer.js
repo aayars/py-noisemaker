@@ -16,8 +16,6 @@ const UNUSED_OKAY = [
   'speed',
   'voronoiSdfSides',
   'voronoiInverse',
-  'voronoiRefract',
-  'voronoiRefractYFromOffset',
 ];
 
 function toCamel(str) {

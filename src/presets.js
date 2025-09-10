@@ -4340,6 +4340,8 @@ hearts: {
       post: (settings) => [
         Effect('voronoi', {
           alpha: settings.voronoi_alpha,
+          withRefract: settings.voronoi_refract,
+          refractYFromOffset: settings.voronoi_refract_y_from_offset,
           diagramType: settings.voronoi_diagram_type,
           distMetric: settings.dist_metric,
           nth: settings.voronoi_nth,

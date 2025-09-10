@@ -284,6 +284,8 @@ const vorRes = voronoi(
   DistanceMetric.euclidean,
   1,
   0,
+  true,
+  0,
   0,
   0,
   0,

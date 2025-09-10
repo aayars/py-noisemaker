@@ -590,6 +590,8 @@ export function voronoi(
   nth = 0,
   distMetric = DistanceMetric.euclidean,
   alpha = 1,
+  withRefract = 0,
+  refractYFromOffset = true,
   pointFreq = 3,
   pointGenerations = 1,
   pointDistrib = PointDistribution.random,
@@ -669,6 +671,22 @@ export function voronoi(
   } else {
     return tensor;
   }
+  if (withRefract) {
+    outTensor = refractEffect(
+      tensor,
+      shape,
+      time,
+      speed,
+      withRefract,
+      outTensor,
+      null,
+      null,
+      undefined,
+      undefined,
+      undefined,
+      refractYFromOffset,
+    );
+  }
   if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
     return blend(tensor, outTensor, alpha);
   }
@@ -679,6 +697,8 @@ register("voronoi", voronoi, {
   nth: 0,
   distMetric: DistanceMetric.euclidean,
   alpha: 1,
+  withRefract: 0,
+  refractYFromOffset: true,
   pointFreq: 3,
   pointGenerations: 1,
   pointDistrib: PointDistribution.random,
@@ -705,6 +725,8 @@ export function singularity(
     0,
     distMetric,
     1,
+    0,
+    true,
     1,
     1,
     PointDistribution.square,
@@ -746,6 +768,8 @@ export function lowpoly(
     1,
     distMetric,
     1,
+    0,
+    true,
     1,
     1,
     PointDistribution.square,
@@ -762,6 +786,8 @@ export function lowpoly(
     0,
     distMetric,
     1,
+    0,
+    true,
     1,
     1,
     PointDistribution.square,
@@ -804,6 +830,8 @@ export function kaleido(
     0,
     DistanceMetric.euclidean,
     1,
+    0,
+    true,
     pointFreq,
     pointGenerations,
     pointDistrib,
