@@ -22,6 +22,7 @@ from noisemaker.effects import (
 from noisemaker.palettes import PALETTES
 from noisemaker import value, points
 from noisemaker import rng
+import noisemaker.generators as generators
 from opensimplex import OpenSimplex
 
 # JS RNG equivalent
@@ -192,5 +193,14 @@ base = tf.zeros([4,4,1], dtype=tf.float32)
 sh_out = stray_hair(base, [4,4,1]).numpy().flatten().tolist()
 with open(fixtures_dir / 'strayHair.json', 'w') as f:
     json.dump(sh_out, f)
+
+# Generators basic fixture
+generators_dir = fixtures_dir / 'generators'
+generators_dir.mkdir(exist_ok=True)
+rng.set_seed(1)
+value.set_seed(1)
+tensor = generators.basic(2, [4, 4, 3], hue_rotation=0)
+with open(generators_dir / 'basic_seed_1.json', 'w') as f:
+    json.dump(tensor.numpy().flatten().tolist(), f)
 
 print(f'Wrote fixtures to {fixtures_dir}')

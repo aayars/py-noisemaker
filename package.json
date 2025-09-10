@@ -7,5 +7,8 @@
     "build": "node scripts/build.js",
     "regress": "node scripts/regress.js",
     "image-regress": "python scripts/image_regression.py"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
   }
 }
