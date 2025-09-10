@@ -24,10 +24,13 @@ function fract(x) {
 function rand2D(x, y, seed = 0, time = 0, speed = 1) {
   // Keep the original high‑precision hash for CPU paths to preserve existing
   // test fixtures. The GPU shader uses a reduced version to avoid float
-  // precision issues.
+  // precision issues.  Floor coordinates to integers to match the GPU shader
+  // and avoid fractional artifacts when called with non‑integer inputs.
+  const sx = Math.floor(x);
+  const sy = Math.floor(y);
   const s =
-    x * 12.9898 +
-    y * 78.233 +
+    sx * 12.9898 +
+    sy * 78.233 +
     seed * 37.719 +
     time * speed * 0.1;
   return fract(Math.sin(s) * 43758.5453);
@@ -169,7 +172,9 @@ uniform int u_distrib;
 uniform sampler2D u_mask;
 uniform int u_useMask;
 float rand2D(float x,float y,float seed,float time,float speed){
- float s=x*12.9898+y*78.233+mod(seed,65536.0)*37.719+time*speed*0.1;
+ float sx=floor(x);
+ float sy=floor(y);
+ float s=sx*12.9898+sy*78.233+mod(seed,65536.0)*37.719+time*speed*0.1;
  return fract(sin(s)*43758.5453);
 }
 float sdfPolygon(float dx,float dy,float sides){

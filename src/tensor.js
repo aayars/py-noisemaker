@@ -42,13 +42,16 @@ export class Tensor {
       const out = new Float32Array(h * w * 4);
       gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, out);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      if (c === 4) {
-        return out;
-      }
       const arr = new Float32Array(h * w * c);
-      for (let i = 0; i < h * w; i++) {
-        for (let k = 0; k < c; k++) {
-          arr[i * c + k] = out[i * 4 + k];
+      for (let y = 0; y < h; y++) {
+        const srcRow = (h - 1 - y) * w;
+        const dstRow = y * w;
+        for (let x = 0; x < w; x++) {
+          const srcBase = (srcRow + x) * 4;
+          const dstBase = (dstRow + x) * c;
+          for (let k = 0; k < c; k++) {
+            arr[dstBase + k] = out[srcBase + k];
+          }
         }
       }
       return arr;
