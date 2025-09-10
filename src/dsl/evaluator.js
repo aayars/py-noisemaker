@@ -1,91 +1,82 @@
 import { defaultContext } from './builtins.js';
 
-function evalNumber(node) {
-  if (node.type === 'Number') return node.value;
-  if (node.type === 'Binary') {
-    const l = evalNumber(node.left);
-    const r = evalNumber(node.right);
-    switch (node.op) {
-      case '+':
-        return l + r;
-      case '-':
-        return l - r;
-      case '*':
-        return l * r;
-      case '/':
-        return l / r;
-      default:
-        throw new Error(`Unknown operator ${node.op}`);
-    }
-  }
-  throw new Error(`Unsupported number node: ${node.type}`);
-}
-
-function evalArg(node, ctx) {
+function evalNode(node, ctx) {
   switch (node.type) {
-    case 'Number':
-    case 'Binary':
-      return evalNumber(node);
-    case 'String':
+    case 'NumberLiteral':
       return node.value;
-    case 'Boolean':
+    case 'StringLiteral':
       return node.value;
-    case 'Color':
-      return node.value;
-    case 'List':
-      return node.value.map((v) => evalArg(v, ctx));
-    case 'Dict':
-      return Object.fromEntries(
-        node.value.map(({ key, value }) => [key, evalArg(value, ctx)])
-      );
-    case 'Enum':
-      return ctx.enums?.[node.object]?.[node.member];
-    case 'SourceRef':
-      return ctx.surfaces[node.value];
-    case 'OutputRef':
-      return { output: node.value };
-    case 'Ident':
-      return ctx.operations[node.name] ?? ctx.surfaces[node.name];
+    case 'Identifier':
+      return ctx.operations[node.name] ?? ctx.surfaces[node.name] ?? node.name;
+    case 'MemberExpr': {
+      const obj = node.object.name;
+      const prop = node.property.name;
+      return ctx.enums?.[obj]?.[prop];
+    }
+    case 'ArrayExpr':
+      return node.elements.map((el) => evalNode(el, ctx));
+    case 'ObjectExpr': {
+      const out = {};
+      for (const { key, value } of node.properties) {
+        out[key] = evalNode(value, ctx);
+      }
+      return out;
+    }
+    case 'BinaryExpr': {
+      const l = evalNode(node.left, ctx);
+      const r = evalNode(node.right, ctx);
+      switch (node.operator) {
+        case '+':
+          return l + r;
+        case '-':
+          return l - r;
+        case '*':
+          return l * r;
+        case '/':
+          return l / r;
+        default:
+          throw new Error(`Unknown operator ${node.operator}`);
+      }
+    }
+    case 'CallExpr':
+      return evalCall(node, ctx);
     default:
-      throw new Error(`Unsupported argument type: ${node.type}`);
+      throw new Error(`Unsupported node type: ${node.type}`);
   }
 }
 
 function evalArgs(arglist, ctx) {
   if (arglist.named) {
-    const out = {};
+    const params = {};
+    const names = [];
     for (const [k, v] of Object.entries(arglist.named)) {
-      out[k] = evalArg(v, ctx);
+      params[k] = evalNode(v, ctx);
+      names.push(k);
     }
-    return [out];
+    return { args: [params], params, paramNames: names };
   }
-  return arglist.positional.map((a) => evalArg(a, ctx));
+  const arr = arglist.positional.map((a) => evalNode(a, ctx));
+  return { args: arr, params: null, paramNames: null };
 }
 
-function evalCall(call, input, ctx) {
-  const fn = ctx.operations[call.name];
-  const args = evalArgs(call.args, ctx);
+function evalCall(node, ctx) {
+  const input = node.input ? evalNode(node.input, ctx) : undefined;
+  const name = node.callee.name;
+  const { args, params, paramNames } = evalArgs(node.args, ctx);
+  const fn = ctx.operations[name];
   if (typeof fn === 'function') {
-    if (input !== undefined && input !== null) {
-      return fn(input, ...args);
-    }
     return fn(...args);
   }
-  return { op: call.name, args, input };
-}
-
-function evalChain(chain, ctx) {
-  let value = evalCall(chain.expr, undefined, ctx);
-  for (const c of chain.calls) {
-    value = evalCall(c, value, ctx);
+  const out = { op: name, args, input };
+  out.__effectName = name;
+  if (paramNames) {
+    out.__paramNames = paramNames;
+    out.__params = params;
   }
-  return value;
+  return out;
 }
 
 export function evaluate(ast, ctx = defaultContext) {
-  const value = evalChain(ast.chain, ctx);
-  if (ast.out) {
-    return { output: ast.out, value };
-  }
-  return value;
+  return evalNode(ast.body, ctx);
 }
+
