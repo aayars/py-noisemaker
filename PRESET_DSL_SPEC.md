@@ -53,8 +53,7 @@ Dict           ::= '{' (DictEntry (',' DictEntry)* ','?)? '}'
 DictEntry      ::= (String | Ident) ':' Arg
 Enum           ::= Ident '.' Ident
 OutputRef      ::= 'o' Digit
-SourceRef      ::= 'synth1' | 'synth2' | 'mixer'
-                 | 'post1' | 'post2' | 'post3' | 'final'
+SourceRef      ::= tbd
 Ident          ::= Letter ( Letter | Digit | '_' )*
 Number         ::= Digit+ ('.' Digit+)?
 String         ::= '"' [^"\n]* '"'
@@ -79,7 +78,7 @@ HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
 | `Boolean`   | Keywords `true` and `false`, coerced to `1` and `0`. |
 | `Color`     | Hex colours `#RGB` or `#RRGGBB`. |
 | `OutputRef` | References a previously named output (`o1`–`o9`). |
-| `SourceRef` | References built‑in surfaces such as `synth1` or `final`. |
+| `SourceRef` | References built‑in surfaces. |
 | `List`      | Ordered collection of `Arg` values. |
 | `Dict`      | Mapping of string or identifier keys to `Arg` values. |
 | `Enum`      | Enum access via `EnumType.Member` syntax. |
@@ -117,7 +116,7 @@ stable.  Diagnostics carry source spans for editor highlighting.
 
 The preset context exposes read‑only surfaces and constants:
 
-* Surfaces: `synth1`, `synth2`, `mixer`, `post1`, `post2`, `post3`, `final`.
+* Surfaces: tbd.
 * Outputs: `o1`–`o9` created by the `.out(oN)` call suffix.
 * Enumerations mirroring the Python `noisemaker.constants` module are
   available via the `EnumType.Member` syntax.

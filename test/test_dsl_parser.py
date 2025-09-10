@@ -1,0 +1,18 @@
+import pytest
+from noisemaker.dsl.tokenizer import tokenize
+from noisemaker.dsl.parser import parse
+
+def test_basic_parse():
+    ast = parse(tokenize('{ layers: [noise()] }'))
+    assert ast['type'] == 'Program'
+    assert ast['body']['type'] == 'ObjectExpr'
+
+def test_unknown_key():
+    with pytest.raises(Exception) as e:
+        parse(tokenize('{ foo: 1 }'))
+    assert 'Unknown key' in str(e.value)
+
+def test_duplicate_key():
+    with pytest.raises(Exception) as e:
+        parse(tokenize('{ layers: [], layers: [] }'))
+    assert 'Duplicate key' in str(e.value)

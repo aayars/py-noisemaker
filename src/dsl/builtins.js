@@ -8,15 +8,7 @@ import {
 
 export * from '../constants.js';
 
-export const surfaces = Object.freeze({
-  synth1: 'synth1',
-  synth2: 'synth2',
-  mixer: 'mixer',
-  post1: 'post1',
-  post2: 'post2',
-  post3: 'post3',
-  final: 'final',
-});
+export const surfaces = Object.freeze({ });
 
 export function coinFlip(...args) {
   if (args.length !== 0) {
