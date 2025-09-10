@@ -5,9 +5,9 @@ import noisemaker.rng as _random
 
 surfaces = { }
 
-def coinFlip(*args):
+def coin_flip(*args):
     if len(args) != 0:
-        raise ValueError(f"coinFlip() takes no arguments, received {len(args)}")
+        raise ValueError(f"coin_flip() takes no arguments, received {len(args)}")
     return _coin_flip()
 
 def _enum_range(a, b):
@@ -19,17 +19,17 @@ def _enum_range(a, b):
         i += 1
     return out
 
-def enumRange(*args):
+def enum_range(*args):
     if len(args) != 2:
-        raise ValueError(f"enumRange(a, b) requires exactly 2 arguments, received {len(args)}")
+        raise ValueError(f"enum_range(a, b) requires exactly 2 arguments, received {len(args)}")
     a, b = args
     if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
-        raise ValueError("enumRange(a, b) requires numeric arguments")
+        raise ValueError("enum_range(a, b) requires numeric arguments")
     return _enum_range(a, b)
 
-def randomMember(*collections):
+def random_member(*collections):
     if len(collections) == 0:
-        raise ValueError("randomMember() requires at least one iterable argument")
+        raise ValueError("random_member() requires at least one iterable argument")
     return _random_member(*collections)
 
 def stash(*args):
@@ -46,21 +46,21 @@ def random(*args):
         raise ValueError(f"random() takes no arguments, received {len(args)}")
     return _random.random()
 
-def randomInt(*args):
+def random_int(*args):
     if len(args) != 2:
-        raise ValueError(f"randomInt(a, b) requires exactly 2 arguments, received {len(args)}")
+        raise ValueError(f"random_int(a, b) requires exactly 2 arguments, received {len(args)}")
     a, b = args
     if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
-        raise ValueError("randomInt(a, b) requires numeric arguments")
+        raise ValueError("random_int(a, b) requires numeric arguments")
     return _random.randint(int(a), int(b))
 
 operations = {
-    "coinFlip": coinFlip,
-    "randomMember": randomMember,
-    "enumRange": enumRange,
+    "coin_flip": coin_flip,
+    "random_member": random_member,
+    "enum_range": enum_range,
     "stash": stash,
     "random": random,
-    "randomInt": randomInt,
+    "random_int": random_int,
 }
 
 enums = constants

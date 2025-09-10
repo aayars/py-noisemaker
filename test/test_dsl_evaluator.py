@@ -16,18 +16,18 @@ def test_effect_chain_metadata():
 
 def test_builtins():
     rng.set_seed(1)
-    coin = evaluate(parse(tokenize('coinFlip()')))
+    coin = evaluate(parse(tokenize('coin_flip()')))
     assert isinstance(coin, bool)
 
     rng.set_seed(1)
-    member = evaluate(parse(tokenize('randomMember([1,2,3])')))
+    member = evaluate(parse(tokenize('random_member([1,2,3])')))
     assert member in [1, 2, 3]
 
     evaluate(parse(tokenize('stash("x", 42)')))
     stashed = evaluate(parse(tokenize('stash("x")')))
     assert stashed == 42
 
-    rng_range = evaluate(parse(tokenize('enumRange(1,3)')))
+    rng_range = evaluate(parse(tokenize('enum_range(1,3)')))
     assert rng_range == [1, 2, 3]
 
     rng.set_seed(1)
@@ -35,24 +35,24 @@ def test_builtins():
     assert rnd == pytest.approx(0.6270739405881613)
 
     rng.set_seed(1)
-    rnd_int = evaluate(parse(tokenize('randomInt(1,3)')))
+    rnd_int = evaluate(parse(tokenize('random_int(1,3)')))
     assert rnd_int == 2
 
 def test_errors():
     with pytest.raises(Exception) as e:
-        evaluate(parse(tokenize('coinFlip(1)')))
+        evaluate(parse(tokenize('coin_flip(1)')))
     assert 'takes no arguments' in str(e.value)
 
     with pytest.raises(Exception) as e:
-        evaluate(parse(tokenize('enumRange(1)')))
+        evaluate(parse(tokenize('enum_range(1)')))
     assert 'requires exactly 2 arguments' in str(e.value)
 
     with pytest.raises(Exception) as e:
-        evaluate(parse(tokenize('enumRange("a",3)')))
+        evaluate(parse(tokenize('enum_range("a",3)')))
     assert 'requires numeric arguments' in str(e.value)
 
     with pytest.raises(Exception) as e:
-        evaluate(parse(tokenize('randomMember()')))
+        evaluate(parse(tokenize('random_member()')))
     assert 'requires at least one iterable argument' in str(e.value)
 
     with pytest.raises(Exception) as e:

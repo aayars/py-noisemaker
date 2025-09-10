@@ -15,18 +15,18 @@ assert.deepStrictEqual(result.input.__params, { angle: 45 });
 // Builtins should evaluate
 setSeed(1);
 
-let coin = evaluate(parse(tokenize('coinFlip()')));
+let coin = evaluate(parse(tokenize('coin_flip()')));
 assert.strictEqual(typeof coin, 'boolean');
 
 setSeed(1);
-let member = evaluate(parse(tokenize('randomMember([1,2,3])')));
+let member = evaluate(parse(tokenize('random_member([1,2,3])')));
 assert.ok([1, 2, 3].includes(member));
 
 evaluate(parse(tokenize('stash("x", 42)')));
 let stashed = evaluate(parse(tokenize('stash("x")')));
 assert.strictEqual(stashed, 42);
 
-let range = evaluate(parse(tokenize('enumRange(1,3)')));
+let range = evaluate(parse(tokenize('enum_range(1,3)')));
 assert.deepStrictEqual(range, [1, 2, 3]);
 
 setSeed(1);
@@ -34,20 +34,20 @@ let rnd = evaluate(parse(tokenize('random()')));
 assert.ok(rnd >= 0 && rnd < 1);
 
 setSeed(1);
-let rndInt = evaluate(parse(tokenize('randomInt(1,3)')));
+let rndInt = evaluate(parse(tokenize('random_int(1,3)')));
 assert.ok([1, 2, 3].includes(rndInt));
 
-assert.throws(() => evaluate(parse(tokenize('coinFlip(1)'))), /takes no arguments/);
+assert.throws(() => evaluate(parse(tokenize('coin_flip(1)'))), /takes no arguments/);
 assert.throws(
-  () => evaluate(parse(tokenize('enumRange(1)'))),
+  () => evaluate(parse(tokenize('enum_range(1)'))),
   /requires exactly 2 arguments/
 );
 assert.throws(
-  () => evaluate(parse(tokenize('enumRange("a",3)'))),
+  () => evaluate(parse(tokenize('enum_range("a",3)'))),
   /requires numeric arguments/
 );
 assert.throws(
-  () => evaluate(parse(tokenize('randomMember()'))),
+  () => evaluate(parse(tokenize('random_member()'))),
   /requires at least one iterable argument/
 );
 assert.throws(
