@@ -1,3 +1,5 @@
+const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final']);
+
 function unexpected(token) {
   const val = token ? token.value : 'EOF';
   throw new Error(`Unexpected token: ${val}`);
@@ -10,6 +12,11 @@ export function parse(tokens) {
     return tokens[i + offset];
   }
 
+  function peekIs(type, offset = 0) {
+    const t = peek(offset);
+    return t && t.type === type;
+  }
+
   function consume(type) {
     const t = peek();
     if (!t || (type && t.type !== type)) {
@@ -20,8 +27,7 @@ export function parse(tokens) {
   }
 
   function match(type) {
-    const t = peek();
-    if (t && t.type === type) {
+    if (peekIs(type)) {
       i++;
       return true;
     }
@@ -29,71 +35,145 @@ export function parse(tokens) {
   }
 
   function parseProgram() {
-    const chain = parseChain();
-    let out = null;
-    if (match('.')) {
-      const id = consume('identifier');
-      if (id.value !== 'out') unexpected(id);
-      consume('(');
-      if (peek() && peek().type === 'identifier' && /^o[0-9]$/.test(peek().value)) {
-        out = consume('identifier').value;
+    const t = peek();
+    if (t && t.type === '{') {
+      const body = parseObjectExpr(true);
+      if (i !== tokens.length) unexpected(peek());
+      return { type: 'Program', body };
+    }
+    const expr = parseExpression();
+    if (i !== tokens.length) unexpected(peek());
+    return { type: 'Program', body: expr };
+  }
+
+  function parseObjectExpr(enforceKeys = false) {
+    consume('{');
+    const properties = [];
+    const seen = new Set();
+    while (!peekIs('}')) {
+      const keyTok = peek();
+      if (!keyTok || (keyTok.type !== 'identifier' && keyTok.type !== 'string')) {
+        unexpected(keyTok);
       }
-      consume(')');
+      const key = consume(keyTok.type).value;
+      if (seen.has(key)) {
+        throw new Error(`Duplicate key: ${key}`);
+      }
+      if (enforceKeys && !PRESET_KEYS.has(key)) {
+        throw new Error(`Unknown key: ${key}`);
+      }
+      seen.add(key);
+      consume(':');
+      const value = parseExpression();
+      properties.push({ key, value });
+      if (!match(',')) {
+        break;
+      }
     }
-    return { type: 'Program', chain, out };
+    consume('}');
+    return { type: 'ObjectExpr', properties };
   }
 
-  function parseChain() {
-    const expr = parseCall();
-    const calls = [];
+  function parseArrayExpr() {
+    consume('[');
+    const elements = [];
+    while (!peekIs(']')) {
+      elements.push(parseExpression());
+      if (!match(',')) {
+        break;
+      }
+    }
+    consume(']');
+    return { type: 'ArrayExpr', elements };
+  }
+
+  function parseExpression() {
+    const t = peek();
+    if (!t) unexpected(t);
+    if (
+      t.type === 'number' ||
+      t.type === '(' ||
+      (t.type === 'identifier' && t.value === 'Math')
+    ) {
+      return parseNumberExpr();
+    }
+    if (t.type === 'identifier' && peek(1)?.type === '(') {
+      return parseCallChain();
+    }
+    if (t.type === 'string') {
+      consume('string');
+      return { type: 'StringLiteral', value: t.value };
+    }
+    if (t.type === 'boolean') {
+      consume('boolean');
+      return { type: 'NumberLiteral', value: t.value ? 1 : 0 };
+    }
+    if (t.type === 'color') {
+      consume('color');
+      return { type: 'StringLiteral', value: t.value };
+    }
+    if (t.type === '[') {
+      return parseArrayExpr();
+    }
+    if (t.type === '{') {
+      return parseObjectExpr();
+    }
+    if (t.type === 'identifier') {
+      const id = parseIdentifier();
+      if (match('.')) {
+        const member = parseIdentifier();
+        return { type: 'MemberExpr', object: id, property: member };
+      }
+      return id;
+    }
+    unexpected(t);
+  }
+
+  function parseCallChain() {
+    let node = parseSingleCall();
     while (match('.')) {
-      calls.push(parseCall());
+      const next = parseSingleCall();
+      next.input = node;
+      node = next;
     }
-    return { type: 'Chain', expr, calls };
+    return node;
   }
 
-  function parseCall() {
-    const name = consume('identifier').value;
+  function parseSingleCall() {
+    const callee = parseIdentifier();
     consume('(');
     const args = parseArgList(')');
-    consume(')');
-    return { type: 'Call', name, args };
+    return { type: 'CallExpr', callee, args };
   }
 
-  function parseArgList(terminator) {
-    const args = [];
+  function parseArgList(endToken) {
+    const positional = [];
     const named = {};
     let usingNamed = null;
-    while (!match(terminator)) {
-      const token = peek();
-      if (!token) unexpected(token);
-      if (token.type === terminator) break;
+    while (!peekIs(endToken)) {
       const arg = parseArg();
-      if (arg.type === 'Named') {
+      if (arg.named) {
         if (usingNamed === false) {
           throw new Error('Cannot mix positional and named arguments');
         }
         usingNamed = true;
+        if (Object.prototype.hasOwnProperty.call(named, arg.name)) {
+          throw new Error(`Duplicate argument: ${arg.name}`);
+        }
         named[arg.name] = arg.value;
       } else {
         if (usingNamed === true) {
           throw new Error('Cannot mix positional and named arguments');
         }
         usingNamed = false;
-        args.push(arg);
+        positional.push(arg.value);
       }
-      if (match(',')) {
-        // allow trailing comma
-        if (peek() && peek().type === terminator) {
-          match(terminator);
-          break;
-        }
-        continue;
-      } else {
+      if (!match(',')) {
         break;
       }
     }
-    return usingNamed ? { named } : { positional: args };
+    consume(endToken);
+    return usingNamed === true ? { named } : { positional };
   }
 
   function parseArg() {
@@ -101,80 +181,15 @@ export function parse(tokens) {
     if (t.type === 'identifier' && peek(1)?.type === ':') {
       const name = consume('identifier').value;
       consume(':');
-      const value = parseArg();
-      return { type: 'Named', name, value };
+      const value = parseExpression();
+      return { named: true, name, value };
     }
-    return parseValue();
+    return { value: parseExpression() };
   }
 
-  function parseValue() {
-    const t = peek();
-    if (!t) unexpected(t);
-    if (
-      t.type === 'number' ||
-      t.type === '(' ||
-      (t.type === 'identifier' && (t.value === 'Math'))
-    ) {
-      return parseNumberExpr();
-    }
-    if (t.type === 'string') {
-      consume('string');
-      return { type: 'String', value: t.value };
-    }
-    if (t.type === 'boolean') {
-      consume('boolean');
-      return { type: 'Boolean', value: t.value ? 1 : 0 };
-    }
-    if (t.type === 'color') {
-      consume('color');
-      return { type: 'Color', value: t.value };
-    }
-    if (t.type === '[') {
-      consume('[');
-      const list = parseArgList(']');
-      consume(']');
-      return { type: 'List', value: list.positional || [] };
-    }
-    if (t.type === '{') {
-      consume('{');
-      const entries = [];
-      while (!match('}')) {
-        const keyTok = peek();
-        if (keyTok.type !== 'string' && keyTok.type !== 'identifier') {
-          unexpected(keyTok);
-        }
-        const key = consume(keyTok.type).value;
-        consume(':');
-        const value = parseArg();
-        entries.push({ key, value });
-        if (match(',')) {
-          if (peek()?.type === '}') {
-            match('}');
-            break;
-          }
-          continue;
-        } else {
-          break;
-        }
-      }
-      return { type: 'Dict', value: entries };
-    }
-    if (t.type === 'identifier') {
-      const id = consume('identifier').value;
-      if (/^o[0-9]$/.test(id)) {
-        return { type: 'OutputRef', value: id };
-      }
-      const sources = ['synth1', 'synth2', 'mixer', 'post1', 'post2', 'post3', 'final'];
-      if (sources.includes(id)) {
-        return { type: 'SourceRef', value: id };
-      }
-      if (match('.')) {
-        const member = consume('identifier').value;
-        return { type: 'Enum', object: id, member };
-      }
-      return { type: 'Ident', name: id };
-    }
-    unexpected(t);
+  function parseIdentifier() {
+    const token = consume('identifier');
+    return { type: 'Identifier', name: token.value };
   }
 
   function parseNumberExpr() {
@@ -188,7 +203,7 @@ export function parse(tokens) {
       if (t && (t.type === '+' || t.type === '-')) {
         consume(t.type);
         const right = parseMul();
-        node = { type: 'Binary', op: t.type, left: node, right };
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
       } else {
         break;
       }
@@ -197,13 +212,13 @@ export function parse(tokens) {
   }
 
   function parseMul() {
-    let node = parsePrimary();
+    let node = parseNumberPrimary();
     while (true) {
       const t = peek();
       if (t && (t.type === '*' || t.type === '/')) {
         consume(t.type);
-        const right = parsePrimary();
-        node = { type: 'Binary', op: t.type, left: node, right };
+        const right = parseNumberPrimary();
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
       } else {
         break;
       }
@@ -211,11 +226,11 @@ export function parse(tokens) {
     return node;
   }
 
-  function parsePrimary() {
+  function parseNumberPrimary() {
     const t = peek();
     if (t.type === 'number') {
       consume('number');
-      return { type: 'Number', value: t.value };
+      return { type: 'NumberLiteral', value: t.value };
     }
     if (t.type === '(') {
       consume('(');
@@ -233,7 +248,7 @@ export function parse(tokens) {
       consume('identifier');
       consume('.');
       consume('identifier');
-      return { type: 'Number', value: Math.PI };
+      return { type: 'NumberLiteral', value: Math.PI };
     }
     unexpected(t);
   }
