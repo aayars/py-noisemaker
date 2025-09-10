@@ -1145,8 +1145,8 @@ export function offsetIndex(yIndex, height, xIndex, width) {
   const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
   const xOff = Math.floor(random() * width * 0.5);
   for (let i = 0; i < height * width; i++) {
-    out[i * 2] = (yData[i] + yOff) % height;
-    out[i * 2 + 1] = (xData[i] + xOff) % width;
+    out[i * 2] = ((yData[i] + yOff) % height + height) % height;
+    out[i * 2 + 1] = ((xData[i] + xOff) % width + width) % width;
   }
   return Tensor.fromArray(yIndex.ctx, out, [height, width, 2]);
 }
@@ -2154,8 +2154,8 @@ function offsetIndexInternal(yArr, height, xArr, width) {
   const oy = new Int32Array(n);
   const ox = new Int32Array(n);
   for (let i = 0; i < n; i++) {
-    oy[i] = (yArr[i] + yOff) % height;
-    ox[i] = (xArr[i] + xOff) % width;
+    oy[i] = ((yArr[i] + yOff) % height + height) % height;
+    ox[i] = ((xArr[i] + xOff) % width + width) % width;
   }
   return { y: oy, x: ox };
 }
