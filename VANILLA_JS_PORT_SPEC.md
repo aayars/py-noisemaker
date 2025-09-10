@@ -4,6 +4,10 @@ The JS porting project aims for a 1:1 surface-level port of Noisemaker's Python 
 
 CLI tools are not included.
 
+## When in doubt
+
+When in doubt: refer to what the Python version is doing, and just do what it does. The Python version is our baseline reference implementation.
+
 ## 1. Goals and Scope
 
 * Reproduce the reusable library portion of the Python project in plain JavaScript.
