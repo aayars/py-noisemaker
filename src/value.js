@@ -152,9 +152,9 @@ void main(){
   float r=rand2D(gl_FragCoord.x,gl_FragCoord.y,u_seed,u_time,u_speed);
   val=pow(r,3.0);
  }else if(u_distrib==${ValueDistribution.column_index}){
-  if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
- }else if(u_distrib==${ValueDistribution.row_index}){
   if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
+ }else if(u_distrib==${ValueDistribution.row_index}){
+  if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
  }else if(u_distrib==${ValueDistribution.ones}){
   val=1.0;
  }else if(u_distrib==${ValueDistribution.mids}){
@@ -294,10 +294,10 @@ void main(){
           val = 0;
           break;
         case ValueDistribution.column_index:
-          val = width === 1 ? 0 : x / (width - 1);
+          val = height === 1 ? 0 : y / (height - 1);
           break;
         case ValueDistribution.row_index:
-          val = height === 1 ? 0 : y / (height - 1);
+          val = width === 1 ? 0 : x / (width - 1);
           break;
         case ValueDistribution.center_circle:
         case ValueDistribution.center_triangle:

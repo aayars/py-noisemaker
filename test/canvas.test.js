@@ -40,34 +40,11 @@ for (let i = 0; i < data.length; i += 4) {
   assert.strictEqual(data[i], data[i + 2]);
 }
 
-// column gradient: ensure X direction is left-to-right
-render('column', 0, {
+// row gradient: ensure X direction is left-to-right
+render('row', 0, {
   ctx,
   width: 3,
   height: 2,
-  presets: {
-    column: {
-      generator: () => ({
-        color_space: ColorSpace.grayscale,
-        distrib: ValueDistribution.column_index,
-      }),
-    },
-  },
-});
-data = fakeCtx2d.img.data;
-const colPx = (x, y) => data[(y * 3 + x) * 4];
-assert.strictEqual(colPx(0, 0), 0);
-assert.strictEqual(colPx(1, 0), 128);
-assert.strictEqual(colPx(2, 0), 255);
-assert.strictEqual(colPx(0, 1), 0);
-assert.strictEqual(colPx(1, 1), 128);
-assert.strictEqual(colPx(2, 1), 255);
-
-// row gradient: ensure Y direction is top-to-bottom
-render('row', 0, {
-  ctx,
-  width: 2,
-  height: 3,
   presets: {
     row: {
       generator: () => ({
@@ -78,12 +55,35 @@ render('row', 0, {
   },
 });
 data = fakeCtx2d.img.data;
-const rowPx = (x, y) => data[(y * 2 + x) * 4];
+const rowPx = (x, y) => data[(y * 3 + x) * 4];
 assert.strictEqual(rowPx(0, 0), 0);
-assert.strictEqual(rowPx(1, 0), 0);
-assert.strictEqual(rowPx(0, 1), 128);
+assert.strictEqual(rowPx(1, 0), 128);
+assert.strictEqual(rowPx(2, 0), 255);
+assert.strictEqual(rowPx(0, 1), 0);
 assert.strictEqual(rowPx(1, 1), 128);
-assert.strictEqual(rowPx(0, 2), 255);
-assert.strictEqual(rowPx(1, 2), 255);
+assert.strictEqual(rowPx(2, 1), 255);
+
+// column gradient: ensure Y direction is top-to-bottom
+render('column', 0, {
+  ctx,
+  width: 2,
+  height: 3,
+  presets: {
+    column: {
+      generator: () => ({
+        color_space: ColorSpace.grayscale,
+        distrib: ValueDistribution.column_index,
+      }),
+    },
+  },
+});
+data = fakeCtx2d.img.data;
+const colPx = (x, y) => data[(y * 2 + x) * 4];
+assert.strictEqual(colPx(0, 0), 0);
+assert.strictEqual(colPx(1, 0), 0);
+assert.strictEqual(colPx(0, 1), 128);
+assert.strictEqual(colPx(1, 1), 128);
+assert.strictEqual(colPx(0, 2), 255);
+assert.strictEqual(colPx(1, 2), 255);
 
 console.log('canvas tests passed');

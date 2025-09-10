@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "node scripts/checkEnums.js && node test/rng.test.js && node test/constants.test.js && node test/constants-parity.test.js && node test/simplex.test.js && node test/value.test.js && node test/points.test.js && node test/masks.test.js && node test/masks-parity.test.js && node test/palettes.test.js && node test/palettes-parity.test.js && node test/effectsRegistry.test.js && node test/effects-parity.test.js && node test/effects.test.js && node test/composer.test.js && node test/presets-parity.test.js && node test/presets-params-parity.test.js && node test/presets.test.js && node test/presets-render.test.js && node test/colors.test.js && node test/canvas.test.js && node test/webgl.test.js && node test/generators.test.js",
+    "test": "node scripts/checkEnums.js && node test/rng.test.js && node test/constants.test.js && node test/constants-parity.test.js && node test/simplex.test.js && node test/value.test.js && node test/value-parity.test.js && node test/points.test.js && node test/masks.test.js && node test/masks-parity.test.js && node test/palettes.test.js && node test/palettes-parity.test.js && node test/effectsRegistry.test.js && node test/effects-parity.test.js && node test/effects.test.js && node test/composer.test.js && node test/presets-parity.test.js && node test/presets-params-parity.test.js && node test/presets.test.js && node test/presets-render.test.js && node test/colors.test.js && node test/canvas.test.js && node test/webgl.test.js && node test/generators.test.js",
     "build": "node scripts/build.js",
     "regress": "node scripts/regress.js",
     "image-regress": "python scripts/image_regression.py"

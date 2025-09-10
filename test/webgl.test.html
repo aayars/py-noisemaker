@@ -50,13 +50,13 @@ const edge = sobel(base);
     }
   }
 
-  const vertPresets = { vert: { generator: () => ({ distrib: ValueDistribution.row_index }) } };
+  const vertPresets = { vert: { generator: () => ({ distrib: ValueDistribution.column_index }) } };
   render('vert', 0, { ctx, width: 2, height: 2, presets: vertPresets });
   const vImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
   const vTop = vImg[0];
   const vBottom = vImg[8];
 
-  const horizPresets = { horiz: { generator: () => ({ distrib: ValueDistribution.column_index }) } };
+  const horizPresets = { horiz: { generator: () => ({ distrib: ValueDistribution.row_index }) } };
   render('horiz', 0, { ctx, width: 2, height: 2, presets: horizPresets });
   const hImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
   const hLeft = hImg[0];
