@@ -707,19 +707,17 @@ export function blend(a, b, t) {
 export function normalize(tensor) {
   const [h, w, c] = tensor.shape;
   const src = tensor.read();
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < src.length; i++) {
+    const v = src[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const range = max - min || 1;
   const out = new Float32Array(src.length);
-  for (let k = 0; k < c; k++) {
-    let min = Infinity;
-    let max = -Infinity;
-    for (let i = k; i < src.length; i += c) {
-      const v = src[i];
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    const range = max - min || 1;
-    for (let i = k; i < src.length; i += c) {
-      out[i] = (src[i] - min) / range;
-    }
+  for (let i = 0; i < src.length; i++) {
+    out[i] = (src[i] - min) / range;
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
