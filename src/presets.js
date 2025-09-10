@@ -832,7 +832,7 @@ export function PRESETS() {
         hue_range: 0.1 + random() * 0.05,
         saturation_final: random() * 0.05,
         shadow_alpha: 0.5,
-        voronoi_point_freq: randomInt(3, 4) * 2,
+        voronoi_point_freq: 6,
         warp_freq: [randomInt(3, 4), randomInt(3, 4)],
         warp_range: 0.125,
         warp_octaves: 8,
@@ -2255,7 +2255,7 @@ hearts: {
       settings: () => ({
         palette_alpha: 0.5 + random() * 0.5,
         palette_name: randomMember(Object.keys(PALETTES)),
-        palette_on: random() < 0.375,
+        palette_on: false,
       }),
       post: (settings) =>
         !settings.paletteOn
@@ -2724,10 +2724,10 @@ hearts: {
           mask.invaders_square,
           randomMember(valueMaskGlyphMembers),
         ]),
-        mask_repeat: randomInt(2, 3) * 2,
+        mask_repeat: (random(), randomInt(2, 3) * 2),
         octaves: 2,
         posterize_levels: randomInt(3, 6),
-        refract_range: randomMember([0, random() * 0.05]),
+        refract_range: 0,
         refract_signed_range: false,
         refract_y_from_offset: true,
         spline_order: interp.cosine,
