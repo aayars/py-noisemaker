@@ -25,5 +25,29 @@ evaluate(parse(tokenize('stash("x", 42)')));
 const stashed = evaluate(parse(tokenize('stash("x")')));
 assert.strictEqual(stashed, 42);
 
-console.log('evaluator tests passed');
+const range = evaluate(parse(tokenize('enumRange(1,3)')));
+assert.deepStrictEqual(range, [1, 2, 3]);
 
+assert.throws(() => evaluate(parse(tokenize('coinFlip(1)'))), /takes no arguments/);
+assert.throws(
+  () => evaluate(parse(tokenize('enumRange(1)'))),
+  /requires exactly 2 arguments/
+);
+assert.throws(
+  () => evaluate(parse(tokenize('enumRange("a",3)'))),
+  /requires numeric arguments/
+);
+assert.throws(
+  () => evaluate(parse(tokenize('randomMember()'))),
+  /requires at least one iterable argument/
+);
+assert.throws(
+  () => evaluate(parse(tokenize('stash(1)'))),
+  /key must be a string/
+);
+assert.throws(
+  () => evaluate(parse(tokenize('stash("x",1,2)'))),
+  /expects 1 or 2 arguments/
+);
+
+console.log('evaluator tests passed');

@@ -1,5 +1,12 @@
 import * as constants from '../constants.js';
-import { random } from '../util.js';
+import {
+  coinFlip as _coinFlip,
+  enumRange as _enumRange,
+  randomMember as _randomMember,
+  stash as _stash,
+} from '../presets.js';
+
+export * from '../constants.js';
 
 export const surfaces = Object.freeze({
   synth1: 'synth1',
@@ -11,52 +18,40 @@ export const surfaces = Object.freeze({
   final: 'final',
 });
 
-function coinFlip() {
-  return random() < 0.5;
+export function coinFlip(...args) {
+  if (args.length !== 0) {
+    throw new Error(`coinFlip() takes no arguments, received ${args.length}`);
+  }
+  return _coinFlip();
 }
 
-function enumRange(a, b) {
-  const out = [];
-  for (let i = a; i <= b; i++) {
-    out.push(i);
+export function enumRange(...args) {
+  if (args.length !== 2) {
+    throw new Error(`enumRange(a, b) requires exactly 2 arguments, received ${args.length}`);
   }
-  return out;
+  const [a, b] = args;
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    throw new Error('enumRange(a, b) requires numeric arguments');
+  }
+  return _enumRange(a, b);
 }
 
-function randomMember(...collections) {
-  const out = [];
-  for (const c of collections) {
-    if (Array.isArray(c)) {
-      out.push(...c.slice().sort());
-    } else if (c && typeof c === 'object' && !(c instanceof Map)) {
-      const keys = Object.keys(c).sort();
-      const values = keys.map((k) => c[k]);
-      const primitives = values.every(
-        (v) => v === null || ['number', 'string', 'boolean'].includes(typeof v),
-      );
-      if (primitives) {
-        out.push(...values);
-      } else {
-        out.push(...keys);
-      }
-    } else if (c && typeof c[Symbol.iterator] === 'function') {
-      const arr = Array.from(c);
-      arr.sort();
-      out.push(...arr);
-    } else {
-      throw new Error('randomMember(arg) should be iterable');
-    }
+export function randomMember(...collections) {
+  if (collections.length === 0) {
+    throw new Error('randomMember() requires at least one iterable argument');
   }
-  const idx = Math.floor(random() * out.length);
-  return out[idx];
+  return _randomMember(...collections);
 }
 
-const _STASH = new Map();
-function stash(key, value) {
-  if (value !== undefined) {
-    _STASH.set(key, value);
+export function stash(...args) {
+  if (args.length === 0 || args.length > 2) {
+    throw new Error(`stash(key[, value]) expects 1 or 2 arguments, received ${args.length}`);
   }
-  return _STASH.get(key);
+  const [key, value] = args;
+  if (typeof key !== 'string') {
+    throw new Error('stash(key[, value]) key must be a string');
+  }
+  return _stash(key, value);
 }
 
 export const operations = Object.freeze({
