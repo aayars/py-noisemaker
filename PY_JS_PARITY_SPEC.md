@@ -126,7 +126,3 @@ All parity tests must run in CI for both languages.
 
 * Floating‑point differences may still occur on different hardware. Investigate fixed‑point alternatives if required.
 * Document any intentional deviations (e.g., performance shortcuts) in the spec and ensure tests reflect the intended behaviour.
-
----
-
-Following this specification will provide a concrete roadmap toward deterministic, lock‑step behaviour between the Python and JavaScript versions of Noisemaker.
