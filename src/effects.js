@@ -172,8 +172,11 @@ export function shadow(
     return blend(tensor, shadeTensor, alpha);
   } else if (c === 2) {
     const out = src.slice();
+    const alphaData = typeof alpha === "number" ? null : alpha.read();
+    const tc = alphaData ? alpha.shape[2] : 0;
     for (let i = 0; i < h * w; i++) {
-      out[i * 2] = (1 - alpha) * src[i * 2] + alpha * shaded[i * 2];
+      const t = alphaData ? alphaData[i * tc] : alpha;
+      out[i * 2] = (1 - t) * src[i * 2] + t * shaded[i * 2];
     }
     return Tensor.fromArray(tensor.ctx, out, shape);
   } else {
@@ -205,9 +208,12 @@ export function shadow(
       Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
     );
     const shadeHsvData = shadeHsv.read();
+    const alphaData = typeof alpha === "number" ? null : alpha.read();
+    const tc = alphaData ? alpha.shape[2] : 0;
     for (let i = 0; i < h * w; i++) {
+      const t = alphaData ? alphaData[i * tc] : alpha;
       hsvData[i * 3 + 2] =
-        (1 - alpha) * hsvData[i * 3 + 2] + alpha * shadeHsvData[i * 3 + 2];
+        (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2];
     }
     let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
     if (c === 4) {
@@ -498,7 +504,8 @@ export function glowingEdges(
     final[i] = 1 - (1 - edgesData[i]) * (1 - src[i]);
   }
   let result = Tensor.fromArray(tensor.ctx, final, shape);
-  if (alpha < 1) result = blend(tensor, result, alpha);
+  if (typeof alpha !== "number" || alpha < 1)
+    result = blend(tensor, result, alpha);
   return result;
 }
 register("glowingEdges", glowingEdges, {
@@ -1166,7 +1173,7 @@ export function convolve(
     }
     out = Tensor.fromArray(out.ctx, data, out.shape);
   }
-  if (alpha < 1) out = blend(tensor, out, alpha);
+  if (typeof alpha !== "number" || alpha < 1) out = blend(tensor, out, alpha);
   return out;
 }
 register("convolve", convolve, {
@@ -1249,7 +1256,17 @@ export function palette(tensor, shape, time, speed, name = null, alpha = 1) {
       p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2] + time));
   }
   const colored = Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
-  const tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
+  let tBlend;
+  if (typeof alpha === "number") {
+    tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
+  } else {
+    const aData = alpha.read();
+    const tData = new Float32Array(aData.length);
+    for (let i = 0; i < aData.length; i++) {
+      tData[i] = (1 - Math.cos(aData[i] * Math.PI)) / 2;
+    }
+    tBlend = Tensor.fromArray(alpha.ctx, tData, alpha.shape);
+  }
   let blended = blend(norm, colored, tBlend);
 
   if (alphaChan) {
@@ -2732,7 +2749,16 @@ export function snow(tensor, shape, time, speed, alpha = 0.25) {
     splineOrder: InterpolationType.constant,
   });
   const lData = limiter.read();
-  for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
+  if (typeof alpha === "number") {
+    for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
+  } else {
+    const aData = alpha.read();
+    const tc = alpha.shape[2];
+    for (let i = 0; i < h * w; i++) {
+      const t = aData[i * tc];
+      for (let k = 0; k < c; k++) lData[i * c + k] *= t;
+    }
+  }
   limiter = Tensor.fromArray(ctx, lData, shape);
   return blend(tensor, staticNoise, limiter);
 }
