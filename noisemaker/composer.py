@@ -4,7 +4,7 @@ from collections import UserDict
 from enum import Enum, EnumMeta
 from functools import partial
 
-import random
+import noisemaker.rng as rng
 
 import tensorflow as tf
 
@@ -228,11 +228,11 @@ def random_member(*collections):
             # make sure order is deterministic
             collection += sorted(c)
 
-    return collection[random.randint(0, len(collection) - 1)]
+    return collection[rng.random_int(0, len(collection) - 1)]
 
 
 def coin_flip():
-    return bool(random.randint(0, 1))
+    return bool(rng.random_int(0, 1))
 
 
 def enum_range(a, b):

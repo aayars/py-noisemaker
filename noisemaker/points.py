@@ -1,7 +1,8 @@
 """Point cloud library for Noisemaker. Used for Voronoi and DLA functions."""
 
 import math
-import random
+
+import noisemaker.rng as rng
 
 from noisemaker.constants import PointDistribution, ValueMask
 
@@ -153,8 +154,8 @@ def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0
     y = []
 
     for i in range(freq * freq):
-        _x = (center_x + (random.random() * (range_x * 2.0) - range_x)) % width
-        _y = (center_y + (random.random() * (range_y * 2.0) - range_y)) % height
+        _x = (center_x + (rng.random() * (range_x * 2.0) - range_x)) % width
+        _y = (center_y + (rng.random() * (range_y * 2.0) - range_y)) % height
 
         x.append(_x)
         y.append(_y)
@@ -214,7 +215,7 @@ def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width
     """
     """
 
-    kink = .5 + random.random() * .5
+    kink = .5 + rng.random() * .5
 
     x = []
     y = []
@@ -247,7 +248,7 @@ def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, ran
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
-    kink = .5 + random.random() * .5
+    kink = .5 + rng.random() * .5
 
     for i in range(1, ring_count + 1):
         dist_fract = i / ring_count

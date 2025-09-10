@@ -3,10 +3,11 @@
 from collections import defaultdict
 
 import math
-import random
 
 import numpy as np
 import tensorflow as tf
+
+import noisemaker.rng as rng
 
 from noisemaker.constants import (
     DistanceMetric,
@@ -29,12 +30,8 @@ def set_seed(seed):
     """
 
     if seed is not None:
-        random.seed(seed)
-
-        np.random.seed(seed)
-
-        tf.random.set_seed(seed)
-
+        rng.set_seed(seed)
+        tf.random.set_seed(seed & 0xFFFFFFFF)
         simplex._seed = seed
 
 
@@ -121,9 +118,9 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         # closely resembles higher-dimensional noise.
 
         # get a periodic uniform noise, and scale it to speed:
-        scaled_time = periodic_value(time, tf.random.uniform(initial_shape)) * speed
+        scaled_time = periodic_value(time, rng.uniform(initial_shape)) * speed
 
-        tensor = periodic_value(scaled_time, tf.random.uniform(initial_shape))
+        tensor = periodic_value(scaled_time, rng.uniform(initial_shape))
 
         if distrib == ValueDistribution.exp:
             tensor = tf.math.pow(tensor, 4)
@@ -294,8 +291,8 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
 
     if diagram_type in VoronoiDiagramType.flow_members():
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
-        x += tf.random.normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y += tf.random.normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
+        x += rng.normal(tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y += rng.normal(tf.shape(y), stddev=.0001, dtype=tf.float32)
 
     if is_triangular:
         # Keep it visually flipped "horizontal"-side-up

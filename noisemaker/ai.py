@@ -12,7 +12,7 @@
 
 import base64
 import os
-import random
+import noisemaker.rng as random
 
 import noisemaker.util as util
 

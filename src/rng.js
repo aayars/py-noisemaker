@@ -33,24 +33,13 @@ export class Random {
     }
 
     /**
-     * Returns a random float in the specified range with two digits after the decimal point.
-     * If range is unspecified, the value is between 0 and 1.
-     * @param {number} min - The min value - defaults to 0
-     * @param {number} max - The max value - defaults to 1
-     * @returns {number} A floating point number with two decimal places
-     */
-    floatFixed(min = 0, max = 1) {
-        return parseFloat(this.float(min, max).toFixed(2));
-    }
-
-    /**
-     * Returns a random integer in the specified range
+     * Returns a random integer in the specified range (inclusive)
      * @param {number} min - The min value
-     * @param {number} max - The max value (exclusive)
+     * @param {number} max - The max value
      * @returns {number}
      */
-    int(min, max) {
-        return Math.floor(this.float(min, max));
+    randomInt(min, max) {
+        return Math.floor(this.random() * (max - min + 1)) + min;
     }
 
     /**
@@ -58,9 +47,25 @@ export class Random {
      * @param {Array} arr - The array
      * @returns item
      */
+    choice(arr) {
+        return arr[this.randomInt(0, arr.length - 1)];
+    }
+
+    floatFixed(min = 0, max = 1) {
+        return parseFloat(this.float(min, max).toFixed(2));
+    }
+
+    int(min, max) {
+        return Math.floor(this.float(min, max));
+    }
+
     item(arr) {
-        const index = Math.floor(this.random() * arr.length);
-        return arr[index];
+        return this.choice(arr);
+    }
+
+    object(obj) {
+        const keys = Object.keys(obj);
+        return obj[this.choice(keys)];
     }
 
     /**
@@ -131,7 +136,7 @@ export class Random {
 let _rng = new Random(0x12345678);
 
 export function setSeed(s) {
-    _rng = new Random(s);
+    _rng = new Random(s >>> 0);
 }
 
 export function getSeed() {
@@ -140,6 +145,14 @@ export function getSeed() {
 
 export function random() {
     return _rng.random();
+}
+
+export function randomInt(min, max) {
+    return _rng.randomInt(min, max);
+}
+
+export function choice(arr) {
+    return _rng.choice(arr);
 }
 
 export { _rng as rng };

@@ -1,6 +1,6 @@
 """Dynamic prompt and image generator"""
 
-import random
+import noisemaker.rng as random
 import tempfile
 import time
 

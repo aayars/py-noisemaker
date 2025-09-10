@@ -20,6 +20,7 @@ from noisemaker.effects import (
 )
 from noisemaker.palettes import PALETTES
 from noisemaker import value
+from noisemaker import rng
 from opensimplex import OpenSimplex
 
 # JS RNG equivalent
@@ -30,6 +31,15 @@ def js_random(seed):
 
 fixtures_dir = root / 'test' / 'fixtures'
 fixtures_dir.mkdir(parents=True, exist_ok=True)
+
+# RNG fixtures
+rng_dir = fixtures_dir / 'rng'
+rng_dir.mkdir(exist_ok=True)
+for seed in (1, 2, 3):
+    rng.set_seed(seed)
+    vals = [rng.random() for _ in range(1000)]
+    with open(rng_dir / f'seed_{seed}.json', 'w') as f:
+        json.dump(vals, f)
 
 # Posterize fixture
 poster_vals = [0.1, 0.5, 0.9, 0.3]

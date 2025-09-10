@@ -1,9 +1,9 @@
 // Miscellaneous utilities: canvas export, logging, seeded random, shape and color helpers.
 
 import { Tensor } from './tensor.js';
-import { Random, setSeed, getSeed, random } from './rng.js';
+import { Random, setSeed, getSeed, random, randomInt, choice } from './rng.js';
 
-export { Random, setSeed, getSeed, random };
+export { Random, setSeed, getSeed, random, randomInt, choice };
 
 // --------------------- Logger ---------------------
 let _logger = console;
@@ -20,14 +20,6 @@ export const logger = {
 };
 
 // --------------------- Seeded random utilities ---------------------
-export function randomInt(min, max) {
-  return Math.floor(random() * (max - min + 1)) + min;
-}
-
-export function choice(arr) {
-  return arr[Math.floor(random() * arr.length)];
-}
-
 export function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; --i) {
     const j = Math.floor(random() * (i + 1));

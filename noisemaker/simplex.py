@@ -1,5 +1,6 @@
 import math
-import random as _random
+
+import noisemaker.rng as rng
 
 from opensimplex import OpenSimplex
 
@@ -16,11 +17,12 @@ def get_seed():
 
     global _seed
 
-    # increment the global seed on each use so we're not repeating values across subsequent calls
-    if _seed:
-        _seed += 1
+    if _seed is not None:
+        _seed = (_seed + 1) & 0xFFFFFFFF
+    else:
+        _seed = rng.random_int(1, 65536)
 
-    return _seed or _random.randint(1, 65536)
+    return _seed
 
 
 def random(time, seed=None, speed=1.0):
@@ -30,7 +32,7 @@ def random(time, seed=None, speed=1.0):
     z = math.cos(two_pi_times_time) * speed
     w = math.sin(two_pi_times_time) * speed
 
-    return (OpenSimplex(seed=seed or _random.randint(1, 65536)).noise2d(z, w) + 1.0) * .5
+    return (OpenSimplex(seed=seed or rng.random_int(1, 65536)).noise2d(z, w) + 1.0) * .5
 
 
 def simplex(shape, time=0.0, seed=None, speed=1.0, as_np=False):

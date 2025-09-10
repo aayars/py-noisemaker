@@ -1,7 +1,7 @@
 """Font loader for Noisemaker. Creates glyph atlases from TrueType fonts."""
 
 import os
-import random
+import noisemaker.rng as random
 
 from PIL import Image, ImageDraw, ImageFont
 

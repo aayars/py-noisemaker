@@ -1,5 +1,5 @@
 import functools
-import random
+import noisemaker.rng as random
 
 from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
 from noisemaker.constants import (

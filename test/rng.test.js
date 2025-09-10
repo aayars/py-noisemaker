@@ -1,18 +1,38 @@
 import assert from 'assert';
-import { Random, setSeed, getSeed, random } from '../src/rng.js';
+import { setSeed, random, randomInt, choice } from '../src/rng.js';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// setSeed/getSeed maintain deterministic sequences
-setSeed(123);
-assert.strictEqual(getSeed(), 123);
-const a = random();
-setSeed(123);
-assert.strictEqual(random(), a);
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const fixturesDir = join(__dirname, 'fixtures', 'rng');
 
-// Random instances with same seed generate same sequence
-const r1 = new Random(42);
-const r2 = new Random(42);
-for (let i = 0; i < 5; i++) {
-  assert.strictEqual(r1.random(), r2.random());
+for (const file of fs.readdirSync(fixturesDir)) {
+  const m = file.match(/seed_(\d+)\.json/);
+  if (!m) continue;
+  const seed = Number(m[1]);
+  const expected = JSON.parse(fs.readFileSync(join(fixturesDir, file)));
+
+  setSeed(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = random();
+    assert.ok(Math.abs(v - expected[i]) < 1e-9, `seed ${seed} index ${i}`);
+  }
+
+  setSeed(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = randomInt(0, 99);
+    const exp = Math.floor(expected[i] * 100);
+    assert.strictEqual(v, exp, `randomInt seed ${seed} index ${i}`);
+  }
+
+  const seq = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  setSeed(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = choice(seq);
+    const exp = seq[Math.floor(expected[i] * seq.length)];
+    assert.strictEqual(v, exp, `choice seed ${seed} index ${i}`);
+  }
 }
 
 console.log('RNG tests passed');
