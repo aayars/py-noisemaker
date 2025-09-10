@@ -102,6 +102,41 @@ assert.deepStrictEqual(
   expected.map((v) => +v.toFixed(6))
 );
 
+// settings-only generator options should pass through
+captured = null;
+const SETTINGS_ONLY = {
+  only: {
+    settings: () => ({
+      freq: 2,
+      color_space: ColorSpace.hsv,
+      hue_rotation: 0.5,
+      hue_range: 0,
+    }),
+    post: (settings) => {
+      // access settings keys to satisfy SettingsDict
+      settings.freq;
+      settings.color_space;
+      settings.hue_rotation;
+      settings.hue_range;
+      return [Effect('capture')];
+    },
+  },
+};
+const presetOnly = new Preset('only', SETTINGS_ONLY);
+const expectedOnly = Array.from(
+  multires(2, shape, {
+    seed,
+    color_space: ColorSpace.hsv,
+    hueRotation: 0.5,
+    hueRange: 0,
+  }).read()
+);
+presetOnly.render(seed, { width: 1, height: 1 });
+assert.deepStrictEqual(
+  captured.map((v) => +v.toFixed(6)),
+  expectedOnly.map((v) => +v.toFixed(6))
+);
+
 // unused settings should throw
 assert.throws(() => new Preset('bad', { bad: { settings: () => ({ unused: 1 }) } }));
 

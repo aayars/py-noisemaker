@@ -92,9 +92,11 @@ export class Preset {
       colorSpace === ColorSpace.grayscale ? 'grayscale' : 'rgb',
       withAlpha
     );
-    const freq = g.freq !== undefined ? g.freq : 1;
+
+    const merged = { ...this.settings, ...g };
+    const freq = merged.freq ?? 1;
     let tensor = multires(freq, shape, {
-      ...g,
+      ...merged,
       color_space: colorSpace,
       ctx,
       seed,

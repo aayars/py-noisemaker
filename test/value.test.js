@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur, freqForShape } from '../src/value.js';
+import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHsv, warp, fft, ifft, refract, convolution, ridge, rotate, zoom, fxaa, gaussianBlur, freqForShape, normalize } from '../src/value.js';
 import { rgbToOklab, oklabToRgb } from '../src/oklab.js';
 import { ValueDistribution, ValueMask, InterpolationType } from '../src/constants.js';
 import { Tensor } from '../src/tensor.js';
@@ -162,6 +162,13 @@ const palette = [[0,0,0],[1,0,0],[0,1,0],[0,0,1]];
 const mapped = valueMap(gray, palette);
 assert.deepStrictEqual(mapped.shape, [2, 2, 3]);
 assert.deepStrictEqual(Array.from(mapped.read().slice(0,3)), palette[0]);
+
+// normalize should use global min/max across channels
+const normMulti = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3, 4, 5]), [1, 2, 3]);
+arraysClose(
+  normalize(normMulti).read(),
+  new Float32Array([0, 0.2, 0.4, 0.6, 0.8, 1])
+);
 
 // color conversions
 const rgb = Tensor.fromArray(null, new Float32Array([1, 0, 0]), [1, 1, 3]);
