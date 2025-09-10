@@ -107,19 +107,35 @@ export function linToSRGB(v) {
 }
 
 export function fromSRGB(tensor) {
+  const [h, w, c] = tensor.shape;
   const data = tensor.read();
   const out = new Float32Array(data.length);
-  for (let i = 0; i < data.length; ++i) {
-    out[i] = srgbToLin(data[i]);
+  const channels = Math.min(c, 3);
+  for (let i = 0; i < h * w; i++) {
+    const base = i * c;
+    for (let ch = 0; ch < channels; ch++) {
+      out[base + ch] = srgbToLin(data[base + ch]);
+    }
+    for (let ch = channels; ch < c; ch++) {
+      out[base + ch] = data[base + ch];
+    }
   }
   return Tensor.fromArray(tensor.ctx, out, tensor.shape);
 }
 
 export function toSRGB(tensor) {
+  const [h, w, c] = tensor.shape;
   const data = tensor.read();
   const out = new Float32Array(data.length);
-  for (let i = 0; i < data.length; ++i) {
-    out[i] = linToSRGB(data[i]);
+  const channels = Math.min(c, 3);
+  for (let i = 0; i < h * w; i++) {
+    const base = i * c;
+    for (let ch = 0; ch < channels; ch++) {
+      out[base + ch] = linToSRGB(data[base + ch]);
+    }
+    for (let ch = channels; ch < c; ch++) {
+      out[base + ch] = data[base + ch];
+    }
   }
   return Tensor.fromArray(tensor.ctx, out, tensor.shape);
 }
