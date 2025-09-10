@@ -2995,10 +2995,14 @@ function rotate2D(tensor, shape, angle) {
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(w, h);
     gl.useProgram(prog);
-    ctx.bindTexture(prog, "u_tex", tensor.tex);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
     gl.uniform1f(gl.getUniformLocation(prog, "u_angle"), angle);
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
   const src = tensor.read();
