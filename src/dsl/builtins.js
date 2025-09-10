@@ -5,7 +5,7 @@ import {
   random_member as _random_member,
   stash as _stash,
 } from '../presets.js';
-import { random as _random, randomInt as _randomInt } from '../util.js';
+import { random as _random, randomInt as _random_int } from '../util.js';
 
 export * from '../constants.js';
 
@@ -62,7 +62,7 @@ export function random_int(...args) {
   if (typeof a !== 'number' || typeof b !== 'number') {
     throw new Error('random_int(a, b) requires numeric arguments');
   }
-  return _randomInt(a, b);
+  return _random_int(a, b);
 }
 
 export const operations = Object.freeze({
