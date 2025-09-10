@@ -118,6 +118,15 @@ for (let i = 0; i < 4; i++) {
 }
 arraysClose(blendedBroadcast.read(), expectedBroadcast);
 
+// blend with spatial broadcasting
+const baseA = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3]), [2, 2, 1]);
+const rowB = Tensor.fromArray(null, new Float32Array([4, 5]), [1, 2, 1]);
+const blendedRow = blend(baseA, rowB, 0.5);
+arraysClose(blendedRow.read(), new Float32Array([2, 3, 3, 4]));
+const colB = Tensor.fromArray(null, new Float32Array([6, 7]), [2, 1, 1]);
+const blendedCol = blend(baseA, colB, 0.5);
+arraysClose(blendedCol.read(), new Float32Array([3, 3.5, 4.5, 5]));
+
 // GPU blend should handle channel mismatch by falling back to CPU
 let gpuCanvas = null;
 if (typeof document !== 'undefined' && document.createElement) {
