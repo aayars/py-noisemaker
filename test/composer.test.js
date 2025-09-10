@@ -1,9 +1,12 @@
 import assert from 'assert';
+import fs from 'fs';
 import { register } from '../src/effectsRegistry.js';
 import { Preset, Effect } from '../src/composer.js';
 import { Context } from '../src/context.js';
 import { multires } from '../src/generators.js';
 import { ColorSpace } from '../src/constants.js';
+import { PRESETS as JS_PRESETS } from '../src/presets.js';
+import { setSeed } from '../src/rng.js';
 
 const log = [];
 function record(tensor, shape, time, speed, label = '') {
@@ -144,5 +147,17 @@ assert.throws(() => new Preset('bad', { bad: { settings: () => ({ unused: 1 }) }
 assert.doesNotThrow(
   () => new Preset('ok', { ok: { settings: () => ({ palette_alpha: 0.5 }) } })
 );
+
+// parity execution graph
+const fixture = JSON.parse(
+  fs.readFileSync(new URL('./fixtures/composer.json', import.meta.url))
+);
+for (const [name, expected] of Object.entries(fixture)) {
+  setSeed(1);
+  const preset = new Preset(name, JS_PRESETS());
+  const graph = preset.render(1, { width: 8, height: 8, debug: true });
+  assert.deepStrictEqual(graph.effects, expected.effects);
+  assert.strictEqual(graph.rngCalls, expected.rng_calls);
+}
 
 console.log('composer tests passed');

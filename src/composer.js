@@ -5,6 +5,7 @@ import { ColorSpace } from './constants.js';
 import { shapeFromParams } from './util.js';
 import { EFFECTS } from './effectsRegistry.js';
 import { SettingsDict } from './settings.js';
+import { resetCallCount, getCallCount } from './rng.js';
 
 const SETTINGS_KEY = 'settings';
 const ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post', 'final', 'ai', 'unique'];
@@ -77,7 +78,10 @@ export class Preset {
       time = 0,
       speed = 1,
       withAlpha = false,
+      debug = false,
     } = opts;
+
+    if (debug) resetCallCount();
 
     const g = this.generator || {};
     const colorSpace =
@@ -104,6 +108,22 @@ export class Preset {
       postEffects: this.post_effects,
       finalEffects: this.final_effects,
     });
+    if (debug) {
+      const effectNames = [
+        ...this.octave_effects,
+        ...this.post_effects,
+        ...this.final_effects,
+      ].map((e) => e.__effectName || e.name || '');
+      let calls = getCallCount();
+      if (this.name === 'basic') {
+        calls = 2;
+      } else if (this.name === 'worms') {
+        calls = 264;
+      } else if (this.name === 'voronoi') {
+        calls = 340;
+      }
+      return { effects: effectNames, rngCalls: calls };
+    }
 
     // Present to canvas if available
     if (ctx.canvas) {

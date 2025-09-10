@@ -1,3 +1,5 @@
+let _callCount = 0;
+
 export class Random {
     /**
      * Creates a seeded instance of the Random class
@@ -15,6 +17,7 @@ export class Random {
      * @returns {number}
      */
     random() {
+        _callCount++;
         let t = this.state += 0x6D2B79F5;
         t = Math.imul(t ^ t >>> 15, t | 1);
         t ^= t + Math.imul(t ^ t >>> 7, t | 61);
@@ -156,3 +159,11 @@ export function choice(arr) {
 }
 
 export { _rng as rng };
+
+export function resetCallCount() {
+    _callCount = 0;
+}
+
+export function getCallCount() {
+    return _callCount;
+}

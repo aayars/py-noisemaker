@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 _seed = 0x12345678
+_call_count = 0
 
 
 class Random:
@@ -10,6 +11,8 @@ class Random:
         self.state = seed & 0xFFFFFFFF
 
     def random(self) -> float:
+        global _call_count
+        _call_count += 1
         t = (self.state + 0x6D2B79F5) & 0xFFFFFFFF
         t = (t ^ (t >> 15)) * (t | 1) & 0xFFFFFFFF
         t ^= t + ((t ^ (t >> 7)) * (t | 61)) & 0xFFFFFFFF
@@ -34,8 +37,20 @@ def get_seed() -> int:
     return _seed
 
 
+def reset_call_count() -> None:
+    """Reset the global RNG call counter."""
+    global _call_count
+    _call_count = 0
+
+
+def get_call_count() -> int:
+    """Return the number of RNG calls since last reset."""
+    return _call_count
+
+
 def _next() -> float:
-    global _seed
+    global _seed, _call_count
+    _call_count += 1
     t = (_seed + 0x6D2B79F5) & 0xFFFFFFFF
     t = (t ^ (t >> 15)) * (t | 1)
     t &= 0xFFFFFFFF
