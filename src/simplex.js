@@ -1,5 +1,5 @@
 import { Tensor } from './tensor.js';
-import { setSeed, getSeed, random as rngRandom, Random } from './rng.js';
+import { setSeed, getSeed, random as rngRandom, randomInt as rngRandomInt, Random } from './rng.js';
 
 export { setSeed, getSeed };
 
@@ -28,28 +28,25 @@ const GRADIENTS_3D = [
   11, -4, -4, 4, -11, -4, 4, -4, -11,
 ];
 
-function overflow(x) {
-  return BigInt.asIntN(64, x);
+function _buildPermutations(seed) {
+  const perm = new Uint8Array(256);
+  const permGradIndex3D = new Uint8Array(256);
+  const source = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) source[i] = i;
+  const r = new Random(seed);
+  const gradLen = GRADIENTS_3D.length / 3;
+  for (let i = 255; i >= 0; i--) {
+    const idx = r.randomInt(0, i);
+    perm[i] = source[idx];
+    permGradIndex3D[i] = (perm[i] % gradLen) * 3;
+    source[idx] = source[i];
+  }
+  return { perm, permGradIndex3D };
 }
 
 export class OpenSimplex {
   constructor(seed = 0) {
-    const perm = new Uint8Array(256);
-    const permGradIndex3D = new Uint8Array(256);
-    const source = new Uint8Array(256);
-    for (let i = 0; i < 256; i++) source[i] = i;
-    let s = BigInt(seed);
-    s = overflow(s * 6364136223846793005n + 1442695040888963407n);
-    s = overflow(s * 6364136223846793005n + 1442695040888963407n);
-    s = overflow(s * 6364136223846793005n + 1442695040888963407n);
-    for (let i = 255; i >= 0; i--) {
-      s = overflow(s * 6364136223846793005n + 1442695040888963407n);
-      let r = Number((s + 31n) % BigInt(i + 1));
-      if (r < 0) r += i + 1;
-      perm[i] = source[r];
-      permGradIndex3D[i] = (perm[i] % (GRADIENTS_3D.length / 3)) * 3;
-      source[r] = source[i];
-    }
+    const { perm, permGradIndex3D } = _buildPermutations(seed);
     this.perm = perm;
     this.permGradIndex3D = permGradIndex3D;
   }
@@ -517,29 +514,15 @@ export class OpenSimplex {
 }
 
 export function fromSeed(seed) {
-  const rng = new Random(seed);
-  const perm = new Uint8Array(256);
-  const permGrad = new Uint8Array(256);
-  const source = new Uint8Array(256);
-  for (let i = 0; i < 256; i++) source[i] = i;
-  const gradLen = GRADIENTS_3D.length / 3;
-  for (let i = 255; i >= 0; i--) {
-    const r = rng.randomInt(0, i);
-    perm[i] = source[r];
-    permGrad[i] = (perm[i] % gradLen) * 3;
-    source[r] = source[i];
-  }
-  const os = new OpenSimplex(0);
-  os.perm = perm;
-  os.permGradIndex3D = permGrad;
-  return { os, data: { perm: Array.from(perm), perm_grad: Array.from(permGrad) } };
+  const os = new OpenSimplex(seed);
+  return { os, data: { perm: Array.from(os.perm), perm_grad: Array.from(os.permGradIndex3D) } };
 }
 
 export function random(time = 0, seed, speed = 1) {
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;
-  const s = seed ?? Math.floor(rngRandom() * 0x100000000); // RNG call
+  const s = seed ?? rngRandomInt(0, 0xffffffff); // RNG call
   const { os } = fromSeed(s);
   const value = os.noise2D(z, w);
   return (value + 1) * 0.5;
@@ -547,7 +530,7 @@ export function random(time = 0, seed, speed = 1) {
 
 export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const [height, width, channels = 1] = shape;
-  const baseSeed = seed ?? Math.floor(rngRandom() * 0x100000000); // RNG call
+  const baseSeed = seed ?? rngRandomInt(0, 0xffffffff); // RNG call
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;

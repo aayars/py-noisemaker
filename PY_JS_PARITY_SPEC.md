@@ -36,17 +36,15 @@ Python remains the authoritative reference; the JavaScript port must match its b
 
 1. **Algorithm**
    * Implement the same 3‑D OpenSimplex variant.
-   * Gradient table and permutation arrays are derived from the RNG above and stored in fixtures so both languages initialise identically.
+   * Gradient table and permutation arrays are generated at runtime using the shared RNG; no fixtures are stored.
 2. **Seeding**
    * Seeding must only call the RNG in a documented order; consuming more or fewer values is a breaking change.
 3. **Unit tests**
-   * Generate fixtures of noise values for a grid `[(0…3)/7]³` for several seeds.
-   * Python writes `fixtures/simplex/seed_<n>.json` containing the value tensor.
-   * JS test loads fixture and asserts value equality within `1e‑6`.
-   * Add tests for gradients and derivatives to ensure orientation parity.
+   * Deterministic tests sample a grid `[(0…3)/7]³` for several seeds and assert value equality within `1e‑6`.
+   * Tests include checks for gradients and derivatives to ensure orientation parity and loopability.
+   * A unified integration test invokes the JS implementation from Python and asserts matching grids, derivatives, and tiles for shared seeds within `1e-6`.
 4. **Coverage**
-   * Tests must include normal and loopable noise helpers.
-   * All code paths (3‑D noise, loopable, tiled) require parity fixtures.
+   * Tests must include normal, loopable, and tiled noise helpers.
 
 ---
 
