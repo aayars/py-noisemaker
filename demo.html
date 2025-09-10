@@ -164,14 +164,14 @@
     }
 
     function showTab(which) {
-      const recipe = which === 'recipe';
-      presetRecipeEl.style.display = recipe ? 'block' : 'none';
-      presetEvalEl.style.display = recipe ? 'none' : 'block';
-      tabRecipeBtn.classList.toggle('active', recipe);
-      tabEvalBtn.classList.toggle('active', !recipe);
+      const formula = which === 'formula';
+      presetRecipeEl.style.display = formula ? 'block' : 'none';
+      presetEvalEl.style.display = formula ? 'none' : 'block';
+      tabRecipeBtn.classList.toggle('active', formula);
+      tabEvalBtn.classList.toggle('active', !formula);
     }
 
-    tabRecipeBtn.addEventListener('click', () => showTab('recipe'));
+    tabRecipeBtn.addEventListener('click', () => showTab('formula'));
     tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
 
     presetSelect.value = 'basic';
@@ -218,7 +218,7 @@
         draw(seed, currentPreset);
       });
 
-    showTab('recipe');
+    showTab('formula');
   </script>
 </body>
 </html>
