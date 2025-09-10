@@ -130,6 +130,11 @@ const edgeTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
 const warpOut = warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear).read();
 const warpExpected = loadFixture("warp.json");
 arraysClose(Array.from(warpOut), warpExpected);
+// warp with anisotropic freq array
+const warpArr = warp(edgeTensor, [4, 4, 1], 0, 1, [1, 2], 1, 1, InterpolationType.linear).read();
+for (const v of warpArr) {
+  assert.ok(Number.isFinite(v));
+}
 
 // shadow
 const shadowOut = shadow(edgeTensor, [4, 4, 1], 0, 1, 1).read();

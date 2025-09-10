@@ -5,6 +5,7 @@ import {
   normalize,
   blend,
   values,
+  freqForShape,
   adjustHue,
   rgbToHsv,
   hsvToRgb,
@@ -49,9 +50,14 @@ export function warp(
   signedRange = true,
 ) {
   let out = tensor;
-  for (let octave = 0; octave < octaves; octave++) {
+  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
+  for (let octave = 1; octave <= octaves; octave++) {
     const mult = 2 ** octave;
-    const f = freq * mult;
+    const f = [
+      Math.floor(baseFreq[0] * 0.5 * mult),
+      Math.floor(baseFreq[1] * 0.5 * mult),
+    ];
+    if (f[0] >= shape[0] || f[1] >= shape[1]) break;
     const flowX = values(f, [shape[0], shape[1], 1], {
       seed: 100 + octave,
       time,
@@ -64,8 +70,10 @@ export function warp(
     const dy = flowY.read();
     const flowData = new Float32Array(shape[0] * shape[1] * 2);
     for (let i = 0; i < shape[0] * shape[1]; i++) {
-      flowData[i * 2] = dx[i] * 2 - 1;
-      flowData[i * 2 + 1] = dy[i] * 2 - 1;
+      const fx = signedRange ? dx[i] * 2 - 1 : dx[i];
+      const fy = signedRange ? dy[i] * 2 - 1 : dy[i];
+      flowData[i * 2] = fx;
+      flowData[i * 2 + 1] = fy;
     }
     const flow = Tensor.fromArray(tensor.ctx, flowData, [
       shape[0],
@@ -1402,7 +1410,7 @@ export function glitch(tensor, shape, time, speed) {
       for (let k = 0; k < c; k++) {
         let sx = x;
         if (k === 0) sx = (x + shiftAmt) % w;
-        else if (k === 2) sx = (x - shiftAmt + w) % w;
+        else if (k === 2) sx = ((x - shiftAmt) % w + w) % w;
         const srcBase = (y * w + sx) * c + k;
         out[idx * c + k] = src[srcBase];
       }

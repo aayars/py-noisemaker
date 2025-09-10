@@ -46,12 +46,13 @@ render('row', 0, {
   width: 3,
   height: 2,
   presets: {
-    row: {
-      generator: () => ({
-        color_space: ColorSpace.grayscale,
-        distrib: ValueDistribution.row_index,
-      }),
-    },
+      row: {
+        generator: () => ({
+          color_space: ColorSpace.grayscale,
+          distrib: ValueDistribution.row_index,
+          freq: [1, 3],
+        }),
+      },
   },
 });
 data = fakeCtx2d.img.data;
@@ -69,12 +70,13 @@ render('column', 0, {
   width: 2,
   height: 3,
   presets: {
-    column: {
-      generator: () => ({
-        color_space: ColorSpace.grayscale,
-        distrib: ValueDistribution.column_index,
-      }),
-    },
+      column: {
+        generator: () => ({
+          color_space: ColorSpace.grayscale,
+          distrib: ValueDistribution.column_index,
+          freq: [3, 1],
+        }),
+      },
   },
 });
 data = fakeCtx2d.img.data;

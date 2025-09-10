@@ -3,6 +3,7 @@ import {
   ValueDistribution,
   DistanceMetric,
   InterpolationType,
+  isNativeSize,
 } from './constants.js';
 import { maskValues } from './masks.js';
 
@@ -30,6 +31,37 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
     seed * 37.719 +
     time * speed * 0.1;
   return fract(Math.sin(s) * 43758.5453);
+}
+
+function offsetTensor(tensor, shape, x = 0, y = 0) {
+  const [h, w, c] = shape;
+  if (x === 0 && y === 0) return tensor;
+  const src = tensor.read();
+  const out = new Float32Array(h * w * c);
+  for (let yy = 0; yy < h; yy++) {
+    const sy = (yy + y + h) % h;
+    for (let xx = 0; xx < w; xx++) {
+      const sx = (xx + x + w) % w;
+      const dst = (yy * w + xx) * c;
+      const sIdx = (sy * w + sx) * c;
+      for (let k = 0; k < c; k++) {
+        out[dst + k] = src[sIdx + k];
+      }
+    }
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+}
+
+function pinCorners(tensor, shape, freq, corners) {
+  if (
+    (!corners && freq[0] % 2 === 0) ||
+    (corners && freq[0] % 2 === 1)
+  ) {
+    const xOff = Math.floor((shape[1] / freq[1]) * 0.5);
+    const yOff = Math.floor((shape[0] / freq[0]) * 0.5);
+    return offsetTensor(tensor, shape, xOff, yOff);
+  }
+  return tensor;
 }
 
 // All ValueDistribution members are supported on the GPU path.  Keep the set
@@ -67,8 +99,14 @@ export function freqForShape(freq, shape) {
  */
 export function values(freq, shape, opts = {}) {
   const [height, width, channels = 1] = shape;
-  const freqX = Array.isArray(freq) ? freq[0] : freq;
-  const freqY = Array.isArray(freq) ? freq[1] : freq;
+  let freqX, freqY;
+  if (Array.isArray(freq)) {
+    // Python's freq argument is [height, width]; mirror that here
+    [freqY, freqX] = freq;
+  } else {
+    // Match Python's freq_for_shape behavior for scalar input
+    [freqY, freqX] = freqForShape(freq, [height, width]);
+  }
   const {
     ctx = null,
     distrib = ValueDistribution.uniform,
@@ -99,8 +137,8 @@ export function values(freq, shape, opts = {}) {
   };
   if (mask !== undefined && mask !== null) {
     const maskShape = [
-      Math.max(1, Math.floor(freqX)),
       Math.max(1, Math.floor(freqY)),
+      Math.max(1, Math.floor(freqX)),
       1,
     ];
     const [maskTensor] = maskValues(mask, maskShape, {
@@ -152,9 +190,19 @@ void main(){
   float r=rand2D(gl_FragCoord.x,gl_FragCoord.y,u_seed,u_time,u_speed);
   val=pow(r,3.0);
  }else if(u_distrib==${ValueDistribution.column_index}){
-  if(float(${height})<=1.0) val=0.0; else val=gl_FragCoord.y/float(${height - 1});
+  float fy=max(1.0,floor(u_freq.y));
+  float y=(gl_FragCoord.y/float(${height}))*fy;
+  if((u_corners<0.5 && mod(fy,2.0)==0.0) || (u_corners>0.5 && mod(fy,2.0)==1.0)){
+   y=mod(y+0.5,fy);
+  }
+  val=fy<=1.0?0.0:floor(y)/(fy-1.0);
  }else if(u_distrib==${ValueDistribution.row_index}){
-  if(float(${width})<=1.0) val=0.0; else val=gl_FragCoord.x/float(${width - 1});
+  float fx=max(1.0,floor(u_freq.x));
+  float x=(gl_FragCoord.x/float(${width}))*fx;
+  if((u_corners<0.5 && mod(fx,2.0)==0.0) || (u_corners>0.5 && mod(fx,2.0)==1.0)){
+   x=mod(x+0.5,fx);
+  }
+  val=fx<=1.0?0.0:floor(x)/(fx-1.0);
  }else if(u_distrib==${ValueDistribution.ones}){
   val=1.0;
  }else if(u_distrib==${ValueDistribution.mids}){
@@ -279,9 +327,14 @@ void main(){
     return new Tensor(ctx, pp.writeTex, [height, width, channels]);
   }
 
-  const data = new Float32Array(height * width * channels);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  const fx = Math.max(1, Math.floor(freqX));
+  const fy = Math.max(1, Math.floor(freqY));
+  const needsFullSize = isNativeSize(distrib);
+  const initWidth = needsFullSize ? width : fx;
+  const initHeight = needsFullSize ? height : fy;
+  const data = new Float32Array(initHeight * initWidth * channels);
+  for (let y = 0; y < initHeight; y++) {
+    for (let x = 0; x < initWidth; x++) {
       let val = 0;
       switch (distrib) {
         case ValueDistribution.ones:
@@ -294,10 +347,10 @@ void main(){
           val = 0;
           break;
         case ValueDistribution.column_index:
-          val = height === 1 ? 0 : y / (height - 1);
+          val = initHeight === 1 ? 0 : y / (initHeight - 1);
           break;
         case ValueDistribution.row_index:
-          val = width === 1 ? 0 : x / (width - 1);
+          val = initWidth === 1 ? 0 : x / (initWidth - 1);
           break;
         case ValueDistribution.center_circle:
         case ValueDistribution.center_triangle:
@@ -311,8 +364,8 @@ void main(){
         case ValueDistribution.center_decagon:
         case ValueDistribution.center_hendecagon:
         case ValueDistribution.center_dodecagon: {
-          const dx = (x + 0.5) / width - 0.5;
-          const dy = (y + 0.5) / height - 0.5;
+          const dx = (x + 0.5) / initWidth - 0.5;
+          const dy = (y + 0.5) / initHeight - 0.5;
           let metric = DistanceMetric.euclidean;
           let sdfSides = 5;
           switch (distrib) {
@@ -368,79 +421,79 @@ void main(){
           break;
         }
         case ValueDistribution.uniform:
-        default: {
-          const u = (x / width) * freqX;
-          const v = (y / height) * freqY;
-          const x0 = Math.floor(u);
-          const y0 = Math.floor(v);
-          const xf = u - x0;
-          const yf = v - y0;
-          const fx = Math.max(1, Math.floor(freqX));
-          const fy = Math.max(1, Math.floor(freqY));
-          const xb = corners ? x0 % fx : x0;
-          const yb = corners ? y0 % fy : y0;
-          const x1 = corners ? (xb + 1) % fx : xb + 1;
-          const y1 = corners ? (yb + 1) % fy : yb + 1;
-          const r00 = rand2D(xb, yb, seed, time, speed);
-          const r10 = rand2D(x1, yb, seed, time, speed);
-          const r01 = rand2D(xb, y1, seed, time, speed);
-          const r11 = rand2D(x1, y1, seed, time, speed);
-          if (splineOrder === InterpolationType.constant) {
-            val = r00;
-            break;
-          }
-          const sx = interp(xf);
-          const sy = interp(yf);
-          const nx0 = r00 * (1 - sx) + r10 * sx;
-          const nx1 = r01 * (1 - sx) + r11 * sx;
-          val = nx0 * (1 - sy) + nx1 * sy;
+        default:
+          val = rand2D(x, y, seed, time, speed);
           break;
-        }
       }
-      const idx = (y * width + x) * channels;
-      if (maskData) {
-        const mu = (x / width) * maskWidth;
-        const mv = (y / height) * maskHeight;
-        const mx0 = Math.floor(mu);
-        const my0 = Math.floor(mv);
-        let m;
-        if (splineOrder === InterpolationType.constant) {
-          m = maskData[(my0 * maskWidth + mx0) * maskChannels];
-        } else {
-          const mx1 = Math.min(mx0 + 1, maskWidth - 1);
-          const my1 = Math.min(my0 + 1, maskHeight - 1);
-          const xf = mu - mx0;
-          const yf = mv - my0;
-          const sx = interp(xf);
-          const sy = interp(yf);
-          const m00 = maskData[(my0 * maskWidth + mx0) * maskChannels];
-          const m10 = maskData[(my0 * maskWidth + mx1) * maskChannels];
-          const m01 = maskData[(my1 * maskWidth + mx0) * maskChannels];
-          const m11 = maskData[(my1 * maskWidth + mx1) * maskChannels];
-          const mx0v = m00 * (1 - sx) + m10 * sx;
-          const mx1v = m01 * (1 - sx) + m11 * sx;
-          m = mx0v * (1 - sy) + mx1v * sy;
-        }
-        if (channels === 2) {
-          data[idx] = val;
-          data[idx + 1] = m;
-          continue;
-        } else if (channels === 4) {
-          data[idx] = val;
-          data[idx + 1] = val;
-          data[idx + 2] = val;
-          data[idx + 3] = m;
-          continue;
-        } else {
-          val *= m;
-        }
-      }
+      const idx = (y * initWidth + x) * channels;
       for (let c = 0; c < channels; c++) {
         data[idx + c] = val;
       }
     }
   }
-  return Tensor.fromArray(null, data, [height, width, channels]);
+  let tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+
+  if (maskData) {
+    let mTensor = Tensor.fromArray(null, maskData, [maskHeight, maskWidth, maskChannels]);
+    if (needsFullSize) {
+      mTensor = resample(mTensor, [height, width, maskChannels], splineOrder);
+      mTensor = pinCorners(
+        mTensor,
+        [height, width, maskChannels],
+        [freqY, freqX],
+        corners
+      );
+    }
+    const mArr = mTensor.read();
+    const tArr = tensor.read();
+    const mh = mTensor.shape[0];
+    const mw = mTensor.shape[1];
+    const total = mh * mw;
+    if (channels === 2) {
+      const out = new Float32Array(total * 2);
+      for (let i = 0; i < total; i++) {
+        out[i * 2] = tArr[i * channels];
+        out[i * 2 + 1] = mArr[i];
+      }
+      tensor = Tensor.fromArray(null, out, [mh, mw, 2]);
+    } else if (channels === 4) {
+      const out = new Float32Array(total * 4);
+      for (let i = 0; i < total; i++) {
+        out[i * 4] = tArr[i * channels];
+        out[i * 4 + 1] = tArr[i * channels + 1];
+        out[i * 4 + 2] = tArr[i * channels + 2];
+        out[i * 4 + 3] = mArr[i];
+      }
+      tensor = Tensor.fromArray(null, out, [mh, mw, 4]);
+    } else {
+      for (let i = 0; i < total; i++) {
+        for (let c = 0; c < channels; c++) {
+          tArr[i * channels + c] *= mArr[i];
+        }
+      }
+      tensor = Tensor.fromArray(null, tArr, [mh, mw, channels]);
+    }
+  }
+
+  if (!needsFullSize) {
+    tensor = resample(tensor, [height, width, channels], splineOrder);
+    tensor = pinCorners(
+      tensor,
+      [height, width, channels],
+      [freqY, freqX],
+      corners
+    );
+  }
+
+  if (
+    distrib !== ValueDistribution.ones &&
+    distrib !== ValueDistribution.mids &&
+    distrib !== ValueDistribution.zeros
+  ) {
+    tensor = normalize(tensor);
+  }
+
+  return tensor;
 }
 
 
