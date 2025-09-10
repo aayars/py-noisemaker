@@ -1,6 +1,7 @@
 from noisemaker.constants import *  # noqa: F401,F403
 import noisemaker.constants as constants
 from noisemaker.composer import coin_flip as _coin_flip, random_member as _random_member, stash as _stash
+import noisemaker.rng as _random
 
 surfaces = { }
 
@@ -40,11 +41,26 @@ def stash(*args):
         raise ValueError('stash(key[, value]) key must be a string')
     return _stash(key, value)
 
+def random(*args):
+    if len(args) != 0:
+        raise ValueError(f"random() takes no arguments, received {len(args)}")
+    return _random.random()
+
+def randomInt(*args):
+    if len(args) != 2:
+        raise ValueError(f"randomInt(a, b) requires exactly 2 arguments, received {len(args)}")
+    a, b = args
+    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
+        raise ValueError("randomInt(a, b) requires numeric arguments")
+    return _random.randint(int(a), int(b))
+
 operations = {
     "coinFlip": coinFlip,
     "randomMember": randomMember,
     "enumRange": enumRange,
     "stash": stash,
+    "random": random,
+    "randomInt": randomInt,
 }
 
 enums = constants

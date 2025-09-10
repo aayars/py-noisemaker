@@ -5,6 +5,7 @@ import {
   randomMember as _randomMember,
   stash as _stash,
 } from '../presets.js';
+import { random as _random, randomInt as _randomInt } from '../util.js';
 
 export * from '../constants.js';
 
@@ -46,11 +47,31 @@ export function stash(...args) {
   return _stash(key, value);
 }
 
+export function random(...args) {
+  if (args.length !== 0) {
+    throw new Error(`random() takes no arguments, received ${args.length}`);
+  }
+  return _random();
+}
+
+export function randomInt(...args) {
+  if (args.length !== 2) {
+    throw new Error(`randomInt(a, b) requires exactly 2 arguments, received ${args.length}`);
+  }
+  const [a, b] = args;
+  if (typeof a !== 'number' || typeof b !== 'number') {
+    throw new Error('randomInt(a, b) requires numeric arguments');
+  }
+  return _randomInt(a, b);
+}
+
 export const operations = Object.freeze({
   coinFlip,
   randomMember,
   enumRange,
   stash,
+  random,
+  randomInt,
 });
 
 export const enums = constants;

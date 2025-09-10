@@ -15,9 +15,11 @@ def test_effect_chain_metadata():
     assert result['input']['__params'] == {'angle': 45}
 
 def test_builtins():
+    rng.set_seed(1)
     coin = evaluate(parse(tokenize('coinFlip()')))
     assert isinstance(coin, bool)
 
+    rng.set_seed(1)
     member = evaluate(parse(tokenize('randomMember([1,2,3])')))
     assert member in [1, 2, 3]
 
@@ -27,6 +29,14 @@ def test_builtins():
 
     rng_range = evaluate(parse(tokenize('enumRange(1,3)')))
     assert rng_range == [1, 2, 3]
+
+    rng.set_seed(1)
+    rnd = evaluate(parse(tokenize('random()')))
+    assert rnd == pytest.approx(0.6270739405881613)
+
+    rng.set_seed(1)
+    rnd_int = evaluate(parse(tokenize('randomInt(1,3)')))
+    assert rnd_int == 2
 
 def test_errors():
     with pytest.raises(Exception) as e:
