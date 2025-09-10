@@ -6,6 +6,7 @@ import {
   isNativeSize,
 } from './constants.js';
 import { maskValues } from './masks.js';
+import { random } from './util.js';
 
 export const FULLSCREEN_VS = `#version 300 es
 precision highp float;
@@ -70,6 +71,20 @@ function pinCorners(tensor, shape, freq, corners) {
 // All ValueDistribution members are supported on the GPU path.  Keep the set
 // in sync with the enumeration so any new distributions automatically opt in.
 const GPU_DISTRIBS = new Set(Object.values(ValueDistribution));
+
+export function valueNoise(count, freq = 8) {
+  // RNG: freq+1 calls to random for lattice points 0..freq
+  const lattice = Array.from({ length: freq + 1 }, () => random());
+  const out = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const x = (i / count) * freq;
+    const xi = Math.floor(x);
+    const xf = x - xi;
+    const t = xf * xf * (3 - 2 * xf);
+    out[i] = lattice[xi] * (1 - t) + lattice[xi + 1] * t;
+  }
+  return out;
+}
 
 export function freqForShape(freq, shape) {
   const [height, width] = shape;

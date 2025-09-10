@@ -35,6 +35,25 @@ def set_seed(seed):
         simplex._seed = seed
 
 
+def value_noise(count, freq=8):
+    """Generate 1D value noise samples.
+
+    RNG: ``freq + 1`` calls to :func:`rng.random` to build the lattice in
+    order from index 0 to ``freq``.
+    """
+
+    lattice = [rng.random() for _ in range(freq + 1)]
+    out = []
+    for i in range(count):
+        x = i / count * freq
+        xi = int(x)
+        xf = x - xi
+        t = xf * xf * (3 - 2 * xf)
+        out.append(lattice[xi] * (1 - t) + lattice[xi + 1] * t)
+
+    return tf.constant(out, dtype=tf.float32)
+
+
 def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
            spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
@@ -118,8 +137,10 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         # closely resembles higher-dimensional noise.
 
         # get a periodic uniform noise, and scale it to speed:
+        # RNG[1]: rng.uniform for time jitter
         scaled_time = periodic_value(time, rng.uniform(initial_shape)) * speed
 
+        # RNG[2]: rng.uniform for value lattice
         tensor = periodic_value(scaled_time, rng.uniform(initial_shape))
 
         if distrib == ValueDistribution.exp:

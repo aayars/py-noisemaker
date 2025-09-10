@@ -154,6 +154,11 @@ export function pointCloud(
   return [x, y];
 }
 
+export function cloudPoints(count, { seed } = {}) {
+  // RNG: count^2 * 2 calls via rand (x then y)
+  return pointCloud(count, { distrib: PointDistribution.random, seed });
+}
+
 export function rand({
   freq = 2,
   centerX = 0.5,
@@ -168,8 +173,8 @@ export function rand({
   const x = [];
   const y = [];
   for (let i = 0; i < freq * freq; i++) {
-    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width;
-    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height;
+    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width; // RNG[x]
+    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height; // RNG[y]
     x.push(_x);
     y.push(_y);
   }

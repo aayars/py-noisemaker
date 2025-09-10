@@ -146,6 +146,19 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     return (x, y)
 
 
+def cloud_points(count, seed=None):
+    """Convenience wrapper for random point clouds.
+
+    RNG: ``count * count * 2`` calls to :func:`rng.random` via :func:`rand`,
+    ordered as x then y for each point.
+    """
+
+    if seed is not None:
+        rng.set_seed(seed)
+
+    return point_cloud(count, PointDistribution.random)
+
+
 def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0, height=1.0, **kwargs):
     """
     """
@@ -154,8 +167,8 @@ def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0
     y = []
 
     for i in range(freq * freq):
-        _x = (center_x + (rng.random() * (range_x * 2.0) - range_x)) % width
-        _y = (center_y + (rng.random() * (range_y * 2.0) - range_y)) % height
+        _x = (center_x + (rng.random() * (range_x * 2.0) - range_x)) % width  # RNG[x]
+        _y = (center_y + (rng.random() * (range_y * 2.0) - range_y)) % height  # RNG[y]
 
         x.append(_x)
         y.append(_y)

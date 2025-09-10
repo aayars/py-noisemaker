@@ -2147,6 +2147,25 @@ function periodicValue(t, v) {
   return (Math.sin((t - v) * TAU) + 1) * 0.5;
 }
 
+export function wormsParams(shape, density = 4.0, stride = 1.0, strideDeviation = 0.05) {
+  // RNG: random→y, random→x, randomNormal→stride, random→rot
+  const [h, w] = shape;
+  const count = Math.floor(Math.max(w, h) * density);
+  const y = new Float32Array(count);
+  const x = new Float32Array(count);
+  const strideVals = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    y[i] = random() * (h - 1); // RNG[1]
+    x[i] = random() * (w - 1); // RNG[2]
+    strideVals[i] =
+      randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0); // RNG[3]
+  }
+  const rotBase = random() * TAU; // RNG[4]
+  const rot = new Float32Array(count);
+  rot.fill(rotBase);
+  return { x: Array.from(x), y: Array.from(y), stride: Array.from(strideVals), rot: Array.from(rot) };
+}
+
 function offsetIndexInternal(yArr, height, xArr, width) {
   const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
   const xOff = Math.floor(random() * width * 0.5);

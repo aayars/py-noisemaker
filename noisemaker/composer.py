@@ -209,7 +209,11 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
 
 
 def random_member(*collections):
-    """Return a random member from a collection, enum list, or enum. Ensures deterministic ordering."""
+    """Return a random member from a collection, enum list, or enum.
+
+    RNG: a single :func:`rng.random_int` to choose the index.
+    Ensures deterministic ordering.
+    """
 
     collection = []
 
@@ -232,7 +236,7 @@ def random_member(*collections):
 
 
 def coin_flip():
-    return bool(rng.random_int(0, 1))
+    return bool(rng.random_int(0, 1))  # RNG[1]
 
 
 def enum_range(a, b):

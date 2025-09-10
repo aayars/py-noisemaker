@@ -17,9 +17,10 @@ from noisemaker.effects import (
     fibers,
     scratches,
     stray_hair,
+    worms_params,
 )
 from noisemaker.palettes import PALETTES
-from noisemaker import value
+from noisemaker import value, points
 from noisemaker import rng
 from opensimplex import OpenSimplex
 
@@ -40,6 +41,30 @@ for seed in (1, 2, 3):
     vals = [rng.random() for _ in range(1000)]
     with open(rng_dir / f'seed_{seed}.json', 'w') as f:
         json.dump(vals, f)
+
+# Value noise fixture
+value_dir = fixtures_dir / 'value'
+value_dir.mkdir(exist_ok=True)
+value.set_seed(1)
+val_samples = value.value_noise(64).numpy().flatten().tolist()
+with open(value_dir / 'seed_1.json', 'w') as f:
+    json.dump(val_samples, f)
+
+# Point cloud fixture
+points_dir = fixtures_dir / 'points'
+points_dir.mkdir(exist_ok=True)
+rng.set_seed(1)
+x, y = points.cloud_points(4)
+with open(points_dir / 'seed_1_freq4.json', 'w') as f:
+    json.dump({'x': x, 'y': y}, f)
+
+# Effect parameter fixture
+effects_dir = fixtures_dir / 'effects'
+effects_dir.mkdir(exist_ok=True)
+value.set_seed(1)
+worm_params = worms_params([4, 4, 1])
+with open(effects_dir / 'worms.json', 'w') as f:
+    json.dump(worm_params, f)
 
 # Posterize fixture
 poster_vals = [0.1, 0.5, 0.9, 0.3]

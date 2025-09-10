@@ -288,9 +288,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     count = int(max(width, height) * density)
 
-    worms_y = rng.uniform([count]) * (height - 1)
-    worms_x = rng.uniform([count]) * (width - 1)
-    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)
+    worms_y = rng.uniform([count]) * (height - 1)  # RNG[1]
+    worms_x = rng.uniform([count]) * (width - 1)  # RNG[2]
+    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)  # RNG[3]
 
     color_source = colors if colors is not None else tensor
 
@@ -302,16 +302,16 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     rots = {
         WormBehavior.obedient: lambda n:
-            tf.ones([n]) * rng.random() * math.tau,
+            tf.ones([n]) * rng.random() * math.tau,  # RNG[4]
 
         WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),
+            rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),  # RNG[5]
 
         WormBehavior.unruly: lambda n:
-            rots[WormBehavior.obedient](n) + rng.uniform([n]) * .25 - .125,
+            rots[WormBehavior.obedient](n) + rng.uniform([n]) * .25 - .125,  # RNG[6]
 
         WormBehavior.chaotic: lambda n:
-            rng.uniform([n]) * math.tau,
+            rng.uniform([n]) * math.tau,  # RNG[7]
 
         WormBehavior.random: lambda _:
             tf.reshape(tf.stack([
@@ -322,7 +322,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             ]), [count]),
 
         # Chaotic, changing over time
-        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count]))
+        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count]))  # RNG[8]
     }
 
     worms_rot = rots[behavior](count)
@@ -460,6 +460,35 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean, time=0.0
     out = value.offset(out, shape, x=fudge, y=fudge)
 
     return out
+
+
+def worms_params(shape, density=4.0, stride=1.0, stride_deviation=.05):
+    """Return parameter tensors used by :func:`worms`.
+
+    RNG: For each worm, calls ``rng.random`` four times (y, x, u1, u2)
+    followed by one final call for ``rot``.
+    """
+
+    height, width, _ = shape
+    count = int(max(width, height) * density)
+
+    y = []
+    x = []
+    stride_vals = []
+    for _ in range(count):
+        y.append(rng.random() * (height - 1))  # RNG[y]
+        x.append(rng.random() * (width - 1))   # RNG[x]
+
+        u1 = rng.random() or 1e-9             # RNG[u1]
+        u2 = rng.random()                      # RNG[u2]
+        mag = math.sqrt(-2 * math.log(u1))
+        z0 = mag * math.cos(math.tau * u2)
+        stride_vals.append((z0 * stride_deviation + stride) * (max(width, height)/1024.0))
+
+    rot_base = rng.random() * math.tau         # RNG[rot]
+    rot = [rot_base] * count
+
+    return {'x': x, 'y': y, 'stride': stride_vals, 'rot': rot}
 
 
 @effect()
