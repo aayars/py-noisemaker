@@ -144,11 +144,7 @@ export function PRESETS() {
     voronoi_diagram_type: coin_flip()
       ? voronoi.color_range
       : random_member(Object.values(voronoi).filter((m) => !isFlowMember(m) && m !== voronoi.none)),
-<<<<<<< ours
-    voronoi_nth: randomInt(0, 1) * randomInt(0, 63),
-=======
     voronoi_nth: random_int(0, 1) * random_int(0, 63),
->>>>>>> theirs
     voronoi_point_corners: true,
     voronoi_point_distrib: point.square,
     voronoi_point_freq: 8,
@@ -241,11 +237,7 @@ export function PRESETS() {
       settings: () => ({
         corners: true,
         distrib: random_member([distrib.column_index, distrib.ones, distrib.row_index]),
-<<<<<<< ours
-        freq: randomInt(3, 5) * 2,
-=======
         freq: random_int(3, 5) * 2,
->>>>>>> theirs
         mask: mask.chess,
         spline_order: interp.constant,
       }),
@@ -256,11 +248,7 @@ export function PRESETS() {
       settings: () => ({
         corners: true,
         mask: random_member([mask.arecibo_num, mask.arecibo_bignum, mask.arecibo_nucleotide]),
-<<<<<<< ours
-        mask_repeat: randomInt(6, 12),
-=======
         mask_repeat: random_int(6, 12),
->>>>>>> theirs
         refract_range: 0.025 + random() * 0.0125,
         refract_signed_range: false,
         refract_y_from_offset: true,
@@ -312,11 +300,7 @@ export function PRESETS() {
       layers: ['value-mask'],
       settings: () => ({
         mask: random_member([mask.alphanum_hex, mask.lcd, mask.fat_lcd]),
-<<<<<<< ours
-        mask_repeat: randomInt(20, 30),
-=======
         mask_repeat: random_int(20, 30),
->>>>>>> theirs
       }),
       generator: (settings) => {
         const [h, w] = maskShape(settings.mask);
@@ -510,11 +494,7 @@ export function PRESETS() {
       layers: ['value-mask', 'bloom', 'crt'],
       settings: () => ({
         mask: random_member([mask.alphanum_binary, mask.alphanum_hex, mask.alphanum_numeric]),
-<<<<<<< ours
-        mask_repeat: randomInt(20, 40),
-=======
         mask_repeat: random_int(20, 40),
->>>>>>> theirs
       }),
     },
 
@@ -522,11 +502,7 @@ export function PRESETS() {
       layers: ['multires-low', 'value-mask', 'bloom'],
       settings: () => ({
         mask: random_member(valueMaskProceduralMembers),
-<<<<<<< ours
-        mask_repeat: randomInt(7, 15),
-=======
         mask_repeat: random_int(7, 15),
->>>>>>> theirs
         ridges: true,
       }),
     },
@@ -583,11 +559,7 @@ export function PRESETS() {
       layers: ['value-mask', 'ripple', 'bloom'],
       settings: () => ({
         mask: random_member(valueMaskGridMembers),
-<<<<<<< ours
-        mask_repeat: randomInt(5, 10),
-=======
         mask_repeat: random_int(5, 10),
->>>>>>> theirs
         ridges: true,
         ripple_freq: 2,
         ripple_kink: 1.5 + random() * 2,
@@ -624,11 +596,7 @@ export function PRESETS() {
         voronoi_diagram_type: voronoi.range_regions,
         voronoi_nth: 0,
         voronoi_point_distrib: coin_flip() ? point.v_hex : point.h_hex,
-<<<<<<< ours
-        voronoi_point_freq: randomInt(4, 7) * 2,
-=======
         voronoi_point_freq: random_int(4, 7) * 2,
->>>>>>> theirs
         warp_range: 0.05 + random() * 0.25,
         warp_octaves: random_int(1, 4),
       }),
@@ -654,19 +622,11 @@ export function PRESETS() {
       settings: () => ({
         corners: true,
         distrib: distrib.uniform,
-<<<<<<< ours
-        freq: randomInt(3, 6) * 2,
-        mask: random_member([mask.h_hex, mask.v_hex]),
-        posterize_levels: randomInt(8, 16),
-        reverb_iterations: randomInt(1, 3),
-        reverb_octaves: randomInt(3, 5),
-=======
         freq: random_int(3, 6) * 2,
         mask: random_member([mask.h_hex, mask.v_hex]),
         posterize_levels: random_int(8, 16),
         reverb_iterations: random_int(1, 3),
         reverb_octaves: random_int(3, 5),
->>>>>>> theirs
         spline_order: random_member(enum_range(interp.linear, interp.bicubic)),
         wormhole_stride: 0.1 + random() * 0.05,
         wormhole_kink: 0.5 + random() * 4,
@@ -756,11 +716,7 @@ export function PRESETS() {
       ],
       settings: () => ({
         dist_metric: random_member(distanceMetricAbsoluteMembers()),
-<<<<<<< ours
-        refract_range: randomInt(1, 3) * 0.25,
-=======
         refract_range: random_int(1, 3) * 0.25,
->>>>>>> theirs
         voronoi_alpha: 0.333 + random() * 0.333,
         voronoi_diagram_type: voronoi.color_range,
         voronoi_point_distrib: random_member(
@@ -1001,11 +957,7 @@ export function PRESETS() {
       ],
       settings: () => ({
         mask: mask.chess,
-<<<<<<< ours
-        mask_repeat: randomInt(2, 3),
-=======
         mask_repeat: random_int(2, 3),
->>>>>>> theirs
         saturation: coin_flip() ? 0 : 0.125,
         spline_order: interp.constant,
       }),
@@ -1065,11 +1017,7 @@ export function PRESETS() {
       settings: () => ({
         voronoi_nth: random_int(2, 8),
         voronoi_point_distrib: point.concentric,
-<<<<<<< ours
-        voronoi_point_freq: randomInt(3, 6),
-=======
         voronoi_point_freq: random_int(3, 6),
->>>>>>> theirs
         voronoi_diagram_type: random_member([voronoi.range, voronoi.color_range]),
       }),
     },
@@ -1106,11 +1054,7 @@ export function PRESETS() {
       ],
       settings: () => ({
         dist_metric: random_member([distance.chebyshev, distance.manhattan]),
-<<<<<<< ours
-        posterize_levels: randomInt(3, 4),
-=======
         posterize_levels: random_int(3, 4),
->>>>>>> theirs
         refract_range: 0.5 + random() * 0.25,
         refract_y_from_offset: true,
         voronoi_alpha: 1,
@@ -1327,11 +1271,7 @@ export function PRESETS() {
       layers: ['voronoi', 'worms', 'density-map', 'glowing-edges', 'lens'],
       settings: () => ({
         dist_metric: random_member(distanceMetricAll()),
-<<<<<<< ours
-        freq: randomInt(3, 6),
-=======
         freq: random_int(3, 6),
->>>>>>> theirs
         lattice_drift: 1,
         voronoi_alpha: 0.25 + random() * 0.25,
         voronoi_diagram_type: voronoi.color_range,
@@ -1627,15 +1567,6 @@ export function PRESETS() {
       layers: ['symmetry', 'voronoi', 'reverb', 'contrast-post', 'palette', 'random-hue', 'maybe-rotate', 'lens'],
       settings: () => ({
         dist_metric: random_member(distanceMetricAbsoluteMembers()),
-<<<<<<< ours
-        reverb_iterations: randomInt(2, 4),
-        reverb_octaves: randomInt(2, 4),
-        voronoi_alpha: 0.5 + random() * 0.5,
-        voronoi_diagram_type: voronoi.color_range,
-        voronoi_nth: randomInt(0, 2),
-        voronoi_point_distrib: random_member([point.square, point.waffle, point.chess]),
-        voronoi_point_freq: randomInt(2, 3),
-=======
         reverb_iterations: random_int(2, 4),
         reverb_octaves: random_int(2, 4),
         voronoi_alpha: 0.5 + random() * 0.5,
@@ -1643,7 +1574,6 @@ export function PRESETS() {
         voronoi_nth: random_int(0, 2),
         voronoi_point_distrib: random_member([point.square, point.waffle, point.chess]),
         voronoi_point_freq: random_int(2, 3),
->>>>>>> theirs
       }),
     },
 
@@ -1651,11 +1581,7 @@ export function PRESETS() {
       layers: ['voronoi', 'derivative-post', 'density-map', 'grain', 'saturation'],
       settings: () => ({
         dist_metric: random_member([distance.manhattan, distance.chebyshev]),
-<<<<<<< ours
-        freq: randomInt(3, 5),
-=======
         freq: random_int(3, 5),
->>>>>>> theirs
         voronoi_diagram_type: voronoi.color_range,
         voronoi_nth: random_int(3, 5),
         voronoi_point_freq: random_int(3, 5),
@@ -1687,13 +1613,8 @@ export function PRESETS() {
       settings: () => ({
         distrib: random_member([distrib.ones, distrib.uniform]),
         mask: random_member(valueMaskGlyphMembers),
-<<<<<<< ours
-        mask_repeat: randomInt(1, 6),
-        octaves: randomInt(1, 2),
-=======
         mask_repeat: random_int(1, 6),
         octaves: random_int(1, 2),
->>>>>>> theirs
         refract_range: 0.125 + random() * 0.125,
         refract_signed_range: false,
         refract_y_from_offset: true,
@@ -1724,15 +1645,9 @@ export function PRESETS() {
     'game-show': {
       layers: ['basic', 'maybe-rotate', 'posterize', 'be-kind-rewind'],
       settings: () => ({
-<<<<<<< ours
-        freq: randomInt(8, 16) * 2,
-        mask: random_member([mask.h_tri, mask.v_tri]),
-        posterize_levels: randomInt(2, 5),
-=======
         freq: random_int(8, 16) * 2,
         mask: random_member([mask.h_tri, mask.v_tri]),
         posterize_levels: random_int(2, 5),
->>>>>>> theirs
         spline_order: interp.cosine,
       }),
     },
@@ -2164,11 +2079,7 @@ hearts: {
       ],
       settings: () => ({
         dist_metric: distance.euclidean,
-<<<<<<< ours
-        freq: randomInt(2, 5),
-=======
         freq: random_int(2, 5),
->>>>>>> theirs
         mask: random_member(valueMaskProceduralMembers),
         spline_order: interp.constant,
         voronoi_diagram_type: voronoi.flow,
@@ -2195,11 +2106,7 @@ hearts: {
       ],
       settings: () => ({
         dist_metric: random_member(distanceMetricAbsoluteMembers()),
-<<<<<<< ours
-        freq: randomInt(2, 5),
-=======
         freq: random_int(2, 5),
->>>>>>> theirs
         lattice_drift: 1.0,
         octaves: 3,
         ridges: true,
@@ -2210,11 +2117,7 @@ hearts: {
       layers: ['value-mask', 'invert', 'skew', 'shadow', 'vignette-bright', 'grain'],
       settings: () => ({
         mask: random_member([mask.lcd, mask.lcd_binary]),
-<<<<<<< ours
-        mask_repeat: randomInt(8, 12),
-=======
         mask_repeat: random_int(8, 12),
->>>>>>> theirs
         saturation: 0.0,
       }),
     },
@@ -2291,11 +2194,7 @@ hearts: {
     'low-poly': {
       settings: () => ({
         lowpoly_distrib: random_member(pointCircularMembers),
-<<<<<<< ours
-        lowpoly_freq: randomInt(10, 20),
-=======
         lowpoly_freq: random_int(10, 20),
->>>>>>> theirs
       }),
       post: (settings) => [
         Effect('lowpoly', {
@@ -2460,11 +2359,7 @@ hearts: {
       layers: ['basic', 'worms', 'rotate', 'bloom', 'lens'],
       settings: () => ({
         color_space: random_member([color.oklab, color.hsv]),
-<<<<<<< ours
-        freq: randomInt(2, 3),
-=======
         freq: random_int(2, 3),
->>>>>>> theirs
         hue_range: random() * 0.25,
         hue_rotation: random(),
         lattice_drift: random() * 0.333,
@@ -2509,11 +2404,7 @@ hearts: {
       settings: () => ({
         color_space: color.rgb,
         mask: random_member([mask.h_bar, mask.v_bar]),
-<<<<<<< ours
-        mask_repeat: randomInt(5, 8),
-=======
         mask_repeat: random_int(5, 8),
->>>>>>> theirs
         ripple_kink: 1.25 + random() * 1.25,
         ripple_freq: random_int(2, 3),
         ripple_range: 1.25 + random(),
@@ -2557,11 +2448,7 @@ hearts: {
         reverb_ridges: false,
         voronoi_diagram_type: voronoi.color_range,
         voronoi_point_distrib: random_member(pointCircularMembers),
-<<<<<<< ours
-        voronoi_point_freq: randomInt(5, 10),
-=======
         voronoi_point_freq: random_int(5, 10),
->>>>>>> theirs
         voronoi_nth: 1,
       }),
     },
@@ -2669,11 +2556,7 @@ hearts: {
       settings: () => ({
         corners: true,
         distrib: random_member([distrib.ones, distrib.uniform]),
-<<<<<<< ours
-        freq: randomInt(2, 5),
-=======
         freq: random_int(2, 5),
->>>>>>> theirs
         lattice_drift: 0,
         mask: random_member(valueMaskProceduralMembers),
         spline_order: interp.constant,
@@ -2881,11 +2764,7 @@ hearts: {
     'periodic-distance': {
       layers: ['basic'],
       settings: () => ({
-<<<<<<< ours
-        freq: randomInt(1, 6),
-=======
         freq: random_int(1, 6),
->>>>>>> theirs
         distrib: random_member(
           Object.values(distrib).filter((m) => isCenterDistribution(m))
         ),
@@ -3047,11 +2926,7 @@ hearts: {
       settings: () => ({
         spline_order: interp.cosine,
         mask: random_member(valueMaskProceduralMembers),
-<<<<<<< ours
-        mask_repeat: randomInt(10, 20),
-=======
         mask_repeat: random_int(10, 20),
->>>>>>> theirs
       }),
     },
 
@@ -3140,16 +3015,6 @@ hearts: {
       layers: ['voronoi', 'skew', 'bloom', 'grain'],
       settings: () => ({
         dist_metric: random_member([distance.manhattan, distance.chebyshev]),
-<<<<<<< ours
-        freq: randomInt(2, 4),
-        saturation: random() * 0.5,
-        spline_order: interp.constant,
-        voronoi_diagram_type: random_member([voronoi.range, voronoi.color_range]),
-        voronoi_nth: randomInt(0, 4),
-        voronoi_point_distrib: random_member(pointGridMembers),
-        voronoi_point_freq: randomInt(2, 4),
-        voronoi_refract: randomInt(1, 3) * 0.5,
-=======
         freq: random_int(2, 4),
         saturation: random() * 0.5,
         spline_order: interp.constant,
@@ -3158,7 +3023,6 @@ hearts: {
         voronoi_point_distrib: random_member(pointGridMembers),
         voronoi_point_freq: random_int(2, 4),
         voronoi_refract: random_int(1, 3) * 0.5,
->>>>>>> theirs
         voronoi_refract_y_from_offset: true,
       }),
     },
@@ -3181,11 +3045,7 @@ hearts: {
       ],
       settings: () => ({
         distrib: random_member([distrib.uniform, distrib.ones]),
-<<<<<<< ours
-        freq: 6 * randomInt(2, 3),
-=======
         freq: 6 * random_int(2, 3),
->>>>>>> theirs
         mask: random_member(mask),
         pixel_sort_angled: false,
         pixel_sort_darkest: false,
@@ -3260,11 +3120,7 @@ hearts: {
       layers: ['voronoi', 'glyph-map', 'bloom', 'crt', 'contrast-post'],
       settings: () => ({
         glyph_map_colorize: coin_flip(),
-<<<<<<< ours
-        glyph_map_zoom: randomInt(4, 8),
-=======
         glyph_map_zoom: random_int(4, 8),
->>>>>>> theirs
         hue_range: 0.25 + random(),
         voronoi_diagram_type: voronoi.color_regions,
         voronoi_nth: 0,
@@ -3294,15 +3150,9 @@ hearts: {
       settings: () => ({
         voronoi_alpha: 1.0,
         voronoi_diagram_type: voronoi.regions,
-<<<<<<< ours
-        voronoi_nth: randomInt(0, 4),
-        voronoi_point_distrib: random_member(pointCircularMembers),
-        voronoi_point_freq: randomInt(3, 7),
-=======
         voronoi_nth: random_int(0, 4),
         voronoi_point_distrib: random_member(pointCircularMembers),
         voronoi_point_freq: random_int(3, 7),
->>>>>>> theirs
       }),
     },
 
@@ -3311,11 +3161,7 @@ hearts: {
       settings: () => ({
         reverb_iterations: 1,
         reverb_ridges: coin_flip(),
-<<<<<<< ours
-        reverb_octaves: randomInt(3, 6),
-=======
         reverb_octaves: random_int(3, 6),
->>>>>>> theirs
       }),
       post: (settings) => [
         Effect('reverb', {
@@ -3425,26 +3271,16 @@ hearts: {
       settings: () => ({
         color_space: random_member(colorSpaceMembers()),
         dist_metric: random_member(distanceMetricAbsoluteMembers()),
-<<<<<<< ours
-        freq: randomInt(3, 4),
-=======
         freq: random_int(3, 4),
->>>>>>> theirs
         hue_range: random(),
         lattice_drift: 1,
         ridges: true,
         speed: 0.05,
         voronoi_alpha: 1.0,
         voronoi_diagram_type: voronoi.flow,
-<<<<<<< ours
-        voronoi_refract: randomInt(6, 12) * 0.25,
-        voronoi_point_distrib: random_member([point.random, ...pointCircularMembers]),
-        voronoi_point_freq: randomInt(2, 8),
-=======
         voronoi_refract: random_int(6, 12) * 0.25,
         voronoi_point_distrib: random_member([point.random, ...pointCircularMembers]),
         voronoi_point_freq: random_int(2, 8),
->>>>>>> theirs
       }),
     },
 
@@ -3578,20 +3414,12 @@ hearts: {
       settings: () => ({
         color_space: random_member(colorSpaceMembers()),
         dist_metric: random_member(distanceMetricAbsoluteMembers()),
-<<<<<<< ours
-        posterize_levels: randomInt(4, 6),
-=======
         posterize_levels: random_int(4, 6),
->>>>>>> theirs
         refract_range: 0.75 + random() * 0.375,
         refract_y_from_offset: true,
         speed: 0.05,
         voronoi_inverse: coin_flip(),
-<<<<<<< ours
-        voronoi_point_freq: randomInt(3, 5),
-=======
         voronoi_point_freq: random_int(3, 5),
->>>>>>> theirs
         voronoi_diagram_type: voronoi.range_regions,
       }),
     },
@@ -3768,11 +3596,7 @@ hearts: {
         voronoi_alpha: 0.5 + random() * 0.5,
         voronoi_diagram_type: voronoi.range_regions,
         voronoi_point_distrib: random_member(point, valueMaskNonproceduralMembers),
-<<<<<<< ours
-        voronoi_point_freq: randomInt(4, 8),
-=======
         voronoi_point_freq: random_int(4, 8),
->>>>>>> theirs
       }),
     },
 
@@ -4124,13 +3948,8 @@ hearts: {
       layers: ['voronoi', 'worms', 'brightness-post', 'contrast-post', 'bloom', 'lens'],
       settings: () => ({
         dist_metric: random_member(distanceMetricAll()),
-<<<<<<< ours
-        freq: randomInt(12, 24),
-        voronoi_alpha: 1.0 - randomInt(0, 1) * random() * 0.125,
-=======
         freq: random_int(12, 24),
         voronoi_alpha: 1.0 - random_int(0, 1) * random() * 0.125,
->>>>>>> theirs
         voronoi_diagram_type: voronoi.color_range,
         voronoi_nth: 0,
         voronoi_point_freq: 1,
@@ -4302,13 +4121,8 @@ hearts: {
       ],
       settings: () => ({
         mask: mask.tromino,
-<<<<<<< ours
-        mask_repeat: randomInt(6, 12),
-        posterize_levels: randomInt(1, 4),
-=======
         mask_repeat: random_int(6, 12),
         posterize_levels: random_int(1, 4),
->>>>>>> theirs
         spline_order: random_member([interp.constant, interp.cosine]),
       }),
     },
@@ -4316,17 +4130,10 @@ hearts: {
     'truchet-maze': {
       layers: ['value-mask', 'posterize', 'rotate', 'bloom', 'crt'],
       settings: () => ({
-<<<<<<< ours
-        angle: random_member([0, 45, randomInt(0, 360)]),
-        mask: random_member([mask.truchet_lines, mask.truchet_curves]),
-        mask_repeat: randomInt(4, 12),
-        posterize_levels: randomInt(1, 4),
-=======
         angle: random_member([0, 45, random_int(0, 360)]),
         mask: random_member([mask.truchet_lines, mask.truchet_curves]),
         mask_repeat: random_int(4, 12),
         posterize_levels: random_int(1, 4),
->>>>>>> theirs
         spline_order: interp.cosine,
       }),
     },
@@ -4380,11 +4187,7 @@ hearts: {
       layers: ['basic', 'sobel', 'invert', 'reindex-octaves', 'maybe-rotate', 'bloom', 'lens'],
       settings: () => ({
         distrib: distrib.uniform,
-<<<<<<< ours
-        freq: randomInt(3, 5),
-=======
         freq: random_int(3, 5),
->>>>>>> theirs
         mask: random_member(valueMaskProceduralMembers),
         octave_blending: blend.alpha,
         octaves: random_int(2, 4),
@@ -4397,11 +4200,7 @@ hearts: {
       settings: () => ({
         distrib: distrib.ones,
         mask: random_member(mask),
-<<<<<<< ours
-        mask_repeat: randomInt(2, 8),
-=======
         mask_repeat: random_int(2, 8),
->>>>>>> theirs
         spline_order: random_member(
           Object.values(interp).filter((m) => m !== interp.bicubic),
         ),
@@ -4473,11 +4272,7 @@ hearts: {
         ]),
         voronoi_inverse: true,
         voronoi_point_distrib: random_member(pointGridMembers),
-<<<<<<< ours
-        voronoi_point_freq: randomInt(2, 3),
-=======
         voronoi_point_freq: random_int(2, 3),
->>>>>>> theirs
         worms_behavior: worms.random,
         worms_kink: 0.5 + random(),
         worms_stride: random_int(48, 96),
@@ -4584,11 +4379,7 @@ hearts: {
         voronoi_diagram_type: voronoi.color_range,
         voronoi_nth: 0,
         voronoi_point_distrib: random_member(point, valueMaskNonproceduralMembers),
-<<<<<<< ours
-        voronoi_point_freq: randomInt(6, 10),
-=======
         voronoi_point_freq: random_int(6, 10),
->>>>>>> theirs
         warp_range: 0.25 + random() * 0.25,
       }),
     },
@@ -4687,11 +4478,7 @@ hearts: {
       settings: () => ({
         worms_alpha: 0.75 + random() * 0.25,
         worms_behavior: random_member(wormBehaviorAll),
-<<<<<<< ours
-        worms_density: randomInt(250, 500),
-=======
         worms_density: random_int(250, 500),
->>>>>>> theirs
         worms_drunkenness: 0.0,
         worms_duration: 1.0 + random() * 0.5,
         worms_kink: 1.0 + random() * 0.5,
@@ -4720,11 +4507,7 @@ hearts: {
       settings: () => ({
         corners: true,
         lattice_drift: coin_flip(),
-<<<<<<< ours
-        octaves: randomInt(1, 3),
-=======
         octaves: random_int(1, 3),
->>>>>>> theirs
         palette_name: null,
         worms_alpha: 0.5 + random() * 0.5,
         worms_behavior: worms.chaotic,
@@ -4758,11 +4541,7 @@ hearts: {
         freq: random_int(3, 9),
         glyph_map_colorize: true,
         glyph_map_mask: mask.mcpaint,
-<<<<<<< ours
-        glyph_map_zoom: randomInt(2, 4),
-=======
         glyph_map_zoom: random_int(2, 4),
->>>>>>> theirs
         spline_order: random_member([interp.constant, interp.linear]),
       }),
     },
