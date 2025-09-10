@@ -201,7 +201,7 @@ const flowFrac = Tensor.fromArray(
   [2, 2, 2]
 );
 const srcFrac = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3]), [2, 2, 1]);
-const warpedFrac = warp(srcFrac, flowFrac, 1);
+const warpedFrac = warp(srcFrac, flowFrac, 1, InterpolationType.linear);
 arraysClose(warpedFrac.read(), new Float32Array([0.5, 1, 2.5, 3]));
 
 // ridge
@@ -226,7 +226,7 @@ const refrInput = Tensor.fromArray(null, new Float32Array([
 ]), [3, 3, 1]);
 const refX = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
 const refY = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
-const refracted = refract(refrInput, refX, refY, 1 / 3);
+const refracted = refract(refrInput, refX, refY, 1 / 3, InterpolationType.linear);
 arraysClose(refracted.read(), new Float32Array([1, 2, 2, 1, 2, 2, 4, 5, 5]));
 
 // fft / ifft

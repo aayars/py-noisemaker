@@ -106,6 +106,7 @@ import {
   VoronoiDiagramType,
   DistanceMetric,
   ValueMask,
+  InterpolationType,
 } from "../src/constants.js";
 
 function arraysClose(a, b, eps = 1e-6) {
@@ -126,7 +127,7 @@ const edgeData = new Float32Array([
 const edgeTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
 
 // warp
-const warpOut = warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1).read();
+const warpOut = warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear).read();
 const warpExpected = loadFixture("warp.json");
 arraysClose(Array.from(warpOut), warpExpected);
 

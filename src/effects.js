@@ -14,7 +14,7 @@ import {
   downsample,
   upsample,
   FULLSCREEN_VS,
-  refract,
+  refract as refractOp,
   convolution,
   fxaa,
 } from "./value.js";
@@ -48,8 +48,6 @@ export function warp(
   splineOrder = InterpolationType.bicubic,
   signedRange = true,
 ) {
-  // splineOrder and signedRange are currently ignored but accepted for parity with the
-  // Python implementation.
   let out = tensor;
   for (let octave = 0; octave < octaves; octave++) {
     const mult = 2 ** octave;
@@ -74,7 +72,7 @@ export function warp(
       shape[1],
       2,
     ]);
-    out = warpOp(out, flow, displacement / mult);
+    out = warpOp(out, flow, displacement / mult, splineOrder);
   }
   return out;
 }
@@ -1334,7 +1332,7 @@ export function vortex(tensor, shape, time, speed, displacement = 64) {
   x = Tensor.fromArray(tensor.ctx, xData, valueShape);
   y = Tensor.fromArray(tensor.ctx, yData, valueShape);
   const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
-  return refract(tensor, x, y, disp);
+  return refractOp(tensor, x, y, disp);
 }
 register("vortex", vortex, { displacement: 64 });
 
@@ -1464,7 +1462,7 @@ export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
     noise[i] = (noise[i] * 2 - 1) * mask[i];
   }
   const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
-  return refract(tensor, distortion, null, displacement);
+  return refractOp(tensor, distortion, null, displacement);
 }
 register("lensWarp", lensWarp, { displacement: 0.0625 });
 register("lens_warp", lensWarp, { displacement: 0.0625 });
@@ -1942,7 +1940,7 @@ export function valueRefract(
     time,
     speed,
   });
-  return refract(tensor, blendValues, null, displacement);
+  return refractOp(tensor, blendValues, null, displacement);
 }
 register("valueRefract", valueRefract, {
   freq: 4,
@@ -2059,46 +2057,20 @@ export function refractEffect(
   }
   rx = toValueMap(rx);
   ry = toValueMap(ry);
-  const src = tensor.read();
-  const rxData = rx.read();
-  const ryData = ry.read();
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      let vx = rxData[idx];
-      let vy = ryData[idx];
-      if (signedRange && !fromDerivative) {
-        vx = vx * 2 - 1;
-        vy = vy * 2 - 1;
-      } else {
-        vx *= 2;
-        vy *= 2;
-      }
-      const xOff = x + vx * displacement * w;
-      const yOff = y + vy * displacement * h;
-      const x0 = Math.floor(xOff);
-      const y0 = Math.floor(yOff);
-      const x1 = x0 + 1;
-      const y1 = y0 + 1;
-      const fx = xOff - x0;
-      const fy = yOff - y0;
-      for (let k = 0; k < c; k++) {
-        const s00 =
-          src[((((y0 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
-        const s10 =
-          src[((((y0 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
-        const s01 =
-          src[((((y1 % h) + h) % h) * w + (((x0 % w) + w) % w)) * c + k];
-        const s11 =
-          src[((((y1 % h) + h) % h) * w + (((x1 % w) + w) % w)) * c + k];
-        const x_y0 = s00 * (1 - fx) + s10 * fx;
-        const x_y1 = s01 * (1 - fx) + s11 * fx;
-        out[(y * w + x) * c + k] = x_y0 * (1 - fy) + x_y1 * fy;
-      }
-    }
+  if (rx.shape[0] !== h || rx.shape[1] !== w) {
+    rx = upsample(rx, h / rx.shape[0]);
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  if (ry.shape[0] !== h || ry.shape[1] !== w) {
+    ry = upsample(ry, h / ry.shape[0]);
+  }
+  return refractOp(
+    tensor,
+    rx,
+    ry,
+    displacement,
+    splineOrder,
+    signedRange && !fromDerivative,
+  );
 }
 register("refractEffect", refractEffect, {
   displacement: 0.5,
@@ -3976,7 +3948,7 @@ export function grime(tensor, shape, time, speed) {
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
   let mask = fbm(null, valueShape, time, speed, 5, 8);
-  mask = refract(mask);
+  mask = refractOp(mask);
   mask = derivative(
     mask,
     valueShape,
@@ -4003,7 +3975,7 @@ export function grime(tensor, shape, time, speed) {
     distrib: ValueDistribution.exp,
     splineOrder: InterpolationType.constant,
   });
-  specks = refract(specks, null, null, 0.25);
+  specks = refractOp(specks, null, null, 0.25);
   let sData = specks.read();
   for (let i = 0; i < sData.length; i++) {
     sData[i] = Math.max(sData[i] - 0.625, 0);

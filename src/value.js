@@ -519,24 +519,68 @@ export function upsample(tensor, factor) {
   return Tensor.fromArray(ctx, out, [nh, nw, c]);
 }
 
-export function warp(tensor, flow, amount = 1) {
+function cubicInterpolate(a, b, c, d, t) {
+  const t2 = t * t;
+  const a0 = d - c - a + b;
+  const a1 = a - b - a0;
+  const a2 = c - a;
+  const a3 = b;
+  return a0 * t * t2 + a1 * t2 + a2 * t + a3;
+}
+
+export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
   const src = tensor.read();
   const flowData = flow.read();
   const out = new Float32Array(h * w * c);
+
   function sample(x, y, k) {
     x = Math.max(0, Math.min(w - 1, x));
     y = Math.max(0, Math.min(h - 1, y));
+    if (splineOrder === InterpolationType.constant) {
+      const ix = Math.round(x);
+      const iy = Math.round(y);
+      return src[(iy * w + ix) * c + k];
+    }
+
     const x0 = Math.floor(x);
     const y0 = Math.floor(y);
+    const fx = x - x0;
+    const fy = y - y0;
+
+    if (splineOrder === InterpolationType.bicubic) {
+      const get = (ix, iy) => {
+        ix = Math.max(0, Math.min(w - 1, ix));
+        iy = Math.max(0, Math.min(h - 1, iy));
+        return src[(iy * w + ix) * c + k];
+      };
+      const col = new Array(4);
+      for (let m = -1; m < 3; m++) {
+        const row = new Array(4);
+        for (let n = -1; n < 3; n++) {
+          row[n + 1] = get(x0 + n, y0 + m);
+        }
+        col[m + 1] = cubicInterpolate(row[0], row[1], row[2], row[3], fx);
+      }
+      return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
+    }
+
     const x1 = Math.min(w - 1, x0 + 1);
     const y1 = Math.min(h - 1, y0 + 1);
-    const xFract = x - x0;
-    const yFract = y - y0;
-    const top = src[(y0 * w + x0) * c + k] * (1 - xFract) + src[(y0 * w + x1) * c + k] * xFract;
-    const bottom = src[(y1 * w + x0) * c + k] * (1 - xFract) + src[(y1 * w + x1) * c + k] * xFract;
-    return top * (1 - yFract) + bottom * yFract;
+    const interp = splineOrder === InterpolationType.cosine
+      ? (t) => 0.5 - Math.cos(t * Math.PI) * 0.5
+      : (t) => t;
+    const tx = interp(fx);
+    const ty = interp(fy);
+    const s00 = src[(y0 * w + x0) * c + k];
+    const s10 = src[(y0 * w + x1) * c + k];
+    const s01 = src[(y1 * w + x0) * c + k];
+    const s11 = src[(y1 * w + x1) * c + k];
+    const x_y0 = s00 * (1 - tx) + s10 * tx;
+    const x_y1 = s01 * (1 - tx) + s11 * tx;
+    return x_y0 * (1 - ty) + x_y1 * ty;
   }
+
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const dx = flowData[(y * w + x) * 2] * amount * w;
@@ -844,17 +888,33 @@ export function convolution(tensor, kernel, opts = {}) {
   return result;
 }
 
-export function refract(tensor, referenceX = null, referenceY = null, displacement = 0.5) {
-  const [h, w, c] = tensor.shape;
+export function refract(
+  tensor,
+  referenceX = null,
+  referenceY = null,
+  displacement = 0.5,
+  splineOrder = InterpolationType.bicubic,
+  signedRange = true,
+) {
+  const [h, w] = tensor.shape;
   const rx = (referenceX || tensor).read();
   const ry = (referenceY || tensor).read();
   const flowData = new Float32Array(h * w * 2);
   for (let i = 0; i < h * w; i++) {
-    flowData[i * 2] = rx[i] * 2 - 1;
-    flowData[i * 2 + 1] = ry[i] * 2 - 1;
+    let vx = rx[i];
+    let vy = ry[i];
+    if (signedRange) {
+      vx = vx * 2 - 1;
+      vy = vy * 2 - 1;
+    } else {
+      vx *= 2;
+      vy *= 2;
+    }
+    flowData[i * 2] = vx;
+    flowData[i * 2 + 1] = vy;
   }
   const flow = Tensor.fromArray(tensor.ctx, flowData, [h, w, 2]);
-  return warp(tensor, flow, displacement);
+  return warp(tensor, flow, displacement, splineOrder);
 }
 
 export function fft(tensor) {
