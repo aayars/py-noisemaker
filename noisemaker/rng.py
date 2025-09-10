@@ -3,6 +3,25 @@ import tensorflow as tf
 _seed = 0x12345678
 
 
+class Random:
+    """Deterministic mulberry32 RNG with independent state."""
+
+    def __init__(self, seed: int):
+        self.state = seed & 0xFFFFFFFF
+
+    def random(self) -> float:
+        t = (self.state + 0x6D2B79F5) & 0xFFFFFFFF
+        t = (t ^ (t >> 15)) * (t | 1) & 0xFFFFFFFF
+        t ^= t + ((t ^ (t >> 7)) * (t | 61)) & 0xFFFFFFFF
+        self.state = t & 0xFFFFFFFF
+        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
+
+    def random_int(self, a: int, b: int) -> int:
+        if b < a:
+            a, b = b, a
+        return int(self.random() * (b - a + 1)) + a
+
+
 def set_seed(seed: int) -> None:
     """Set the global RNG seed."""
     global _seed

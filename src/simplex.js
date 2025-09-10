@@ -1,5 +1,5 @@
 import { Tensor } from './tensor.js';
-import { setSeed, getSeed, random as rngRandom } from './rng.js';
+import { setSeed, getSeed, random as rngRandom, Random } from './rng.js';
 
 export { setSeed, getSeed };
 
@@ -32,7 +32,7 @@ function overflow(x) {
   return BigInt.asIntN(64, x);
 }
 
-class OpenSimplex {
+export class OpenSimplex {
   constructor(seed = 0) {
     const perm = new Uint8Array(256);
     const permGradIndex3D = new Uint8Array(256);
@@ -516,24 +516,44 @@ class OpenSimplex {
   }
 }
 
+export function fromSeed(seed) {
+  const rng = new Random(seed);
+  const perm = new Uint8Array(256);
+  const permGrad = new Uint8Array(256);
+  const source = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) source[i] = i;
+  const gradLen = GRADIENTS_3D.length / 3;
+  for (let i = 255; i >= 0; i--) {
+    const r = rng.randomInt(0, i);
+    perm[i] = source[r];
+    permGrad[i] = (perm[i] % gradLen) * 3;
+    source[r] = source[i];
+  }
+  const os = new OpenSimplex(0);
+  os.perm = perm;
+  os.permGradIndex3D = permGrad;
+  return { os, data: { perm: Array.from(perm), perm_grad: Array.from(permGrad) } };
+}
+
 export function random(time = 0, seed, speed = 1) {
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;
-  const s = seed ?? Math.floor(rngRandom() * 0x100000000);
-  const simplex = new OpenSimplex(s);
-  const value = simplex.noise2D(z, w);
+  const s = seed ?? Math.floor(rngRandom() * 0x100000000); // RNG call
+  const { os } = fromSeed(s);
+  const value = os.noise2D(z, w);
   return (value + 1) * 0.5;
 }
 
 export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const [height, width, channels = 1] = shape;
-  const baseSeed = seed ?? Math.floor(rngRandom() * 0x100000000);
+  const baseSeed = seed ?? Math.floor(rngRandom() * 0x100000000); // RNG call
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
+  const w = Math.sin(angle) * speed;
   const data = new Float32Array(height * width * channels);
   for (let c = 0; c < channels; c++) {
-    const os = new OpenSimplex(baseSeed + c * 65535);
+    const { os } = fromSeed(baseSeed + c * 65535);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const val = os.noise3D(x, y, z);
