@@ -14,6 +14,8 @@ import {
   ridge,
   downsample,
   upsample,
+  resample,
+  proportionalDownsample,
   FULLSCREEN_VS,
   refract as refractOp,
   convolution,
@@ -2990,16 +2992,17 @@ export function blur(
   amount = 10.0,
   splineOrder = InterpolationType.bicubic,
 ) {
-  const [h, w] = shape;
-  const targetH = Math.max(1, Math.floor(h / amount));
-  let factor = Math.max(1, Math.floor(h / targetH));
-  while ((h % factor !== 0 || w % factor !== 0) && factor > 1) factor--;
-  let small = downsample(tensor, factor);
+  const [h, w, c] = shape;
+  const newShape = [
+    Math.max(1, Math.floor(h / amount)),
+    Math.max(1, Math.floor(w / amount)),
+    c,
+  ];
+  let small = proportionalDownsample(tensor, shape, newShape);
   const data = small.read();
   for (let i = 0; i < data.length; i++) data[i] *= 4;
   small = Tensor.fromArray(tensor.ctx, data, small.shape);
-  const out = upsample(small, factor);
-  return out;
+  return resample(small, shape, splineOrder);
 }
 register("blur", blur, {
   amount: 10.0,

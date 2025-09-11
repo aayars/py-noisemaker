@@ -703,6 +703,36 @@ export function downsample(tensor, factor) {
   return Tensor.fromArray(ctx, out, [nh, nw, c]);
 }
 
+export function proportionalDownsample(tensor, shape, newShape) {
+  const [h, w, c] = shape;
+  const [nh, nw] = newShape;
+  const kH = Math.max(1, Math.floor(h / nh));
+  const kW = Math.max(1, Math.floor(w / nw));
+  const outH = Math.floor((h - kH) / kH + 1);
+  const outW = Math.floor((w - kW) / kW + 1);
+  const ctx = tensor.ctx;
+  const src = tensor.read();
+  const out = new Float32Array(outH * outW * c);
+  for (let y = 0; y < outH; y++) {
+    for (let x = 0; x < outW; x++) {
+      for (let k = 0; k < c; k++) {
+        let sum = 0;
+        for (let yy = 0; yy < kH; yy++) {
+          for (let xx = 0; xx < kW; xx++) {
+            const iy = y * kH + yy;
+            const ix = x * kW + xx;
+            const idx = (iy * w + ix) * c + k;
+            sum += src[idx];
+          }
+        }
+        out[(y * outW + x) * c + k] = sum / (kH * kW);
+      }
+    }
+  }
+  const down = Tensor.fromArray(ctx, out, [outH, outW, c]);
+  return resample(down, [nh, nw, c]);
+}
+
 export function upsample(tensor, factor, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
   return resample(tensor, [h * factor, w * factor, c], splineOrder);
