@@ -1,7 +1,5 @@
 You're working on Noisemaker, a procedural noise generation algorithm playground, written in Python. Read the README.md.
 
-For the Javascript port: Read the VANILLA_JS_PORT_SPEC.md porting document.
-
 ## Bootstrapping the Python environment
 
 1. Create a virtual environment and activate it:
@@ -38,3 +36,8 @@ readthedocs content is for the *Python version only*
 ## Javascript
 
 *NO NODE* allowed except for tests.
+
+Read and follow to the letter:
+    - VANILLA_JS_PORT_SPEC.md porting document
+    - PY_JS_PARITY_SPEC.md cross-language parity requirements
+

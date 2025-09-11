@@ -11,8 +11,11 @@ JavaScript reference at runtime and assert a literal 1:1 match against the
 Python output (see `test/parity/test_generators.py` and
 `test/parity/test_effects.py` for examples).  The Python reference
 implementation may not be altered to make tests pass, and tests must not be
-removed, skipped, or otherwise weakened.  Any divergence between languages
-must surface as a test failure rather than being masked.
+removed, skipped, or otherwise weakened. Any divergence between languages
+must surface as a test failure rather than being masked. You may not use
+canned return values or synthetic results. All results need to be based on
+actual returned values from the functions being tested, and if the test
+is failing, you need to fix the root cause.
 
 All 2D tests are to be based on an image shape of 128x128x3.
 
