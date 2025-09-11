@@ -101,26 +101,39 @@ export function shadow(
   reference = null,
 ) {
   const [h, w, c] = shape;
-  let ref = reference || tensor;
+  const ref = reference || tensor;
   const rShape = ref.shape;
-  const rData = ref.read();
-  const gray = new Float32Array(h * w);
-  if (rShape[2] === 1) {
-    gray.set(rData);
-  } else {
+  let grayTensor;
+  if (rShape[2] === 1 || rShape[2] === 2) {
+    const data = ref.read();
+    const gray = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
-      const base = i * rShape[2];
-      if (rShape[2] === 2) {
-        gray[i] = rData[base];
-      } else {
-        const r = rData[base];
-        const g = rData[base + 1] || 0;
-        const b = rData[base + 2] || 0;
-        gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
+      gray[i] = data[i * rShape[2]];
     }
+    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  } else {
+    let rgbTensor;
+    if (rShape[2] === 3) {
+      rgbTensor = clamp01(ref);
+    } else {
+      const src = clamp01(ref).read();
+      const rgb = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * 4;
+        rgb[i * 3] = src[base];
+        rgb[i * 3 + 1] = src[base + 1];
+        rgb[i * 3 + 2] = src[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
+    }
+    const lab = rgbToOklab(rgbTensor).read();
+    const gray = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      gray[i] = lab[i * 3];
+    }
+    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
   }
-  const grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  grayTensor = normalize(grayTensor);
   const kx = [
     [1, 0, -1],
     [2, 0, -2],
