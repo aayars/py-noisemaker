@@ -4,7 +4,6 @@ This document defines requirements for bringing the Python and JavaScript implem
 
 Python remains the authoritative reference; the JavaScript port must match its behaviour.
 
-
 All parity tests under `test/parity/` **must** execute the Python and
 JavaScript implementations side by side and compare their results directly.
 No precomputed or hand-edited fixtures are permitted.  The tests invoke the
@@ -14,6 +13,8 @@ Python output (see `test/parity/test_generators.py` and
 implementation may not be altered to make tests pass, and tests must not be
 removed, skipped, or otherwise weakened.  Any divergence between languages
 must surface as a test failure rather than being masked.
+
+All 2D tests are to be based on an image shape of 128x128x3.
 
 ---
 
