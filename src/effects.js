@@ -2668,8 +2668,20 @@ export function vignette(
   const edgeData = new Float32Array(h * w * c);
   edgeData.fill(brightness);
   const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
-  const mask = singularity(null, shape, time, speed, VoronoiDiagramType.range, DistanceMetric.euclidean);
-  const vignetted = blend(norm, edges, mask);
+  const mask = singularity(
+    null,
+    shape,
+    time,
+    speed,
+    VoronoiDiagramType.range,
+    DistanceMetric.euclidean,
+  );
+  const maskData = mask.read();
+  for (let i = 0; i < maskData.length; i++) {
+    maskData[i] = Math.pow(maskData[i], 2);
+  }
+  const maskTensor = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
+  const vignetted = blend(norm, edges, maskTensor);
   return blend(norm, vignetted, alpha);
 }
 register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
