@@ -35,4 +35,12 @@ assert.strictEqual(tern.body.type, 'TernaryExpr');
 let n = parse(tokenize('null'));
 assert.strictEqual(n.body.type, 'NullLiteral');
 
+// Named argument using equals
+const astEq = parse(tokenize('rotate(angle=45)'));
+assert.strictEqual(astEq.body.type, 'CallExpr');
+
+// Python-style conditional expression
+const astIf = parse(tokenize('1 if true else 2'));
+assert.strictEqual(astIf.body.type, 'TernaryExpr');
+
 console.log('parser tests passed');

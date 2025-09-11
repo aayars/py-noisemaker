@@ -159,9 +159,10 @@ export function parse(tokens, enforcePresetKeys = true) {
 
   function parseArg() {
     const t = peek();
-    if (t.type === 'identifier' && peek(1)?.type === ':') {
+    const next = peek(1);
+    if (t.type === 'identifier' && (next?.type === ':' || next?.type === '=')) {
       const name = consume('identifier').value;
-      consume(':');
+      consume(next.type);
       const value = parseExpression();
       return { named: true, name, value };
     }
@@ -175,7 +176,14 @@ export function parse(tokens, enforcePresetKeys = true) {
 
   function parseNumberExpr() {
     let node = parseAdd();
-    if (match('?')) {
+    if (peekIs('identifier') && peek().value === 'if') {
+      consume('identifier'); // 'if'
+      const testExpr = parseNumberExpr();
+      const elseTok = consume('identifier');
+      if (elseTok.value !== 'else') unexpected(elseTok);
+      const falseExpr = parseNumberExpr();
+      node = { type: 'TernaryExpr', test: testExpr, consequent: node, alternate: falseExpr };
+    } else if (match('?')) {
       const trueExpr = parseNumberExpr();
       consume(':');
       const falseExpr = parseNumberExpr();

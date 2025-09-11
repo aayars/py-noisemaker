@@ -16,6 +16,6 @@ import { defaultContext } from './builtins.js';
  */
 export function parsePresetDSL(source, context = defaultContext) {
   const tokens = tokenize(source);
-  const ast = parse(tokens);
+  const ast = parse(tokens, false);
   return evaluate(ast, context);
 }

@@ -57,6 +57,14 @@ assert.ok([ValueDistribution.ones, ValueDistribution.mids, ValueDistribution.zer
 let nullVal = evaluate(parse(tokenize('null')));
 assert.strictEqual(nullVal, null);
 
+// Named argument with equals
+let eqCall = evaluate(parse(tokenize('rotate(angle=45)')));
+assert.strictEqual(eqCall.__params.angle, 45);
+
+// Python-style conditional
+let pyTern = evaluate(parse(tokenize('1 if true else 2')));
+assert.strictEqual(pyTern, 1);
+
 assert.throws(() => evaluate(parse(tokenize('coin_flip(1)'))), /takes no arguments/);
 assert.throws(
   () => evaluate(parse(tokenize('enum_range(1)'))),
