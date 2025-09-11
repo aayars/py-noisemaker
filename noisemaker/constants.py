@@ -108,10 +108,10 @@ class ValueDistribution(Enum):
 
     .. code-block:: python
 
-       image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
+       image = basic(freq, [height, width, channels], distrib=ValueDistribution.simplex)
     """
 
-    uniform = 1
+    simplex = 1
     exp = 2
 
     @classmethod

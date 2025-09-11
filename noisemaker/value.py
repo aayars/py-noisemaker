@@ -54,7 +54,7 @@ def value_noise(count, freq=8):
     return tf.constant(out, dtype=tf.float32)
 
 
-def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
+def values(freq, shape, distrib=ValueDistribution.simplex, corners=False, mask=None, mask_inverse=False, mask_static=False,
            spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
     """
@@ -65,7 +65,7 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     initial_shape = freq + [shape[-1]]
 
     if distrib is None:
-        distrib = ValueDistribution.uniform
+        distrib = ValueDistribution.simplex
 
     distrib = coerce_enum(distrib, ValueDistribution)
 
@@ -136,18 +136,7 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         ) * tf.ones(shape, dtype=tf.float32)
 
     elif ValueDistribution.is_noise(distrib):
-        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
-        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
-        # since time values are per-pixel, this has the added bonus of animating different parts of the image at different
-        # rates, rather than ping-ponging the entire image back and forth in lockstep. this creates a visual effect which
-        # closely resembles higher-dimensional noise.
-
-        # get a periodic uniform noise, and scale it to speed:
-        # RNG[1]: rng.uniform for time jitter
-        scaled_time = periodic_value(time, rng.uniform(initial_shape)) * speed
-
-        # RNG[2]: rng.uniform for value lattice
-        tensor = periodic_value(scaled_time, rng.uniform(initial_shape))
+        tensor = simplex.simplex(initial_shape, time=time, speed=speed)
 
         if distrib == ValueDistribution.exp:
             tensor = tf.math.pow(tensor, 4)
@@ -860,7 +849,7 @@ def ridge(tensor):
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
+def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.simplex, corners=False,
                     ridges=False, mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0):
     """Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects."""
 
@@ -1009,7 +998,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
+            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -1020,7 +1009,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
+            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:

@@ -329,7 +329,7 @@ PRESETS = lambda: {  # noqa E731
             "brightness_distrib": None,
             "color_space": random_member(color.color_members()),
             "corners": False,
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": [random.randint(2, 4), random.randint(2, 4)],
             "hue_distrib": None,
             "hue_range": random.random() * 0.25,
@@ -409,7 +409,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires", "refract-octaves", "reflect-octaves", "ripple"],
         "settings": lambda: {
             "color_space": color.hsv,
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": random.randint(7, 10),
             "hue_range": 0.05 + random.random() * 0.05,
             "hue_rotation": 0.5125 + random.random() * 0.025,
@@ -618,7 +618,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "posterize", "wormhole", "reverb", "outline", "maybe-invert"],
         "settings": lambda: {
             "corners": True,
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": random.randint(3, 6) * 2,
             "mask": random_member([mask.h_hex, mask.v_hex]),
             "posterize_levels": random.randint(8, 16),
@@ -1078,7 +1078,7 @@ PRESETS = lambda: {  # noqa E731
     "deep-field": {
         "layers": ["multires", "refract-octaves", "octave-warp-octaves", "bloom", "lens"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": random.randint(8, 10),
             "hue_range": 1,
             "mask": mask.sparser,
@@ -1405,7 +1405,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-low", "erosion-worms", "lens"],
         "settings": lambda: {
             "color_space": random_member(color.color_members()),
-            "distrib": random_member([distrib.exp, distrib.uniform]),
+            "distrib": random_member([distrib.exp, distrib.simplex]),
             "erosion_worms_contraction": 0.2 + random.random() * 0.1,
             "erosion_worms_iterations": random.randint(625, 1125),
         },
@@ -1421,11 +1421,11 @@ PRESETS = lambda: {  # noqa E731
     "fargate": {
         "layers": ["serene", "contrast-post", "crt", "saturation"],
         "settings": lambda: {
-            "brightness_distrib": distrib.uniform,
+            "brightness_distrib": distrib.simplex,
             "freq": 3,
             "octaves": 3,
             "refract_range": 0.015 + random.random() * 0.0075,
-            "saturation_distrib": distrib.uniform,
+            "saturation_distrib": distrib.simplex,
             "speed": -0.25,
             "value_distrib": distrib.center_circle,
             "value_freq": 3,
@@ -1637,7 +1637,7 @@ PRESETS = lambda: {  # noqa E731
     "funky-glyphs": {
         "layers": ["value-mask", "refract-post", "contrast-final", "maybe-rotate", "saturation", "lens", "grain"],
         "settings": lambda: {
-            "distrib": random_member([distrib.ones, distrib.uniform]),
+            "distrib": random_member([distrib.ones, distrib.simplex]),
             "mask": random_member(mask.glyph_members()),
             "mask_repeat": random.randint(1, 6),
             "octaves": random.randint(1, 2),
@@ -1654,7 +1654,7 @@ PRESETS = lambda: {  # noqa E731
     "galalaga": {
         "layers": ["value-mask", "contrast-final", "glitchin-out"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "hue_range": random.random() * 2.5,
             "mask": mask.invaders_square,
             "mask_repeat": 4,
@@ -1730,7 +1730,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["basic", "refract-octaves", "reflect-octaves", "refract-post", "reflect-post", "funhouse",
                    "bloom", "shadow", "contrast-post", "lens"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": [2, 2],
             "hue_range": 0.25 + random.random() * 0.125,
             "lattice_drift": 1,
@@ -2608,7 +2608,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires-alpha"],
         "settings": lambda: {
             "corners": True,
-            "distrib": random_member([distrib.ones, distrib.uniform]),
+            "distrib": random_member([distrib.ones, distrib.simplex]),
             "freq": random.randint(2, 5),
             "lattice_drift": 0,
             "mask": random_member(mask.procedural_members()),
@@ -2752,7 +2752,7 @@ PRESETS = lambda: {  # noqa E731
     "painterly": {
         "layers": ["value-mask", "ripple", "funhouse", "maybe-rotate", "saturation", "grain"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "hue_range": 0.333 + random.random() * 0.666,
             "mask": random_member(mask.grid_members()),
             "mask_repeat": 1,
@@ -2845,7 +2845,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": color.hsv,
             "bloom_alpha": 0.333 + random.random() * 0.16667,
-            "brightness_distrib": distrib.uniform,
+            "brightness_distrib": distrib.simplex,
             "freq": 2,
             "hue_range": 0.2 + random.random() * 0.1,
             "hue_rotation": 0.9 + random.random() * 0.05,
@@ -3066,7 +3066,7 @@ PRESETS = lambda: {  # noqa E731
     "rasteroids": {
         "layers": ["basic", "funhouse", "sobel", "invert", "pixel-sort", "maybe-rotate", "bloom", "crt", "vignette-dark"],
         "settings": lambda: {
-            "distrib": random_member([distrib.uniform, distrib.ones]),
+            "distrib": random_member([distrib.simplex, distrib.ones]),
             "freq": 6 * random.randint(2, 3),
             "mask": random_member(mask),
             "pixel_sort_angled": False,
@@ -3496,7 +3496,7 @@ PRESETS = lambda: {  # noqa E731
     "sined-multifractal": {
         "layers": ["multires-ridged", "sine-octaves", "grain", "saturation"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": random.randint(2, 3),
             "hue_range": random.random(),
             "hue_rotation": random.random(),
@@ -4075,7 +4075,7 @@ PRESETS = lambda: {  # noqa E731
         "settings": lambda: {
             "color_space": color.hsv,
             "dist_metric": distance.euclidean,
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "hue_range": 0.5 + random.random() * 1.25,
             "octaves": random.randint(1, 4),
             "palette_on": False,
@@ -4176,7 +4176,7 @@ PRESETS = lambda: {  # noqa E731
         "layers": ["multires", "reflect-octaves", "refract-post", "random-hue", "bloom", "lens"],
         "settings": lambda: {
             "color_space": color.oklab,
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": 2,
             "hue_range": 2.0 + random.random(),
             "lattice_drift": 1.0,
@@ -4193,7 +4193,7 @@ PRESETS = lambda: {  # noqa E731
     "unmasked": {
         "layers": ["basic", "sobel", "invert", "reindex-octaves", "maybe-rotate", "bloom", "lens"],
         "settings": lambda: {
-            "distrib": distrib.uniform,
+            "distrib": distrib.simplex,
             "freq": random.randint(3, 5),
             "mask": random_member(mask.procedural_members()),
             "octave_blending": blend.alpha,
@@ -4229,7 +4229,7 @@ PRESETS = lambda: {  # noqa E731
         "post": lambda settings: [
             Effect("value_refract",
                    displacement=settings["value_refract_range"],
-                   distrib=settings.get("value_distrib", distrib.uniform),
+                   distrib=settings.get("value_distrib", distrib.simplex),
                    freq=settings["value_freq"])
         ]
     },
