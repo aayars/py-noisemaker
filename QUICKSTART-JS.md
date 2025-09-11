@@ -45,4 +45,6 @@ The `render` function writes directly to the supplied canvas and returns a `Tens
 npm test
 ```
 
-The tests compare the JavaScript port against the Python reference implementation to catch regressions.
+The test suite invokes the Python reference implementation at runtime and
+compares outputs directly—no fixtures are involved. Do not modify the Python
+reference or disable tests; discrepancies should surface as test failures.

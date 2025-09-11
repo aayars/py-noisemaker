@@ -4,27 +4,13 @@ This document is for the experimental JS port of Noisemaker. See additional [por
 
 The project now relies on a common **3‑D OpenSimplex** implementation across Python and JavaScript.
 
-## Updating JavaScript test fixtures
- 
-The JavaScript tests use precomputed outputs from the Python reference implementation. If you change any algorithms that affect these expectations, regenerate the fixture data:
+## Cross-language parity tests
 
-```bash
-python scripts/generate_fixtures.py
-```
-
-This script rewrites the JSON files in `test/fixtures/`. Commit the updated fixtures along with your code changes.
-
-## Cross-language image regression
-
-To verify that the Python and JavaScript implementations stay in sync, generate
-small simplex-noise images for a set of seeds and compare the pixel values:
-
-```bash
-npm run image-regress
-```
-
-Baseline PNGs are written to `test/image-fixtures/`. Divergences are reported
-with the offending seed to help catch regressions.
+`npm test` runs the JavaScript suite, which invokes the Python reference
+implementation in a subprocess and compares outputs directly.  No fixture files
+or canned images are used.  Any difference between languages is treated as a
+test failure—do not modify the Python reference implementation, and do not skip
+or weaken tests to hide problems.
 
 ## Vanilla JS effects registry
 
