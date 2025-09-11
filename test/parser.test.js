@@ -43,4 +43,14 @@ assert.strictEqual(astEq.body.type, 'CallExpr');
 const astIf = parse(tokenize('1 if true else 2'));
 assert.strictEqual(astIf.body.type, 'TernaryExpr');
 
+// Unary expressions
+const unary = parse(tokenize('-1'));
+assert.strictEqual(unary.body.type, 'UnaryExpr');
+
+// Unary after multiplication
+const mulUnaryMinus = parse(tokenize('1 * -2'));
+assert.strictEqual(mulUnaryMinus.body.type, 'BinaryExpr');
+const mulUnaryPlus = parse(tokenize('1 * +2'));
+assert.strictEqual(mulUnaryPlus.body.type, 'BinaryExpr');
+
 console.log('parser tests passed');

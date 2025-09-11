@@ -8,7 +8,7 @@ import {
 } from '../presets.js';
 import { Preset as _Preset } from '../composer.js';
 import { random as _random, randomInt as _random_int } from '../util.js';
-import { maskShape as _maskShape } from '../masks.js';
+import { maskShape as _maskShape, squareMasks as _squareMasks } from '../masks.js';
 
 export * from '../constants.js';
 
@@ -85,7 +85,10 @@ export function preset(...args) {
   if (typeof name !== 'string') {
     throw new Error('preset(name[, settings]) name must be a string');
   }
-  return new _Preset(name, _PRESETS(), settings);
+  // Return a thunk that will instantiate the preset when invoked. This
+  // avoids recursive construction while the preset table itself is being
+  // evaluated from the DSL.
+  return () => new _Preset(name, PRESETS(), settings);
 }
 
 export const operations = Object.freeze({
@@ -97,12 +100,58 @@ export const operations = Object.freeze({
   random_int,
   mask_freq,
   preset,
+  // expose helper functions used via enum method-style calls
+  distanceMetricAbsoluteMembers: constants.distanceMetricAbsoluteMembers,
+  distanceMetricAll: constants.distanceMetricAll,
+  colorSpaceMembers: constants.colorSpaceMembers,
+  valueMaskProceduralMembers: constants.valueMaskProceduralMembers,
+  valueMaskGridMembers: constants.valueMaskGridMembers,
+  valueMaskGlyphMembers: constants.valueMaskGlyphMembers,
+  valueMaskNonproceduralMembers: constants.valueMaskNonproceduralMembers,
+  valueMaskRgbMembers: constants.valueMaskRgbMembers,
+  circularMembers: constants.circularMembers,
+  gridMembers: constants.gridMembers,
+  wormBehaviorAll: constants.wormBehaviorAll,
+  maskShape: _maskShape,
+  squareMasks: _squareMasks,
 });
 
 export const enums = constants;
+
+// Map enum/object method names used in the DSL to functions exposed in
+// `operations`.  This allows expressions like `DistanceMetric.absolute_members()`
+// to resolve to the appropriate helper without mutating the frozen enum objects.
+export const enumMethods = Object.freeze({
+  DistanceMetric: {
+    absolute_members: operations.distanceMetricAbsoluteMembers,
+    all: operations.distanceMetricAll,
+  },
+  PointDistribution: {
+    grid_members: () => operations.gridMembers,
+    circular_members: () => operations.circularMembers,
+  },
+  ColorSpace: {
+    color_members: operations.colorSpaceMembers,
+  },
+  ValueMask: {
+    procedural_members: () => operations.valueMaskProceduralMembers,
+    grid_members: () => operations.valueMaskGridMembers,
+    glyph_members: () => operations.valueMaskGlyphMembers,
+    nonprocedural_members: () => operations.valueMaskNonproceduralMembers,
+    rgb_members: () => operations.valueMaskRgbMembers,
+  },
+  WormBehavior: {
+    all: () => operations.wormBehaviorAll,
+  },
+  masks: {
+    mask_shape: operations.maskShape,
+    square_masks: operations.squareMasks,
+  },
+});
 
 export const defaultContext = {
   surfaces,
   operations,
   enums,
+  enumMethods,
 };

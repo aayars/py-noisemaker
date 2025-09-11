@@ -6,6 +6,8 @@ function evalNode(node, ctx) {
       return node.value;
     case 'StringLiteral':
       return node.value;
+    case 'BooleanLiteral':
+      return node.value;
     case 'NullLiteral':
       return null;
     case 'Identifier': {
@@ -16,8 +18,15 @@ function evalNode(node, ctx) {
       return name;
     }
     case 'MemberExpr': {
-      const objVal = evalNode(node.object, ctx);
       const prop = node.property.name;
+      if (node.object.type === 'Identifier' && ctx.enumMethods) {
+        const objName = node.object.name;
+        const methods = ctx.enumMethods[objName];
+        if (methods && methods[prop]) {
+          return methods[prop];
+        }
+      }
+      const objVal = evalNode(node.object, ctx);
       return objVal?.[prop];
     }
     case 'ArrayExpr':
@@ -29,17 +38,48 @@ function evalNode(node, ctx) {
       }
       return out;
     }
+    case 'UnaryExpr': {
+      const v = evalNode(node.argument, ctx);
+      switch (node.operator) {
+        case '+':
+          return Array.isArray(v) ? v : +v;
+        case '-':
+          if (Array.isArray(v)) return v.map((n) => -n);
+          return -v;
+        default:
+          throw new Error(`Unknown operator ${node.operator}`);
+      }
+    }
     case 'BinaryExpr': {
       const l = evalNode(node.left, ctx);
       const r = evalNode(node.right, ctx);
       switch (node.operator) {
         case '+':
+          if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
+          if (Array.isArray(l) && typeof r === 'number') return l.map((n) => n + r);
+          if (typeof l === 'number' && Array.isArray(r)) return r.map((n) => l + n);
           return l + r;
         case '-':
+          if (Array.isArray(l) && Array.isArray(r)) return l.map((n, i) => n - r[i]);
+          if (Array.isArray(l) && typeof r === 'number') return l.map((n) => n - r);
+          if (typeof l === 'number' && Array.isArray(r)) return r.map((n) => l - n);
           return l - r;
         case '*':
+          if (Array.isArray(l) && Array.isArray(r)) return l.map((n, i) => n * r[i]);
+          if (Array.isArray(l) && typeof r === 'number') {
+            const out = [];
+            for (let i = 0; i < r; i++) out.push(...l);
+            return out;
+          }
+          if (typeof l === 'number' && Array.isArray(r)) {
+            const out = [];
+            for (let i = 0; i < l; i++) out.push(...r);
+            return out;
+          }
           return l * r;
         case '/':
+          if (Array.isArray(l) && typeof r === 'number') return l.map((n) => n / r);
+          if (typeof l === 'number' && Array.isArray(r)) return r.map((n) => l / n);
           return l / r;
         default:
           throw new Error(`Unknown operator ${node.operator}`);

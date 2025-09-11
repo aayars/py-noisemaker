@@ -65,6 +65,18 @@ assert.strictEqual(eqCall.__params.angle, 45);
 let pyTern = evaluate(parse(tokenize('1 if true else 2')));
 assert.strictEqual(pyTern, 1);
 
+// Unary operators
+let neg = evaluate(parse(tokenize('-5')));
+assert.strictEqual(neg, -5);
+let arrNeg = evaluate(parse(tokenize('-[1,2,3]')));
+assert.deepStrictEqual(arrNeg, [-1, -2, -3]);
+
+// Array arithmetic
+let arrConcat = evaluate(parse(tokenize('[1,2] + [3,4]')));
+assert.deepStrictEqual(arrConcat, [1, 2, 3, 4]);
+let arrAddNum = evaluate(parse(tokenize('[1,2] + 3')));
+assert.deepStrictEqual(arrAddNum, [4, 5]);
+
 assert.throws(() => evaluate(parse(tokenize('coin_flip(1)'))), /takes no arguments/);
 assert.throws(
   () => evaluate(parse(tokenize('enum_range(1)'))),

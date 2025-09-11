@@ -1,7 +1,12 @@
 const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final', 'unique']);
 
+// Improved error reporting so that diagnostics include location information.
+// This greatly simplifies debugging of complex DSL programs like the preset
+// collection where a single unexpected token can otherwise be very difficult
+// to track down.  When a parse error occurs we now surface both the token's
+// textual value and its line/column position within the source.
 function unexpected(token) {
-  const val = token ? token.value : 'EOF';
+  const val = token ? `${token.value} (line ${token.line}, column ${token.column})` : 'EOF';
   throw new Error(`Unexpected token: ${val}`);
 }
 
@@ -87,27 +92,75 @@ export function parse(tokens, enforcePresetKeys = true) {
     return { type: 'ArrayExpr', elements };
   }
 
+  // Entry point for all expressions.  The grammar supports binary
+  // operations on not only numbers but also arrays and strings.  We
+  // therefore parse using a precedence climbing approach starting at
+  // addition/subtraction.
   function parseExpression() {
+    return parseTernary();
+  }
+
+  function parseTernary() {
+    let node = parseAdd();
+    if (peekIs('identifier') && peek().value === 'if') {
+      consume('identifier'); // 'if'
+      const testExpr = parseTernary();
+      const elseTok = consume('identifier');
+      if (elseTok.value !== 'else') unexpected(elseTok);
+      const falseExpr = parseTernary();
+      return { type: 'TernaryExpr', test: testExpr, consequent: node, alternate: falseExpr };
+    } else if (match('?')) {
+      const trueExpr = parseTernary();
+      consume(':');
+      const falseExpr = parseTernary();
+      return { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr };
+    }
+    return node;
+  }
+
+  function parseAdd() {
+    let node = parseMul();
+    while (true) {
+      const t = peek();
+      if (t && (t.type === '+' || t.type === '-')) {
+        consume(t.type);
+        const right = parseMul();
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+      } else {
+        break;
+      }
+    }
+    return node;
+  }
+
+  function parseMul() {
+    let node = parseUnary();
+    while (true) {
+      const t = peek();
+      if (t && (t.type === '*' || t.type === '/')) {
+        consume(t.type);
+        // Allow unary expressions on the right-hand side of a multiply or
+        // divide.  Using `parsePrimary` here meant constructs like `1 * -2`
+        // or `1 * +2` would fail to parse, producing an "Unexpected token: +"
+        // or "Unexpected token: -" error.  By delegating to `parseUnary` we
+        // permit prefix operators in these positions.
+        const right = parseUnary();
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+      } else {
+        break;
+      }
+    }
+    return node;
+  }
+
+  function parseUnary() {
     const t = peek();
-    if (!t) unexpected(t);
-    if (t.type === 'number' || t.type === '(' || t.type === 'identifier' || t.type === 'boolean' || t.type === 'null') {
-      return parseNumberExpr();
+    if (t && (t.type === '+' || t.type === '-')) {
+      consume(t.type);
+      const argument = parseUnary();
+      return { type: 'UnaryExpr', operator: t.type, argument };
     }
-    if (t.type === 'string') {
-      consume('string');
-      return { type: 'StringLiteral', value: t.value };
-    }
-    if (t.type === 'color') {
-      consume('color');
-      return { type: 'StringLiteral', value: t.value };
-    }
-    if (t.type === '[') {
-      return parseArrayExpr();
-    }
-    if (t.type === '{') {
-      return parseObjectExpr();
-    }
-    unexpected(t);
+    return parsePrimary();
   }
 
   function parseCallChain() {
@@ -174,63 +227,37 @@ export function parse(tokens, enforcePresetKeys = true) {
     return { type: 'Identifier', name: token.value };
   }
 
-  function parseNumberExpr() {
-    let node = parseAdd();
-    if (peekIs('identifier') && peek().value === 'if') {
-      consume('identifier'); // 'if'
-      const testExpr = parseNumberExpr();
-      const elseTok = consume('identifier');
-      if (elseTok.value !== 'else') unexpected(elseTok);
-      const falseExpr = parseNumberExpr();
-      node = { type: 'TernaryExpr', test: testExpr, consequent: node, alternate: falseExpr };
-    } else if (match('?')) {
-      const trueExpr = parseNumberExpr();
-      consume(':');
-      const falseExpr = parseNumberExpr();
-      node = { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr };
-    }
-    return node;
-  }
-
-  function parseAdd() {
-    let node = parseMul();
-    while (true) {
-      const t = peek();
-      if (t && (t.type === '+' || t.type === '-')) {
-        consume(t.type);
-        const right = parseMul();
-        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
-      } else {
-        break;
-      }
-    }
-    return node;
-  }
-
-  function parseMul() {
-    let node = parseNumberPrimary();
-    while (true) {
-      const t = peek();
-      if (t && (t.type === '*' || t.type === '/')) {
-        consume(t.type);
-        const right = parseNumberPrimary();
-        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
-      } else {
-        break;
-      }
-    }
-    return node;
-  }
-
-  function parseNumberPrimary() {
+  function parsePrimary() {
     const t = peek();
     if (t.type === 'number') {
       consume('number');
       return { type: 'NumberLiteral', value: t.value };
     }
+    if (t.type === 'string') {
+      consume('string');
+      return { type: 'StringLiteral', value: t.value };
+    }
+    if (t.type === 'color') {
+      consume('color');
+      return { type: 'StringLiteral', value: t.value };
+    }
+    if (t.type === 'boolean') {
+      consume('boolean');
+      return { type: 'BooleanLiteral', value: t.value };
+    }
+    if (t.type === 'null') {
+      consume('null');
+      return { type: 'NullLiteral', value: null };
+    }
+    if (t.type === '[') {
+      return parseArrayExpr();
+    }
+    if (t.type === '{') {
+      return parseObjectExpr();
+    }
     if (t.type === '(') {
       consume('(');
-      const expr = parseNumberExpr();
+      const expr = parseExpression();
       consume(')');
       return expr;
     }
@@ -271,14 +298,6 @@ export function parse(tokens, enforcePresetKeys = true) {
         return node;
       }
       return id;
-    }
-    if (t.type === 'boolean') {
-      consume('boolean');
-      return { type: 'NumberLiteral', value: t.value ? 1 : 0 };
-    }
-    if (t.type === 'null') {
-      consume('null');
-      return { type: 'NullLiteral', value: null };
     }
     unexpected(t);
   }
