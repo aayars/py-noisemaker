@@ -2413,6 +2413,589 @@
         ridges: settings.reverb_ridges,
       ),
     ],
+  },
+
+  "ride-the-rainbow": {
+    layers: ["basic", "swerve-v", "scuff", "distressed", "contrast-post"],
+    settings: {
+      brightness_distrib: ValueDistribution.ones,
+      corners: true,
+      distrib: ValueDistribution.column_index,
+      freq: random_int(6, 12),
+      hue_range: 0.9,
+      palette_on: false,
+      saturation_distrib: ValueDistribution.ones,
+      spline_order: InterpolationType.constant,
+    },
+  },
+
+  "ridge": {
+    post: [ridge()],
+  },
+
+  "ripple": {
+    settings: {
+      ripple_range: 0.025 + random() * 0.1,
+      ripple_freq: random_int(2, 3),
+      ripple_kink: random_int(3, 18),
+    },
+    post: [
+      ripple(
+        displacement: settings.ripple_range,
+        freq: settings.ripple_freq,
+        kink: settings.ripple_kink,
+      ),
+    ],
+  },
+
+  "rotate": {
+    settings: { angle: random() * 360.0 },
+    post: [rotate(angle: settings.angle)],
+  },
+
+  "runes-of-arecibo": {
+    layers: [
+      "value-mask",
+      "refract-octaves",
+      "posterize",
+      "emboss",
+      "maybe-invert",
+      "contrast-post",
+      "skew",
+      "grain",
+      "texture",
+      "vaseline",
+      "brightness-final",
+      "contrast-final",
+    ],
+    settings: {
+      brightness_final: 0 - 0.1,
+      color_space: ColorSpace.grayscale,
+      corners: true,
+      mask: random_member([
+        ValueMask.arecibo_num,
+        ValueMask.arecibo_bignum,
+        ValueMask.arecibo_nucleotide,
+      ]),
+      mask_repeat: random_int(4, 12),
+      palette_on: false,
+      posterize_levels: random_int(1, 3),
+      refract_range: 0.025 + random() * 0.0125,
+      refract_signed_range: false,
+      refract_y_from_offset: true,
+      spline_order: random_member([
+        InterpolationType.linear,
+        InterpolationType.cosine,
+      ]),
+    },
+  },
+
+  "sands-of-time": {
+    layers: ["basic", "worms", "lens"],
+    settings: {
+      freq: random_int(3, 5),
+      octaves: random_int(1, 3),
+      worms_behavior: WormBehavior.unruly,
+      worms_alpha: 1,
+      worms_density: 750,
+      worms_duration: 0.25,
+      worms_kink: random_int(1, 2),
+      worms_stride: random_int(128, 256),
+    },
+  },
+
+  "satori": {
+    layers: ["multires-low", "sine-octaves", "voronoi", "contrast-post", "grain", "saturation"],
+    settings: {
+      color_space: random_member(ColorSpace.color_members()),
+      dist_metric: random_member(DistanceMetric.absolute_members()),
+      freq: random_int(3, 4),
+      hue_range: random(),
+      lattice_drift: 1,
+      ridges: true,
+      speed: 0.05,
+      voronoi_alpha: 1.0,
+      voronoi_diagram_type: VoronoiDiagramType.flow,
+      voronoi_refract: random_int(6, 12) * 0.25,
+      voronoi_point_distrib: random_member(
+        [PointDistribution.random],
+        PointDistribution.circular_members(),
+      ),
+      voronoi_point_freq: random_int(2, 8),
+    },
+  },
+
+  "saturation": {
+    settings: {
+      saturation_final: 0.333 + random() * 0.16667,
+    },
+    final: [adjust_saturation(amount: settings.saturation_final)],
+  },
+
+  "sblorp": {
+    layers: ["basic", "posterize", "invert", "grain", "saturation"],
+    settings: {
+      color_space: ColorSpace.rgb,
+      distrib: ValueDistribution.ones,
+      freq: random_int(5, 9),
+      lattice_drift: 1.25 + random() * 1.25,
+      mask: ValueMask.sparse,
+      octave_blending: OctaveBlending.reduce_max,
+      octaves: random_int(2, 3),
+      posterize_levels: 1,
+    },
+  },
+
+  "sbup": {
+    layers: ["basic", "posterize", "funhouse", "falsetto", "palette", "distressed"],
+    settings: {
+      distrib: ValueDistribution.ones,
+      freq: [2, 2],
+      mask: ValueMask.square,
+      posterize_levels: random_int(1, 2),
+      warp_range: 1.5 + random(),
+    },
+  },
+
+  "scanline-error": {
+    final: [scanline_error()],
+  },
+
+  "scratches": {
+    final: [scratches()],
+  },
+
+  "scribbles": {
+    layers: [
+      "basic",
+      "derivative-octaves",
+      "derivative-post",
+      "derivative-post",
+      "contrast-post",
+      "invert",
+      "sketch",
+    ],
+    settings: {
+      color_space: ColorSpace.grayscale,
+      deriv_alpha: 0.925,
+      freq: random_int(2, 4),
+      lattice_drift: 1.0,
+      octaves: random_int(3, 4),
+      palette_on: false,
+      ridges: true,
+    },
+  },
+
+  "scuff": {
+    final: [scratches()],
+  },
+
+  "serene": {
+    layers: ["basic-water", "periodic-refract", "refract-post", "lens"],
+    settings: {
+      freq: random_int(2, 3),
+      octaves: 3,
+      refract_range: 0.0025 + random() * 0.00125,
+      refract_y_from_offset: false,
+      value_distrib: ValueDistribution.center_circle,
+      value_freq: random_int(2, 3),
+      value_refract_range: 0.025 + random() * 0.0125,
+      speed: 0.25,
+    },
+  },
+
+  "shadow": {
+    settings: {
+      shadow_alpha: 0.5 + random() * 0.25,
+    },
+    post: [shadow(alpha: settings.shadow_alpha)],
+  },
+
+  "shadows": {
+    layers: ["shadow", "vignette-dark"],
+  },
+
+  "shake-it-like": {
+    post: [frame()],
+  },
+
+  "shape-party": {
+    layers: ["voronoi", "posterize", "invert", "aberration", "grain", "saturation"],
+    settings: {
+      aberration_displacement: 0.125 + random() * 0.0625,
+      color_space: ColorSpace.rgb,
+      dist_metric: DistanceMetric.manhattan,
+      distrib: ValueDistribution.ones,
+      freq: 11,
+      mask: random_member(ValueMask.procedural_members()),
+      posterize_levels: 1,
+      spline_order: InterpolationType.cosine,
+      voronoi_point_freq: 2,
+      voronoi_nth: 1,
+      voronoi_refract: 0.125 + random() * 0.25,
+    },
+  },
+
+  "shatter": {
+    layers: [
+      "basic-voronoi",
+      "refract-post",
+      "posterize-outline",
+      "maybe-invert",
+      "normalize",
+      "lens",
+      "grain",
+    ],
+    settings: {
+      color_space: random_member(ColorSpace.color_members()),
+      dist_metric: random_member(DistanceMetric.absolute_members()),
+      posterize_levels: random_int(4, 6),
+      refract_range: 0.75 + random() * 0.375,
+      refract_y_from_offset: true,
+      speed: 0.05,
+      voronoi_inverse: coin_flip(),
+      voronoi_point_freq: random_int(3, 5),
+      voronoi_diagram_type: VoronoiDiagramType.range_regions,
+    },
+  },
+
+  "shimmer": {
+    layers: ["basic", "derivative-octaves", "voronoi", "refract-post", "lens"],
+    settings: {
+      dist_metric: DistanceMetric.euclidean,
+      freq: random_int(2, 3),
+      hue_range: 3.0 + random() * 1.5,
+      lattice_drift: 1.0,
+      refract_range: 1.25 * random() * 0.625,
+      ridges: true,
+      voronoi_alpha: 0.25 + random() * 0.125,
+      voronoi_diagram_type: VoronoiDiagramType.color_flow,
+      voronoi_point_freq: 10,
+    },
+  },
+
+  "shmoo": {
+    layers: ["basic", "brightness-post", "posterize", "invert", "outline", "distressed"],
+    settings: {
+      brightness_post: 0.25,
+      color_space: ColorSpace.hsv,
+      freq: random_int(3, 5),
+      hue_range: 1.5 + random() * 0.75,
+      palette_on: false,
+      posterize_levels: random_int(2, 6),
+      speed: 0.025,
+    },
+  },
+
+  "sideways": {
+    layers: ["multires-low", "reflect-octaves", "pixel-sort", "lens", "crt"],
+    settings: {
+      freq: random_int(6, 12),
+      distrib: ValueDistribution.ones,
+      mask: ValueMask.script,
+      palette_on: false,
+      pixel_sort_angled: false,
+      saturation: 0.0625 + random() * 0.125,
+      spline_order: random_member([
+        InterpolationType.linear,
+        InterpolationType.cosine,
+        InterpolationType.bicubic,
+      ]),
+    },
+  },
+
+  "simple-frame": {
+    post: [simple_frame()],
+  },
+
+  "sined-multifractal": {
+    layers: ["multires-ridged", "sine-octaves", "grain", "saturation"],
+    settings: {
+      distrib: ValueDistribution.uniform,
+      freq: random_int(2, 3),
+      hue_range: random(),
+      hue_rotation: random(),
+      lattice_drift: 0.75,
+      palette_on: false,
+      sine_range: random_int(10, 15),
+    },
+  },
+
+  "sine-octaves": {
+    settings: {
+      sine_range: random_int(8, 12),
+      sine_rgb: false,
+    },
+    octaves: [sine(amount: settings.sine_range, rgb: settings.sine_rgb)],
+  },
+
+  "sine-post": {
+    settings: {
+      sine_range: random_int(8, 20),
+      sine_rgb: true,
+    },
+    post: [sine(amount: settings.sine_range, rgb: settings.sine_rgb)],
+  },
+
+  "singularity": {
+    layers: ["basic-voronoi", "grain"],
+    settings: {
+      voronoi_point_freq: 1,
+      voronoi_diagram_type: random_member([
+        VoronoiDiagramType.color_range,
+        VoronoiDiagramType.range,
+        VoronoiDiagramType.range_regions,
+      ]),
+    },
+  },
+
+  "sketch": {
+    layers: ["fibers", "grime", "texture"],
+    post: [sketch()],
+  },
+
+  "skew": {
+    layers: ["rotate"],
+    settings: {
+      angle: random_int(0, 20) - 10,
+    },
+  },
+
+  "smoothstep": {
+    settings: {
+      smoothstep_min: 0.0,
+      smoothstep_max: 1.0,
+    },
+    post: [smoothstep(a: settings.smoothstep_min, b: settings.smoothstep_max)],
+  },
+
+  "smoothstep-narrow": {
+    layers: ["smoothstep"],
+    settings: {
+      smoothstep_min: 0.333,
+      smoothstep_max: 0.667,
+    },
+  },
+
+  "smoothstep-wide": {
+    layers: ["smoothstep"],
+    settings: {
+      smoothstep_min: 0 - 2.0,
+      smoothstep_max: 3.0,
+    },
+  },
+
+  "snow": {
+    settings: {
+      snow_alpha: 0.125 + random() * 0.0625,
+    },
+    final: [snow(alpha: settings.snow_alpha)],
+  },
+
+  "sobel": {
+    settings: {
+      dist_metric: random_member(DistanceMetric.all()),
+    },
+    post: [
+      sobel(dist_metric: settings.dist_metric),
+      fxaa(),
+    ],
+  },
+
+  "soft-cells": {
+    layers: ["voronoi", "maybe-rotate", "grain"],
+    settings: {
+      color_space: random_member(ColorSpace.color_members()),
+      freq: 2,
+      hue_range: 0.25 + random() * 0.25,
+      hue_rotation: random(),
+      lattice_drift: 1,
+      octaves: random_int(1, 4),
+      voronoi_alpha: 0.5 + random() * 0.5,
+      voronoi_diagram_type: VoronoiDiagramType.range_regions,
+      voronoi_point_distrib: random_member(
+        PointDistribution,
+        ValueMask.nonprocedural_members(),
+      ),
+      voronoi_point_freq: random_int(4, 8),
+    },
+  },
+
+  "soup": {
+    layers: [
+      "voronoi",
+      "normalize",
+      "refract-post",
+      "worms",
+      "grayscale",
+      "density-map",
+      "bloom",
+      "shadow",
+      "lens",
+    ],
+    settings: {
+      dist_metric: DistanceMetric.euclidean,
+      freq: random_int(2, 3),
+      refract_range: 2.5 + random() * 1.25,
+      refract_y_from_offset: true,
+      speed: 0.025,
+      voronoi_alpha: 0.333 + random() * 0.333,
+      voronoi_diagram_type: VoronoiDiagramType.flow,
+      voronoi_inverse: true,
+      voronoi_point_freq: random_int(2, 3),
+      worms_alpha: 0.75 + random() * 0.25,
+      worms_behavior: WormBehavior.random,
+      worms_density: 500,
+      worms_kink: 4.0 + random() * 2.0,
+      worms_stride: 1.0,
+      worms_stride_deviation: 0.0,
+    },
+  },
+
+  "spaghettification": {
+    layers: ["multires-low", "voronoi", "funhouse", "worms", "contrast-post", "density-map", "lens"],
+    settings: {
+      freq: 2,
+      palette_on: false,
+      voronoi_diagram_type: VoronoiDiagramType.flow,
+      voronoi_inverse: true,
+      voronoi_point_freq: 1,
+      warp_range: 0.5 + random() * 0.25,
+      warp_octaves: 1,
+      worms_alpha: 0.875,
+      worms_behavior: WormBehavior.chaotic,
+      worms_density: 1000,
+      worms_kink: 1.0,
+      worms_stride: random_int(150, 250),
+      worms_stride_deviation: 0.0,
+    },
+  },
+
+  "spectrogram": {
+    layers: ["basic", "grain", "filthy"],
+    settings: {
+      distrib: ValueDistribution.row_index,
+      freq: random_int(256, 512),
+      hue_range: 0.5 + random() * 0.5,
+      mask: ValueMask.bar_code,
+      spline_order: InterpolationType.constant,
+    },
+  },
+
+  "spatter-post": {
+    settings: {
+      speed: 0.0333 + random() * 0.016667,
+      spatter_post_color: true,
+    },
+    post: [spatter(color: settings.spatter_post_color)],
+  },
+
+  "spatter-final": {
+    settings: {
+      speed: 0.0333 + random() * 0.016667,
+      spatter_final_color: true,
+    },
+    final: [spatter(color: settings.spatter_final_color)],
+  },
+
+  "splork": {
+    layers: ["voronoi", "posterize", "distressed"],
+    settings: {
+      color_space: ColorSpace.rgb,
+      dist_metric: DistanceMetric.chebyshev,
+      distrib: ValueDistribution.ones,
+      freq: 33,
+      mask: ValueMask.bank_ocr,
+      palette_on: true,
+      posterize_levels: random_int(1, 3),
+      spline_order: InterpolationType.cosine,
+      voronoi_diagram_type: VoronoiDiagramType.color_range,
+      voronoi_nth: 1,
+      voronoi_point_freq: 2,
+      voronoi_refract: 0.125,
+    },
+  },
+
+  "spooky-ticker": {
+    final: [spooky_ticker()],
+  },
+
+  "stackin-bricks": {
+    layers: ["voronoi"],
+    settings: {
+      dist_metric: DistanceMetric.triangular,
+      voronoi_diagram_type: VoronoiDiagramType.color_range,
+      voronoi_inverse: true,
+      voronoi_point_freq: 10,
+    },
+  },
+
+  "starfield": {
+    layers: [
+      "multires-low",
+      "brightness-post",
+      "nebula",
+      "contrast-post",
+      "lens",
+      "grain",
+      "vignette-dark",
+      "contrast-final",
+    ],
+    settings: {
+      brightness_post: 0 - 0.075,
+      color_space: ColorSpace.hsv,
+      contrast_post: 2.0,
+      distrib: ValueDistribution.exp,
+      freq: random_int(400, 500),
+      hue_range: 1.0,
+      mask: ValueMask.sparser,
+      mask_static: true,
+      palette_on: false,
+      saturation: 0.75,
+      spline_order: InterpolationType.linear,
+    },
+  },
+
+  "stray-hair": {
+    final: [stray_hair()],
+  },
+
+  "string-theory": {
+    layers: ["multires-low", "erosion-worms", "bloom", "lens"],
+    settings: {
+      color_space: ColorSpace.rgb,
+      erosion_worms_alpha: 0.875 + random() * 0.125,
+      erosion_worms_contraction: 4.0 + random() * 2.0,
+      erosion_worms_density: 0.25 + random() * 0.125,
+      erosion_worms_iterations: random_int(1250, 2500),
+      octaves: random_int(2, 4),
+      palette_on: false,
+      ridges: false,
+    },
+  },
+
+  "subpixelator": {
+    layers: ["basic", "subpixels", "funhouse"],
+    settings: {
+      palette_on: false,
+    },
+  },
+
+  "subpixels": {
+    post: [
+      glyph_map(
+        mask: random_member(ValueMask.rgb_members()),
+        zoom: random_member([8, 16]),
+      ),
+    ],
+  },
+
+  "symmetry": {
+    layers: ["basic"],
+    settings: {
+      corners: true,
+      freq: [2, 2],
+    },
   }
 
 }
