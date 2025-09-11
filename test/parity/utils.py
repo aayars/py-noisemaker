@@ -48,3 +48,22 @@ def js_generator(name: str, seed: int) -> np.ndarray:
     )
     data = base64.b64decode(result.stdout)
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
+
+
+def js_effect(name: str, seed: int) -> np.ndarray:
+    """Invoke the JavaScript implementation for an effect and return its tensor.
+
+    The effect is applied to a basic generator output with hueRotation=0 to
+    mirror the Python parity tests. The returned array has shape
+    (128, 128, 3) and dtype float32.
+    """
+
+    script = Path(__file__).with_name("run_effects.js")
+    result = subprocess.run(
+        ["node", str(script), name, str(seed)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    data = base64.b64decode(result.stdout)
+    return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)

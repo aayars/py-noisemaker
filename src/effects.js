@@ -2862,11 +2862,22 @@ register("adjustBrightness", adjustBrightness, { amount: 0.125 });
 export const adjust_brightness = adjustBrightness;
 
 export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
-  const [h, w] = shape;
+  const [h, w, c] = shape;
   const ctx = tensor.ctx;
+  const src = tensor.read();
+  const mean = new Float32Array(c);
+  const pixelCount = h * w;
+  for (let i = 0; i < pixelCount; i++) {
+    for (let ch = 0; ch < c; ch++) {
+      mean[ch] = Math.fround(mean[ch] + src[i * c + ch]);
+    }
+  }
+  for (let ch = 0; ch < c; ch++) {
+    mean[ch] = Math.fround(mean[ch] / pixelCount);
+  }
   if (ctx && !ctx.isCPU) {
     const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv);\n vec4 v = (color - 0.5) * u_amount + 0.5;\n outColor = clamp(v, 0.0, 1.0);\n}`;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nuniform vec3 u_mean;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv);\n vec3 v = (color.rgb - u_mean) * u_amount + u_mean;\n outColor = vec4(clamp(v, 0.0, 1.0), color.a);\n}`;
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(w, h);
     gl.useProgram(prog);
@@ -2874,19 +2885,27 @@ export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
     gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
     gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
     gl.uniform1f(gl.getUniformLocation(prog, "u_amount"), amount);
+    gl.uniform3f(
+      gl.getUniformLocation(prog, "u_mean"),
+      mean[0],
+      mean[1] || mean[0],
+      mean[2] || mean[0],
+    );
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, shape);
   }
-  const src = tensor.read();
   const out = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    const v = (src[i] - 0.5) * amount + 0.5;
-    out[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+  for (let i = 0; i < pixelCount; i++) {
+    for (let ch = 0; ch < c; ch++) {
+      const idx = i * c + ch;
+      const v = Math.fround((src[idx] - mean[ch]) * amount + mean[ch]);
+      out[idx] = v < 0 ? 0 : v > 1 ? 1 : v;
+    }
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  return Tensor.fromArray(ctx, out, shape);
 }
 register("adjustContrast", adjustContrast, { amount: 1.25 });
 

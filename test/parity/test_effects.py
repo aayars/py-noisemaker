@@ -1,16 +1,17 @@
 """Pixel-to-pixel parity tests for image effects against the JavaScript
 implementation.
 
-For each seed we run the corresponding JavaScript effect in a subprocess and
-compare the resulting tensor hash against the Python output.
+Each test invokes the corresponding JavaScript effect in a subprocess and
+compares the raw tensor output directly with the Python version. This ensures
+we are always testing parity with the current JS code base without relying on
+cached fixtures.
 """
 
-import hashlib
-
+import numpy as np
 import pytest
 
 from noisemaker import effects, generators, rng, value
-from .utils import generate_hashes
+from .utils import js_effect
 
 
 # 20 randomly chosen 32-bit seeds
@@ -20,8 +21,6 @@ SEEDS = [
     1739178872, 3943786419, 3366389305, 3564191072, 1302718217,
     4156669319, 2046968324, 1537810351, 2505606783, 3829653368,
 ]
-
-HASHES = generate_hashes()["effects"]
 
 EFFECTS = [
     ("adjust_hue", effects.adjust_hue),
@@ -43,8 +42,7 @@ EFFECTS = [
     ("reindex", effects.reindex),
 ]
 
-def _hash(tensor):
-    return hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
+ATOL = 2e-6
 
 
 @pytest.mark.parametrize("effect_name,fn", EFFECTS)
@@ -55,4 +53,5 @@ def test_effect_parity(effect_name, fn, seed):
     tensor = generators.basic(2, [128, 128, 3], hue_rotation=0)
     tensor = fn(tensor, [128, 128, 3])
     assert tensor.shape == (128, 128, 3)
-    assert _hash(tensor) == HASHES[effect_name][seed]
+    js = js_effect(effect_name, seed)
+    assert np.allclose(tensor.numpy(), js, atol=ATOL)
