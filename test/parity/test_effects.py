@@ -39,7 +39,7 @@ EFFECTS = [
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
     ("reindex", effects.reindex),
-    ("voronoi", effects.voronoi),
+    ("voronoi", value.voronoi),
 ]
 
 ATOL = 2e-6
