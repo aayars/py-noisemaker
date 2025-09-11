@@ -751,9 +751,12 @@ export function singularity(
   diagramType = VoronoiDiagramType.range,
   distMetric = DistanceMetric.euclidean,
 ) {
-  const [h, w, c] = shape;
-  const dsShape = [Math.floor(h * 0.5), Math.floor(w * 0.5), c];
-  const [x, y] = pointCloud(1, { distrib: PointDistribution.square, shape: dsShape });
+  const [h, w] = shape;
+  const dsShape = [Math.floor(h * 0.5), Math.floor(w * 0.5), 1];
+  const [x, y] = pointCloud(1, {
+    distrib: PointDistribution.square,
+    shape: dsShape,
+  });
   let out = voronoi(
     tensor,
     dsShape,
@@ -771,6 +774,7 @@ export function singularity(
     0,
     false,
     [x, y, 1],
+    false,
   );
   if (dsShape[0] !== h || dsShape[1] !== w) {
     out = resample(out, [h, w, out.shape[2]]);
@@ -2691,7 +2695,7 @@ export function vignette(
   const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
   const mask = singularity(
     null,
-    shape,
+    [h, w, 1],
     time,
     speed,
     VoronoiDiagramType.range,
