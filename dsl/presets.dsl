@@ -3530,6 +3530,90 @@
       voronoi_point_distrib: random_member(PointDistribution.circular_members()),
       voronoi_point_freq: 6,
     },
+  },
+
+  "wobble": {
+    post: [
+      wobble(),
+    ],
+  },
+
+  "wormhole": {
+    settings: {
+      wormhole_kink: 1.0 + random() * 0.5,
+      wormhole_stride: 0.05 + random() * 0.025,
+    },
+    post: [
+      wormhole(
+        kink: settings.wormhole_kink,
+        input_stride: settings.wormhole_stride,
+      ),
+    ],
+  },
+
+  "worms": {
+    settings: {
+      worms_alpha: 0.75 + random() * 0.25,
+      worms_behavior: random_member(WormBehavior.all()),
+      worms_density: random_int(250, 500),
+      worms_drunkenness: 0.0,
+      worms_duration: 1.0 + random() * 0.5,
+      worms_kink: 1.0 + random() * 0.5,
+      worms_quantize: false,
+      worms_stride: 0.75 + random() * 0.5,
+      worms_stride_deviation: random() + 0.5,
+    },
+    post: [
+      worms(
+        alpha: settings.worms_alpha,
+        behavior: settings.worms_behavior,
+        density: settings.worms_density,
+        drunkenness: settings.worms_drunkenness,
+        duration: settings.worms_duration,
+        kink: settings.worms_kink,
+        quantize: settings.worms_quantize,
+        stride: settings.worms_stride,
+        stride_deviation: settings.worms_stride_deviation,
+      ),
+      fxaa(),
+    ],
+  },
+
+  "wormstep": {
+    layers: ["basic", "worms"],
+    settings: {
+      corners: true,
+      lattice_drift: coin_flip(),
+      octaves: random_int(1, 3),
+      palette_name: null,
+      worms_alpha: 0.5 + random() * 0.5,
+      worms_behavior: WormBehavior.chaotic,
+      worms_density: 500,
+      worms_kink: 1.0 + random() * 4.0,
+      worms_stride: 8.0 + random() * 4.0,
+    },
+  },
+
+  "writhe": {
+    layers: ["multires-alpha", "octave-warp-octaves", "brightness-post", "shadow", "grain", "lens"],
+    settings: {
+      color_space: ColorSpace.oklab,
+      ridges: true,
+      speed: 0.025,
+      warp_freq: [random_int(2, 3), random_int(2, 3)],
+      warp_range: 5.0 + random() * 2.5,
+    },
+  },
+
+  "zeldo": {
+    layers: ["glyph-map", "posterize", "crt"],
+    settings: {
+      freq: random_int(3, 9),
+      glyph_map_colorize: true,
+      glyph_map_mask: ValueMask.mcpaint,
+      glyph_map_zoom: random_int(2, 4),
+      spline_order: random_member([InterpolationType.constant, InterpolationType.linear]),
+    },
   }
 
 }
