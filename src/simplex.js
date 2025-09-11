@@ -1,7 +1,29 @@
 import { Tensor } from './tensor.js';
-import { setSeed, getSeed, random as rngRandom, randomInt as rngRandomInt, Random } from './rng.js';
+import { random as rngRandom, randomInt as rngRandomInt, Random } from './rng.js';
 
-export { setSeed, getSeed };
+// Maintain our own seed state just like the Python implementation.  The
+// previous port simply re-exported the RNG's ``setSeed``/``getSeed`` helpers,
+// so calls to ``simplex.setSeed`` would inadvertently reset the global RNG
+// instead of the simplex module's internal counter.  This caused divergences in
+// functions that rely on ``simplex.getSeed`` to produce deterministic seeds.
+//
+// ``_seed`` mirrors ``noisemaker.simplex``'s behaviour: when explicitly set it
+// is incremented on each ``getSeed`` call; otherwise ``getSeed`` consumes a
+// value from the global RNG.
+let _seed = null;
+
+export function setSeed(s) {
+  _seed = s >>> 0;
+}
+
+export function getSeed() {
+  if (_seed === null) {
+    _seed = rngRandomInt(1, 65536); // RNG call
+  } else {
+    _seed = (_seed + 1) >>> 0;
+  }
+  return _seed;
+}
 
 const STRETCH_CONSTANT_2D = -0.211324865405187;
 const SQUISH_CONSTANT_2D = 0.366025403784439;
@@ -522,7 +544,7 @@ export function random(time = 0, seed, speed = 1) {
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;
-  const s = seed ?? rngRandomInt(0, 0xffffffff); // RNG call
+  const s = seed ?? rngRandomInt(1, 65536); // RNG call
   const { os } = fromSeed(s);
   const value = os.noise2D(z, w);
   return (value + 1) * 0.5;
@@ -530,7 +552,7 @@ export function random(time = 0, seed, speed = 1) {
 
 export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const [height, width, channels = 1] = shape;
-  const baseSeed = seed ?? rngRandomInt(0, 0xffffffff); // RNG call
+  const baseSeed = seed ?? getSeed(); // RNG call if seed absent
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
   const w = Math.sin(angle) * speed;
