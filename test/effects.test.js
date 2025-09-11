@@ -526,7 +526,7 @@ setSeed(2);
 const grData = new Float32Array([0.3, 0.6, 0.9, 0.0]);
 const grTensor = Tensor.fromArray(null, grData, [2, 2, 1]);
 setSeed(2);
-const gn = values(Math.max(2, 2), [2, 2, 1], { time: 0, speed: 200 });
+const gn = values(Math.max(2, 2), [2, 2, 1], { time: 0, speed: 100 });
 const gnData = gn.read();
 const blended = blend(
   grTensor,

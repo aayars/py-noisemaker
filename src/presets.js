@@ -370,7 +370,7 @@ export function PRESETS() {
         brightness_distrib: null,
         color_space: random_member(color),
         corners: false,
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: [random_int(2, 4), random_int(2, 4)],
         hue_distrib: null,
         hue_range: random() * 0.25,
@@ -441,7 +441,7 @@ export function PRESETS() {
       layers: ['multires', 'refract-octaves', 'reflect-octaves', 'ripple'],
       settings: () => ({
         color_space: color.hsv,
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: random_int(7, 10),
         hue_range: 0.05 + random() * 0.05,
         hue_rotation: 0.5125 + random() * 0.025,
@@ -621,7 +621,7 @@ export function PRESETS() {
       layers: ['basic', 'posterize', 'wormhole', 'reverb', 'outline', 'maybe-invert'],
       settings: () => ({
         corners: true,
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: random_int(3, 6) * 2,
         mask: random_member([mask.h_hex, mask.v_hex]),
         posterize_levels: random_int(8, 16),
@@ -1068,7 +1068,7 @@ export function PRESETS() {
     'deep-field': {
       layers: ['multires', 'refract-octaves', 'octave-warp-octaves', 'bloom', 'lens'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: random_int(8, 10),
         hue_range: 1,
         mask: mask.sparser,
@@ -1393,7 +1393,7 @@ export function PRESETS() {
       layers: ['multires-low', 'erosion-worms', 'lens'],
       settings: () => ({
         color_space: random_member(colorSpaceMembers()),
-        distrib: random_member([distrib.exp, distrib.uniform]),
+        distrib: random_member([distrib.exp, distrib.simplex]),
         erosion_worms_contraction: 0.2 + random() * 0.1,
         erosion_worms_iterations: random_int(625, 1125),
       }),
@@ -1406,11 +1406,11 @@ export function PRESETS() {
     fargate: {
       layers: ['serene', 'contrast-post', 'crt', 'saturation'],
       settings: () => ({
-        brightness_distrib: distrib.uniform,
+        brightness_distrib: distrib.simplex,
         freq: 3,
         octaves: 3,
         refract_range: 0.015 + random() * 0.0075,
-        saturation_distrib: distrib.uniform,
+        saturation_distrib: distrib.simplex,
         speed: -0.25,
         value_distrib: distrib.center_circle,
         value_freq: 3,
@@ -1611,7 +1611,7 @@ export function PRESETS() {
     'funky-glyphs': {
       layers: ['value-mask', 'refract-post', 'contrast-final', 'maybe-rotate', 'saturation', 'lens', 'grain'],
       settings: () => ({
-        distrib: random_member([distrib.ones, distrib.uniform]),
+        distrib: random_member([distrib.ones, distrib.simplex]),
         mask: random_member(valueMaskGlyphMembers),
         mask_repeat: random_int(1, 6),
         octaves: random_int(1, 2),
@@ -1625,7 +1625,7 @@ export function PRESETS() {
     galalaga: {
       layers: ['value-mask', 'contrast-final', 'glitchin-out'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         hue_range: random() * 2.5,
         mask: mask.invaders_square,
         mask_repeat: 4,
@@ -1697,7 +1697,7 @@ export function PRESETS() {
       layers: ['basic', 'refract-octaves', 'reflect-octaves', 'refract-post', 'reflect-post', 'funhouse',
                'bloom', 'shadow', 'contrast-post', 'lens'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: [2, 2],
         hue_range: 0.25 + random() * 0.125,
         lattice_drift: 1,
@@ -2555,7 +2555,7 @@ hearts: {
       layers: ['multires-alpha'],
       settings: () => ({
         corners: true,
-        distrib: random_member([distrib.ones, distrib.uniform]),
+        distrib: random_member([distrib.ones, distrib.simplex]),
         freq: random_int(2, 5),
         lattice_drift: 0,
         mask: random_member(valueMaskProceduralMembers),
@@ -2693,7 +2693,7 @@ hearts: {
     painterly: {
       layers: ['value-mask', 'ripple', 'funhouse', 'maybe-rotate', 'saturation', 'grain'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         hue_range: 0.333 + random() * 0.666,
         mask: random_member(valueMaskGridMembers),
         mask_repeat: 1,
@@ -2800,7 +2800,7 @@ hearts: {
       settings: () => ({
         color_space: color.hsv,
         bloom_alpha: 0.333 + random() * 0.16667,
-        brightness_distrib: distrib.uniform,
+        brightness_distrib: distrib.simplex,
         freq: 2,
         hue_range: 0.2 + random() * 0.1,
         hue_rotation: 0.9 + random() * 0.05,
@@ -3044,7 +3044,7 @@ hearts: {
         'vignette-dark',
       ],
       settings: () => ({
-        distrib: random_member([distrib.uniform, distrib.ones]),
+        distrib: random_member([distrib.simplex, distrib.ones]),
         freq: 6 * random_int(2, 3),
         mask: random_member(mask),
         pixel_sort_angled: false,
@@ -3504,7 +3504,7 @@ hearts: {
     'sined-multifractal': {
       layers: ['multires-ridged', 'sine-octaves', 'grain', 'saturation'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: random_int(2, 3),
         hue_range: random(),
         hue_rotation: random(),
@@ -4080,7 +4080,7 @@ hearts: {
       settings: () => ({
         color_space: color.hsv,
         dist_metric: distance.euclidean,
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         hue_range: 0.5 + random() * 1.25,
         octaves: random_int(1, 4),
         palette_on: false,
@@ -4173,7 +4173,7 @@ hearts: {
       layers: ['multires', 'reflect-octaves', 'refract-post', 'random-hue', 'bloom', 'lens'],
       settings: () => ({
         color_space: color.oklab,
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: 2,
         hue_range: 2.0 + random(),
         lattice_drift: 1.0,
@@ -4186,7 +4186,7 @@ hearts: {
     unmasked: {
       layers: ['basic', 'sobel', 'invert', 'reindex-octaves', 'maybe-rotate', 'bloom', 'lens'],
       settings: () => ({
-        distrib: distrib.uniform,
+        distrib: distrib.simplex,
         freq: random_int(3, 5),
         mask: random_member(valueMaskProceduralMembers),
         octave_blending: blend.alpha,
@@ -4227,7 +4227,7 @@ hearts: {
           distrib:
             settings.value_distrib !== undefined
               ? settings.value_distrib
-              : distrib.uniform,
+              : distrib.simplex,
           freq: settings.value_freq,
         }),
       ],

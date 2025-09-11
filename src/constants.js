@@ -31,7 +31,7 @@ export const PointDistribution = Object.freeze({
 });
 
 export const ValueDistribution = Object.freeze({
-  uniform: 1,
+  simplex: 1,
   exp: 2,
   ones: 5,
   mids: 6,

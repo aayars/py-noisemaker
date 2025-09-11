@@ -39,7 +39,7 @@ export function basic(freq, shape, opts = {}) {
     ridges = false,
     sin = 0,
     splineOrder = InterpolationType.bicubic,
-    distrib = ValueDistribution.uniform,
+    distrib = ValueDistribution.simplex,
     corners = false,
     mask = null,
     maskInverse = false,
@@ -141,7 +141,7 @@ export function basic(freq, shape, opts = {}) {
       brightnessDistrib || brightFreqArr
         ? values(brightFreqArr || f, [h, w, 1], {
             ...common,
-            distrib: brightnessDistrib || ValueDistribution.uniform,
+            distrib: brightnessDistrib || ValueDistribution.simplex,
           }).read()
         : null;
     // In the Python implementation, when ``hue_rotation`` is ``None`` the
@@ -236,7 +236,7 @@ export function multires(freq, shape, opts = {}) {
     ridges = false,
     sin = 0,
     splineOrder = InterpolationType.bicubic,
-    distrib = ValueDistribution.uniform,
+    distrib = ValueDistribution.simplex,
     corners = false,
     mask = null,
     maskInverse = false,

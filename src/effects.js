@@ -2072,14 +2072,14 @@ export function refractEffect(
   } else if (warpFreq !== null && warpFreq !== undefined) {
     rx = values(warpFreq, valueShape, {
       ctx: tensor.ctx,
-      distrib: ValueDistribution.uniform,
+      distrib: ValueDistribution.simplex,
       time,
       speed,
       splineOrder,
     });
     ry = values(warpFreq, valueShape, {
       ctx: tensor.ctx,
-      distrib: ValueDistribution.uniform,
+      distrib: ValueDistribution.simplex,
       time,
       speed,
       splineOrder,
@@ -3646,7 +3646,7 @@ export function nebula(tensor, shape, time, speed) {
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
 
-  function simpleMultires(freq, octaves, distrib = ValueDistribution.uniform) {
+  function simpleMultires(freq, octaves, distrib = ValueDistribution.simplex) {
     const out = new Float32Array(h * w);
     for (let octave = 1; octave <= octaves; octave++) {
       const mult = 2 ** octave;

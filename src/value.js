@@ -4,13 +4,12 @@ import {
   DistanceMetric,
   InterpolationType,
   isNativeSize,
-  isNoise,
 } from './constants.js';
 import { maskValues } from './masks.js';
 import { random } from './util.js';
+import { simplex as simplexNoise } from './simplex.js';
 
 let _seed = 0x12345678;
-let _opCounter = 0;
 
 export function setSeed(s) {
   _seed = s >>> 0;
@@ -24,92 +23,6 @@ void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
 
 function fract(x) {
   return x - Math.floor(x);
-}
-
-// --- Philox based uniform RNG -------------------------------------------------
-// TensorFlow's Python implementation uses a Philox counter-based RNG for
-// `rng.uniform`.  To better mirror its output we implement a lightweight
-// Philox4x32-10 generator here and expose a helper that returns a Float32Array
-// of uniformly distributed values in ``[0,1)``.
-
-const PHILOX_W32A = 0x9e3779b9;
-const PHILOX_W32B = 0xbb67ae85;
-const PHILOX_M4x32A = 0xd2511f53;
-const PHILOX_M4x32B = 0xcd9e8d57;
-
-function mulHi(a, b) {
-  return Number((BigInt(a) * BigInt(b) >> 32n) & 0xffffffffn);
-}
-
-function philox4x32(counter0, counter1, counter2, counter3, key0, key1) {
-  let c0 = counter0 >>> 0;
-  let c1 = counter1 >>> 0;
-  let c2 = counter2 >>> 0;
-  let c3 = counter3 >>> 0;
-  let k0 = key0 >>> 0;
-  let k1 = key1 >>> 0;
-  for (let i = 0; i < 10; i++) {
-    const hi0 = mulHi(PHILOX_M4x32A, c0);
-    const lo0 = Math.imul(PHILOX_M4x32A, c0) >>> 0;
-    const hi1 = mulHi(PHILOX_M4x32B, c2);
-    const lo1 = Math.imul(PHILOX_M4x32B, c2) >>> 0;
-    const n0 = (hi1 ^ c1 ^ k0) >>> 0;
-    const n1 = lo1;
-    const n2 = (hi0 ^ c3 ^ k1) >>> 0;
-    const n3 = lo0;
-    c0 = n0;
-    c1 = n1;
-    c2 = n2;
-    c3 = n3;
-    k0 = (k0 + PHILOX_W32A) >>> 0;
-    k1 = (k1 + PHILOX_W32B) >>> 0;
-  }
-  return [c0, c1, c2, c3];
-}
-
-function philoxUniform(count, seed1, seed2) {
-  // Mirror TensorFlow's Philox4x32-10 RNG which combines two 32-bit seeds
-  // into a 64-bit key. `seed1` is the per-call op seed while `seed2` is the
-  // global RNG seed. Both are required for deterministic parity with the
-  // Python version.
-  const out = new Float32Array(count);
-  let counter0 = 0;
-  let counter1 = 0;
-  const counter2 = 0;
-  const counter3 = 0;
-  const key0 = seed1 >>> 0;
-  const key1 = seed2 >>> 0;
-  let i = 0;
-  while (i < count) {
-    const [r0, r1, r2, r3] = philox4x32(
-      counter0,
-      counter1,
-      counter2,
-      counter3,
-      key0,
-      key1,
-    );
-    out[i++] = r0 / 0x100000000;
-    if (i < count) out[i++] = r1 / 0x100000000;
-    if (i < count) out[i++] = r2 / 0x100000000;
-    if (i < count) out[i++] = r3 / 0x100000000;
-    counter0 = (counter0 + 1) >>> 0;
-    if (counter0 === 0) {
-      counter1 = (counter1 + 1) >>> 0;
-    }
-  }
-  return out;
-}
-
-function rngUniform(count, globalSeed) {
-  let g = globalSeed;
-  if (g === undefined || g === null) {
-    g = _seed;
-  }
-  // Emulate TensorFlow's deterministic per-call op seed by using an
-  // incrementing counter rather than sampling from the global RNG.
-  const opSeed = (_opCounter++) >>> 0;
-  return philoxUniform(count, opSeed, g >>> 0);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
@@ -166,6 +79,7 @@ function pinCorners(tensor, shape, freq, corners) {
 // All ValueDistribution members are supported on the GPU path.  Keep the set
 // in sync with the enumeration so any new distributions automatically opt in.
 const GPU_DISTRIBS = new Set(Object.values(ValueDistribution));
+GPU_DISTRIBS.delete(ValueDistribution.simplex);
 
 export function valueNoise(count, freq = 8) {
   // RNG: freq+1 calls to random for lattice points 0..freq
@@ -198,7 +112,7 @@ export function freqForShape(freq, shape) {
  * @param {number|[number, number]} freq Frequency of the grid (scalar or `[fx, fy]`).
  * @param {[number, number, number]} shape Output tensor shape `[height,width,channels]`.
  * @param {Object} opts Options object.
- * @param {ValueDistribution} [opts.distrib=ValueDistribution.uniform] Distribution type.
+ * @param {ValueDistribution} [opts.distrib=ValueDistribution.simplex] Distribution type.
  * @param {boolean} [opts.corners=false] Wrap noise coordinates for seamless tiling.
  * @param {ValueMask} [opts.mask] Optional mask to multiply the result with.
  * @param {boolean} [opts.maskInverse=false] Invert the mask values.
@@ -222,7 +136,7 @@ export function values(freq, shape, opts = {}) {
   }
   const {
     ctx = null,
-    distrib = ValueDistribution.uniform,
+    distrib = ValueDistribution.simplex,
     corners = false,
     mask,
     maskInverse = false,
@@ -449,26 +363,15 @@ void main(){
   const initHeight = needsFullSize ? height : fy;
   const size = initHeight * initWidth * channels;
   let tensor;
-  if (isNoise(distrib)) {
-    const rand1 = rngUniform(size, seed);
-    const rand2 = rngUniform(size, seed);
-    const tau = Math.PI * 2;
-    const scaledTime = new Float32Array(size);
-    for (let i = 0; i < size; i++) {
-      scaledTime[i] = ((Math.sin((time - rand1[i]) * tau) + 1) * 0.5) * speed;
-    }
-    const data = new Float32Array(size);
-    for (let i = 0; i < size; i++) {
-      let v = (Math.sin((scaledTime[i] - rand2[i]) * tau) + 1) * 0.5;
-      if (distrib === ValueDistribution.exp) {
-        v = Math.pow(v, 4);
+  if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
+    tensor = simplexNoise([initHeight, initWidth, channels], { time, seed, speed });
+    if (distrib === ValueDistribution.exp) {
+      const data = tensor.read();
+      for (let i = 0; i < data.length; i++) {
+        data[i] = Math.pow(data[i], 4);
       }
-      data[i] = v;
+      tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
     }
-    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
-  } else if (distrib === ValueDistribution.uniform) {
-    const data = rngUniform(size, seed);
-    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
   } else {
     const data = new Float32Array(size);
     for (let y = 0; y < initHeight; y++) {

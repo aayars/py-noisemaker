@@ -61,7 +61,7 @@ assert.ok(distanceMetricSignedMembers().includes(DistanceMetric.triangular));
 assert.ok(!distanceMetricSignedMembers().includes(DistanceMetric.euclidean));
 
 assert.ok(isCenterDistribution(ValueDistribution.center_hexagon));
-assert.ok(!isCenterDistribution(ValueDistribution.uniform));
+assert.ok(!isCenterDistribution(ValueDistribution.simplex));
 const centerMembers = Object.values(ValueDistribution).filter((v) =>
   isCenterDistribution(v)
 );
@@ -82,7 +82,7 @@ assert.ok(!isCircular(PointDistribution.square));
 assert.ok(circularMembers.includes(PointDistribution.rotating));
 assert.ok(!circularMembers.includes(PointDistribution.square));
 
-assert.ok(isNoise(ValueDistribution.uniform));
+assert.ok(isNoise(ValueDistribution.simplex));
 assert.ok(isNoise(ValueDistribution.exp));
 assert.ok(!isNoise(ValueDistribution.ones));
 
