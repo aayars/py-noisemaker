@@ -1,8 +1,18 @@
 import { ColorSpace, InterpolationType, OctaveBlending, ValueDistribution } from './constants.js';
-import { values, hsvToRgb, rgbToHsv, ridge, refract, normalize, freqForShape } from './value.js';
+import {
+  values,
+  hsvToRgb,
+  rgbToHsv,
+  ridge,
+  refract,
+  normalize,
+  freqForShape,
+  setSeed as setValueSeed,
+} from './value.js';
 import { oklabToRgb } from './oklab.js';
 import { Tensor } from './tensor.js';
 import { random as simplexRandom } from './simplex.js';
+import { setSeed as setRngSeed } from './rng.js';
 import { EFFECTS } from './effectsRegistry.js';
 
 function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
@@ -58,6 +68,7 @@ export function basic(freq, shape, opts = {}) {
     octaveEffects = null,
     octave = 1,
     ctx = null,
+    seed = undefined,
   } = opts;
 
   const f = Array.isArray(freq) ? freq : freqForShape(freq, shape);
@@ -72,7 +83,12 @@ export function basic(freq, shape, opts = {}) {
     speed,
   };
 
-  let tensor = values(f, shape, { distrib, ...common });
+  if (seed !== undefined) {
+    setRngSeed(seed);
+    setValueSeed(seed);
+  }
+
+  let tensor = values(f, shape, { distrib, seed, ...common });
 
   if (latticeDrift) {
     tensor = refract(tensor, null, null, latticeDrift / Math.min(f[0], f[1]));
@@ -257,7 +273,13 @@ export function multires(freq, shape, opts = {}) {
     time = 0,
     speed = 1,
     ctx = null,
+    seed = undefined,
   } = opts;
+
+  if (seed !== undefined) {
+    setRngSeed(seed);
+    setValueSeed(seed);
+  }
 
   const f = Array.isArray(freq) ? freq : freqForShape(freq, shape);
   const zero = new Float32Array(shape[0] * shape[1] * shape[2]);
