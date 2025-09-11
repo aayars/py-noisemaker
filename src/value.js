@@ -4,6 +4,7 @@ import {
   DistanceMetric,
   InterpolationType,
   isNativeSize,
+  isNoise,
 } from './constants.js';
 import { maskValues } from './masks.js';
 import { random } from './util.js';
@@ -172,7 +173,7 @@ export function values(freq, shape, opts = {}) {
     }
   }
 
-  if (ctx && !ctx.isCPU && gpuDistrib) {
+  if (ctx && !ctx.isCPU && gpuDistrib && channels === 1) {
     const gl = ctx.gl;
     const fs = `#version 300 es
 precision highp float;
@@ -356,6 +357,7 @@ void main(){
   for (let y = 0; y < initHeight; y++) {
     for (let x = 0; x < initWidth; x++) {
       let val = 0;
+      let perChannel = null;
       switch (distrib) {
         case ValueDistribution.ones:
           val = 1;
@@ -435,19 +437,33 @@ void main(){
           val = Math.max(0, 1 - d * 2);
           break;
         }
-        case ValueDistribution.exp: {
-          const r = rand2D(x, y, seed, time, speed);
-          val = Math.pow(r, 3);
+        case ValueDistribution.exp:
+          perChannel = new Array(channels);
+          for (let c = 0; c < channels; c++) {
+            const r = rand2D(x, y, seed + c, time, speed);
+            perChannel[c] = Math.pow(r, 3);
+          }
           break;
-        }
-        case ValueDistribution.uniform:
         default:
-          val = rand2D(x, y, seed, time, speed);
+          if (isNoise(distrib)) {
+            perChannel = new Array(channels);
+            for (let c = 0; c < channels; c++) {
+              perChannel[c] = rand2D(x, y, seed + c, time, speed);
+            }
+          } else {
+            val = rand2D(x, y, seed, time, speed);
+          }
           break;
       }
       const idx = (y * initWidth + x) * channels;
-      for (let c = 0; c < channels; c++) {
-        data[idx + c] = val;
+      if (perChannel) {
+        for (let c = 0; c < channels; c++) {
+          data[idx + c] = perChannel[c];
+        }
+      } else {
+        for (let c = 0; c < channels; c++) {
+          data[idx + c] = val;
+        }
       }
     }
   }

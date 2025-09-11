@@ -45,6 +45,18 @@ arraysClose(
   new Float32Array(4)
 );
 
+// multi-channel noise should produce independent values per channel
+const colorVals = values(2, [2, 2, 3], { seed: 1 });
+const colorArr = colorVals.read();
+let colorDiff = false;
+for (let i = 0; i < colorArr.length; i += 3) {
+  if (colorArr[i] !== colorArr[i + 1] || colorArr[i] !== colorArr[i + 2]) {
+    colorDiff = true;
+    break;
+  }
+}
+assert.ok(colorDiff, 'color channels should differ');
+
 // center distributions should peak at the middle and fade towards corners
 const centerDistribs = Object.values(ValueDistribution).filter(
   (d) =>
