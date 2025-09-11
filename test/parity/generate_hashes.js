@@ -1,9 +1,12 @@
 import crypto from 'crypto';
-import { setSeed } from '../../src/rng.js';
+import { setSeed, random } from '../../src/rng.js';
 import { setSeed as setSimplexSeed } from '../../src/simplex.js';
-import { setSeed as setValueSeed } from '../../src/value.js';
+import { setSeed as setValueSeed, valueNoise } from '../../src/value.js';
 import { basic, multires } from '../../src/generators.js';
 import * as effects from '../../src/effects.js';
+import { cloudPoints } from '../../src/points.js';
+import { render } from '../../src/composer.js';
+import PRESETS from '../../src/presets.js';
 
 const SEEDS = [
     3626764237, 1654615998, 3255389356, 3823568514, 1806341205,
@@ -78,9 +81,58 @@ function effectHashes() {
     return out;
 }
 
+function rngSequences() {
+    const out = {};
+    for (const seed of SEEDS.slice(0, 3)) {
+        setSeed(seed);
+        const seq = [];
+        for (let i = 0; i < 10; i++) {
+            seq.push(random());
+        }
+        out[seed] = seq;
+    }
+    return out;
+}
+
+function pointsParity() {
+    const out = {};
+    for (const seed of SEEDS.slice(0, 3)) {
+        setSeed(seed);
+        const [x, y] = cloudPoints(4);
+        out[seed] = { x, y };
+    }
+    return out;
+}
+
+function valueParity() {
+    const out = {};
+    for (const seed of SEEDS.slice(0, 3)) {
+        setSeed(seed);
+        const arr = Array.from(valueNoise(64));
+        out[seed] = arr;
+    }
+    return out;
+}
+
+function composerParity() {
+    const presetNames = ['basic', 'worms', 'voronoi'];
+    const out = {};
+    for (const name of presetNames) {
+        setSeed(1);
+        const presets = PRESETS();
+        const result = render(name, 1, { presets, width: 8, height: 8, debug: true });
+        out[name] = { effects: result.effects, rng_calls: result.rngCalls };
+    }
+    return out;
+}
+
 const data = {
     generators: generatorHashes(),
     effects: effectHashes(),
+    rng: rngSequences(),
+    points: pointsParity(),
+    value: valueParity(),
+    composer: composerParity(),
 };
 
 console.log(JSON.stringify(data, null, 2));
