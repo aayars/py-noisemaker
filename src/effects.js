@@ -2816,6 +2816,9 @@ export function saturation(tensor, shape, time, speed, amount = 0.75) {
 register("saturation", saturation, { amount: 0.75 });
 register("adjust_saturation", saturation, { amount: 0.75 });
 
+// Provide snake_case aliases to mirror the Python API for parity tests.
+export const adjust_saturation = saturation;
+
 export function randomHue(tensor, shape, time, speed, range = 0.05) {
   const shift = random() * range * 2 - range;
   return adjustHue(tensor, shift);
@@ -2856,6 +2859,8 @@ export function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
 }
 register("adjustBrightness", adjustBrightness, { amount: 0.125 });
 
+export const adjust_brightness = adjustBrightness;
+
 export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
@@ -2885,12 +2890,16 @@ export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
 }
 register("adjustContrast", adjustContrast, { amount: 1.25 });
 
+export const adjust_contrast = adjustContrast;
+
 export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
   if (shape[2] !== 3 || amount === 0 || amount === 1 || amount === null)
     return tensor;
   return adjustHue(tensor, amount);
 }
 register("adjustHue", adjustHueEffect, { amount: 0.25 });
+
+export const adjust_hue = adjustHueEffect;
 
 export function ridgeEffect(tensor, shape, time, speed) {
   return ridge(tensor);

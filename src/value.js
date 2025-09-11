@@ -353,121 +353,125 @@ void main(){
   const needsFullSize = isNativeSize(distrib);
   const initWidth = needsFullSize ? width : fx;
   const initHeight = needsFullSize ? height : fy;
-  const data = new Float32Array(initHeight * initWidth * channels);
-  for (let y = 0; y < initHeight; y++) {
-    for (let x = 0; x < initWidth; x++) {
-      let val = 0;
-      let perChannel = null;
-      switch (distrib) {
-        case ValueDistribution.ones:
-          val = 1;
-          break;
-        case ValueDistribution.mids:
-          val = 0.5;
-          break;
-        case ValueDistribution.zeros:
-          val = 0;
-          break;
-        case ValueDistribution.column_index:
-          val = initHeight === 1 ? 0 : y / (initHeight - 1);
-          break;
-        case ValueDistribution.row_index:
-          val = initWidth === 1 ? 0 : x / (initWidth - 1);
-          break;
-        case ValueDistribution.center_circle:
-        case ValueDistribution.center_triangle:
-        case ValueDistribution.center_diamond:
-        case ValueDistribution.center_square:
-        case ValueDistribution.center_pentagon:
-        case ValueDistribution.center_hexagon:
-        case ValueDistribution.center_heptagon:
-        case ValueDistribution.center_octagon:
-        case ValueDistribution.center_nonagon:
-        case ValueDistribution.center_decagon:
-        case ValueDistribution.center_hendecagon:
-        case ValueDistribution.center_dodecagon: {
-          const dx = (x + 0.5) / initWidth - 0.5;
-          const dy = (y + 0.5) / initHeight - 0.5;
-          let metric = DistanceMetric.euclidean;
-          let sdfSides = 5;
-          switch (distrib) {
-            case ValueDistribution.center_triangle:
-              metric = DistanceMetric.triangular;
-              break;
-            case ValueDistribution.center_diamond:
-              metric = DistanceMetric.manhattan;
-              break;
-            case ValueDistribution.center_square:
-              metric = DistanceMetric.chebyshev;
-              break;
-            case ValueDistribution.center_pentagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 5;
-              break;
-            case ValueDistribution.center_hexagon:
-              metric = DistanceMetric.hexagram;
-              break;
-            case ValueDistribution.center_heptagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 7;
-              break;
-            case ValueDistribution.center_octagon:
-              metric = DistanceMetric.octagram;
-              break;
-            case ValueDistribution.center_nonagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 9;
-              break;
-            case ValueDistribution.center_decagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 10;
-              break;
-            case ValueDistribution.center_hendecagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 11;
-              break;
-            case ValueDistribution.center_dodecagon:
-              metric = DistanceMetric.sdf;
-              sdfSides = 12;
-              break;
-            default:
-              metric = DistanceMetric.euclidean;
-          }
-          const d = distance(dx, dy, metric, sdfSides);
-          val = Math.max(0, 1 - d * 2);
-          break;
-        }
-        case ValueDistribution.exp:
-          perChannel = new Array(channels);
-          for (let c = 0; c < channels; c++) {
-            const r = rand2D(x, y, seed + c, time, speed);
-            perChannel[c] = Math.pow(r, 3);
-          }
-          break;
-        default:
-          if (isNoise(distrib)) {
-            perChannel = new Array(channels);
-            for (let c = 0; c < channels; c++) {
-              perChannel[c] = rand2D(x, y, seed + c, time, speed);
-            }
-          } else {
-            val = rand2D(x, y, seed, time, speed);
-          }
-          break;
+  const size = initHeight * initWidth * channels;
+  let tensor;
+  if (isNoise(distrib)) {
+    const rand1 = new Float32Array(size);
+    const rand2 = new Float32Array(size);
+    for (let i = 0; i < size; i++) {
+      rand1[i] = random();
+    }
+    const tau = Math.PI * 2;
+    const scaledTime = new Float32Array(size);
+    for (let i = 0; i < size; i++) {
+      scaledTime[i] = ((Math.sin((time - rand1[i]) * tau) + 1) * 0.5) * speed;
+      rand2[i] = random();
+    }
+    const data = new Float32Array(size);
+    for (let i = 0; i < size; i++) {
+      let v = (Math.sin((scaledTime[i] - rand2[i]) * tau) + 1) * 0.5;
+      if (distrib === ValueDistribution.exp) {
+        v = Math.pow(v, 4);
       }
-      const idx = (y * initWidth + x) * channels;
-      if (perChannel) {
-        for (let c = 0; c < channels; c++) {
-          data[idx + c] = perChannel[c];
+      data[i] = v;
+    }
+    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+  } else {
+    const data = new Float32Array(size);
+    for (let y = 0; y < initHeight; y++) {
+      for (let x = 0; x < initWidth; x++) {
+        let val = 0;
+        switch (distrib) {
+          case ValueDistribution.ones:
+            val = 1;
+            break;
+          case ValueDistribution.mids:
+            val = 0.5;
+            break;
+          case ValueDistribution.zeros:
+            val = 0;
+            break;
+          case ValueDistribution.column_index:
+            val = initHeight === 1 ? 0 : y / (initHeight - 1);
+            break;
+          case ValueDistribution.row_index:
+            val = initWidth === 1 ? 0 : x / (initWidth - 1);
+            break;
+          case ValueDistribution.center_circle:
+          case ValueDistribution.center_triangle:
+          case ValueDistribution.center_diamond:
+          case ValueDistribution.center_square:
+          case ValueDistribution.center_pentagon:
+          case ValueDistribution.center_hexagon:
+          case ValueDistribution.center_heptagon:
+          case ValueDistribution.center_octagon:
+          case ValueDistribution.center_nonagon:
+          case ValueDistribution.center_decagon:
+          case ValueDistribution.center_hendecagon:
+          case ValueDistribution.center_dodecagon: {
+            const dx = (x + 0.5) / initWidth - 0.5;
+            const dy = (y + 0.5) / initHeight - 0.5;
+            let metric = DistanceMetric.euclidean;
+            let sdfSides = 5;
+            switch (distrib) {
+              case ValueDistribution.center_triangle:
+                metric = DistanceMetric.triangular;
+                break;
+              case ValueDistribution.center_diamond:
+                metric = DistanceMetric.manhattan;
+                break;
+              case ValueDistribution.center_square:
+                metric = DistanceMetric.chebyshev;
+                break;
+              case ValueDistribution.center_pentagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 5;
+                break;
+              case ValueDistribution.center_hexagon:
+                metric = DistanceMetric.hexagram;
+                break;
+              case ValueDistribution.center_heptagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 7;
+                break;
+              case ValueDistribution.center_octagon:
+                metric = DistanceMetric.octagram;
+                break;
+              case ValueDistribution.center_nonagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 9;
+                break;
+              case ValueDistribution.center_decagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 10;
+                break;
+              case ValueDistribution.center_hendecagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 11;
+                break;
+              case ValueDistribution.center_dodecagon:
+                metric = DistanceMetric.sdf;
+                sdfSides = 12;
+                break;
+              default:
+                metric = DistanceMetric.euclidean;
+            }
+            const d = distance(dx, dy, metric, sdfSides);
+            val = Math.max(0, 1 - d * 2);
+            break;
+          }
+          default:
+            val = rand2D(x, y, seed, time, speed);
+            break;
         }
-      } else {
+        const idx = (y * initWidth + x) * channels;
         for (let c = 0; c < channels; c++) {
           data[idx + c] = val;
         }
       }
     }
+    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
   }
-  let tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
 
   if (maskData) {
     let mTensor = Tensor.fromArray(null, maskData, [maskHeight, maskWidth, maskChannels]);
