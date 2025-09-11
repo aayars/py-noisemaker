@@ -607,33 +607,67 @@ void main(){
   }
   const src = tensor.read();
   const out = new Float32Array(nh * nw * nc);
-  for (let y = 0; y < nh; y++) {
-    const sy = y * (h / nh);
-    const y0 = Math.floor(sy);
-    const y1 = Math.min(y0 + 1, h - 1);
-    const yf = sy - y0;
-    for (let x = 0; x < nw; x++) {
-      const sx = x * (w / nw);
-      const x0 = Math.floor(sx);
-      const x1 = Math.min(x0 + 1, w - 1);
-      const xf = sx - x0;
-      for (let k = 0; k < nc; k++) {
-        const v00 = src[(y0 * w + x0) * c + Math.min(k, c - 1)];
-        if (splineOrder === InterpolationType.constant) {
-          out[(y * nw + x) * nc + k] = v00;
-          continue;
+
+  function sample(x, y, k) {
+    // Clamp coordinates to valid range
+    x = Math.max(0, Math.min(w - 1, x));
+    y = Math.max(0, Math.min(h - 1, y));
+
+    if (splineOrder === InterpolationType.constant) {
+      const ix = Math.round(x);
+      const iy = Math.round(y);
+      return src[(iy * w + ix) * c + Math.min(k, c - 1)];
+    }
+
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const fx = x - x0;
+    const fy = y - y0;
+
+    if (splineOrder === InterpolationType.bicubic) {
+      const get = (ix, iy) => {
+        ix = Math.max(0, Math.min(w - 1, ix));
+        iy = Math.max(0, Math.min(h - 1, iy));
+        return src[(iy * w + ix) * c + Math.min(k, c - 1)];
+      };
+      const col = new Array(4);
+      for (let m = -1; m < 3; m++) {
+        const row = new Array(4);
+        for (let n = -1; n < 3; n++) {
+          row[n + 1] = get(x0 + n, y0 + m);
         }
-        const v10 = src[(y0 * w + x1) * c + Math.min(k, c - 1)];
-        const v01 = src[(y1 * w + x0) * c + Math.min(k, c - 1)];
-        const v11 = src[(y1 * w + x1) * c + Math.min(k, c - 1)];
-        const sxw = interp(xf);
-        const syw = interp(yf);
-        const mx0 = v00 * (1 - sxw) + v10 * sxw;
-        const mx1 = v01 * (1 - sxw) + v11 * sxw;
-        out[(y * nw + x) * nc + k] = mx0 * (1 - syw) + mx1 * syw;
+        col[m + 1] = cubicInterpolate(row[0], row[1], row[2], row[3], fx);
+      }
+      return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
+    }
+
+    const x1 = Math.min(x0 + 1, w - 1);
+    const y1 = Math.min(y0 + 1, h - 1);
+    const tx = splineOrder === InterpolationType.cosine
+      ? 0.5 - Math.cos(fx * Math.PI) * 0.5
+      : fx;
+    const ty = splineOrder === InterpolationType.cosine
+      ? 0.5 - Math.cos(fy * Math.PI) * 0.5
+      : fy;
+    const v00 = src[(y0 * w + x0) * c + Math.min(k, c - 1)];
+    const v10 = src[(y0 * w + x1) * c + Math.min(k, c - 1)];
+    const v01 = src[(y1 * w + x0) * c + Math.min(k, c - 1)];
+    const v11 = src[(y1 * w + x1) * c + Math.min(k, c - 1)];
+    const mx0 = v00 * (1 - tx) + v10 * tx;
+    const mx1 = v01 * (1 - tx) + v11 * tx;
+    return mx0 * (1 - ty) + mx1 * ty;
+  }
+
+  for (let y = 0; y < nh; y++) {
+    const sy = (y / nh) * h;
+    for (let x = 0; x < nw; x++) {
+      const sx = (x / nw) * w;
+      for (let k = 0; k < nc; k++) {
+        out[(y * nw + x) * nc + k] = sample(sx, sy, k);
       }
     }
   }
+
   return Tensor.fromArray(tensor.ctx, out, [nh, nw, nc]);
 }
 export function downsample(tensor, factor) {
