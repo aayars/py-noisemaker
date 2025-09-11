@@ -7,13 +7,14 @@ import {
 } from './constants.js';
 import { maskValues } from './masks.js';
 import { random } from './util.js';
-import { simplex as simplexNoise } from './simplex.js';
+import { simplex as simplexNoise, setSeed as setSimplexSeed } from './simplex.js';
 
 let _seed = 0x12345678;
 let _opCounter = 0;
 
 export function setSeed(s) {
   _seed = s >>> 0;
+  setSimplexSeed(s);
 }
 
 export const FULLSCREEN_VS = `#version 300 es
@@ -604,62 +605,58 @@ void main(){
   const src = tensor.read();
   const out = new Float32Array(nh * nw * nc);
 
-  function sample(x, y, k) {
-    // Clamp coordinates to valid range
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
+  function sampleWrapped(ix, iy, k) {
+    ix = ((ix % w) + w) % w;
+    iy = ((iy % h) + h) % h;
+    return src[(iy * w + ix) * c + Math.min(k, c - 1)];
+  }
 
-    if (splineOrder === InterpolationType.constant) {
-      const ix = Math.round(x);
-      const iy = Math.round(y);
-      return src[(iy * w + ix) * c + Math.min(k, c - 1)];
-    }
-
-    const x0 = Math.floor(x);
-    const y0 = Math.floor(y);
-    const fx = x - x0;
-    const fy = y - y0;
-
-    if (splineOrder === InterpolationType.bicubic) {
-      const get = (ix, iy) => {
-        ix = Math.max(0, Math.min(w - 1, ix));
-        iy = Math.max(0, Math.min(h - 1, iy));
-        return src[(iy * w + ix) * c + Math.min(k, c - 1)];
-      };
-      const col = new Array(4);
-      for (let m = -1; m < 3; m++) {
-        const row = new Array(4);
-        for (let n = -1; n < 3; n++) {
-          row[n + 1] = get(x0 + n, y0 + m);
-        }
-        col[m + 1] = cubicInterpolate(row[0], row[1], row[2], row[3], fx);
-      }
-      return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
-    }
-
-    const x1 = Math.min(x0 + 1, w - 1);
-    const y1 = Math.min(y0 + 1, h - 1);
-    const tx = splineOrder === InterpolationType.cosine
-      ? 0.5 - Math.cos(fx * Math.PI) * 0.5
-      : fx;
-    const ty = splineOrder === InterpolationType.cosine
-      ? 0.5 - Math.cos(fy * Math.PI) * 0.5
-      : fy;
-    const v00 = src[(y0 * w + x0) * c + Math.min(k, c - 1)];
-    const v10 = src[(y0 * w + x1) * c + Math.min(k, c - 1)];
-    const v01 = src[(y1 * w + x0) * c + Math.min(k, c - 1)];
-    const v11 = src[(y1 * w + x1) * c + Math.min(k, c - 1)];
-    const mx0 = v00 * (1 - tx) + v10 * tx;
-    const mx1 = v01 * (1 - tx) + v11 * tx;
-    return mx0 * (1 - ty) + mx1 * ty;
+  function cubic(a, b, c1, d, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const a0 = d - c1 - a + b;
+    const a1 = a - b - a0;
+    const a2 = c1 - a;
+    const a3 = b;
+    return a0 * t3 + a1 * t2 + a2 * t + a3;
   }
 
   for (let y = 0; y < nh; y++) {
-    const sy = (y / nh) * h;
+    const gy = (y * h) / nh;
+    const y0 = Math.floor(gy);
+    const yf = gy - y0;
     for (let x = 0; x < nw; x++) {
-      const sx = (x / nw) * w;
+      const gx = (x * w) / nw;
+      const x0 = Math.floor(gx);
+      const xf = gx - x0;
       for (let k = 0; k < nc; k++) {
-        out[(y * nw + x) * nc + k] = sample(sx, sy, k);
+        let val;
+        if (splineOrder === InterpolationType.constant) {
+          val = sampleWrapped(Math.round(gx), Math.round(gy), k);
+        } else if (splineOrder === InterpolationType.linear || splineOrder === InterpolationType.cosine) {
+          const v00 = sampleWrapped(x0, y0, k);
+          const v10 = sampleWrapped(x0 + 1, y0, k);
+          const v01 = sampleWrapped(x0, y0 + 1, k);
+          const v11 = sampleWrapped(x0 + 1, y0 + 1, k);
+          const sx = splineOrder === InterpolationType.cosine ? 0.5 - Math.cos(xf * Math.PI) * 0.5 : xf;
+          const sy = splineOrder === InterpolationType.cosine ? 0.5 - Math.cos(yf * Math.PI) * 0.5 : yf;
+          const mx0 = v00 * (1 - sx) + v10 * sx;
+          const mx1 = v01 * (1 - sx) + v11 * sx;
+          val = mx0 * (1 - sy) + mx1 * sy;
+        } else {
+          const rows = [];
+          for (let m = -1; m < 3; m++) {
+            rows[m + 1] = cubic(
+              sampleWrapped(x0 - 1, y0 + m, k),
+              sampleWrapped(x0, y0 + m, k),
+              sampleWrapped(x0 + 1, y0 + m, k),
+              sampleWrapped(x0 + 2, y0 + m, k),
+              xf
+            );
+          }
+          val = cubic(rows[0], rows[1], rows[2], rows[3], yf);
+        }
+        out[(y * nw + x) * nc + k] = val;
       }
     }
   }
@@ -844,10 +841,13 @@ export function normalize(tensor) {
     if (v < min) min = v;
     if (v > max) max = v;
   }
-  const range = max - min || 1;
+  min = Math.fround(min);
+  max = Math.fround(max);
+  const range = Math.fround(max - min) || Math.fround(1);
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
-    out[i] = (src[i] - min) / range;
+    const diff = Math.fround(src[i] - min);
+    out[i] = Math.fround(diff / range);
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }

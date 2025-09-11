@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { setSeed, random } from '../../src/rng.js';
-import { setSeed as setSimplexSeed } from '../../src/simplex.js';
 import { setSeed as setValueSeed, valueNoise } from '../../src/value.js';
 import { basic, multires } from '../../src/generators.js';
 import * as effects from '../../src/effects.js';
@@ -26,13 +25,11 @@ function generatorHashes() {
     const multiresHashes = {};
     for (const seed of SEEDS) {
         setSeed(seed);
-        setSimplexSeed(seed);
         setValueSeed(seed);
         const basicTensor = basic(2, [128, 128, 3], { hueRotation: 0 });
         basicHashes[seed] = hashTensor(basicTensor);
 
         setSeed(seed);
-        setSimplexSeed(seed);
         setValueSeed(seed);
         const multiresTensor = multires(2, [128, 128, 3], {
             octaves: 2,
@@ -71,7 +68,6 @@ function effectHashes() {
         out[name] = {};
         for (const seed of SEEDS) {
             setSeed(seed);
-            setSimplexSeed(seed);
             setValueSeed(seed);
             const base = basic(2, [128, 128, 3], { hueRotation: 0 });
             const effected = fn(base, [128, 128, 3], 0, 1);
