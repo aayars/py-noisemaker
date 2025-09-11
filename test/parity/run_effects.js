@@ -28,6 +28,7 @@ const EFFECTS = {
   light_leak: effects.lightLeak,
   crt: effects.crt,
   reindex: effects.reindex,
+  voronoi: effects.voronoi,
 };
 
 const fn = EFFECTS[name];

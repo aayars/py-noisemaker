@@ -9,7 +9,6 @@ cached fixtures.
 
 import numpy as np
 import pytest
-
 from noisemaker import effects, generators, rng, value
 from .utils import js_effect
 
@@ -40,6 +39,7 @@ EFFECTS = [
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
     ("reindex", effects.reindex),
+    ("voronoi", value.voronoi),
 ]
 
 ATOL = 2e-6

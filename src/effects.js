@@ -621,7 +621,12 @@ export function voronoi(
   pointDrift = 0,
   pointCorners = false,
   xy = null,
+  downsample = true,
 ) {
+  const originalShape = shape;
+  if (downsample) {
+    shape = [Math.floor(shape[0] * 0.5), Math.floor(shape[1] * 0.5), shape[2]];
+  }
   const [h, w, c] = shape;
   let xPts, yPts, count;
   if (!xy) {
@@ -637,6 +642,10 @@ export function voronoi(
     count = xPts.length;
   } else {
     [xPts, yPts, count] = xy;
+    if (downsample) {
+      xPts = xPts.map((v) => v / 2);
+      yPts = yPts.map((v) => v / 2);
+    }
   }
   if (count === 0) return tensor;
   const distMap = new Float32Array(h * w);
@@ -694,10 +703,13 @@ export function voronoi(
   } else {
     return tensor;
   }
+  if (downsample) {
+    outTensor = resample(outTensor, originalShape);
+  }
   if (withRefract) {
     outTensor = refractEffect(
       tensor,
-      shape,
+      originalShape,
       time,
       speed,
       withRefract,
@@ -728,6 +740,7 @@ register("voronoi", voronoi, {
   pointDrift: 0,
   pointCorners: false,
   xy: null,
+  downsample: true,
 });
 
 export function singularity(
