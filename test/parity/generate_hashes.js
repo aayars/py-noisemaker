@@ -56,6 +56,8 @@ const EFFECTS = {
     wobble: effects.wobble,
     reverb: effects.reverb,
     light_leak: effects.lightLeak,
+    crt: effects.crt,
+    reindex: effects.reindex,
 };
 
 function effectHashes() {

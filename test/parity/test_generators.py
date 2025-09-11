@@ -1,9 +1,10 @@
 """Pixel-to-pixel parity tests against the JavaScript implementation.
 
-The expected SHA-256 digests below were produced by running the JS port
-(`node test/parity/generate_hashes.js`) and hashing the raw pixel buffers.
-These fixtures ensure that Python matches the JavaScript reference output,
-not merely itself.
+Rather than comparing against canned fixtures, these tests invoke the
+JavaScript reference implementation in a subprocess for each run.  The JS
+script hashes its output tensors and returns the digests, which we then compare
+against the Python results.  This ensures we're always testing parity with the
+current JS code base.
 """
 
 import hashlib
@@ -11,6 +12,7 @@ import hashlib
 import pytest
 
 from noisemaker import generators, rng, value
+from .utils import generate_hashes
 
 # 20 randomly chosen 32-bit seeds
 SEEDS = [
@@ -20,53 +22,7 @@ SEEDS = [
     4156669319, 2046968324, 1537810351, 2505606783, 3829653368,
 ]
 
-# Expected SHA-256 digests for generators.basic() outputs
-EXPECTED_BASIC = {
-    3626764237: "341a16f45a6c9230201e80900012534933b0480aebe84d9a35f69fe3defe204a",
-    1654615998: "2f7473f6c3a537407cc40b7d8c8533fa7bc6e50b7a1005caabe1e5396ef31591",
-    3255389356: "04362da3f268f242b5308da56d1994991180b8218d61c68901337039bd25c1f1",
-    3823568514: "ab7a1647e6bf3c04f44537574a8dc207b965521e92fed48df55c7368440c4d3a",
-    1806341205: "5eea83a7f7918a7070d8e1993cee745a727dc85ab16c80c63f8cb014483b7da9",
-    173879092: "2cea9cdca67e61622a2bdeef96ba0abe2f4c735fa231b6b5b26a3e5892c474ae",
-    1112038970: "f1f68bff87da1cdc6d0d3b4a8b20ad770d5a5d08b8734127173b8832bc5e71b7",
-    4146640122: "af47955e55e88f771165f4a1c692fd859a3db75bf80fd5e075e8928b3be9f87b",
-    2195908194: "432c25cea94d21207b51ebf595d6bc48ff4ccd8a84fd7b7ce543945037ce65e4",
-    2087043557: "62192a24dc6c841f06174b879647bd4f543b27d84d758e89682c62f29cf7ecb2",
-    1739178872: "156049b794968ad3c8c6ffc551f8a2e21839a9e8710f4b3c0fa8b4b868e99df2",
-    3943786419: "e1d5f0495cce0c9cbaed65c85bd54431096bab8422d3190bd7ffe540c993b04e",
-    3366389305: "ad0e548e4cc43eff914f68298ca7512350fd4bf87469fe4f1e46b1be8944314b",
-    3564191072: "87310eac54129c9747100b409445ec2c1c3f74b5d651162627c4980d7b08d66c",
-    1302718217: "6b918d7f94992bc7de1b063cb86eb61e84a0e4e666166ccd49ec72c523e1787e",
-    4156669319: "2f6ec88f1ff69e693b6a90cd57fe6b45a449727cb06e8811ae1b66c301576868",
-    2046968324: "045b312cd5497318193ab0efc93904928bfceee0db9488179d93484c096001a7",
-    1537810351: "96b9d4bc588aa7394a0226e374435de77f425f9cb30b1c66cf7130fedcc20084",
-    2505606783: "64cdd716044fa7017d55e69999c71cd2bbf4e0f82bd7ef0817a7c9f04d8e3d73",
-    3829653368: "b3c3c697082d42f6e33f3888c1254962a38755d45dc55bd2c21093225e0d642e",
-}
-
-# Expected SHA-256 digests for generators.multires() outputs
-EXPECTED_MULTIRES = {
-    3626764237: "096688c80f5b82320131cde5199fcfc98d217a73fd79b8c6d7ff2ebb9fb6c2d0",
-    1654615998: "2949c033dc64ccc062c23c2a69c132eb888b7b692348c87bded2076ec9d5f394",
-    3255389356: "e4d2bfdf4bd9a27deb1dd4e0ad6e68062ced68a268afa53158cb8162a5226e33",
-    3823568514: "50bf63dfb503a1ba112f63e537c9c864e4e04ff89e9e800b8bdf20496ca07831",
-    1806341205: "0429e8ad70bee644a883df1260b2fa0c856c905d86a0b1069520133a04113831",
-    173879092: "e63153be77ace3030351e08e7fa0404324fae5825296f55f960f0dbadd27e6b1",
-    1112038970: "4291d2d75749f478ae96538ec62ca92e2b776f57481ff80fa4f24d81e414449e",
-    4146640122: "c607a9b9d6a7e9ba62538cc5ae94db7f97d8895b71f00c3e66f9a0e6c15adcd3",
-    2195908194: "a107486828f5e4359c8ff440ea3af462f83f28aa5183b2fb5b3bf98b35f593ef",
-    2087043557: "08c51f9f304bcf3c8e771d92d2925fcf9a01dffdec7680a30380cd1cd8b17620",
-    1739178872: "ef8260655c5c17d3ac96376f533eb305ee1d2bc62e3b01300a831a787a2fcb47",
-    3943786419: "52c1fb6d788ce5d11fdc6f0d0af6d4ead9a5c1d58eb775d5158ee8b557d43f5a",
-    3366389305: "901e6faabf3896fe9553c091391f581b65f5f54523c6f5a36ba83df1c543e0e9",
-    3564191072: "4717c33b6db8269e5151f56a85e25965942876aa9a2cb3ce5ea15fddb1f0dba0",
-    1302718217: "3081a1f1c3e14646d2c13dd9945b889ca8fdd10505d4c8410c1b58a5f12338d6",
-    4156669319: "30d34d3535b9a5afec45f5bcd34abf512cac70cf93cc3a40684c121477e79868",
-    2046968324: "b8369be45e2e8224451081cc93aceea252cfd48952661fde66fb2327a96310e4",
-    1537810351: "280b46f7de56d6c3ab7fdbc8a2a4381ba44eddf79a1ecbc4989993e2b8cf6349",
-    2505606783: "661a9a7012e1ff324c49da44772ba5b6e80e579e29572f71614bb62cfd953296",
-    3829653368: "a991f6efe94b44a34421b931f96bf2f2f6ee547d1caacfb92dab2b98c3ea3495",
-}
+HASHES = generate_hashes()["generators"]
 
 def _hash(tensor):
     return hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
@@ -77,7 +33,7 @@ def test_basic(seed):
     value.set_seed(seed)
     tensor = generators.basic(2, [128, 128, 3], hue_rotation=0)
     assert tensor.shape == (128, 128, 3)
-    assert _hash(tensor) == EXPECTED_BASIC[seed]
+    assert _hash(tensor) == HASHES["basic"][seed]
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_multires(seed):
@@ -94,4 +50,4 @@ def test_multires(seed):
         final_effects=[],
     )
     assert tensor.shape == (128, 128, 3)
-    assert _hash(tensor) == EXPECTED_MULTIRES[seed]
+    assert _hash(tensor) == HASHES["multires"][seed]
