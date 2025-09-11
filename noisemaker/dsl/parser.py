@@ -1,10 +1,10 @@
-PRESET_KEYS = {"layers", "settings", "generator", "octaves", "post", "final"}
+PRESET_KEYS = {"layers", "settings", "generator", "octaves", "post", "final", "unique"}
 
 def unexpected(token):
     val = token['value'] if token else 'EOF'
     raise ValueError(f"Unexpected token: {val}")
 
-def parse(tokens):
+def parse(tokens, enforce_preset_keys=True):
     i = 0
     def peek(offset=0):
         idx = i + offset
@@ -28,7 +28,7 @@ def parse(tokens):
     def parseProgram():
         t = peek()
         if t and t['type'] == '{':
-            body = parseObjectExpr(True)
+            body = parseObjectExpr(enforce_preset_keys)
             if i != len(tokens):
                 unexpected(peek())
             return {'type': 'Program', 'body': body}

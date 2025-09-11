@@ -118,7 +118,7 @@ The library is organised as ES modules inside `src/`.
 
 ### 3.10 `presets.js`
 * Contains a lazy function `PRESETS()` returning an object of preset definitions.
-* Presets specify `layers`, `settings`, optional `post`, `final`, and `ai` placeholders (ignored in JS port).
+* Presets specify `layers`, `settings`, and optional `post` and `final` placeholders (ignored in JS port).
 * Each metadata function returns data based on randomised helpers and enumerations.
 
 ### 3.11 `util.js`

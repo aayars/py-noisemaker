@@ -1,11 +1,11 @@
-const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final']);
+const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final', 'unique']);
 
 function unexpected(token) {
   const val = token ? token.value : 'EOF';
   throw new Error(`Unexpected token: ${val}`);
 }
 
-export function parse(tokens) {
+export function parse(tokens, enforcePresetKeys = true) {
   let i = 0;
 
   function peek(offset = 0) {
@@ -37,7 +37,7 @@ export function parse(tokens) {
   function parseProgram() {
     const t = peek();
     if (t && t.type === '{') {
-      const body = parseObjectExpr(true);
+      const body = parseObjectExpr(enforcePresetKeys);
       if (i !== tokens.length) unexpected(peek());
       return { type: 'Program', body };
     }

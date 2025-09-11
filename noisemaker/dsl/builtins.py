@@ -2,6 +2,7 @@ from noisemaker.constants import *  # noqa: F401,F403
 import noisemaker.constants as constants
 from noisemaker.composer import coin_flip as _coin_flip, random_member as _random_member, stash as _stash
 import noisemaker.rng as _random
+import noisemaker.masks as _masks
 
 surfaces = { }
 
@@ -54,6 +55,13 @@ def random_int(*args):
         raise ValueError("random_int(a, b) requires numeric arguments")
     return _random.randint(int(a), int(b))
 
+def mask_freq(*args):
+    if len(args) != 2:
+        raise ValueError(f"mask_freq(mask, repeat) requires exactly 2 arguments, received {len(args)}")
+    mask, repeat = args
+    shape = _masks.mask_shape(mask)
+    return [int(i * 0.5 + i * repeat) for i in shape[0:2]]
+
 operations = {
     "coin_flip": coin_flip,
     "random_member": random_member,
@@ -61,6 +69,7 @@ operations = {
     "stash": stash,
     "random": random,
     "random_int": random_int,
+    "mask_freq": mask_freq,
 }
 
 enums = constants

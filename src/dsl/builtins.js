@@ -6,6 +6,7 @@ import {
   stash as _stash,
 } from '../presets.js';
 import { random as _random, randomInt as _random_int } from '../util.js';
+import { maskShape as _maskShape } from '../masks.js';
 
 export * from '../constants.js';
 
@@ -65,6 +66,15 @@ export function random_int(...args) {
   return _random_int(a, b);
 }
 
+export function mask_freq(...args) {
+  if (args.length !== 2) {
+    throw new Error(`mask_freq(mask, repeat) requires exactly 2 arguments, received ${args.length}`);
+  }
+  const [mask, repeat] = args;
+  const [h, w] = _maskShape(mask);
+  return [Math.floor(h * 0.5 + h * repeat), Math.floor(w * 0.5 + w * repeat)];
+}
+
 export const operations = Object.freeze({
   coin_flip,
   random_member,
@@ -72,6 +82,7 @@ export const operations = Object.freeze({
   stash,
   random,
   random_int,
+  mask_freq,
 });
 
 export const enums = constants;
