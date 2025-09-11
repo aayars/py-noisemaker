@@ -7,7 +7,7 @@ import {
   isNoise,
 } from './constants.js';
 import { maskValues } from './masks.js';
-import { random } from './util.js';
+import { random, randomInt } from './util.js';
 
 export const FULLSCREEN_VS = `#version 300 es
 precision highp float;
@@ -16,6 +16,74 @@ void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
 
 function fract(x) {
   return x - Math.floor(x);
+}
+
+// --- Philox based uniform RNG -------------------------------------------------
+// TensorFlow's Python implementation uses a Philox counter-based RNG for
+// `rng.uniform`.  To better mirror its output we implement a lightweight
+// Philox4x32-10 generator here and expose a helper that returns a Float32Array
+// of uniformly distributed values in ``[0,1)``.
+
+const PHILOX_W32A = 0x9e3779b9;
+const PHILOX_W32B = 0xbb67ae85;
+const PHILOX_M4x32A = 0xd2511f53;
+const PHILOX_M4x32B = 0xcd9e8d57;
+
+function mulHi(a, b) {
+  const ah = (a >>> 16) & 0xffff;
+  const al = a & 0xffff;
+  const bh = (b >>> 16) & 0xffff;
+  const bl = b & 0xffff;
+  const high = ((ah * bl + al * bh) >>> 16) + ah * bh;
+  return high >>> 0;
+}
+
+function philox4x32(counter0, counter1, counter2, counter3, key0, key1) {
+  let c0 = counter0 >>> 0;
+  let c1 = counter1 >>> 0;
+  let c2 = counter2 >>> 0;
+  let c3 = counter3 >>> 0;
+  let k0 = key0 >>> 0;
+  let k1 = key1 >>> 0;
+  for (let i = 0; i < 10; i++) {
+    const hi0 = mulHi(PHILOX_M4x32A, c0);
+    const lo0 = Math.imul(PHILOX_M4x32A, c0) >>> 0;
+    const hi1 = mulHi(PHILOX_M4x32B, c2);
+    const lo1 = Math.imul(PHILOX_M4x32B, c2) >>> 0;
+    const n0 = (hi1 ^ c1 ^ k0) >>> 0;
+    const n1 = lo1;
+    const n2 = (hi0 ^ c3 ^ k1) >>> 0;
+    const n3 = lo0;
+    c0 = n0;
+    c1 = n1;
+    c2 = n2;
+    c3 = n3;
+    k0 = (k0 + PHILOX_W32A) >>> 0;
+    k1 = (k1 + PHILOX_W32B) >>> 0;
+  }
+  return [c0, c1, c2, c3];
+}
+
+function philoxUniform(count, seed) {
+  const out = new Float32Array(count);
+  let counter0 = 0;
+  const key0 = seed >>> 0;
+  const key1 = 0;
+  let i = 0;
+  while (i < count) {
+    const [r0, r1, r2, r3] = philox4x32(counter0, 0, 0, 0, key0, key1);
+    out[i++] = r0 / 0x100000000;
+    if (i < count) out[i++] = r1 / 0x100000000;
+    if (i < count) out[i++] = r2 / 0x100000000;
+    if (i < count) out[i++] = r3 / 0x100000000;
+    counter0 = (counter0 + 1) >>> 0;
+  }
+  return out;
+}
+
+function rngUniform(count) {
+  const seed = randomInt(0, 0xffffffff);
+  return philoxUniform(count, seed);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
@@ -356,16 +424,12 @@ void main(){
   const size = initHeight * initWidth * channels;
   let tensor;
   if (isNoise(distrib)) {
-    const rand1 = new Float32Array(size);
-    const rand2 = new Float32Array(size);
-    for (let i = 0; i < size; i++) {
-      rand1[i] = random();
-    }
+    const rand1 = rngUniform(size);
+    const rand2 = rngUniform(size);
     const tau = Math.PI * 2;
     const scaledTime = new Float32Array(size);
     for (let i = 0; i < size; i++) {
       scaledTime[i] = ((Math.sin((time - rand1[i]) * tau) + 1) * 0.5) * speed;
-      rand2[i] = random();
     }
     const data = new Float32Array(size);
     for (let i = 0; i < size; i++) {
