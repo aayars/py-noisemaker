@@ -555,7 +555,6 @@ export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const baseSeed = seed ?? getSeed(); // RNG call if seed absent
   const angle = Math.PI * 2 * time;
   const z = Math.cos(angle) * speed;
-  const w = Math.sin(angle) * speed;
   const data = new Float32Array(height * width * channels);
   for (let c = 0; c < channels; c++) {
     const { os } = fromSeed(baseSeed + c * 65535);

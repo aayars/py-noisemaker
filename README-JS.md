@@ -2,6 +2,8 @@
 
 This document is for the experimental JS port of Noisemaker. See additional [porter's notes](VANILLA_JS_PORT_SPEC.md). For a step-by-step introduction, read [QUICKSTART-JS.md](QUICKSTART-JS.md).
 
+The project now relies on a common **3‑D OpenSimplex** implementation across Python and JavaScript.
+
 ## Updating JavaScript test fixtures
  
 The JavaScript tests use precomputed outputs from the Python reference implementation. If you change any algorithms that affect these expectations, regenerate the fixture data:

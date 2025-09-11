@@ -40,7 +40,7 @@ that Python's output remains byte‑identical.
 ## 3. Simplex Noise
 
 1. **Algorithm**
-   * Implement the same 3‑D OpenSimplex variant.
+   * Implement the same 3‑D OpenSimplex variant. 4‑D noise is intentionally unsupported.
    * Gradient table and permutation arrays are generated at runtime using the shared RNG; no fixtures are stored.
 2. **Seeding**
    * Seeding must only call the RNG in a documented order; consuming more or fewer values is a breaking change.

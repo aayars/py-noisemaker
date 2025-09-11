@@ -22,7 +22,7 @@ GRADIENTS_3D = [
 ]
 
 
-def _from_seed(seed):
+def from_seed(seed):
     r = rng.Random(seed)
     perm = [0] * 256
     perm_grad = [0] * 256
@@ -65,7 +65,7 @@ def random(time, seed=None, speed=1.0):
     w = math.sin(two_pi_times_time) * speed
 
     s = seed or rng.random_int(1, 65536)
-    simplex, _ = _from_seed(s)
+    simplex, _ = from_seed(s)
     return (simplex.noise2d(z, w) + 1.0) * 0.5
 
 
@@ -79,28 +79,24 @@ def simplex(shape, time=0.0, seed=None, speed=1.0, as_np=False):
            provided ``seed`` and do not affect global RNG state.
     """
 
-    tensor = np.empty(shape, dtype=np.float32)
+    height, width = shape[0], shape[1]
+    channels = shape[2] if len(shape) > 2 else 1
+    tensor = np.empty((height, width, channels), dtype=np.float32)
 
-    if seed is None:
-        seed = get_seed()
+    base_seed = seed if seed is not None else get_seed()
 
-    two_pi_times_time = math.tau * time
-    z = math.cos(two_pi_times_time) * speed
-    w = math.sin(two_pi_times_time) * speed
+    angle = math.tau * time
+    z = math.cos(angle) * speed
 
-    if len(shape) == 2:
-        simplex, _ = _from_seed(seed)
-        for y in range(shape[0]):
-            for x in range(shape[1]):
-                tensor[y][x] = simplex.noise4d(x, y, z, w)
-    else:
-        for c in range(shape[2]):
-            simplex, _ = _from_seed(seed + c * 65535)
-            for y in range(shape[0]):
-                for x in range(shape[1]):
-                    tensor[y][x][c] = simplex.noise4d(x, y, z, w)
+    for c in range(channels):
+        os, _ = from_seed(base_seed + c * 65535)
+        for y in range(height):
+            for x in range(width):
+                val = os.noise3d(x, y, z)
+                tensor[y][x][c] = (val + 1.0) * 0.5
 
-    tensor = (tensor + 1.0) * 0.5
+    if channels == 1:
+        tensor = tensor[:, :, 0]
 
     if not as_np:
         tensor = tf.stack(tensor)

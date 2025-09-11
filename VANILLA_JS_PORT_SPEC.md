@@ -63,7 +63,7 @@ The library is organised as ES modules inside `src/`.
 >>>>>>> theirs
 
 ### 3.2 `simplex.js`
-* Port the 4‑D OpenSimplex algorithm to produce loopable noise.
+* Implement the shared 3‑D OpenSimplex algorithm to produce loopable noise.
 * `random(time, seed, speed)` – periodic scalar valued helper.
 * `simplex(shape, {time, seed, speed})` – returns a `Tensor` of `[height,width,(channels)]` with values in `[0,1]`.
 * Expose `setSeed()` and `getSeed()` for deterministic sequences.

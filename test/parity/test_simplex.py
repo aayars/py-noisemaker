@@ -14,7 +14,7 @@ def test_simplex_parity():
     script = root / "test" / "parity" / "simplex_integration.js"
 
     for seed in seeds:
-        os, data = simplex_module._from_seed(seed)
+        os, data = simplex_module.from_seed(seed)
         r_py = simplex_module.random(0.25, seed, 1)
         dt = 1e-3
         d0_py = (simplex_module.random(dt, seed, 1) - simplex_module.random(0.0, seed, 1)) / dt
