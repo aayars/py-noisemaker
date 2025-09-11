@@ -13,7 +13,6 @@ let _seed = 0x12345678;
 
 export function setSeed(s) {
   _seed = s >>> 0;
-  _opCounter = 0;
 }
 
 export const FULLSCREEN_VS = `#version 300 es
@@ -143,7 +142,7 @@ export function values(freq, shape, opts = {}) {
     maskStatic = false,
     splineOrder = InterpolationType.bicubic,
     time = 0,
-    seed = _seed,
+    seed,
     speed = 1,
   } = opts;
   const gpuDistrib = GPU_DISTRIBS.has(distrib);
@@ -335,7 +334,7 @@ void main(){
     const pp = ctx.pingPong(width, height);
     gl.useProgram(prog);
     gl.uniform2f(gl.getUniformLocation(prog, 'u_freq'), freqX, freqY);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), seed);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_seed'), seed ?? _seed);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), time);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), speed);
     gl.uniform1f(gl.getUniformLocation(prog, 'u_corners'), corners ? 1 : 0);

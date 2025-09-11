@@ -710,8 +710,8 @@
 
   "convolution-feedback": {
     post: [
-        conv_feedback(alpha: .5 * random() * 0.25,
-               iterations=random_int(250, 500)),
+          conv_feedback(alpha: .5 * random() * 0.25,
+                 iterations: random_int(250, 500)),
     ],
   },
 
@@ -742,10 +742,10 @@
 
   "corrupt": {
     post: [
-        warp(displacement: .025 + random() * 0.1,
-               freq=[random_int(2, 4), random_int(1, 3)],
-               octaves=random_int(2, 4),
-               spline_order=InterpolationType.constant),
+          warp(displacement: .025 + random() * 0.1,
+                 freq: [random_int(2, 4), random_int(1, 3)],
+                 octaves: random_int(2, 4),
+                 spline_order: InterpolationType.constant),
     ],
   },
 
@@ -771,7 +771,7 @@
     settings: {
         mask: ValueMask.chess,
         mask_repeat: random_int(2, 3),
-        saturation: 0 if coin_flip() else 0.125,
+        saturation: coin_flip() ? 0 : 0.125,
         spline_order: InterpolationType.constant,
     },
   },

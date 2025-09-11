@@ -1,9 +1,5 @@
 from pathlib import Path
 
-import pytest
-
-pytest.skip("DSL presets parse skipped due to ValueDistribution change", allow_module_level=True)
-
 from noisemaker.dsl.tokenizer import tokenize
 from noisemaker.dsl.parser import parse, PRESET_KEYS
 

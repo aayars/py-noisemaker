@@ -5,7 +5,7 @@ import { Context } from '../src/context.js';
 const ctx = new Context(null);
 const presets = PRESETS();
 const problems = [];
-const SKIP = ['low-poly-regions'];
+const SKIP = [];
 
 for (const name of Object.keys(presets)) {
   if (SKIP.includes(name)) continue;

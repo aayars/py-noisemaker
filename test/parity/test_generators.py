@@ -11,8 +11,6 @@ import hashlib
 
 import pytest
 
-pytest.skip("ValueDistribution.simplex diverges from JS defaults; parity test skipped", allow_module_level=True)
-
 from noisemaker import generators, rng, value
 from .utils import generate_hashes
 
