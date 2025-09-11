@@ -24,7 +24,7 @@ import { register } from "./effectsRegistry.js";
 import { random as simplexRandom } from "./simplex.js";
 import { maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
-import { random, randomInt } from "./util.js";
+import { random, randomInt, fromSRGB, toSRGB } from "./util.js";
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
 import {
@@ -1166,12 +1166,19 @@ export function offsetIndex(yIndex, height, xIndex, width) {
 
 export function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
+  if (shape[2] === 3) {
+    tensor = fromSRGB(tensor);
+  }
   const src = tensor.read();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
     out[i] = Math.floor(src[i] * levels + (1 / levels) * 0.5) / levels;
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  let result = Tensor.fromArray(tensor.ctx, out, shape);
+  if (shape[2] === 3) {
+    result = toSRGB(result);
+  }
+  return result;
 }
 register("posterize", posterize, { levels: 9 });
 
