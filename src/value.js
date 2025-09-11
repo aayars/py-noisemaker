@@ -7,7 +7,7 @@ import {
   isNoise,
 } from './constants.js';
 import { maskValues } from './masks.js';
-import { random, randomInt } from './util.js';
+import { random, randomInt, getSeed, Random } from './util.js';
 
 export const FULLSCREEN_VS = `#version 300 es
 precision highp float;
@@ -100,8 +100,15 @@ function philoxUniform(count, seed1, seed2) {
 }
 
 function rngUniform(count, globalSeed) {
-  const opSeed = randomInt(0, 0xffffffff);
-  return philoxUniform(count, globalSeed, opSeed);
+  let opSeed;
+  if (globalSeed === undefined || globalSeed === null) {
+    opSeed = randomInt(0, 0xffffffff);
+    globalSeed = getSeed();
+  } else {
+    const local = new Random(globalSeed >>> 0);
+    opSeed = local.randomInt(0, 0xffffffff);
+  }
+  return philoxUniform(count, globalSeed >>> 0, opSeed >>> 0);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
@@ -221,7 +228,7 @@ export function values(freq, shape, opts = {}) {
     maskStatic = false,
     splineOrder = InterpolationType.bicubic,
     time = 0,
-    seed = 0,
+    seed = getSeed(),
     speed = 1,
   } = opts;
   const gpuDistrib = GPU_DISTRIBS.has(distrib);
