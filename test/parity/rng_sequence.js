@@ -16,10 +16,16 @@ for (let i = 0; i < count; i++) {
 }
 
 setSeed(seed);
+const randIntSwap = [];
+for (let i = 0; i < count; i++) {
+  randIntSwap.push(randomInt(99, 0));
+}
+
+setSeed(seed);
 const arr = Array.from({ length: 10 }, (_, i) => i);
 const choices = [];
 for (let i = 0; i < count; i++) {
   choices.push(choice(arr));
 }
 
-console.log(JSON.stringify({ random: rand, randomInt: randInt, choice: choices }));
+console.log(JSON.stringify({ random: rand, randomInt: randInt, randomIntSwap: randIntSwap, choice: choices }));

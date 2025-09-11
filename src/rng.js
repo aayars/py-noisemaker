@@ -42,6 +42,9 @@ export class Random {
      * @returns {number}
      */
     randomInt(min, max) {
+        if (max < min) {
+            [min, max] = [max, min];
+        }
         return Math.floor(this.random() * (max - min + 1)) + min;
     }
 

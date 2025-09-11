@@ -44,6 +44,14 @@ def test_random_int(seed):
 
 
 @pytest.mark.parametrize("seed", SEEDS)
+def test_random_int_swapped(seed):
+    rng.set_seed(seed)
+    expected = JS_DATA[seed]["randomIntSwap"]
+    for i, val in enumerate(expected):
+        assert rng.random_int(99, 0) == val, f"seed {seed} index {i}"
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_choice(seed):
     seq = list(range(10))
     rng.set_seed(seed)
