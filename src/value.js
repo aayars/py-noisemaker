@@ -99,16 +99,29 @@ function philoxUniform(count, seed1, seed2) {
   return out;
 }
 
+// Maintain per-seed operation counters so repeated calls with the same
+// ``globalSeed`` produce different, but deterministic, sequences.  The Python
+// reference (TensorFlow's stateless RNG) increments an internal counter on each
+// invocation.  Without this our previous implementation would yield identical
+// outputs every time ``rngUniform`` was called with the same seed, causing the
+// two random arrays in ``values()`` to be equal and deviating from the Python
+// behaviour.
+const _uniformCounters = new Map();
+
 function rngUniform(count, globalSeed) {
-  let opSeed;
-  if (globalSeed === undefined || globalSeed === null) {
-    opSeed = randomInt(0, 0xffffffff);
-    globalSeed = getSeed();
-  } else {
-    const local = new Random(globalSeed >>> 0);
-    opSeed = local.randomInt(0, 0xffffffff);
+  let g = globalSeed;
+  if (g === undefined || g === null) {
+    g = getSeed();
   }
-  return philoxUniform(count, globalSeed >>> 0, opSeed >>> 0);
+
+  // Retrieve and increment the per-seed counter.
+  const counter = _uniformCounters.get(g) || 0;
+  _uniformCounters.set(g, counter + 1);
+
+  // Use the counter as the operation seed so each invocation differs while
+  // remaining deterministic for a given global seed.
+  const opSeed = counter >>> 0;
+  return philoxUniform(count, g >>> 0, opSeed);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
