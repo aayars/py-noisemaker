@@ -2809,7 +2809,7 @@ export function saturation(tensor, shape, time, speed, amount = 0.75) {
   const hsv = rgbToHsv(tensor);
   const data = hsv.read();
   for (let i = 0; i < shape[0] * shape[1]; i++) {
-    data[i * 3 + 1] = Math.min(1, Math.max(0, data[i * 3 + 1] * amount));
+    data[i * 3 + 1] = data[i * 3 + 1] * amount;
   }
   return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
 }
@@ -2835,7 +2835,7 @@ export function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU) {
     const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv) + u_amount;\n outColor = clamp(color, 0.0, 1.0);\n}`;
+    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv) + u_amount;\n outColor = clamp(color, -1.0, 1.0);\n}`;
     const prog = ctx.createProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(w, h);
     gl.useProgram(prog);
@@ -2853,7 +2853,7 @@ export function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
     const v = src[i] + amount;
-    out[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+    out[i] = v < -1 ? -1 : v > 1 ? 1 : v;
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }

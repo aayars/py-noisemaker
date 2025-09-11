@@ -23,7 +23,7 @@ function generatorHashes() {
     for (const seed of SEEDS) {
         setSeed(seed);
         setSimplexSeed(seed);
-        const basicTensor = basic(2, [128, 128, 3], { hueRotation: 0, seed });
+        const basicTensor = basic(2, [128, 128, 3], { hueRotation: 0 });
         basicHashes[seed] = hashTensor(basicTensor);
 
         setSeed(seed);
@@ -33,7 +33,6 @@ function generatorHashes() {
             hueRotation: 0,
             postEffects: [],
             finalEffects: [],
-            seed,
         });
         multiresHashes[seed] = hashTensor(multiresTensor);
     }

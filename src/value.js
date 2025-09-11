@@ -64,26 +64,44 @@ function philox4x32(counter0, counter1, counter2, counter3, key0, key1) {
   return [c0, c1, c2, c3];
 }
 
-function philoxUniform(count, seed) {
+function philoxUniform(count, seed1, seed2) {
+  // Mirror TensorFlow's Philox4x32-10 RNG which combines two 32-bit seeds
+  // into a 64-bit key. `seed1` corresponds to the global RNG seed set via
+  // `tf.random.set_seed` in the reference implementation while `seed2` is a
+  // per-call op seed produced by the mulberry RNG.  Both are required for
+  // deterministic parity with the Python version.
   const out = new Float32Array(count);
   let counter0 = 0;
-  const key0 = seed >>> 0;
-  const key1 = 0;
+  let counter1 = 0;
+  const counter2 = 0;
+  const counter3 = 0;
+  const key0 = seed2 >>> 0;
+  const key1 = seed1 >>> 0;
   let i = 0;
   while (i < count) {
-    const [r0, r1, r2, r3] = philox4x32(counter0, 0, 0, 0, key0, key1);
+    const [r0, r1, r2, r3] = philox4x32(
+      counter0,
+      counter1,
+      counter2,
+      counter3,
+      key0,
+      key1,
+    );
     out[i++] = r0 / 0x100000000;
     if (i < count) out[i++] = r1 / 0x100000000;
     if (i < count) out[i++] = r2 / 0x100000000;
     if (i < count) out[i++] = r3 / 0x100000000;
     counter0 = (counter0 + 1) >>> 0;
+    if (counter0 === 0) {
+      counter1 = (counter1 + 1) >>> 0;
+    }
   }
   return out;
 }
 
-function rngUniform(count) {
-  const seed = randomInt(0, 0xffffffff);
-  return philoxUniform(count, seed);
+function rngUniform(count, globalSeed) {
+  const opSeed = randomInt(0, 0xffffffff);
+  return philoxUniform(count, globalSeed, opSeed);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
@@ -424,8 +442,8 @@ void main(){
   const size = initHeight * initWidth * channels;
   let tensor;
   if (isNoise(distrib)) {
-    const rand1 = rngUniform(size);
-    const rand2 = rngUniform(size);
+    const rand1 = rngUniform(size, seed);
+    const rand2 = rngUniform(size, seed);
     const tau = Math.PI * 2;
     const scaledTime = new Float32Array(size);
     for (let i = 0; i < size; i++) {
