@@ -4,7 +4,9 @@ import {
   enum_range as _enum_range,
   random_member as _random_member,
   stash as _stash,
+  PRESETS as _PRESETS,
 } from '../presets.js';
+import { Preset as _Preset } from '../composer.js';
 import { random as _random, randomInt as _random_int } from '../util.js';
 import { maskShape as _maskShape } from '../masks.js';
 
@@ -75,6 +77,17 @@ export function mask_freq(...args) {
   return [Math.floor(h * 0.5 + h * repeat), Math.floor(w * 0.5 + w * repeat)];
 }
 
+export function preset(...args) {
+  if (args.length === 0 || args.length > 2) {
+    throw new Error(`preset(name[, settings]) expects 1 or 2 arguments, received ${args.length}`);
+  }
+  const [name, settings = {}] = args;
+  if (typeof name !== 'string') {
+    throw new Error('preset(name[, settings]) name must be a string');
+  }
+  return new _Preset(name, _PRESETS(), settings);
+}
+
 export const operations = Object.freeze({
   coin_flip,
   random_member,
@@ -83,6 +96,7 @@ export const operations = Object.freeze({
   random,
   random_int,
   mask_freq,
+  preset,
 });
 
 export const enums = constants;

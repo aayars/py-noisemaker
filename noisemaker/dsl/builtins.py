@@ -1,6 +1,12 @@
 from noisemaker.constants import *  # noqa: F401,F403
 import noisemaker.constants as constants
-from noisemaker.composer import coin_flip as _coin_flip, random_member as _random_member, stash as _stash
+from noisemaker.composer import (
+    coin_flip as _coin_flip,
+    random_member as _random_member,
+    stash as _stash,
+    Preset as _Preset,
+)
+from noisemaker.presets import PRESETS as _PRESETS
 import noisemaker.rng as _random
 import noisemaker.masks as _masks
 
@@ -62,6 +68,15 @@ def mask_freq(*args):
     shape = _masks.mask_shape(mask)
     return [int(i * 0.5 + i * repeat) for i in shape[0:2]]
 
+def preset(*args):
+    if len(args) == 0 or len(args) > 2:
+        raise ValueError(f"preset(name[, settings]) expects 1 or 2 arguments, received {len(args)}")
+    name = args[0]
+    if not isinstance(name, str):
+        raise ValueError('preset(name[, settings]) name must be a string')
+    settings = args[1] if len(args) == 2 else {}
+    return _Preset(name, _PRESETS(), settings)
+
 operations = {
     "coin_flip": coin_flip,
     "random_member": random_member,
@@ -70,6 +85,7 @@ operations = {
     "random": random,
     "random_int": random_int,
     "mask_freq": mask_freq,
+    "preset": preset,
 }
 
 enums = constants
