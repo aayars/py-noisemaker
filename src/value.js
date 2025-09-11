@@ -10,6 +10,7 @@ import { random } from './util.js';
 import { simplex as simplexNoise } from './simplex.js';
 
 let _seed = 0x12345678;
+let _opCounter = 0;
 
 export function setSeed(s) {
   _seed = s >>> 0;
