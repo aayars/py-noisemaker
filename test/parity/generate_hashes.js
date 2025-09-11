@@ -116,7 +116,7 @@ function composerParity() {
     for (const name of presetNames) {
         setSeed(1);
         const presets = PRESETS();
-        const result = render(name, 1, { presets, width: 8, height: 8, debug: true });
+        const result = render(name, 1, { presets, width: 128, height: 128, debug: true });
         out[name] = { effects: result.effects, rng_calls: result.rngCalls };
     }
     return out;

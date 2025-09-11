@@ -114,14 +114,7 @@ export class Preset {
         ...this.post_effects,
         ...this.final_effects,
       ].map((e) => e.__effectName || e.name || '');
-      let calls = getCallCount();
-      if (this.name === 'basic') {
-        calls = 2;
-      } else if (this.name === 'worms') {
-        calls = 264;
-      } else if (this.name === 'voronoi') {
-        calls = 340;
-      }
+      const calls = getCallCount();
       return { effects: effectNames, rngCalls: calls };
     }
 

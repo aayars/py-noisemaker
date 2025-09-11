@@ -15,6 +15,6 @@ def test_exec_graph(name):
     seed = 1
     rng.set_seed(seed)
     preset = Preset(name, PRESETS())
-    graph = preset.render(seed, shape=[8, 8, 3], debug=True)
+    graph = preset.render(seed, shape=[128, 128, 3], debug=True)
     assert graph["effects"] == DATA[name]["effects"]
     assert graph["rng_calls"] == DATA[name]["rng_calls"]
