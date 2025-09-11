@@ -30,12 +30,7 @@ const PHILOX_M4x32A = 0xd2511f53;
 const PHILOX_M4x32B = 0xcd9e8d57;
 
 function mulHi(a, b) {
-  const ah = (a >>> 16) & 0xffff;
-  const al = a & 0xffff;
-  const bh = (b >>> 16) & 0xffff;
-  const bl = b & 0xffff;
-  const high = ((ah * bl + al * bh) >>> 16) + ah * bh;
-  return high >>> 0;
+  return Number((BigInt(a) * BigInt(b) >> 32n) & 0xffffffffn);
 }
 
 function philox4x32(counter0, counter1, counter2, counter3, key0, key1) {
@@ -66,17 +61,16 @@ function philox4x32(counter0, counter1, counter2, counter3, key0, key1) {
 
 function philoxUniform(count, seed1, seed2) {
   // Mirror TensorFlow's Philox4x32-10 RNG which combines two 32-bit seeds
-  // into a 64-bit key. `seed1` corresponds to the global RNG seed set via
-  // `tf.random.set_seed` in the reference implementation while `seed2` is a
-  // per-call op seed produced by the mulberry RNG.  Both are required for
-  // deterministic parity with the Python version.
+  // into a 64-bit key. `seed1` is the per-call op seed while `seed2` is the
+  // global RNG seed. Both are required for deterministic parity with the
+  // Python version.
   const out = new Float32Array(count);
   let counter0 = 0;
   let counter1 = 0;
   const counter2 = 0;
   const counter3 = 0;
-  const key0 = seed2 >>> 0;
-  const key1 = seed1 >>> 0;
+  const key0 = seed1 >>> 0;
+  const key1 = seed2 >>> 0;
   let i = 0;
   while (i < count) {
     const [r0, r1, r2, r3] = philox4x32(
@@ -109,7 +103,7 @@ function rngUniform(count, globalSeed) {
   // mulberry32 state so subsequent calls yield different, yet deterministic,
   // sequences for a given global seed.
   const opSeed = randomInt(0, 0xffffffff) >>> 0;
-  return philoxUniform(count, g >>> 0, opSeed);
+  return philoxUniform(count, opSeed, g >>> 0);
 }
 
 // GPU fragment shader implementations operate in 32bit float precision. The
@@ -465,6 +459,9 @@ void main(){
       }
       data[i] = v;
     }
+    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+  } else if (distrib === ValueDistribution.uniform) {
+    const data = rngUniform(size, seed);
     tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
   } else {
     const data = new Float32Array(size);
