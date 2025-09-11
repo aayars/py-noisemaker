@@ -1,3 +1,11 @@
+"""Pixel-to-pixel parity tests against the JavaScript implementation.
+
+The expected SHA-256 digests below were produced by running the JS port
+(`node test/parity/generate_hashes.js`) and hashing the raw pixel buffers.
+These fixtures ensure that Python matches the JavaScript reference output,
+not merely itself.
+"""
+
 import hashlib
 
 import pytest
