@@ -150,7 +150,9 @@ export function shadow(
   const dy = convolution(grayTensor, ky).read();
   const dist = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) {
-    dist[i] = distance(dx[i], dy[i], DistanceMetric.euclidean);
+    dist[i] = Math.fround(
+      distance(dx[i], dy[i], DistanceMetric.euclidean),
+    );
   }
   let min = Infinity;
   let max = -Infinity;
@@ -158,14 +160,16 @@ export function shadow(
     if (dist[i] < min) min = dist[i];
     if (dist[i] > max) max = dist[i];
   }
+  min = Math.fround(min);
+  max = Math.fround(max);
   let shadeValues;
   if (min === max) {
     shadeValues = dist;
   } else {
     shadeValues = new Float32Array(h * w);
-    const range = max - min;
+    const range = Math.fround(max - min);
     for (let i = 0; i < h * w; i++) {
-      shadeValues[i] = (dist[i] - min) / range;
+      shadeValues[i] = Math.fround((dist[i] - min) / range);
     }
   }
   let shade = Tensor.fromArray(tensor.ctx, shadeValues, [h, w, 1]);
@@ -734,10 +738,12 @@ export function singularity(
   diagramType = VoronoiDiagramType.range,
   distMetric = DistanceMetric.euclidean,
 ) {
-  const [x, y] = pointCloud(1, { distrib: PointDistribution.square, shape });
-  return voronoi(
+  const [h, w, c] = shape;
+  const dsShape = [Math.floor(h * 0.5), Math.floor(w * 0.5), c];
+  const [x, y] = pointCloud(1, { distrib: PointDistribution.square, shape: dsShape });
+  let out = voronoi(
     tensor,
-    shape,
+    dsShape,
     time,
     speed,
     diagramType,
@@ -753,6 +759,10 @@ export function singularity(
     false,
     [x, y, 1],
   );
+  if (dsShape[0] !== h || dsShape[1] !== w) {
+    out = resample(out, [h, w, out.shape[2]]);
+  }
+  return out;
 }
 register("singularity", singularity, {
   diagramType: VoronoiDiagramType.range,
@@ -2229,21 +2239,19 @@ function centerMaskInternal(
   power = 2,
   distMetric = DistanceMetric.chebyshev,
 ) {
-  const [h, w, c] = shape;
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
-  const mask = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-      const m = Math.min(Math.pow(dist, power), 1);
-      for (let k = 0; k < c; k++) mask[(y * w + x) * c + k] = m;
-    }
+  const [h, w] = shape;
+  const mask = singularity(
+    null,
+    [h, w, 1],
+    0,
+    1,
+    VoronoiDiagramType.range,
+    distMetric,
+  ).read();
+  for (let i = 0; i < mask.length; i++) {
+    mask[i] = Math.min(Math.pow(mask[i], power), 1);
   }
-  const maskT = Tensor.fromArray(center.ctx, mask, shape);
+  const maskT = Tensor.fromArray(center.ctx, mask, [h, w, 1]);
   return blend(center, edges, maskT);
 }
 
