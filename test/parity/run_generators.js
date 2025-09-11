@@ -8,7 +8,7 @@ setSeed(seed);
 setValueSeed(seed);
 let tensor;
 if (name === 'basic') {
-  tensor = basic(2, [128, 128, 3], { hueRotation: 0 });
+  tensor = basic(2, [128, 128, 3]);
 } else if (name === 'multires') {
   setSeed(seed);
   setValueSeed(seed);

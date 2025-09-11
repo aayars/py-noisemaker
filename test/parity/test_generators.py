@@ -24,7 +24,7 @@ SEEDS = [
 def test_basic(seed):
     rng.set_seed(seed)
     value.set_seed(seed)
-    tensor = generators.basic(2, [128, 128, 3], hue_rotation=0)
+    tensor = generators.basic(2, [128, 128, 3])
     assert tensor.shape == (128, 128, 3)
     js = js_generator("basic", seed)
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
