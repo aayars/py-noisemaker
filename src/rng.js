@@ -136,14 +136,20 @@ export class Random {
     }
 }
 
-let _rng = new Random(0x12345678);
+let _baseSeed = 0x12345678;
+let _rng = new Random(_baseSeed);
 
 export function setSeed(s) {
-    _rng = new Random(s >>> 0);
+    _baseSeed = s >>> 0;
+    _rng = new Random(_baseSeed);
 }
 
 export function getSeed() {
     return _rng.state >>> 0;
+}
+
+export function getBaseSeed() {
+    return _baseSeed >>> 0;
 }
 
 export function random() {

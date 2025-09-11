@@ -4,7 +4,6 @@ import { oklabToRgb } from './oklab.js';
 import { Tensor } from './tensor.js';
 import { random as simplexRandom } from './simplex.js';
 import { EFFECTS } from './effectsRegistry.js';
-import { getSeed } from './rng.js';
 
 function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
   if (typeof effect === 'function') {
@@ -59,7 +58,6 @@ export function basic(freq, shape, opts = {}) {
     octaveEffects = null,
     octave = 1,
     ctx = null,
-    seed = getSeed(),
   } = opts;
 
   const f = Array.isArray(freq) ? freq : freqForShape(freq, shape);
@@ -72,7 +70,6 @@ export function basic(freq, shape, opts = {}) {
     splineOrder,
     time,
     speed,
-    seed,
   };
 
   let tensor = values(f, shape, { distrib, ...common });
@@ -260,7 +257,6 @@ export function multires(freq, shape, opts = {}) {
     time = 0,
     speed = 1,
     ctx = null,
-    seed = getSeed(),
   } = opts;
 
   const f = Array.isArray(freq) ? freq : freqForShape(freq, shape);
@@ -297,7 +293,6 @@ export function multires(freq, shape, opts = {}) {
       time,
       speed,
       ctx,
-      seed,
     });
     const data = tensor.read();
     const layerData = layer.read();

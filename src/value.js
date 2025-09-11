@@ -7,7 +7,15 @@ import {
   isNoise,
 } from './constants.js';
 import { maskValues } from './masks.js';
-import { random, randomInt, getSeed, Random } from './util.js';
+import { random } from './util.js';
+
+let _seed = 0x12345678;
+let _opCounter = 0;
+
+export function setSeed(s) {
+  _seed = s >>> 0;
+  _opCounter = 0;
+}
 
 export const FULLSCREEN_VS = `#version 300 es
 precision highp float;
@@ -96,13 +104,11 @@ function philoxUniform(count, seed1, seed2) {
 function rngUniform(count, globalSeed) {
   let g = globalSeed;
   if (g === undefined || g === null) {
-    g = getSeed();
+    g = _seed;
   }
-  // Mirror TensorFlow's per-call op seed generation by drawing a 32-bit value
-  // from the global RNG. Each invocation of ``rngUniform`` should advance the
-  // mulberry32 state so subsequent calls yield different, yet deterministic,
-  // sequences for a given global seed.
-  const opSeed = randomInt(0, 0xffffffff) >>> 0;
+  // Emulate TensorFlow's deterministic per-call op seed by using an
+  // incrementing counter rather than sampling from the global RNG.
+  const opSeed = (_opCounter++) >>> 0;
   return philoxUniform(count, opSeed, g >>> 0);
 }
 
@@ -223,7 +229,7 @@ export function values(freq, shape, opts = {}) {
     maskStatic = false,
     splineOrder = InterpolationType.bicubic,
     time = 0,
-    seed = getSeed(),
+    seed = _seed,
     speed = 1,
   } = opts;
   const gpuDistrib = GPU_DISTRIBS.has(distrib);
