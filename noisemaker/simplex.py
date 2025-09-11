@@ -563,8 +563,6 @@ def simplex(shape, time=0, seed=None, speed=1, as_np=False):
             for x in range(width):
                 val = os.noise3d(x, y, z)
                 data[y][x][c] = (val + 1) * 0.5
-    if channels == 1:
-        data = data[:, :, 0]
     if not as_np:
         data = tf.stack(data)
     return data

@@ -265,29 +265,33 @@ export function bloom(tensor, shape, time, speed, alpha = 0.5) {
   }
   let blurred = Tensor.fromArray(tensor.ctx, data, shape);
   const targetH = Math.max(1, Math.floor(h / 100));
-  const factor = Math.max(1, Math.floor(h / targetH));
-  blurred = downsample(blurred, factor);
+  const targetW = Math.max(1, Math.floor(w / 100));
+  blurred = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
   const bData = blurred.read();
   for (let i = 0; i < bData.length; i++) bData[i] *= 4;
   blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
-  blurred = upsample(blurred, factor);
-  const xOff = Math.floor(w * -0.05);
-  const yOff = Math.floor(h * -0.05);
+  blurred = resample(blurred, shape);
+  const xOff = Math.trunc(w * -0.05);
+  const yOff = Math.trunc(h * -0.05);
   blurred = offsetTensor(blurred, xOff, yOff);
   const blurRead = blurred.read();
-  for (let i = 0; i < blurRead.length; i++) {
-    blurRead[i] += 0.25;
+  for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
+  const channelMeans = new Array(c).fill(0);
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
   }
-  let mean = 0;
-  for (let i = 0; i < blurRead.length; i++) mean += blurRead[i];
-  mean /= blurRead.length;
-  for (let i = 0; i < blurRead.length; i++) {
-    blurRead[i] = (blurRead[i] - mean) * 1.5 + mean;
+  for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
+  for (let i = 0; i < h * w; i++) {
+    for (let k = 0; k < c; k++) {
+      const idx = i * c + k;
+      blurRead[idx] = (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
+    }
   }
   blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
   const mixData = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++)
+  for (let i = 0; i < src.length; i++) {
     mixData[i] = (src[i] + blurRead[i]) * 0.5;
+  }
   const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
   const clamped = clamp01(tensor);
   return blend(clamped, mixed, alpha);
@@ -2228,13 +2232,14 @@ function centerMaskInternal(
   const [h, w, c] = shape;
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
   const mask = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const dx = x - cx;
       const dy = y - cy;
-      const d = Math.pow(Math.sqrt(dx * dx + dy * dy), power);
-      const m = Math.min(d, 1);
+      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
+      const m = Math.min(Math.pow(dist, power), 1);
       for (let k = 0; k < c; k++) mask[(y * w + x) * c + k] = m;
     }
   }
@@ -2663,19 +2668,7 @@ export function vignette(
   const edgeData = new Float32Array(h * w * c);
   edgeData.fill(brightness);
   const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
-  const maskData = new Float32Array(h * w);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-      maskData[y * w + x] = dist * dist;
-    }
-  }
-  const mask = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
+  const mask = singularity(null, shape, time, speed, VoronoiDiagramType.range, DistanceMetric.euclidean);
   const vignetted = blend(norm, edges, mask);
   return blend(norm, vignetted, alpha);
 }
