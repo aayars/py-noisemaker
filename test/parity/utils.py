@@ -16,12 +16,16 @@ def _int_keys(obj):
     if isinstance(obj, list):
         return [_int_keys(v) for v in obj]
     return obj
+_CACHE = None
 
 
 def generate_hashes():
-    script = Path(__file__).with_name("generate_hashes.js")
-    result = subprocess.run(
-        ["node", str(script)], check=True, capture_output=True, text=True
-    )
-    data = json.loads(result.stdout)
-    return _int_keys(data)
+    global _CACHE
+    if _CACHE is None:
+        script = Path(__file__).with_name("generate_hashes.js")
+        result = subprocess.run(
+            ["node", str(script)], check=True, capture_output=True, text=True
+        )
+        data = json.loads(result.stdout)
+        _CACHE = _int_keys(data)
+    return _CACHE

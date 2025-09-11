@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { setSeed, random } from '../../src/rng.js';
+import { setSeed, random, randomInt, choice } from '../../src/rng.js';
 import { setSeed as setValueSeed, valueNoise } from '../../src/value.js';
 import { basic, multires } from '../../src/generators.js';
 import * as effects from '../../src/effects.js';
@@ -77,15 +77,41 @@ function effectHashes() {
     return out;
 }
 
-function rngSequences() {
+function rngParity() {
+    const COUNT = 10;
     const out = {};
+    const arr = Array.from({ length: 10 }, (_, i) => i);
     for (const seed of SEEDS.slice(0, 3)) {
         setSeed(seed);
-        const seq = [];
-        for (let i = 0; i < 10; i++) {
-            seq.push(random());
+        const rand = [];
+        for (let i = 0; i < COUNT; i++) {
+            rand.push(random());
         }
-        out[seed] = seq;
+
+        setSeed(seed);
+        const randInt = [];
+        for (let i = 0; i < COUNT; i++) {
+            randInt.push(randomInt(0, 99));
+        }
+
+        setSeed(seed);
+        const randIntSwap = [];
+        for (let i = 0; i < COUNT; i++) {
+            randIntSwap.push(randomInt(99, 0));
+        }
+
+        setSeed(seed);
+        const choices = [];
+        for (let i = 0; i < COUNT; i++) {
+            choices.push(choice(arr));
+        }
+
+        out[seed] = {
+            random: rand,
+            randomInt: randInt,
+            randomIntSwap: randIntSwap,
+            choice: choices,
+        };
     }
     return out;
 }
@@ -125,7 +151,7 @@ function composerParity() {
 const data = {
     generators: generatorHashes(),
     effects: effectHashes(),
-    rng: rngSequences(),
+    rng: rngParity(),
     points: pointsParity(),
     value: valueParity(),
     composer: composerParity(),
