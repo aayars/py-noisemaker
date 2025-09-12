@@ -1151,7 +1151,7 @@ async function voronoiWebGPU(
       diagramType === VoronoiDiagramType.color_flow);
   let pointColors = null;
   if (regionColorsNeeded) {
-    const src = tensor.read();
+    const src = await tensor.read();
     const srcH = tensor.shape[0];
     const srcW = tensor.shape[1];
     pointColors = new Float32Array(count * c);
