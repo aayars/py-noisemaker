@@ -1207,9 +1207,42 @@ export function refract(
   signedRange = true,
 ) {
   const [h, w, c] = tensor.shape;
+  const ctx = tensor.ctx;
+  const refX = referenceX || tensor;
+  const refY = referenceY || tensor;
+
+  if (ctx && !ctx.isCPU) {
+    const gl = ctx.gl;
+    let rxTex = refX;
+    if (rxTex.ctx !== ctx) rxTex = Tensor.fromArray(ctx, refX.read(), refX.shape);
+    let ryTex = refY;
+    if (ryTex.ctx !== ctx) ryTex = Tensor.fromArray(ctx, refY.read(), refY.shape);
+    const fs = `#version 300 es\nprecision highp float;\nout vec4 outColor;\nuniform sampler2D u_tex;\nuniform sampler2D u_rx;\nuniform sampler2D u_ry;\nuniform vec2 u_size;\nuniform float u_disp;\nuniform int u_signed;\nuniform int u_interp;\nfloat interp(float t){\n if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;\n return t;\n}\nvoid main(){\n vec2 coord = gl_FragCoord.xy - 0.5;\n ivec2 icoord = ivec2(coord);\n float vx = texelFetch(u_rx, icoord, 0).r;\n float vy = texelFetch(u_ry, icoord, 0).r;\n if(u_signed==1){ vx = vx*2.0 - 1.0; vy = vy*2.0 - 1.0; } else { vx *= 2.0; vy *= 2.0; }\n vec2 offset = vec2(vx * u_disp * u_size.x, vy * u_disp * u_size.y);\n vec2 samplePos = mod(coord + offset + u_size, u_size);\n vec2 c0 = floor(samplePos);\n vec2 f = samplePos - c0;\n vec2 c1 = mod(c0 + 1.0, u_size);\n ivec2 i00 = ivec2(c0);\n ivec2 i10 = ivec2(c1.x, c0.y);\n ivec2 i01 = ivec2(c0.x, c1.y);\n ivec2 i11 = ivec2(c1);\n float sx = interp(f.x);\n float sy = interp(f.y);\n vec4 s00 = texelFetch(u_tex, i00, 0);\n vec4 s10 = texelFetch(u_tex, i10, 0);\n vec4 s01 = texelFetch(u_tex, i01, 0);\n vec4 s11 = texelFetch(u_tex, i11, 0);\n vec4 x_y0 = mix(s00, s10, sx);\n vec4 x_y1 = mix(s01, s11, sx);\n outColor = mix(x_y0, x_y1, sy);\n}`;
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
+    const pp = ctx.pingPong(w, h);
+    gl.useProgram(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, rxTex.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_rx'), 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, ryTex.handle);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_ry'), 2);
+    gl.uniform2f(gl.getUniformLocation(prog, 'u_size'), w, h);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_signed'), signedRange ? 1 : 0);
+    gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
+    ctx.bindFramebuffer(pp.writeFbo, w, h);
+    ctx.drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+  }
+
   const src = tensor.read();
-  const rx = (referenceX || tensor).read();
-  const ry = (referenceY || tensor).read();
+  const rx = refX.read();
+  const ry = refY.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {

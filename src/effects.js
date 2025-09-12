@@ -60,7 +60,7 @@ export function warp(
       Math.floor(baseFreq[1] * 0.5 * mult),
     ];
     if (f[0] >= shape[0] || f[1] >= shape[1]) break;
-    const opts = { time, speed, splineOrder };
+    const opts = { ctx: tensor.ctx, time, speed, splineOrder };
     const flowX = values(f, [shape[0], shape[1], 1], opts);
     const flowY = values(f, [shape[0], shape[1], 1], opts);
     out = refractOp(

@@ -3,7 +3,7 @@
 <body>
 <script type="module">
 import { Context } from '../src/context.js';
-import { values, downsample, upsample, blend, sobel } from '../src/value.js';
+import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
 import {
   adjustBrightness,
@@ -14,7 +14,7 @@ import {
   grain,
 } from '../src/effects.js';
 import { render } from '../src/composer.js';
-import { ValueDistribution, ColorSpace } from '../src/constants.js';
+import { ValueDistribution, ColorSpace, InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
 const cpuCtx = new Context(null);
@@ -64,12 +64,29 @@ const edge = sobel(base);
 
   const orientOk = vTop < vBottom && hLeft < hRight;
 
-  const grayPreset = {
+const grayPreset = {
     gray: { generator: () => ({ distrib: ValueDistribution.column_index, color_space: ColorSpace.grayscale }) },
   };
   render('gray', 0, { ctx, width: 2, height: 2, presets: grayPreset });
   const gImg = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 2, 2).data;
   const grayOk = gImg[0] === gImg[1] && gImg[0] === gImg[2];
+
+  function testRefract() {
+    const shape = [4,4,1];
+    const srcData = values(2, shape, { seed: 1, ctx: cpuCtx });
+    const rxData = values(2, shape, { seed: 2, ctx: cpuCtx });
+    const ryData = values(2, shape, { seed: 3, ctx: cpuCtx });
+    const cpuOut = refract(srcData, rxData, ryData, 0.25, InterpolationType.linear).read();
+    const srcGpu = Tensor.fromArray(ctx, srcData.read(), shape);
+    const rxGpu = Tensor.fromArray(ctx, rxData.read(), shape);
+    const ryGpu = Tensor.fromArray(ctx, ryData.read(), shape);
+    const gpuOut = refract(srcGpu, rxGpu, ryGpu, 0.25, InterpolationType.linear).read();
+    if (cpuOut.length !== gpuOut.length) return false;
+    for (let i = 0; i < cpuOut.length; i++) {
+      if (!nearly(cpuOut[i], gpuOut[i])) return false;
+    }
+    return true;
+  }
 
   const ok =
     baseEqual &&
@@ -81,9 +98,10 @@ const edge = sobel(base);
   testEffect(adjustBrightness, [0.1]) &&
   testEffect(adjustContrast, [1.2]) &&
   testEffect(grain, [0.25]) &&
-  testEffect(dither, [2]) &&
+    testEffect(dither, [2]) &&
     testEffect(vignette, [0.2, 0.5]) &&
     testEffect(reindex, [0.5]) &&
+    testRefract() &&
     orientOk &&
     grayOk;
 
