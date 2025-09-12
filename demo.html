@@ -226,7 +226,7 @@
 
     function draw(seed, presetName) {
       setSeed(seed);
-      presets = PRESETS();
+      presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed);
       const start = performance.now();
       render(presetObj, seed, {

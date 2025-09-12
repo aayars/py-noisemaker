@@ -94,11 +94,25 @@ let _SOURCE;
   }
 }
 
-function buildPresets() {
+function buildPresets(names) {
   const seed = getSeed();
   const parsed = parsePresetDSL(_SOURCE);
   const presets = {};
-  for (const [name, preset] of Object.entries(parsed)) {
+
+  function build(name) {
+    if (presets[name]) return presets[name];
+    const preset = parsed[name];
+    if (!preset) return;
+
+    // Recursively build any layer references that are also presets.
+    if (Array.isArray(preset.layers)) {
+      for (const layer of preset.layers) {
+        if (typeof layer === 'string' && parsed[layer]) {
+          build(layer);
+        }
+      }
+    }
+
     const p = { ...preset };
     if (p.settings && typeof p.settings === 'object') {
       const s = p.settings;
@@ -144,14 +158,27 @@ function buildPresets() {
         return Array.isArray(arr) ? arr.map((e) => mapEffect(e, settings)) : arr;
       };
     }
+
     presets[name] = p;
+    return p;
   }
+
+  if (!names) {
+    names = Object.keys(parsed);
+  } else if (!Array.isArray(names)) {
+    names = [names];
+  }
+
+  for (const name of names) {
+    build(name);
+  }
+
   setSeed(seed);
   return presets;
 }
 
-export function PRESETS() {
-  return buildPresets();
+export function PRESETS(names) {
+  return buildPresets(names);
 }
 
 export default PRESETS;
