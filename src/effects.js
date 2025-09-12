@@ -979,6 +979,10 @@ function voronoiWebGPU(
     );
   }
 
+  const originalShape = shape;
+  if (downsample) {
+    shape = [Math.floor(shape[0] * 0.5), Math.floor(shape[1] * 0.5), shape[2]];
+  }
   const [h, w] = shape;
 
   // Generate points on the CPU; the compute shader only handles the distance
@@ -997,6 +1001,10 @@ function voronoiWebGPU(
     count = xPts.length;
   } else {
     [xPts, yPts, count] = xy;
+    if (downsample) {
+      xPts = xPts.map((v) => v / 2);
+      yPts = yPts.map((v) => v / 2);
+    }
   }
 
   if (count === 0) {
@@ -1016,12 +1024,13 @@ function voronoiWebGPU(
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
 
-  const baseBuf = tensor ? tensor.handle : outBuf;
+  const useBase = tensor && !downsample;
+  const baseBuf = useBase ? tensor.handle : outBuf;
   const params = new Float32Array([
     w,
     h,
     count,
-    tensor ? 1 : 0,
+    useBase ? 1 : 0,
     alpha,
     inverse ? 1 : 0,
     distMetric,
@@ -1050,9 +1059,12 @@ function voronoiWebGPU(
   pass.end();
   ctx.queue.submit([encoder.finish()]);
 
-  // Return a tensor wrapping the GPU buffer.  The caller can read() the buffer
-  // asynchronously when needed.
-  return new Tensor(ctx, outBuf, [h, w, 1]);
+  let outTensor = new Tensor(ctx, outBuf, [h, w, 1]);
+  if (downsample) {
+    outTensor = resample(outTensor, originalShape, InterpolationType.bicubic);
+    if (tensor) outTensor = blend(tensor, outTensor, alpha);
+  }
+  return outTensor;
 }
 
 export function voronoi(
