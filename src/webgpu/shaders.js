@@ -9,6 +9,10 @@ struct Params {
   inverse: f32,
   metric: f32,
   nth: f32,
+  sdfSides: f32,
+  _pad0: f32,
+  _pad1: f32,
+  _pad2: f32,
 };
 @group(0) @binding(0) var<storage, read> points: array<Point>;
 @group(0) @binding(1) var<storage, read> base: array<f32>;
@@ -22,6 +26,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let idx = gid.y * u32(params.width) + gid.x;
   let metric = u32(params.metric);
   let nth = u32(params.nth);
+  let sdfSides = params.sdfSides;
   var best: array<f32, MAX_NTH>;
   var bestIdx: array<u32, MAX_NTH>;
   for (var j: u32 = 0u; j <= nth; j = j + 1u) {
@@ -40,6 +45,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let adx = abs(dx);
       let ady = abs(dy);
       d = max((adx + ady) / sqrt(2.0), max(adx, ady));
+    } else if (metric == 101u) {
+      d = max(abs(dx) - dy * 0.5, dy);
+    } else if (metric == 102u) {
+      d = max(max(abs(dx) - dy * 0.5, dy), max(abs(dx) + dy * 0.5, -dy));
+    } else if (metric == 201u) {
+      let arctan = atan2(dx, -dy) + 3.141592653589793;
+      let r = 6.283185307179586 / sdfSides;
+      d = cos(floor(0.5 + arctan / r) * r - arctan) * sqrt(dx * dx + dy * dy);
     } else {
       d = sqrt(dx * dx + dy * dy);
     }

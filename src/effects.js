@@ -958,8 +958,11 @@ function voronoiWebGPU(
       DistanceMetric.manhattan,
       DistanceMetric.chebyshev,
       DistanceMetric.octagram,
+      DistanceMetric.triangular,
+      DistanceMetric.hexagram,
+      DistanceMetric.sdf,
     ].includes(distMetric) ||
-    sdfSides !== 3
+    (distMetric === DistanceMetric.sdf && sdfSides < 3)
   ) {
     return voronoiCPU(
       tensor,
@@ -1072,6 +1075,10 @@ function voronoiWebGPU(
     inverse ? 1 : 0,
     distMetric,
     nth,
+    sdfSides,
+    0,
+    0,
+    0,
   ]);
   const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
 
@@ -1099,21 +1106,33 @@ function voronoiWebGPU(
 
   let rangeTensor = new Tensor(ctx, rangeBuf, [h, w, 1]);
   let regionsTensor = new Tensor(ctx, indexBuf, [h, w, 1]);
-  if (downsample) {
-    rangeTensor = resample(
-      rangeTensor,
-      [originalShape[0], originalShape[1], 1],
-      InterpolationType.bicubic,
-    );
-    regionsTensor = resample(
-      regionsTensor,
-      [originalShape[0], originalShape[1], 1],
-      InterpolationType.constant,
-    );
+  const xOff = Math.floor(w * 0.5);
+  const yOff = Math.floor(h * 0.5);
+  rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
+  regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
+  let colorRegionsTensor = null;
+  if (regionColorsNeeded) {
+    const idxData = regionsTensor.read();
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < idxData.length; i++) {
+      const region = Math.min(count - 1, Math.floor(idxData[i] * count));
+      for (let k = 0; k < c; k++) {
+        out[i * c + k] = pointColors[region * c + k];
+      }
+    }
+    colorRegionsTensor = Tensor.fromArray(ctx, out, [h, w, c]);
   }
   let outTensor;
   if (diagramType === VoronoiDiagramType.color_range && tensor) {
-    const rData = rangeTensor.read();
+    let rTensor = rangeTensor;
+    if (downsample) {
+      rTensor = resample(
+        rTensor,
+        [originalShape[0], originalShape[1], 1],
+        InterpolationType.bicubic,
+      );
+    }
+    const rData = rTensor.read();
     const src = tensor.read();
     const out = new Float32Array(originalShape[0] * originalShape[1] * c);
     for (let i = 0; i < originalShape[0] * originalShape[1]; i++) {
@@ -1124,52 +1143,30 @@ function voronoiWebGPU(
         out[base] = Math.fround(aVal * (1 - r) + r * r);
       }
     }
-    outTensor = Tensor.fromArray(ctx, out, [
-      originalShape[0],
-      originalShape[1],
-      c,
-    ]);
+    outTensor = Tensor.fromArray(ctx, out, [originalShape[0], originalShape[1], c]);
   } else if (diagramType === VoronoiDiagramType.regions) {
     outTensor = regionsTensor;
   } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
-    const idxData = regionsTensor.read();
-    const out = new Float32Array(originalShape[0] * originalShape[1] * c);
-    for (let i = 0; i < idxData.length; i++) {
-      const region = Math.min(count - 1, Math.floor(idxData[i] * count));
-      for (let k = 0; k < c; k++) {
-        out[i * c + k] = pointColors[region * c + k];
-      }
-    }
-    outTensor = Tensor.fromArray(ctx, out, [
-      originalShape[0],
-      originalShape[1],
-      c,
-    ]);
+    outTensor = colorRegionsTensor;
   } else if (diagramType === VoronoiDiagramType.range_regions && tensor) {
-    const idxData = regionsTensor.read();
     const rData = rangeTensor.read();
-    const colorOut = new Float32Array(originalShape[0] * originalShape[1] * c);
-    for (let i = 0; i < idxData.length; i++) {
-      const region = Math.min(count - 1, Math.floor(idxData[i] * count));
-      for (let k = 0; k < c; k++) {
-        colorOut[i * c + k] = pointColors[region * c + k];
-      }
-    }
-    const colorRegionsTensor = Tensor.fromArray(ctx, colorOut, [
-      originalShape[0],
-      originalShape[1],
-      c,
-    ]);
     const rangeSq = new Float32Array(rData.length);
     for (let i = 0; i < rData.length; i++) rangeSq[i] = rData[i] * rData[i];
-    const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [
-      originalShape[0],
-      originalShape[1],
-      1,
-    ]);
+    const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [h, w, 1]);
     outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
   } else {
     outTensor = rangeTensor;
+  }
+  if (downsample) {
+    const splineOrder =
+      diagramType === VoronoiDiagramType.color_regions
+        ? InterpolationType.constant
+        : InterpolationType.bicubic;
+    outTensor = resample(
+      outTensor,
+      [originalShape[0], originalShape[1], outTensor.shape[2]],
+      splineOrder,
+    );
   }
 
   if (withRefract && tensor) {
