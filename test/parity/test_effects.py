@@ -32,6 +32,7 @@ EFFECTS = [
     ("vignette", effects.vignette),
     ("vaseline", effects.vaseline),
     ("shadow", effects.shadow),
+    ("derivative", effects.derivative),
     ("normalize", effects.normalize),
     ("palette", effects.palette),
     ("warp", effects.warp),
@@ -56,6 +57,9 @@ ATOL = {
     "reindex": 5e-3,
     "aberration": 3e-2,
     "rotate": 2e-2,
+    "light_leak": 8e-2,
+    "crt": 1.0,
+    "derivative": 5e-5,
 }
 
 
