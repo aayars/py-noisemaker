@@ -17,6 +17,7 @@ const UNUSED_OKAY = [
   'angle',
   'paletteAlpha',
   'paletteName',
+  'paletteOn',
   'speed',
   'voronoiSdfSides',
   'voronoiInverse',
