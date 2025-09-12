@@ -8,18 +8,23 @@ struct Params {
   alpha: f32,
   inverse: f32,
   metric: f32,
-  padding0: f32,
+  nth: f32,
 };
 @group(0) @binding(0) var<storage, read> points: array<Point>;
 @group(0) @binding(1) var<storage, read> base: array<f32>;
 @group(0) @binding(2) var<storage, read_write> outBuffer: array<f32>;
 @group(0) @binding(3) var<uniform> params: Params;
+const MAX_NTH: u32 = 64u;
 @compute @workgroup_size(8,8,1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (gid.x >= u32(params.width) || gid.y >= u32(params.height)) { return; }
   let idx = gid.y * u32(params.width) + gid.x;
   let metric = u32(params.metric);
-  var best: f32 = 1e9;
+  let nth = u32(params.nth);
+  var best: array<f32, MAX_NTH>;
+  for (var j: u32 = 0u; j <= nth; j = j + 1u) {
+    best[j] = 1e9;
+  }
   for (var i: u32 = 0u; i < u32(params.count); i = i + 1u) {
     let dx = f32(gid.x) - points[i].x;
     let dy = f32(gid.y) - points[i].y;
@@ -35,7 +40,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     } else {
       d = sqrt(dx * dx + dy * dy);
     }
-    if (d < best) { best = d; }
+    if (d < best[nth]) {
+      var k: u32 = nth;
+      while (k > 0u && d < best[k - 1u]) {
+        best[k] = best[k - 1u];
+        k = k - 1u;
+      }
+      best[k] = d;
+    }
   }
   var maxd: f32;
   if (metric == 2u) {
@@ -47,7 +59,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   } else {
     maxd = sqrt(params.width * params.width + params.height * params.height);
   }
-  var dist = best / maxd;
+  var dist = best[nth] / maxd;
   if (params.inverse != 0.0) { dist = 1.0 - dist; }
   if (params.blend != 0.0) {
     let baseVal = base[idx];

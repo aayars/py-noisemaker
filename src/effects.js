@@ -945,7 +945,8 @@ function voronoiWebGPU(
   // version to ensure feature parity.
   if (
     diagramType !== VoronoiDiagramType.range ||
-    nth !== 0 ||
+    nth < 0 ||
+    nth >= 64 ||
     ![
       DistanceMetric.euclidean,
       DistanceMetric.manhattan,
@@ -1034,7 +1035,7 @@ function voronoiWebGPU(
     alpha,
     inverse ? 1 : 0,
     distMetric,
-    0,
+    nth,
   ]);
   const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
 
