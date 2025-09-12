@@ -34,6 +34,7 @@ const EFFECTS = {
   grain: effects.grain,
   reindex: effects.reindex,
   voronoi: effects.voronoi,
+  rotate: (tensor, shape, time, speed) => effects.rotate(tensor, shape, time, speed),
 };
 
 const fn = EFFECTS[name];

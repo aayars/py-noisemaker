@@ -36,6 +36,7 @@ EFFECTS = [
     ("palette", effects.palette),
     ("warp", effects.warp),
     ("ripple", effects.ripple),
+    ("rotate", effects.rotate),
     ("wobble", effects.wobble),
     ("reverb", effects.reverb),
     ("tint", effects.tint),
@@ -53,6 +54,7 @@ ATOL = {
     "warp": 7e-3,
     "reindex": 5e-3,
     "aberration": 3e-2,
+    "rotate": 2e-2,
 }
 
 
