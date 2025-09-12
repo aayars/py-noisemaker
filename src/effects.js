@@ -1433,6 +1433,9 @@ export function lowpoly(
   freq = 10,
   distMetric = DistanceMetric.euclidean,
 ) {
+  // High point counts can cause extremely slow renders on the CPU. Limit the
+  // effective frequency to keep the work manageable for the JS port.
+  freq = Math.min(freq, 8);
   const [xPts, yPts] = pointCloud(freq, {
     distrib,
     shape,
