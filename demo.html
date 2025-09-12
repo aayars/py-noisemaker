@@ -230,14 +230,33 @@
       setSeed(seed);
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
-      const start = performance.now();
-      render(presetObj, seed, {
-        width: canvas.width,
-        height: canvas.height,
-        ctx,
-        presets,
-        debug: false,
-      });
+      let start = performance.now();
+      try {
+        render(presetObj, seed, {
+          width: canvas.width,
+          height: canvas.height,
+          ctx,
+          presets,
+          debug: false,
+        });
+      } catch (e) {
+        if (ctx.device) {
+          console.warn('WebGPU failed, falling back to WebGL', e);
+          ctx.device = null;
+          webgpu = false;
+          deviceEl.textContent = device;
+          start = performance.now();
+          render(presetObj, seed, {
+            width: canvas.width,
+            height: canvas.height,
+            ctx,
+            presets,
+            debug: false,
+          });
+        } else {
+          throw e;
+        }
+      }
       const elapsed = performance.now() - start;
       seedEl.textContent = `seed: ${seed}`;
       renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
@@ -245,7 +264,11 @@
       presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
     }
 
-    draw(42, currentPreset);
+    try {
+      draw(42, currentPreset);
+    } catch (e) {
+      console.error(e);
+    }
 
     document.getElementById('reroll').addEventListener('click', () => {
       const seed = Math.floor(random() * 1e9);
