@@ -46,6 +46,7 @@ EFFECTS = [
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
     ("lens_distortion", effects.lens_distortion),
+    ("vhs", effects.vhs),
     ("grain", effects.grain),
     ("snow", effects.snow),
     ("reindex", effects.reindex),
@@ -65,6 +66,7 @@ ATOL = {
     "lens_distortion": 3e-2,
     "derivative": 5e-5,
     "snow": 2e-1,
+    "vhs": 3e-2,
 }
 
 

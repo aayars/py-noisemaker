@@ -1692,11 +1692,20 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     height, width, channels = shape
 
     # Generate scan noise
-    scan_noise = value.values(freq=[int(height * .5) + 1, int(width * .25) + 1], shape=[height, width, 1], time=time,
-                              speed=speed * 100, spline_order=1)
+    scan_noise = value.values(
+        freq=int(height * .5) + 1,
+        shape=[height, width, 1],
+        time=time,
+        speed=speed * 100,
+    )
 
     # Create horizontal offsets
-    grad = value.values(freq=[int(rng.random() * 10) + 5, 1], shape=[height, width, 1], time=time, speed=speed)
+    grad = value.values(
+        freq=5,
+        shape=[height, width, 1],
+        time=time,
+        speed=speed,
+    )
     grad = tf.maximum(grad - .5, 0)
     grad = tf.minimum(grad * 2, 1)
 

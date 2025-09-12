@@ -103,6 +103,7 @@
     import { random, setSeed } from './src/util.js';
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
+    await ctx.initWebGPU();
     const presetSelect = document.getElementById('preset');
     const renderTimeEl = document.getElementById('renderTime');
     const deviceEl = document.getElementById('device');
@@ -222,7 +223,8 @@
 
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
-    deviceEl.textContent = ctx.isCPU ? 'cpu' : 'gpu';
+    const device = ctx.isCPU ? 'cpu' : 'gpu';
+    deviceEl.textContent = ctx.device ? `webgpu+${device}` : device;
 
     function draw(seed, presetName) {
       setSeed(seed);

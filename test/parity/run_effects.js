@@ -35,6 +35,7 @@ const EFFECTS = {
   crt: effects.crt,
   grain: effects.grain,
   lens_distortion: effects.lensDistortion,
+  vhs: effects.vhs,
   snow: effects.snow,
   reindex: effects.reindex,
   voronoi: effects.voronoi,
