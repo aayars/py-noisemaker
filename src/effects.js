@@ -948,7 +948,9 @@ function voronoiWebGPU(
     (diagramType === VoronoiDiagramType.color_range && tensor) ||
     diagramType === VoronoiDiagramType.regions ||
     (diagramType === VoronoiDiagramType.color_regions && tensor) ||
-    (diagramType === VoronoiDiagramType.range_regions && tensor);
+    (diagramType === VoronoiDiagramType.range_regions && tensor) ||
+    diagramType === VoronoiDiagramType.flow ||
+    (diagramType === VoronoiDiagramType.color_flow && tensor);
   if (
     !supportedType ||
     nth < 0 ||
@@ -1019,10 +1021,14 @@ function voronoiWebGPU(
     return tensor;
   }
   const c = tensor ? tensor.shape[2] : 0;
+  const needFlow =
+    diagramType === VoronoiDiagramType.flow ||
+    diagramType === VoronoiDiagramType.color_flow;
   const regionColorsNeeded =
     tensor &&
     (diagramType === VoronoiDiagramType.color_regions ||
-      diagramType === VoronoiDiagramType.range_regions);
+      diagramType === VoronoiDiagramType.range_regions ||
+      diagramType === VoronoiDiagramType.color_flow);
   let pointColors = null;
   if (regionColorsNeeded) {
     const src = tensor.read();
@@ -1047,7 +1053,6 @@ function voronoiWebGPU(
     pointsArr[i * 2 + 1] = yPts[i];
   }
   const pointsBuf = ctx.createGPUBuffer(pointsArr, GPUBufferUsage.STORAGE);
-
   const rangeBuf = ctx.device.createBuffer({
     size: h * w * 4,
     usage:
@@ -1058,6 +1063,30 @@ function voronoiWebGPU(
     usage:
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
+  const flowBuf = ctx.device.createBuffer({
+    size: h * w * 4,
+    usage:
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  });
+  const pointColorBuf = regionColorsNeeded
+    ? ctx.createGPUBuffer(pointColors, GPUBufferUsage.STORAGE)
+    : ctx.device.createBuffer({
+        size: 4,
+        usage: GPUBufferUsage.STORAGE,
+      });
+  const colorFlowBuf =
+    diagramType === VoronoiDiagramType.color_flow && tensor
+      ? ctx.device.createBuffer({
+          size: h * w * c * 4,
+          usage:
+            GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        })
+      : ctx.device.createBuffer({
+          size: 4,
+          usage: GPUBufferUsage.STORAGE,
+        });
 
   const useBase =
     tensor &&
@@ -1076,8 +1105,8 @@ function voronoiWebGPU(
     distMetric,
     nth,
     sdfSides,
-    0,
-    0,
+    needFlow ? 1 : 0,
+    diagramType === VoronoiDiagramType.color_flow && tensor ? c : 0,
     0,
   ]);
   const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
@@ -1094,6 +1123,9 @@ function voronoiWebGPU(
       { binding: 2, resource: { buffer: rangeBuf } },
       { binding: 3, resource: { buffer: indexBuf } },
       { binding: 4, resource: { buffer: paramsBuf } },
+      { binding: 5, resource: { buffer: flowBuf } },
+      { binding: 6, resource: { buffer: pointColorBuf } },
+      { binding: 7, resource: { buffer: colorFlowBuf } },
     ],
   });
   const encoder = ctx.device.createCommandEncoder();
@@ -1106,10 +1138,17 @@ function voronoiWebGPU(
 
   let rangeTensor = new Tensor(ctx, rangeBuf, [h, w, 1]);
   let regionsTensor = new Tensor(ctx, indexBuf, [h, w, 1]);
+  let flowTensor = needFlow ? new Tensor(ctx, flowBuf, [h, w, 1]) : null;
+  let colorFlowTensor =
+    needFlow && diagramType === VoronoiDiagramType.color_flow && tensor
+      ? new Tensor(ctx, colorFlowBuf, [h, w, c])
+      : null;
   const xOff = Math.floor(w * 0.5);
   const yOff = Math.floor(h * 0.5);
   rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
   regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
+  if (flowTensor) flowTensor = offsetTensor(flowTensor, xOff, yOff);
+  if (colorFlowTensor) colorFlowTensor = offsetTensor(colorFlowTensor, xOff, yOff);
   let colorRegionsTensor = null;
   if (regionColorsNeeded) {
     const idxData = regionsTensor.read();
@@ -1154,6 +1193,24 @@ function voronoiWebGPU(
     for (let i = 0; i < rData.length; i++) rangeSq[i] = rData[i] * rData[i];
     const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [h, w, 1]);
     outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
+  } else if (diagramType === VoronoiDiagramType.flow) {
+    const fData = flowTensor.read();
+    const out = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      let v = Math.fround(fData[i] / count);
+      out[i] = Math.fround((v + 1.75) / 1.45);
+    }
+    outTensor = Tensor.fromArray(ctx, out, [h, w, 1]);
+  } else if (diagramType === VoronoiDiagramType.color_flow && tensor) {
+    const fData = colorFlowTensor.read();
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      for (let k = 0; k < c; k++) {
+        const v = Math.fround(fData[i * c + k] / count);
+        out[i * c + k] = v;
+      }
+    }
+    outTensor = Tensor.fromArray(ctx, out, [h, w, c]);
   } else {
     outTensor = rangeTensor;
   }

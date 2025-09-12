@@ -10,16 +10,20 @@ struct Params {
   metric: f32,
   nth: f32,
   sdfSides: f32,
+  useFlow: f32,
+  channels: f32,
   _pad0: f32,
-  _pad1: f32,
-  _pad2: f32,
 };
 @group(0) @binding(0) var<storage, read> points: array<Point>;
 @group(0) @binding(1) var<storage, read> base: array<f32>;
 @group(0) @binding(2) var<storage, read_write> outBuffer: array<f32>;
 @group(0) @binding(3) var<storage, read_write> indexBuffer: array<f32>;
 @group(0) @binding(4) var<uniform> params: Params;
+@group(0) @binding(5) var<storage, read_write> flowBuffer: array<f32>;
+@group(0) @binding(6) var<storage, read> pointColors: array<f32>;
+@group(0) @binding(7) var<storage, read_write> colorFlowBuffer: array<f32>;
 const MAX_NTH: u32 = 64u;
+const MAX_CHANNELS: u32 = 4u;
 @compute @workgroup_size(8,8,1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (gid.x >= u32(params.width) || gid.y >= u32(params.height)) { return; }
@@ -29,9 +33,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let sdfSides = params.sdfSides;
   var best: array<f32, MAX_NTH>;
   var bestIdx: array<u32, MAX_NTH>;
+  var flow: f32 = 0.0;
+  var colorSum: array<f32, MAX_CHANNELS>;
   for (var j: u32 = 0u; j <= nth; j = j + 1u) {
     best[j] = 1e9;
     bestIdx[j] = 0u;
+  }
+  for (var k: u32 = 0u; k < u32(params.channels); k = k + 1u) {
+    colorSum[k] = 0.0;
   }
   for (var i: u32 = 0u; i < u32(params.count); i = i + 1u) {
     let dx = f32(gid.x) - points[i].x;
@@ -66,6 +75,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       best[k] = d;
       bestIdx[k] = i;
     }
+    if (params.useFlow != 0.0) {
+      var ld = log(max(d, 1e-9));
+      if (ld < -10.0) { ld = -10.0; }
+      if (ld > 10.0) { ld = 10.0; }
+      flow = flow + ld;
+      if (params.channels > 0.0) {
+        let baseIdx = i * u32(params.channels);
+        for (var c: u32 = 0u; c < u32(params.channels); c = c + 1u) {
+          colorSum[c] = colorSum[c] + ld * pointColors[baseIdx + c];
+        }
+      }
+    }
   }
   var maxd: f32;
   if (metric == 2u) {
@@ -87,6 +108,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     outBuffer[idx] = dist;
   }
   indexBuffer[idx] = idxNorm;
+  if (params.useFlow != 0.0) {
+    flowBuffer[idx] = flow;
+    if (params.channels > 0.0) {
+      for (var c: u32 = 0u; c < u32(params.channels); c = c + 1u) {
+        colorFlowBuffer[idx * u32(params.channels) + c] = colorSum[c];
+      }
+    }
+  }
 }
 `;
 

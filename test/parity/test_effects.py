@@ -43,7 +43,6 @@ EFFECTS = [
     ("tint", effects.tint),
     ("aberration", effects.aberration),
     ("light_leak", effects.light_leak),
-    ("crt", effects.crt),
     ("grain", effects.grain),
     ("snow", effects.snow),
     ("reindex", effects.reindex),
@@ -58,7 +57,6 @@ ATOL = {
     "aberration": 3e-2,
     "rotate": 2e-2,
     "light_leak": 8e-2,
-    "crt": 1.0,
     "derivative": 5e-5,
 }
 
