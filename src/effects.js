@@ -1029,6 +1029,7 @@ function voronoiWebGPU(
 
   const useBase =
     tensor &&
+    tensor.shape[2] === 1 &&
     !downsample &&
     diagramType === VoronoiDiagramType.range;
   const baseBuf = useBase ? tensor.handle : outBuf;
@@ -1094,7 +1095,9 @@ function voronoiWebGPU(
   }
   if (downsample) {
     rangeTensor = resample(rangeTensor, originalShape, InterpolationType.bicubic);
-    if (tensor) rangeTensor = blend(tensor, rangeTensor, alpha);
+  }
+  if (tensor && diagramType === VoronoiDiagramType.range && !useBase) {
+    rangeTensor = blend(tensor, rangeTensor, alpha);
   }
   return rangeTensor;
 }
