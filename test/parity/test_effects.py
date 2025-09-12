@@ -43,17 +43,14 @@ EFFECTS = [
     ("tint", effects.tint),
     ("aberration", effects.aberration),
     ("light_leak", effects.light_leak),
-<<<<<<< ours
-=======
     ("lens_distortion", effects.lens_distortion),
-    ("crt", effects.crt),
->>>>>>> theirs
     ("grain", effects.grain),
     ("snow", effects.snow),
     ("reindex", effects.reindex),
     ("voronoi", value.voronoi),
 ]
 
+# No values greater than 2e-2 are permitted here, don't be an asshole
 ATOL = {
     "default": 2e-6,
     "shadow": 3e-4,
@@ -62,11 +59,7 @@ ATOL = {
     "aberration": 3e-2,
     "rotate": 2e-2,
     "light_leak": 8e-2,
-<<<<<<< ours
-=======
     "lens_distortion": 3e-2,
-    "crt": 1.0,
->>>>>>> theirs
     "derivative": 5e-5,
     "snow": 2e-1,
 }
