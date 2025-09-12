@@ -3,6 +3,9 @@ import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
 import { shapeFromParams } from './util.js';
+// Ensure all built-in effects register themselves with the registry.
+// The import is intentionally side-effectful.
+import './effects.js';
 import { EFFECTS } from './effectsRegistry.js';
 import { SettingsDict } from './settings.js';
 import { resetCallCount, getCallCount } from './rng.js';
