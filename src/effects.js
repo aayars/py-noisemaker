@@ -1144,13 +1144,11 @@ function voronoiWebGPU(
           usage: GPUBufferUsage.STORAGE,
         });
 
-  const useBase =
-    tensor &&
-    tensor.shape[2] === 1 &&
-    !downsample &&
-    diagramType === VoronoiDiagramType.range &&
-    withRefract === 0;
-  const baseBuf = useBase ? tensor.handle : rangeBuf;
+  // The compute shader writes raw distance values; normalization and blending
+  // are handled on the CPU after the pass.  Bind the range buffer in the slot
+  // that previously accepted an optional base tensor so that the pipeline
+  // layout remains unchanged.
+  const baseBuf = rangeBuf;
   // ``inverse`` affects both the distance output and, for certain metrics,
   // flips the Y offset.  The compute shader interprets any non-zero value as
   // ``true`` and handles the necessary transformations.
@@ -1159,8 +1157,8 @@ function voronoiWebGPU(
     w,
     h,
     count,
-    useBase ? 1 : 0,
-    alpha,
+    0,
+    0,
     inv,
     distMetric,
     n,
@@ -1224,6 +1222,28 @@ function voronoiWebGPU(
       }
     }
     colorRegionsTensor = Tensor.fromArray(ctx, out, [h, w, c]);
+  }
+  if (!needFlow) {
+    const raw = rangeTensor.read();
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < raw.length; i++) {
+      const v = raw[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    const delta = max - min;
+    const norm = new Float32Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      let v = raw[i];
+      if (delta > 0) {
+        v = (v - min) / delta;
+      }
+      v = Math.sqrt(v);
+      if (inverse) v = 1 - v;
+      norm[i] = v;
+    }
+    rangeTensor = Tensor.fromArray(ctx, norm, [h, w, 1]);
   }
   let outTensor;
   if (diagramType === VoronoiDiagramType.color_range && tensor) {
@@ -1318,11 +1338,7 @@ function voronoiWebGPU(
     );
   }
 
-  if (
-    tensor &&
-    diagramType !== VoronoiDiagramType.color_regions &&
-    !(diagramType === VoronoiDiagramType.range && useBase && withRefract === 0)
-  ) {
+  if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
     outTensor = blend(tensor, outTensor, alpha);
   }
   return outTensor;

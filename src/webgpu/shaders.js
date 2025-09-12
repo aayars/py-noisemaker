@@ -98,25 +98,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       }
     }
   }
-  var maxd: f32;
-  if (metric == 2u) {
-    maxd = params.width + params.height;
-  } else if (metric == 3u) {
-    maxd = max(params.width, params.height);
-  } else if (metric == 4u) {
-    maxd = max((params.width + params.height) / sqrt(2.0), max(params.width, params.height));
-  } else {
-    maxd = sqrt(params.width * params.width + params.height * params.height);
-  }
-  var dist = best[nth] / maxd;
   var idxNorm = f32(bestIdx[nth]) / params.count;
-  if (params.inverse != 0.0) { dist = 1.0 - dist; }
-  if (params.blend != 0.0) {
-    let baseVal = base[idx];
-    outBuffer[idx] = baseVal * (1.0 - params.alpha) + dist * params.alpha;
-  } else {
-    outBuffer[idx] = dist;
-  }
+  outBuffer[idx] = best[nth];
   indexBuffer[idx] = idxNorm;
   if (params.useFlow != 0.0) {
     flowBuffer[idx] = flow;
