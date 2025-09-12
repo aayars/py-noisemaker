@@ -944,6 +944,7 @@ export function blend(a, b, t) {
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
   const bChannels = b.shape[2];
+<<<<<<< ours
 
   const cpuBlend = (da, db, dt) => {
     const [bh, bw, bc] = b.shape;
@@ -988,6 +989,43 @@ export function blend(a, b, t) {
     );
   }
 
+=======
+  const isWebGPU =
+    ctx &&
+    ctx.device &&
+    typeof GPUBuffer !== 'undefined' &&
+    (a.handle instanceof GPUBuffer ||
+      b.handle instanceof GPUBuffer ||
+      (typeof t !== 'number' && t && t.handle instanceof GPUBuffer));
+  if (isWebGPU && b.ctx === ctx) {
+    return (async () => {
+      const da = await a.read();
+      const db = await b.read();
+      const dt = typeof t === 'number' ? null : await t.read();
+      const [bh, bw, bc] = b.shape;
+      const [th, tw, tc] = dt ? t.shape : [0, 0, 0];
+      const out = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        const by = y % bh;
+        const ty = dt ? y % th : 0;
+        for (let x = 0; x < w; x++) {
+          const bx = x % bw;
+          const tx = dt ? x % tw : 0;
+          const baseA = (y * w + x) * c;
+          const baseB = (by * bw + bx) * bc;
+          const baseT = dt ? (ty * tw + tx) * tc : 0;
+          for (let k = 0; k < c; k++) {
+            const aVal = da[baseA + k];
+            const bVal = db[baseB + (k < bc ? k : 0)];
+            const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
+            out[baseA + k] = Math.fround(aVal * (1 - tVal) + bVal * tVal);
+          }
+        }
+      }
+      return Tensor.fromArray(ctx, out, [h, w, c]);
+    })();
+  }
+>>>>>>> theirs
   if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number' && bChannels === c) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;

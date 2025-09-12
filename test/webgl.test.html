@@ -38,7 +38,7 @@ function testEffect(fn, args = [], time = 0, speed = 0) {
 const base = values(2, [4,4,1], { seed: 1, ctx });
 const down = downsample(base, 2);
 const up = upsample(down, 2);
-const mix = blend(base, base, 0.5);
+const mix = await blend(base, base, 0.5);
 const edge = sobel(base);
 
   const baseCpu = values(2, [4,4,1], { seed: 1, ctx: cpuCtx }).read();

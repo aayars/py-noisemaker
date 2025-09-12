@@ -107,7 +107,7 @@ assert.ok(Array.from(maskLinear.read()).some((v) => v > 0 && v < 1));
 // blend
 const a = values(4, [2, 2, 1], { seed: 1 });
 const b = values(4, [2, 2, 1], { seed: 2 });
-const blended = blend(a, b, 0.5);
+const blended = await blend(a, b, 0.5);
 const expBlend = a.read().map((v, i) => (v + b.read()[i]) / 2);
 arraysClose(blended.read(), expBlend);
 
@@ -115,7 +115,7 @@ arraysClose(blended.read(), expBlend);
 const a3 = values(4, [2, 2, 3], { seed: 1 });
 const b1 = values(4, [2, 2, 1], { seed: 2 });
 const mask1 = values(4, [2, 2, 1], { seed: 3 });
-const blendedBroadcast = blend(a3, b1, mask1);
+const blendedBroadcast = await blend(a3, b1, mask1);
 const da3 = a3.read();
 const db1 = b1.read();
 const dm1 = mask1.read();
@@ -133,10 +133,10 @@ arraysClose(blendedBroadcast.read(), expectedBroadcast);
 // blend with spatial broadcasting
 const baseA = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3]), [2, 2, 1]);
 const rowB = Tensor.fromArray(null, new Float32Array([4, 5]), [1, 2, 1]);
-const blendedRow = blend(baseA, rowB, 0.5);
+const blendedRow = await blend(baseA, rowB, 0.5);
 arraysClose(blendedRow.read(), new Float32Array([2, 3, 3, 4]));
 const colB = Tensor.fromArray(null, new Float32Array([6, 7]), [2, 1, 1]);
-const blendedCol = blend(baseA, colB, 0.5);
+const blendedCol = await blend(baseA, colB, 0.5);
 arraysClose(blendedCol.read(), new Float32Array([3, 3.5, 4.5, 5]));
 
 // GPU blend should handle channel mismatch by falling back to CPU
@@ -150,7 +150,7 @@ const gpuBlendCtx = new Context(gpuCanvas);
 if (!gpuBlendCtx.isCPU) {
   const a3g = values(4, [2, 2, 3], { seed: 1, ctx: gpuBlendCtx });
   const b1g = values(4, [2, 2, 1], { seed: 2, ctx: gpuBlendCtx });
-  const blendGPU = blend(a3g, b1g, 0.5);
+  const blendGPU = await blend(a3g, b1g, 0.5);
   const da = a3g.read();
   const db = b1g.read();
   const expected = new Float32Array(2 * 2 * 3);

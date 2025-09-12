@@ -1347,7 +1347,7 @@ async function voronoiWebGPU(
     const rangeSq = new Float32Array(rData.length);
     for (let i = 0; i < rData.length; i++) rangeSq[i] = rData[i] * rData[i];
     const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [h, w, 1]);
-    outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
+    outTensor = await blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
   } else if (diagramType === VoronoiDiagramType.flow) {
     const fData = await flowTensor.read();
     const out = new Float32Array(h * w);
@@ -1410,7 +1410,7 @@ async function voronoiWebGPU(
   }
 
   if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
-    outTensor = blend(tensor, outTensor, alpha);
+    outTensor = await blend(tensor, outTensor, alpha);
   }
   return outTensor;
 }

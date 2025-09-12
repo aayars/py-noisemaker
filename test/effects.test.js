@@ -528,18 +528,20 @@ const grTensor = Tensor.fromArray(null, grData, [2, 2, 1]);
 setSeed(2);
 const gn = values(Math.max(2, 2), [2, 2, 1], { time: 0, speed: 100 });
 const gnData = gn.read();
-const blended = blend(
-  grTensor,
-  Tensor.fromArray(
-    null,
-    (() => {
-      const arr = new Float32Array(4);
-      for (let i = 0; i < 4; i++) arr[i] = gnData[i];
-      return arr;
-    })(),
-    [2, 2, 1],
-  ),
-  0.25,
+const blended = (
+  await blend(
+    grTensor,
+    Tensor.fromArray(
+      null,
+      (() => {
+        const arr = new Float32Array(4);
+        for (let i = 0; i < 4; i++) arr[i] = gnData[i];
+        return arr;
+      })(),
+      [2, 2, 1],
+    ),
+    0.25,
+  )
 ).read();
 setSeed(2);
 const jsGrain = grain(grTensor, [2, 2, 1], 0, 1, 0.25).read();
