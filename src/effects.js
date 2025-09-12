@@ -1751,26 +1751,45 @@ export function reindex(tensor, shape, time, speed, displacement = 0.5) {
     return new Tensor(ctx, pp.writeTex, shape);
   }
   const src = tensor.read();
-  const lum = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    if (c === 1) {
-      lum[i] = src[i];
-    } else {
-      const base = i * c;
-      const r = src[base];
-      const g = src[base + 1] || 0;
-      const b = src[base + 2] || 0;
-      lum[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  let lumTensor;
+  if (c === 1 || c === 2) {
+    const lum = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      lum[i] = src[i * c];
     }
+    lumTensor = Tensor.fromArray(tensor.ctx, lum, [h, w, 1]);
+  } else {
+    let rgbTensor;
+    if (c === 3) {
+      rgbTensor = clamp01(tensor);
+    } else {
+      const clamped = clamp01(tensor).read();
+      const rgb = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        rgb[i * 3] = clamped[base];
+        rgb[i * 3 + 1] = clamped[base + 1];
+        rgb[i * 3 + 2] = clamped[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
+    }
+    const lab = rgbToOklab(rgbTensor).read();
+    const lum = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) lum[i] = lab[i * 3];
+    lumTensor = Tensor.fromArray(tensor.ctx, lum, [h, w, 1]);
   }
+  lumTensor = normalize(lumTensor);
+  const lum = lumTensor.read();
   const mod = Math.min(h, w);
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       const r = lum[idx];
-      const xo = Math.floor((r * displacement * mod + r) % w);
-      const yo = Math.floor((r * displacement * mod + r) % h);
+      const scale = Math.fround(displacement * mod + 1);
+      const off = Math.fround(r * scale + 1e-6);
+      const xo = Math.floor(Math.fround(off % w));
+      const yo = Math.floor(Math.fround(off % h));
       const srcIdx = (yo * w + xo) * c;
       for (let k = 0; k < c; k++) {
         out[idx * c + k] = src[srcIdx + k];
