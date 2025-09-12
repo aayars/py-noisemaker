@@ -69,6 +69,15 @@ def js_effect(name: str, seed: int) -> np.ndarray:
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
 
 
+def js_rng(fn: str, seed: int, *args) -> list:
+    """Invoke the JavaScript RNG function and return the resulting list."""
+
+    script = Path(__file__).with_name("run_rng.js")
+    cmd = ["node", str(script), fn, str(seed), *map(str, args)]
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
+
+
 def js_voronoi(params: dict) -> np.ndarray:
     """Invoke the JavaScript implementation for Voronoi with arbitrary params."""
 
