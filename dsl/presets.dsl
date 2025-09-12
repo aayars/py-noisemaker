@@ -1885,17 +1885,11 @@
     settings: {
       palette_alpha: 0.5 + random() * 0.5,
       palette_name: random_member(PALETTES),
+      palette_on: random_member([true, true, true, false, false, false, false, false]),
     },
-    post: random_member([
-      [palette(name: settings.palette_name, alpha: settings.palette_alpha)],
-      [palette(name: settings.palette_name, alpha: settings.palette_alpha)],
-      [palette(name: settings.palette_name, alpha: settings.palette_alpha)],
-      [],
-      [],
-      [],
-      [],
-      [],
-    ]),
+    post: settings.palette_on
+      ? [palette(name: settings.palette_name, alpha: settings.palette_alpha)]
+      : [],
   },
 
   "maybe-rotate": {
