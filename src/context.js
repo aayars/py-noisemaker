@@ -188,13 +188,17 @@ export class Context {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
     }
+    const byteLength = array.byteLength;
     const buf = this.device.createBuffer({
-      size: array.byteLength,
+      size: byteLength,
       usage,
       mappedAtCreation: true,
     });
     new array.constructor(buf.getMappedRange()).set(array);
     buf.unmap();
+    // Safari's implementation reports `0` for `buffer.size`, so record the size
+    // explicitly for later validation.
+    buf._size = byteLength;
     return buf;
   }
 
@@ -234,8 +238,13 @@ export class Context {
       throw new Error('WebGPU device not initialized');
     }
     const device = this.device;
-    if (buffer.size < size) {
-      throw new Error(`Buffer too small: ${buffer.size} < ${size}`);
+    // Some browsers (notably Safari) report `0` for `GPUBuffer.size`, and not all
+    // buffers are created via `createGPUBuffer` which records `_size`. When the
+    // actual size can't be determined, assume the caller-provided `size` is
+    // correct rather than throwing spurious errors.
+    const bufSize = buffer.size || buffer._size || size;
+    if (bufSize < size) {
+      throw new Error(`Buffer too small: ${bufSize} < ${size}`);
     }
     // Capture validation errors so callers can fall back to WebGL.
     device.pushErrorScope('validation');

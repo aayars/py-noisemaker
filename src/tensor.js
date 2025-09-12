@@ -41,8 +41,12 @@ export class Tensor {
 
   read() {
     const [h, w, c] = this.shape;
-    if (this.ctx && this.ctx.device) {
-      const [h, w, c] = this.shape;
+    if (
+      this.ctx &&
+      this.ctx.device &&
+      typeof GPUBuffer !== 'undefined' &&
+      this.handle instanceof GPUBuffer
+    ) {
       const size = h * w * c * 4;
       return this.ctx.readGPUBuffer(this.handle, size);
     }

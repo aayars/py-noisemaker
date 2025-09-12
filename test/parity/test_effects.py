@@ -33,6 +33,7 @@ EFFECTS = [
     ("vaseline", effects.vaseline),
     ("shadow", effects.shadow),
     ("outline", effects.outline),
+    ("glowing_edges", effects.glowing_edges),
     ("derivative", effects.derivative),
     ("normalize", effects.normalize),
     ("palette", effects.palette),
@@ -71,6 +72,7 @@ ATOL = {
     "snow": 2e-1,
     "vhs": 3e-2,
     "glitch": 5e-3,
+    "glowing_edges": 5e-6,
 }
 
 

@@ -22,6 +22,7 @@ const EFFECTS = {
   vaseline: effects.vaseline,
   shadow: effects.shadow,
   outline: effects.outline,
+  glowing_edges: effects.glowingEdges,
   derivative: effects.derivative,
   normalize: effects.normalizeEffect,
   palette: effects.palette,

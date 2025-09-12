@@ -487,25 +487,37 @@ export function glowingEdges(
   shape,
   time,
   speed,
-  sobelMetric = DistanceMetric.chebyshev,
+  sobelMetric = DistanceMetric.manhattan,
   alpha = 1,
 ) {
   const [h, w, c] = shape;
   const src = tensor.read();
-  const gray = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    if (c === 1) {
-      gray[i] = src[i];
+  let grayTensor;
+  if (c === 1 || c === 2) {
+    const gray = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) gray[i] = src[i * c];
+    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
+  } else {
+    let rgbTensor;
+    if (c === 3) {
+      rgbTensor = clamp01(tensor);
     } else {
-      const base = i * c;
-      const r = src[base];
-      const g = src[base + 1] || 0;
-      const b = src[base + 2] || 0;
-      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      const rgb = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        rgb[i * 3] = src[base];
+        rgb[i * 3 + 1] = src[base + 1];
+        rgb[i * 3 + 2] = src[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
     }
+    const lab = rgbToOklab(rgbTensor).read();
+    const gray = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) gray[i] = lab[i * 3];
+    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
   }
+  let edges = normalize(grayTensor);
   const levels = randomInt(3, 5);
-  let edges = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
   edges = posterize(edges, [h, w, 1], time, speed, levels);
   const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
   const [bh, bw] = maskShape(ValueMask.conv2d_blur);
@@ -533,13 +545,22 @@ export function glowingEdges(
   const gyData = gy.read();
   const distData = new Float32Array(gxData.length);
   for (let i = 0; i < gxData.length; i++) {
-    distData[i] = distance(
-      Math.abs(gxData[i]),
-      Math.abs(gyData[i]),
-      sobelMetric,
-    );
+    distData[i] = distance(gxData[i], gyData[i], sobelMetric);
   }
   edges = normalize(Tensor.fromArray(tensor.ctx, distData, [h, w, 1]));
+  let sobelData = edges.read();
+  for (let i = 0; i < sobelData.length; i++) {
+    sobelData[i] = Math.abs(sobelData[i] * 2 - 1);
+  }
+  const shifted = new Float32Array(sobelData.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = (x - 1 + w) % w;
+      const sy = (y - 1 + h) % h;
+      shifted[y * w + x] = sobelData[sy * w + sx];
+    }
+  }
+  edges = Tensor.fromArray(tensor.ctx, shifted, [h, w, 1]);
   let eData = edges.read();
   for (let i = 0; i < eData.length; i++) eData[i] = 1 - eData[i];
   const mult = new Float32Array(h * w * c);
@@ -578,7 +599,7 @@ export function glowingEdges(
   return result;
 }
 register("glowingEdges", glowingEdges, {
-  sobelMetric: DistanceMetric.chebyshev,
+  sobelMetric: DistanceMetric.manhattan,
   alpha: 1,
 });
 register("glowing_edges", glowingEdges, {
