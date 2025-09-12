@@ -966,7 +966,6 @@ function voronoiWebGPU(
     (diagramType === VoronoiDiagramType.color_flow && tensor);
   if (
     !supportedType ||
-    nth < 0 ||
     nth >= 64 ||
     ![
       DistanceMetric.euclidean,
@@ -1042,6 +1041,33 @@ function voronoiWebGPU(
 
   if (count === 0) {
     return tensor;
+  }
+  let n = nth;
+  if (n < 0) n += count;
+  if (n < 0) n = 0;
+  if (n >= count) n = count - 1;
+  if (n >= 64) {
+    return voronoiCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      diagramType,
+      nth,
+      distMetric,
+      sdfSides,
+      alpha,
+      withRefract,
+      inverse,
+      refractYFromOffset,
+      pointFreq,
+      pointGenerations,
+      pointDistrib,
+      pointDrift,
+      pointCorners,
+      xy,
+      downsample,
+    );
   }
   const c = tensor ? tensor.shape[2] : 0;
   const needFlow =
@@ -1130,7 +1156,7 @@ function voronoiWebGPU(
     alpha,
     inv,
     distMetric,
-    nth,
+    n,
     sdfSides,
     needFlow ? 1 : 0,
     diagramType === VoronoiDiagramType.color_flow && tensor ? c : 0,
