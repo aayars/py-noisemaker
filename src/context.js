@@ -4,6 +4,20 @@
 
 import { Random, setSeed, getSeed, random } from './rng.js';
 
+// Cache compiled shader programs keyed by vertex/fragment source.
+const PROGRAM_CACHE = new Map();
+
+export function disposePrograms() {
+  for (const { gl, program } of PROGRAM_CACHE.values()) {
+    try {
+      gl.deleteProgram(program);
+    } catch (e) {
+      // ignore errors during context loss
+    }
+  }
+  PROGRAM_CACHE.clear();
+}
+
 export { Random, setSeed, getSeed, random };
 
 export class Context {
@@ -78,6 +92,17 @@ export class Context {
     }
     gl.deleteShader(vs);
     gl.deleteShader(fs);
+    return prog;
+  }
+
+  getProgram(vsSource, fsSource) {
+    const key = `${vsSource}\u0000${fsSource}`;
+    const cached = PROGRAM_CACHE.get(key);
+    if (cached && cached.gl === this.gl) {
+      return cached.program;
+    }
+    const prog = this.createProgram(vsSource, fsSource);
+    PROGRAM_CACHE.set(key, { gl: this.gl, program: prog });
     return prog;
   }
 

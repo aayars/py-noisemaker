@@ -134,7 +134,7 @@ export class Preset {
             ? 'vec4(color.rrr, color.g)'
             : 'vec4(color.rgb, 1.0)';
         const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${colorExpr};\n}`;
-        const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+        const prog = ctx.getProgram(FULLSCREEN_VS, fs);
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
@@ -142,7 +142,6 @@ export class Preset {
         ctx.bindFramebuffer(null, w, h);
         ctx.drawQuad();
         gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.deleteProgram(prog);
       } else if (ctx.canvas.getContext) {
         const data = tensor.read();
         const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });

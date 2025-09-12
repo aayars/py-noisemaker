@@ -332,7 +332,7 @@ void main(){
  }
  outColor=vec4(val);
 }`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(width, height);
     gl.useProgram(prog);
     gl.uniform2f(gl.getUniformLocation(prog, 'u_freq'), freqX, freqY);
@@ -353,7 +353,6 @@ void main(){
     ctx.bindFramebuffer(pp.writeFbo, width, height);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [height, width, channels]);
   }
 
@@ -587,7 +586,7 @@ void main(){
   outColor = mix(mx0, mx1, sy);
  }
 }`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(nw, nh);
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
@@ -599,7 +598,6 @@ void main(){
     ctx.bindFramebuffer(pp.writeFbo, nw, nh);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [nh, nw, nc]);
   }
   const src = tensor.read();
@@ -671,7 +669,7 @@ export function downsample(tensor, factor) {
   if (ctx && !ctx.isCPU && factor === 2) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (gl_FragCoord.xy*2.0 - vec2(1.0)) * u_texel;\n vec4 sum = texture(u_tex, uv) + texture(u_tex, uv + vec2(u_texel.x,0.0)) + texture(u_tex, uv + vec2(0.0,u_texel.y)) + texture(u_tex, uv + u_texel);\n outColor = sum * 0.25;\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(nw, nh);
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
@@ -681,7 +679,6 @@ export function downsample(tensor, factor) {
     ctx.bindFramebuffer(pp.writeFbo, nw, nh);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
   }
   const src = tensor.read();
@@ -824,7 +821,7 @@ export function blend(a, b, t) {
   if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number' && bChannels === c) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(w, h);
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
@@ -837,7 +834,6 @@ export function blend(a, b, t) {
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
   const da = a.read();
@@ -943,7 +939,7 @@ export function sobel(tensor) {
   if (ctx && !ctx.isCPU) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec2 t = u_texel;\n vec4 s00 = texture(u_tex, uv + vec2(-t.x,-t.y));\n vec4 s10 = texture(u_tex, uv + vec2(0.0,-t.y));\n vec4 s20 = texture(u_tex, uv + vec2(t.x,-t.y));\n vec4 s01 = texture(u_tex, uv + vec2(-t.x,0.0));\n vec4 s21 = texture(u_tex, uv + vec2(t.x,0.0));\n vec4 s02 = texture(u_tex, uv + vec2(-t.x,t.y));\n vec4 s12 = texture(u_tex, uv + vec2(0.0,t.y));\n vec4 s22 = texture(u_tex, uv + vec2(t.x,t.y));\n vec4 gx = -s00 + s20 - 2.0*s01 + 2.0*s21 - s02 + s22;\n vec4 gy = -s00 - 2.0*s10 - s20 + s02 + 2.0*s12 + s22;\n outColor = sqrt(gx*gx + gy*gy);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
+    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
     const pp = ctx.pingPong(w, h);
     gl.useProgram(prog);
     gl.activeTexture(gl.TEXTURE0);
@@ -953,7 +949,6 @@ export function sobel(tensor) {
     ctx.bindFramebuffer(pp.writeFbo, w, h);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
   const src = tensor.read();
