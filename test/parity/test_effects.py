@@ -32,6 +32,7 @@ EFFECTS = [
     ("vignette", effects.vignette),
     ("vaseline", effects.vaseline),
     ("shadow", effects.shadow),
+    ("outline", effects.outline),
     ("derivative", effects.derivative),
     ("normalize", effects.normalize),
     ("palette", effects.palette),
@@ -65,6 +66,7 @@ ATOL = {
     "crt": 2.5e-1,
     "lens_distortion": 3e-2,
     "derivative": 5e-5,
+    "outline": 3e-5,
     "snow": 2e-1,
     "vhs": 3e-2,
 }

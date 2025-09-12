@@ -340,8 +340,33 @@ export function sobelOperator(
   speed,
   distMetric = DistanceMetric.euclidean,
 ) {
-  const blurred = blur(tensor, shape, time, speed);
-  let out = sobelValue(blurred);
+  const blurKernel = [
+    [1, 4, 6, 4, 1],
+    [4, 16, 24, 16, 4],
+    [6, 24, 36, 24, 6],
+    [4, 16, 24, 16, 4],
+    [1, 4, 6, 4, 1],
+  ].map(row => row.map(v => v / 36));
+  const blurred = convolution(tensor, blurKernel);
+  const sx = [
+    [1, 0, -1],
+    [2, 0, -2],
+    [1, 0, -1],
+  ];
+  const sy = [
+    [1, 2, 1],
+    [0, 0, 0],
+    [-1, -2, -1],
+  ];
+  const gx = convolution(blurred, sx, { normalize: false });
+  const gy = convolution(blurred, sy, { normalize: false });
+  const gxData = gx.read();
+  const gyData = gy.read();
+  const grad = new Float32Array(gxData.length);
+  for (let i = 0; i < grad.length; i++) {
+    grad[i] = distance(gxData[i], gyData[i], distMetric);
+  }
+  let out = Tensor.fromArray(tensor.ctx, grad, shape);
   out = normalize(out);
   const data = out.read();
   for (let i = 0; i < data.length; i++) {
@@ -400,20 +425,41 @@ export function outline(
 ) {
   const [h, w, c] = shape;
   const src = tensor.read();
-  const valueData = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    if (c === 1) {
-      valueData[i] = src[i];
-    } else {
-      const base = i * c;
-      const r = src[base];
-      const g = src[base + 1] || 0;
-      const b = src[base + 2] || 0;
-      valueData[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  let valuesTensor;
+  if (c === 1) {
+    valuesTensor = tensor;
+  } else if (c === 2) {
+    const data = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      data[i] = src[i * 2];
     }
+    valuesTensor = normalize(
+      Tensor.fromArray(tensor.ctx, data, [h, w, 1]),
+    );
+  } else {
+    let rgbTensor = clamp01(tensor);
+    if (c !== 3) {
+      const clamped = rgbTensor.read();
+      const rgbData = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        rgbData[i * 3] = clamped[base];
+        rgbData[i * 3 + 1] = clamped[base + 1];
+        rgbData[i * 3 + 2] = clamped[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+    }
+    const oklab = rgbToOklab(rgbTensor).read();
+    const l = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      l[i] = oklab[i * 3];
+    }
+    valuesTensor = normalize(
+      Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
+    );
   }
   let edges = sobelOperator(
-    Tensor.fromArray(tensor.ctx, valueData, [h, w, 1]),
+    valuesTensor,
     [h, w, 1],
     time,
     speed,
