@@ -2470,6 +2470,7 @@ function voronoiColorRegions(tensor, shape, time, speed, xPts, yPts) {
     3,
     1.0,
     0.0,
+    false,
     true,
     3,
     1,
