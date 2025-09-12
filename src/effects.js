@@ -779,7 +779,11 @@ export function voronoi(
     return tensor;
   }
   if (downsample) {
-    outTensor = resample(outTensor, originalShape);
+    const splineOrder =
+      diagramType === VoronoiDiagramType.color_regions
+        ? InterpolationType.constant
+        : InterpolationType.bicubic;
+    outTensor = resample(outTensor, originalShape, splineOrder);
   }
   if (withRefract) {
     outTensor = refractEffect(
@@ -2363,53 +2367,26 @@ function centerMaskInternal(
   return blend(center, edges, maskT);
 }
 
-function voronoiColorRegions(tensor, shape, xPts, yPts) {
-  const [h, w, c] = shape;
-  const count = xPts.length;
-  const h2 = Math.max(1, Math.floor(h * 0.5));
-  const w2 = Math.max(1, Math.floor(w * 0.5));
-  const index = new Int32Array(h2 * w2);
-  for (let y = 0; y < h2; y++) {
-    for (let x = 0; x < w2; x++) {
-      const ox = (x + 0.5) * (w / w2) - 0.5;
-      const oy = (y + 0.5) * (h / h2) - 0.5;
-      let best = 0;
-      let bestDist = Infinity;
-      for (let i = 0; i < count; i++) {
-        let dx = Math.abs(ox - xPts[i]);
-        dx = Math.min(dx, w - dx);
-        let dy = Math.abs(oy - yPts[i]);
-        dy = Math.min(dy, h - dy);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = i;
-        }
-      }
-      index[y * w2 + x] = best;
-    }
-  }
-  const upIndex = new Int32Array(h * w);
-  for (let y = 0; y < h; y++) {
-    const sy = Math.floor((y * h2) / h);
-    for (let x = 0; x < w; x++) {
-      const sx = Math.floor((x * w2) / w);
-      upIndex[y * w + x] = index[sy * w2 + sx];
-    }
-  }
-  const src = tensor.read();
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = upIndex[y * w + x];
-      const px = xPts[idx];
-      const py = yPts[idx];
-      const srcIdx = (py * w + px) * c;
-      const dstIdx = (y * w + x) * c;
-      for (let k = 0; k < c; k++) out[dstIdx + k] = src[srcIdx + k];
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+function voronoiColorRegions(tensor, shape, time, speed, xPts, yPts) {
+  return voronoi(
+    tensor,
+    shape,
+    time,
+    speed,
+    VoronoiDiagramType.color_regions,
+    0,
+    DistanceMetric.euclidean,
+    1.0,
+    0.0,
+    true,
+    3,
+    1,
+    PointDistribution.random,
+    0,
+    false,
+    [xPts, yPts, xPts.length],
+    true,
+  );
 }
 
 export function erosionWorms(
@@ -2695,18 +2672,11 @@ export function wormhole(
   const [h, w, c] = shape;
   const src = tensor.read();
   const valuesArr = new Float32Array(h * w);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      if (c === 1) valuesArr[idx] = src[idx];
-      else {
-        const base = idx * c;
-        const r = src[base];
-        const g = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
-    }
+  if (c === 1) {
+    for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
+  } else {
+    const lab = rgbToOklab(tensor).read();
+    for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
   }
   const stride = 1024 * inputStride;
   const xArr = new Int32Array(h * w);
@@ -2741,12 +2711,11 @@ export function wormhole(
   if (max > min) {
     const range = max - min;
     for (let i = 0; i < out.length; i++) {
-      out[i] = Math.sqrt((out[i] - min) / range);
+      out[i] = (out[i] - min) / range;
     }
-  } else {
-    for (let i = 0; i < out.length; i++) {
-      out[i] = Math.sqrt(out[i]);
-    }
+  }
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Math.sqrt(out[i]);
   }
   const outTensor = Tensor.fromArray(tensor.ctx, out, shape);
   return blend(tensor, outTensor, alpha);
@@ -2831,7 +2800,7 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     time,
     speed,
   });
-  let leak = voronoiColorRegions(tensor, shape, xPts, yPts);
+  let leak = voronoiColorRegions(tensor, shape, time, speed, xPts, yPts);
   leak = wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
   leak = bloom(leak, shape, time, speed, 1.0);
   const src = tensor.read();
