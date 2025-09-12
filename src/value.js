@@ -941,6 +941,18 @@ export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.b
 }
 
 export function blend(a, b, t) {
+  if (
+    (a && typeof a.then === 'function') ||
+    (b && typeof b.then === 'function') ||
+    (typeof t !== 'number' && t && typeof t.then === 'function')
+  ) {
+    const promises = [a, b];
+    if (typeof t !== 'number' && t) promises.push(t);
+    return Promise.all(promises).then((arr) =>
+      blend(arr[0], arr[1], typeof t === 'number' ? t : arr[2])
+    );
+  }
+
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
   const bChannels = b.shape[2];
