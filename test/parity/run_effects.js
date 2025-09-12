@@ -26,6 +26,7 @@ const EFFECTS = {
   ripple: effects.ripple,
   wobble: effects.wobble,
   reverb: effects.reverb,
+  tint: effects.tint,
   aberration: effects.aberration,
   light_leak: effects.lightLeak,
   crt: effects.crt,

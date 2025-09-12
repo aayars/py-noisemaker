@@ -37,6 +37,7 @@ EFFECTS = [
     ("ripple", effects.ripple),
     ("wobble", effects.wobble),
     ("reverb", effects.reverb),
+    ("tint", effects.tint),
     ("aberration", effects.aberration),
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
