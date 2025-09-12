@@ -35,9 +35,17 @@ function toCamelKeys(obj = {}) {
   return out;
 }
 
+function debugLog(enabled, ...args) {
+  if (enabled) {
+    console.log('[noisemaker]', ...args);
+  }
+}
+
 export class Preset {
-  constructor(presetName, presets, settings = {}, seed) {
+  constructor(presetName, presets, settings = {}, seed, opts = {}) {
     if (seed !== undefined) setSeed(seed);
+    this.debug = opts.debug || false;
+    debugLog(this.debug, 'Constructing preset', presetName);
     this.name = presetName;
     const prototype = presets[presetName];
     if (!prototype) {
@@ -54,18 +62,25 @@ export class Preset {
       }
     }
     this.layers = prototype.layers || [];
+    debugLog(this.debug, 'layers', this.layers);
     this.flattened_layers = [];
-    _flattenAncestors(presetName, presets, {}, this.flattened_layers);
+    _flattenAncestors(presetName, presets, {}, this.flattened_layers, [], this.debug);
+    debugLog(this.debug, 'flattened layers', this.flattened_layers);
 
     this.settings = new SettingsDict(
-      _flattenAncestorMetadata(this, null, SETTINGS_KEY, {}, presets)
+      _flattenAncestorMetadata(this, null, SETTINGS_KEY, {}, presets, this.debug)
     );
     Object.assign(this.settings, toCamelKeys(settings));
+    debugLog(this.debug, 'settings', this.settings);
 
-    this.generator = _flattenAncestorMetadata(this, this.settings, 'generator', {}, presets);
-    this.octave_effects = _flattenAncestorMetadata(this, this.settings, 'octaves', [], presets);
-    this.post_effects = _flattenAncestorMetadata(this, this.settings, 'post', [], presets);
-    this.final_effects = _flattenAncestorMetadata(this, this.settings, 'final', [], presets);
+    this.generator = _flattenAncestorMetadata(this, this.settings, 'generator', {}, presets, this.debug);
+    this.octave_effects = _flattenAncestorMetadata(this, this.settings, 'octaves', [], presets, this.debug);
+    this.post_effects = _flattenAncestorMetadata(this, this.settings, 'post', [], presets, this.debug);
+    this.final_effects = _flattenAncestorMetadata(this, this.settings, 'final', [], presets, this.debug);
+    debugLog(this.debug, 'generator', this.generator);
+    debugLog(this.debug, 'octaves', this.octave_effects);
+    debugLog(this.debug, 'post', this.post_effects);
+    debugLog(this.debug, 'final', this.final_effects);
 
     try {
       this.settings.raiseIfUnaccessed(UNUSED_OKAY);
@@ -83,10 +98,19 @@ export class Preset {
       time = 0,
       speed = 1,
       withAlpha = false,
-      debug = false,
+      debug = this.debug,
     } = opts;
 
-    if (debug) resetCallCount();
+    if (debug) {
+      debugLog(true, `render start: seed=${seed}`, {
+        width,
+        height,
+        time,
+        speed,
+        withAlpha,
+      });
+      resetCallCount();
+    }
 
     const g = this.generator || {};
     const colorSpace =
@@ -102,6 +126,9 @@ export class Preset {
 
     const merged = { ...this.settings, ...g };
     const freq = merged.freq ?? 1;
+    debugLog(debug, 'render merged settings', merged);
+    debugLog(debug, 'render shape', shape);
+
     let tensor = multires(freq, shape, {
       ...merged,
       color_space: colorSpace,
@@ -114,13 +141,14 @@ export class Preset {
       finalEffects: this.final_effects,
     });
     if (debug) {
+      debugLog(true, 'render complete');
       const effectNames = [
         ...this.octave_effects,
         ...this.post_effects,
         ...this.final_effects,
       ].map((e) => e.__effectName || e.name || '');
       const calls = getCallCount();
-      return { effects: effectNames, rngCalls: calls };
+      debugLog(true, 'effect order', effectNames, 'rng calls', calls);
     }
 
     // Present to canvas if available
@@ -222,66 +250,73 @@ export function render(presetName, seed = 0, opts = {}) {
   const { presets = {}, settings } = opts;
   const preset =
     typeof presetName === 'string'
-      ? new Preset(presetName, presets, settings, seed)
+      ? new Preset(presetName, presets, settings, seed, opts)
       : presetName;
   return preset.render(seed, opts);
 }
 
-function _flattenAncestors(presetName, presets, unique, ancestors, stack = []) {
+function _flattenAncestors(presetName, presets, unique, ancestors, stack = [], debug = false) {
+  debugLog(debug, '_flattenAncestors enter', presetName, 'stack', stack);
   if (stack.includes(presetName)) {
     const cycle = stack.slice(stack.indexOf(presetName)).concat(presetName).join(' -> ');
+    debugLog(debug, 'cycle detected', cycle);
     throw new Error(`Cycle detected in preset layers: ${cycle}`);
   }
   stack.push(presetName);
   const layers = presets[presetName].layers || [];
+  debugLog(debug, 'layers for', presetName, layers);
   for (const ancestorName of layers) {
     if (!(ancestorName in presets)) {
       throw new Error(`"${ancestorName}" was not found among the available presets.`);
     }
     if (unique[ancestorName]) continue;
     if (presets[ancestorName].unique) unique[ancestorName] = true;
-    _flattenAncestors(ancestorName, presets, unique, ancestors, stack);
+    _flattenAncestors(ancestorName, presets, unique, ancestors, stack, debug);
   }
   stack.pop();
   ancestors.push(presetName);
+  debugLog(debug, '_flattenAncestors exit', presetName, 'ancestors', ancestors);
 }
 
-  function _flattenAncestorMetadata(preset, settings, key, defaultVal, presets) {
-    const flattened = Array.isArray(defaultVal) ? [] : {};
-    for (const ancestorName of preset.flattened_layers) {
-      const prototype = presets[ancestorName][key];
-      let ancestor;
-      if (prototype) {
-        if (typeof prototype !== 'function') {
-          throw new Error(
-            `${ancestorName}: Key "${key}" wasn't wrapped in a function. This can cause unexpected results for the given seed.`
-          );
-        }
-        try {
-          ancestor = key === SETTINGS_KEY ? prototype() : prototype(settings);
-        } catch (e) {
-          if (ancestorName === preset.name) throw e;
-          throw new Error(`In ancestor "${ancestorName}": ${e}`);
-        }
-      } else {
-        ancestor = defaultVal;
+function _flattenAncestorMetadata(preset, settings, key, defaultVal, presets, debug = false) {
+  debugLog(debug, '_flattenAncestorMetadata', key);
+  const flattened = Array.isArray(defaultVal) ? [] : {};
+  for (const ancestorName of preset.flattened_layers) {
+    const prototype = presets[ancestorName][key];
+    let ancestor;
+    if (prototype) {
+      if (typeof prototype !== 'function') {
+        throw new Error(
+          `${ancestorName}: Key "${key}" wasn't wrapped in a function. This can cause unexpected results for the given seed.`
+        );
       }
-      if (Array.isArray(defaultVal)) {
-        if (!Array.isArray(ancestor)) {
-          throw new Error(
-            `${ancestorName}: Key "${key}" should be an array, not ${typeof ancestor}.`
-          );
-        }
-        flattened.push(...ancestor);
-      } else {
-        if (typeof ancestor !== 'object') {
-          throw new Error(
-            `${ancestorName}: Key "${key}" should be object, not ${typeof ancestor}.`
-          );
-        }
-        Object.assign(flattened, toCamelKeys(ancestor));
+      try {
+        ancestor = key === SETTINGS_KEY ? prototype() : prototype(settings);
+        debugLog(debug, `metadata from ${ancestorName}`, ancestor);
+      } catch (e) {
+        if (ancestorName === preset.name) throw e;
+        throw new Error(`In ancestor "${ancestorName}": ${e}`);
       }
+    } else {
+      ancestor = defaultVal;
     }
-    return flattened;
+    if (Array.isArray(defaultVal)) {
+      if (!Array.isArray(ancestor)) {
+        throw new Error(
+          `${ancestorName}: Key "${key}" should be an array, not ${typeof ancestor}.`
+        );
+      }
+      flattened.push(...ancestor);
+    } else {
+      if (typeof ancestor !== 'object') {
+        throw new Error(
+          `${ancestorName}: Key "${key}" should be object, not ${typeof ancestor}.`
+        );
+      }
+      Object.assign(flattened, toCamelKeys(ancestor));
+    }
   }
+  debugLog(debug, '_flattenAncestorMetadata result', key, flattened);
+  return flattened;
+}
 

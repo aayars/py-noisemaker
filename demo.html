@@ -227,13 +227,14 @@
     function draw(seed, presetName) {
       setSeed(seed);
       presets = PRESETS(presetName);
-      const presetObj = new Preset(presetName, presets, {}, seed);
+      const presetObj = new Preset(presetName, presets, {}, seed, { debug: true });
       const start = performance.now();
       render(presetObj, seed, {
         width: canvas.width,
         height: canvas.height,
         ctx,
         presets,
+        debug: true,
       });
       const elapsed = performance.now() - start;
       seedEl.textContent = `seed: ${seed}`;
