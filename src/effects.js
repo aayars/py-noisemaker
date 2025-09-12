@@ -605,6 +605,7 @@ export function voronoi(
   diagramType = VoronoiDiagramType.range,
   nth = 0,
   distMetric = DistanceMetric.euclidean,
+  sdfSides = 3,
   alpha = 1,
   withRefract = 0,
   refractYFromOffset = true,
@@ -641,11 +642,17 @@ export function voronoi(
     }
   }
   if (count === 0) return tensor;
-  const distMap = new Float32Array(h * w);
-  const indexMap = new Int32Array(h * w);
   const needFlow =
     diagramType === VoronoiDiagramType.flow ||
     diagramType === VoronoiDiagramType.color_flow;
+  if (needFlow) {
+    for (let i = 0; i < count; i++) {
+      xPts[i] += (random() - 0.5) * 0.0002;
+      yPts[i] += (random() - 0.5) * 0.0002;
+    }
+  }
+  const distMap = new Float32Array(h * w);
+  const indexMap = new Int32Array(h * w);
   const flowMap = needFlow ? new Float32Array(h * w) : null;
   const colorFlowMap =
     needFlow && tensor && diagramType === VoronoiDiagramType.color_flow
@@ -675,8 +682,7 @@ export function voronoi(
   }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let best = Infinity;
-      let bestIdx = 0;
+      const dists = new Float32Array(count);
       let flowSum = 0;
       const colorSum = colorFlowMap ? new Float32Array(c) : null;
       for (let i = 0; i < count; i++) {
@@ -684,11 +690,8 @@ export function voronoi(
         dx = Math.min(dx, w - dx) / w;
         let dy = Math.abs(y - yPts[i]);
         dy = Math.min(dy, h - dy) / h;
-        const d = distance(dx, dy, distMetric);
-        if (d < best) {
-          best = d;
-          bestIdx = i;
-        }
+        const d = distance(dx, dy, distMetric, sdfSides);
+        dists[i] = d;
         if (needFlow) {
           const ld = Math.log(d + 1e-12);
           flowSum += ld;
@@ -700,8 +703,6 @@ export function voronoi(
         }
       }
       const idx = y * w + x;
-      distMap[idx] = best;
-      indexMap[idx] = bestIdx;
       if (needFlow) {
         flowMap[idx] = flowSum;
         if (colorFlowMap) {
@@ -709,45 +710,63 @@ export function voronoi(
             colorFlowMap[idx * c + k] = colorSum[k];
           }
         }
+        distMap[idx] = dists[0];
+        indexMap[idx] = 0;
+      } else {
+        const order = [...Array(count).keys()];
+        order.sort((a, b) => dists[a] - dists[b]);
+        let nthIndex = nth >= 0 ? Math.min(nth, count - 1) : Math.max(0, count + nth);
+        const selIdx = order[nthIndex];
+        const selDist = dists[selIdx];
+        distMap[idx] = selDist;
+        indexMap[idx] = selIdx;
+        if (selDist > maxDist) maxDist = selDist;
       }
-      if (best > maxDist) maxDist = best;
     }
   }
-  const rangeData = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    rangeData[i] = Math.sqrt(distMap[i] / maxDist);
-  }
-  const rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1]);
-  const regionsTensor = (() => {
-    const data = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) data[i] = indexMap[i] / count;
-    return Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
-  })();
+  let rangeTensor = null;
+  let regionsTensor = null;
   let colorRegionsTensor = null;
-  if (regionColorsNeeded) {
-    const out = new Float32Array(h * w * c);
+  let rangeData = null;
+  if (!needFlow) {
+    rangeData = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
-      const region = indexMap[i];
-      for (let k = 0; k < c; k++) {
-        out[i * c + k] = pointColors[region * c + k];
-      }
+      rangeData[i] = Math.sqrt(distMap[i] / maxDist);
     }
-    colorRegionsTensor = Tensor.fromArray(tensor.ctx, out, shape);
+    rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1]);
+    regionsTensor = (() => {
+      const data = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) data[i] = indexMap[i] / count;
+      return Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
+    })();
+    if (regionColorsNeeded) {
+      const out = new Float32Array(h * w * c);
+      for (let i = 0; i < h * w; i++) {
+        const region = indexMap[i];
+        for (let k = 0; k < c; k++) {
+          out[i * c + k] = pointColors[region * c + k];
+        }
+      }
+      colorRegionsTensor = Tensor.fromArray(tensor.ctx, out, shape);
+    }
   }
   let outTensor;
   if (diagramType === VoronoiDiagramType.range) {
     outTensor = rangeTensor;
   } else if (diagramType === VoronoiDiagramType.color_range && tensor) {
-    const out = new Float32Array(h * w * c);
-    for (let i = 0; i < h * w; i++) {
-      const r = rangeData[i];
+    let rTensor = rangeTensor;
+    if (downsample) rTensor = resample(rangeTensor, originalShape);
+    const rData = rTensor.read();
+    const out = new Float32Array(rData.length * c);
+    for (let i = 0; i < rData.length; i++) {
+      const r = rData[i];
       for (let k = 0; k < c; k++) {
         const base = i * c + k;
         const aVal = src[base] * r;
         out[base] = aVal * (1 - r) + r * r;
       }
     }
-    outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+    outTensor = Tensor.fromArray(tensor.ctx, out, [originalShape[0], originalShape[1], c]);
   } else if (diagramType === VoronoiDiagramType.regions) {
     outTensor = regionsTensor;
   } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
@@ -810,6 +829,7 @@ register("voronoi", voronoi, {
   diagramType: VoronoiDiagramType.range,
   nth: 0,
   distMetric: DistanceMetric.euclidean,
+  sdfSides: 3,
   alpha: 1,
   withRefract: 0,
   refractYFromOffset: true,
@@ -844,6 +864,7 @@ export function singularity(
     diagramType,
     0,
     distMetric,
+    1,
     1,
     0,
     true,
@@ -893,6 +914,7 @@ export function lowpoly(
     1,
     distMetric,
     1,
+    1,
     0,
     true,
     1,
@@ -910,6 +932,7 @@ export function lowpoly(
     VoronoiDiagramType.color_regions,
     0,
     distMetric,
+    1,
     1,
     0,
     true,
@@ -954,6 +977,7 @@ export function kaleido(
     VoronoiDiagramType.range,
     0,
     DistanceMetric.euclidean,
+    1,
     1,
     0,
     true,
@@ -2376,6 +2400,7 @@ function voronoiColorRegions(tensor, shape, time, speed, xPts, yPts) {
     VoronoiDiagramType.color_regions,
     0,
     DistanceMetric.euclidean,
+    3,
     1.0,
     0.0,
     true,
