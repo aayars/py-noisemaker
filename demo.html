@@ -243,7 +243,6 @@
         if (ctx.device) {
           console.warn('WebGPU failed, falling back to WebGL', e);
           ctx.device = null;
-          webgpu = false;
           deviceEl.textContent = device;
           start = performance.now();
           render(presetObj, seed, {
