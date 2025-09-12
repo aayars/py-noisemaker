@@ -126,6 +126,16 @@
     function formatPreset(obj, indent = 0, seen = new WeakSet()) {
       const pad = '  '.repeat(indent);
       if (typeof obj === 'function') {
+        if (obj.length === 0) {
+          try {
+            const result = obj();
+            if (result && typeof result === 'object') {
+              return formatPreset(result, indent, seen);
+            }
+          } catch (e) {
+            // fall back to function's source if invocation fails
+          }
+        }
         return obj.toString();
       }
       if (obj && typeof obj === 'object') {
