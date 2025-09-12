@@ -100,7 +100,7 @@
     import { Context } from './src/context.js';
     import { render, Preset } from './src/composer.js';
     import PRESETS from './src/presets.js';
-    import { random } from './src/util.js';
+    import { random, setSeed } from './src/util.js';
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
     const presetSelect = document.getElementById('preset');

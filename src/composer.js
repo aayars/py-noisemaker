@@ -8,7 +8,7 @@ import { shapeFromParams, setSeed } from './util.js';
 import './effects.js';
 import { EFFECTS } from './effectsRegistry.js';
 import { SettingsDict } from './settings.js';
-import { resetCallCount, getCallCount } from './rng.js';
+import { resetCallCount, getCallCount, setSeed as setRngSeed } from './rng.js';
 
 const SETTINGS_KEY = 'settings';
 const ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post', 'final', 'ai', 'unique'];
@@ -218,6 +218,7 @@ export function Effect(effectName, params = {}) {
 }
 
 export function render(presetName, seed = 0, opts = {}) {
+  setRngSeed(seed);
   const { presets = {}, settings } = opts;
   const preset =
     typeof presetName === 'string'
