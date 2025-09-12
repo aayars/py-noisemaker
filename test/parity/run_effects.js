@@ -31,6 +31,7 @@ const EFFECTS = {
   aberration: effects.aberration,
   light_leak: effects.lightLeak,
   crt: effects.crt,
+  grain: effects.grain,
   reindex: effects.reindex,
   voronoi: effects.voronoi,
 };

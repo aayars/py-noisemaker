@@ -42,6 +42,7 @@ EFFECTS = [
     ("aberration", effects.aberration),
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
+    ("grain", effects.grain),
     ("reindex", effects.reindex),
     ("voronoi", value.voronoi),
 ]
