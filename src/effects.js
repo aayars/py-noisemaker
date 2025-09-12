@@ -643,11 +643,42 @@ export function voronoi(
   if (count === 0) return tensor;
   const distMap = new Float32Array(h * w);
   const indexMap = new Int32Array(h * w);
+  const needFlow =
+    diagramType === VoronoiDiagramType.flow ||
+    diagramType === VoronoiDiagramType.color_flow;
+  const flowMap = needFlow ? new Float32Array(h * w) : null;
+  const colorFlowMap =
+    needFlow && tensor && diagramType === VoronoiDiagramType.color_flow
+      ? new Float32Array(h * w * c)
+      : null;
   let maxDist = 0;
+  const regionColorsNeeded =
+    tensor &&
+    (diagramType === VoronoiDiagramType.color_regions ||
+      diagramType === VoronoiDiagramType.range_regions ||
+      diagramType === VoronoiDiagramType.color_flow);
+  const src = tensor ? tensor.read() : null;
+  const srcH = tensor ? tensor.shape[0] : 0;
+  const srcW = tensor ? tensor.shape[1] : 0;
+  const pointColors = regionColorsNeeded
+    ? new Float32Array(count * c)
+    : null;
+  if (regionColorsNeeded) {
+    for (let i = 0; i < count; i++) {
+      const px = Math.floor(yPts[i] * 2) % srcH;
+      const py = Math.floor(xPts[i] * 2) % srcW;
+      const base = (px * srcW + py) * c;
+      for (let k = 0; k < c; k++) {
+        pointColors[i * c + k] = src[base + k];
+      }
+    }
+  }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let best = Infinity;
       let bestIdx = 0;
+      let flowSum = 0;
+      const colorSum = colorFlowMap ? new Float32Array(c) : null;
       for (let i = 0; i < count; i++) {
         let dx = Math.abs(x - xPts[i]);
         dx = Math.min(dx, w - dx) / w;
@@ -658,38 +689,89 @@ export function voronoi(
           best = d;
           bestIdx = i;
         }
+        if (needFlow) {
+          const ld = Math.log(d + 1e-12);
+          flowSum += ld;
+          if (colorSum) {
+            for (let k = 0; k < c; k++) {
+              colorSum[k] += ld * pointColors[i * c + k];
+            }
+          }
+        }
       }
       const idx = y * w + x;
       distMap[idx] = best;
       indexMap[idx] = bestIdx;
+      if (needFlow) {
+        flowMap[idx] = flowSum;
+        if (colorFlowMap) {
+          for (let k = 0; k < c; k++) {
+            colorFlowMap[idx * c + k] = colorSum[k];
+          }
+        }
+      }
       if (best > maxDist) maxDist = best;
     }
   }
-  let outTensor;
-  if (diagramType === VoronoiDiagramType.range) {
-    const data = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      data[i] = Math.sqrt(distMap[i] / maxDist);
-    }
-    outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
-  } else if (diagramType === VoronoiDiagramType.regions) {
+  const rangeData = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    rangeData[i] = Math.sqrt(distMap[i] / maxDist);
+  }
+  const rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1]);
+  const regionsTensor = (() => {
     const data = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) data[i] = indexMap[i] / count;
-    outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
-  } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
-    const src = tensor.read();
-    const colors = new Float32Array(count * c);
-    for (let i = 0; i < count; i++) {
-      const px = Math.floor(yPts[i]) % h;
-      const py = Math.floor(xPts[i]) % w;
-      const base = (px * w + py) * c;
-      for (let k = 0; k < c; k++) colors[i * c + k] = src[base + k];
-    }
+    return Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
+  })();
+  let colorRegionsTensor = null;
+  if (regionColorsNeeded) {
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
       const region = indexMap[i];
       for (let k = 0; k < c; k++) {
-        out[i * c + k] = colors[region * c + k];
+        out[i * c + k] = pointColors[region * c + k];
+      }
+    }
+    colorRegionsTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  }
+  let outTensor;
+  if (diagramType === VoronoiDiagramType.range) {
+    outTensor = rangeTensor;
+  } else if (diagramType === VoronoiDiagramType.color_range && tensor) {
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      const r = rangeData[i];
+      for (let k = 0; k < c; k++) {
+        const base = i * c + k;
+        const aVal = src[base] * r;
+        out[base] = aVal * (1 - r) + r * r;
+      }
+    }
+    outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+  } else if (diagramType === VoronoiDiagramType.regions) {
+    outTensor = regionsTensor;
+  } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
+    outTensor = colorRegionsTensor;
+  } else if (diagramType === VoronoiDiagramType.range_regions && tensor) {
+    const rangeSq = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) rangeSq[i] = rangeData[i] * rangeData[i];
+    const rangeSqTensor = Tensor.fromArray(tensor.ctx, rangeSq, [h, w, 1]);
+    outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
+  } else if (diagramType === VoronoiDiagramType.flow) {
+    const out = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      let v = flowMap[i] / count;
+      v = Math.min(10, Math.max(-10, v));
+      out[i] = (v + 1.75) / 1.45;
+    }
+    outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, out, [h, w, 1]);
+  } else if (diagramType === VoronoiDiagramType.color_flow && tensor) {
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      for (let k = 0; k < c; k++) {
+        let v = colorFlowMap[i * c + k] / count;
+        v = Math.min(10, Math.max(-10, v));
+        out[i * c + k] = (v + 1.75) / 1.45;
       }
     }
     outTensor = Tensor.fromArray(tensor.ctx, out, shape);
