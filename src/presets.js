@@ -81,66 +81,60 @@ let _PRESETS;
         return out;
       };
     }
-    if (Array.isArray(p.octaves)) {
-      const o = p.octaves;
-      p.octaves = (settings) =>
-        o.map((e) => {
-          if (typeof e === 'function') {
-            return e(settings);
-          }
-          if (e && typeof e === 'object' && e.__effectName) {
-            const params = {};
-            if (e.__paramNames) {
-              for (const k of e.__paramNames) {
-                const v = e.__params[k];
-                params[k] = typeof v === 'function' ? v(settings) : v;
-              }
-            }
-            return Effect(e.__effectName, params);
-          }
+      const mapEffect = (e, settings) => {
+        while (
+          typeof e === 'function' &&
+          !e.__effectName &&
+          !e.post_effects &&
+          !e.final_effects
+        ) {
+          e = e(settings);
+        }
+        if (typeof e === 'function') {
           return e;
-        });
-    }
-    if (Array.isArray(p.post)) {
-      const post = p.post;
-      p.post = (settings) =>
-        post.map((e) => {
-          if (typeof e === 'function') {
-            return e(settings);
-          }
-          if (e && typeof e === 'object' && e.__effectName) {
-            const params = {};
-            if (e.__paramNames) {
-              for (const k of e.__paramNames) {
-                const v = e.__params[k];
-                params[k] = typeof v === 'function' ? v(settings) : v;
-              }
+        }
+        if (e && typeof e === 'object' && e.__effectName) {
+          const params = {};
+          if (e.__paramNames) {
+            for (const k of e.__paramNames) {
+              const v = e.__params[k];
+              params[k] = typeof v === 'function' ? v(settings) : v;
             }
-            return Effect(e.__effectName, params);
           }
-          return e;
-        });
-    }
-    if (Array.isArray(p.final)) {
-      const fin = p.final;
-      p.final = (settings) =>
-        fin.map((e) => {
-          if (typeof e === 'function') {
-            return e(settings);
-          }
-          if (e && typeof e === 'object' && e.__effectName) {
-            const params = {};
-            if (e.__paramNames) {
-              for (const k of e.__paramNames) {
-                const v = e.__params[k];
-                params[k] = typeof v === 'function' ? v(settings) : v;
-              }
-            }
-            return Effect(e.__effectName, params);
-          }
-          return e;
-        });
-    }
+          return Effect(e.__effectName, params);
+        }
+        return e;
+      };
+      if (Array.isArray(p.octaves)) {
+        const o = p.octaves;
+        p.octaves = (settings) => o.map((e) => mapEffect(e, settings));
+      } else if (typeof p.octaves === 'function') {
+        const ofn = p.octaves;
+        p.octaves = (settings) => {
+          const arr = ofn(settings);
+          return Array.isArray(arr) ? arr.map((e) => mapEffect(e, settings)) : arr;
+        };
+      }
+      if (Array.isArray(p.post)) {
+        const post = p.post;
+        p.post = (settings) => post.map((e) => mapEffect(e, settings));
+      } else if (typeof p.post === 'function') {
+        const pfn = p.post;
+        p.post = (settings) => {
+          const arr = pfn(settings);
+          return Array.isArray(arr) ? arr.map((e) => mapEffect(e, settings)) : arr;
+        };
+      }
+      if (Array.isArray(p.final)) {
+        const fin = p.final;
+        p.final = (settings) => fin.map((e) => mapEffect(e, settings));
+      } else if (typeof p.final === 'function') {
+        const ffn = p.final;
+        p.final = (settings) => {
+          const arr = ffn(settings);
+          return Array.isArray(arr) ? arr.map((e) => mapEffect(e, settings)) : arr;
+        };
+      }
     _PRESETS[name] = p;
   }
   setSeed(seed);

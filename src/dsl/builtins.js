@@ -1,4 +1,5 @@
 import * as constants from '../constants.js';
+import { PALETTES as _PALETTES } from '../palettes.js';
 import {
   coin_flip as _coin_flip,
   enum_range as _enum_range,
@@ -101,7 +102,7 @@ export function preset(...args) {
     for (const [k, v] of Object.entries(settings)) {
       resolved[k] = typeof v === 'function' ? v(parentSettings) : v;
     }
-    return new _Preset(name, PRESETS(), resolved);
+    return new _Preset(name, _PRESETS(), resolved);
   };
 }
 
@@ -130,7 +131,7 @@ export const operations = Object.freeze({
   squareMasks: _squareMasks,
 });
 
-export const enums = constants;
+export const enums = { ...constants, PALETTES: _PALETTES };
 
 // Map enum/object method names used in the DSL to functions exposed in
 // `operations`.  This allows expressions like `DistanceMetric.absolute_members()`

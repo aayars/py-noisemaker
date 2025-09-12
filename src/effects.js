@@ -2183,6 +2183,11 @@ register("valueRefract", valueRefract, {
   distrib: ValueDistribution.center_circle,
   displacement: 0.125,
 });
+register("value_refract", valueRefract, {
+  freq: 4,
+  distrib: ValueDistribution.center_circle,
+  displacement: 0.125,
+});
 
 function toValueMap(t) {
   const [h, w, c] = t.shape;
@@ -3018,6 +3023,7 @@ export function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register("adjustBrightness", adjustBrightness, { amount: 0.125 });
+register("adjust_brightness", adjustBrightness, { amount: 0.125 });
 
 export const adjust_brightness = adjustBrightness;
 
@@ -3068,6 +3074,7 @@ export function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
   return Tensor.fromArray(ctx, out, shape);
 }
 register("adjustContrast", adjustContrast, { amount: 1.25 });
+register("adjust_contrast", adjustContrast, { amount: 1.25 });
 
 export const adjust_contrast = adjustContrast;
 
@@ -3077,6 +3084,7 @@ export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
   return adjustHue(tensor, amount);
 }
 register("adjustHue", adjustHueEffect, { amount: 0.25 });
+register("adjust_hue", adjustHueEffect, { amount: 0.25 });
 
 export const adjust_hue = adjustHueEffect;
 
