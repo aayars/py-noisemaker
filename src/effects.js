@@ -1112,11 +1112,18 @@ function voronoiWebGPU(
     usage:
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  const flowBuf = ctx.device.createBuffer({
-    size: h * w * 4,
-    usage:
-      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
+  const flowBuf = needFlow
+    ? ctx.device.createBuffer({
+        size: h * w * 4,
+        usage:
+          GPUBufferUsage.STORAGE |
+          GPUBufferUsage.COPY_SRC |
+          GPUBufferUsage.COPY_DST,
+      })
+    : ctx.device.createBuffer({
+        size: 4,
+        usage: GPUBufferUsage.STORAGE,
+      });
   const pointColorBuf = regionColorsNeeded
     ? ctx.createGPUBuffer(pointColors, GPUBufferUsage.STORAGE)
     : ctx.device.createBuffer({
