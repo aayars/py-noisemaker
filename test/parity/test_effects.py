@@ -44,6 +44,7 @@ EFFECTS = [
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
     ("grain", effects.grain),
+    ("snow", effects.snow),
     ("reindex", effects.reindex),
     ("voronoi", value.voronoi),
 ]

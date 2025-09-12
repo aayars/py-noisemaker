@@ -32,6 +32,7 @@ const EFFECTS = {
   light_leak: effects.lightLeak,
   crt: effects.crt,
   grain: effects.grain,
+  snow: effects.snow,
   reindex: effects.reindex,
   voronoi: effects.voronoi,
   rotate: (tensor, shape, time, speed) => effects.rotate(tensor, shape, time, speed),
