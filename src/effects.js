@@ -646,10 +646,14 @@ export function voronoi(
   const needFlow =
     diagramType === VoronoiDiagramType.flow ||
     diagramType === VoronoiDiagramType.color_flow;
+  const isTriangular =
+    distMetric === DistanceMetric.triangular ||
+    distMetric === DistanceMetric.hexagram ||
+    distMetric === DistanceMetric.sdf;
   if (needFlow) {
     for (let i = 0; i < count; i++) {
-      xPts[i] += (random() - 0.5) * 0.0002;
-      yPts[i] += (random() - 0.5) * 0.0002;
+      xPts[i] += randomNormal(0, 0.0001);
+      yPts[i] += randomNormal(0, 0.0001);
     }
   }
   const distMap = new Float32Array(h * w);
@@ -686,10 +690,6 @@ export function voronoi(
       const dists = new Float32Array(count);
       let flowSum = 0;
       const colorSum = colorFlowMap ? new Float32Array(c) : null;
-      const isTriangular =
-        distMetric === DistanceMetric.triangular ||
-        distMetric === DistanceMetric.hexagram ||
-        distMetric === DistanceMetric.sdf;
       const ySign = inverse ? -1 : 1;
       for (let i = 0; i < count; i++) {
         let dx, dy;
@@ -705,7 +705,7 @@ export function voronoi(
         const d = distance(dx, dy, distMetric, sdfSides);
         dists[i] = d;
         if (needFlow) {
-          const ld = Math.log(d + 1e-12);
+          const ld = Math.max(-10, Math.min(10, Math.log(d + 1e-12)));
           flowSum += ld;
           if (colorSum) {
             for (let k = 0; k < c; k++) {
@@ -767,6 +767,12 @@ export function voronoi(
       colorRegionsTensor = Tensor.fromArray(tensor.ctx, out, shape);
     }
   }
+  const xOff = isTriangular ? 0 : Math.floor(w / 2);
+  const yOff = isTriangular ? 0 : Math.floor(h / 2);
+  if (rangeTensor) rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
+  if (regionsTensor) regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
+  if (colorRegionsTensor)
+    colorRegionsTensor = offsetTensor(colorRegionsTensor, xOff, yOff);
   let outTensor;
   if (diagramType === VoronoiDiagramType.range) {
     outTensor = rangeTensor;
@@ -797,7 +803,6 @@ export function voronoi(
     const out = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
       let v = flowMap[i] / count;
-      v = Math.min(10, Math.max(-10, v));
       out[i] = (v + 1.75) / 1.45;
     }
     outTensor = Tensor.fromArray(tensor ? tensor.ctx : null, out, [h, w, 1]);
@@ -806,13 +811,18 @@ export function voronoi(
     for (let i = 0; i < h * w; i++) {
       for (let k = 0; k < c; k++) {
         let v = colorFlowMap[i * c + k] / count;
-        v = Math.min(10, Math.max(-10, v));
-        out[i * c + k] = (v + 1.75) / 1.45;
+        out[i * c + k] = v;
       }
     }
     outTensor = Tensor.fromArray(tensor.ctx, out, shape);
   } else {
     return tensor;
+  }
+  if (
+    diagramType === VoronoiDiagramType.flow ||
+    diagramType === VoronoiDiagramType.color_flow
+  ) {
+    outTensor = offsetTensor(outTensor, xOff, yOff);
   }
   if (downsample) {
     const splineOrder =
