@@ -53,7 +53,45 @@ function evalNode(node, ctx) {
     case 'BinaryExpr': {
       const l = evalNode(node.left, ctx);
       const r = evalNode(node.right, ctx);
-      switch (node.operator) {
+      const op = node.operator;
+      if (hasFunction(l) || hasFunction(r)) {
+        return (settings) => {
+          const L = resolveValue(l, settings);
+          const R = resolveValue(r, settings);
+          switch (op) {
+            case '+':
+              if (Array.isArray(L) && Array.isArray(R)) return L.concat(R);
+              if (Array.isArray(L) && typeof R === 'number') return L.map((n) => n + R);
+              if (typeof L === 'number' && Array.isArray(R)) return R.map((n) => L + n);
+              return L + R;
+            case '-':
+              if (Array.isArray(L) && Array.isArray(R)) return L.map((n, i) => n - R[i]);
+              if (Array.isArray(L) && typeof R === 'number') return L.map((n) => n - R);
+              if (typeof L === 'number' && Array.isArray(R)) return R.map((n) => L - n);
+              return L - R;
+            case '*':
+              if (Array.isArray(L) && Array.isArray(R)) return L.map((n, i) => n * R[i]);
+              if (Array.isArray(L) && typeof R === 'number') {
+                const out = [];
+                for (let i = 0; i < R; i++) out.push(...L);
+                return out;
+              }
+              if (typeof L === 'number' && Array.isArray(R)) {
+                const out = [];
+                for (let i = 0; i < L; i++) out.push(...R);
+                return out;
+              }
+              return L * R;
+            case '/':
+              if (Array.isArray(L) && typeof R === 'number') return L.map((n) => n / R);
+              if (typeof L === 'number' && Array.isArray(R)) return R.map((n) => L / n);
+              return L / R;
+            default:
+              throw new Error(`Unknown operator ${op}`);
+          }
+        };
+      }
+      switch (op) {
         case '+':
           if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
           if (Array.isArray(l) && typeof r === 'number') return l.map((n) => n + r);
@@ -82,7 +120,7 @@ function evalNode(node, ctx) {
           if (typeof l === 'number' && Array.isArray(r)) return r.map((n) => l / n);
           return l / r;
         default:
-          throw new Error(`Unknown operator ${node.operator}`);
+          throw new Error(`Unknown operator ${op}`);
       }
     }
     case 'TernaryExpr':
@@ -136,7 +174,7 @@ function evalCall(node, ctx) {
     const name = callee.name;
     const fn = ctx.operations[name];
     if (typeof fn === 'function') {
-      if (hasFunction(args) || hasFunction(input)) {
+      if (fn.__thunk || hasFunction(args) || hasFunction(input)) {
         return (settings) => fn(...resolveValue(args, settings));
       }
       return fn(...args);
@@ -151,7 +189,7 @@ function evalCall(node, ctx) {
   }
   const fn = evalNode(callee, ctx);
   if (typeof fn === 'function') {
-    if (hasFunction(args) || hasFunction(input)) {
+    if (fn.__thunk || hasFunction(args) || hasFunction(input)) {
       return (settings) => fn(...resolveValue(args, settings));
     }
     return fn(...args);

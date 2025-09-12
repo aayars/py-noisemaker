@@ -23,6 +23,19 @@ const UNUSED_OKAY = [
   'voronoiInverse',
 ];
 
+function resolveValue(v, settings) {
+  if (typeof v === 'function') return v(settings);
+  if (Array.isArray(v)) return v.map((x) => resolveValue(x, settings));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, val] of Object.entries(v)) {
+      out[k] = resolveValue(val, settings);
+    }
+    return out;
+  }
+  return v;
+}
+
 function toCamel(str) {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
@@ -310,6 +323,7 @@ function _flattenAncestorMetadata(preset, settings, key, defaultVal, presets, de
       }
       try {
         ancestor = key === SETTINGS_KEY ? prototype() : prototype(settings);
+        ancestor = key === SETTINGS_KEY ? resolveValue(ancestor, settings) : ancestor;
         debugLog(debug, `metadata from ${ancestorName}`, ancestor);
       } catch (e) {
         if (ancestorName === preset.name) throw e;

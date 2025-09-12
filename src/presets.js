@@ -19,7 +19,18 @@ export function random_member(...collections) {
   const out = [];
   for (const c of collections) {
     if (Array.isArray(c)) {
-      out.push(...c.slice().sort());
+      const arr = c.slice();
+      arr.sort((a, b) => {
+        const ta = typeof a;
+        const tb = typeof b;
+        if (ta === 'number' && tb === 'number') {
+          return a - b;
+        }
+        const sa = String(a);
+        const sb = String(b);
+        return sa < sb ? -1 : sa > sb ? 1 : 0;
+      });
+      out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
       const keys = Object.keys(c).sort();
       const values = keys.map((k) => c[k]);
@@ -33,7 +44,16 @@ export function random_member(...collections) {
       }
     } else if (c && typeof c[Symbol.iterator] === 'function') {
       const arr = Array.from(c);
-      arr.sort();
+      arr.sort((a, b) => {
+        const ta = typeof a;
+        const tb = typeof b;
+        if (ta === 'number' && tb === 'number') {
+          return a - b;
+        }
+        const sa = String(a);
+        const sb = String(b);
+        return sa < sb ? -1 : sa > sb ? 1 : 0;
+      });
       out.push(...arr);
     } else {
       throw new Error('random_member(arg) should be iterable');
