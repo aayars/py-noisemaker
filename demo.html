@@ -116,6 +116,35 @@
       (name) => !name.startsWith('maybe-')
     );
 
+    // Load the DSL source so that we can display the original recipe
+    // text rather than the evaluated JavaScript values.
+    const dslSource = await fetch('./dsl/presets.dsl').then((r) => r.text());
+
+    function extractPresetSource(source, name) {
+      const escName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`"${escName}"\\s*:\\s*{`);
+      const match = pattern.exec(source);
+      if (!match) {
+        return '';
+      }
+      let idx = match.index + match[0].length;
+      let depth = 1;
+      while (idx < source.length && depth > 0) {
+        const ch = source[idx++];
+        if (ch === '{') {
+          depth++;
+        } else if (ch === '}') {
+          depth--;
+        }
+      }
+      return source.slice(match.index, idx);
+    }
+
+    const presetSource = {};
+    for (const name of presetNames) {
+      presetSource[name] = extractPresetSource(dslSource, name);
+    }
+
     presetNames.sort().forEach((name) => {
       const option = document.createElement('option');
       option.value = name;
@@ -212,7 +241,7 @@
       const elapsed = performance.now() - start;
       seedEl.textContent = `seed: ${seed}`;
       renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
-      presetFormulaEl.textContent = formatPreset(presets[presetName]);
+      presetFormulaEl.textContent = presetSource[presetName] || '';
       presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
     }
 
