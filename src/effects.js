@@ -581,6 +581,10 @@ register("glowingEdges", glowingEdges, {
   sobelMetric: DistanceMetric.chebyshev,
   alpha: 1,
 });
+register("glowing_edges", glowingEdges, {
+  sobelMetric: DistanceMetric.chebyshev,
+  alpha: 1,
+});
 
 export function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
