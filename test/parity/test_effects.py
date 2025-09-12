@@ -40,6 +40,7 @@ EFFECTS = [
     ("ripple", effects.ripple),
     ("rotate", effects.rotate),
     ("wobble", effects.wobble),
+    ("glitch", effects.glitch),
     ("reverb", effects.reverb),
     ("tint", effects.tint),
     ("aberration", effects.aberration),
@@ -69,6 +70,7 @@ ATOL = {
     "outline": 3e-5,
     "snow": 2e-1,
     "vhs": 3e-2,
+    "glitch": 5e-3,
 }
 
 

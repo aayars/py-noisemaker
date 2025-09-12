@@ -28,6 +28,7 @@ const EFFECTS = {
   warp: effects.warp,
   ripple: effects.ripple,
   wobble: effects.wobble,
+  glitch: effects.glitch,
   reverb: effects.reverb,
   tint: effects.tint,
   aberration: effects.aberration,

@@ -1636,47 +1636,31 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
 
 @effect()
 def glitch(tensor, shape, time=0.0, speed=1.0):
-    """
-    Apply a glitch effect.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :return: Tensor
-    """
+    """Apply a glitch effect that shifts color channels based on noise."""
 
     height, width, channels = shape
 
-    tensor = value.normalize(tensor)
+    # Base noise determines per-pixel channel displacement
+    base = value.values(4, [height, width, 1], time=time, speed=speed * 50)
+    shift = tf.cast(tf.floor(base[:, :, 0] * 4), tf.int32)
 
-    base = value.simple_multires(2, shape, time=time, speed=speed, 
-                                 octaves=rng.random_int(2, 5), spline_order=0)
+    x_coords = tf.tile(tf.expand_dims(tf.range(width, dtype=tf.int32), 0), [height, 1])
+    y_coords = tf.tile(tf.expand_dims(tf.range(height, dtype=tf.int32), 1), [1, width])
 
-    base = value.refract(base, shape, rng.random())
+    out_channels = []
+    for k in range(channels):
+        sx = x_coords
+        if k == 0:
+            sx = (x_coords + shift) % width
+        elif k == 2:
+            sx = (x_coords - shift) % width
 
-    stylized = value.normalize(color_map(base, shape, clut=tensor, horizontal=True, displacement=2.5))
+        indices = tf.stack([y_coords, sx], 2)
+        flat = tf.reshape(indices, (-1, 2))
+        gathered = tf.gather_nd(tensor[:, :, k], flat)
+        out_channels.append(tf.reshape(gathered, (height, width)))
 
-    jpegged = color_map(base, shape, clut=stylized, horizontal=True, displacement=2.5)
-
-    if channels in (1, 3):
-        jpegged = jpeg_decimate(jpegged, shape)
-
-    # Offset a single color channel
-    separated = [stylized[:, :, i] for i in range(channels)]
-    x_index = (value.row_index(shape) + rng.random_int(1, width)) % width
-    index = tf.cast(tf.stack([value.column_index(shape), x_index], 2), tf.int32)
-
-    channel = rng.random_int(0, channels - 1)
-    separated[channel] = value.normalize(tf.gather_nd(separated[channel], index) % rng.random())
-
-    stylized = tf.stack(separated, 2)
-
-    combined = value.blend(tf.multiply(stylized, 1.0), jpegged, base)
-    combined = value.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
-    combined = value.blend(combined, pixel_sort(combined, shape), 1.0 - base)
-
-    combined = tf.image.adjust_contrast(combined, 1.75)
-
-    return combined
+    return tf.stack(out_channels, 2)
 
 
 @effect()
