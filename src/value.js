@@ -753,12 +753,17 @@ export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.b
   const flowData = flow.read();
   const out = new Float32Array(h * w * c);
 
+  const wrap = (v, max) => {
+    v %= max;
+    return v < 0 ? v + max : v;
+  };
+
   function sample(x, y, k) {
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
+    x = wrap(x, w);
+    y = wrap(y, h);
     if (splineOrder === InterpolationType.constant) {
-      const ix = Math.round(x);
-      const iy = Math.round(y);
+      const ix = wrap(Math.round(x), w);
+      const iy = wrap(Math.round(y), h);
       return src[(iy * w + ix) * c + k];
     }
 
@@ -769,8 +774,8 @@ export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.b
 
     if (splineOrder === InterpolationType.bicubic) {
       const get = (ix, iy) => {
-        ix = Math.max(0, Math.min(w - 1, ix));
-        iy = Math.max(0, Math.min(h - 1, iy));
+        ix = wrap(ix, w);
+        iy = wrap(iy, h);
         return src[(iy * w + ix) * c + k];
       };
       const col = new Array(4);
@@ -784,8 +789,8 @@ export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.b
       return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
     }
 
-    const x1 = Math.min(w - 1, x0 + 1);
-    const y1 = Math.min(h - 1, y0 + 1);
+    const x1 = wrap(x0 + 1, w);
+    const y1 = wrap(y0 + 1, h);
     const interp = splineOrder === InterpolationType.cosine
       ? (t) => 0.5 - Math.cos(t * Math.PI) * 0.5
       : (t) => t;

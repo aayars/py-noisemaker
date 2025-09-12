@@ -60,29 +60,17 @@ export function warp(
       Math.floor(baseFreq[1] * 0.5 * mult),
     ];
     if (f[0] >= shape[0] || f[1] >= shape[1]) break;
-    const flowX = values(f, [shape[0], shape[1], 1], {
-      seed: 100 + octave,
-      time,
-    });
-    const flowY = values(f, [shape[0], shape[1], 1], {
-      seed: 200 + octave,
-      time,
-    });
-    const dx = flowX.read();
-    const dy = flowY.read();
-    const flowData = new Float32Array(shape[0] * shape[1] * 2);
-    for (let i = 0; i < shape[0] * shape[1]; i++) {
-      const fx = signedRange ? dx[i] * 2 - 1 : dx[i];
-      const fy = signedRange ? dy[i] * 2 - 1 : dy[i];
-      flowData[i * 2] = fx;
-      flowData[i * 2 + 1] = fy;
-    }
-    const flow = Tensor.fromArray(tensor.ctx, flowData, [
-      shape[0],
-      shape[1],
-      2,
-    ]);
-    out = warpOp(out, flow, displacement / mult, splineOrder);
+    const opts = { time, speed, splineOrder };
+    const flowX = values(f, [shape[0], shape[1], 1], { ...opts, seed: 100 + octave });
+    const flowY = values(f, [shape[0], shape[1], 1], { ...opts, seed: 200 + octave });
+    out = refractOp(
+      out,
+      flowX,
+      flowY,
+      displacement / mult,
+      InterpolationType.linear,
+      signedRange,
+    );
   }
   return out;
 }
