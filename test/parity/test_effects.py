@@ -36,6 +36,7 @@ EFFECTS = [
     ("ripple", effects.ripple),
     ("wobble", effects.wobble),
     ("reverb", effects.reverb),
+    ("aberration", effects.aberration),
     ("light_leak", effects.light_leak),
     ("crt", effects.crt),
     ("reindex", effects.reindex),
@@ -47,6 +48,7 @@ ATOL = {
     "shadow": 3e-4,
     "warp": 7e-3,
     "reindex": 5e-3,
+    "aberration": 3e-2,
 }
 
 
