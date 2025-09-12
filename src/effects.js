@@ -940,16 +940,20 @@ function voronoiWebGPU(
     );
   }
 
-  // Currently only a very small subset of the full CPU voronoi implementation
-  // is accelerated on the GPU.  For unsupported modes fall back to the CPU
+  // Currently only a subset of the full CPU voronoi implementation is
+  // accelerated on the GPU.  For unsupported modes fall back to the CPU
   // version to ensure feature parity.
   if (
     diagramType !== VoronoiDiagramType.range ||
     nth !== 0 ||
-    distMetric !== DistanceMetric.euclidean ||
+    ![
+      DistanceMetric.euclidean,
+      DistanceMetric.manhattan,
+      DistanceMetric.chebyshev,
+      DistanceMetric.octagram,
+    ].includes(distMetric) ||
     sdfSides !== 3 ||
     withRefract !== 0 ||
-    xy ||
     shape[2] !== 1
   ) {
     return voronoiCPU(
@@ -1020,7 +1024,7 @@ function voronoiWebGPU(
     tensor ? 1 : 0,
     alpha,
     inverse ? 1 : 0,
-    0,
+    distMetric,
     0,
   ]);
   const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
