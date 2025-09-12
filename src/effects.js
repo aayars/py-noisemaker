@@ -940,31 +940,105 @@ function voronoiWebGPU(
     );
   }
 
-  // Placeholder: dispatch compute shader when available
-  // In environments without WebGPU this falls back to the CPU implementation.
-  // A full implementation would pack inputs into storage buffers and use
-  // ctx.runCompute() with VORONOI_WGSL.
-  return voronoiCPU(
-    tensor,
-    shape,
-    time,
-    speed,
-    diagramType,
-    nth,
-    distMetric,
-    sdfSides,
-    alpha,
-    withRefract,
-    inverse,
-    refractYFromOffset,
-    pointFreq,
-    pointGenerations,
-    pointDistrib,
-    pointDrift,
-    pointCorners,
-    xy,
-    downsample,
-  );
+  // Currently only a very small subset of the full CPU voronoi implementation
+  // is accelerated on the GPU.  For unsupported modes fall back to the CPU
+  // version to ensure feature parity.
+  if (
+    diagramType !== VoronoiDiagramType.range ||
+    nth !== 0 ||
+    distMetric !== DistanceMetric.euclidean ||
+    sdfSides !== 3 ||
+    withRefract !== 0 ||
+    inverse ||
+    xy ||
+    shape[2] !== 1
+  ) {
+    return voronoiCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      diagramType,
+      nth,
+      distMetric,
+      sdfSides,
+      alpha,
+      withRefract,
+      inverse,
+      refractYFromOffset,
+      pointFreq,
+      pointGenerations,
+      pointDistrib,
+      pointDrift,
+      pointCorners,
+      xy,
+      downsample,
+    );
+  }
+
+  const [h, w] = shape;
+
+  // Generate points on the CPU; the compute shader only handles the distance
+  // calculation.
+  let xPts, yPts, count;
+  if (!xy) {
+    [xPts, yPts] = pointCloud(pointFreq, {
+      distrib: pointDistrib,
+      shape: [h, w, 1],
+      corners: pointCorners,
+      generations: pointGenerations,
+      drift: pointDrift,
+      time,
+      speed,
+    });
+    count = xPts.length;
+  } else {
+    [xPts, yPts, count] = xy;
+  }
+
+  if (count === 0) {
+    return tensor;
+  }
+
+  const pointsArr = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    pointsArr[i * 2] = xPts[i];
+    pointsArr[i * 2 + 1] = yPts[i];
+  }
+  const pointsBuf = ctx.createGPUBuffer(pointsArr, GPUBufferUsage.STORAGE);
+
+  const outBuf = ctx.device.createBuffer({
+    size: h * w * 4,
+    usage:
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  });
+
+  const params = new Uint32Array([w, h, count, diagramType, 1]);
+  const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
+
+  const module = ctx.device.createShaderModule({ code: VORONOI_WGSL });
+  const pipeline = ctx.device.createComputePipeline({
+    compute: { module, entryPoint: "main" },
+  });
+  const bindGroup = ctx.device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: pointsBuf } },
+      { binding: 1, resource: { buffer: outBuf } },
+      { binding: 2, resource: { buffer: paramsBuf } },
+    ],
+  });
+  const encoder = ctx.device.createCommandEncoder();
+  const pass = encoder.beginComputePass();
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8), 1);
+  pass.end();
+  ctx.queue.submit([encoder.finish()]);
+
+  // Return a tensor wrapping the GPU buffer.  The caller can read() the buffer
+  // asynchronously when needed.
+  return new Tensor(ctx, outBuf, [h, w, 1]);
 }
 
 export function voronoi(
