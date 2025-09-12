@@ -1663,10 +1663,21 @@ register("scanline_error", scanlineError, {});
 
 export function crt(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const scan = values(Math.floor(h * 0.5) || 1, [h, w, 1], {
+  const valueShape = [h, w, 1];
+
+  // Horizontal scanlines
+  let scanNoise = values([2, 1], [2, 1, 1], {
     time,
     speed: speed * 0.1,
-  }).read();
+    splineOrder: InterpolationType.constant,
+  });
+  scanNoise = normalize(scanNoise);
+  const tileH = Math.max(1, Math.floor(h * 0.125));
+  scanNoise = expandTile(scanNoise, [2, 1, 1], [tileH * 2, w, 1], false);
+  scanNoise = resample(scanNoise, valueShape);
+  scanNoise = lensWarp(scanNoise, valueShape, time, speed);
+
+  const scan = scanNoise.read();
   const src = tensor.read();
   const blended = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
@@ -1677,6 +1688,7 @@ export function crt(tensor, shape, time, speed) {
     }
   }
   let outTensor = clamp01(Tensor.fromArray(tensor.ctx, blended, shape));
+
   if (c === 3) {
     outTensor = aberration(
       outTensor,
@@ -1688,24 +1700,9 @@ export function crt(tensor, shape, time, speed) {
     outTensor = randomHue(outTensor, shape, time, speed, 0.125);
     outTensor = saturation(outTensor, shape, time, speed, 1.125);
   }
-  const vigAlpha = random() * 0.175;
-  const vigData = outTensor.read();
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy) || 1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy) / maxDist;
-      const vig = dist * dist * vigAlpha;
-      for (let k = 0; k < c; k++) {
-        const idx = (y * w + x) * c + k;
-        vigData[idx] = vigData[idx] * (1 - vig);
-      }
-    }
-  }
-  outTensor = Tensor.fromArray(outTensor.ctx, vigData, shape);
+
+  outTensor = vignette(outTensor, shape, time, speed, 0, random() * 0.175);
+
   const data = outTensor.read();
   let mean = 0;
   for (let i = 0; i < data.length; i++) mean += data[i];
@@ -1713,6 +1710,7 @@ export function crt(tensor, shape, time, speed) {
   for (let i = 0; i < data.length; i++) {
     data[i] = (data[i] - mean) * 1.25 + mean;
   }
+
   return Tensor.fromArray(outTensor.ctx, data, shape);
 }
 register("crt", crt, {});
