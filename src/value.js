@@ -622,6 +622,17 @@ void main(){
 
 
 
+/**
+ * Resample a tensor to a new shape.
+ *
+ * Returns a Promise when GPU acceleration (WebGPU/WebGL) is used so callers
+ * can `await` the result. CPU paths still resolve synchronously.
+ *
+ * @param {Tensor} tensor
+ * @param {number[]} shape
+ * @param {number} [splineOrder=InterpolationType.bicubic]
+ * @returns {Tensor|Promise<Tensor>}
+ */
 export function resample(tensor, shape, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
   const [nh, nw, nc = c] = shape;
@@ -714,11 +725,7 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
     typeof GPUBuffer !== 'undefined' &&
     tensor.handle instanceof GPUBuffer
   ) {
-    const srcMaybe = tensor.read();
-    if (srcMaybe && typeof srcMaybe.then === 'function') {
-      return srcMaybe.then(cpuResample);
-    }
-    return cpuResample(srcMaybe);
+    return Promise.resolve(tensor.read()).then(cpuResample);
   }
 
   if (ctx && !ctx.isCPU) {
@@ -771,7 +778,7 @@ void main(){
     ctx.bindFramebuffer(pp.writeFbo, nw, nh);
     ctx.drawQuad();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return new Tensor(ctx, pp.writeTex, [nh, nw, nc]);
+    return Promise.resolve(new Tensor(ctx, pp.writeTex, [nh, nw, nc]));
   }
 
   const src = tensor.read();
@@ -937,6 +944,50 @@ export function blend(a, b, t) {
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
   const bChannels = b.shape[2];
+
+  const cpuBlend = (da, db, dt) => {
+    const [bh, bw, bc] = b.shape;
+    const [th, tw, tc] = dt ? t.shape : [0, 0, 0];
+    const out = new Float32Array(h * w * c);
+    for (let y = 0; y < h; y++) {
+      const by = y % bh;
+      const ty = dt ? y % th : 0;
+      for (let x = 0; x < w; x++) {
+        const bx = x % bw;
+        const tx = dt ? x % tw : 0;
+        const baseA = (y * w + x) * c;
+        const baseB = (by * bw + bx) * bc;
+        const baseT = dt ? (ty * tw + tx) * tc : 0;
+        for (let k = 0; k < c; k++) {
+          const aVal = da[baseA + k];
+          const bVal = db[baseB + (k < bc ? k : 0)];
+          const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
+          out[baseA + k] = Math.fround(aVal * (1 - tVal) + bVal * tVal);
+        }
+      }
+    }
+    return Tensor.fromArray(ctx, out, [h, w, c]);
+  };
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUBuffer !== 'undefined' &&
+    a.handle instanceof GPUBuffer &&
+    b.ctx === ctx &&
+    b.handle instanceof GPUBuffer &&
+    (typeof t === 'number' || (t.ctx === ctx && t.handle instanceof GPUBuffer))
+  ) {
+    if (typeof t === 'number') {
+      return Promise.all([a.read(), b.read()]).then(([da, db]) =>
+        cpuBlend(da, db, null)
+      );
+    }
+    return Promise.all([a.read(), b.read(), t.read()]).then(([da, db, dt]) =>
+      cpuBlend(da, db, dt)
+    );
+  }
+
   if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number' && bChannels === c) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
@@ -955,32 +1006,25 @@ export function blend(a, b, t) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
-  const da = a.read();
-  const db = b.read();
-  const dt = typeof t === 'number' ? null : t.read();
-  const [bh, bw, bc] = b.shape;
-  const [th, tw, tc] = dt ? t.shape : [0, 0, 0];
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    const by = y % bh;
-    const ty = dt ? y % th : 0;
-    for (let x = 0; x < w; x++) {
-      const bx = x % bw;
-      const tx = dt ? x % tw : 0;
-      const baseA = (y * w + x) * c;
-      const baseB = (by * bw + bx) * bc;
-      const baseT = dt ? (ty * tw + tx) * tc : 0;
-      for (let k = 0; k < c; k++) {
-          const aVal = da[baseA + k];
-          const bVal = db[baseB + (k < bc ? k : 0)];
-          const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
-          out[baseA + k] = Math.fround(
-            aVal * (1 - tVal) + bVal * tVal,
-          );
-      }
-    }
+
+  const daMaybe = a.read();
+  const dbMaybe = b.read();
+  const dtMaybe = typeof t === 'number' ? null : t.read();
+  if (
+    (daMaybe && typeof daMaybe.then === 'function') ||
+    (dbMaybe && typeof dbMaybe.then === 'function') ||
+    (dtMaybe && typeof dtMaybe.then === 'function')
+  ) {
+    const promises = [daMaybe, dbMaybe];
+    if (dtMaybe) promises.push(dtMaybe);
+    return Promise.all(promises).then((arr) => {
+      const da = arr[0];
+      const db = arr[1];
+      const dt = dtMaybe ? arr[2] : null;
+      return cpuBlend(da, db, dt);
+    });
   }
-  return Tensor.fromArray(ctx, out, [h, w, c]);
+  return cpuBlend(daMaybe, dbMaybe, dtMaybe);
 }
 
 export function normalize(tensor) {

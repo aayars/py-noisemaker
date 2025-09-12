@@ -1320,7 +1320,7 @@ async function voronoiWebGPU(
   if (diagramType === VoronoiDiagramType.color_range && tensor) {
     let rTensor = rangeTensor;
     if (downsample) {
-      rTensor = resample(
+      rTensor = await resample(
         rTensor,
         [originalShape[0], originalShape[1], 1],
         InterpolationType.bicubic,
@@ -1374,7 +1374,7 @@ async function voronoiWebGPU(
       diagramType === VoronoiDiagramType.color_regions
         ? InterpolationType.constant
         : InterpolationType.bicubic;
-    outTensor = resample(
+    outTensor = await resample(
       outTensor,
       [originalShape[0], originalShape[1], outTensor.shape[2]],
       splineOrder,
