@@ -32,6 +32,7 @@ EFFECTS = [
     ("vignette", effects.vignette),
     ("vaseline", effects.vaseline),
     ("shadow", effects.shadow),
+    ("normalize", effects.normalize),
     ("palette", effects.palette),
     ("warp", effects.warp),
     ("ripple", effects.ripple),
