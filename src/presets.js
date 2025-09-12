@@ -51,8 +51,6 @@ export function stash(key, value) {
   return _STASH.get(key);
 }
 
-const MAX_PRESET_DEPTH = 64;
-
 export function mapEffect(e, settings) {
   const seen = new Set();
   let depth = 0;
@@ -62,20 +60,13 @@ export function mapEffect(e, settings) {
     !e.post_effects &&
     !e.final_effects
   ) {
-    if (seen.has(e) || depth >= MAX_PRESET_DEPTH) {
+    if (seen.has(e) || depth++ > 64) {
       throw new Error('Runaway dynamic preset function');
     }
     seen.add(e);
-    depth++;
     e = e(settings);
   }
   if (typeof e === 'function') {
-    if (Array.isArray(e.post_effects)) {
-      e.post_effects = e.post_effects.map((pe) => mapEffect(pe, settings));
-    }
-    if (Array.isArray(e.final_effects)) {
-      e.final_effects = e.final_effects.map((fe) => mapEffect(fe, settings));
-    }
     return e;
   }
   if (e && typeof e === 'object' && e.__effectName) {
@@ -86,14 +77,7 @@ export function mapEffect(e, settings) {
         params[k] = typeof v === 'function' ? v(settings) : v;
       }
     }
-    const fn = Effect(e.__effectName, params);
-    if (Array.isArray(e.post_effects)) {
-      fn.post_effects = e.post_effects.map((pe) => mapEffect(pe, settings));
-    }
-    if (Array.isArray(e.final_effects)) {
-      fn.final_effects = e.final_effects.map((fe) => mapEffect(fe, settings));
-    }
-    return fn;
+    return Effect(e.__effectName, params);
   }
   return e;
 }
