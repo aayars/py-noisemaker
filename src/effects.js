@@ -2724,7 +2724,10 @@ export function vignette(
 register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 
 export function vaseline(tensor, shape, time, speed, alpha = 1.0) {
-  const blurred = bloom(tensor, shape, time, speed, 1.0);
+  // Python's implementation ignores time/speed and always blurs with a fixed
+  // kernel.  Accept ``time`` and ``speed`` to satisfy the registry interface
+  // but discard them when generating the blurred mask.
+  const blurred = bloom(tensor, shape, 0, 1, 1.0);
   const masked = centerMaskInternal(tensor, blurred, shape);
   return blend(tensor, masked, alpha);
 }
@@ -2761,7 +2764,9 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   leak = Tensor.fromArray(tensor.ctx, screened, shape);
   leak = centerMaskInternal(tensor, leak, shape, 4);
   const blended = blend(tensor, leak, alpha);
-  return vaseline(blended, shape, time, speed, alpha);
+  // ``vaseline`` ignores the temporal parameters but expects them for
+  // registry consistency.
+  return vaseline(blended, shape, 0, 1, alpha);
 }
 register("lightLeak", lightLeak, { alpha: 0.25 });
 register("light_leak", lightLeak, { alpha: 0.25 });
