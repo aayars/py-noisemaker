@@ -956,8 +956,7 @@ function voronoiWebGPU(
       DistanceMetric.chebyshev,
       DistanceMetric.octagram,
     ].includes(distMetric) ||
-    sdfSides !== 3 ||
-    withRefract !== 0
+    sdfSides !== 3
   ) {
     return voronoiCPU(
       tensor,
@@ -1031,7 +1030,8 @@ function voronoiWebGPU(
     tensor &&
     tensor.shape[2] === 1 &&
     !downsample &&
-    diagramType === VoronoiDiagramType.range;
+    diagramType === VoronoiDiagramType.range &&
+    withRefract === 0;
   const baseBuf = useBase ? tensor.handle : outBuf;
   const params = new Float32Array([
     w,
@@ -1067,14 +1067,15 @@ function voronoiWebGPU(
   ctx.queue.submit([encoder.finish()]);
 
   let rangeTensor = new Tensor(ctx, outBuf, [h, w, 1]);
+  if (downsample) {
+    rangeTensor = resample(
+      rangeTensor,
+      [originalShape[0], originalShape[1], 1],
+      InterpolationType.bicubic,
+    );
+  }
+  let outTensor;
   if (diagramType === VoronoiDiagramType.color_range && tensor) {
-    if (downsample) {
-      rangeTensor = resample(rangeTensor, [
-        originalShape[0],
-        originalShape[1],
-        1,
-      ], InterpolationType.bicubic);
-    }
     const rData = rangeTensor.read();
     const src = tensor.read();
     const c = tensor.shape[2];
@@ -1087,19 +1088,51 @@ function voronoiWebGPU(
         out[base] = Math.fround(aVal * (1 - r) + r * r);
       }
     }
-    return Tensor.fromArray(ctx, out, [
+    outTensor = Tensor.fromArray(ctx, out, [
       originalShape[0],
       originalShape[1],
       c,
     ]);
+  } else {
+    outTensor = rangeTensor;
   }
-  if (downsample) {
-    rangeTensor = resample(rangeTensor, originalShape, InterpolationType.bicubic);
+
+  if (withRefract && tensor) {
+    let rx = outTensor;
+    let ry;
+    const [oh, ow, oc] = outTensor.shape;
+    if (refractYFromOffset) {
+      ry = offsetTensor(outTensor, Math.floor(ow * 0.5), Math.floor(oh * 0.5));
+    } else {
+      const data = outTensor.read();
+      const cosData = new Float32Array(oh * ow);
+      const sinData = new Float32Array(oh * ow);
+      for (let i = 0; i < oh * ow; i++) {
+        const v = data[i * oc] * TAU;
+        cosData[i] = Math.cos(v);
+        sinData[i] = Math.sin(v);
+      }
+      rx = Tensor.fromArray(ctx, cosData, [oh, ow, 1]);
+      ry = Tensor.fromArray(ctx, sinData, [oh, ow, 1]);
+    }
+    outTensor = refractOp(
+      tensor,
+      rx,
+      ry,
+      withRefract,
+      InterpolationType.bicubic,
+      true,
+    );
   }
-  if (tensor && diagramType === VoronoiDiagramType.range && !useBase) {
-    rangeTensor = blend(tensor, rangeTensor, alpha);
+
+  if (
+    tensor &&
+    diagramType !== VoronoiDiagramType.color_regions &&
+    !(diagramType === VoronoiDiagramType.range && useBase && withRefract === 0)
+  ) {
+    outTensor = blend(tensor, outTensor, alpha);
   }
-  return rangeTensor;
+  return outTensor;
 }
 
 export function voronoi(
