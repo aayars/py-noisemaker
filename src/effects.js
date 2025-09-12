@@ -1095,13 +1095,17 @@ function voronoiWebGPU(
     diagramType === VoronoiDiagramType.range &&
     withRefract === 0;
   const baseBuf = useBase ? tensor.handle : rangeBuf;
+  // ``inverse`` affects both the distance output and, for certain metrics,
+  // flips the Y offset.  The compute shader interprets any non-zero value as
+  // ``true`` and handles the necessary transformations.
+  const inv = inverse ? 1 : 0;
   const params = new Float32Array([
     w,
     h,
     count,
     useBase ? 1 : 0,
     alpha,
-    inverse ? 1 : 0,
+    inv,
     distMetric,
     nth,
     sdfSides,

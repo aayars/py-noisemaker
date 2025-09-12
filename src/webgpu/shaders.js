@@ -43,8 +43,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     colorSum[k] = 0.0;
   }
   for (var i: u32 = 0u; i < u32(params.count); i = i + 1u) {
-    let dx = f32(gid.x) - points[i].x;
-    let dy = f32(gid.y) - points[i].y;
+    var dx = f32(gid.x) - points[i].x;
+    var dy = f32(gid.y) - points[i].y;
+    if (params.inverse != 0.0 &&
+        (metric == 101u || metric == 102u || metric == 201u)) {
+      dy = -dy;
+    }
     var d: f32;
     if (metric == 2u) {
       d = abs(dx) + abs(dy);
