@@ -691,11 +691,22 @@ function voronoiCPU(
   }
   const halfW = Math.floor(w / 2);
   const halfH = Math.floor(h / 2);
+  let n = needFlow ? 0 : nth >= 0 ? nth : count + nth;
+  if (n < 0) n = 0;
+  if (n >= count) n = count - 1;
+  const bestDists = new Float32Array(n + 1);
+  const bestIdx = new Int32Array(n + 1);
+  const colorSum = colorFlowMap ? new Float32Array(c) : null;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const dists = new Float32Array(count);
+      for (let j = 0; j <= n; j++) {
+        bestDists[j] = Infinity;
+        bestIdx[j] = 0;
+      }
       let flowSum = 0;
-      const colorSum = colorFlowMap ? new Float32Array(c) : null;
+      if (colorSum) {
+        for (let k = 0; k < c; k++) colorSum[k] = 0;
+      }
       const ySign = inverse ? -1 : 1;
       for (let i = 0; i < count; i++) {
         let dx, dy;
@@ -711,7 +722,6 @@ function voronoiCPU(
           dy = Math.fround(Math.min(Math.abs(y0), Math.abs(y1)) / h);
         }
         const d = Math.fround(distance(dx, dy, distMetric, sdfSides));
-        dists[i] = d;
         if (needFlow) {
           const ld = Math.fround(
             Math.max(-10, Math.min(10, Math.log(d))),
@@ -725,6 +735,16 @@ function voronoiCPU(
             }
           }
         }
+        if (d < bestDists[n]) {
+          let j = n;
+          while (j > 0 && d < bestDists[j - 1]) {
+            bestDists[j] = bestDists[j - 1];
+            bestIdx[j] = bestIdx[j - 1];
+            j--;
+          }
+          bestDists[j] = d;
+          bestIdx[j] = i;
+        }
       }
       const idx = y * w + x;
       if (needFlow) {
@@ -734,18 +754,11 @@ function voronoiCPU(
             colorFlowMap[idx * c + k] = Math.fround(colorSum[k]);
           }
         }
-        distMap[idx] = dists[0];
-        indexMap[idx] = 0;
+        distMap[idx] = bestDists[0];
+        indexMap[idx] = bestIdx[0];
       } else {
-        const order = [...Array(count).keys()];
-        order.sort((a, b) => {
-          const da = dists[a];
-          const db = dists[b];
-          return da === db ? a - b : da - db;
-        });
-        let nthIndex = nth >= 0 ? Math.min(nth, count - 1) : Math.max(0, count + nth);
-        const selIdx = order[nthIndex];
-        const selDist = dists[selIdx];
+        const selDist = bestDists[n];
+        const selIdx = bestIdx[n];
         distMap[idx] = selDist;
         indexMap[idx] = selIdx;
         if (selDist > maxDist) maxDist = selDist;
