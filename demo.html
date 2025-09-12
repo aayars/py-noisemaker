@@ -111,7 +111,7 @@
     const presetEvalEl = document.getElementById('presetEvaluated');
     const tabFormulaBtn = document.getElementById('tabFormula');
     const tabEvalBtn = document.getElementById('tabEvaluated');
-    const presets = PRESETS();
+    let presets = PRESETS();
     const presetNames = Object.keys(presets).filter(
       (name) => !name.startsWith('maybe-')
     );
@@ -225,6 +225,8 @@
     deviceEl.textContent = ctx.isCPU ? 'cpu' : 'gpu';
 
     function draw(seed, presetName) {
+      setSeed(seed);
+      presets = PRESETS();
       const presetObj = new Preset(presetName, presets, {}, seed);
       const start = performance.now();
       render(presetObj, seed, {

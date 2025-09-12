@@ -82,20 +82,22 @@ export function mapEffect(e, settings) {
   return e;
 }
 
-let _PRESETS;
+let _SOURCE;
 {
   const url = new URL('../dsl/presets.dsl', import.meta.url);
-  let source;
   if (typeof process !== 'undefined' && process.versions && process.versions.node) {
     const fs = await import('node:fs/promises');
-    source = await fs.readFile(url, 'utf8');
+    _SOURCE = await fs.readFile(url, 'utf8');
   } else {
     const res = await fetch(url);
-    source = await res.text();
+    _SOURCE = await res.text();
   }
+}
+
+function buildPresets() {
   const seed = getSeed();
-  const parsed = parsePresetDSL(source);
-  _PRESETS = {};
+  const parsed = parsePresetDSL(_SOURCE);
+  const presets = {};
   for (const [name, preset] of Object.entries(parsed)) {
     const p = { ...preset };
     if (p.settings && typeof p.settings === 'object') {
@@ -142,13 +144,14 @@ let _PRESETS;
         return Array.isArray(arr) ? arr.map((e) => mapEffect(e, settings)) : arr;
       };
     }
-    _PRESETS[name] = p;
+    presets[name] = p;
   }
   setSeed(seed);
+  return presets;
 }
 
 export function PRESETS() {
-  return _PRESETS;
+  return buildPresets();
 }
 
 export default PRESETS;
