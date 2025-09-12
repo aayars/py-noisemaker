@@ -1443,8 +1443,13 @@ export function lowpoly(
   const count = xPts.length;
   if (count === 0) return tensor;
   const xy = [xPts, yPts, count];
+  // Match the Python implementation by passing the existing tensor into the
+  // distance-field computation. Supplying `null` forces the CPU code path and
+  // causes the demo to stall on large canvases. Providing the tensor enables
+  // GPU acceleration when available and prevents the render-time hang observed
+  // in the "basic-low-poly" preset.
   const distance = voronoi(
-    null,
+    tensor,
     shape,
     time,
     speed,
