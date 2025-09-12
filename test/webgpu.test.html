@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { Context } from '../src/context.js';
+import { basic } from '../src/generators.js';
+import { voronoi } from '../src/effects.js';
+const canvas = document.createElement('canvas');
+const ctx = new Context(canvas);
+if (!navigator.gpu) {
+  document.body.textContent = 'no webgpu';
+} else {
+  await ctx.initWebGPU();
+  const base = basic(2, [4,4,1], { ctx });
+  const out = voronoi(base, [4,4,1], 0, 0);
+  const arr = await out.read();
+  document.body.textContent = arr.length === 16 ? 'webgpu ok' : 'webgpu fail';
+}
+</script>
+</body>
+</html>

@@ -38,6 +38,7 @@ import {
   VoronoiDiagramType,
   WormBehavior,
 } from "./constants.js";
+import { VORONOI_WGSL } from "./webgpu/shaders.js";
 
 
 export function warp(
@@ -597,7 +598,7 @@ export function normalMap(tensor, shape, time, speed) {
 }
 register("normalMap", normalMap, {});
 
-export function voronoi(
+function voronoiCPU(
   tensor,
   shape,
   time,
@@ -891,6 +892,146 @@ export function voronoi(
     return blend(tensor, outTensor, alpha);
   }
   return outTensor;
+}
+
+function voronoiWebGPU(
+  tensor,
+  shape,
+  time,
+  speed,
+  diagramType = VoronoiDiagramType.range,
+  nth = 0,
+  distMetric = DistanceMetric.euclidean,
+  sdfSides = 3,
+  alpha = 1,
+  withRefract = 0,
+  inverse = false,
+  refractYFromOffset = true,
+  pointFreq = 3,
+  pointGenerations = 1,
+  pointDistrib = PointDistribution.random,
+  pointDrift = 0,
+  pointCorners = false,
+  xy = null,
+  downsample = true,
+) {
+  const ctx = tensor ? tensor.ctx : null;
+  if (!ctx || !ctx.device) {
+    return voronoiCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      diagramType,
+      nth,
+      distMetric,
+      sdfSides,
+      alpha,
+      withRefract,
+      inverse,
+      refractYFromOffset,
+      pointFreq,
+      pointGenerations,
+      pointDistrib,
+      pointDrift,
+      pointCorners,
+      xy,
+      downsample,
+    );
+  }
+
+  // Placeholder: dispatch compute shader when available
+  // In environments without WebGPU this falls back to the CPU implementation.
+  // A full implementation would pack inputs into storage buffers and use
+  // ctx.runCompute() with VORONOI_WGSL.
+  return voronoiCPU(
+    tensor,
+    shape,
+    time,
+    speed,
+    diagramType,
+    nth,
+    distMetric,
+    sdfSides,
+    alpha,
+    withRefract,
+    inverse,
+    refractYFromOffset,
+    pointFreq,
+    pointGenerations,
+    pointDistrib,
+    pointDrift,
+    pointCorners,
+    xy,
+    downsample,
+  );
+}
+
+export function voronoi(
+  tensor,
+  shape,
+  time,
+  speed,
+  diagramType = VoronoiDiagramType.range,
+  nth = 0,
+  distMetric = DistanceMetric.euclidean,
+  sdfSides = 3,
+  alpha = 1,
+  withRefract = 0,
+  inverse = false,
+  refractYFromOffset = true,
+  pointFreq = 3,
+  pointGenerations = 1,
+  pointDistrib = PointDistribution.random,
+  pointDrift = 0,
+  pointCorners = false,
+  xy = null,
+  downsample = true,
+) {
+  if (tensor && tensor.ctx && tensor.ctx.device) {
+    return voronoiWebGPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      diagramType,
+      nth,
+      distMetric,
+      sdfSides,
+      alpha,
+      withRefract,
+      inverse,
+      refractYFromOffset,
+      pointFreq,
+      pointGenerations,
+      pointDistrib,
+      pointDrift,
+      pointCorners,
+      xy,
+      downsample,
+    );
+  }
+  return voronoiCPU(
+    tensor,
+    shape,
+    time,
+    speed,
+    diagramType,
+    nth,
+    distMetric,
+    sdfSides,
+    alpha,
+    withRefract,
+    inverse,
+    refractYFromOffset,
+    pointFreq,
+    pointGenerations,
+    pointDistrib,
+    pointDrift,
+    pointCorners,
+    xy,
+    downsample,
+  );
 }
 register("voronoi", voronoi, {
   diagramType: VoronoiDiagramType.range,

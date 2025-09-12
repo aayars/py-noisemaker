@@ -5,13 +5,19 @@
 export class Tensor {
   constructor(ctx, handle, shape, data = null) {
     this.ctx = ctx;
-    this.handle = handle; // WebGL texture or CPU object
+    this.handle = handle; // WebGL texture, GPUBuffer, or CPU object
     this.shape = shape; // [height, width, channels]
     this.data = data; // CPU data if applicable
   }
 
   static fromArray(ctx, array, shape) {
     const [h, w, c] = shape;
+    if (ctx && ctx.device) {
+      const data = array ? array.slice() : new Float32Array(h * w * c);
+      const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+      const buf = ctx.createGPUBuffer(data, usage);
+      return new Tensor(ctx, buf, shape, null);
+    }
     if (ctx && !ctx.isCPU) {
       let data = array;
       if (!data) {
@@ -35,6 +41,11 @@ export class Tensor {
 
   read() {
     const [h, w, c] = this.shape;
+    if (this.ctx && this.ctx.device) {
+      const [h, w, c] = this.shape;
+      const size = h * w * c * 4;
+      return this.ctx.readGPUBuffer(this.handle, size);
+    }
     if (this.ctx && !this.ctx.isCPU) {
       const gl = this.ctx.gl;
       const fbo = this.ctx.createFBO(this.handle);

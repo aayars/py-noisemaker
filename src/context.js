@@ -25,6 +25,8 @@ export class Context {
     this.canvas = canvas;
     this.gl = canvas && canvas.getContext ? canvas.getContext('webgl2') : null;
     this.isCPU = true;
+    this.device = null;
+    this.queue = null;
 
     if (this.gl) {
       const gl = this.gl;
@@ -169,6 +171,69 @@ export class Context {
     gl.bindVertexArray(this.quadVao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindVertexArray(null);
+  }
+
+  async initWebGPU() {
+    if (this.device || typeof navigator === 'undefined' || !navigator.gpu) {
+      return false;
+    }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return false;
+    this.device = await adapter.requestDevice();
+    this.queue = this.device.queue;
+    return true;
+  }
+
+  createGPUBuffer(array, usage) {
+    if (!this.device) {
+      throw new Error('WebGPU device not initialized');
+    }
+    const buf = this.device.createBuffer({
+      size: array.byteLength,
+      usage,
+      mappedAtCreation: true,
+    });
+    new array.constructor(buf.getMappedRange()).set(array);
+    buf.unmap();
+    return buf;
+  }
+
+  async runCompute(code, bindEntries, x, y = 1, z = 1) {
+    if (!this.device) {
+      throw new Error('WebGPU device not initialized');
+    }
+    const module = this.device.createShaderModule({ code });
+    const pipeline = await this.device.createComputePipelineAsync({
+      compute: { module, entryPoint: 'main' },
+    });
+    const bindGroup = this.device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: bindEntries,
+    });
+    const encoder = this.device.createCommandEncoder();
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.dispatchWorkgroups(x, y, z);
+    pass.end();
+    this.queue.submit([encoder.finish()]);
+  }
+
+  async readGPUBuffer(buffer, size) {
+    if (!this.device) {
+      throw new Error('WebGPU device not initialized');
+    }
+    const readBuf = this.device.createBuffer({
+      size,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    const encoder = this.device.createCommandEncoder();
+    encoder.copyBufferToBuffer(buffer, 0, readBuf, 0, size);
+    this.queue.submit([encoder.finish()]);
+    await readBuf.mapAsync(GPUMapMode.READ);
+    const arr = readBuf.getMappedRange().slice(0);
+    readBuf.unmap();
+    return new Float32Array(arr);
   }
 
   pingPong(width, height) {
