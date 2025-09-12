@@ -45,6 +45,8 @@ EFFECTS = [
 ATOL = {
     "default": 2e-6,
     "shadow": 3e-4,
+    "warp": 2e-3,
+    "reindex": 5e-3,
 }
 
 
