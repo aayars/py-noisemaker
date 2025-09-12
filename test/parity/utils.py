@@ -91,3 +91,16 @@ def js_voronoi(params: dict) -> np.ndarray:
     )
     data = base64.b64decode(result.stdout)
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
+
+
+def js_preset_settings(name: str, seed: int) -> dict:
+    """Invoke the JavaScript implementation to evaluate preset settings."""
+
+    script = Path(__file__).with_name("run_preset_settings.js")
+    result = subprocess.run(
+        ["node", str(script), name, str(seed)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return _int_keys(json.loads(result.stdout))
