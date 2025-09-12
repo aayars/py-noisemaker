@@ -75,8 +75,8 @@ export function pointCloud(
         }
 
         if (pixel !== 0) {
-          x.push(Math.floor(xMargin + mx * xSpace + xDrift));
-          y.push(Math.floor(yMargin + my * ySpace + yDrift));
+          x.push(Math.trunc(xMargin + mx * xSpace + xDrift));
+          y.push(Math.trunc(yMargin + my * ySpace + yDrift));
         }
       }
     }
@@ -147,8 +147,8 @@ export function pointCloud(
           xPoint = (xPoint + xDrift / freq) % 1;
           yPoint = (yPoint + yDrift / freq) % 1;
         } else {
-          xPoint = Math.floor(xPoint + (xDrift / freq * width)) % width;
-          yPoint = Math.floor(yPoint + (yDrift / freq * height)) % height;
+          xPoint = Math.trunc(xPoint + (xDrift / freq * width)) % width;
+          yPoint = Math.trunc(yPoint + (yDrift / freq * height)) % height;
         }
 
         x.push(xPoint);

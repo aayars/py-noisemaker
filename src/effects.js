@@ -855,18 +855,28 @@ export function voronoi(
   }
   if (withRefract) {
     // Python's voronoi effect calls value.refract() directly with the range
-    // slice as the X reference and, when requested, a half‑image offset for
-    // the Y reference.  The JavaScript version previously routed through the
-    // more feature‑rich `refractEffect`, which introduced behavioural
-    // differences and broke cross‑language parity.  Re-create the simpler
-    // path used by the Python implementation instead.
+    // slice as the X reference.  When ``refract_y_from_offset`` is False it
+    // derives the Y reference from sin/cos transformations of that slice; when
+    // True it simply offsets the slice by half the image dimensions.  Mirror
+    // that behaviour here instead of routing through the higher level
+    // ``refractEffect`` helper.
 
-    const rx = toValueMap(outTensor);
-    const ry = toValueMap(
-      refractYFromOffset
-        ? offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5))
-        : outTensor,
-    );
+    let rx = outTensor;
+    let ry;
+    if (refractYFromOffset) {
+      ry = offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5));
+    } else {
+      const data = outTensor.read();
+      const cosData = new Float32Array(h * w);
+      const sinData = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) {
+        const v = data[i] * TAU;
+        cosData[i] = Math.cos(v);
+        sinData[i] = Math.sin(v);
+      }
+      rx = Tensor.fromArray(outTensor.ctx, cosData, [h, w, 1]);
+      ry = Tensor.fromArray(outTensor.ctx, sinData, [h, w, 1]);
+    }
 
     outTensor = refractOp(
       tensor,
