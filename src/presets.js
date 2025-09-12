@@ -1,5 +1,5 @@
 import { parsePresetDSL } from './dsl/index.js';
-import { random, getSeed, setSeed } from './util.js';
+import { random, setSeed, getSeed } from './util.js';
 import { Effect } from './composer.js';
 export { setSeed };
 
@@ -95,8 +95,20 @@ let _SOURCE;
 }
 
 function buildPresets(names) {
-  const seed = getSeed();
+  // Preserve the caller's RNG state. The DSL parser currently uses the
+  // seeded RNG during parsing, so parse using a fixed seed and then restore
+  // the original seed to avoid consuming random values that would affect
+  // downstream preset evaluation.
+  const seedBefore = getSeed();
+  setSeed(0);
   const parsed = parsePresetDSL(_SOURCE);
+  setSeed(seedBefore);
+
+  // Python's PRESETS() advances the RNG three times when invoked. Advance the
+  // RNG equivalently here to maintain parity.
+  random();
+  random();
+  random();
   const presets = {};
 
   function build(name) {
@@ -173,7 +185,6 @@ function buildPresets(names) {
     build(name);
   }
 
-  setSeed(seed);
   return presets;
 }
 

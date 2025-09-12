@@ -21,7 +21,10 @@ function snakeKeys(obj) {
 
 const [,, name, seedStr] = process.argv;
 const seed = parseInt(seedStr, 10);
+// Seed the RNG once before building presets. The Preset constructor should
+// not reset the seed so that any random calls made while constructing the
+// preset (e.g., during PRESETS()) advance the RNG identically to Python.
 setSeed(seed);
-const preset = new Preset(name, PRESETS(), {}, seed);
+const preset = new Preset(name, PRESETS());
 const raw = JSON.parse(JSON.stringify(preset.settings));
 console.log(JSON.stringify(snakeKeys(raw)));
