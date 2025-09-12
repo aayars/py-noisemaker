@@ -101,7 +101,13 @@ export function pointCloud(
     active.push({ x: rangeY, y: rangeX, gen: 1 });
   }
 
-  seen.add(`${active[0].x},${active[0].y}`);
+  // Match Python's point_cloud behavior: the initial active point is stored
+  // in the seen set alongside its generation. Python stores 3-tuples in the
+  // seen set, so the initial point isn't filtered out when the spiral function
+  // emits it again. By including the generation here, we replicate that quirk
+  // and ensure the first point appears in the output for distributions like
+  // ``spiral``.
+  seen.add(`${active[0].x},${active[0].y},${active[0].gen}`);
 
   while (active.length) {
     const { x: cx, y: cy, gen } = active.pop();

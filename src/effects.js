@@ -740,7 +740,7 @@ export function voronoi(
         order.sort((a, b) => {
           const da = dists[a];
           const db = dists[b];
-          return da === db ? b - a : da - db;
+          return da === db ? a - b : da - db;
         });
         let nthIndex = nth >= 0 ? Math.min(nth, count - 1) : Math.max(0, count + nth);
         const selIdx = order[nthIndex];
@@ -854,19 +854,27 @@ export function voronoi(
     outTensor = resample(outTensor, originalShape, splineOrder);
   }
   if (withRefract) {
-    outTensor = refractEffect(
+    // Python's voronoi effect calls value.refract() directly with the range
+    // slice as the X reference and, when requested, a half‑image offset for
+    // the Y reference.  The JavaScript version previously routed through the
+    // more feature‑rich `refractEffect`, which introduced behavioural
+    // differences and broke cross‑language parity.  Re-create the simpler
+    // path used by the Python implementation instead.
+
+    const rx = toValueMap(outTensor);
+    const ry = toValueMap(
+      refractYFromOffset
+        ? offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5))
+        : outTensor,
+    );
+
+    outTensor = refractOp(
       tensor,
-      originalShape,
-      time,
-      speed,
+      rx,
+      ry,
       withRefract,
-      outTensor,
-      null,
-      null,
-      undefined,
-      undefined,
-      undefined,
-      refractYFromOffset,
+      InterpolationType.bicubic,
+      true,
     );
   }
   if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
@@ -2303,7 +2311,10 @@ export function refractEffect(
     if (!rx) rx = tensor;
     if (!ry) {
       if (yFromOffset) {
-        ry = offsetTensor(rx, Math.floor(w * 0.5), Math.floor(h * 0.5));
+        const xHalf = Math.floor(w * 0.5);
+        const yHalf = Math.floor(h * 0.5);
+        ry = offsetTensor(rx, xHalf, yHalf);
+        tensor = offsetTensor(tensor, xHalf, yHalf);
       } else {
         const rData = rx.read();
         const cx = new Float32Array(rData.length);
