@@ -33,6 +33,7 @@ const EFFECTS = {
   light_leak: effects.lightLeak,
   crt: effects.crt,
   grain: effects.grain,
+  lens_distortion: effects.lensDistortion,
   snow: effects.snow,
   reindex: effects.reindex,
   voronoi: effects.voronoi,
