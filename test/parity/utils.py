@@ -67,3 +67,18 @@ def js_effect(name: str, seed: int) -> np.ndarray:
     )
     data = base64.b64decode(result.stdout)
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
+
+
+def js_voronoi(params: dict) -> np.ndarray:
+    """Invoke the JavaScript implementation for Voronoi with arbitrary params."""
+
+    script = Path(__file__).with_name("run_voronoi.js")
+    encoded = base64.b64encode(json.dumps(params).encode()).decode()
+    result = subprocess.run(
+        ["node", str(script), encoded],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    data = base64.b64decode(result.stdout)
+    return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
