@@ -2738,7 +2738,10 @@ export function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     PointDistribution.h_hex,
     PointDistribution.v_hex,
   ];
-  const distrib = gridMembers[randomInt(0, gridMembers.length)];
+  // randomInt() returns values inclusive of both endpoints. Clamp to
+  // length - 1 so the selected index matches Python's rng.random_int
+  // behavior and never exceeds the array bounds.
+  const distrib = gridMembers[randomInt(0, gridMembers.length - 1)];
   const [xPts, yPts] = pointCloud(6, {
     distrib,
     drift: 0.05,
