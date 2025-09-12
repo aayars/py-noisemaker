@@ -13,7 +13,7 @@ if (!navigator.gpu) {
 } else {
   await ctx.initWebGPU();
   const base = basic(2, [4,4,1], { ctx });
-  const out = voronoi(base, [4,4,1], 0, 0, undefined, 0, DistanceMetric.triangular);
+  const out = await voronoi(base, [4,4,1], 0, 0, undefined, 0, DistanceMetric.triangular);
   const arr = await out.read();
   document.body.textContent = arr.length === 16 ? 'webgpu ok' : 'webgpu fail';
 }

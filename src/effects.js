@@ -953,7 +953,7 @@ function voronoiCPU(
   return outTensor;
 }
 
-function voronoiWebGPU(
+async function voronoiWebGPU(
   tensor,
   shape,
   time,
@@ -1253,13 +1253,13 @@ function voronoiWebGPU(
     distMetric === DistanceMetric.sdf;
   const xOff = isTriangular ? 0 : Math.floor(w * 0.5);
   const yOff = isTriangular ? 0 : Math.floor(h * 0.5);
-  rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
-  regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
-  if (flowTensor) flowTensor = offsetTensor(flowTensor, xOff, yOff);
-  if (colorFlowTensor) colorFlowTensor = offsetTensor(colorFlowTensor, xOff, yOff);
+  rangeTensor = await offsetTensor(rangeTensor, xOff, yOff);
+  regionsTensor = await offsetTensor(regionsTensor, xOff, yOff);
+  if (flowTensor) flowTensor = await offsetTensor(flowTensor, xOff, yOff);
+  if (colorFlowTensor) colorFlowTensor = await offsetTensor(colorFlowTensor, xOff, yOff);
   let colorRegionsTensor = null;
   if (regionColorsNeeded) {
-    const idxData = regionsTensor.read();
+    const idxData = await regionsTensor.read();
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < idxData.length; i++) {
       const region = Math.min(count - 1, Math.floor(idxData[i] * count));
@@ -1270,7 +1270,7 @@ function voronoiWebGPU(
     colorRegionsTensor = Tensor.fromArray(ctx, out, [h, w, c]);
   }
   if (!needFlow) {
-    const raw = rangeTensor.read();
+    const raw = await rangeTensor.read();
     let min = Infinity;
     let max = -Infinity;
     for (let i = 0; i < raw.length; i++) {
@@ -1301,8 +1301,8 @@ function voronoiWebGPU(
         InterpolationType.bicubic,
       );
     }
-    const rData = rTensor.read();
-    const src = tensor.read();
+    const rData = await rTensor.read();
+    const src = await tensor.read();
     const out = new Float32Array(originalShape[0] * originalShape[1] * c);
     for (let i = 0; i < originalShape[0] * originalShape[1]; i++) {
       const r = rData[i];
@@ -1318,13 +1318,13 @@ function voronoiWebGPU(
   } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
     outTensor = colorRegionsTensor;
   } else if (diagramType === VoronoiDiagramType.range_regions && tensor) {
-    const rData = rangeTensor.read();
+    const rData = await rangeTensor.read();
     const rangeSq = new Float32Array(rData.length);
     for (let i = 0; i < rData.length; i++) rangeSq[i] = rData[i] * rData[i];
     const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [h, w, 1]);
     outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
   } else if (diagramType === VoronoiDiagramType.flow) {
-    const fData = flowTensor.read();
+    const fData = await flowTensor.read();
     const out = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
       let v = Math.fround(fData[i] / count);
@@ -1332,7 +1332,7 @@ function voronoiWebGPU(
     }
     outTensor = Tensor.fromArray(ctx, out, [h, w, 1]);
   } else if (diagramType === VoronoiDiagramType.color_flow && tensor) {
-    const fData = colorFlowTensor.read();
+    const fData = await colorFlowTensor.read();
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
       for (let k = 0; k < c; k++) {
@@ -1361,9 +1361,9 @@ function voronoiWebGPU(
     let ry;
     const [oh, ow, oc] = outTensor.shape;
     if (refractYFromOffset) {
-      ry = offsetTensor(outTensor, Math.floor(ow * 0.5), Math.floor(oh * 0.5));
+      ry = await offsetTensor(outTensor, Math.floor(ow * 0.5), Math.floor(oh * 0.5));
     } else {
-      const data = outTensor.read();
+      const data = await outTensor.read();
       const cosData = new Float32Array(oh * ow);
       const sinData = new Float32Array(oh * ow);
       for (let i = 0; i < oh * ow; i++) {
@@ -3008,7 +3008,23 @@ function offsetIndexInternal(yArr, height, xArr, width) {
 function offsetTensor(tensor, xOff, yOff) {
   const [h, w, c] = tensor.shape;
   if (xOff === 0 && yOff === 0) return tensor;
-  const src = tensor.read();
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === "function") {
+    return srcMaybe.then((src) => {
+      const out = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        const yy = (((y + yOff) % h) + h) % h;
+        for (let x = 0; x < w; x++) {
+          const xx = (((x + xOff) % w) + w) % w;
+          const srcIdx = (yy * w + xx) * c;
+          const dstIdx = (y * w + x) * c;
+          for (let k = 0; k < c; k++) out[dstIdx + k] = src[srcIdx + k];
+        }
+      }
+      return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    });
+  }
+  const src = srcMaybe;
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
     const yy = (((y + yOff) % h) + h) % h;
