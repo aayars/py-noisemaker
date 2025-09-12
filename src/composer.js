@@ -154,7 +154,35 @@ export class Preset {
     // Present to canvas if available
     if (ctx.canvas) {
       const [h, w, c] = tensor.shape;
-      if (ctx.gl && !ctx.isCPU) {
+
+      const draw2D = (data) => {
+        const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx2d) return;
+        ctx.canvas.width = w;
+        ctx.canvas.height = h;
+        const img = new ImageData(new Uint8ClampedArray(w * h * 4), w, h);
+        for (let i = 0; i < h * w; i++) {
+          const src = i * c;
+          const r = data[src];
+          const g = c > 2 ? data[src + 1] : r;
+          const b = c > 2 ? data[src + 2] : r;
+          const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
+          const a = Number.isFinite(aVal) ? aVal : 1;
+          const base = i * 4;
+          img.data[base] = Math.max(0, Math.min(255, Math.round(r * 255)));
+          img.data[base + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
+          img.data[base + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+          img.data[base + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
+        }
+        ctx2d.putImageData(img, 0, 0);
+      };
+
+      const drawArray = (arrPromise) =>
+        Promise.resolve(arrPromise).then((arr) => draw2D(arr));
+
+      if (ctx.device) {
+        drawArray(tensor.read());
+      } else if (ctx.gl && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
         const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;
@@ -181,27 +209,7 @@ export class Preset {
         ctx.drawQuad();
         gl.bindTexture(gl.TEXTURE_2D, null);
       } else if (ctx.canvas.getContext) {
-        const data = tensor.read();
-        const ctx2d = ctx.canvas.getContext('2d', { willReadFrequently: true });
-        if (ctx2d) {
-          ctx.canvas.width = w;
-          ctx.canvas.height = h;
-          const img = new ImageData(new Uint8ClampedArray(w * h * 4), w, h);
-          for (let i = 0; i < h * w; i++) {
-            const src = i * c;
-            const r = data[src];
-            const g = c > 2 ? data[src + 1] : r;
-            const b = c > 2 ? data[src + 2] : r;
-            const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
-            const a = Number.isFinite(aVal) ? aVal : 1;
-            const base = i * 4;
-            img.data[base] = Math.max(0, Math.min(255, Math.round(r * 255)));
-            img.data[base + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
-            img.data[base + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
-            img.data[base + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
-          }
-          ctx2d.putImageData(img, 0, 0);
-        }
+        drawArray(tensor.read());
       }
     }
 
