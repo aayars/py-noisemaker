@@ -227,7 +227,12 @@ export function render(presetName, seed = 0, opts = {}) {
   return preset.render(seed, opts);
 }
 
-function _flattenAncestors(presetName, presets, unique, ancestors) {
+function _flattenAncestors(presetName, presets, unique, ancestors, stack = []) {
+  if (stack.includes(presetName)) {
+    const cycle = stack.slice(stack.indexOf(presetName)).concat(presetName).join(' -> ');
+    throw new Error(`Cycle detected in preset layers: ${cycle}`);
+  }
+  stack.push(presetName);
   const layers = presets[presetName].layers || [];
   for (const ancestorName of layers) {
     if (!(ancestorName in presets)) {
@@ -235,8 +240,9 @@ function _flattenAncestors(presetName, presets, unique, ancestors) {
     }
     if (unique[ancestorName]) continue;
     if (presets[ancestorName].unique) unique[ancestorName] = true;
-    _flattenAncestors(ancestorName, presets, unique, ancestors);
+    _flattenAncestors(ancestorName, presets, unique, ancestors, stack);
   }
+  stack.pop();
   ancestors.push(presetName);
 }
 
