@@ -108,6 +108,26 @@ function evalArgs(arglist, ctx) {
   return { args: arr, params: null, paramNames: null };
 }
 
+function hasFunction(v) {
+  if (typeof v === 'function') return true;
+  if (Array.isArray(v)) return v.some(hasFunction);
+  if (v && typeof v === 'object') return Object.values(v).some(hasFunction);
+  return false;
+}
+
+function resolveValue(v, settings) {
+  if (typeof v === 'function') return v(settings);
+  if (Array.isArray(v)) return v.map((x) => resolveValue(x, settings));
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, val] of Object.entries(v)) {
+      out[k] = resolveValue(val, settings);
+    }
+    return out;
+  }
+  return v;
+}
+
 function evalCall(node, ctx) {
   const input = node.input ? evalNode(node.input, ctx) : undefined;
   const { args, params, paramNames } = evalArgs(node.args, ctx);
@@ -116,6 +136,9 @@ function evalCall(node, ctx) {
     const name = callee.name;
     const fn = ctx.operations[name];
     if (typeof fn === 'function') {
+      if (hasFunction(args) || hasFunction(input)) {
+        return (settings) => fn(...resolveValue(args, settings));
+      }
       return fn(...args);
     }
     const out = { op: name, args, input };
@@ -128,6 +151,9 @@ function evalCall(node, ctx) {
   }
   const fn = evalNode(callee, ctx);
   if (typeof fn === 'function') {
+    if (hasFunction(args) || hasFunction(input)) {
+      return (settings) => fn(...resolveValue(args, settings));
+    }
     return fn(...args);
   }
   throw new Error('Unsupported callee');

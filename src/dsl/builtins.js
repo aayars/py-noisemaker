@@ -12,7 +12,14 @@ import { maskShape as _maskShape, squareMasks as _squareMasks } from '../masks.j
 
 export * from '../constants.js';
 
-export const surfaces = Object.freeze({ });
+const settingsProxy = new Proxy(
+  {},
+  {
+    get: (_, prop) => (settings) => settings[prop],
+  },
+);
+
+export const surfaces = Object.freeze({ settings: settingsProxy });
 
 export function coin_flip(...args) {
   if (args.length !== 0) {
@@ -87,8 +94,15 @@ export function preset(...args) {
   }
   // Return a thunk that will instantiate the preset when invoked. This
   // avoids recursive construction while the preset table itself is being
-  // evaluated from the DSL.
-  return () => new _Preset(name, PRESETS(), settings);
+  // evaluated from the DSL. The thunk accepts parent settings so nested
+  // presets can resolve dynamic values.
+  return (parentSettings = {}) => {
+    const resolved = {};
+    for (const [k, v] of Object.entries(settings)) {
+      resolved[k] = typeof v === 'function' ? v(parentSettings) : v;
+    }
+    return new _Preset(name, PRESETS(), resolved);
+  };
 }
 
 export const operations = Object.freeze({

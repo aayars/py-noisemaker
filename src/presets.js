@@ -1,5 +1,6 @@
 import { parsePresetDSL } from './dsl/index.js';
 import { random, getSeed, setSeed } from './util.js';
+import { Effect } from './composer.js';
 export { setSeed };
 
 export function coin_flip() {
@@ -72,19 +73,73 @@ let _PRESETS;
     }
     if (p.generator && typeof p.generator === 'object') {
       const g = p.generator;
-      p.generator = () => ({ ...g });
+      p.generator = (settings) => {
+        const out = {};
+        for (const [k, v] of Object.entries(g)) {
+          out[k] = typeof v === 'function' ? v(settings) : v;
+        }
+        return out;
+      };
     }
     if (Array.isArray(p.octaves)) {
       const o = p.octaves;
-      p.octaves = () => o.slice();
+      p.octaves = (settings) =>
+        o.map((e) => {
+          if (typeof e === 'function') {
+            return e(settings);
+          }
+          if (e && typeof e === 'object' && e.__effectName) {
+            const params = {};
+            if (e.__paramNames) {
+              for (const k of e.__paramNames) {
+                const v = e.__params[k];
+                params[k] = typeof v === 'function' ? v(settings) : v;
+              }
+            }
+            return Effect(e.__effectName, params);
+          }
+          return e;
+        });
     }
     if (Array.isArray(p.post)) {
       const post = p.post;
-      p.post = () => post.slice();
+      p.post = (settings) =>
+        post.map((e) => {
+          if (typeof e === 'function') {
+            return e(settings);
+          }
+          if (e && typeof e === 'object' && e.__effectName) {
+            const params = {};
+            if (e.__paramNames) {
+              for (const k of e.__paramNames) {
+                const v = e.__params[k];
+                params[k] = typeof v === 'function' ? v(settings) : v;
+              }
+            }
+            return Effect(e.__effectName, params);
+          }
+          return e;
+        });
     }
     if (Array.isArray(p.final)) {
       const fin = p.final;
-      p.final = () => fin.slice();
+      p.final = (settings) =>
+        fin.map((e) => {
+          if (typeof e === 'function') {
+            return e(settings);
+          }
+          if (e && typeof e === 'object' && e.__effectName) {
+            const params = {};
+            if (e.__paramNames) {
+              for (const k of e.__paramNames) {
+                const v = e.__params[k];
+                params[k] = typeof v === 'function' ? v(settings) : v;
+              }
+            }
+            return Effect(e.__effectName, params);
+          }
+          return e;
+        });
     }
     _PRESETS[name] = p;
   }
