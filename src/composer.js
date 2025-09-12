@@ -196,7 +196,7 @@ export class Preset {
 
       if (ctx.device) {
         try {
-          drawPromise = drawArray(tensor.read());
+          drawPromise = drawArray(tensor.readSync());
         } catch (e) {
           drawPromise = Promise.reject(e);
         }
@@ -218,7 +218,7 @@ export class Preset {
         gl.activeTexture(gl.TEXTURE0);
         let tex = tensor.handle;
         if (typeof WebGLTexture !== 'undefined' && !(tex instanceof WebGLTexture)) {
-          const data = tensor.read();
+          const data = tensor.readSync();
           tex = ctx.createTexture(w, h, data);
         }
         gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -227,7 +227,7 @@ export class Preset {
         ctx.drawQuad();
         gl.bindTexture(gl.TEXTURE_2D, null);
       } else if (ctx.canvas.getContext) {
-        drawPromise = drawArray(tensor.read());
+        drawPromise = drawArray(tensor.readSync());
       }
     }
 

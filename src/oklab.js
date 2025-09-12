@@ -4,7 +4,7 @@ import { srgbToLin, linToSRGB } from './util.js';
 export function rgbToOklab(tensor) {
   const [h, w, c] = tensor.shape;
   if (c !== 3) throw new Error('rgbToOklab expects 3-channel tensor');
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const r = srgbToLin(src[i * 3]);
@@ -32,7 +32,7 @@ export function rgbToOklab(tensor) {
 export function oklabToRgb(tensor) {
   const [h, w, c] = tensor.shape;
   if (c !== 3) throw new Error('oklabToRgb expects 3-channel tensor');
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const L = src[i * 3];

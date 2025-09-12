@@ -57,7 +57,7 @@ export function savePNG(tensor, filename = 'image.png') {
     throw new Error('savePNG requires a browser environment');
   }
   const [h, w, c] = tensor.shape;
-  const data = tensor.read();
+  const data = tensor.readSync();
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -104,7 +104,7 @@ export function linToSRGB(v) {
 
 export function fromSRGB(tensor) {
   const [h, w, c] = tensor.shape;
-  const data = tensor.read();
+  const data = tensor.readSync();
   const out = new Float32Array(data.length);
   const channels = Math.min(c, 3);
   for (let i = 0; i < h * w; i++) {
@@ -121,7 +121,7 @@ export function fromSRGB(tensor) {
 
 export function toSRGB(tensor) {
   const [h, w, c] = tensor.shape;
-  const data = tensor.read();
+  const data = tensor.readSync();
   const out = new Float32Array(data.length);
   const channels = Math.min(c, 3);
   for (let i = 0; i < h * w; i++) {

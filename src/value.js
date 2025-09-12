@@ -50,7 +50,7 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
 function offsetTensor(tensor, shape, x = 0, y = 0) {
   const [h, w, c] = shape;
   if (x === 0 && y === 0) return tensor;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   for (let yy = 0; yy < h; yy++) {
     const sy = (yy + y + h) % h;
@@ -454,7 +454,7 @@ void main(){
   if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
     tensor = simplexNoise([initHeight, initWidth, channels], { time, seed, speed });
     if (distrib === ValueDistribution.exp) {
-      const data = tensor.read();
+      const data = tensor.readSync();
       for (let i = 0; i < data.length; i++) {
         data[i] = Math.pow(data[i], 4);
       }
@@ -569,7 +569,7 @@ void main(){
       );
     }
     const mArr = mTensor.read();
-    const tArr = tensor.read();
+    const tArr = tensor.readSync();
     const mh = mTensor.shape[0];
     const mw = mTensor.shape[1];
     const total = mh * mw;
@@ -781,7 +781,7 @@ void main(){
     return Promise.resolve(new Tensor(ctx, pp.writeTex, [nh, nw, nc]));
   }
 
-  const src = tensor.read();
+  const src = tensor.readSync();
   if (src && typeof src.then === 'function') {
     return src.then(cpuResample);
   }
@@ -807,7 +807,7 @@ export function downsample(tensor, factor) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
   }
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(nh * nw * c);
   for (let y = 0; y < nh; y++) {
     for (let x = 0; x < nw; x++) {
@@ -834,7 +834,7 @@ export function proportionalDownsample(tensor, shape, newShape) {
   const outH = Math.floor((h - kH) / kH + 1);
   const outW = Math.floor((w - kW) / kW + 1);
   const ctx = tensor.ctx;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(outH * outW * c);
   for (let y = 0; y < outH; y++) {
     for (let x = 0; x < outW; x++) {
@@ -872,7 +872,7 @@ function cubicInterpolate(a, b, c, d, t) {
 
 export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const flowData = flow.read();
   const out = new Float32Array(h * w * c);
 
@@ -944,7 +944,6 @@ export function blend(a, b, t) {
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
   const bChannels = b.shape[2];
-<<<<<<< ours
 
   const cpuBlend = (da, db, dt) => {
     const [bh, bw, bc] = b.shape;
@@ -989,43 +988,6 @@ export function blend(a, b, t) {
     );
   }
 
-=======
-  const isWebGPU =
-    ctx &&
-    ctx.device &&
-    typeof GPUBuffer !== 'undefined' &&
-    (a.handle instanceof GPUBuffer ||
-      b.handle instanceof GPUBuffer ||
-      (typeof t !== 'number' && t && t.handle instanceof GPUBuffer));
-  if (isWebGPU && b.ctx === ctx) {
-    return (async () => {
-      const da = await a.read();
-      const db = await b.read();
-      const dt = typeof t === 'number' ? null : await t.read();
-      const [bh, bw, bc] = b.shape;
-      const [th, tw, tc] = dt ? t.shape : [0, 0, 0];
-      const out = new Float32Array(h * w * c);
-      for (let y = 0; y < h; y++) {
-        const by = y % bh;
-        const ty = dt ? y % th : 0;
-        for (let x = 0; x < w; x++) {
-          const bx = x % bw;
-          const tx = dt ? x % tw : 0;
-          const baseA = (y * w + x) * c;
-          const baseB = (by * bw + bx) * bc;
-          const baseT = dt ? (ty * tw + tx) * tc : 0;
-          for (let k = 0; k < c; k++) {
-            const aVal = da[baseA + k];
-            const bVal = db[baseB + (k < bc ? k : 0)];
-            const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
-            out[baseA + k] = Math.fround(aVal * (1 - tVal) + bVal * tVal);
-          }
-        }
-      }
-      return Tensor.fromArray(ctx, out, [h, w, c]);
-    })();
-  }
->>>>>>> theirs
   if (ctx && !ctx.isCPU && b.ctx === ctx && typeof t === 'number' && bChannels === c) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
@@ -1067,7 +1029,7 @@ export function blend(a, b, t) {
 
 export function normalize(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < src.length; i++) {
@@ -1087,7 +1049,7 @@ export function normalize(tensor) {
 }
 
 export function clamp01(tensor) {
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
     out[i] = Math.min(1, Math.max(0, src[i]));
@@ -1152,7 +1114,7 @@ export function sobel(tensor) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(src.length);
   const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
   const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
@@ -1182,7 +1144,7 @@ export function sobel(tensor) {
 
 export function hsvToRgb(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const H = Math.fround(src[i * c]);
@@ -1211,7 +1173,7 @@ export function hsvToRgb(tensor) {
 
 export function rgbToHsv(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * 3);
     for (let i = 0; i < h * w; i++) {
       const r = src[i * c];
@@ -1258,7 +1220,7 @@ export function randomHue(tensor, range = 0.05) {
 export function valueMap(tensor, palette) {
   const [h, w, c] = tensor.shape;
   if (c !== 1) throw new Error('valueMap expects single-channel tensor');
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * 3);
   const n = palette.length;
   for (let i = 0; i < h * w; i++) {
@@ -1272,7 +1234,7 @@ export function valueMap(tensor, palette) {
 }
 
 export function ridge(tensor) {
-  const data = tensor.read();
+  const data = tensor.readSync();
   const out = new Float32Array(data.length);
   for (let i = 0; i < data.length; i++) {
     out[i] = 1 - Math.abs(data[i] * 2 - 1);
@@ -1285,7 +1247,7 @@ export function convolution(tensor, kernel, opts = {}) {
   const [h, w, c] = tensor.shape;
   const kh = kernel.length;
   const kw = kernel[0].length;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   const halfH = Math.floor(kh / 2);
   const halfW = Math.floor(kw / 2);
@@ -1354,7 +1316,7 @@ export function refract(
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
 
-  const src = tensor.read();
+  const src = tensor.readSync();
   const rx = refX.read();
   const ry = refY.read();
   const out = new Float32Array(h * w * c);
@@ -1403,7 +1365,7 @@ export function refract(
 
 export function fft(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c * 2);
   for (let k = 0; k < c; k++) {
     for (let u = 0; u < h; u++) {
@@ -1429,7 +1391,7 @@ export function fft(tensor) {
 export function ifft(tensor) {
   const [h, w, c2] = tensor.shape;
   const c = c2 / 2;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   for (let k = 0; k < c; k++) {
     for (let y = 0; y < h; y++) {
@@ -1453,7 +1415,7 @@ export function ifft(tensor) {
 
 export function rotate(tensor, angle) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
@@ -1479,7 +1441,7 @@ export function rotate(tensor, angle) {
 
 export function zoom(tensor, factor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
@@ -1503,7 +1465,7 @@ export function zoom(tensor, factor) {
 
 export function fxaa(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.read();
+  const src = tensor.readSync();
   const out = new Float32Array(h * w * c);
   const lumWeights = [0.299, 0.587, 0.114];
   function reflect(i, n) {

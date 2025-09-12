@@ -73,5 +73,13 @@ export class Tensor {
     }
     return this.data.slice();
   }
+
+  readSync() {
+    const res = this.read();
+    if (res && typeof res.then === 'function') {
+      throw new Error('tensor.read() returns a Promise under WebGPU; use await tensor.read()');
+    }
+    return res;
+  }
 }
 
