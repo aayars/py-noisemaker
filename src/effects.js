@@ -949,7 +949,6 @@ function voronoiWebGPU(
     distMetric !== DistanceMetric.euclidean ||
     sdfSides !== 3 ||
     withRefract !== 0 ||
-    inverse ||
     xy ||
     shape[2] !== 1
   ) {
@@ -1013,7 +1012,17 @@ function voronoiWebGPU(
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
 
-  const params = new Uint32Array([w, h, count, diagramType, 1]);
+  const baseBuf = tensor ? tensor.handle : outBuf;
+  const params = new Float32Array([
+    w,
+    h,
+    count,
+    tensor ? 1 : 0,
+    alpha,
+    inverse ? 1 : 0,
+    0,
+    0,
+  ]);
   const paramsBuf = ctx.createGPUBuffer(params, GPUBufferUsage.UNIFORM);
 
   const module = ctx.device.createShaderModule({ code: VORONOI_WGSL });
@@ -1024,8 +1033,9 @@ function voronoiWebGPU(
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: pointsBuf } },
-      { binding: 1, resource: { buffer: outBuf } },
-      { binding: 2, resource: { buffer: paramsBuf } },
+      { binding: 1, resource: { buffer: baseBuf } },
+      { binding: 2, resource: { buffer: outBuf } },
+      { binding: 3, resource: { buffer: paramsBuf } },
     ],
   });
   const encoder = ctx.device.createCommandEncoder();
