@@ -664,6 +664,7 @@ export function voronoi(
       ? new Float32Array(h * w * c)
       : null;
   let maxDist = 0;
+  let minDist = Infinity;
   const regionColorsNeeded =
     tensor &&
     (diagramType === VoronoiDiagramType.color_regions ||
@@ -677,14 +678,16 @@ export function voronoi(
     : null;
   if (regionColorsNeeded) {
     for (let i = 0; i < count; i++) {
-      const px = Math.floor(yPts[i] * 2) % srcH;
-      const py = Math.floor(xPts[i] * 2) % srcW;
+      const px = Math.floor(yPts[i]) % srcH;
+      const py = Math.floor(xPts[i]) % srcW;
       const base = (px * srcW + py) * c;
       for (let k = 0; k < c; k++) {
         pointColors[i * c + k] = src[base + k];
       }
     }
   }
+  const halfW = Math.floor(w / 2);
+  const halfH = Math.floor(h / 2);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const dists = new Float32Array(count);
@@ -694,13 +697,15 @@ export function voronoi(
       for (let i = 0; i < count; i++) {
         let dx, dy;
         if (isTriangular) {
-          dx = (x - xPts[i]) / w;
-          dy = ((y - yPts[i]) * ySign) / h;
+          dx = Math.fround((x - xPts[i]) / w);
+          dy = Math.fround(((y - yPts[i]) * ySign) / h);
         } else {
-          dx = Math.abs(x - xPts[i]);
-          dx = Math.min(dx, w - dx) / w;
-          dy = Math.abs(y - yPts[i]);
-          dy = Math.min(dy, h - dy) / h;
+          const x0 = Math.fround(x - xPts[i] - halfW);
+          const x1 = Math.fround(x - xPts[i] + halfW);
+          const y0 = Math.fround(y - yPts[i] - halfH);
+          const y1 = Math.fround(y - yPts[i] + halfH);
+          dx = Math.fround(Math.min(Math.abs(x0), Math.abs(x1)) / w);
+          dy = Math.fround(Math.min(Math.abs(y0), Math.abs(y1)) / h);
         }
         const d = distance(dx, dy, distMetric, sdfSides);
         dists[i] = d;
@@ -726,13 +731,18 @@ export function voronoi(
         indexMap[idx] = 0;
       } else {
         const order = [...Array(count).keys()];
-        order.sort((a, b) => dists[a] - dists[b]);
+        order.sort((a, b) => {
+          const da = dists[a];
+          const db = dists[b];
+          return da === db ? b - a : da - db;
+        });
         let nthIndex = nth >= 0 ? Math.min(nth, count - 1) : Math.max(0, count + nth);
         const selIdx = order[nthIndex];
         const selDist = dists[selIdx];
         distMap[idx] = selDist;
         indexMap[idx] = selIdx;
         if (selDist > maxDist) maxDist = selDist;
+        if (selDist < minDist) minDist = selDist;
       }
     }
   }
@@ -742,8 +752,13 @@ export function voronoi(
   let rangeData = null;
   if (!needFlow) {
     rangeData = new Float32Array(h * w);
+    const delta = maxDist - minDist;
     for (let i = 0; i < h * w; i++) {
-      rangeData[i] = Math.sqrt(distMap[i] / maxDist);
+      let v = distMap[i];
+      if (delta > 0) {
+        v = (v - minDist) / delta;
+      }
+      rangeData[i] = Math.sqrt(v);
     }
     if (inverse) {
       for (let i = 0; i < h * w; i++) {
@@ -778,9 +793,10 @@ export function voronoi(
     outTensor = rangeTensor;
   } else if (diagramType === VoronoiDiagramType.color_range && tensor) {
     let rTensor = rangeTensor;
-    if (downsample) rTensor = resample(rangeTensor, originalShape);
+    if (downsample)
+      rTensor = resample(rangeTensor, [originalShape[0], originalShape[1], 1]);
     const rData = rTensor.read();
-    const out = new Float32Array(rData.length * c);
+    const out = new Float32Array(originalShape[0] * originalShape[1] * c);
     for (let i = 0; i < rData.length; i++) {
       const r = rData[i];
       for (let k = 0; k < c; k++) {

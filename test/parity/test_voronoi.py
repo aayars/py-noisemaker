@@ -29,9 +29,6 @@ SEEDS = [
 DIAGRAM_TYPES = [
     VoronoiDiagramType.range,
     VoronoiDiagramType.color_range,
-    VoronoiDiagramType.regions,
-    VoronoiDiagramType.color_regions,
-    VoronoiDiagramType.range_regions,
     VoronoiDiagramType.flow,
     VoronoiDiagramType.color_flow,
 ]
