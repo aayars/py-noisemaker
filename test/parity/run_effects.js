@@ -30,6 +30,7 @@ const EFFECTS = {
   reverb: effects.reverb,
   tint: effects.tint,
   aberration: effects.aberration,
+  scanline_error: effects.scanlineError,
   light_leak: effects.lightLeak,
   crt: effects.crt,
   grain: effects.grain,

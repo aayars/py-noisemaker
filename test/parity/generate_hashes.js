@@ -59,6 +59,7 @@ const EFFECTS = {
     reverb: effects.reverb,
     light_leak: effects.lightLeak,
     crt: effects.crt,
+    scanline_error: effects.scanlineError,
     reindex: effects.reindex,
 };
 

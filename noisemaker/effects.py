@@ -1782,8 +1782,12 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     # Horizontal scanlines
-    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)),
-                         [int(height * .125) or 1, width, 1])
+    scan_noise = value.normalize(
+        value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)
+    )
+
+    tile_h = max(1, int(height * .125))
+    scan_noise = expand_tile(scan_noise, [2, 1, 1], [tile_h * 2, width, 1], with_offset=False)
 
     scan_noise = value.resample(scan_noise, value_shape)
 
@@ -1793,11 +1797,12 @@ def crt(tensor, shape, time=0.0, speed=1.0):
 
     if channels == 3:
         tensor = aberration(tensor, shape, .0125 + rng.random() * .00625)
-        tensor = tf.image.random_hue(tensor, .125, seed=rng.random_int(0, 0xFFFFFFFF))
+        tensor = adjust_hue(tensor, shape, rng.random() * .25 - .125)
         tensor = tf.image.adjust_saturation(tensor, 1.125)
 
     tensor = vignette(tensor, shape, brightness=0, alpha=rng.random() * .175)
-    tensor = tf.image.adjust_contrast(tensor, 1.25)
+    mean = tf.reduce_mean(tensor)
+    tensor = (tensor - mean) * 1.25 + mean
 
     return tensor
 
