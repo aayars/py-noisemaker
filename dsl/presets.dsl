@@ -1417,7 +1417,7 @@
   },
 
   "glowing-edges": {
-    final: [glowing_edges()],
+    final: [glowingEdges()],
   },
 
   "glyph-map": {
