@@ -152,6 +152,7 @@ export class Preset {
     }
 
     // Present to canvas if available
+    let drawPromise = null;
     if (ctx.canvas) {
       const [h, w, c] = tensor.shape;
 
@@ -181,7 +182,11 @@ export class Preset {
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
 
       if (ctx.device) {
-        drawArray(tensor.read());
+        try {
+          drawPromise = drawArray(tensor.read());
+        } catch (e) {
+          drawPromise = Promise.reject(e);
+        }
       } else if (ctx.gl && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
         const gl = ctx.gl;
         ctx.canvas.width = w;
@@ -209,11 +214,11 @@ export class Preset {
         ctx.drawQuad();
         gl.bindTexture(gl.TEXTURE_2D, null);
       } else if (ctx.canvas.getContext) {
-        drawArray(tensor.read());
+        drawPromise = drawArray(tensor.read());
       }
     }
 
-    return tensor;
+    return drawPromise ? drawPromise.then(() => tensor) : tensor;
   }
 }
 

@@ -226,13 +226,13 @@
     const device = ctx.isCPU ? 'cpu' : 'gpu';
     deviceEl.textContent = ctx.device ? `webgpu+${device}` : device;
 
-    function draw(seed, presetName) {
+    async function draw(seed, presetName) {
       setSeed(seed);
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
       let start = performance.now();
       try {
-        render(presetObj, seed, {
+        await render(presetObj, seed, {
           width: canvas.width,
           height: canvas.height,
           ctx,
@@ -245,7 +245,7 @@
           ctx.device = null;
           deviceEl.textContent = device;
           start = performance.now();
-          render(presetObj, seed, {
+          await render(presetObj, seed, {
             width: canvas.width,
             height: canvas.height,
             ctx,
@@ -264,7 +264,7 @@
     }
 
     try {
-      draw(42, currentPreset);
+      await draw(42, currentPreset);
     } catch (e) {
       console.error(e);
     }

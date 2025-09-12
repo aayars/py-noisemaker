@@ -202,37 +202,57 @@ export class Context {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
     }
-    const module = this.device.createShaderModule({ code });
-    const pipeline = await this.device.createComputePipelineAsync({
+    const device = this.device;
+
+    // Capture validation errors so callers can fall back to WebGL.
+    device.pushErrorScope('validation');
+
+    const module = device.createShaderModule({ code });
+    const pipeline = await device.createComputePipelineAsync({
       compute: { module, entryPoint: 'main' },
     });
-    const bindGroup = this.device.createBindGroup({
+    const bindGroup = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: bindEntries,
     });
-    const encoder = this.device.createCommandEncoder();
+    const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(x, y, z);
     pass.end();
     this.queue.submit([encoder.finish()]);
+
+    const err = await device.popErrorScope();
+    if (err) {
+      throw err;
+    }
   }
 
   async readGPUBuffer(buffer, size) {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
     }
-    const readBuf = this.device.createBuffer({
+    const device = this.device;
+    if (buffer.size < size) {
+      throw new Error(`Buffer too small: ${buffer.size} < ${size}`);
+    }
+    // Capture validation errors so callers can fall back to WebGL.
+    device.pushErrorScope('validation');
+    const readBuf = device.createBuffer({
       size,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
-    const encoder = this.device.createCommandEncoder();
+    const encoder = device.createCommandEncoder();
     encoder.copyBufferToBuffer(buffer, 0, readBuf, 0, size);
     this.queue.submit([encoder.finish()]);
     await readBuf.mapAsync(GPUMapMode.READ);
     const arr = readBuf.getMappedRange().slice(0);
     readBuf.unmap();
+    const err = await device.popErrorScope();
+    if (err) {
+      throw err;
+    }
     return new Float32Array(arr);
   }
 
