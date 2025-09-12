@@ -1124,25 +1124,52 @@ export function refract(
   splineOrder = InterpolationType.bicubic,
   signedRange = true,
 ) {
-  const [h, w] = tensor.shape;
+  const [h, w, c] = tensor.shape;
+  const src = tensor.read();
   const rx = (referenceX || tensor).read();
   const ry = (referenceY || tensor).read();
-  const flowData = new Float32Array(h * w * 2);
-  for (let i = 0; i < h * w; i++) {
-    let vx = rx[i];
-    let vy = ry[i];
-    if (signedRange) {
-      vx = vx * 2 - 1;
-      vy = vy * 2 - 1;
-    } else {
-      vx *= 2;
-      vy *= 2;
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let vx = rx[y * w + x];
+      let vy = ry[y * w + x];
+      if (signedRange) {
+        vx = vx * 2 - 1;
+        vy = vy * 2 - 1;
+      } else {
+        vx *= 2;
+        vy *= 2;
+      }
+      const dx = Math.fround(vx * displacement * w);
+      const dy = Math.fround(vy * displacement * h);
+      let x0 = x + Math.trunc(dx);
+      let y0 = y + Math.trunc(dy);
+      let x1 = x0 + 1;
+      let y1 = y0 + 1;
+      x0 = ((x0 % w) + w) % w;
+      x1 = ((x1 % w) + w) % w;
+      y0 = ((y0 % h) + h) % h;
+      y1 = ((y1 % h) + h) % h;
+      const fx = Math.fround(dx - Math.floor(dx));
+      const fy = Math.fround(dy - Math.floor(dy));
+      const tx = splineOrder === InterpolationType.cosine
+        ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
+        : fx;
+      const ty = splineOrder === InterpolationType.cosine
+        ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
+        : fy;
+      for (let k = 0; k < c; k++) {
+        const s00 = src[(y0 * w + x0) * c + k];
+        const s10 = src[(y0 * w + x1) * c + k];
+        const s01 = src[(y1 * w + x0) * c + k];
+        const s11 = src[(y1 * w + x1) * c + k];
+        const x_y0 = s00 * (1 - tx) + s10 * tx;
+        const x_y1 = s01 * (1 - tx) + s11 * tx;
+        out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+      }
     }
-    flowData[i * 2] = vx;
-    flowData[i * 2 + 1] = vy;
   }
-  const flow = Tensor.fromArray(tensor.ctx, flowData, [h, w, 2]);
-  return warp(tensor, flow, displacement, splineOrder);
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 
 export function fft(tensor) {

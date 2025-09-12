@@ -61,8 +61,8 @@ export function warp(
     ];
     if (f[0] >= shape[0] || f[1] >= shape[1]) break;
     const opts = { time, speed, splineOrder };
-    const flowX = values(f, [shape[0], shape[1], 1], { ...opts, seed: 100 + octave });
-    const flowY = values(f, [shape[0], shape[1], 1], { ...opts, seed: 200 + octave });
+    const flowX = values(f, [shape[0], shape[1], 1], opts);
+    const flowY = values(f, [shape[0], shape[1], 1], opts);
     out = refractOp(
       out,
       flowX,
