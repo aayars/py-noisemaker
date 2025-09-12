@@ -225,7 +225,7 @@
     deviceEl.textContent = ctx.isCPU ? 'cpu' : 'gpu';
 
     function draw(seed, presetName) {
-      const presetObj = new Preset(presetName, presets);
+      const presetObj = new Preset(presetName, presets, {}, seed);
       const start = performance.now();
       render(presetObj, seed, {
         width: canvas.width,

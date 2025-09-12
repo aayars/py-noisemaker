@@ -2,7 +2,7 @@ import { Context } from './context.js';
 import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
-import { shapeFromParams } from './util.js';
+import { shapeFromParams, setSeed } from './util.js';
 // Ensure all built-in effects register themselves with the registry.
 // The import is intentionally side-effectful.
 import './effects.js';
@@ -36,7 +36,8 @@ function toCamelKeys(obj = {}) {
 }
 
 export class Preset {
-  constructor(presetName, presets, settings = {}) {
+  constructor(presetName, presets, settings = {}, seed) {
+    if (seed !== undefined) setSeed(seed);
     this.name = presetName;
     const prototype = presets[presetName];
     if (!prototype) {
@@ -220,7 +221,7 @@ export function render(presetName, seed = 0, opts = {}) {
   const { presets = {}, settings } = opts;
   const preset =
     typeof presetName === 'string'
-      ? new Preset(presetName, presets, settings)
+      ? new Preset(presetName, presets, settings, seed)
       : presetName;
   return preset.render(seed, opts);
 }
