@@ -21,6 +21,7 @@ const EFFECTS = {
   vignette: effects.vignette,
   vaseline: effects.vaseline,
   shadow: effects.shadow,
+  palette: effects.palette,
   warp: effects.warp,
   ripple: effects.ripple,
   wobble: effects.wobble,
