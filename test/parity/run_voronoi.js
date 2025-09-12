@@ -23,6 +23,7 @@ const tensor = voronoiEffect(
   params.sdf_sides,
   params.alpha,
   params.with_refract,
+  params.inverse,
   params.refract_y_from_offset,
   params.point_freq,
   params.point_generations,

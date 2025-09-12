@@ -608,6 +608,7 @@ export function voronoi(
   sdfSides = 3,
   alpha = 1,
   withRefract = 0,
+  inverse = false,
   refractYFromOffset = true,
   pointFreq = 3,
   pointGenerations = 1,
@@ -685,11 +686,22 @@ export function voronoi(
       const dists = new Float32Array(count);
       let flowSum = 0;
       const colorSum = colorFlowMap ? new Float32Array(c) : null;
+      const isTriangular =
+        distMetric === DistanceMetric.triangular ||
+        distMetric === DistanceMetric.hexagram ||
+        distMetric === DistanceMetric.sdf;
+      const ySign = inverse ? -1 : 1;
       for (let i = 0; i < count; i++) {
-        let dx = Math.abs(x - xPts[i]);
-        dx = Math.min(dx, w - dx) / w;
-        let dy = Math.abs(y - yPts[i]);
-        dy = Math.min(dy, h - dy) / h;
+        let dx, dy;
+        if (isTriangular) {
+          dx = (x - xPts[i]) / w;
+          dy = ((y - yPts[i]) * ySign) / h;
+        } else {
+          dx = Math.abs(x - xPts[i]);
+          dx = Math.min(dx, w - dx) / w;
+          dy = Math.abs(y - yPts[i]);
+          dy = Math.min(dy, h - dy) / h;
+        }
         const d = distance(dx, dy, distMetric, sdfSides);
         dists[i] = d;
         if (needFlow) {
@@ -732,6 +744,11 @@ export function voronoi(
     rangeData = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
       rangeData[i] = Math.sqrt(distMap[i] / maxDist);
+    }
+    if (inverse) {
+      for (let i = 0; i < h * w; i++) {
+        rangeData[i] = 1 - rangeData[i];
+      }
     }
     rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1]);
     regionsTensor = (() => {
@@ -832,6 +849,7 @@ register("voronoi", voronoi, {
   sdfSides: 3,
   alpha: 1,
   withRefract: 0,
+  inverse: false,
   refractYFromOffset: true,
   pointFreq: 3,
   pointGenerations: 1,
