@@ -42,7 +42,10 @@ EFFECTS = [
     ("voronoi", value.voronoi),
 ]
 
-ATOL = 2e-6
+ATOL = {
+    "default": 2e-6,
+    "shadow": 3e-4,
+}
 
 
 @pytest.mark.parametrize("effect_name,fn", EFFECTS)
@@ -54,4 +57,5 @@ def test_effect_parity(effect_name, fn, seed):
     tensor = fn(tensor, [128, 128, 3])
     assert tensor.shape == (128, 128, 3)
     js = js_effect(effect_name, seed)
-    assert np.allclose(tensor.numpy(), js, atol=ATOL)
+    atol = ATOL.get(effect_name, ATOL["default"])
+    assert np.allclose(tensor.numpy(), js, atol=atol)

@@ -851,10 +851,12 @@ export function blend(a, b, t) {
       const baseB = (by * bw + bx) * bc;
       const baseT = dt ? (ty * tw + tx) * tc : 0;
       for (let k = 0; k < c; k++) {
-        const aVal = da[baseA + k];
-        const bVal = db[baseB + (k < bc ? k : 0)];
-        const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
-        out[baseA + k] = aVal * (1 - tVal) + bVal * tVal;
+          const aVal = da[baseA + k];
+          const bVal = db[baseB + (k < bc ? k : 0)];
+          const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t;
+          out[baseA + k] = Math.fround(
+            aVal * (1 - tVal) + bVal * tVal,
+          );
       }
     }
   }
@@ -923,8 +925,10 @@ export function distance(
       );
     }
     case DistanceMetric.euclidean:
-    default:
-      return Math.sqrt(dx * dx + dy * dy);
+    default: {
+      const sum = Math.fround(Math.fround(dx * dx) + Math.fround(dy * dy));
+      return Math.fround(Math.sqrt(sum));
+    }
   }
 }
 
@@ -1008,32 +1012,32 @@ export function rgbToHsv(tensor) {
   const [h, w, c] = tensor.shape;
   const src = tensor.read();
   const out = new Float32Array(h * w * 3);
-  for (let i = 0; i < h * w; i++) {
-    const r = src[i * c];
-    const g = src[i * c + 1];
-    const b = src[i * c + 2];
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const d = max - min;
-    let hVal;
-    if (d === 0) {
-      hVal = 0;
-    } else if (max === r) {
-      hVal = ((g - b) / d) % 6;
-    } else if (max === g) {
-      hVal = (b - r) / d + 2;
-    } else {
-      hVal = (r - g) / d + 4;
+    for (let i = 0; i < h * w; i++) {
+      const r = src[i * c];
+      const g = src[i * c + 1];
+      const b = src[i * c + 2];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const d = max - min;
+      let hVal;
+      if (d === 0) {
+        hVal = 0;
+      } else if (max === r) {
+        hVal = Math.fround(((g - b) / d) % 6);
+      } else if (max === g) {
+        hVal = Math.fround((b - r) / d + 2);
+      } else {
+        hVal = Math.fround((r - g) / d + 4);
+      }
+      hVal = Math.fround(hVal / 6);
+      if (hVal < 0) hVal += 1;
+      const sVal = max === 0 ? 0 : Math.fround(d / max);
+      out[i * 3] = Math.fround(hVal);
+      out[i * 3 + 1] = Math.fround(sVal);
+      out[i * 3 + 2] = Math.fround(max);
     }
-    hVal /= 6;
-    if (hVal < 0) hVal += 1;
-    const sVal = max === 0 ? 0 : d / max;
-    out[i * 3] = hVal;
-    out[i * 3 + 1] = sVal;
-    out[i * 3 + 2] = max;
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
-}
 
 export function adjustHue(tensor, amount) {
   const hsv = rgbToHsv(tensor);
@@ -1080,15 +1084,6 @@ export function convolution(tensor, kernel, opts = {}) {
   const [h, w, c] = tensor.shape;
   const kh = kernel.length;
   const kw = kernel[0].length;
-  let maxVal = -Infinity;
-  let minVal = Infinity;
-  for (const row of kernel) {
-    for (const v of row) {
-      if (v > maxVal) maxVal = v;
-      if (v < minVal) minVal = v;
-    }
-  }
-  const scale = Math.max(Math.abs(maxVal), Math.abs(minVal)) || 1;
   const src = tensor.read();
   const out = new Float32Array(h * w * c);
   const halfH = Math.floor(kh / 2);
@@ -1102,10 +1097,11 @@ export function convolution(tensor, kernel, opts = {}) {
             const yy = (y + j - halfH + h) % h;
             const xx = (x + i - halfW + w) % w;
             const val = src[(yy * w + xx) * c + k];
-            sum += (kernel[j][i] / scale) * val;
+            const contrib = Math.fround(kernel[j][i] * val);
+            sum = Math.fround(sum + contrib);
           }
         }
-        out[(y * w + x) * c + k] = sum;
+        out[(y * w + x) * c + k] = Math.fround(sum);
       }
     }
   }

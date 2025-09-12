@@ -181,7 +181,9 @@ export function shadow(
   shade = convolution(shade, sharpen, { alpha: 0.5 });
   const shadeArr = shade.read();
   const highlight = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) highlight[i] = shadeArr[i] * shadeArr[i];
+  for (let i = 0; i < h * w; i++) {
+    highlight[i] = Math.fround(shadeArr[i] * shadeArr[i]);
+  }
   const src = tensor.read();
   const shaded = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
@@ -189,7 +191,9 @@ export function shadow(
     const hi = highlight[i];
     for (let k = 0; k < c; k++) {
       const val = src[i * c + k];
-      shaded[i * c + k] = (1 - (1 - val) * (1 - hi)) * sh;
+      const dark = Math.fround((1 - val) * (1 - hi));
+      const lit = Math.fround(1 - dark);
+      shaded[i * c + k] = Math.fround(lit * sh);
     }
   }
   const shadeTensor = Tensor.fromArray(tensor.ctx, shaded, shape);
@@ -201,7 +205,7 @@ export function shadow(
     const tc = alphaData ? alpha.shape[2] : 0;
     for (let i = 0; i < h * w; i++) {
       const t = alphaData ? alphaData[i * tc] : alpha;
-      out[i * 2] = (1 - t) * src[i * 2] + t * shaded[i * 2];
+      out[i * 2] = Math.fround((1 - t) * src[i * 2] + t * shaded[i * 2]);
     }
     return Tensor.fromArray(tensor.ctx, out, shape);
   } else {
@@ -237,8 +241,9 @@ export function shadow(
     const tc = alphaData ? alpha.shape[2] : 0;
     for (let i = 0; i < h * w; i++) {
       const t = alphaData ? alphaData[i * tc] : alpha;
-      hsvData[i * 3 + 2] =
-        (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2];
+      hsvData[i * 3 + 2] = Math.fround(
+        (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2],
+      );
     }
     let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
     if (c === 4) {
