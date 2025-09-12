@@ -941,10 +941,13 @@ function voronoiWebGPU(
   }
 
   // Currently only a subset of the full CPU voronoi implementation is
-  // accelerated on the GPU.  For unsupported modes fall back to the CPU
+  // accelerated on the GPU. For unsupported modes fall back to the CPU
   // version to ensure feature parity.
+  const supportedType =
+    diagramType === VoronoiDiagramType.range ||
+    (diagramType === VoronoiDiagramType.color_range && tensor);
   if (
-    diagramType !== VoronoiDiagramType.range ||
+    !supportedType ||
     nth < 0 ||
     nth >= 64 ||
     ![
@@ -954,8 +957,7 @@ function voronoiWebGPU(
       DistanceMetric.octagram,
     ].includes(distMetric) ||
     sdfSides !== 3 ||
-    withRefract !== 0 ||
-    shape[2] !== 1
+    withRefract !== 0
   ) {
     return voronoiCPU(
       tensor,
@@ -1025,7 +1027,10 @@ function voronoiWebGPU(
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
 
-  const useBase = tensor && !downsample;
+  const useBase =
+    tensor &&
+    !downsample &&
+    diagramType === VoronoiDiagramType.range;
   const baseBuf = useBase ? tensor.handle : outBuf;
   const params = new Float32Array([
     w,
@@ -1060,12 +1065,38 @@ function voronoiWebGPU(
   pass.end();
   ctx.queue.submit([encoder.finish()]);
 
-  let outTensor = new Tensor(ctx, outBuf, [h, w, 1]);
-  if (downsample) {
-    outTensor = resample(outTensor, originalShape, InterpolationType.bicubic);
-    if (tensor) outTensor = blend(tensor, outTensor, alpha);
+  let rangeTensor = new Tensor(ctx, outBuf, [h, w, 1]);
+  if (diagramType === VoronoiDiagramType.color_range && tensor) {
+    if (downsample) {
+      rangeTensor = resample(rangeTensor, [
+        originalShape[0],
+        originalShape[1],
+        1,
+      ], InterpolationType.bicubic);
+    }
+    const rData = rangeTensor.read();
+    const src = tensor.read();
+    const c = tensor.shape[2];
+    const out = new Float32Array(originalShape[0] * originalShape[1] * c);
+    for (let i = 0; i < originalShape[0] * originalShape[1]; i++) {
+      const r = rData[i];
+      for (let k = 0; k < c; k++) {
+        const base = i * c + k;
+        const aVal = src[base] * r;
+        out[base] = Math.fround(aVal * (1 - r) + r * r);
+      }
+    }
+    return Tensor.fromArray(ctx, out, [
+      originalShape[0],
+      originalShape[1],
+      c,
+    ]);
   }
-  return outTensor;
+  if (downsample) {
+    rangeTensor = resample(rangeTensor, originalShape, InterpolationType.bicubic);
+    if (tensor) rangeTensor = blend(tensor, rangeTensor, alpha);
+  }
+  return rangeTensor;
 }
 
 export function voronoi(
