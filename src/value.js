@@ -636,6 +636,91 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
         return t * t * (3 - 2 * t);
     }
   };
+
+  const cpuResample = (src) => {
+    const out = new Float32Array(nh * nw * nc);
+
+    function sampleWrapped(ix, iy, k) {
+      ix = ((ix % w) + w) % w;
+      iy = ((iy % h) + h) % h;
+      return src[(iy * w + ix) * c + Math.min(k, c - 1)];
+    }
+
+    function cubic(a, b, c1, d, t) {
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const a0 = d - c1 - a + b;
+      const a1 = a - b - a0;
+      const a2 = c1 - a;
+      const a3 = b;
+      return a0 * t3 + a1 * t2 + a2 * t + a3;
+    }
+
+    for (let y = 0; y < nh; y++) {
+      const gy = (y * h) / nh;
+      const y0 = Math.floor(gy);
+      const yf = gy - y0;
+      for (let x = 0; x < nw; x++) {
+        const gx = (x * w) / nw;
+        const x0 = Math.floor(gx);
+        const xf = gx - x0;
+        for (let k = 0; k < nc; k++) {
+          let val;
+          if (splineOrder === InterpolationType.constant) {
+            val = sampleWrapped(Math.round(gx), Math.round(gy), k);
+          } else if (
+            splineOrder === InterpolationType.linear ||
+            splineOrder === InterpolationType.cosine
+          ) {
+            const v00 = sampleWrapped(x0, y0, k);
+            const v10 = sampleWrapped(x0 + 1, y0, k);
+            const v01 = sampleWrapped(x0, y0 + 1, k);
+            const v11 = sampleWrapped(x0 + 1, y0 + 1, k);
+            const sx =
+              splineOrder === InterpolationType.cosine
+                ? 0.5 - Math.cos(xf * Math.PI) * 0.5
+                : xf;
+            const sy =
+              splineOrder === InterpolationType.cosine
+                ? 0.5 - Math.cos(yf * Math.PI) * 0.5
+                : yf;
+            const mx0 = v00 * (1 - sx) + v10 * sx;
+            const mx1 = v01 * (1 - sx) + v11 * sx;
+            val = mx0 * (1 - sy) + mx1 * sy;
+          } else {
+            const rows = [];
+            for (let m = -1; m < 3; m++) {
+              rows[m + 1] = cubic(
+                sampleWrapped(x0 - 1, y0 + m, k),
+                sampleWrapped(x0, y0 + m, k),
+                sampleWrapped(x0 + 1, y0 + m, k),
+                sampleWrapped(x0 + 2, y0 + m, k),
+                xf
+              );
+            }
+            val = cubic(rows[0], rows[1], rows[2], rows[3], yf);
+          }
+          out[(y * nw + x) * nc + k] = val;
+        }
+      }
+    }
+
+    return Tensor.fromArray(tensor.ctx, out, [nh, nw, nc]);
+  };
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUBuffer !== 'undefined' &&
+    tensor.handle instanceof GPUBuffer
+  ) {
+    const srcMaybe = tensor.read();
+    if (srcMaybe && typeof srcMaybe.then === 'function') {
+      return srcMaybe.then(cpuResample);
+    }
+    return cpuResample(srcMaybe);
+  }
+
   if (ctx && !ctx.isCPU) {
     const gl = ctx.gl;
     const fs = `#version 300 es
@@ -688,66 +773,12 @@ void main(){
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [nh, nw, nc]);
   }
+
   const src = tensor.read();
-  const out = new Float32Array(nh * nw * nc);
-
-  function sampleWrapped(ix, iy, k) {
-    ix = ((ix % w) + w) % w;
-    iy = ((iy % h) + h) % h;
-    return src[(iy * w + ix) * c + Math.min(k, c - 1)];
+  if (src && typeof src.then === 'function') {
+    return src.then(cpuResample);
   }
-
-  function cubic(a, b, c1, d, t) {
-    const t2 = t * t;
-    const t3 = t2 * t;
-    const a0 = d - c1 - a + b;
-    const a1 = a - b - a0;
-    const a2 = c1 - a;
-    const a3 = b;
-    return a0 * t3 + a1 * t2 + a2 * t + a3;
-  }
-
-  for (let y = 0; y < nh; y++) {
-    const gy = (y * h) / nh;
-    const y0 = Math.floor(gy);
-    const yf = gy - y0;
-    for (let x = 0; x < nw; x++) {
-      const gx = (x * w) / nw;
-      const x0 = Math.floor(gx);
-      const xf = gx - x0;
-      for (let k = 0; k < nc; k++) {
-        let val;
-        if (splineOrder === InterpolationType.constant) {
-          val = sampleWrapped(Math.round(gx), Math.round(gy), k);
-        } else if (splineOrder === InterpolationType.linear || splineOrder === InterpolationType.cosine) {
-          const v00 = sampleWrapped(x0, y0, k);
-          const v10 = sampleWrapped(x0 + 1, y0, k);
-          const v01 = sampleWrapped(x0, y0 + 1, k);
-          const v11 = sampleWrapped(x0 + 1, y0 + 1, k);
-          const sx = splineOrder === InterpolationType.cosine ? 0.5 - Math.cos(xf * Math.PI) * 0.5 : xf;
-          const sy = splineOrder === InterpolationType.cosine ? 0.5 - Math.cos(yf * Math.PI) * 0.5 : yf;
-          const mx0 = v00 * (1 - sx) + v10 * sx;
-          const mx1 = v01 * (1 - sx) + v11 * sx;
-          val = mx0 * (1 - sy) + mx1 * sy;
-        } else {
-          const rows = [];
-          for (let m = -1; m < 3; m++) {
-            rows[m + 1] = cubic(
-              sampleWrapped(x0 - 1, y0 + m, k),
-              sampleWrapped(x0, y0 + m, k),
-              sampleWrapped(x0 + 1, y0 + m, k),
-              sampleWrapped(x0 + 2, y0 + m, k),
-              xf
-            );
-          }
-          val = cubic(rows[0], rows[1], rows[2], rows[3], yf);
-        }
-        out[(y * nw + x) * nc + k] = val;
-      }
-    }
-  }
-
-  return Tensor.fromArray(tensor.ctx, out, [nh, nw, nc]);
+  return cpuResample(src);
 }
 export function downsample(tensor, factor) {
   const [h, w, c] = tensor.shape;
