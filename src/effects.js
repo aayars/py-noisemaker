@@ -1030,6 +1030,16 @@ function voronoiWebGPU(
     }
   }
 
+  if (
+    diagramType === VoronoiDiagramType.flow ||
+    diagramType === VoronoiDiagramType.color_flow
+  ) {
+    for (let i = 0; i < count; i++) {
+      xPts[i] += randomNormal(0, 0.0001);
+      yPts[i] += randomNormal(0, 0.0001);
+    }
+  }
+
   if (count === 0) {
     return tensor;
   }
@@ -1160,8 +1170,12 @@ function voronoiWebGPU(
     needFlow && diagramType === VoronoiDiagramType.color_flow && tensor
       ? new Tensor(ctx, colorFlowBuf, [h, w, c])
       : null;
-  const xOff = Math.floor(w * 0.5);
-  const yOff = Math.floor(h * 0.5);
+  const isTriangular =
+    distMetric === DistanceMetric.triangular ||
+    distMetric === DistanceMetric.hexagram ||
+    distMetric === DistanceMetric.sdf;
+  const xOff = isTriangular ? 0 : Math.floor(w * 0.5);
+  const yOff = isTriangular ? 0 : Math.floor(h * 0.5);
   rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
   regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
   if (flowTensor) flowTensor = offsetTensor(flowTensor, xOff, yOff);
