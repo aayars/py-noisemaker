@@ -3082,11 +3082,12 @@ export function reverb(
   for (let i = 0; i < iterations; i++) {
     for (let octave = 1; octave <= octaves; octave++) {
       const mult = 2 ** octave;
-      const nh = Math.floor(h / mult);
-      const nw = Math.floor(w / mult);
+      const nh = Math.floor(h / mult) || 1;
+      const nw = Math.floor(w / mult) || 1;
       if (nh === 0 || nw === 0) break;
-      let layer = downsample(reference, mult);
-      layer = upsample(layer, mult);
+      const octaveShape = [nh, nw, c];
+      let layer = proportionalDownsample(reference, shape, octaveShape);
+      layer = expandTileInternal(layer, octaveShape, shape);
       const layerData = layer.read();
       for (let j = 0; j < outData.length; j++) {
         outData[j] += layerData[j] / mult;
