@@ -123,27 +123,39 @@
       presetSelect.appendChild(option);
     });
 
-    function formatPreset(obj, indent = 0) {
+    function formatPreset(obj, indent = 0, seen = new WeakSet()) {
       const pad = '  '.repeat(indent);
       if (typeof obj === 'function') {
         return obj.toString();
       }
-      if (Array.isArray(obj)) {
-        return '[\n' +
-          obj
-            .map((v) => pad + '  ' + formatPreset(v, indent + 1))
-            .join(',\n') +
-          '\n' + pad + ']';
-      }
       if (obj && typeof obj === 'object') {
-        return '{\n' +
+        if (seen.has(obj)) {
+          return '[Circular]';
+        }
+        seen.add(obj);
+        if (Array.isArray(obj)) {
+          return (
+            '[\n' +
+            obj
+              .map((v) => pad + '  ' + formatPreset(v, indent + 1, seen))
+              .join(',\n') +
+            '\n' +
+            pad +
+            ']'
+          );
+        }
+        return (
+          '{\n' +
           Object.entries(obj)
             .map(
               ([k, v]) =>
-                pad + '  ' + JSON.stringify(k) + ': ' + formatPreset(v, indent + 1)
+                pad + '  ' + JSON.stringify(k) + ': ' + formatPreset(v, indent + 1, seen)
             )
             .join(',\n') +
-          '\n' + pad + '}';
+          '\n' +
+          pad +
+          '}'
+        );
       }
       return JSON.stringify(obj);
     }
