@@ -170,7 +170,12 @@ export class Preset {
         const prog = ctx.getProgram(FULLSCREEN_VS, fs);
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
+        let tex = tensor.handle;
+        if (typeof WebGLTexture !== 'undefined' && !(tex instanceof WebGLTexture)) {
+          const data = tensor.read();
+          tex = ctx.createTexture(w, h, data);
+        }
+        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
         ctx.bindFramebuffer(null, w, h);
         ctx.drawQuad();
