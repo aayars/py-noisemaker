@@ -141,7 +141,7 @@ for (const v of warpArr) {
 }
 
 // shadow
-const shadowOut = shadow(edgeTensor, [4, 4, 1], 0, 1, 1).read();
+  const shadowOut = (await shadow(edgeTensor, [4, 4, 1], 0, 1, 1)).read();
 const shadowExpected = loadFixture("shadow.json");
 arraysClose(Array.from(shadowOut), shadowExpected);
 
@@ -787,7 +787,7 @@ arraysClose(Array.from(sfOut), sfExpected);
 setSeed(1);
 const frTensor = Tensor.fromArray(null, skData, [2, 2, 1]);
 setSeed(1);
-const frOut = frame(frTensor, [2, 2, 1], 0, 1).read();
+  const frOut = (await frame(frTensor, [2, 2, 1], 0, 1)).read();
 const frExpected = loadFixture("frame.json");
 arraysClose(Array.from(frOut), frExpected);
 

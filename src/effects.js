@@ -1786,7 +1786,9 @@ export async function texture(tensor, shape, time, speed) {
   let noise = await values(64, valueShape, { ctx: tensor.ctx, time, speed });
   noise = await warp(noise, valueShape, time, speed, 2, 8, 1);
   noise = await ridge(noise);
-  const shade = shadow(noise, valueShape, time, speed, 1).read();
+  const shade = await (
+    await shadow(noise, valueShape, time, speed, 1)
+  ).read();
   const src = await tensor.read();
   const [h, w, c] = shape;
   const out = new Float32Array(h * w * c);
@@ -4464,7 +4466,7 @@ export function simpleFrame(tensor, shape, time, speed, brightness = 0) {
 }
 register("simple_frame", simpleFrame, { brightness: 0 });
 
-export function frame(tensor, shape, time, speed) {
+export async function frame(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const halfH = Math.max(1, Math.floor(h * 0.5));
   const halfW = Math.max(1, Math.floor(w * 0.5));
@@ -4495,7 +4497,9 @@ export function frame(tensor, shape, time, speed) {
     faded = lightLeak(faded, halfShape, time, speed, 0.125);
     faded = vignette(faded, halfShape, time, speed, 0.05, 0.75);
   }
-  const shade = shadow(noise, [halfH, halfW, 1], time, speed, 1.0).read();
+  const shade = await (
+    await shadow(noise, [halfH, halfW, 1], time, speed, 1.0)
+  ).read();
   const edgeData = new Float32Array(halfH * halfW * c);
   for (let i = 0; i < halfH * halfW; i++) {
     for (let k = 0; k < c; k++) edgeData[i * c + k] = 0.9 + shade[i] * 0.1;
