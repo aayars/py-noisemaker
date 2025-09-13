@@ -41,7 +41,7 @@ import {
 import { VORONOI_WGSL } from "./webgpu/shaders.js";
 
 
-export function warp(
+export async function warp(
   tensor,
   shape,
   time,
@@ -62,9 +62,9 @@ export function warp(
     ];
     if (f[0] >= shape[0] || f[1] >= shape[1]) break;
     const opts = { ctx: tensor.ctx, time, speed, splineOrder };
-    const flowX = values(f, [shape[0], shape[1], 1], opts);
-    const flowY = values(f, [shape[0], shape[1], 1], opts);
-    out = refractOp(
+    const flowX = await values(f, [shape[0], shape[1], 1], opts);
+    const flowY = await values(f, [shape[0], shape[1], 1], opts);
+    out = await refractOp(
       out,
       flowX,
       flowY,
@@ -1712,9 +1712,9 @@ register("kaleido", kaleido, {
 
 export async function texture(tensor, shape, time, speed) {
   const valueShape = [shape[0], shape[1], 1];
-  let noise = values(64, valueShape, { ctx: tensor.ctx, time, speed });
-  noise = warp(noise, valueShape, time, speed, 2, 8, 1);
-  noise = ridge(noise);
+  let noise = await values(64, valueShape, { ctx: tensor.ctx, time, speed });
+  noise = await warp(noise, valueShape, time, speed, 2, 8, 1);
+  noise = await ridge(noise);
   const shade = shadow(noise, valueShape, time, speed, 1).read();
   const src = await tensor.read();
   const [h, w, c] = shape;
@@ -2325,7 +2325,7 @@ export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
   const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
   return refractOp(tensor, distortion, null, displacement);
 }
-register("lens_warp", lensWarp, { displacement: 0.0625 });
+register("lensWarp", lensWarp, { displacement: 0.0625 });
 register("lens_warp", lensWarp, { displacement: 0.0625 });
 
 export async function lensDistortion(tensor, shape, time, speed, displacement = 1) {
@@ -2362,7 +2362,7 @@ export async function lensDistortion(tensor, shape, time, speed, displacement = 
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
-register("lens_distortion", lensDistortion, { displacement: 1 });
+register("lensDistortion", lensDistortion, { displacement: 1 });
 register("lens_distortion", lensDistortion, { displacement: 1 });
 
 export async function degauss(tensor, shape, time, speed, displacement = 0.0625) {
@@ -4484,16 +4484,16 @@ export async function sketch(tensor, shape, time, speed) {
   for (let i = 0; i < wormsOut.length; i++) wormsOut[i] = 1 - wormsOut[i];
   let cross = Tensor.fromArray(tensor.ctx, wormsOut, [h, w, 1]);
   cross = normalize(cross);
-  let combined = blend(cross, outlineTensor, 0.75);
-  combined = warp(
-    combined,
-    [h, w, 1],
-    time,
-    speed,
-    Math.max(1, Math.floor(Math.max(h, w) * 0.125)),
-    1,
-    0.0025,
-  );
+    let combined = blend(cross, outlineTensor, 0.75);
+    combined = await warp(
+      combined,
+      [h, w, 1],
+      time,
+      speed,
+      Math.max(1, Math.floor(Math.max(h, w) * 0.125)),
+      1,
+      0.0025,
+    );
   const combData = combined.read();
   for (let i = 0; i < combData.length; i++) combData[i] *= combData[i];
   combined = Tensor.fromArray(tensor.ctx, combData, [h, w, 1]);
@@ -4594,17 +4594,17 @@ export async function nebula(tensor, shape, time, speed) {
 }
 register("nebula", nebula, {});
 
-export function spatter(tensor, shape, time, speed, color = true) {
+export async function spatter(tensor, shape, time, speed, color = true) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  let smear = values(randomInt(3, 6), valueShape, {
+  let smear = await values(randomInt(3, 6), valueShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
   });
-  smear = warp(
+  smear = await warp(
     smear,
     valueShape,
     time,
@@ -4613,7 +4613,7 @@ export function spatter(tensor, shape, time, speed, color = true) {
     randomInt(1, 2),
     1 + random(),
   );
-  let sp1 = values(randomInt(32, 64), valueShape, {
+  let sp1 = await values(randomInt(32, 64), valueShape, {
     ctx,
     time,
     speed,
@@ -4632,7 +4632,7 @@ export function spatter(tensor, shape, time, speed, color = true) {
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
-  let sp2 = values(randomInt(150, 200), valueShape, {
+  let sp2 = await values(randomInt(150, 200), valueShape, {
     ctx,
     time,
     speed,
@@ -4651,7 +4651,7 @@ export function spatter(tensor, shape, time, speed, color = true) {
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
-  const remover = values(randomInt(2, 3), valueShape, {
+  const remover = await values(randomInt(2, 3), valueShape, {
     ctx,
     time,
     speed,
@@ -4662,7 +4662,7 @@ export function spatter(tensor, shape, time, speed, color = true) {
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(0, smData[i] - remData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
-  let mask = normalize(smear);
+  let mask = await normalize(smear);
   let maskData = mask.read();
   for (let i = 0; i < maskData.length; i++) maskData[i] *= 0.005;
   const alphaTensor = Tensor.fromArray(ctx, maskData, valueShape);
@@ -4692,27 +4692,27 @@ export function spatter(tensor, shape, time, speed, color = true) {
       }
       overlay = hsvToRgb(Tensor.fromArray(ctx, hsvData, hsv.shape));
     }
-  } else {
-    overlay = values(1, shape, { ctx, distrib: ValueDistribution.ones });
+    } else {
+      overlay = await values(1, shape, { ctx, distrib: ValueDistribution.ones });
+    }
+    return blend(tensor, overlay, alphaTensor);
   }
-  return blend(tensor, overlay, alphaTensor);
-}
 register("spatter", spatter, { color: true });
 
-export function clouds(tensor, shape, time, speed) {
+export async function clouds(tensor, shape, time, speed) {
   const [h, w] = shape;
   const ctx = tensor.ctx;
   const preH = Math.max(1, Math.floor(h * 0.25));
   const preW = Math.max(1, Math.floor(w * 0.25));
   const preShape = [preH, preW, 1];
-  let control = values(randomInt(2, 4), preShape, {
+  let control = await values(randomInt(2, 4), preShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
     seed: randomInt(0, 1000),
   });
-  control = warp(control, preShape, time, speed, 3, 2, 0.125);
+  control = await warp(control, preShape, time, speed, 3, 2, 0.125);
   let shaded = offsetTensor(control, randomInt(-15, 15), randomInt(-15, 15));
   let shadeData = shaded.read();
   for (let i = 0; i < shadeData.length; i++)
@@ -4725,15 +4725,15 @@ export function clouds(tensor, shape, time, speed) {
   for (let i = 0; i < kSize; i++) {
     blurKernel.push(Array.from(kData.slice(i * kSize, i * kSize + kSize)));
   }
-  for (let i = 0; i < 3; i++) shaded = convolution(shaded, blurKernel);
+  for (let i = 0; i < 3; i++) shaded = await convolution(shaded, blurKernel);
   const factor = Math.max(1, Math.floor(h / preH));
-  let shadedUp = upsample(shaded, factor);
-  let combined = upsample(control, factor);
+  let shadedUp = await upsample(shaded, factor);
+  let combined = await upsample(control, factor);
   let shadedDataUp = shadedUp.read();
   for (let i = 0; i < shadedDataUp.length; i++) shadedDataUp[i] *= 0.75;
   shadedUp = Tensor.fromArray(ctx, shadedDataUp, [h, w, 1]);
-  const zeros = values(1, shape, { ctx, distrib: ValueDistribution.zeros });
-  const ones = values(1, shape, { ctx, distrib: ValueDistribution.ones });
+  const zeros = await values(1, shape, { ctx, distrib: ValueDistribution.zeros });
+  const ones = await values(1, shape, { ctx, distrib: ValueDistribution.ones });
   let out = blend(tensor, zeros, shadedUp);
   out = blend(out, ones, combined);
   return shadow(out, shape, time, speed, 0.5);
@@ -4972,12 +4972,12 @@ export async function watermark(tensor, shape, time, speed) {
     ValueMask.lcd_9,
   ];
   let mask = randomGlyphMask(valueShape, glyphs);
-  mask = warp(mask, valueShape, time, speed, 2, 1, 0.5);
-  const noise = values(2, valueShape, { ctx, time, speed }).read();
+  mask = await warp(mask, valueShape, time, speed, 2, 1, 0.5);
+  const noise = (await values(2, valueShape, { ctx, time, speed })).read();
   let mData = mask.read();
   for (let i = 0; i < mData.length; i++) mData[i] *= noise[i] * noise[i];
   mask = Tensor.fromArray(ctx, mData, valueShape);
-  let brightness = values(16, valueShape, { ctx, time, speed });
+  let brightness = await values(16, valueShape, { ctx, time, speed });
   if (c > 1) {
     mask = await expandChannels(mask, c);
     brightness = await expandChannels(brightness, c);

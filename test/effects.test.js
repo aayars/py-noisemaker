@@ -127,11 +127,15 @@ const edgeData = new Float32Array([
 const edgeTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
 
 // warp
-const warpOut = warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear).read();
+const warpOut = (
+  await warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear)
+).read();
 const warpExpected = loadFixture("warp.json");
 arraysClose(Array.from(warpOut), warpExpected);
 // warp with anisotropic freq array
-const warpArr = warp(edgeTensor, [4, 4, 1], 0, 1, [1, 2], 1, 1, InterpolationType.linear).read();
+const warpArr = (
+  await warp(edgeTensor, [4, 4, 1], 0, 1, [1, 2], 1, 1, InterpolationType.linear)
+).read();
 for (const v of warpArr) {
   assert.ok(Number.isFinite(v));
 }
@@ -800,7 +804,7 @@ const kalExpected = loadFixture("kaleido.json");
 arraysClose(Array.from(kalOut), kalExpected);
 
 // texture regression
-const texOut = texture(edgeTensor, [4, 4, 1], 0, 1).read();
+const texOut = (await texture(edgeTensor, [4, 4, 1], 0, 1)).read();
 const texExpected = loadFixture("texture.json");
 arraysClose(Array.from(texOut), texExpected);
 
@@ -850,7 +854,7 @@ arraysClose(Array.from(snowOut), snowExpected);
 setSeed(1);
 const spTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const spOut = spatter(spTensor, [4, 4, 1], 0, 1).read();
+const spOut = (await spatter(spTensor, [4, 4, 1], 0, 1)).read();
 const spExpected = loadFixture("spatter.json");
 arraysClose(Array.from(spOut), spExpected);
 
@@ -858,7 +862,7 @@ arraysClose(Array.from(spOut), spExpected);
 setSeed(1);
 const clTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const clOut = clouds(clTensor, [4, 4, 1], 0, 1).read();
+const clOut = (await clouds(clTensor, [4, 4, 1], 0, 1)).read();
 const clExpected = loadFixture("clouds.json");
 arraysClose(Array.from(clOut), clExpected);
 
@@ -903,7 +907,7 @@ arraysClose(Array.from(grOut), grExpected, 3e-3);
 setSeed(1);
 const watermarkTensor = Tensor.fromArray(null, new Float32Array(64), [8, 8, 1]);
 setSeed(1);
-const wmOut = watermark(watermarkTensor, [8, 8, 1], 0, 1).read();
+const wmOut = (await watermark(watermarkTensor, [8, 8, 1], 0, 1)).read();
 const wmExpected = loadFixture("watermark.json");
 arraysClose(Array.from(wmOut), wmExpected);
 
