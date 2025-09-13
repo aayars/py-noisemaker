@@ -573,7 +573,7 @@ export function outline(
       };
 
       if (c !== 3) {
-        const clamped = rgbT.read();
+        const clamped = rgbTensor.read();
         const handleClamped = (clampedData) => {
           const rgbData = new Float32Array(h * w * 3);
           for (let i = 0; i < h * w; i++) {
@@ -591,7 +591,7 @@ export function outline(
         }
         return handleClamped(clamped);
       }
-      return proceed(rgbT);
+      return proceed(rgbTensor);
     };
 
     const rgbTensor = clamp01(tensor);
