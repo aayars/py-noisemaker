@@ -1,4 +1,6 @@
 import functools
+import os
+from pathlib import Path
 import noisemaker.rng as random
 
 from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
@@ -14,11 +16,12 @@ from noisemaker.constants import (
     WormBehavior as worms,
 )
 from noisemaker.palettes import PALETTES
+from noisemaker.dsl import parse_preset_dsl
 
 import noisemaker.masks as masks
 
 #: Composable presets for Noisemaker. See composer.py and https://noisemaker.readthedocs.io/en/latest/composer.html
-PRESETS = lambda: {  # noqa E731
+PYTHON_PRESETS = lambda: {  # noqa E731
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
         "settings": lambda: {
@@ -4539,5 +4542,18 @@ PRESETS = lambda: {  # noqa E731
     },
 
 }
+
+
+def _dsl_presets():
+    dsl_path = Path(__file__).resolve().parent.parent / "dsl" / "presets.dsl"
+    with open(dsl_path, "r", encoding="utf-8") as fh:
+        return parse_preset_dsl(fh.read())
+
+
+def PRESETS(*, use_dsl=None):
+    if use_dsl is None:
+        use_dsl = os.environ.get("NOISEMAKER_PRESETS", "").lower() == "dsl"
+    return _dsl_presets() if use_dsl else PYTHON_PRESETS()
+
 
 Preset = functools.partial(Preset, presets=PRESETS())

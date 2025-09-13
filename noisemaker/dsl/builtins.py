@@ -44,22 +44,21 @@ def random_member(*collections):
     return _random_member(*collections)
 
 def stash(*args):
-    if len(args) == 1:
-        key = args[0]
-        if not isinstance(key, str):
-            raise ValueError('stash(key[, value]) key must be a string')
+    if len(args) == 0 or len(args) > 2:
+        raise ValueError(f"stash(key[, value]) expects 1 or 2 arguments, received {len(args)}")
+    key = args[0]
+    if not isinstance(key, str):
+        raise ValueError('stash(key[, value]) key must be a string')
+    value = args[1] if len(args) == 2 else None
+
+    def _thunk(settings=None):
         try:
-            return _stash(key)
+            resolved = value(settings) if callable(value) else value
+            return _stash(key, resolved)
         except KeyError:
             return None
-    if len(args) == 2:
-        key, value = args
-        if not isinstance(key, str):
-            raise ValueError('stash(key[, value]) key must be a string')
-        if callable(value):
-            return lambda settings=None: _stash(key, value(settings))
-        return _stash(key, value)
-    raise ValueError(f"stash(key[, value]) expects 1 or 2 arguments, received {len(args)}")
+
+    return _thunk
 
 def random(*args):
     if len(args) != 0:
@@ -106,7 +105,6 @@ coin_flip.__thunk = True
 random_member.__thunk = True
 random.__thunk = True
 random_int.__thunk = True
-stash.__thunk = True
 
 # Unlike the JavaScript implementation, eagerly evaluate these helpers so tests
 # can inspect their return values directly.
