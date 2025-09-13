@@ -26,7 +26,7 @@ import { register } from "./effectsRegistry.js";
 import { random as simplexRandom } from "./simplex.js";
 import { maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
-import { random, randomInt, fromSRGB, toSRGB } from "./util.js";
+import { random, randomInt, fromSRGB, toSRGB, withTensorData } from "./util.js";
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
 import {
@@ -173,126 +173,128 @@ export function shadow(
   for (let i = 0; i < h * w; i++) {
     highlight[i] = Math.fround(shadeArr[i] * shadeArr[i]);
   }
-  const src = tensor.readSync();
-  const shaded = new Float32Array(h * w * c);
-  for (let i = 0; i < h * w; i++) {
-    const sh = shadeArr[i];
-    const hi = highlight[i];
-    for (let k = 0; k < c; k++) {
-      const val = src[i * c + k];
-      const dark = Math.fround((1 - val) * (1 - hi));
-      const lit = Math.fround(1 - dark);
-      shaded[i * c + k] = Math.fround(lit * sh);
-    }
-  }
-  const shadeTensor = Tensor.fromArray(tensor.ctx, shaded, shape);
-  if (c === 1) {
-    return blend(tensor, shadeTensor, alpha);
-  } else if (c === 2) {
-    const out = src.slice();
-    const alphaData = typeof alpha === "number" ? null : alpha.read();
-    const tc = alphaData ? alpha.shape[2] : 0;
+  return withTensorData(tensor, (src) => {
+    const shaded = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
-      const t = alphaData ? alphaData[i * tc] : alpha;
-      out[i * 2] = Math.fround((1 - t) * src[i * 2] + t * shaded[i * 2]);
-    }
-    return Tensor.fromArray(tensor.ctx, out, shape);
-  } else {
-    let rgbData;
-    let aData = null;
-    if (c === 4) {
-      rgbData = new Float32Array(h * w * 3);
-      aData = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) {
-        const base = i * 4;
-        rgbData[i * 3] = src[base];
-        rgbData[i * 3 + 1] = src[base + 1];
-        rgbData[i * 3 + 2] = src[base + 2];
-        aData[i] = src[base + 3];
+      const sh = shadeArr[i];
+      const hi = highlight[i];
+      for (let k = 0; k < c; k++) {
+        const val = src[i * c + k];
+        const dark = Math.fround((1 - val) * (1 - hi));
+        const lit = Math.fround(1 - dark);
+        shaded[i * c + k] = Math.fround(lit * sh);
       }
+    }
+    const shadeTensor = Tensor.fromArray(tensor.ctx, shaded, shape);
+    if (c === 1) {
+      return blend(tensor, shadeTensor, alpha);
+    } else if (c === 2) {
+      const out = src.slice();
+      const alphaData = typeof alpha === "number" ? null : alpha.read();
+      const tc = alphaData ? alpha.shape[2] : 0;
+      for (let i = 0; i < h * w; i++) {
+        const t = alphaData ? alphaData[i * tc] : alpha;
+        out[i * 2] = Math.fround((1 - t) * src[i * 2] + t * shaded[i * 2]);
+      }
+      return Tensor.fromArray(tensor.ctx, out, shape);
     } else {
-      rgbData = src;
-    }
-    const rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
-    const hsv = rgbToHsv(rgbTensor);
-    const hsvData = hsv.read();
-    const shadeRgb = new Float32Array(h * w * 3);
-    for (let i = 0; i < h * w; i++) {
-      shadeRgb[i * 3] = shaded[i * c];
-      shadeRgb[i * 3 + 1] = shaded[i * c + 1];
-      shadeRgb[i * 3 + 2] = shaded[i * c + 2];
-    }
-    const shadeHsv = rgbToHsv(
-      Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
-    );
-    const shadeHsvData = shadeHsv.read();
-    const alphaData = typeof alpha === "number" ? null : alpha.read();
-    const tc = alphaData ? alpha.shape[2] : 0;
-    for (let i = 0; i < h * w; i++) {
-      const t = alphaData ? alphaData[i * tc] : alpha;
-      hsvData[i * 3 + 2] = Math.fround(
-        (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2],
-      );
-    }
-    let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
-    if (c === 4) {
-      const res = result.read();
-      const out = new Float32Array(h * w * 4);
-      for (let i = 0; i < h * w; i++) {
-        out[i * 4] = res[i * 3];
-        out[i * 4 + 1] = res[i * 3 + 1];
-        out[i * 4 + 2] = res[i * 3 + 2];
-        out[i * 4 + 3] = aData[i];
+      let rgbData;
+      let aData = null;
+      if (c === 4) {
+        rgbData = new Float32Array(h * w * 3);
+        aData = new Float32Array(h * w);
+        for (let i = 0; i < h * w; i++) {
+          const base = i * 4;
+          rgbData[i * 3] = src[base];
+          rgbData[i * 3 + 1] = src[base + 1];
+          rgbData[i * 3 + 2] = src[base + 2];
+          aData[i] = src[base + 3];
+        }
+      } else {
+        rgbData = src;
       }
-      result = Tensor.fromArray(tensor.ctx, out, [h, w, 4]);
+      const rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+      const hsv = rgbToHsv(rgbTensor);
+      const hsvData = hsv.read();
+      const shadeRgb = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        shadeRgb[i * 3] = shaded[i * c];
+        shadeRgb[i * 3 + 1] = shaded[i * c + 1];
+        shadeRgb[i * 3 + 2] = shaded[i * c + 2];
+      }
+      const shadeHsv = rgbToHsv(
+        Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
+      );
+      const shadeHsvData = shadeHsv.read();
+      const alphaData = typeof alpha === "number" ? null : alpha.read();
+      const tc = alphaData ? alpha.shape[2] : 0;
+      for (let i = 0; i < h * w; i++) {
+        const t = alphaData ? alphaData[i * tc] : alpha;
+        hsvData[i * 3 + 2] = Math.fround(
+          (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2],
+        );
+      }
+      let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
+      if (c === 4) {
+        const res = result.read();
+        const out = new Float32Array(h * w * 4);
+        for (let i = 0; i < h * w; i++) {
+          out[i * 4] = res[i * 3];
+          out[i * 4 + 1] = res[i * 3 + 1];
+          out[i * 4 + 2] = res[i * 3 + 2];
+          out[i * 4 + 3] = aData[i];
+        }
+        result = Tensor.fromArray(tensor.ctx, out, [h, w, 4]);
+      }
+      return result;
     }
-    return result;
-  }
+  });
 }
 register("shadow", shadow, { alpha: 1, reference: null });
 
 export function bloom(tensor, shape, time, speed, alpha = 0.5) {
   const [h, w, c] = shape;
-  const src = tensor.readSync();
-  const data = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    let v = src[i] * 2 - 1;
-    if (v < 0) v = 0;
-    if (v > 1) v = 1;
-    data[i] = v;
-  }
-  let blurred = Tensor.fromArray(tensor.ctx, data, shape);
-  const targetH = Math.max(1, Math.floor(h / 100));
-  const targetW = Math.max(1, Math.floor(w / 100));
-  blurred = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
-  const bData = blurred.read();
-  for (let i = 0; i < bData.length; i++) bData[i] *= 4;
-  blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
-  blurred = resample(blurred, shape);
-  const xOff = Math.trunc(w * -0.05);
-  const yOff = Math.trunc(h * -0.05);
-  blurred = offsetTensor(blurred, xOff, yOff);
-  const blurRead = blurred.read();
-  for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
-  const channelMeans = new Array(c).fill(0);
-  for (let i = 0; i < h * w; i++) {
-    for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
-  }
-  for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
-  for (let i = 0; i < h * w; i++) {
-    for (let k = 0; k < c; k++) {
-      const idx = i * c + k;
-      blurRead[idx] = (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
+  return withTensorData(tensor, (src) => {
+    const data = new Float32Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+      let v = src[i] * 2 - 1;
+      if (v < 0) v = 0;
+      if (v > 1) v = 1;
+      data[i] = v;
     }
-  }
-  blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
-  const mixData = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    mixData[i] = (src[i] + blurRead[i]) * 0.5;
-  }
-  const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
-  const clamped = clamp01(tensor);
-  return blend(clamped, mixed, alpha);
+    let blurred = Tensor.fromArray(tensor.ctx, data, shape);
+    const targetH = Math.max(1, Math.floor(h / 100));
+    const targetW = Math.max(1, Math.floor(w / 100));
+    blurred = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
+    const bData = blurred.read();
+    for (let i = 0; i < bData.length; i++) bData[i] *= 4;
+    blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
+    blurred = resample(blurred, shape);
+    const xOff = Math.trunc(w * -0.05);
+    const yOff = Math.trunc(h * -0.05);
+    blurred = offsetTensor(blurred, xOff, yOff);
+    const blurRead = blurred.read();
+    for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
+    const channelMeans = new Array(c).fill(0);
+    for (let i = 0; i < h * w; i++) {
+      for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
+    }
+    for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
+    for (let i = 0; i < h * w; i++) {
+      for (let k = 0; k < c; k++) {
+        const idx = i * c + k;
+        blurRead[idx] = (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
+      }
+    }
+    blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
+    const mixData = new Float32Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+      mixData[i] = (src[i] + blurRead[i]) * 0.5;
+    }
+    const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
+    const clamped = clamp01(tensor);
+    return blend(clamped, mixed, alpha);
+  });
 }
 register("bloom", bloom, { alpha: 0.5 });
 
@@ -424,58 +426,59 @@ export function outline(
   invert = false,
 ) {
   const [h, w, c] = shape;
-  const src = tensor.readSync();
-  let valuesTensor;
-  if (c === 1) {
-    valuesTensor = tensor;
-  } else if (c === 2) {
-    const data = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      data[i] = src[i * 2];
-    }
-    valuesTensor = normalize(
-      Tensor.fromArray(tensor.ctx, data, [h, w, 1]),
-    );
-  } else {
-    let rgbTensor = clamp01(tensor);
-    if (c !== 3) {
-      const clamped = rgbTensor.read();
-      const rgbData = new Float32Array(h * w * 3);
+  return withTensorData(tensor, (src) => {
+    let valuesTensor;
+    if (c === 1) {
+      valuesTensor = tensor;
+    } else if (c === 2) {
+      const data = new Float32Array(h * w);
       for (let i = 0; i < h * w; i++) {
-        const base = i * c;
-        rgbData[i * 3] = clamped[base];
-        rgbData[i * 3 + 1] = clamped[base + 1];
-        rgbData[i * 3 + 2] = clamped[base + 2];
+        data[i] = src[i * 2];
       }
-      rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+      valuesTensor = normalize(
+        Tensor.fromArray(tensor.ctx, data, [h, w, 1]),
+      );
+    } else {
+      let rgbTensor = clamp01(tensor);
+      if (c !== 3) {
+        const clamped = rgbTensor.read();
+        const rgbData = new Float32Array(h * w * 3);
+        for (let i = 0; i < h * w; i++) {
+          const base = i * c;
+          rgbData[i * 3] = clamped[base];
+          rgbData[i * 3 + 1] = clamped[base + 1];
+          rgbData[i * 3 + 2] = clamped[base + 2];
+        }
+        rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+      }
+      const oklab = rgbToOklab(rgbTensor).read();
+      const l = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) {
+        l[i] = oklab[i * 3];
+      }
+      valuesTensor = normalize(
+        Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
+      );
     }
-    const oklab = rgbToOklab(rgbTensor).read();
-    const l = new Float32Array(h * w);
+    let edges = sobelOperator(
+      valuesTensor,
+      [h, w, 1],
+      time,
+      speed,
+      sobelMetric,
+    ).read();
+    if (invert) {
+      for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
+    }
+    const out = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
-      l[i] = oklab[i * 3];
+      const e = edges[i];
+      for (let k = 0; k < c; k++) {
+        out[i * c + k] = src[i * c + k] * e;
+      }
     }
-    valuesTensor = normalize(
-      Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
-    );
-  }
-  let edges = sobelOperator(
-    valuesTensor,
-    [h, w, 1],
-    time,
-    speed,
-    sobelMetric,
-  ).read();
-  if (invert) {
-    for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
-  }
-  const out = new Float32Array(h * w * c);
-  for (let i = 0; i < h * w; i++) {
-    const e = edges[i];
-    for (let k = 0; k < c; k++) {
-      out[i * c + k] = src[i * c + k] * e;
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+    return Tensor.fromArray(tensor.ctx, out, shape);
+  });
 }
 register("outline", outline, {
   sobelMetric: DistanceMetric.euclidean,
@@ -491,112 +494,113 @@ export function glowingEdges(
   alpha = 1,
 ) {
   const [h, w, c] = shape;
-  const src = tensor.readSync();
-  let grayTensor;
-  if (c === 1 || c === 2) {
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) gray[i] = src[i * c];
-    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
-  } else {
-    let rgbTensor;
-    if (c === 3) {
-      rgbTensor = clamp01(tensor);
+  return withTensorData(tensor, (src) => {
+    let grayTensor;
+    if (c === 1 || c === 2) {
+      const gray = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) gray[i] = src[i * c];
+      grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
     } else {
-      const rgb = new Float32Array(h * w * 3);
-      for (let i = 0; i < h * w; i++) {
-        const base = i * c;
-        rgb[i * 3] = src[base];
-        rgb[i * 3 + 1] = src[base + 1];
-        rgb[i * 3 + 2] = src[base + 2];
+      let rgbTensor;
+      if (c === 3) {
+        rgbTensor = clamp01(tensor);
+      } else {
+        const rgb = new Float32Array(h * w * 3);
+        for (let i = 0; i < h * w; i++) {
+          const base = i * c;
+          rgb[i * 3] = src[base];
+          rgb[i * 3 + 1] = src[base + 1];
+          rgb[i * 3 + 2] = src[base + 2];
+        }
+        rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
       }
-      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
+      const lab = rgbToOklab(rgbTensor).read();
+      const gray = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) gray[i] = lab[i * 3];
+      grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
     }
-    const lab = rgbToOklab(rgbTensor).read();
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) gray[i] = lab[i * 3];
-    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
-  }
-  let edges = normalize(grayTensor);
-  const levels = randomInt(3, 5);
-  edges = posterize(edges, [h, w, 1], time, speed, levels);
-  const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
-  const [bh, bw] = maskShape(ValueMask.conv2d_blur);
-  const blurFlat = blurTensor.read();
-  const blurArr = [];
-  for (let y = 0; y < bh; y++) {
-    const row = [];
-    for (let x = 0; x < bw; x++) row.push(blurFlat[y * bw + x]);
-    blurArr.push(row);
-  }
-  edges = convolution(edges, blurArr);
-  const sxArr = [
-    [-1, 0, 1],
-    [-2, 0, 2],
-    [-1, 0, 1],
-  ];
-  const syArr = [
-    [-1, -2, -1],
-    [0, 0, 0],
-    [1, 2, 1],
-  ];
-  const gx = convolution(edges, sxArr, { normalize: false });
-  const gy = convolution(edges, syArr, { normalize: false });
-  const gxData = gx.read();
-  const gyData = gy.read();
-  const distData = new Float32Array(gxData.length);
-  for (let i = 0; i < gxData.length; i++) {
-    distData[i] = distance(gxData[i], gyData[i], sobelMetric);
-  }
-  edges = normalize(Tensor.fromArray(tensor.ctx, distData, [h, w, 1]));
-  let sobelData = edges.read();
-  for (let i = 0; i < sobelData.length; i++) {
-    sobelData[i] = Math.abs(sobelData[i] * 2 - 1);
-  }
-  const shifted = new Float32Array(sobelData.length);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const sx = (x - 1 + w) % w;
-      const sy = (y - 1 + h) % h;
-      shifted[y * w + x] = sobelData[sy * w + sx];
+    let edges = normalize(grayTensor);
+    const levels = randomInt(3, 5);
+    edges = posterize(edges, [h, w, 1], time, speed, levels);
+    const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
+    const [bh, bw] = maskShape(ValueMask.conv2d_blur);
+    const blurFlat = blurTensor.read();
+    const blurArr = [];
+    for (let y = 0; y < bh; y++) {
+      const row = [];
+      for (let x = 0; x < bw; x++) row.push(blurFlat[y * bw + x]);
+      blurArr.push(row);
     }
-  }
-  edges = Tensor.fromArray(tensor.ctx, shifted, [h, w, 1]);
-  let eData = edges.read();
-  for (let i = 0; i < eData.length; i++) eData[i] = 1 - eData[i];
-  const mult = new Float32Array(h * w * c);
-  for (let i = 0; i < h * w; i++) {
-    const e = Math.min(eData[i] * 8, 1);
-    for (let k = 0; k < c; k++) {
-      const tVal = Math.min(src[i * c + k] * 1.25, 1);
-      mult[i * c + k] = e * tVal;
+    edges = convolution(edges, blurArr);
+    const sxArr = [
+      [-1, 0, 1],
+      [-2, 0, 2],
+      [-1, 0, 1],
+    ];
+    const syArr = [
+      [-1, -2, -1],
+      [0, 0, 0],
+      [1, 2, 1],
+    ];
+    const gx = convolution(edges, sxArr, { normalize: false });
+    const gy = convolution(edges, syArr, { normalize: false });
+    const gxData = gx.read();
+    const gyData = gy.read();
+    const distData = new Float32Array(gxData.length);
+    for (let i = 0; i < gxData.length; i++) {
+      distData[i] = distance(gxData[i], gyData[i], sobelMetric);
     }
-  }
-  edges = Tensor.fromArray(tensor.ctx, mult, shape);
-  edges = bloom(edges, shape, time, speed, 0.5);
-  const kTensor = maskValues(ValueMask.conv2d_blur)[0];
-  const [kh, kw] = maskShape(ValueMask.conv2d_blur);
-  const kFlat = kTensor.read();
-  const kArr = [];
-  for (let y = 0; y < kh; y++) {
-    const row = [];
-    for (let x = 0; x < kw; x++) row.push(kFlat[y * kw + x]);
-    kArr.push(row);
-  }
-  let blurred = convolution(edges, kArr);
-  const eData2 = edges.read();
-  const bData = blurred.read();
-  const sum = new Float32Array(eData2.length);
-  for (let i = 0; i < eData2.length; i++) sum[i] = eData2[i] + bData[i];
-  edges = normalize(Tensor.fromArray(tensor.ctx, sum, shape));
-  const edgesData = edges.read();
-  const final = new Float32Array(edgesData.length);
-  for (let i = 0; i < edgesData.length; i++) {
-    final[i] = 1 - (1 - edgesData[i]) * (1 - src[i]);
-  }
-  let result = Tensor.fromArray(tensor.ctx, final, shape);
-  if (typeof alpha !== "number" || alpha < 1)
-    result = blend(tensor, result, alpha);
-  return result;
+    edges = normalize(Tensor.fromArray(tensor.ctx, distData, [h, w, 1]));
+    let sobelData = edges.read();
+    for (let i = 0; i < sobelData.length; i++) {
+      sobelData[i] = Math.abs(sobelData[i] * 2 - 1);
+    }
+    const shifted = new Float32Array(sobelData.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const sx = (x - 1 + w) % w;
+        const sy = (y - 1 + h) % h;
+        shifted[y * w + x] = sobelData[sy * w + sx];
+      }
+    }
+    edges = Tensor.fromArray(tensor.ctx, shifted, [h, w, 1]);
+    let eData = edges.read();
+    for (let i = 0; i < eData.length; i++) eData[i] = 1 - eData[i];
+    const mult = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      const e = Math.min(eData[i] * 8, 1);
+      for (let k = 0; k < c; k++) {
+        const tVal = Math.min(src[i * c + k] * 1.25, 1);
+        mult[i * c + k] = e * tVal;
+      }
+    }
+    edges = Tensor.fromArray(tensor.ctx, mult, shape);
+    edges = bloom(edges, shape, time, speed, 0.5);
+    const kTensor = maskValues(ValueMask.conv2d_blur)[0];
+    const [kh, kw] = maskShape(ValueMask.conv2d_blur);
+    const kFlat = kTensor.read();
+    const kArr = [];
+    for (let y = 0; y < kh; y++) {
+      const row = [];
+      for (let x = 0; x < kw; x++) row.push(kFlat[y * kw + x]);
+      kArr.push(row);
+    }
+    let blurred = convolution(edges, kArr);
+    const eData2 = edges.read();
+    const bData = blurred.read();
+    const sum = new Float32Array(eData2.length);
+    for (let i = 0; i < eData2.length; i++) sum[i] = eData2[i] + bData[i];
+    edges = normalize(Tensor.fromArray(tensor.ctx, sum, shape));
+    const edgesData = edges.read();
+    const final = new Float32Array(edgesData.length);
+    for (let i = 0; i < edgesData.length; i++) {
+      final[i] = 1 - (1 - edgesData[i]) * (1 - src[i]);
+    }
+    let result = Tensor.fromArray(tensor.ctx, final, shape);
+    if (typeof alpha !== "number" || alpha < 1)
+      result = blend(tensor, result, alpha);
+    return result;
+  });
 }
 register("glowing_edges", glowingEdges, {
   sobelMetric: DistanceMetric.manhattan,
@@ -605,63 +609,64 @@ register("glowing_edges", glowingEdges, {
 
 export function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const src = tensor.readSync();
-  const gray = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    if (c === 1) {
-      gray[i] = src[i];
-    } else {
-      const base = i * c;
-      const r = src[base];
-      const g = src[base + 1] || 0;
-      const b = src[base + 2] || 0;
-      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    }
-  }
-  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  const gx = new Float32Array(h * w);
-  const gy = new Float32Array(h * w);
-  function get(x, y) {
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
-    return gray[y * w + x];
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let sx = 0,
-        sy = 0,
-        idx = 0;
-      for (let yy = -1; yy <= 1; yy++) {
-        for (let xx = -1; xx <= 1; xx++) {
-          const v = get(x + xx, y + yy);
-          sx += gxKernel[idx] * v;
-          sy += gyKernel[idx] * v;
-          idx++;
-        }
+  return withTensorData(tensor, (src) => {
+    const gray = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      if (c === 1) {
+        gray[i] = src[i];
+      } else {
+        const base = i * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       }
-      const i = y * w + x;
-      gx[i] = 1 - sx;
-      gy[i] = sy;
     }
-  }
-  let xTensor = normalize(Tensor.fromArray(tensor.ctx, gx, [h, w, 1]));
-  let yTensor = normalize(Tensor.fromArray(tensor.ctx, gy, [h, w, 1]));
-  const xData = xTensor.read();
-  const yData = yTensor.read();
-  const mag = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
-  }
-  const zNorm = normalize(Tensor.fromArray(tensor.ctx, mag, [h, w, 1])).read();
-  const out = new Float32Array(h * w * 3);
-  for (let i = 0; i < h * w; i++) {
-    const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
-    out[i * 3] = xData[i];
-    out[i * 3 + 1] = yData[i];
-    out[i * 3 + 2] = z;
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+    const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    const gx = new Float32Array(h * w);
+    const gy = new Float32Array(h * w);
+    function get(x, y) {
+      x = Math.max(0, Math.min(w - 1, x));
+      y = Math.max(0, Math.min(h - 1, y));
+      return gray[y * w + x];
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sx = 0,
+          sy = 0,
+          idx = 0;
+        for (let yy = -1; yy <= 1; yy++) {
+          for (let xx = -1; xx <= 1; xx++) {
+            const v = get(x + xx, y + yy);
+            sx += gxKernel[idx] * v;
+            sy += gyKernel[idx] * v;
+            idx++;
+          }
+        }
+        const i = y * w + x;
+        gx[i] = 1 - sx;
+        gy[i] = sy;
+      }
+    }
+    let xTensor = normalize(Tensor.fromArray(tensor.ctx, gx, [h, w, 1]));
+    let yTensor = normalize(Tensor.fromArray(tensor.ctx, gy, [h, w, 1]));
+    const xData = xTensor.read();
+    const yData = yTensor.read();
+    const mag = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
+    }
+    const zNorm = normalize(Tensor.fromArray(tensor.ctx, mag, [h, w, 1])).read();
+    const out = new Float32Array(h * w * 3);
+    for (let i = 0; i < h * w; i++) {
+      const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
+      out[i * 3] = xData[i];
+      out[i * 3 + 1] = yData[i];
+      out[i * 3 + 2] = z;
+    }
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  });
 }
 register("normal_map", normalMap, {});
 
