@@ -30,6 +30,20 @@ export class Context {
 
     if (this.gl) {
       const gl = this.gl;
+      const origIsTexture = gl.isTexture.bind(gl);
+      gl.isTexture = (obj) => {
+        if (
+          typeof WebGLTexture !== 'undefined' &&
+          obj instanceof WebGLTexture
+        ) {
+          return origIsTexture(obj);
+        }
+        try {
+          return origIsTexture(obj);
+        } catch (e) {
+          return false;
+        }
+      };
       const hasColorBufferFloat = gl.getExtension('EXT_color_buffer_float');
       // Linear filtering for float textures is core in WebGL2 and we only use
       // NEAREST sampling, so `OES_texture_float_linear` isn't required. Some
