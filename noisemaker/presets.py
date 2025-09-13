@@ -4553,4 +4553,6 @@ def PRESETS(*, use_dsl=False):
 
 
 def Preset(preset_name, *, use_dsl=False, settings=None):
-    return ComposerPreset(preset_name, presets=PRESETS(use_dsl=use_dsl), settings=settings)
+    return ComposerPreset(
+        preset_name, presets=PRESETS(use_dsl=use_dsl), settings=settings, use_dsl=use_dsl
+    )

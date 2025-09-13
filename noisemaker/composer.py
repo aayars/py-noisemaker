@@ -3,6 +3,7 @@
 from collections import UserDict
 from enum import Enum, EnumMeta
 from functools import partial
+import inspect
 
 import noisemaker.rng as rng
 
@@ -37,7 +38,7 @@ _STASH = {}
 
 
 class Preset:
-    def __init__(self, preset_name, presets, settings=None):
+    def __init__(self, preset_name, presets, settings=None, use_dsl=False):
         """
         """
 
@@ -64,22 +65,32 @@ class Preset:
 
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
         # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
-        self.settings = SettingsDict(_flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets))
+        self.settings = SettingsDict(
+            _flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets, use_dsl)
+        )
 
         if settings:  # Inline overrides from caller (such as from CLI)
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs = _flatten_ancestor_metadata(self, self.settings, "generator", {}, presets)
+        self.generator_kwargs = _flatten_ancestor_metadata(
+            self, self.settings, "generator", {}, presets, use_dsl
+        )
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects = _flatten_ancestor_metadata(self, self.settings, "octaves", [], presets)
+        self.octave_effects = _flatten_ancestor_metadata(
+            self, self.settings, "octaves", [], presets, use_dsl
+        )
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects = _flatten_ancestor_metadata(self, self.settings, "post", [], presets)
+        self.post_effects = _flatten_ancestor_metadata(
+            self, self.settings, "post", [], presets, use_dsl
+        )
 
         # A list of callable effects functions, to be applied in order after everything else
-        self.final_effects = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
+        self.final_effects = _flatten_ancestor_metadata(
+            self, self.settings, "final", [], presets, use_dsl
+        )
 
         try:
             # To avoid mistakes in presets, unused keys are disallowed.
@@ -176,7 +187,27 @@ def _flatten_ancestors(preset_name, presets, unique, ancestors):
     ancestors.append(preset_name)
 
 
-def _flatten_ancestor_metadata(preset, settings, key, default, presets):
+def _resolve_metadata_value(value, settings):
+    if callable(value):
+        try:
+            params = inspect.signature(value).parameters
+            if len(params) == 0:
+                return _resolve_metadata_value(value(), settings)
+            if len(params) == 1:
+                return _resolve_metadata_value(value(settings), settings)
+            return value
+        except (ValueError, TypeError):
+            return value
+    if isinstance(value, list):
+        return [_resolve_metadata_value(v, settings) for v in value]
+    if isinstance(value, dict):
+        return {k: _resolve_metadata_value(v, settings) for k, v in value.items()}
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
+def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=False):
     """Flatten ancestor preset metadata"""
 
     if isinstance(default, dict):
@@ -185,7 +216,9 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
         flattened_metadata = []
 
     for ancestor_name in preset.flattened_layers:
-        if key == SETTINGS_KEY:
+        if use_dsl:
+            ancestor = presets[ancestor_name].get(key, default)
+        elif key == SETTINGS_KEY:
             ancestor = presets[ancestor_name].get(key, lambda: default)
         else:
             ancestor = presets[ancestor_name].get(key, lambda _: default)
@@ -203,9 +236,12 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
                 else:
                     raise ValueError(f"In ancestor \"{ancestor_name}\": {e}")
 
-        else:
-            raise ValueError(f"{ancestor_name}: Key \"{key}\" wasn't wrapped in a lambda. " +
-                              "This can cause unexpected results for the given seed.")
+        elif not use_dsl:
+            raise ValueError(
+                f"{ancestor_name}: Key \"{key}\" wasn't wrapped in a lambda. "
+                "This can cause unexpected results for the given seed."
+            )
+        ancestor = _resolve_metadata_value(ancestor, settings)
 
         if not isinstance(ancestor, type(default)):
             raise ValueError(f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(data)}.")

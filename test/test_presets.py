@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.parametrize(
     "use_dsl",
-    [False, pytest.param(True, marks=pytest.mark.xfail(reason="DSL presets under development"))],
+    [False, True],
 )
 def test_presets(use_dsl):
     problems = []
@@ -14,7 +14,7 @@ def test_presets(use_dsl):
 
     for preset_name in presets:
         try:
-            preset = Preset(preset_name, presets)
+            preset = Preset(preset_name, presets, use_dsl=use_dsl)
         except Exception as e:
             problems.append(f"{preset_name} has an error: {e}")
 
