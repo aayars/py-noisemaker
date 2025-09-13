@@ -2102,8 +2102,9 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
     rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
   }
 
-  const norm = clamp01(rgbTensor);
-  const lab = rgbToOklab(norm).read();
+  const norm = await clamp01(rgbTensor);
+  const labTensor = await rgbToOklab(norm);
+  const lab = await labTensor.read();
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const t = lab[i * 3];
@@ -2122,17 +2123,17 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
   if (typeof alpha === "number") {
     tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
   } else {
-    const aData = alpha.read();
+    const aData = await alpha.read();
     const tData = new Float32Array(aData.length);
     for (let i = 0; i < aData.length; i++) {
       tData[i] = (1 - Math.cos(aData[i] * Math.PI)) / 2;
     }
     tBlend = Tensor.fromArray(alpha.ctx, tData, alpha.shape);
   }
-  let blended = blend(norm, colored, tBlend);
+  let blended = await blend(norm, colored, tBlend);
 
   if (alphaChan) {
-    const blendedData = blended.read();
+    const blendedData = await blended.read();
     const final = new Float32Array(h * w * 4);
     for (let i = 0; i < h * w; i++) {
       final[i * 4] = blendedData[i * 3];
