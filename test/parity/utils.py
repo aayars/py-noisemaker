@@ -104,3 +104,19 @@ def js_preset_settings(name: str, seed: int) -> dict:
         text=True,
     )
     return _int_keys(json.loads(result.stdout))
+
+
+def js_dsl(
+    op: str, source: str, seed: int | None = None, count: int | None = None
+):
+    """Invoke the JavaScript DSL helpers and return their JSON result."""
+
+    script = Path(__file__).with_name("run_dsl.js")
+    encoded = base64.b64encode(source.encode()).decode()
+    cmd = ["node", str(script), op, encoded]
+    if seed is not None:
+        cmd.append(str(seed))
+        if count is not None:
+            cmd.append(str(count))
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
