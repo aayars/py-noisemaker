@@ -6,15 +6,27 @@ import { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice } from
 export { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice };
 
 export function withTensorData(tensor, fn) {
-  const res = tensor.read();
-  if (res && typeof res.then === 'function') {
-    return res.then(fn);
+  const handle = (t) => {
+    const res = t && typeof t.read === 'function' ? t.read() : t;
+    if (res && typeof res.then === 'function') {
+      return res.then(fn);
+    }
+    return fn(res);
+  };
+
+  if (tensor && typeof tensor.then === 'function') {
+    return tensor.then(handle);
   }
-  return fn(res);
+  return handle(tensor);
 }
 
 export function withTensorDatas(tensors, fn) {
-  const reads = tensors.map((t) => t.read());
+  const reads = tensors.map((t) => {
+    if (t && typeof t.then === 'function') {
+      return t.then((tt) => (tt && typeof tt.read === 'function' ? tt.read() : tt));
+    }
+    return t && typeof t.read === 'function' ? t.read() : t;
+  });
   if (reads.some((r) => r && typeof r.then === 'function')) {
     return Promise.all(reads).then((datas) => fn(...datas));
   }
