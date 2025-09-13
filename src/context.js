@@ -213,6 +213,7 @@ export class Context {
 
     const module = device.createShaderModule({ code });
     const pipeline = await device.createComputePipelineAsync({
+      layout: 'auto',
       compute: { module, entryPoint: 'main' },
     });
     const bindGroup = device.createBindGroup({

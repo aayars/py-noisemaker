@@ -1243,6 +1243,7 @@ async function voronoiWebGPU(
 
   const module = ctx.device.createShaderModule({ code: VORONOI_WGSL });
   const pipeline = ctx.device.createComputePipeline({
+    layout: "auto",
     compute: { module, entryPoint: "main" },
   });
   const bindGroup = ctx.device.createBindGroup({
