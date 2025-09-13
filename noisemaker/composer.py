@@ -244,7 +244,9 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=
         ancestor = _resolve_metadata_value(ancestor, settings)
 
         if not isinstance(ancestor, type(default)):
-            raise ValueError(f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(data)}.")
+            raise ValueError(
+                f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(ancestor)}."
+            )
 
         if isinstance(ancestor, dict):
             flattened_metadata.update(ancestor)
@@ -267,7 +269,7 @@ def random_member(*collections):
         if not hasattr(c, "__iter__"):
             raise ValueError(f"random_member(arg) should be iterable (collection, enum list, or enum)")
 
-        if isinstance(collection, EnumMeta):
+        if isinstance(c, EnumMeta):
             collection += list(c)
 
         # maybe it's a list of enum members
