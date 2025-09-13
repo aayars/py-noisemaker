@@ -2,7 +2,7 @@ import { Context } from './context.js';
 import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
-import { shapeFromParams, setSeed } from './util.js';
+import { shapeFromParams, setSeed, withTensorData } from './util.js';
 // Ensure all built-in effects register themselves with the registry.
 // The import is intentionally side-effectful.
 import './effects.js';
@@ -221,14 +221,30 @@ export class Preset {
         gl.activeTexture(gl.TEXTURE0);
         let tex = tensor.handle;
         if (typeof WebGLTexture !== 'undefined' && !(tex instanceof WebGLTexture)) {
-          const data = tensor.readSync();
-          tex = ctx.createTexture(w, h, data);
+          const texRes = withTensorData(tensor, (data) => ctx.createTexture(w, h, data));
+          if (texRes && typeof texRes.then === 'function') {
+            drawPromise = texRes.then((t) => {
+              gl.bindTexture(gl.TEXTURE_2D, t);
+              gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+              ctx.bindFramebuffer(null, w, h);
+              ctx.drawQuad();
+              gl.bindTexture(gl.TEXTURE_2D, null);
+            });
+          } else {
+            tex = texRes;
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+            ctx.bindFramebuffer(null, w, h);
+            ctx.drawQuad();
+            gl.bindTexture(gl.TEXTURE_2D, null);
+          }
+        } else {
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+          ctx.bindFramebuffer(null, w, h);
+          ctx.drawQuad();
+          gl.bindTexture(gl.TEXTURE_2D, null);
         }
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-        ctx.bindFramebuffer(null, w, h);
-        ctx.drawQuad();
-        gl.bindTexture(gl.TEXTURE_2D, null);
       } else if (ctx.canvas.getContext) {
         drawPromise = drawArray(tensor.read());
       }

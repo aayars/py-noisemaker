@@ -5,6 +5,22 @@ import { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice } from
 
 export { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice };
 
+export function withTensorData(tensor, fn) {
+  const res = tensor.read();
+  if (res && typeof res.then === 'function') {
+    return res.then(fn);
+  }
+  return fn(res);
+}
+
+export function withTensorDatas(tensors, fn) {
+  const reads = tensors.map((t) => t.read());
+  if (reads.some((r) => r && typeof r.then === 'function')) {
+    return Promise.all(reads).then((datas) => fn(...datas));
+  }
+  return fn(...reads);
+}
+
 // --------------------- Logger ---------------------
 let _logger = console;
 
@@ -57,36 +73,38 @@ export function savePNG(tensor, filename = 'image.png') {
     throw new Error('savePNG requires a browser environment');
   }
   const [h, w, c] = tensor.shape;
-  const data = tensor.readSync();
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
-  const imgData = ctx2d.createImageData(w, h);
-  let useAlpha = false;
-  if (c > 3) {
-    for (let i = 0; i < h * w; ++i) {
-      if (data[i * c + 3] > 0) {
-        useAlpha = true;
-        break;
+  const draw = (data) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+    const imgData = ctx2d.createImageData(w, h);
+    let useAlpha = false;
+    if (c > 3) {
+      for (let i = 0; i < h * w; ++i) {
+        if (data[i * c + 3] > 0) {
+          useAlpha = true;
+          break;
+        }
       }
     }
-  }
-  for (let i = 0; i < h * w; ++i) {
-    const idx = i * 4;
-    const src = i * c;
-    imgData.data[idx] = Math.round((data[src] || 0) * 255);
-    imgData.data[idx + 1] = Math.round((data[src + 1] || 0) * 255);
-    imgData.data[idx + 2] = Math.round((data[src + 2] || 0) * 255);
-    const alpha = useAlpha ? data[src + 3] : 1;
-    imgData.data[idx + 3] = Math.round(alpha * 255);
-  }
-  ctx2d.putImageData(imgData, 0, 0);
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  return link.href;
+    for (let i = 0; i < h * w; ++i) {
+      const idx = i * 4;
+      const src = i * c;
+      imgData.data[idx] = Math.round((data[src] || 0) * 255);
+      imgData.data[idx + 1] = Math.round((data[src + 1] || 0) * 255);
+      imgData.data[idx + 2] = Math.round((data[src + 2] || 0) * 255);
+      const alpha = useAlpha ? data[src + 3] : 1;
+      imgData.data[idx + 3] = Math.round(alpha * 255);
+    }
+    ctx2d.putImageData(imgData, 0, 0);
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    return link.href;
+  };
+  return withTensorData(tensor, draw);
 }
 
 // --------------------- Colour helpers ---------------------
@@ -104,36 +122,38 @@ export function linToSRGB(v) {
 
 export function fromSRGB(tensor) {
   const [h, w, c] = tensor.shape;
-  const data = tensor.readSync();
-  const out = new Float32Array(data.length);
-  const channels = Math.min(c, 3);
-  for (let i = 0; i < h * w; i++) {
-    const base = i * c;
-    for (let ch = 0; ch < channels; ch++) {
-      out[base + ch] = srgbToLin(data[base + ch]);
+  return withTensorData(tensor, (data) => {
+    const out = new Float32Array(data.length);
+    const channels = Math.min(c, 3);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * c;
+      for (let ch = 0; ch < channels; ch++) {
+        out[base + ch] = srgbToLin(data[base + ch]);
+      }
+      for (let ch = channels; ch < c; ch++) {
+        out[base + ch] = data[base + ch];
+      }
     }
-    for (let ch = channels; ch < c; ch++) {
-      out[base + ch] = data[base + ch];
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+    return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  });
 }
 
 export function toSRGB(tensor) {
   const [h, w, c] = tensor.shape;
-  const data = tensor.readSync();
-  const out = new Float32Array(data.length);
-  const channels = Math.min(c, 3);
-  for (let i = 0; i < h * w; i++) {
-    const base = i * c;
-    for (let ch = 0; ch < channels; ch++) {
-      out[base + ch] = linToSRGB(data[base + ch]);
+  return withTensorData(tensor, (data) => {
+    const out = new Float32Array(data.length);
+    const channels = Math.min(c, 3);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * c;
+      for (let ch = 0; ch < channels; ch++) {
+        out[base + ch] = linToSRGB(data[base + ch]);
+      }
+      for (let ch = channels; ch < c; ch++) {
+        out[base + ch] = data[base + ch];
+      }
     }
-    for (let ch = channels; ch < c; ch++) {
-      out[base + ch] = data[base + ch];
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+    return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  });
 }
 
 export const color = { srgbToLin, linToSRGB, fromSRGB, toSRGB };
