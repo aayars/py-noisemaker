@@ -73,30 +73,24 @@ function sortArray(arr) {
   if (arr.__enum) {
     selected = ENUM_LOOKUPS.find((e) => e.name === arr.__enum) || null;
   }
-  if (!selected) {
-    for (const e of ENUM_LOOKUPS) {
-      if (arr.every((v) => e.values.has(v))) {
-        if (!selected || e.values.size < selected.values.size) {
-          selected = e;
-        }
-      }
-    }
-  }
-  arr.sort((a, b) => {
-    if (selected) {
+  if (selected) {
+    arr.sort((a, b) => {
       const na = selected.nameMap.get(a);
       const nb = selected.nameMap.get(b);
       return na < nb ? -1 : na > nb ? 1 : 0;
-    }
-    const ta = typeof a;
-    const tb = typeof b;
-    if (ta === 'number' && tb === 'number') {
-      return a - b;
-    }
-    const sa = String(a);
-    const sb = String(b);
-    return sa < sb ? -1 : sa > sb ? 1 : 0;
-  });
+    });
+  } else {
+    arr.sort((a, b) => {
+      const ta = typeof a;
+      const tb = typeof b;
+      if (ta === 'number' && tb === 'number') {
+        return a - b;
+      }
+      const sa = String(a);
+      const sb = String(b);
+      return sa < sb ? -1 : sa > sb ? 1 : 0;
+    });
+  }
 }
 
 const _STASH = new Map();
