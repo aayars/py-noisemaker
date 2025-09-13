@@ -274,35 +274,80 @@ export function bloom(tensor, shape, time, speed, alpha = 0.5) {
     let blurred = Tensor.fromArray(tensor.ctx, data, shape);
     const targetH = Math.max(1, Math.floor(h / 100));
     const targetW = Math.max(1, Math.floor(w / 100));
-    blurred = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
-    const bData = blurred.read();
-    for (let i = 0; i < bData.length; i++) bData[i] *= 4;
-    blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
-    blurred = resample(blurred, shape);
-    const xOff = Math.trunc(w * -0.05);
-    const yOff = Math.trunc(h * -0.05);
-    blurred = offsetTensor(blurred, xOff, yOff);
-    const blurRead = blurred.read();
-    for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
-    const channelMeans = new Array(c).fill(0);
-    for (let i = 0; i < h * w; i++) {
-      for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
-    }
-    for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
-    for (let i = 0; i < h * w; i++) {
-      for (let k = 0; k < c; k++) {
-        const idx = i * c + k;
-        blurRead[idx] = (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
+    const downMaybe = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
+
+    const handleDown = (down) => {
+      blurred = down;
+      const bDataMaybe = blurred.read();
+      const handleBData = (bData) => {
+        for (let i = 0; i < bData.length; i++) bData[i] *= 4;
+        blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
+        const resampleMaybe = resample(blurred, shape);
+        const handleResample = (resampled) => {
+          blurred = resampled;
+          const xOff = Math.trunc(w * -0.05);
+          const yOff = Math.trunc(h * -0.05);
+          const offsetMaybe = offsetTensor(blurred, xOff, yOff);
+          const handleOffset = (offsetBlur) => {
+            blurred = offsetBlur;
+            const blurReadMaybe = blurred.read();
+            const handleBlurRead = (blurRead) => {
+              for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
+              const channelMeans = new Array(c).fill(0);
+              for (let i = 0; i < h * w; i++) {
+                for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
+              }
+              for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
+              for (let i = 0; i < h * w; i++) {
+                for (let k = 0; k < c; k++) {
+                  const idx = i * c + k;
+                  blurRead[idx] =
+                    (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
+                }
+              }
+              blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
+              const mixData = new Float32Array(src.length);
+              for (let i = 0; i < src.length; i++) {
+                mixData[i] = (src[i] + blurRead[i]) * 0.5;
+              }
+              const mixedMaybe = clamp01(
+                Tensor.fromArray(tensor.ctx, mixData, shape),
+              );
+              const clampedMaybe = clamp01(tensor);
+              if (
+                (mixedMaybe && typeof mixedMaybe.then === "function") ||
+                (clampedMaybe && typeof clampedMaybe.then === "function")
+              ) {
+                return Promise.all([clampedMaybe, mixedMaybe]).then((arr) =>
+                  blend(arr[0], arr[1], alpha),
+                );
+              }
+              return blend(clampedMaybe, mixedMaybe, alpha);
+            };
+            if (blurReadMaybe && typeof blurReadMaybe.then === "function") {
+              return blurReadMaybe.then(handleBlurRead);
+            }
+            return handleBlurRead(blurReadMaybe);
+          };
+          if (offsetMaybe && typeof offsetMaybe.then === "function") {
+            return offsetMaybe.then(handleOffset);
+          }
+          return handleOffset(offsetMaybe);
+        };
+        if (resampleMaybe && typeof resampleMaybe.then === "function") {
+          return resampleMaybe.then(handleResample);
+        }
+        return handleResample(resampleMaybe);
+      };
+      if (bDataMaybe && typeof bDataMaybe.then === "function") {
+        return bDataMaybe.then(handleBData);
       }
+      return handleBData(bDataMaybe);
+    };
+    if (downMaybe && typeof downMaybe.then === "function") {
+      return downMaybe.then(handleDown);
     }
-    blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
-    const mixData = new Float32Array(src.length);
-    for (let i = 0; i < src.length; i++) {
-      mixData[i] = (src[i] + blurRead[i]) * 0.5;
-    }
-    const mixed = clamp01(Tensor.fromArray(tensor.ctx, mixData, shape));
-    const clamped = clamp01(tensor);
-    return blend(clamped, mixed, alpha);
+    return handleDown(downMaybe);
   });
 }
 register("bloom", bloom, { alpha: 0.5 });
