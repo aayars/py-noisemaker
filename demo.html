@@ -71,6 +71,7 @@
   </style>
 </head>
 <body>
+  <div id="errorBanner" style="display:none;background:#fee;color:#900;padding:10px;width:100%;box-sizing:border-box;white-space:pre-wrap;"></div>
   <div id="left">
     <h1>Noisemaker JS Demo</h1>
     <span>
@@ -108,6 +109,7 @@
     const renderTimeEl = document.getElementById('renderTime');
     const deviceEl = document.getElementById('device');
     const seedEl = document.getElementById('seed');
+    const errorBannerEl = document.getElementById('errorBanner');
     const presetFormulaEl = document.getElementById('presetFormula');
     const presetEvalEl = document.getElementById('presetEvaluated');
     const tabFormulaBtn = document.getElementById('tabFormula');
@@ -240,8 +242,11 @@
           debug: false,
         });
       } catch (e) {
+        const errorText = `${e.message || e}\n${e.stack || ''}`;
         if (ctx.device) {
           console.warn('WebGPU failed, falling back to WebGL', e);
+          errorBannerEl.style.display = 'block';
+          errorBannerEl.textContent = `WebGPU failed, falling back to WebGL:\n${errorText}`;
           ctx.device = null;
           deviceEl.textContent = device;
           start = performance.now();
@@ -253,6 +258,8 @@
             debug: false,
           });
         } else {
+          errorBannerEl.style.display = 'block';
+          errorBannerEl.textContent = errorText;
           throw e;
         }
       }
