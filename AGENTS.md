@@ -41,3 +41,10 @@ Read and follow to the letter:
     - VANILLA_JS_PORT_SPEC.md porting document
     - PY_JS_PARITY_SPEC.md cross-language parity requirements
 
+## Javascript/Python Parity Testing
+
+- When the focus is JS, you may not change the reference python implementation.
+- You may not disable, remove, or hobble tests.
+- Do not mask, cover, or attempt to obscure actual problems.
+- Always fix forward.
+- Be an honest developer.
