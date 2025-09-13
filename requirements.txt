@@ -4,7 +4,7 @@ colorthief==0.2.1
 h5py>=3.10.0
 loguru==0.7.3
 opensimplex==0.3
-pillow>=10.0.1,<11
+pillow>=10.0.1,<12
 protobuf>=4.25.8,<7
 requests>=2.4.2
 six>=1.15,<1.18
