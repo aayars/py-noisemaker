@@ -104,6 +104,14 @@
     import { random, setSeed } from './src/util.js';
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
+    // Attempt to initialize WebGPU. Enable the API in your browser for best
+    // performance:
+    //   - Chrome/Edge: set the WebGPU flag at chrome://flags or launch with
+    //     --enable-unsafe-webgpu
+    //   - Safari: Develop > Experimental Features > WebGPU
+    //   - Firefox Nightly: dom.webgpu.enabled in about:config
+    // If `navigator.gpu` is missing or adapter/device requests fail, the demo
+    // will log the error and fall back to WebGL.
     await ctx.initWebGPU();
     const presetSelect = document.getElementById('preset');
     const renderTimeEl = document.getElementById('renderTime');
