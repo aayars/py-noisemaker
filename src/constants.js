@@ -333,18 +333,30 @@ export function isSigned(metric) {
   return metric !== DistanceMetric.none && !isAbsolute(metric);
 }
 
+function enumArray(name, values) {
+  const arr = Array.from(values);
+  Object.defineProperty(arr, '__enum', { value: name });
+  return Object.freeze(arr);
+}
+
 export function distanceMetricAll() {
-  return Object.values(DistanceMetric).filter(
-    (m) => m !== DistanceMetric.none
+  return enumArray('DistanceMetric',
+    Object.values(DistanceMetric).filter(
+      (m) => m !== DistanceMetric.none
+    )
   );
 }
 
 export function distanceMetricAbsoluteMembers() {
-  return distanceMetricAll().filter((m) => isAbsolute(m));
+  return enumArray('DistanceMetric',
+    distanceMetricAll().filter((m) => isAbsolute(m))
+  );
 }
 
 export function distanceMetricSignedMembers() {
-  return distanceMetricAll().filter((m) => isSigned(m));
+  return enumArray('DistanceMetric',
+    distanceMetricAll().filter((m) => isSigned(m))
+  );
 }
 
 export function isNativeSize(distrib) {
@@ -362,11 +374,11 @@ export function isCircular(distrib) {
   return distrib >= PointDistribution.circular;
 }
 
-export const gridMembers = Object.freeze(
+export const gridMembers = enumArray('PointDistribution',
   Object.values(PointDistribution).filter((d) => isGrid(d))
 );
 
-export const circularMembers = Object.freeze(
+export const circularMembers = enumArray('PointDistribution',
   Object.values(PointDistribution).filter((d) => isCircular(d))
 );
 
@@ -378,15 +390,15 @@ export function isValueMaskProcedural(mask) {
   return mask >= ValueMask.sparse;
 }
 
-export const valueMaskNonproceduralMembers = Object.freeze(
+export const valueMaskNonproceduralMembers = enumArray('ValueMask',
   Object.values(ValueMask).filter((m) => !isValueMaskProcedural(m))
 );
 
-export const valueMaskProceduralMembers = Object.freeze(
+export const valueMaskProceduralMembers = enumArray('ValueMask',
   Object.values(ValueMask).filter((m) => isValueMaskProcedural(m))
 );
 
-export const valueMaskConv2dMembers = Object.freeze(
+export const valueMaskConv2dMembers = enumArray('ValueMask',
   Object.entries(ValueMask)
     .filter(([k]) => k.startsWith("conv2d"))
     .map(([, v]) => v)
@@ -396,7 +408,7 @@ export function isValueMaskConv2d(mask) {
   return valueMaskConv2dMembers.includes(mask);
 }
 
-export const valueMaskGridMembers = Object.freeze(
+export const valueMaskGridMembers = enumArray('ValueMask',
   Object.values(ValueMask).filter((m) => m < ValueMask.alphanum_0)
 );
 
@@ -404,7 +416,7 @@ export function isValueMaskGrid(mask) {
   return mask < ValueMask.alphanum_0;
 }
 
-export const valueMaskRgbMembers = Object.freeze(
+export const valueMaskRgbMembers = enumArray('ValueMask',
   Object.values(ValueMask).filter(
     (m) => m >= ValueMask.rgb && m < ValueMask.sparse
   )
@@ -414,7 +426,7 @@ export function isValueMaskRgb(mask) {
   return mask >= ValueMask.rgb && mask < ValueMask.sparse;
 }
 
-export const valueMaskGlyphMembers = Object.freeze(
+export const valueMaskGlyphMembers = enumArray('ValueMask',
   Object.values(ValueMask).filter(
     (m) =>
       (m >= ValueMask.invaders && m <= ValueMask.tromino) ||
@@ -428,7 +440,7 @@ export function isValueMaskGlyph(mask) {
   return valueMaskGlyphMembers.includes(mask);
 }
 
-export const flowMembers = Object.freeze([
+export const flowMembers = enumArray('VoronoiDiagramType', [
   VoronoiDiagramType.flow,
   VoronoiDiagramType.color_flow,
 ]);
@@ -437,7 +449,7 @@ export function isFlowMember(member) {
   return flowMembers.includes(member);
 }
 
-export const wormBehaviorAll = Object.freeze(
+export const wormBehaviorAll = enumArray('WormBehavior',
   Object.values(WormBehavior).filter((m) => m !== WormBehavior.none)
 );
 
@@ -446,7 +458,7 @@ export function isColor(space) {
 }
 
 export function colorSpaceMembers() {
-  return Object.freeze(
+  return enumArray('ColorSpace',
     Object.values(ColorSpace).filter((c) => isColor(c))
   );
 }

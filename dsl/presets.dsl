@@ -3728,11 +3728,12 @@
     settings: {
       value_freq: random_int(2, 4),
       value_refract_range: 0.125 + random() * 0.0625,
+      value_distrib: ValueDistribution.simplex,
     },
     post: [
       value_refract(
         displacement: settings.value_refract_range,
-        distrib: settings.value_distrib ? settings.value_distrib : ValueDistribution.simplex,
+        distrib: settings.value_distrib,
         freq: settings.value_freq,
       ),
     ],

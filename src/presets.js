@@ -8,7 +8,7 @@ export { setSeed };
 // sorted deterministically by their enum member names, mirroring Python's
 // Enum sorting behaviour.
 const ENUM_LOOKUPS = [];
-for (const obj of Object.values(constants)) {
+for (const [name, obj] of Object.entries(constants)) {
   if (
     obj &&
     typeof obj === 'object' &&
@@ -17,7 +17,7 @@ for (const obj of Object.values(constants)) {
   ) {
     const values = new Set(Object.values(obj));
     const nameMap = new Map(Object.entries(obj).map(([k, v]) => [v, k]));
-    ENUM_LOOKUPS.push({ values, nameMap });
+    ENUM_LOOKUPS.push({ name, values, nameMap });
   }
 }
 
@@ -38,6 +38,7 @@ export function random_member(...collections) {
   for (const c of collections) {
     if (Array.isArray(c)) {
       const arr = c.slice();
+      if (c.__enum) Object.defineProperty(arr, '__enum', { value: c.__enum });
       sortArray(arr);
       out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
@@ -53,6 +54,7 @@ export function random_member(...collections) {
       }
     } else if (c && typeof c[Symbol.iterator] === 'function') {
       const arr = Array.from(c);
+      if (c.__enum) Object.defineProperty(arr, '__enum', { value: c.__enum });
       sortArray(arr);
       out.push(...arr);
     } else {
@@ -68,17 +70,22 @@ export function random_member(...collections) {
 
 function sortArray(arr) {
   let selected = null;
-  for (const { values, nameMap } of ENUM_LOOKUPS) {
-    if (arr.every((v) => values.has(v))) {
-      if (!selected || values.size < selected.size) {
-        selected = { map: nameMap, size: values.size };
+  if (arr.__enum) {
+    selected = ENUM_LOOKUPS.find((e) => e.name === arr.__enum) || null;
+  }
+  if (!selected) {
+    for (const e of ENUM_LOOKUPS) {
+      if (arr.every((v) => e.values.has(v))) {
+        if (!selected || e.values.size < selected.values.size) {
+          selected = e;
+        }
       }
     }
   }
   arr.sort((a, b) => {
     if (selected) {
-      const na = selected.map.get(a);
-      const nb = selected.map.get(b);
+      const na = selected.nameMap.get(a);
+      const nb = selected.nameMap.get(b);
       return na < nb ? -1 : na > nb ? 1 : 0;
     }
     const ta = typeof a;
