@@ -2260,7 +2260,7 @@ hearts: {
       settings: () => ({
         palette_alpha: 0.5 + random() * 0.5,
         palette_name: random_member(Object.keys(PALETTES)),
-        palette_on: false,
+        palette_on: random() < 0.375,
       }),
       post: (settings) =>
         !settings.paletteOn

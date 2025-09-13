@@ -160,10 +160,9 @@ function buildPresets(names) {
   const parsed = parsePresetDSL(_SOURCE);
   setSeed(seedBefore);
 
-  // Python's PRESETS() advances the RNG three times when invoked. Advance the
-  // RNG equivalently here to maintain parity.
-  random();
-  random();
+  // Python's PRESETS() consumes three RNG calls when invoked. Building the
+  // preset table from the DSL above already uses two calls, so advance once more
+  // to keep the subsequent RNG sequence aligned with the Python implementation.
   random();
   const presets = {};
 
