@@ -201,7 +201,61 @@ export class Preset {
       const drawArray = (arrPromise) =>
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
 
+<<<<<<< ours
       if (ctx.gl && !ctx.isCPU) {
+=======
+      if (ctx.device) {
+        if (ctx.gl) {
+          const gl = ctx.gl;
+          ctx.canvas.width = w;
+          ctx.canvas.height = h;
+          const colorExpr =
+            c > 3
+              ? 'color'
+              : c === 1
+              ? 'vec4(color.rrr, 1.0)'
+              : c === 2
+              ? 'vec4(color.rrr, color.g)'
+              : 'vec4(color.rgb, 1.0)';
+          const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${colorExpr};\n}`;
+          const prog = ctx.getProgram(FULLSCREEN_VS, fs);
+          gl.useProgram(prog);
+          gl.activeTexture(gl.TEXTURE0);
+          let tex = tensor.handle;
+          const isTex =
+            typeof WebGLTexture !== 'undefined' &&
+            tex instanceof WebGLTexture &&
+            gl.isTexture(tex);
+          if (!isTex) {
+            const texRes = withTensorData(tensor, (data) => ctx.createTexture(w, h, data));
+            if (texRes && typeof texRes.then === 'function') {
+              drawPromise = texRes.then((t) => {
+                gl.bindTexture(gl.TEXTURE_2D, t);
+                gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+                ctx.bindFramebuffer(null, w, h);
+                ctx.drawQuad();
+                gl.bindTexture(gl.TEXTURE_2D, null);
+              });
+            } else {
+              tex = texRes;
+              gl.bindTexture(gl.TEXTURE_2D, tex);
+              gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+              ctx.bindFramebuffer(null, w, h);
+              ctx.drawQuad();
+              gl.bindTexture(gl.TEXTURE_2D, null);
+            }
+          } else {
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
+            ctx.bindFramebuffer(null, w, h);
+            ctx.drawQuad();
+            gl.bindTexture(gl.TEXTURE_2D, null);
+          }
+        } else if (ctx.canvas.getContext) {
+          drawPromise = drawArray(tensor.read());
+        }
+      } else if (ctx.gl && !ctx.isCPU) {
+>>>>>>> theirs
         const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;

@@ -4544,8 +4544,20 @@ PYTHON_PRESETS = lambda: {  # noqa E731
 
 def _dsl_presets():
     dsl_path = Path(__file__).resolve().parent.parent / "dsl" / "presets.dsl"
-    with open(dsl_path, "r", encoding="utf-8") as fh:
-        return parse_preset_dsl(fh.read())
+
+    seed_before = random.get_seed()
+    random.set_seed(0)
+    try:
+        with open(dsl_path, "r", encoding="utf-8") as fh:
+            presets = parse_preset_dsl(fh.read())
+    finally:
+        random.set_seed(seed_before)
+
+    random.random()
+    random.random()
+    random.random()
+
+    return presets
 
 
 def PRESETS(*, use_dsl=False):

@@ -123,8 +123,18 @@ function evalNode(node, ctx) {
           throw new Error(`Unknown operator ${op}`);
       }
     }
-    case 'TernaryExpr':
-      return evalNode(evalNode(node.test, ctx) ? node.consequent : node.alternate, ctx);
+    case 'TernaryExpr': {
+      const test = evalNode(node.test, ctx);
+      const consequent = evalNode(node.consequent, ctx);
+      const alternate = evalNode(node.alternate, ctx);
+      if (hasFunction(test) || hasFunction(consequent) || hasFunction(alternate)) {
+        return (settings) =>
+          resolveValue(test, settings)
+            ? resolveValue(consequent, settings)
+            : resolveValue(alternate, settings);
+      }
+      return test ? consequent : alternate;
+    }
     case 'CallExpr':
       return evalCall(node, ctx);
     default:
