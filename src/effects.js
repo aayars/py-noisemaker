@@ -1546,7 +1546,7 @@ register("singularity", singularity, {
   distMetric: DistanceMetric.euclidean,
 });
 
-export function lowpoly(
+export async function lowpoly(
   tensor,
   shape,
   time,
@@ -1574,7 +1574,7 @@ export function lowpoly(
   // causes the demo to stall on large canvases. Providing the tensor enables
   // GPU acceleration when available and prevents the render-time hang observed
   // in the "basic-low-poly" preset.
-  const distance = voronoi(
+  const distance = await voronoi(
     base,
     shape,
     time,
@@ -1595,7 +1595,7 @@ export function lowpoly(
     xy,
     true,
   );
-  const color = voronoi(
+  const color = await voronoi(
     base,
     shape,
     time,
@@ -1616,7 +1616,8 @@ export function lowpoly(
     xy,
     true,
   );
-  return normalize(blend(distance, color, 0.5));
+  const blended = await blend(distance, color, 0.5);
+  return normalize(blended);
 }
 register("lowpoly", lowpoly, {
   distrib: PointDistribution.random,
