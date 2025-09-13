@@ -1067,12 +1067,18 @@ export function normalize(tensor) {
 }
 
 export function clamp01(tensor) {
-  const src = tensor.readSync();
-  const out = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    out[i] = Math.min(1, Math.max(0, src[i]));
+  const compute = (src) => {
+    const out = new Float32Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+      out[i] = Math.min(1, Math.max(0, src[i]));
+    }
+    return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  };
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(compute);
   }
-  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  return compute(srcMaybe);
 }
 
 export function distance(

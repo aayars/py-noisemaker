@@ -5,7 +5,7 @@ Several helper functions in the JavaScript port still rely on synchronous tensor
 The following areas remain CPU/WebGL only:
 
 - `src/generators.js`: generator array exports
-- `src/value.js`: many utilities such as `normalize` and colour helpers
+- `src/value.js`: many utilities such as `normalize` and colour helpers (though some helpers like `clamp01` now use `tensor.read()`)
 - `src/effects.js`: most effects that sample tensor data
 
 Utility helpers in `src/util.js` and the colour space conversions in `src/oklab.js` now use `tensor.read()` and can operate under a WebGPU context.
