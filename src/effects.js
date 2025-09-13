@@ -1971,7 +1971,7 @@ export function offsetIndex(yIndex, height, xIndex, width) {
 export async function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
   if (shape[2] === 3) {
-    tensor = fromSRGB(tensor);
+    tensor = await fromSRGB(tensor);
   }
   const src = await tensor.read();
   const out = new Float32Array(src.length);
@@ -1980,7 +1980,7 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
   }
   let result = Tensor.fromArray(tensor.ctx, out, shape);
   if (shape[2] === 3) {
-    result = toSRGB(result);
+    result = await toSRGB(result);
   }
   return result;
 }

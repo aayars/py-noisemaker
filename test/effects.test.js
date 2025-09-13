@@ -376,7 +376,7 @@ arraysClose(Array.from(sobelRgb), Array.from(sobData));
 // posterize regression
 const posterData = new Float32Array([0.1, 0.5, 0.9, 0.3]);
 const posterTensor = Tensor.fromArray(null, posterData, [2, 2, 1]);
-const jsPoster = posterize(posterTensor, [2, 2, 1], 0, 1, 4).read();
+const jsPoster = (await posterize(posterTensor, [2, 2, 1], 0, 1, 4)).read();
 const posterExpected = loadFixture("posterize.json");
 arraysClose(Array.from(jsPoster), posterExpected);
 
