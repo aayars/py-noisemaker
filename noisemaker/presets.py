@@ -1,9 +1,7 @@
-import functools
-import os
 from pathlib import Path
 import noisemaker.rng as random
 
-from noisemaker.composer import Effect, Preset, coin_flip, enum_range, random_member, stash
+from noisemaker.composer import Effect, Preset as ComposerPreset, coin_flip, enum_range, random_member, stash
 from noisemaker.constants import (
     ColorSpace as color,
     DistanceMetric as distance,
@@ -4550,10 +4548,9 @@ def _dsl_presets():
         return parse_preset_dsl(fh.read())
 
 
-def PRESETS(*, use_dsl=None):
-    if use_dsl is None:
-        use_dsl = os.environ.get("NOISEMAKER_PRESETS", "").lower() == "dsl"
+def PRESETS(*, use_dsl=False):
     return _dsl_presets() if use_dsl else PYTHON_PRESETS()
 
 
-Preset = functools.partial(Preset, presets=PRESETS())
+def Preset(preset_name, *, use_dsl=False, settings=None):
+    return ComposerPreset(preset_name, presets=PRESETS(use_dsl=use_dsl), settings=settings)
