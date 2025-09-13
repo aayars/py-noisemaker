@@ -1168,37 +1168,73 @@ export function sobel(tensor) {
 
 export function hsvToRgb(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * 3);
-  for (let i = 0; i < h * w; i++) {
-    const H = Math.fround(src[i * c]);
-    const S = Math.fround(src[i * c + 1]);
-    const V = Math.fround(src[i * c + 2]);
-    const C = Math.fround(V * S);
-    const hPrime = Math.fround(Math.fround(H * 6) % 6);
-    const X = Math.fround(C * Math.fround(1 - Math.abs(Math.fround(hPrime % 2) - 1)));
-    let r1, g1, b1;
-    switch (Math.floor(hPrime)) {
-      case 0: r1 = C; g1 = X; b1 = 0; break;
-      case 1: r1 = X; g1 = C; b1 = 0; break;
-      case 2: r1 = 0; g1 = C; b1 = X; break;
-      case 3: r1 = 0; g1 = X; b1 = C; break;
-      case 4: r1 = X; g1 = 0; b1 = C; break;
-      case 5: r1 = C; g1 = 0; b1 = X; break;
-      default: r1 = 0; g1 = 0; b1 = 0; break;
+  const compute = (src) => {
+    const out = new Float32Array(h * w * 3);
+    for (let i = 0; i < h * w; i++) {
+      const H = Math.fround(src[i * c]);
+      const S = Math.fround(src[i * c + 1]);
+      const V = Math.fround(src[i * c + 2]);
+      const C = Math.fround(V * S);
+      const hPrime = Math.fround(Math.fround(H * 6) % 6);
+      const X = Math.fround(
+        C * Math.fround(1 - Math.abs(Math.fround(hPrime % 2) - 1)),
+      );
+      let r1, g1, b1;
+      switch (Math.floor(hPrime)) {
+        case 0:
+          r1 = C;
+          g1 = X;
+          b1 = 0;
+          break;
+        case 1:
+          r1 = X;
+          g1 = C;
+          b1 = 0;
+          break;
+        case 2:
+          r1 = 0;
+          g1 = C;
+          b1 = X;
+          break;
+        case 3:
+          r1 = 0;
+          g1 = X;
+          b1 = C;
+          break;
+        case 4:
+          r1 = X;
+          g1 = 0;
+          b1 = C;
+          break;
+        case 5:
+          r1 = C;
+          g1 = 0;
+          b1 = X;
+          break;
+        default:
+          r1 = 0;
+          g1 = 0;
+          b1 = 0;
+          break;
+      }
+      const m = Math.fround(V - C);
+      out[i * 3] = Math.fround(r1 + m);
+      out[i * 3 + 1] = Math.fround(g1 + m);
+      out[i * 3 + 2] = Math.fround(b1 + m);
     }
-    const m = Math.fround(V - C);
-    out[i * 3] = Math.fround(r1 + m);
-    out[i * 3 + 1] = Math.fround(g1 + m);
-    out[i * 3 + 2] = Math.fround(b1 + m);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  };
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(compute);
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  return compute(srcMaybe);
 }
 
 export function rgbToHsv(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * 3);
+  const compute = (src) => {
+    const out = new Float32Array(h * w * 3);
     for (let i = 0; i < h * w; i++) {
       const r = src[i * c];
       const g = src[i * c + 1];
@@ -1224,16 +1260,34 @@ export function rgbToHsv(tensor) {
       out[i * 3 + 2] = Math.fround(max);
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  };
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(compute);
   }
+  return compute(srcMaybe);
+}
 
 export function adjustHue(tensor, amount) {
-  const hsv = rgbToHsv(tensor);
-  const data = hsv.read();
-  for (let i = 0; i < data.length; i += 3) {
-    data[i] = (data[i] + amount) % 1;
-    if (data[i] < 0) data[i] += 1;
+  const hsvMaybe = rgbToHsv(tensor);
+  const process = (hsv) => {
+    const dataMaybe = hsv.read();
+    const shift = (data) => {
+      for (let i = 0; i < data.length; i += 3) {
+        data[i] = (data[i] + amount) % 1;
+        if (data[i] < 0) data[i] += 1;
+      }
+      return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape));
+    };
+    if (dataMaybe && typeof dataMaybe.then === 'function') {
+      return dataMaybe.then(shift);
+    }
+    return shift(dataMaybe);
+  };
+  if (hsvMaybe && typeof hsvMaybe.then === 'function') {
+    return hsvMaybe.then(process);
   }
-  return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape));
+  return process(hsvMaybe);
 }
 
 export function randomHue(tensor, range = 0.05) {
@@ -1244,17 +1298,23 @@ export function randomHue(tensor, range = 0.05) {
 export function valueMap(tensor, palette) {
   const [h, w, c] = tensor.shape;
   if (c !== 1) throw new Error('valueMap expects single-channel tensor');
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * 3);
-  const n = palette.length;
-  for (let i = 0; i < h * w; i++) {
-    const idx = Math.min(n - 1, Math.max(0, Math.floor(src[i] * (n - 1))));
-    const [r, g, b] = palette[idx];
-    out[i * 3] = r;
-    out[i * 3 + 1] = g;
-    out[i * 3 + 2] = b;
+  const compute = (src) => {
+    const out = new Float32Array(h * w * 3);
+    const n = palette.length;
+    for (let i = 0; i < h * w; i++) {
+      const idx = Math.min(n - 1, Math.max(0, Math.floor(src[i] * (n - 1))));
+      const [r, g, b] = palette[idx];
+      out[i * 3] = r;
+      out[i * 3 + 1] = g;
+      out[i * 3 + 2] = b;
+    }
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  };
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(compute);
   }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+  return compute(srcMaybe);
 }
 
 export function ridge(tensor) {
