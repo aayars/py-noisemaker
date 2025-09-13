@@ -492,49 +492,7 @@ export function outline(
   invert = false,
 ) {
   const [h, w, c] = shape;
-  return withTensorData(tensor, async (src) => {
-    let valuesTensor;
-    if (c === 1) {
-      valuesTensor = tensor;
-    } else if (c === 2) {
-      const data = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) {
-        data[i] = src[i * 2];
-      }
-      valuesTensor = await normalize(
-        Tensor.fromArray(tensor.ctx, data, [h, w, 1]),
-      );
-    } else {
-      let rgbTensor = await clamp01(tensor);
-      if (c !== 3) {
-        const clamped = await rgbTensor.read();
-        const rgbData = new Float32Array(h * w * 3);
-        for (let i = 0; i < h * w; i++) {
-          const base = i * c;
-          rgbData[i * 3] = clamped[base];
-          rgbData[i * 3 + 1] = clamped[base + 1];
-          rgbData[i * 3 + 2] = clamped[base + 2];
-        }
-        rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
-      }
-      const oklabTensor = await rgbToOklab(rgbTensor);
-      const oklab = await oklabTensor.read();
-      const l = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) {
-        l[i] = oklab[i * 3];
-      }
-      valuesTensor = await normalize(
-        Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
-      );
-    }
-    const edgesTensor = await sobelOperator(
-      valuesTensor,
-      [h, w, 1],
-      time,
-      speed,
-      sobelMetric,
-    );
-    const edges = await edgesTensor.read();
+  const applyEdges = (src, edges) => {
     if (invert) {
       for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
     }
@@ -546,6 +504,101 @@ export function outline(
       }
     }
     return Tensor.fromArray(tensor.ctx, out, shape);
+  };
+
+  const handleValues = (src, valuesTensor) => {
+    const edgesTensor = sobelOperator(
+      valuesTensor,
+      [h, w, 1],
+      time,
+      speed,
+      sobelMetric,
+    );
+    const processEdges = (et) => {
+      const edges = et.read();
+      if (edges && typeof edges.then === "function") {
+        return edges.then((e) => applyEdges(src, e));
+      }
+      return applyEdges(src, edges);
+    };
+    if (edgesTensor && typeof edgesTensor.then === "function") {
+      return edgesTensor.then(processEdges);
+    }
+    return processEdges(edgesTensor);
+  };
+
+  return withTensorData(tensor, (src) => {
+    if (c === 1) {
+      return handleValues(src, tensor);
+    }
+    if (c === 2) {
+      const data = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) {
+        data[i] = src[i * 2];
+      }
+      const norm = normalize(Tensor.fromArray(tensor.ctx, data, [h, w, 1]));
+      if (norm && typeof norm.then === "function") {
+        return norm.then((v) => handleValues(src, v));
+      }
+      return handleValues(src, norm);
+    }
+
+    const handleRgb = (rgbTensor) => {
+      const proceed = (rgbT) => {
+        const oklabTensor = rgbToOklab(rgbT);
+        const handleOklab = (ol) => {
+          const oklab = ol.read();
+          const handleOklabData = (ok) => {
+            const l = new Float32Array(h * w);
+            for (let i = 0; i < h * w; i++) {
+              l[i] = ok[i * 3];
+            }
+            const norm = normalize(
+              Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
+            );
+            if (norm && typeof norm.then === "function") {
+              return norm.then((v) => handleValues(src, v));
+            }
+            return handleValues(src, norm);
+          };
+          if (oklab && typeof oklab.then === "function") {
+            return oklab.then(handleOklabData);
+          }
+          return handleOklabData(oklab);
+        };
+        if (oklabTensor && typeof oklabTensor.then === "function") {
+          return oklabTensor.then(handleOklab);
+        }
+        return handleOklab(oklabTensor);
+      };
+
+      if (c !== 3) {
+        const clamped = rgbT.read();
+        const handleClamped = (clampedData) => {
+          const rgbData = new Float32Array(h * w * 3);
+          for (let i = 0; i < h * w; i++) {
+            const base = i * c;
+            rgbData[i * 3] = clampedData[base];
+            rgbData[i * 3 + 1] = clampedData[base + 1];
+            rgbData[i * 3 + 2] = clampedData[base + 2];
+          }
+          return proceed(
+            Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]),
+          );
+        };
+        if (clamped && typeof clamped.then === "function") {
+          return clamped.then(handleClamped);
+        }
+        return handleClamped(clamped);
+      }
+      return proceed(rgbT);
+    };
+
+    const rgbTensor = clamp01(tensor);
+    if (rgbTensor && typeof rgbTensor.then === "function") {
+      return rgbTensor.then(handleRgb);
+    }
+    return handleRgb(rgbTensor);
   });
 }
 register("outline", outline, {
