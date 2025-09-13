@@ -246,7 +246,7 @@ export function basic(freq, shape, opts = {}) {
   return tensor;
 }
 
-export function multires(freq, shape, opts = {}) {
+export async function multires(freq, shape, opts = {}) {
   const {
     octaves = 1,
     ridges = false,
@@ -292,7 +292,7 @@ export function multires(freq, shape, opts = {}) {
       Math.floor(f[1] * 0.5 * multiplier),
     ];
     if (baseFreq[0] > shape[0] && baseFreq[1] > shape[1]) break;
-    const layer = basic(baseFreq, shape, {
+    const layer = await basic(baseFreq, shape, {
       ridges,
       sin,
       splineOrder,
@@ -316,8 +316,8 @@ export function multires(freq, shape, opts = {}) {
       speed,
       ctx,
     });
-    const data = tensor.readSync();
-    const layerData = layer.read();
+    const data = await tensor.read();
+    const layerData = await layer.read();
     const c = shape[2];
     const out = new Float32Array(data.length);
     if (octaveBlending === OctaveBlending.reduce_max) {
@@ -339,31 +339,31 @@ export function multires(freq, shape, opts = {}) {
     }
     tensor = Tensor.fromArray(ctx, out, shape);
   }
-  tensor = normalize(tensor);
+  tensor = await normalize(tensor);
 
   let final = [];
   for (const e of postEffects) {
-    const res = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
+    const res = await _applyPostEffectOrPreset(e, tensor, shape, time, speed);
     tensor = res.tensor;
     final = final.concat(res.final);
   }
 
   final = final.concat(finalEffects);
   for (const e of final) {
-    tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+    tensor = await _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
   }
 
-  tensor = normalize(tensor);
+  tensor = await normalize(tensor);
   return tensor;
 }
 
-function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
+async function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
   if (typeof effectOrPreset === 'function') {
-    return { tensor: effectOrPreset(tensor, shape, time, speed), final: [] };
+    return { tensor: await effectOrPreset(tensor, shape, time, speed), final: [] };
   } else {
     let final = [...effectOrPreset.final_effects];
     for (const e of effectOrPreset.post_effects) {
-      const res = _applyPostEffectOrPreset(e, tensor, shape, time, speed);
+      const res = await _applyPostEffectOrPreset(e, tensor, shape, time, speed);
       tensor = res.tensor;
       final = final.concat(res.final);
     }
@@ -371,12 +371,12 @@ function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
   }
 }
 
-function _applyFinalEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
+async function _applyFinalEffectOrPreset(effectOrPreset, tensor, shape, time, speed) {
   if (typeof effectOrPreset === 'function') {
     return effectOrPreset(tensor, shape, time, speed);
   } else {
     for (const e of effectOrPreset.post_effects.concat(effectOrPreset.final_effects)) {
-      tensor = _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+      tensor = await _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
     }
     return tensor;
   }

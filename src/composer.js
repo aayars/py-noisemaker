@@ -102,7 +102,7 @@ export class Preset {
     }
   }
 
-  render(seed = 0, opts = {}) {
+  async render(seed = 0, opts = {}) {
     opts = toCamelKeys(opts);
     const {
       ctx = new Context(null),
@@ -142,7 +142,7 @@ export class Preset {
     debugLog(debug, 'render merged settings', merged);
     debugLog(debug, 'render shape', shape);
 
-    let tensor = multires(freq, shape, {
+    let tensor = await multires(freq, shape, {
       ...merged,
       color_space: colorSpace,
       ctx,
@@ -195,11 +195,7 @@ export class Preset {
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
 
       if (ctx.device) {
-        try {
-          drawPromise = drawArray(tensor.readSync());
-        } catch (e) {
-          drawPromise = Promise.reject(e);
-        }
+        drawPromise = drawArray(tensor.read());
       } else if (ctx.gl && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
         const gl = ctx.gl;
         ctx.canvas.width = w;
@@ -227,7 +223,7 @@ export class Preset {
         ctx.drawQuad();
         gl.bindTexture(gl.TEXTURE_2D, null);
       } else if (ctx.canvas.getContext) {
-        drawPromise = drawArray(tensor.readSync());
+        drawPromise = drawArray(tensor.read());
       }
     }
 
@@ -276,7 +272,7 @@ export function Effect(effectName, params = {}) {
   return fn;
 }
 
-export function render(presetName, seed = 0, opts = {}) {
+export async function render(presetName, seed = 0, opts = {}) {
   setRngSeed(seed);
   const { presets = {}, settings } = opts;
   const preset =

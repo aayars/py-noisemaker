@@ -1041,23 +1041,29 @@ export function blend(a, b, t) {
 
 export function normalize(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  let min = Infinity;
-  let max = -Infinity;
-  for (let i = 0; i < src.length; i++) {
-    const v = src[i];
-    if (v < min) min = v;
-    if (v > max) max = v;
+  const compute = (src) => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < src.length; i++) {
+      const v = src[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    min = Math.fround(min);
+    max = Math.fround(max);
+    const range = Math.fround(max - min) || Math.fround(1);
+    const out = new Float32Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+      const diff = Math.fround(src[i] - min);
+      out[i] = Math.fround(diff / range);
+    }
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  };
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(compute);
   }
-  min = Math.fround(min);
-  max = Math.fround(max);
-  const range = Math.fround(max - min) || Math.fround(1);
-  const out = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    const diff = Math.fround(src[i] - min);
-    out[i] = Math.fround(diff / range);
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  return compute(srcMaybe);
 }
 
 export function clamp01(tensor) {
