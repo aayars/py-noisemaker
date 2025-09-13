@@ -60,8 +60,7 @@ export function random_member(...collections) {
     }
   }
   if (out.every((v) => typeof v === 'boolean')) {
-    const trueCount = out.filter(Boolean).length;
-    return random() < trueCount / out.length;
+    out.sort((a, b) => Number(a) - Number(b));
   }
   const idx = Math.floor(random() * out.length);
   return out[idx];

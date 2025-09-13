@@ -200,10 +200,6 @@ export class Preset {
 
       const drawArray = (arrPromise) =>
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
-
-<<<<<<< ours
-      if (ctx.gl && !ctx.isCPU) {
-=======
       if (ctx.device) {
         if (ctx.gl) {
           const gl = ctx.gl;
@@ -255,7 +251,6 @@ export class Preset {
           drawPromise = drawArray(tensor.read());
         }
       } else if (ctx.gl && !ctx.isCPU) {
->>>>>>> theirs
         const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;

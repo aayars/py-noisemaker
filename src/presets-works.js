@@ -45,7 +45,9 @@ export function random_member(...collections) {
   const out = [];
   for (const c of collections) {
     if (Array.isArray(c)) {
-      out.push(...c.slice().sort());
+      const arr = c.slice();
+      arr.sort();
+      out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
       const keys = Object.keys(c).sort();
       const values = keys.map((k) => c[k]);
@@ -64,6 +66,9 @@ export function random_member(...collections) {
     } else {
       throw new Error('random_member(arg) should be iterable');
     }
+  }
+  if (out.every((v) => typeof v === 'boolean')) {
+    out.sort((a, b) => Number(a) - Number(b));
   }
   const idx = Math.floor(random() * out.length);
   return out[idx];

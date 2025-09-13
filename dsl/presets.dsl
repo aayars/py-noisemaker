@@ -17,6 +17,7 @@
   "1976": {
     layers: ["voronoi", "grain", "saturation"],
     settings: {
+      palette_on: false,
       dist_metric: DistanceMetric.triangular,
       saturation_final: 0.25 + random() * 0.125,
       voronoi_diagram_type: VoronoiDiagramType.color_regions,
@@ -43,6 +44,7 @@
   "2001": {
     layers: ["analog-glitch", "invert", "posterize", "vignette-bright", "aberration"],
     settings: {
+      palette_on: false,
       mask: ValueMask.bank_ocr,
       mask_repeat: random_int(9, 12),
       spline_order: InterpolationType.cosine,
