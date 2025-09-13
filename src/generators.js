@@ -44,7 +44,7 @@ function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) 
   return tensor;
 }
 
-export function basic(freq, shape, opts = {}) {
+export async function basic(freq, shape, opts = {}) {
   const {
     ridges = false,
     sin = 0,
@@ -102,7 +102,7 @@ export function basic(freq, shape, opts = {}) {
 
   let alpha = null;
   if (shape[2] === 4) {
-    const data = tensor.readSync();
+    const data = await tensor.read();
     const rgb = new Float32Array(shape[0] * shape[1] * 3);
     alpha = new Float32Array(shape[0] * shape[1]);
     for (let i = 0; i < shape[0] * shape[1]; i++) {
@@ -115,7 +115,7 @@ export function basic(freq, shape, opts = {}) {
     }
     tensor = Tensor.fromArray(ctx, rgb, [shape[0], shape[1], 3]);
   } else if (shape[2] === 2) {
-    const data = tensor.readSync();
+    const data = await tensor.read();
     const rgb = new Float32Array(shape[0] * shape[1]);
     alpha = new Float32Array(shape[0] * shape[1]);
     for (let i = 0; i < shape[0] * shape[1]; i++) {
@@ -139,15 +139,15 @@ export function basic(freq, shape, opts = {}) {
 
   if (cSpace === ColorSpace.hsv) {
     const [h, w] = shape;
-    const data = tensor.readSync();
+    const data = await tensor.read();
     const out = new Float32Array(h * w * 3);
     let vMin = Infinity;
     let vMax = -Infinity;
     const hueNoise = hueDistrib
-      ? values(f, [h, w, 1], { ...common, distrib: hueDistrib }).read()
+      ? await values(f, [h, w, 1], { ...common, distrib: hueDistrib }).read()
       : null;
     const satNoise = saturationDistrib
-      ? values(f, [h, w, 1], { ...common, distrib: saturationDistrib }).read()
+      ? await values(f, [h, w, 1], { ...common, distrib: saturationDistrib }).read()
       : null;
     let brightFreqArr = brightnessFreq;
     if (typeof brightFreqArr === 'number') {
@@ -155,7 +155,7 @@ export function basic(freq, shape, opts = {}) {
     }
     const brightNoise =
       brightnessDistrib || brightFreqArr
-        ? values(brightFreqArr || f, [h, w, 1], {
+        ? await values(brightFreqArr || f, [h, w, 1], {
             ...common,
             distrib: brightnessDistrib || ValueDistribution.simplex,
           }).read()
@@ -208,7 +208,7 @@ export function basic(freq, shape, opts = {}) {
       tensor = ridge(tensor);
     }
     if (sin) {
-      const data = tensor.readSync();
+      const data = await tensor.read();
       const out = new Float32Array(data.length);
       let min = Infinity,
         max = -Infinity;
@@ -229,7 +229,7 @@ export function basic(freq, shape, opts = {}) {
   if (alpha) {
     const [h, w] = shape;
     const c = tensor.shape[2];
-    const data = tensor.readSync();
+    const data = await tensor.read();
     const outC = c + 1;
     const out = new Float32Array(h * w * outC);
     for (let i = 0; i < h * w; i++) {

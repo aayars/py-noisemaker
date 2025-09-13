@@ -11,7 +11,7 @@ for (const name of Object.keys(presets)) {
   if (SKIP.includes(name)) continue;
   try {
     const preset = new Preset(name, presets);
-    preset.render(0, { ctx, width: 4, height: 4 });
+    await preset.render(0, { ctx, width: 4, height: 4 });
   } catch (e) {
     problems.push(`${name} failed: ${e.message}`);
   }

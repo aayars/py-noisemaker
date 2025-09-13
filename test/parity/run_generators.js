@@ -8,11 +8,11 @@ setSeed(seed);
 setValueSeed(seed);
 let tensor;
 if (name === 'basic') {
-  tensor = basic(2, [128, 128, 3]);
+  tensor = await basic(2, [128, 128, 3]);
 } else if (name === 'multires') {
   setSeed(seed);
   setValueSeed(seed);
-  tensor = multires(2, [128, 128, 3], {
+  tensor = await multires(2, [128, 128, 3], {
     octaves: 2,
     hueRotation: 0,
     postEffects: [],
@@ -21,6 +21,6 @@ if (name === 'basic') {
 } else {
   throw new Error(`Unknown generator ${name}`);
 }
-const arr = tensor.read();
+const arr = await tensor.read();
 const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
 console.log(buf.toString('base64'));

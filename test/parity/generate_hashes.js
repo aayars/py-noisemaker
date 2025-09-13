@@ -14,30 +14,30 @@ const SEEDS = [
     4156669319, 2046968324, 1537810351, 2505606783, 3829653368,
 ];
 
-function hashTensor(tensor) {
-    const arr = tensor.read();
+async function hashTensor(tensor) {
+    const arr = await tensor.read();
     const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
     return crypto.createHash('sha256').update(buf).digest('hex');
 }
 
-function generatorHashes() {
+async function generatorHashes() {
     const basicHashes = {};
     const multiresHashes = {};
     for (const seed of SEEDS) {
         setSeed(seed);
         setValueSeed(seed);
-        const basicTensor = basic(2, [128, 128, 3], { hueRotation: 0 });
-        basicHashes[seed] = hashTensor(basicTensor);
+        const basicTensor = await basic(2, [128, 128, 3], { hueRotation: 0 });
+        basicHashes[seed] = await hashTensor(basicTensor);
 
         setSeed(seed);
         setValueSeed(seed);
-        const multiresTensor = multires(2, [128, 128, 3], {
+        const multiresTensor = await multires(2, [128, 128, 3], {
             octaves: 2,
             hueRotation: 0,
             postEffects: [],
             finalEffects: [],
         });
-        multiresHashes[seed] = hashTensor(multiresTensor);
+        multiresHashes[seed] = await hashTensor(multiresTensor);
     }
     return { basic: basicHashes, multires: multiresHashes };
 }
@@ -63,16 +63,16 @@ const EFFECTS = {
     reindex: effects.reindex,
 };
 
-function effectHashes() {
+async function effectHashes() {
     const out = {};
     for (const [name, fn] of Object.entries(EFFECTS)) {
         out[name] = {};
         for (const seed of SEEDS) {
             setSeed(seed);
             setValueSeed(seed);
-            const base = basic(2, [128, 128, 3], { hueRotation: 0 });
-            const effected = fn(base, [128, 128, 3], 0, 1);
-            out[name][seed] = hashTensor(effected);
+            const base = await basic(2, [128, 128, 3], { hueRotation: 0 });
+            const effected = await fn(base, [128, 128, 3], 0, 1);
+            out[name][seed] = await hashTensor(effected);
         }
     }
     return out;
@@ -137,25 +137,25 @@ function valueParity() {
     return out;
 }
 
-function composerParity() {
+async function composerParity() {
     const presetNames = ['basic', 'worms', 'voronoi'];
     const out = {};
     for (const name of presetNames) {
         setSeed(1);
         const presets = PRESETS();
-        const result = render(name, 1, { presets, width: 128, height: 128, debug: true });
+        const result = await render(name, 1, { presets, width: 128, height: 128, debug: true });
         out[name] = { effects: result.effects, rng_calls: result.rngCalls };
     }
     return out;
 }
 
 const data = {
-    generators: generatorHashes(),
-    effects: effectHashes(),
+    generators: await generatorHashes(),
+    effects: await effectHashes(),
     rng: rngParity(),
     points: pointsParity(),
     value: valueParity(),
-    composer: composerParity(),
+    composer: await composerParity(),
 };
 
 console.log(JSON.stringify(data, null, 2));

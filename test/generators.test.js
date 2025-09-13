@@ -11,13 +11,13 @@ function arraysClose(a, b, eps = 1e-6) {
 }
 
 const shape = [4, 4, 3];
-const g1 = basic(2, shape, { seed: 1, hueRotation: 0 });
-const g2 = basic(2, shape, { seed: 1, hueRotation: 0 });
-arraysClose(g1.read(), g2.read());
+const g1 = await basic(2, shape, { seed: 1, hueRotation: 0 });
+const g2 = await basic(2, shape, { seed: 1, hueRotation: 0 });
+arraysClose(await g1.read(), await g2.read());
 
-const m1 = multires(2, shape, { octaves: 2, seed: 1, hueRotation: 0 });
-const m2 = multires(2, shape, { octaves: 2, seed: 1, hueRotation: 0 });
-arraysClose(m1.read(), m2.read());
+const m1 = await multires(2, shape, { octaves: 2, seed: 1, hueRotation: 0 });
+const m2 = await multires(2, shape, { octaves: 2, seed: 1, hueRotation: 0 });
+arraysClose(await m1.read(), await m2.read());
 assert.deepStrictEqual(m1.shape, shape);
 
 let captured = null;
@@ -27,7 +27,7 @@ function captureEffect(tensor, shape, time, speed, displacement = 0) {
 }
 register('test_octave_displacement', captureEffect, { displacement: 1 });
 const eff = Effect('test_octave_displacement', { displacement: 1 });
-basic(1, [2, 2, 1], { octaveEffects: [eff], octave: 3 });
+await basic(1, [2, 2, 1], { octaveEffects: [eff], octave: 3 });
 assert.strictEqual(captured, 1 / 8);
 delete EFFECTS['test_octave_displacement'];
 delete EFFECT_METADATA['test_octave_displacement'];

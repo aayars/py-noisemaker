@@ -13,9 +13,9 @@ setValueSeed(seed);
 
 const ctx = new Context(null);
 await ctx.initWebGPU();
-const base = basic(2, [128, 128, 3], { hueRotation: 0, ctx });
+const base = await basic(2, [128, 128, 3], { hueRotation: 0, ctx });
 
-const tensor = voronoiEffect(
+const tensor = await voronoiEffect(
   base,
   [128, 128, 3],
   0,
@@ -37,6 +37,6 @@ const tensor = voronoiEffect(
   params.downsample,
 );
 
-const arr = tensor.read();
+const arr = await tensor.read();
 const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
 console.log(buf.toString('base64'));

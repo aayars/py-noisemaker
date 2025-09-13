@@ -14,13 +14,13 @@ if (!navigator.gpu) {
 } else {
   await ctx.initWebGPU();
   let ok = true;
-  const base = basic(2, [4,4,1], { ctx });
+  const base = await basic(2, [4,4,1], { ctx });
   const out = await voronoi(base, [4,4,1], 0, 0, undefined, 0, DistanceMetric.triangular);
   const arr = await out.read();
   if (arr.length !== 16) ok = false;
 
-  const a = basic(2, [2,2,1], { ctx });
-  const b = basic(4, [2,2,1], { ctx });
+  const a = await basic(2, [2,2,1], { ctx });
+  const b = await basic(4, [2,2,1], { ctx });
   const blended = await blend(a, b, 0.5);
   const da = await a.read();
   const db = await b.read();

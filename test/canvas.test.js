@@ -35,7 +35,7 @@ const presets = {
     generator: (settings) => ({ color_space: settings.color_space }),
   }
 };
-render('gray', 0, { ctx, width: 2, height: 2, presets });
+await render('gray', 0, { ctx, width: 2, height: 2, presets });
 let data = fakeCtx2d.img.data;
 for (let i = 0; i < data.length; i += 4) {
   assert.strictEqual(data[i], data[i + 1]);
@@ -43,7 +43,7 @@ for (let i = 0; i < data.length; i += 4) {
 }
 
 // row gradient: ensure X direction is left-to-right
-render('row', 0, {
+await render('row', 0, {
   ctx,
   width: 3,
   height: 2,
@@ -67,7 +67,7 @@ assert.strictEqual(rowPx(1, 1), 128);
 assert.strictEqual(rowPx(2, 1), 255);
 
 // column gradient: ensure Y direction is top-to-bottom
-render('column', 0, {
+await render('column', 0, {
   ctx,
   width: 2,
   height: 3,

@@ -8,7 +8,7 @@ const seed = parseInt(seedStr, 10);
 
 setSeed(seed);
 setValueSeed(seed);
-const base = basic(2, [128, 128, 3], { hueRotation: 0 });
+const base = await basic(2, [128, 128, 3], { hueRotation: 0 });
 
 const EFFECTS = {
   adjust_hue: effects.adjustHueEffect,
@@ -49,7 +49,7 @@ const fn = EFFECTS[name];
 if (!fn) {
   throw new Error(`Unknown effect ${name}`);
 }
-const tensor = fn(base, [128, 128, 3], 0, 1);
-const arr = tensor.read();
+const tensor = await fn(base, [128, 128, 3], 0, 1);
+const arr = await tensor.read();
 const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
 console.log(buf.toString('base64'));
