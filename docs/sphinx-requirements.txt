@@ -1,2 +1,2 @@
-sphinxcontrib-programoutput==0.17
+sphinxcontrib-programoutput==0.18
 sphinx-rtd-theme==2.0.0
