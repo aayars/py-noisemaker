@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
 from noisemaker.constants import ColorSpace, ValueDistribution
-from noisemaker.presets import PRESETS
+from noisemaker.presets import PRESETS, Preset
 
 import noisemaker.ai as ai
 import noisemaker.dreamer as dreamer
@@ -56,20 +56,32 @@ def main():
 @click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
 @click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
 @click.option('--debug-out', help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
+@click.option('--use-dsl', help="Load presets defined in DSL instead of Python", is_flag=True, default=False)
+@click.argument('preset_name')
 @click.pass_context
 def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale,
-             with_alt_text, stability_model, debug_print, debug_out, preset_name):
+             with_alt_text, stability_model, debug_print, debug_out, use_dsl, preset_name):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    reload_presets(PRESETS)
+    presets = PRESETS(use_dsl=use_dsl)
 
     if preset_name == "random":
-        preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
-
-    preset = GENERATOR_PRESETS[preset_name]
+        generator_presets = []
+        for name in presets:
+            try:
+                p = Preset(name, use_dsl=use_dsl)
+                if p.is_generator():
+                    generator_presets.append(p)
+            except Exception:
+                continue
+        preset = random.choice(generator_presets)
+        preset_name = preset.name
+    else:
+        if preset_name not in presets:
+            raise click.BadParameter(f"Unknown preset: {preset_name}")
+        preset = Preset(preset_name, use_dsl=use_dsl)
 
     if debug_print or debug_out:
         debug_text = _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model)
