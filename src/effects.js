@@ -200,7 +200,7 @@ export async function shadow(
       return blend(tensor, shadeTensor, alpha);
     } else if (c === 2) {
       const out = src.slice();
-      const alphaData = typeof alpha === "number" ? null : alpha.read();
+      const alphaData = typeof alpha === "number" ? null : await alpha.read();
       const tc = alphaData ? alpha.shape[2] : 0;
       for (let i = 0; i < h * w; i++) {
         const t = alphaData ? alphaData[i * tc] : alpha;
@@ -224,19 +224,19 @@ export async function shadow(
         rgbData = src;
       }
       const rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
-      const hsv = rgbToHsv(rgbTensor);
-      const hsvData = hsv.read();
+      const hsv = await rgbToHsv(rgbTensor);
+      const hsvData = await hsv.read();
       const shadeRgb = new Float32Array(h * w * 3);
       for (let i = 0; i < h * w; i++) {
         shadeRgb[i * 3] = shaded[i * c];
         shadeRgb[i * 3 + 1] = shaded[i * c + 1];
         shadeRgb[i * 3 + 2] = shaded[i * c + 2];
       }
-      const shadeHsv = rgbToHsv(
+      const shadeHsv = await rgbToHsv(
         Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
       );
-      const shadeHsvData = shadeHsv.read();
-      const alphaData = typeof alpha === "number" ? null : alpha.read();
+      const shadeHsvData = await shadeHsv.read();
+      const alphaData = typeof alpha === "number" ? null : await alpha.read();
       const tc = alphaData ? alpha.shape[2] : 0;
       for (let i = 0; i < h * w; i++) {
         const t = alphaData ? alphaData[i * tc] : alpha;
@@ -2438,21 +2438,23 @@ export async function vhs(tensor, shape, time, speed) {
 }
 register("vhs", vhs, {});
 
-export function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
+export async function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
   const valueShape = [shape[0], shape[1], 1];
-  const mask = singularity(null, valueShape, time, speed).read();
+  const maskTensor = await singularity(null, valueShape, time, speed);
+  const mask = await maskTensor.read();
   for (let i = 0; i < mask.length; i++) mask[i] = mask[i] ** 5;
-  const noise = values(2, valueShape, {
+  const noiseTensor = await values(2, valueShape, {
     ctx: tensor.ctx,
     time,
     speed,
     splineOrder: InterpolationType.cosine,
-  }).read();
+  });
+  const noise = await noiseTensor.read();
   for (let i = 0; i < noise.length; i++) {
     noise[i] = (noise[i] * 2 - 1) * mask[i];
   }
   const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
-  return refractOp(tensor, distortion, null, displacement);
+  return await refractOp(tensor, distortion, null, displacement);
 }
 register("lensWarp", lensWarp, { displacement: 0.0625 });
 register("lens_warp", lensWarp, { displacement: 0.0625 });
@@ -2508,12 +2510,14 @@ export async function degauss(tensor, shape, time, speed, displacement = 0.0625)
       channelData,
       channelShape,
     );
-    const warped = lensWarp(
-      channelTensor,
-      channelShape,
-      time,
-      speed,
-      displacement,
+    const warped = await (
+      await lensWarp(
+        channelTensor,
+        channelShape,
+        time,
+        speed,
+        displacement,
+      )
     ).read();
     for (let i = 0; i < h * w; i++) out[i * c + k] = warped[i];
   }
@@ -2574,18 +2578,18 @@ export async function crt(tensor, shape, time, speed) {
   const valueShape = [h, w, 1];
 
   // Horizontal scanlines
-  let scanNoise = values([2, 1], [2, 1, 1], {
+  let scanNoise = await values([2, 1], [2, 1, 1], {
     time,
     speed: speed * 0.1,
     splineOrder: InterpolationType.constant,
   });
-  scanNoise = normalize(scanNoise);
+  scanNoise = await normalize(scanNoise);
   const tileH = Math.max(1, Math.floor(h * 0.125));
-  scanNoise = expandTile(scanNoise, [2, 1, 1], [tileH * 2, w, 1], false);
-  scanNoise = resample(scanNoise, valueShape);
-  scanNoise = lensWarp(scanNoise, valueShape, time, speed);
+  scanNoise = await expandTile(scanNoise, [2, 1, 1], [tileH * 2, w, 1], false);
+  scanNoise = await resample(scanNoise, valueShape);
+  scanNoise = await lensWarp(scanNoise, valueShape, time, speed);
 
-  const scan = scanNoise.read();
+  const scan = await scanNoise.read();
   const src = await tensor.read();
   const blended = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
@@ -2595,23 +2599,23 @@ export async function crt(tensor, shape, time, speed) {
       blended[i * c + k] = t * 0.95 + (t + s) * s * 0.05;
     }
   }
-  let outTensor = clamp01(Tensor.fromArray(tensor.ctx, blended, shape));
+  let outTensor = await clamp01(Tensor.fromArray(tensor.ctx, blended, shape));
 
   if (c === 3) {
-    outTensor = aberration(
+    outTensor = await aberration(
       outTensor,
       shape,
       time,
       speed,
       0.0125 + random() * 0.00625,
     );
-    outTensor = randomHue(outTensor, shape, time, speed, 0.125);
-    outTensor = saturation(outTensor, shape, time, speed, 1.125);
+    outTensor = await randomHue(outTensor, shape, time, speed, 0.125);
+    outTensor = await saturation(outTensor, shape, time, speed, 1.125);
   }
 
-  outTensor = vignette(outTensor, shape, time, speed, 0, random() * 0.175);
+  outTensor = await vignette(outTensor, shape, time, speed, 0, random() * 0.175);
 
-  const data = outTensor.read();
+  const data = await outTensor.read();
   let mean = 0;
   for (let i = 0; i < data.length; i++) mean += data[i];
   mean /= data.length;
@@ -3197,7 +3201,7 @@ function offsetTensor(tensor, xOff, yOff) {
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 
-function centerMaskInternal(
+async function centerMaskInternal(
   center,
   edges,
   shape,
@@ -3205,19 +3209,20 @@ function centerMaskInternal(
   distMetric = DistanceMetric.chebyshev,
 ) {
   const [h, w] = shape;
-  const mask = singularity(
+  const maskTensor = await singularity(
     null,
     [h, w, 1],
     0,
     1,
     VoronoiDiagramType.range,
     distMetric,
-  ).read();
+  );
+  const mask = await maskTensor.read();
   for (let i = 0; i < mask.length; i++) {
     mask[i] = Math.min(Math.pow(mask[i], power), 1);
   }
   const maskT = Tensor.fromArray(center.ctx, mask, [h, w, 1]);
-  return blend(center, edges, maskT);
+  return await blend(center, edges, maskT);
 }
 
 function voronoiColorRegions(tensor, shape, time, speed, xPts, yPts) {
@@ -3578,7 +3583,7 @@ export async function wormhole(
 }
 register("wormhole", wormhole, { kink: 1.0, inputStride: 1.0, alpha: 1.0 });
 
-export function vignette(
+export async function vignette(
   tensor,
   shape,
   time,
@@ -3587,7 +3592,7 @@ export function vignette(
   alpha = 1.0,
 ) {
   const [h, w, c] = shape;
-  const norm = normalize(tensor);
+  const norm = await normalize(tensor);
   const ctx = tensor.ctx;
   if (ctx && !ctx.isCPU && ctx.gl.isTexture(norm.handle)) {
     const gl = ctx.gl;
@@ -3609,7 +3614,7 @@ export function vignette(
   const edgeData = new Float32Array(h * w * c);
   edgeData.fill(brightness);
   const edges = Tensor.fromArray(tensor.ctx, edgeData, shape);
-  const mask = singularity(
+  const maskTensor = await singularity(
     null,
     [h, w, 1],
     time,
@@ -3617,23 +3622,23 @@ export function vignette(
     VoronoiDiagramType.range,
     DistanceMetric.euclidean,
   );
-  const maskData = mask.read();
+  const maskData = await maskTensor.read();
   for (let i = 0; i < maskData.length; i++) {
     maskData[i] = Math.pow(maskData[i], 2);
   }
-  const maskTensor = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
-  const vignetted = blend(norm, edges, maskTensor);
-  return blend(norm, vignetted, alpha);
+  const maskT = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
+  const vignetted = await blend(norm, edges, maskT);
+  return await blend(norm, vignetted, alpha);
 }
 register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 
-export function vaseline(tensor, shape, time, speed, alpha = 1.0) {
+export async function vaseline(tensor, shape, time, speed, alpha = 1.0) {
   // Python's implementation ignores time/speed and always blurs with a fixed
   // kernel.  Accept ``time`` and ``speed`` to satisfy the registry interface
   // but discard them when generating the blurred mask.
-  const blurred = bloom(tensor, shape, 0, 1, 1.0);
-  const masked = centerMaskInternal(tensor, blurred, shape);
-  return blend(tensor, masked, alpha);
+  const blurred = await bloom(tensor, shape, 0, 1, 1.0);
+  const masked = await centerMaskInternal(tensor, blurred, shape);
+  return await blend(tensor, masked, alpha);
 }
 register("vaseline", vaseline, { alpha: 1.0 });
 
@@ -3656,21 +3661,21 @@ export async function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     time,
     speed,
   });
-  let leak = voronoiColorRegions(tensor, shape, time, speed, xPts, yPts);
-  leak = wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
-  leak = bloom(leak, shape, time, speed, 1.0);
+  let leak = await voronoiColorRegions(tensor, shape, time, speed, xPts, yPts);
+  leak = await wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
+  leak = await bloom(leak, shape, time, speed, 1.0);
   const src = await tensor.read();
-  const leakData = leak.read();
+  const leakData = await leak.read();
   const screened = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
     screened[i] = 1 - (1 - src[i]) * (1 - leakData[i]);
   }
   leak = Tensor.fromArray(tensor.ctx, screened, shape);
-  leak = centerMaskInternal(tensor, leak, shape, 4);
-  const blended = blend(tensor, leak, alpha);
+  leak = await centerMaskInternal(tensor, leak, shape, 4);
+  const blended = await blend(tensor, leak, alpha);
   // ``vaseline`` ignores the temporal parameters but expects them for
   // registry consistency.
-  return vaseline(blended, shape, 0, 1, alpha);
+  return await vaseline(blended, shape, 0, 1, alpha);
 }
 register("light_leak", lightLeak, { alpha: 0.25 });
 register("light_leak", lightLeak, { alpha: 0.25 });
@@ -4493,7 +4498,7 @@ register("dla", dla, {
   alpha: 1,
 });
 
-export function simpleFrame(tensor, shape, time, speed, brightness = 0) {
+export async function simpleFrame(tensor, shape, time, speed, brightness = 0) {
   const [h, w, c] = shape;
   const cx = (w - 1) / 2;
   const cy = (h - 1) / 2;
@@ -4506,14 +4511,14 @@ export function simpleFrame(tensor, shape, time, speed, brightness = 0) {
     }
   }
   let border = Tensor.fromArray(tensor.ctx, maskData, [h, w, 1]);
-  border = blend(
+  border = await blend(
     Tensor.fromArray(tensor.ctx, new Float32Array(h * w), [h, w, 1]),
     border,
     0.55,
   );
-  border = posterize(border, [h, w, 1], time, speed, 1);
+  border = await posterize(border, [h, w, 1], time, speed, 1);
   const maskC = new Float32Array(h * w * c);
-  const bData = border.read();
+  const bData = await border.read();
   for (let i = 0; i < h * w; i++) {
     for (let k = 0; k < c; k++) maskC[i * c + k] = bData[i];
   }
@@ -4521,7 +4526,7 @@ export function simpleFrame(tensor, shape, time, speed, brightness = 0) {
   const bright = new Float32Array(h * w * c);
   bright.fill(brightness);
   const brightTensor = Tensor.fromArray(tensor.ctx, bright, shape);
-  return blend(tensor, brightTensor, maskTensor);
+  return await blend(tensor, brightTensor, maskTensor);
 }
 register("simple_frame", simpleFrame, { brightness: 0 });
 
