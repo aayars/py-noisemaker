@@ -272,7 +272,28 @@ export class Preset {
           tex instanceof WebGLTexture &&
           gl.isTexture(tex);
         if (!isTex) {
-          const texRes = withTensorData(tensor, (data) => ctx.createTexture(w, h, data));
+          const texRes = withTensorData(tensor, (data) => {
+            // WebGL textures expect 4 channels; pad smaller tensors when coming
+            // from WebGPU or CPU computations.
+            if (c !== 4) {
+              const padded = new Float32Array(w * h * 4);
+              for (let i = 0; i < w * h; i++) {
+                const src = i * c;
+                const dst = i * 4;
+                const r = data[src];
+                const g = c > 2 ? data[src + 1] : r;
+                const b = c > 2 ? data[src + 2] : r;
+                const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
+                const a = Number.isFinite(aVal) ? aVal : 1;
+                padded[dst] = r;
+                padded[dst + 1] = g;
+                padded[dst + 2] = b;
+                padded[dst + 3] = a;
+              }
+              data = padded;
+            }
+            return ctx.createTexture(w, h, data);
+          });
           if (texRes && typeof texRes.then === 'function') {
             drawPromise = texRes.then((t) => {
               gl.bindTexture(gl.TEXTURE_2D, t);
