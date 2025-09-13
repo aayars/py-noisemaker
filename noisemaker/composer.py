@@ -26,7 +26,7 @@ ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset", "mod
 AI_MODEL = "core"
 
 # Don't raise an exception if the following keys are unused in settings
-UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "speed"]
+UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "palette_on", "speed"]
 
 # Populated by reload_presets() after setting random seed
 GENERATOR_PRESETS = {}

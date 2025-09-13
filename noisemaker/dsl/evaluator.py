@@ -1,4 +1,5 @@
 from .builtins import defaultContext
+import enum
 
 
 def _has_function(v):
@@ -12,7 +13,7 @@ def _has_function(v):
 
 
 def _resolve_value(v, settings):
-    if callable(v):
+    if callable(v) and not isinstance(v, enum.EnumMeta):
         return v(settings)
     if isinstance(v, list):
         return [_resolve_value(x, settings) for x in v]
