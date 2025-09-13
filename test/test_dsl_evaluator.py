@@ -91,3 +91,9 @@ def test_numeric_and_random_and_null():
 
     null_val = evaluate(parse(tokenize('null')))
     assert null_val is None
+
+
+def test_unary_expression():
+    rng.set_seed(1)
+    val = evaluate(parse(tokenize('-1 * +2')))
+    assert val == -2

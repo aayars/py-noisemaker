@@ -74,19 +74,13 @@ def parse(tokens, enforce_preset_keys=True):
         t = peek()
         if not t:
             unexpected(t)
-        if t['type'] in ('number', '(', 'identifier', 'boolean', 'null'):
-            return parseNumberExpr()
         if t['type'] == 'string':
             consume('string')
             return {'type': 'StringLiteral', 'value': t['value']}
         if t['type'] == 'color':
             consume('color')
             return {'type': 'StringLiteral', 'value': t['value']}
-        if t['type'] == '[':
-            return parseArrayExpr()
-        if t['type'] == '{':
-            return parseObjectExpr()
-        unexpected(t)
+        return parseNumberExpr()
     def parseCallChain():
         node = parseSingleCall()
         while match('.'):
@@ -162,16 +156,24 @@ def parse(tokens, enforce_preset_keys=True):
                 break
         return node
     def parseMul():
-        node = parseNumberPrimary()
+        node = parseUnary()
         while True:
             t = peek()
             if t and t['type'] in ('*', '/'):
                 consume(t['type'])
-                right = parseNumberPrimary()
+                right = parseUnary()
                 node = {'type': 'BinaryExpr', 'operator': t['type'], 'left': node, 'right': right}
             else:
                 break
         return node
+
+    def parseUnary():
+        t = peek()
+        if t and t['type'] in ('+', '-'):
+            consume(t['type'])
+            argument = parseUnary()
+            return {'type': 'UnaryExpr', 'operator': t['type'], 'argument': argument}
+        return parseNumberPrimary()
     def parseNumberPrimary():
         t = peek()
         if t['type'] == 'number':
@@ -184,6 +186,8 @@ def parse(tokens, enforce_preset_keys=True):
             return expr
         if t['type'] == '[':
             return parseArrayExpr()
+        if t['type'] == '{':
+            return parseObjectExpr()
         if (t['type'] == 'identifier' and t['value'] == 'Math' and
             (peek(1) and peek(1)['type'] == '.') and
             (peek(2) and peek(2)['type'] == 'identifier') and

@@ -1,5 +1,9 @@
 from noisemaker.constants import *  # noqa: F401,F403
 import noisemaker.constants as constants
+import types
+
+from enum import Enum
+
 from noisemaker.composer import (
     coin_flip as _coin_flip,
     enum_range as _enum_range,
@@ -9,6 +13,7 @@ from noisemaker.composer import (
 )
 import noisemaker.rng as _random
 import noisemaker.masks as _masks
+from noisemaker.palettes import PALETTES as _PALETTES
 
 
 class _SettingsSurface:
@@ -27,9 +32,11 @@ def enum_range(*args):
     if len(args) != 2:
         raise ValueError(f"enum_range(a, b) requires exactly 2 arguments, received {len(args)}")
     a, b = args
-    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
-        raise ValueError("enum_range(a, b) requires numeric arguments")
-    return _enum_range(int(a), int(b))
+    if isinstance(a, Enum) and isinstance(b, Enum):
+        return _enum_range(a, b)
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return list(range(int(a), int(b) + 1))
+    raise ValueError("enum_range(a, b) requires numeric arguments")
 
 def random_member(*collections):
     if len(collections) == 0:
@@ -37,13 +44,19 @@ def random_member(*collections):
     return _random_member(*collections)
 
 def stash(*args):
-    if len(args) == 0 or len(args) > 2:
-        raise ValueError(f"stash(key[, value]) expects 1 or 2 arguments, received {len(args)}")
-    key = args[0]
-    value = args[1] if len(args) == 2 else None
-    if not isinstance(key, str):
-        raise ValueError('stash(key[, value]) key must be a string')
-    return lambda settings=None: _stash(key, value(settings) if callable(value) else value)
+    if len(args) == 1:
+        key = args[0]
+        if not isinstance(key, str):
+            raise ValueError('stash(key[, value]) key must be a string')
+        return _stash(key)
+    if len(args) == 2:
+        key, value = args
+        if not isinstance(key, str):
+            raise ValueError('stash(key[, value]) key must be a string')
+        if callable(value):
+            return lambda settings=None: _stash(key, value(settings))
+        return _stash(key, value)
+    raise ValueError(f"stash(key[, value]) expects 1 or 2 arguments, received {len(args)}")
 
 def random(*args):
     if len(args) != 0:
@@ -83,10 +96,8 @@ def preset(*args):
     return _thunk
 
 
-coin_flip.__thunk = True
-random_member.__thunk = True
-random.__thunk = True
-random_int.__thunk = True
+# Unlike the JavaScript implementation, eagerly evaluate these helpers so tests
+# can inspect their return values directly.
 
 operations = {
     "coin_flip": coin_flip,
@@ -113,32 +124,36 @@ operations = {
     "squareMasks": _masks.square_masks,
 }
 
-enums = constants
+# Merge constants with PALETTES so the DSL can reference the palette table as
+# an enum, matching the behaviour of the JavaScript implementation.
+_enum_dict = {name: getattr(constants, name) for name in dir(constants) if not name.startswith("_")}
+_enum_dict["PALETTES"] = _PALETTES
+enums = types.SimpleNamespace(**_enum_dict)
 enumMethods = {
     "DistanceMetric": {
         "absolute_members": operations["distanceMetricAbsoluteMembers"],
         "all": operations["distanceMetricAll"],
     },
     "PointDistribution": {
-        "grid_members": lambda: operations["gridMembers"],
-        "circular_members": lambda: operations["circularMembers"],
+        "grid_members": lambda: operations["gridMembers"](),
+        "circular_members": lambda: operations["circularMembers"](),
     },
     "ColorSpace": {
         "color_members": operations["colorSpaceMembers"],
     },
     "ValueMask": {
-        "procedural_members": lambda: operations["valueMaskProceduralMembers"],
-        "grid_members": lambda: operations["valueMaskGridMembers"],
-        "glyph_members": lambda: operations["valueMaskGlyphMembers"],
-        "nonprocedural_members": lambda: operations["valueMaskNonproceduralMembers"],
-        "rgb_members": lambda: operations["valueMaskRgbMembers"],
+        "procedural_members": lambda: operations["valueMaskProceduralMembers"](),
+        "grid_members": lambda: operations["valueMaskGridMembers"](),
+        "glyph_members": lambda: operations["valueMaskGlyphMembers"](),
+        "nonprocedural_members": lambda: operations["valueMaskNonproceduralMembers"](),
+        "rgb_members": lambda: operations["valueMaskRgbMembers"](),
     },
     "WormBehavior": {
-        "all": lambda: operations["wormBehaviorAll"],
+        "all": lambda: operations["wormBehaviorAll"](),
     },
     "masks": {
         "mask_shape": operations["maskShape"],
-        "square_masks": operations["squareMasks"],
+        "square_masks": lambda: operations["squareMasks"](),
     },
 }
 
