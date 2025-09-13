@@ -126,8 +126,15 @@ def _eval_node(node, ctx):
         return _apply_binary(l, r, op)
     if t == 'TernaryExpr':
         test = _eval_node(node['test'], ctx)
-        branch = node['consequent'] if test else node['alternate']
-        return _eval_node(branch, ctx)
+        consequent = _eval_node(node['consequent'], ctx)
+        alternate = _eval_node(node['alternate'], ctx)
+        if _has_function(test) or _has_function(consequent) or _has_function(alternate):
+            return lambda settings: (
+                _resolve_value(consequent, settings)
+                if _resolve_value(test, settings)
+                else _resolve_value(alternate, settings)
+            )
+        return _eval_node(node['consequent'], ctx) if test else _eval_node(node['alternate'], ctx)
     if t == 'CallExpr':
         return _eval_call(node, ctx)
     raise ValueError(f"Unsupported node type: {t}")

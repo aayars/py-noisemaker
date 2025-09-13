@@ -48,7 +48,10 @@ def stash(*args):
         key = args[0]
         if not isinstance(key, str):
             raise ValueError('stash(key[, value]) key must be a string')
-        return _stash(key)
+        try:
+            return _stash(key)
+        except KeyError:
+            return None
     if len(args) == 2:
         key, value = args
         if not isinstance(key, str):
