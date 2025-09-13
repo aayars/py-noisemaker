@@ -26,7 +26,14 @@ import { register } from "./effectsRegistry.js";
 import { random as simplexRandom } from "./simplex.js";
 import { maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
-import { random, randomInt, fromSRGB, toSRGB, withTensorData } from "./util.js";
+import {
+  random,
+  randomInt,
+  fromSRGB,
+  toSRGB,
+  withTensorData,
+  withTensorDatas,
+} from "./util.js";
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
 import {
@@ -350,8 +357,7 @@ export function sobelOperator(
     [6, 24, 36, 24, 6],
     [4, 16, 24, 16, 4],
     [1, 4, 6, 4, 1],
-  ].map(row => row.map(v => v / 36));
-  const blurred = convolution(tensor, blurKernel);
+  ].map((row) => row.map((v) => v / 36));
   const sx = [
     [1, 0, -1],
     [2, 0, -2],
@@ -362,32 +368,45 @@ export function sobelOperator(
     [0, 0, 0],
     [-1, -2, -1],
   ];
-  const gx = convolution(blurred, sx, { normalize: false });
-  const gy = convolution(blurred, sy, { normalize: false });
-  const gxData = gx.read();
-  const gyData = gy.read();
-  const grad = new Float32Array(gxData.length);
-  for (let i = 0; i < grad.length; i++) {
-    grad[i] = distance(gxData[i], gyData[i], distMetric);
-  }
-  let out = Tensor.fromArray(tensor.ctx, grad, shape);
-  out = normalize(out);
-  const data = out.read();
-  for (let i = 0; i < data.length; i++) {
-    data[i] = Math.abs(data[i] * 2 - 1);
-  }
-  const [h, w, c] = shape;
-  const shifted = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const yi = (y - 1 + h) % h;
-      const xi = (x - 1 + w) % w;
-      for (let k = 0; k < c; k++) {
-        shifted[(y * w + x) * c + k] = data[(yi * w + xi) * c + k];
+  const convolveAndProcess = (blurred) => {
+    const gx = convolution(blurred, sx, { normalize: false });
+    const gy = convolution(blurred, sy, { normalize: false });
+    return withTensorDatas([gx, gy], (gxData, gyData) => {
+      const grad = new Float32Array(gxData.length);
+      for (let i = 0; i < grad.length; i++) {
+        grad[i] = distance(gxData[i], gyData[i], distMetric);
       }
-    }
+      let out = Tensor.fromArray(tensor.ctx, grad, shape);
+      const norm = normalize(out);
+      const process = (tensorOut) =>
+        withTensorData(tensorOut, (data) => {
+          for (let i = 0; i < data.length; i++) {
+            data[i] = Math.abs(data[i] * 2 - 1);
+          }
+          const [h, w, c] = shape;
+          const shifted = new Float32Array(h * w * c);
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const yi = (y - 1 + h) % h;
+              const xi = (x - 1 + w) % w;
+              for (let k = 0; k < c; k++) {
+                shifted[(y * w + x) * c + k] = data[(yi * w + xi) * c + k];
+              }
+            }
+          }
+          return Tensor.fromArray(tensor.ctx, shifted, shape);
+        });
+      if (norm && typeof norm.then === "function") {
+        return norm.then(process);
+      }
+      return process(norm);
+    });
+  };
+  const blurred = convolution(tensor, blurKernel);
+  if (blurred && typeof blurred.then === "function") {
+    return blurred.then(convolveAndProcess);
   }
-  return Tensor.fromArray(tensor.ctx, shifted, shape);
+  return convolveAndProcess(blurred);
 }
 register("sobel_operator", sobelOperator, {
   distMetric: DistanceMetric.euclidean,
