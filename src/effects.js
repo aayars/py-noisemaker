@@ -2830,29 +2830,31 @@ register("value_refract", valueRefract, {
   displacement: 0.125,
 });
 
-function toValueMap(t) {
+async function toValueMap(t) {
   const [h, w, c] = t.shape;
   if (c === 1) return t;
   if (c === 2) {
-    const src = t.read();
+    const src = await t.read();
     const out = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) out[i] = src[i * 2];
     return Tensor.fromArray(t.ctx, out, [h, w, 1]);
   }
   let rgbTensor;
   if (c === 3) {
-    rgbTensor = clamp01(t);
+    rgbTensor = await clamp01(t);
   } else {
-    const clamped = clamp01(t).read();
+    const clamped = await clamp01(t);
+    const clampedData = await clamped.read();
     const rgbData = new Float32Array(h * w * 3);
     for (let i = 0; i < h * w; i++) {
-      rgbData[i * 3] = clamped[i * 4];
-      rgbData[i * 3 + 1] = clamped[i * 4 + 1];
-      rgbData[i * 3 + 2] = clamped[i * 4 + 2];
+      rgbData[i * 3] = clampedData[i * 4];
+      rgbData[i * 3 + 1] = clampedData[i * 4 + 1];
+      rgbData[i * 3 + 2] = clampedData[i * 4 + 2];
     }
     rgbTensor = Tensor.fromArray(t.ctx, rgbData, [h, w, 3]);
   }
-  const lab = rgbToOklab(rgbTensor).read();
+  const labTensor = await rgbToOklab(rgbTensor);
+  const lab = await labTensor.read();
   const out = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) out[i] = lab[i * 3];
   return Tensor.fromArray(t.ctx, out, [h, w, 1]);
@@ -2940,8 +2942,8 @@ export async function refractEffect(
       }
     }
   }
-  rx = toValueMap(rx);
-  ry = toValueMap(ry);
+  rx = await toValueMap(rx);
+  ry = await toValueMap(ry);
   if (rx.shape[0] !== h || rx.shape[1] !== w) {
     rx = upsample(rx, h / rx.shape[0]);
   }
