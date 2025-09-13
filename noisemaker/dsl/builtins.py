@@ -2,29 +2,26 @@ from noisemaker.constants import *  # noqa: F401,F403
 import noisemaker.constants as constants
 from noisemaker.composer import (
     coin_flip as _coin_flip,
+    enum_range as _enum_range,
     random_member as _random_member,
     stash as _stash,
     Preset as _Preset,
 )
-from noisemaker.presets import PRESETS as _PRESETS
 import noisemaker.rng as _random
 import noisemaker.masks as _masks
 
-surfaces = { }
+
+class _SettingsSurface:
+    def __getattr__(self, name):
+        return lambda settings: settings[name]
+
+
+surfaces = {"settings": _SettingsSurface()}
 
 def coin_flip(*args):
     if len(args) != 0:
         raise ValueError(f"coin_flip() takes no arguments, received {len(args)}")
     return _coin_flip()
-
-def _enum_range(a, b):
-    out = []
-    i = int(a)
-    b = int(b)
-    while i <= b:
-        out.append(i)
-        i += 1
-    return out
 
 def enum_range(*args):
     if len(args) != 2:
@@ -32,7 +29,7 @@ def enum_range(*args):
     a, b = args
     if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
         raise ValueError("enum_range(a, b) requires numeric arguments")
-    return _enum_range(a, b)
+    return _enum_range(int(a), int(b))
 
 def random_member(*collections):
     if len(collections) == 0:
@@ -46,7 +43,7 @@ def stash(*args):
     value = args[1] if len(args) == 2 else None
     if not isinstance(key, str):
         raise ValueError('stash(key[, value]) key must be a string')
-    return _stash(key, value)
+    return lambda settings=None: _stash(key, value(settings) if callable(value) else value)
 
 def random(*args):
     if len(args) != 0:
@@ -75,7 +72,21 @@ def preset(*args):
     if not isinstance(name, str):
         raise ValueError('preset(name[, settings]) name must be a string')
     settings = args[1] if len(args) == 2 else {}
-    return _Preset(name, _PRESETS(), settings)
+
+    def _thunk(parent_settings=None):
+        from noisemaker.presets import PRESETS as _PRESETS
+        resolved = {}
+        for k, v in settings.items():
+            resolved[k] = v(parent_settings) if callable(v) else v
+        return _Preset(name, _PRESETS(), resolved)
+
+    return _thunk
+
+
+coin_flip.__thunk = True
+random_member.__thunk = True
+random.__thunk = True
+random_int.__thunk = True
 
 operations = {
     "coin_flip": coin_flip,
@@ -86,12 +97,54 @@ operations = {
     "random_int": random_int,
     "mask_freq": mask_freq,
     "preset": preset,
+    # expose helper functions used via enum method-style calls
+    "distanceMetricAbsoluteMembers": constants.DistanceMetric.absolute_members,
+    "distanceMetricAll": constants.DistanceMetric.all,
+    "colorSpaceMembers": constants.ColorSpace.color_members,
+    "valueMaskProceduralMembers": constants.ValueMask.procedural_members,
+    "valueMaskGridMembers": constants.ValueMask.grid_members,
+    "valueMaskGlyphMembers": constants.ValueMask.glyph_members,
+    "valueMaskNonproceduralMembers": constants.ValueMask.nonprocedural_members,
+    "valueMaskRgbMembers": constants.ValueMask.rgb_members,
+    "circularMembers": constants.PointDistribution.circular_members,
+    "gridMembers": constants.PointDistribution.grid_members,
+    "wormBehaviorAll": constants.WormBehavior.all,
+    "maskShape": _masks.mask_shape,
+    "squareMasks": _masks.square_masks,
 }
 
 enums = constants
+enumMethods = {
+    "DistanceMetric": {
+        "absolute_members": operations["distanceMetricAbsoluteMembers"],
+        "all": operations["distanceMetricAll"],
+    },
+    "PointDistribution": {
+        "grid_members": lambda: operations["gridMembers"],
+        "circular_members": lambda: operations["circularMembers"],
+    },
+    "ColorSpace": {
+        "color_members": operations["colorSpaceMembers"],
+    },
+    "ValueMask": {
+        "procedural_members": lambda: operations["valueMaskProceduralMembers"],
+        "grid_members": lambda: operations["valueMaskGridMembers"],
+        "glyph_members": lambda: operations["valueMaskGlyphMembers"],
+        "nonprocedural_members": lambda: operations["valueMaskNonproceduralMembers"],
+        "rgb_members": lambda: operations["valueMaskRgbMembers"],
+    },
+    "WormBehavior": {
+        "all": lambda: operations["wormBehaviorAll"],
+    },
+    "masks": {
+        "mask_shape": operations["maskShape"],
+        "square_masks": operations["squareMasks"],
+    },
+}
 
 defaultContext = {
     "surfaces": surfaces,
     "operations": operations,
     "enums": enums,
+    "enumMethods": enumMethods,
 }

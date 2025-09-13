@@ -182,6 +182,8 @@ def parse(tokens, enforce_preset_keys=True):
             expr = parseNumberExpr()
             consume(')')
             return expr
+        if t['type'] == '[':
+            return parseArrayExpr()
         if (t['type'] == 'identifier' and t['value'] == 'Math' and
             (peek(1) and peek(1)['type'] == '.') and
             (peek(2) and peek(2)['type'] == 'identifier') and
@@ -213,7 +215,7 @@ def parse(tokens, enforce_preset_keys=True):
             return id_
         if t['type'] == 'boolean':
             consume('boolean')
-            return {'type': 'NumberLiteral', 'value': 1 if t['value'] else 0}
+            return {'type': 'BooleanLiteral', 'value': t['value']}
         if t['type'] == 'null':
             consume('null')
             return {'type': 'NullLiteral', 'value': None}
