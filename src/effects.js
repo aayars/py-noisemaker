@@ -1216,11 +1216,6 @@ async function voronoiWebGPU(
           usage: GPUBufferUsage.STORAGE,
         });
 
-  // The compute shader writes raw distance values; normalization and blending
-  // are handled on the CPU after the pass.  Bind the range buffer in the slot
-  // that previously accepted an optional base tensor so that the pipeline
-  // layout remains unchanged.
-  const baseBuf = rangeBuf;
   // ``inverse`` affects both the distance output and, for certain metrics,
   // flips the Y offset.  The compute shader interprets any non-zero value as
   // ``true`` and handles the necessary transformations.
@@ -1250,7 +1245,6 @@ async function voronoiWebGPU(
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: pointsBuf } },
-      { binding: 1, resource: { buffer: baseBuf } },
       { binding: 2, resource: { buffer: rangeBuf } },
       { binding: 3, resource: { buffer: indexBuf } },
       { binding: 4, resource: { buffer: paramsBuf } },
