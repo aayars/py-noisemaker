@@ -211,6 +211,13 @@ for (const { rgb: vals, lab } of samples) {
   arraysClose(rgbT.read(), rgbRoundTrip.read(), 1e-5);
 }
 
+// rgbToOklab and oklabToRgb should accept promised tensors
+const promisedRgb = Tensor.fromArray(null, new Float32Array([1, 0, 0]), [1, 1, 3]);
+const promisedLab = await rgbToOklab(Promise.resolve(promisedRgb));
+arraysClose(promisedLab.read(), rgbToOklab(promisedRgb).read());
+const promisedRoundTrip = await oklabToRgb(Promise.resolve(promisedLab));
+arraysClose(promisedRgb.read(), promisedRoundTrip.read(), 1e-5);
+
 // warp with zero flow
 const flow = Tensor.fromArray(null, new Float32Array(2*2*2).fill(0), [2,2,2]);
 const src = values(1, [2,2,1], { distrib: ValueDistribution.row_index });

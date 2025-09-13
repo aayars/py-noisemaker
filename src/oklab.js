@@ -2,6 +2,9 @@ import { Tensor } from './tensor.js';
 import { srgbToLin, linToSRGB, withTensorData } from './util.js';
 
 export function rgbToOklab(tensor) {
+  if (tensor && typeof tensor.then === 'function') {
+    return tensor.then(rgbToOklab);
+  }
   const [h, w, c] = tensor.shape;
   if (c !== 3) throw new Error('rgbToOklab expects 3-channel tensor');
   return withTensorData(tensor, (src) => {
@@ -31,6 +34,9 @@ export function rgbToOklab(tensor) {
 }
 
 export function oklabToRgb(tensor) {
+  if (tensor && typeof tensor.then === 'function') {
+    return tensor.then(oklabToRgb);
+  }
   const [h, w, c] = tensor.shape;
   if (c !== 3) throw new Error('oklabToRgb expects 3-channel tensor');
   return withTensorData(tensor, (src) => {
