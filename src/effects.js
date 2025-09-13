@@ -5102,3 +5102,5 @@ export function skew(tensor, shape, time, speed, angle = 0, range = 1) {
   return tensor;
 }
 register("skew", skew, { angle: 0, range: 1 });
+
+export { voronoiCPU, voronoiWebGPU };

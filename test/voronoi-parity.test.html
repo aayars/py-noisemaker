@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { Context } from '../src/context.js';
+import { Tensor } from '../src/tensor.js';
+import { voronoiCPU, voronoiWebGPU } from '../src/effects.js';
+
+const canvas = document.createElement('canvas');
+const ctx = new Context(canvas);
+if (!navigator.gpu) {
+  document.body.textContent = 'no webgpu';
+} else {
+  await ctx.initWebGPU();
+  const shape = [4,4,1];
+  const baseData = new Float32Array(shape[0]*shape[1]*shape[2]);
+  for (let i=0;i<baseData.length;i++) baseData[i] = i / baseData.length;
+  const tensorGPU = Tensor.fromArray(ctx, baseData, shape);
+  const tensorCPU = Tensor.fromArray(null, baseData, shape);
+  const outGPU = await voronoiWebGPU(tensorGPU, shape, 0, 0);
+  const outCPU = await voronoiCPU(tensorCPU, shape, 0, 0);
+  const arrGPU = await outGPU.read();
+  const arrCPU = await outCPU.read();
+  let ok = true;
+  const tol = 1e-3;
+  for (let i=0;i<arrCPU.length;i++) {
+    if (Math.abs(arrCPU[i] - arrGPU[i]) > tol) { ok = false; break; }
+  }
+  document.body.textContent = ok ? 'voronoi parity ok' : 'voronoi parity fail';
+}
+</script>
+</body>
+</html>
