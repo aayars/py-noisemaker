@@ -23,6 +23,18 @@ def test_ternary_parse():
     assert ast['body']['type'] == 'TernaryExpr'
 
 
+def test_named_arg_equals():
+    ast = parse(tokenize('rotate(angle=45)'))
+    call = ast['body']
+    assert call['type'] == 'CallExpr'
+    assert call['args']['named']['angle']['type'] == 'NumberLiteral'
+
+
+def test_python_style_conditional_parse():
+    ast = parse(tokenize('1 if true else 2'))
+    assert ast['body']['type'] == 'TernaryExpr'
+
+
 def test_null_parse():
     ast = parse(tokenize('null'))
     assert ast['body']['type'] == 'NullLiteral'

@@ -1,5 +1,5 @@
-# Support ternary operator
-PUNCT = set('(){}[],.:+-*/?')
+# Support ternary operator and equals sign for named arguments
+PUNCT = set('(){}[],.:+-*/?=')
 
 def is_digit(ch):
     return ch is not None and '0' <= ch <= '9'

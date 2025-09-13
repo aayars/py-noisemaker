@@ -14,6 +14,13 @@ def test_effect_chain_metadata():
     assert result['input']['__effectName'] == 'rotate'
     assert result['input']['__params'] == {'angle': 45}
 
+
+def test_effect_chain_metadata_equals():
+    ast = parse(tokenize('rotate(angle=45).posterize(levels=5)'))
+    result = evaluate(ast)
+    assert result['__effectName'] == 'posterize'
+    assert result['input']['__params'] == {'angle': 45}
+
 def test_builtins():
     rng.set_seed(1)
     coin = evaluate(parse(tokenize('coin_flip()')))
@@ -72,6 +79,10 @@ def test_numeric_and_random_and_null():
     rng.set_seed(1)
     tern = evaluate(parse(tokenize('coin_flip() ? 1 : 2')))
     assert tern == 1
+
+    rng.set_seed(1)
+    tern_py = evaluate(parse(tokenize('1 if coin_flip() else 2')))
+    assert tern_py == 1
 
     rng.set_seed(1)
     member = evaluate(parse(tokenize('random_member(ColorSpace.color_members())')))

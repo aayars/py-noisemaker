@@ -1,8 +1,12 @@
 PRESET_KEYS = {"layers", "settings", "generator", "octaves", "post", "final", "unique"}
 
 def unexpected(token):
-    val = token['value'] if token else 'EOF'
-    raise ValueError(f"Unexpected token: {val}")
+    if token:
+        val = token['value']
+        line = token.get('line')
+        column = token.get('column')
+        raise ValueError(f"Unexpected token: {val} (line {line}, column {column})")
+    raise ValueError("Unexpected token: EOF")
 
 def parse(tokens, enforce_preset_keys=True):
     i = 0
@@ -119,9 +123,10 @@ def parse(tokens, enforce_preset_keys=True):
         return {'named': named} if usingNamed else {'positional': positional}
     def parseArg():
         t = peek()
-        if t['type'] == 'identifier' and (peek(1) and peek(1)['type'] == ':'):
+        next_tok = peek(1)
+        if t['type'] == 'identifier' and (next_tok and next_tok['type'] in (':', '=')):
             name = consume('identifier')['value']
-            consume(':')
+            consume(next_tok['type'])
             value = parseExpression()
             return {'named': True, 'name': name, 'value': value}
         return {'value': parseExpression()}
@@ -130,7 +135,16 @@ def parse(tokens, enforce_preset_keys=True):
         return {'type': 'Identifier', 'name': token['value']}
     def parseNumberExpr():
         node = parseAdd()
-        if match('?'):
+        t = peek()
+        if t and t['type'] == 'identifier' and t['value'] == 'if':
+            consume('identifier')
+            test_expr = parseNumberExpr()
+            else_tok = consume('identifier')
+            if else_tok['value'] != 'else':
+                unexpected(else_tok)
+            false_expr = parseNumberExpr()
+            node = {'type': 'TernaryExpr', 'test': test_expr, 'consequent': node, 'alternate': false_expr}
+        elif match('?'):
             true_expr = parseNumberExpr()
             consume(':')
             false_expr = parseNumberExpr()
