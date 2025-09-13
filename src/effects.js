@@ -482,13 +482,14 @@ export function outline(
         Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
       );
     }
-    let edges = await sobelOperator(
+    const edgesTensor = await sobelOperator(
       valuesTensor,
       [h, w, 1],
       time,
       speed,
       sobelMetric,
-    ).read();
+    );
+    const edges = await edgesTensor.read();
     if (invert) {
       for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
     }
