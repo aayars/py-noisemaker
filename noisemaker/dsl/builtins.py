@@ -96,6 +96,15 @@ def preset(*args):
     return _thunk
 
 
+# Mark non-deterministic operations as thunks so the evaluator defers their
+# execution until settings are resolved, mirroring the JavaScript
+# implementation.
+coin_flip.__thunk = True
+random_member.__thunk = True
+random.__thunk = True
+random_int.__thunk = True
+stash.__thunk = True
+
 # Unlike the JavaScript implementation, eagerly evaluate these helpers so tests
 # can inspect their return values directly.
 
