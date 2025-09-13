@@ -3634,12 +3634,24 @@ register("snow", snow, { alpha: 0.25 });
 
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] !== 3) return tensor;
-  const hsv = rgbToHsv(tensor);
-  const data = hsv.read();
-  for (let i = 0; i < shape[0] * shape[1]; i++) {
-    data[i * 3 + 1] = data[i * 3 + 1] * amount;
+  const hsvMaybe = rgbToHsv(tensor);
+  const process = (hsv) => {
+    const dataMaybe = hsv.read();
+    const adjust = (data) => {
+      for (let i = 0; i < shape[0] * shape[1]; i++) {
+        data[i * 3 + 1] = data[i * 3 + 1] * amount;
+      }
+      return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
+    };
+    if (dataMaybe && typeof dataMaybe.then === "function") {
+      return dataMaybe.then(adjust);
+    }
+    return adjust(dataMaybe);
+  };
+  if (hsvMaybe && typeof hsvMaybe.then === "function") {
+    return hsvMaybe.then(process);
   }
-  return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
+  return process(hsvMaybe);
 }
 register("saturation", saturation, { amount: 0.75 });
 register("adjust_saturation", saturation, { amount: 0.75 });
