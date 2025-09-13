@@ -201,9 +201,7 @@ export class Preset {
       const drawArray = (arrPromise) =>
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
 
-      if (ctx.device) {
-        drawPromise = drawArray(tensor.read());
-      } else if (ctx.gl && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
+      if (ctx.gl && !ctx.isCPU) {
         const gl = ctx.gl;
         ctx.canvas.width = w;
         ctx.canvas.height = h;
@@ -220,7 +218,11 @@ export class Preset {
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
         let tex = tensor.handle;
-        if (typeof WebGLTexture !== 'undefined' && !(tex instanceof WebGLTexture)) {
+        const isTex =
+          typeof WebGLTexture !== 'undefined' &&
+          tex instanceof WebGLTexture &&
+          gl.isTexture(tex);
+        if (!isTex) {
           const texRes = withTensorData(tensor, (data) => ctx.createTexture(w, h, data));
           if (texRes && typeof texRes.then === 'function') {
             drawPromise = texRes.then((t) => {

@@ -17,3 +17,8 @@ def test_preset_settings(name):
     py_settings = {k: getattr(v, 'value', v) for k, v in preset.settings.items()}
     js_settings = js_preset_settings(name, seed)
     assert py_settings == js_settings
+
+    rng.set_seed(seed)
+    dsl_preset = Preset(name, PRESETS(use_dsl=True), use_dsl=True)
+    dsl_settings = {k: getattr(v, 'value', v) for k, v in dsl_preset.settings.items()}
+    assert dsl_settings == py_settings
