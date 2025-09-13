@@ -55,7 +55,8 @@ export function stash(...args) {
   if (typeof key !== 'string') {
     throw new Error('stash(key[, value]) key must be a string');
   }
-  return _stash(key, value);
+  return (settings = {}) =>
+    _stash(key, typeof value === 'function' ? value(settings) : value);
 }
 
 export function random(...args) {
@@ -75,6 +76,11 @@ export function random_int(...args) {
   }
   return _random_int(a, b);
 }
+
+coin_flip.__thunk = true;
+random_member.__thunk = true;
+random.__thunk = true;
+random_int.__thunk = true;
 
 export function mask_freq(...args) {
   if (args.length !== 2) {
