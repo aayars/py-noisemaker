@@ -4,8 +4,6 @@ Several helper functions in the JavaScript port still rely on synchronous tensor
 
 The following areas remain CPU/WebGL only:
 
-- `src/value.js`: the `values` generator still uses synchronous tensor reads in some branches
-
 - `src/effects.js`: most effects that sample tensor data
 
 Utility helpers in `src/util.js`, the generator helpers in `src/generators.js`, and the colour space conversions in `src/oklab.js` now use `tensor.read()` and can operate under a WebGPU context.

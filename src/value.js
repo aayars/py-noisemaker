@@ -460,11 +460,12 @@ void main(){
   if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
     tensor = simplexNoise([initHeight, initWidth, channels], { time, seed, speed });
     if (distrib === ValueDistribution.exp) {
-      const data = tensor.readSync();
-      for (let i = 0; i < data.length; i++) {
-        data[i] = Math.pow(data[i], 4);
-      }
-      tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+      tensor = withTensorData(tensor, (data) => {
+        for (let i = 0; i < data.length; i++) {
+          data[i] = Math.pow(data[i], 4);
+        }
+        return Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+      });
     }
   } else {
     const data = new Float32Array(size);
@@ -574,35 +575,36 @@ void main(){
         corners
       );
     }
-    const mArr = mTensor.read();
-    const tArr = tensor.readSync();
-    const mh = mTensor.shape[0];
-    const mw = mTensor.shape[1];
-    const total = mh * mw;
-    if (channels === 2) {
-      const out = new Float32Array(total * 2);
-      for (let i = 0; i < total; i++) {
-        out[i * 2] = tArr[i * channels];
-        out[i * 2 + 1] = mArr[i];
-      }
-      tensor = Tensor.fromArray(null, out, [mh, mw, 2]);
-    } else if (channels === 4) {
-      const out = new Float32Array(total * 4);
-      for (let i = 0; i < total; i++) {
-        out[i * 4] = tArr[i * channels];
-        out[i * 4 + 1] = tArr[i * channels + 1];
-        out[i * 4 + 2] = tArr[i * channels + 2];
-        out[i * 4 + 3] = mArr[i];
-      }
-      tensor = Tensor.fromArray(null, out, [mh, mw, 4]);
-    } else {
-      for (let i = 0; i < total; i++) {
-        for (let c = 0; c < channels; c++) {
-          tArr[i * channels + c] *= mArr[i];
+    const combine = (t) =>
+      withTensorDatas([mTensor, t], (mArr, tArr) => {
+        const mh = mTensor.shape[0];
+        const mw = mTensor.shape[1];
+        const total = mh * mw;
+        if (channels === 2) {
+          const out = new Float32Array(total * 2);
+          for (let i = 0; i < total; i++) {
+            out[i * 2] = tArr[i * channels];
+            out[i * 2 + 1] = mArr[i];
+          }
+          return Tensor.fromArray(null, out, [mh, mw, 2]);
+        } else if (channels === 4) {
+          const out = new Float32Array(total * 4);
+          for (let i = 0; i < total; i++) {
+            out[i * 4] = tArr[i * channels];
+            out[i * 4 + 1] = tArr[i * channels + 1];
+            out[i * 4 + 2] = tArr[i * channels + 2];
+            out[i * 4 + 3] = mArr[i];
+          }
+          return Tensor.fromArray(null, out, [mh, mw, 4]);
         }
-      }
-      tensor = Tensor.fromArray(null, tArr, [mh, mw, channels]);
-    }
+        for (let i = 0; i < total; i++) {
+          for (let c = 0; c < channels; c++) {
+            tArr[i * channels + c] *= mArr[i];
+          }
+        }
+        return Tensor.fromArray(null, tArr, [mh, mw, channels]);
+      });
+    tensor = tensor && typeof tensor.then === 'function' ? tensor.then(combine) : combine(tensor);
   }
 
   if (!needsFullSize) {
