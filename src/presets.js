@@ -182,6 +182,12 @@ function buildPresets(names) {
     }
 
     const p = { ...preset };
+    if (typeof p.layers === 'function') {
+      // Allow layers to be specified as a function in the DSL. Evaluate the
+      // function once when building the preset so downstream consumers always
+      // see a concrete array of layer names, matching the Python behaviour.
+      p.layers = p.layers();
+    }
     if (p.settings && typeof p.settings === 'object') {
       const s = p.settings;
       p.settings = () => ({ ...s });
