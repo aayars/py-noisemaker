@@ -4,9 +4,7 @@ Several helper functions in the JavaScript port still rely on synchronous tensor
 
 The following areas remain CPU/WebGL only:
 
-- ???
-
-- `src/value.js`: many utilities such as `normalize` and colour helpers (though some helpers like `clamp01` now use `tensor.read()`)
+- `src/value.js`: the `values` generator still uses synchronous tensor reads in some branches
 
 - `src/effects.js`: most effects that sample tensor data
 

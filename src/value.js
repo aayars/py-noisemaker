@@ -6,7 +6,12 @@ import {
   isNativeSize,
 } from './constants.js';
 import { maskValues } from './masks.js';
-import { random, setSeed as setRNGSeed } from './util.js';
+import {
+  random,
+  setSeed as setRNGSeed,
+  withTensorData,
+  withTensorDatas,
+} from './util.js';
 import { simplex as simplexNoise, setSeed as setSimplexSeed } from './simplex.js';
 
 let _seed = 0x12345678;
@@ -50,20 +55,21 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
 function offsetTensor(tensor, shape, x = 0, y = 0) {
   const [h, w, c] = shape;
   if (x === 0 && y === 0) return tensor;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
-  for (let yy = 0; yy < h; yy++) {
-    const sy = (yy + y + h) % h;
-    for (let xx = 0; xx < w; xx++) {
-      const sx = (xx + x + w) % w;
-      const dst = (yy * w + xx) * c;
-      const sIdx = (sy * w + sx) * c;
-      for (let k = 0; k < c; k++) {
-        out[dst + k] = src[sIdx + k];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c);
+    for (let yy = 0; yy < h; yy++) {
+      const sy = (yy + y + h) % h;
+      for (let xx = 0; xx < w; xx++) {
+        const sx = (xx + x + w) % w;
+        const dst = (yy * w + xx) * c;
+        const sIdx = (sy * w + sx) * c;
+        for (let k = 0; k < c; k++) {
+          out[dst + k] = src[sIdx + k];
+        }
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 function pinCorners(tensor, shape, freq, corners) {
@@ -781,11 +787,11 @@ void main(){
     return Promise.resolve(new Tensor(ctx, pp.writeTex, [nh, nw, nc]));
   }
 
-  const src = tensor.readSync();
-  if (src && typeof src.then === 'function') {
-    return src.then(cpuResample);
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(cpuResample);
   }
-  return cpuResample(src);
+  return cpuResample(srcMaybe);
 }
 export function downsample(tensor, factor) {
   const [h, w, c] = tensor.shape;
@@ -807,23 +813,24 @@ export function downsample(tensor, factor) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
   }
-  const src = tensor.readSync();
-  const out = new Float32Array(nh * nw * c);
-  for (let y = 0; y < nh; y++) {
-    for (let x = 0; x < nw; x++) {
-      for (let k = 0; k < c; k++) {
-        let sum = 0;
-        for (let yy = 0; yy < factor; yy++) {
-          for (let xx = 0; xx < factor; xx++) {
-            const idx = ((y * factor + yy) * w + (x * factor + xx)) * c + k;
-            sum += src[idx];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(nh * nw * c);
+    for (let y = 0; y < nh; y++) {
+      for (let x = 0; x < nw; x++) {
+        for (let k = 0; k < c; k++) {
+          let sum = 0;
+          for (let yy = 0; yy < factor; yy++) {
+            for (let xx = 0; xx < factor; xx++) {
+              const idx = ((y * factor + yy) * w + (x * factor + xx)) * c + k;
+              sum += src[idx];
+            }
           }
+          out[(y * nw + x) * c + k] = sum / (factor * factor);
         }
-        out[(y * nw + x) * c + k] = sum / (factor * factor);
       }
     }
-  }
-  return Tensor.fromArray(ctx, out, [nh, nw, c]);
+    return Tensor.fromArray(ctx, out, [nh, nw, c]);
+  });
 }
 
 export function proportionalDownsample(tensor, shape, newShape) {
@@ -834,26 +841,27 @@ export function proportionalDownsample(tensor, shape, newShape) {
   const outH = Math.floor((h - kH) / kH + 1);
   const outW = Math.floor((w - kW) / kW + 1);
   const ctx = tensor.ctx;
-  const src = tensor.readSync();
-  const out = new Float32Array(outH * outW * c);
-  for (let y = 0; y < outH; y++) {
-    for (let x = 0; x < outW; x++) {
-      for (let k = 0; k < c; k++) {
-        let sum = 0;
-        for (let yy = 0; yy < kH; yy++) {
-          for (let xx = 0; xx < kW; xx++) {
-            const iy = y * kH + yy;
-            const ix = x * kW + xx;
-            const idx = (iy * w + ix) * c + k;
-            sum += src[idx];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(outH * outW * c);
+    for (let y = 0; y < outH; y++) {
+      for (let x = 0; x < outW; x++) {
+        for (let k = 0; k < c; k++) {
+          let sum = 0;
+          for (let yy = 0; yy < kH; yy++) {
+            for (let xx = 0; xx < kW; xx++) {
+              const iy = y * kH + yy;
+              const ix = x * kW + xx;
+              const idx = (iy * w + ix) * c + k;
+              sum += src[idx];
+            }
           }
+          out[(y * outW + x) * c + k] = sum / (kH * kW);
         }
-        out[(y * outW + x) * c + k] = sum / (kH * kW);
       }
     }
-  }
-  const down = Tensor.fromArray(ctx, out, [outH, outW, c]);
-  return resample(down, [nh, nw, c]);
+    const down = Tensor.fromArray(ctx, out, [outH, outW, c]);
+    return resample(down, [nh, nw, c]);
+  });
 }
 
 export function upsample(tensor, factor, splineOrder = InterpolationType.bicubic) {
@@ -872,72 +880,72 @@ function cubicInterpolate(a, b, c, d, t) {
 
 export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const flowData = flow.read();
-  const out = new Float32Array(h * w * c);
+  return withTensorDatas([tensor, flow], (src, flowData) => {
+    const out = new Float32Array(h * w * c);
 
-  const wrap = (v, max) => {
-    v %= max;
-    return v < 0 ? v + max : v;
-  };
+    const wrap = (v, max) => {
+      v %= max;
+      return v < 0 ? v + max : v;
+    };
 
-  function sample(x, y, k) {
-    x = wrap(x, w);
-    y = wrap(y, h);
-    if (splineOrder === InterpolationType.constant) {
-      const ix = wrap(Math.round(x), w);
-      const iy = wrap(Math.round(y), h);
-      return src[(iy * w + ix) * c + k];
-    }
-
-    const x0 = Math.floor(x);
-    const y0 = Math.floor(y);
-    const fx = x - x0;
-    const fy = y - y0;
-
-    if (splineOrder === InterpolationType.bicubic) {
-      const get = (ix, iy) => {
-        ix = wrap(ix, w);
-        iy = wrap(iy, h);
+    function sample(x, y, k) {
+      x = wrap(x, w);
+      y = wrap(y, h);
+      if (splineOrder === InterpolationType.constant) {
+        const ix = wrap(Math.round(x), w);
+        const iy = wrap(Math.round(y), h);
         return src[(iy * w + ix) * c + k];
-      };
-      const col = new Array(4);
-      for (let m = -1; m < 3; m++) {
-        const row = new Array(4);
-        for (let n = -1; n < 3; n++) {
-          row[n + 1] = get(x0 + n, y0 + m);
+      }
+
+      const x0 = Math.floor(x);
+      const y0 = Math.floor(y);
+      const fx = x - x0;
+      const fy = y - y0;
+
+      if (splineOrder === InterpolationType.bicubic) {
+        const get = (ix, iy) => {
+          ix = wrap(ix, w);
+          iy = wrap(iy, h);
+          return src[(iy * w + ix) * c + k];
+        };
+        const col = new Array(4);
+        for (let m = -1; m < 3; m++) {
+          const row = new Array(4);
+          for (let n = -1; n < 3; n++) {
+            row[n + 1] = get(x0 + n, y0 + m);
+          }
+          col[m + 1] = cubicInterpolate(row[0], row[1], row[2], row[3], fx);
         }
-        col[m + 1] = cubicInterpolate(row[0], row[1], row[2], row[3], fx);
+        return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
       }
-      return cubicInterpolate(col[0], col[1], col[2], col[3], fy);
+
+      const x1 = wrap(x0 + 1, w);
+      const y1 = wrap(y0 + 1, h);
+      const interp = splineOrder === InterpolationType.cosine
+        ? (t) => 0.5 - Math.cos(t * Math.PI) * 0.5
+        : (t) => t;
+      const tx = interp(fx);
+      const ty = interp(fy);
+      const s00 = src[(y0 * w + x0) * c + k];
+      const s10 = src[(y0 * w + x1) * c + k];
+      const s01 = src[(y1 * w + x0) * c + k];
+      const s11 = src[(y1 * w + x1) * c + k];
+      const x_y0 = s00 * (1 - tx) + s10 * tx;
+      const x_y1 = s01 * (1 - tx) + s11 * tx;
+      return x_y0 * (1 - ty) + x_y1 * ty;
     }
 
-    const x1 = wrap(x0 + 1, w);
-    const y1 = wrap(y0 + 1, h);
-    const interp = splineOrder === InterpolationType.cosine
-      ? (t) => 0.5 - Math.cos(t * Math.PI) * 0.5
-      : (t) => t;
-    const tx = interp(fx);
-    const ty = interp(fy);
-    const s00 = src[(y0 * w + x0) * c + k];
-    const s10 = src[(y0 * w + x1) * c + k];
-    const s01 = src[(y1 * w + x0) * c + k];
-    const s11 = src[(y1 * w + x1) * c + k];
-    const x_y0 = s00 * (1 - tx) + s10 * tx;
-    const x_y1 = s01 * (1 - tx) + s11 * tx;
-    return x_y0 * (1 - ty) + x_y1 * ty;
-  }
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = flowData[(y * w + x) * 2] * amount * w;
-      const dy = flowData[(y * w + x) * 2 + 1] * amount * h;
-      for (let k = 0; k < c; k++) {
-        out[(y * w + x) * c + k] = sample(x + dx, y + dy, k);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dx = flowData[(y * w + x) * 2] * amount * w;
+        const dy = flowData[(y * w + x) * 2 + 1] * amount * h;
+        for (let k = 0; k < c; k++) {
+          out[(y * w + x) * c + k] = sample(x + dx, y + dy, k);
+        }
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function blend(a, b, t) {
@@ -1138,32 +1146,33 @@ export function sobel(tensor) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
-  const src = tensor.readSync();
-  const out = new Float32Array(src.length);
-  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  function get(x, y, k) {
-    x = Math.max(0, Math.min(w - 1, x));
-    y = Math.max(0, Math.min(h - 1, y));
-    return src[(y * w + x) * c + k];
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      for (let k = 0; k < c; k++) {
-        let gx = 0, gy = 0, idx = 0;
-        for (let yy = -1; yy <= 1; yy++) {
-          for (let xx = -1; xx <= 1; xx++) {
-            const v = get(x + xx, y + yy, k);
-            gx += gxKernel[idx] * v;
-            gy += gyKernel[idx] * v;
-            idx++;
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(src.length);
+    const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    function get(x, y, k) {
+      x = Math.max(0, Math.min(w - 1, x));
+      y = Math.max(0, Math.min(h - 1, y));
+      return src[(y * w + x) * c + k];
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        for (let k = 0; k < c; k++) {
+          let gx = 0, gy = 0, idx = 0;
+          for (let yy = -1; yy <= 1; yy++) {
+            for (let xx = -1; xx <= 1; xx++) {
+              const v = get(x + xx, y + yy, k);
+              gx += gxKernel[idx] * v;
+              gy += gyKernel[idx] * v;
+              idx++;
+            }
           }
+          out[(y * w + x) * c + k] = Math.sqrt(gx * gx + gy * gy);
         }
-        out[(y * w + x) * c + k] = Math.sqrt(gx * gx + gy * gy);
       }
     }
-  }
-  return Tensor.fromArray(ctx, out, [h, w, c]);
+    return Tensor.fromArray(ctx, out, [h, w, c]);
+  });
 }
 
 export function hsvToRgb(tensor) {
@@ -1318,12 +1327,13 @@ export function valueMap(tensor, palette) {
 }
 
 export function ridge(tensor) {
-  const data = tensor.readSync();
-  const out = new Float32Array(data.length);
-  for (let i = 0; i < data.length; i++) {
-    out[i] = 1 - Math.abs(data[i] * 2 - 1);
-  }
-  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  return withTensorData(tensor, (data) => {
+    const out = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      out[i] = 1 - Math.abs(data[i] * 2 - 1);
+    }
+    return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  });
 }
 
 export function convolution(tensor, kernel, opts = {}) {
@@ -1331,31 +1341,53 @@ export function convolution(tensor, kernel, opts = {}) {
   const [h, w, c] = tensor.shape;
   const kh = kernel.length;
   const kw = kernel[0].length;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
   const halfH = Math.floor(kh / 2);
   const halfW = Math.floor(kw / 2);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      for (let k = 0; k < c; k++) {
-        let sum = 0;
-        for (let j = 0; j < kh; j++) {
-          for (let i = 0; i < kw; i++) {
-            const yy = (y + j - halfH + h) % h;
-            const xx = (x + i - halfW + w) % w;
-            const val = src[(yy * w + xx) * c + k];
-            const contrib = Math.fround(kernel[j][i] * val);
-            sum = Math.fround(sum + contrib);
+  const compute = (src) => {
+    const out = new Float32Array(h * w * c);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        for (let k = 0; k < c; k++) {
+          let sum = 0;
+          for (let j = 0; j < kh; j++) {
+            for (let i = 0; i < kw; i++) {
+              const yy = (y + j - halfH + h) % h;
+              const xx = (x + i - halfW + w) % w;
+              const val = src[(yy * w + xx) * c + k];
+              const contrib = Math.fround(kernel[j][i] * val);
+              sum = Math.fround(sum + contrib);
+            }
           }
+          out[(y * w + x) * c + k] = Math.fround(sum);
         }
-        out[(y * w + x) * c + k] = Math.fround(sum);
       }
     }
-  }
-  let result = Tensor.fromArray(tensor.ctx, out, [h, w, c]);
-  if (doNormalize) result = normalize(result);
-  if (alpha !== 1) result = blend(tensor, result, alpha);
-  return result;
+    let result = Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    if (doNormalize) {
+      const norm = normalize(result);
+      if (norm && typeof norm.then === 'function') {
+        return norm.then((r) => {
+          if (alpha !== 1) {
+            const blended = blend(tensor, r, alpha);
+            return blended && typeof blended.then === 'function'
+              ? blended
+              : blended;
+          }
+          return r;
+        });
+      }
+      result = norm;
+    }
+    if (alpha !== 1) {
+      const blended = blend(tensor, result, alpha);
+      if (blended && typeof blended.then === 'function') {
+        return blended;
+      }
+      return blended;
+    }
+    return result;
+  };
+  return withTensorData(tensor, compute);
 }
 
 export function refract(
@@ -1399,230 +1431,233 @@ export function refract(
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return new Tensor(ctx, pp.writeTex, [h, w, c]);
   }
-
-  const src = tensor.readSync();
-  const rx = refX.read();
-  const ry = refY.read();
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let vx = rx[y * w + x];
-      let vy = ry[y * w + x];
-      if (signedRange) {
-        vx = vx * 2 - 1;
-        vy = vy * 2 - 1;
-      } else {
-        vx *= 2;
-        vy *= 2;
-      }
-      const dx = Math.fround(vx * displacement * w);
-      const dy = Math.fround(vy * displacement * h);
-      let x0 = x + Math.trunc(dx);
-      let y0 = y + Math.trunc(dy);
-      let x1 = x0 + 1;
-      let y1 = y0 + 1;
-      x0 = ((x0 % w) + w) % w;
-      x1 = ((x1 % w) + w) % w;
-      y0 = ((y0 % h) + h) % h;
-      y1 = ((y1 % h) + h) % h;
-      const fx = Math.fround(dx - Math.floor(dx));
-      const fy = Math.fround(dy - Math.floor(dy));
-      const tx = splineOrder === InterpolationType.cosine
-        ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
-        : fx;
-      const ty = splineOrder === InterpolationType.cosine
-        ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
-        : fy;
-      for (let k = 0; k < c; k++) {
-        const s00 = src[(y0 * w + x0) * c + k];
-        const s10 = src[(y0 * w + x1) * c + k];
-        const s01 = src[(y1 * w + x0) * c + k];
-        const s11 = src[(y1 * w + x1) * c + k];
-        const x_y0 = s00 * (1 - tx) + s10 * tx;
-        const x_y1 = s01 * (1 - tx) + s11 * tx;
-        out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+  return withTensorDatas([tensor, refX, refY], (src, rx, ry) => {
+    const out = new Float32Array(h * w * c);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let vx = rx[y * w + x];
+        let vy = ry[y * w + x];
+        if (signedRange) {
+          vx = vx * 2 - 1;
+          vy = vy * 2 - 1;
+        } else {
+          vx *= 2;
+          vy *= 2;
+        }
+        const dx = Math.fround(vx * displacement * w);
+        const dy = Math.fround(vy * displacement * h);
+        let x0 = x + Math.trunc(dx);
+        let y0 = y + Math.trunc(dy);
+        let x1 = x0 + 1;
+        let y1 = y0 + 1;
+        x0 = ((x0 % w) + w) % w;
+        x1 = ((x1 % w) + w) % w;
+        y0 = ((y0 % h) + h) % h;
+        y1 = ((y1 % h) + h) % h;
+        const fx = Math.fround(dx - Math.floor(dx));
+        const fy = Math.fround(dy - Math.floor(dy));
+        const tx = splineOrder === InterpolationType.cosine
+          ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
+          : fx;
+        const ty = splineOrder === InterpolationType.cosine
+          ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
+          : fy;
+        for (let k = 0; k < c; k++) {
+          const s00 = src[(y0 * w + x0) * c + k];
+          const s10 = src[(y0 * w + x1) * c + k];
+          const s01 = src[(y1 * w + x0) * c + k];
+          const s11 = src[(y1 * w + x1) * c + k];
+          const x_y0 = s00 * (1 - tx) + s10 * tx;
+          const x_y1 = s01 * (1 - tx) + s11 * tx;
+          out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+        }
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function fft(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c * 2);
-  for (let k = 0; k < c; k++) {
-    for (let u = 0; u < h; u++) {
-      for (let v = 0; v < w; v++) {
-        let re = 0, im = 0;
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const angle = -2 * Math.PI * ((u * y) / h + (v * x) / w);
-            const val = src[(y * w + x) * c + k];
-            re += val * Math.cos(angle);
-            im += val * Math.sin(angle);
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c * 2);
+    for (let k = 0; k < c; k++) {
+      for (let u = 0; u < h; u++) {
+        for (let v = 0; v < w; v++) {
+          let re = 0, im = 0;
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const angle = -2 * Math.PI * ((u * y) / h + (v * x) / w);
+              const val = src[(y * w + x) * c + k];
+              re += val * Math.cos(angle);
+              im += val * Math.sin(angle);
+            }
           }
+          const idx = (u * w + v) * c * 2 + k * 2;
+          out[idx] = re;
+          out[idx + 1] = im;
         }
-        const idx = (u * w + v) * c * 2 + k * 2;
-        out[idx] = re;
-        out[idx + 1] = im;
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c * 2]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c * 2]);
+  });
 }
 
 export function ifft(tensor) {
   const [h, w, c2] = tensor.shape;
   const c = c2 / 2;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
-  for (let k = 0; k < c; k++) {
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        let re = 0;
-        for (let u = 0; u < h; u++) {
-          for (let v = 0; v < w; v++) {
-            const idx = (u * w + v) * c * 2 + k * 2;
-            const real = src[idx];
-            const imag = src[idx + 1];
-            const angle = 2 * Math.PI * ((u * y) / h + (v * x) / w);
-            re += real * Math.cos(angle) - imag * Math.sin(angle);
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c);
+    for (let k = 0; k < c; k++) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          let re = 0;
+          for (let u = 0; u < h; u++) {
+            for (let v = 0; v < w; v++) {
+              const idx = (u * w + v) * c * 2 + k * 2;
+              const real = src[idx];
+              const imag = src[idx + 1];
+              const angle = 2 * Math.PI * ((u * y) / h + (v * x) / w);
+              re += real * Math.cos(angle) - imag * Math.sin(angle);
+            }
           }
+          out[(y * w + x) * c + k] = re / (h * w);
         }
-        out[(y * w + x) * c + k] = re / (h * w);
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function rotate(tensor, angle) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const rx = (x - cx) * cos + (y - cy) * sin + cx;
-      const ry = -(x - cx) * sin + (y - cy) * cos + cy;
-      const ix = Math.round(rx);
-      const iy = Math.round(ry);
-      for (let k = 0; k < c; k++) {
-        let val = 0;
-        if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
-          val = src[(iy * w + ix) * c + k];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c);
+    const cx = (w - 1) / 2;
+    const cy = (h - 1) / 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const rx = (x - cx) * cos + (y - cy) * sin + cx;
+        const ry = -(x - cx) * sin + (y - cy) * cos + cy;
+        const ix = Math.round(rx);
+        const iy = Math.round(ry);
+        for (let k = 0; k < c; k++) {
+          let val = 0;
+          if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
+            val = src[(iy * w + ix) * c + k];
+          }
+          out[(y * w + x) * c + k] = val;
         }
-        out[(y * w + x) * c + k] = val;
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function zoom(tensor, factor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const rx = (x - cx) / factor + cx;
-      const ry = (y - cy) / factor + cy;
-      const ix = Math.round(rx);
-      const iy = Math.round(ry);
-      for (let k = 0; k < c; k++) {
-        let val = 0;
-        if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
-          val = src[(iy * w + ix) * c + k];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c);
+    const cx = (w - 1) / 2;
+    const cy = (h - 1) / 2;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const rx = (x - cx) / factor + cx;
+        const ry = (y - cy) / factor + cy;
+        const ix = Math.round(rx);
+        const iy = Math.round(ry);
+        for (let k = 0; k < c; k++) {
+          let val = 0;
+          if (ix >= 0 && ix < w && iy >= 0 && iy < h) {
+            val = src[(iy * w + ix) * c + k];
+          }
+          out[(y * w + x) * c + k] = val;
         }
-        out[(y * w + x) * c + k] = val;
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function fxaa(tensor) {
   const [h, w, c] = tensor.shape;
-  const src = tensor.readSync();
-  const out = new Float32Array(h * w * c);
-  const lumWeights = [0.299, 0.587, 0.114];
-  function reflect(i, n) {
-    if (n === 1) return 0;
-    const m = (2 * n - 2);
-    i = ((i % m) + m) % m;
-    return i < n ? i : m - i;
-  }
-  function idx(x, y, k) {
-    x = reflect(x, w);
-    y = reflect(y, h);
-    return (y * w + x) * c + k;
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (c === 1) {
-        const lC = src[idx(x, y, 0)];
-        const lN = src[idx(x, y - 1, 0)];
-        const lS = src[idx(x, y + 1, 0)];
-        const lW = src[idx(x - 1, y, 0)];
-        const lE = src[idx(x + 1, y, 0)];
-        const wC = 1.0;
-        const wN = Math.exp(-Math.abs(lC - lN));
-        const wS = Math.exp(-Math.abs(lC - lS));
-        const wW = Math.exp(-Math.abs(lC - lW));
-        const wE = Math.exp(-Math.abs(lC - lE));
-        const sum = wC + wN + wS + wW + wE + 1e-10;
-        out[idx(x, y, 0)] =
-          (lC * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
-      } else if (c === 2) {
-        const lum = src[idx(x, y, 0)];
-        const alpha = src[idx(x, y, 1)];
-        const lN = src[idx(x, y - 1, 0)];
-        const lS = src[idx(x, y + 1, 0)];
-        const lW = src[idx(x - 1, y, 0)];
-        const lE = src[idx(x + 1, y, 0)];
-        const wC = 1.0;
-        const wN = Math.exp(-Math.abs(lum - lN));
-        const wS = Math.exp(-Math.abs(lum - lS));
-        const wW = Math.exp(-Math.abs(lum - lW));
-        const wE = Math.exp(-Math.abs(lum - lE));
-        const sum = wC + wN + wS + wW + wE + 1e-10;
-        out[idx(x, y, 0)] =
-          (lum * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
-        out[idx(x, y, 1)] = alpha;
-      } else if (c === 3 || c === 4) {
-        const rgbC = [src[idx(x, y, 0)], src[idx(x, y, 1)], src[idx(x, y, 2)]];
-        const rgbN = [src[idx(x, y - 1, 0)], src[idx(x, y - 1, 1)], src[idx(x, y - 1, 2)]];
-        const rgbS = [src[idx(x, y + 1, 0)], src[idx(x, y + 1, 1)], src[idx(x, y + 1, 2)]];
-        const rgbW = [src[idx(x - 1, y, 0)], src[idx(x - 1, y, 1)], src[idx(x - 1, y, 2)]];
-        const rgbE = [src[idx(x + 1, y, 0)], src[idx(x + 1, y, 1)], src[idx(x + 1, y, 2)]];
-        const lC = rgbC[0] * lumWeights[0] + rgbC[1] * lumWeights[1] + rgbC[2] * lumWeights[2];
-        const lN = rgbN[0] * lumWeights[0] + rgbN[1] * lumWeights[1] + rgbN[2] * lumWeights[2];
-        const lS = rgbS[0] * lumWeights[0] + rgbS[1] * lumWeights[1] + rgbS[2] * lumWeights[2];
-        const lW = rgbW[0] * lumWeights[0] + rgbW[1] * lumWeights[1] + rgbW[2] * lumWeights[2];
-        const lE = rgbE[0] * lumWeights[0] + rgbE[1] * lumWeights[1] + rgbE[2] * lumWeights[2];
-        const wC = 1.0;
-        const wN = Math.exp(-Math.abs(lC - lN));
-        const wS = Math.exp(-Math.abs(lC - lS));
-        const wW = Math.exp(-Math.abs(lC - lW));
-        const wE = Math.exp(-Math.abs(lC - lE));
-        const sum = wC + wN + wS + wW + wE + 1e-10;
-        for (let k = 0; k < 3; k++) {
-          out[idx(x, y, k)] =
-            (rgbC[k] * wC + rgbN[k] * wN + rgbS[k] * wS + rgbW[k] * wW + rgbE[k] * wE) / sum;
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * c);
+    const lumWeights = [0.299, 0.587, 0.114];
+    function reflect(i, n) {
+      if (n === 1) return 0;
+      const m = 2 * n - 2;
+      i = ((i % m) + m) % m;
+      return i < n ? i : m - i;
+    }
+    function idx(x, y, k) {
+      x = reflect(x, w);
+      y = reflect(y, h);
+      return (y * w + x) * c + k;
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (c === 1) {
+          const lC = src[idx(x, y, 0)];
+          const lN = src[idx(x, y - 1, 0)];
+          const lS = src[idx(x, y + 1, 0)];
+          const lW = src[idx(x - 1, y, 0)];
+          const lE = src[idx(x + 1, y, 0)];
+          const wC = 1.0;
+          const wN = Math.exp(-Math.abs(lC - lN));
+          const wS = Math.exp(-Math.abs(lC - lS));
+          const wW = Math.exp(-Math.abs(lC - lW));
+          const wE = Math.exp(-Math.abs(lC - lE));
+          const sum = wC + wN + wS + wW + wE + 1e-10;
+          out[idx(x, y, 0)] =
+            (lC * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
+        } else if (c === 2) {
+          const lum = src[idx(x, y, 0)];
+          const alpha = src[idx(x, y, 1)];
+          const lN = src[idx(x, y - 1, 0)];
+          const lS = src[idx(x, y + 1, 0)];
+          const lW = src[idx(x - 1, y, 0)];
+          const lE = src[idx(x + 1, y, 0)];
+          const wC = 1.0;
+          const wN = Math.exp(-Math.abs(lum - lN));
+          const wS = Math.exp(-Math.abs(lum - lS));
+          const wW = Math.exp(-Math.abs(lum - lW));
+          const wE = Math.exp(-Math.abs(lum - lE));
+          const sum = wC + wN + wS + wW + wE + 1e-10;
+          out[idx(x, y, 0)] =
+            (lum * wC + lN * wN + lS * wS + lW * wW + lE * wE) / sum;
+          out[idx(x, y, 1)] = alpha;
+        } else if (c === 3 || c === 4) {
+          const rgbC = [src[idx(x, y, 0)], src[idx(x, y, 1)], src[idx(x, y, 2)]];
+          const rgbN = [src[idx(x, y - 1, 0)], src[idx(x, y - 1, 1)], src[idx(x, y - 1, 2)]];
+          const rgbS = [src[idx(x, y + 1, 0)], src[idx(x, y + 1, 1)], src[idx(x, y + 1, 2)]];
+          const rgbW = [src[idx(x - 1, y, 0)], src[idx(x - 1, y, 1)], src[idx(x - 1, y, 2)]];
+          const rgbE = [src[idx(x + 1, y, 0)], src[idx(x + 1, y, 1)], src[idx(x + 1, y, 2)]];
+          const lC = rgbC[0] * lumWeights[0] + rgbC[1] * lumWeights[1] + rgbC[2] * lumWeights[2];
+          const lN = rgbN[0] * lumWeights[0] + rgbN[1] * lumWeights[1] + rgbN[2] * lumWeights[2];
+          const lS = rgbS[0] * lumWeights[0] + rgbS[1] * lumWeights[1] + rgbS[2] * lumWeights[2];
+          const lW = rgbW[0] * lumWeights[0] + rgbW[1] * lumWeights[1] + rgbW[2] * lumWeights[2];
+          const lE = rgbE[0] * lumWeights[0] + rgbE[1] * lumWeights[1] + rgbE[2] * lumWeights[2];
+          const wC = 1.0;
+          const wN = Math.exp(-Math.abs(lC - lN));
+          const wS = Math.exp(-Math.abs(lC - lS));
+          const wW = Math.exp(-Math.abs(lC - lW));
+          const wE = Math.exp(-Math.abs(lC - lE));
+          const sum = wC + wN + wS + wW + wE + 1e-10;
+          for (let k = 0; k < 3; k++) {
+            out[idx(x, y, k)] =
+              (rgbC[k] * wC + rgbN[k] * wN + rgbS[k] * wS + rgbW[k] * wW + rgbE[k] * wE) / sum;
+          }
+          if (c === 4) out[idx(x, y, 3)] = src[idx(x, y, 3)];
+        } else {
+          for (let k = 0; k < c; k++) out[idx(x, y, k)] = src[idx(x, y, k)];
         }
-        if (c === 4) out[idx(x, y, 3)] = src[idx(x, y, 3)];
-      } else {
-        for (let k = 0; k < c; k++) out[idx(x, y, k)] = src[idx(x, y, k)];
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+  });
 }
 
 export function gaussianBlur(tensor, radius = 1) {
