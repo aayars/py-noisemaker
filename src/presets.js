@@ -59,22 +59,27 @@ export function random_member(...collections) {
       throw new Error('random_member(arg) should be iterable');
     }
   }
+  if (out.every((v) => typeof v === 'boolean')) {
+    const trueCount = out.filter(Boolean).length;
+    return random() < trueCount / out.length;
+  }
   const idx = Math.floor(random() * out.length);
   return out[idx];
 }
 
 function sortArray(arr) {
-  let nameMap = null;
-  for (const { values, nameMap: map } of ENUM_LOOKUPS) {
+  let selected = null;
+  for (const { values, nameMap } of ENUM_LOOKUPS) {
     if (arr.every((v) => values.has(v))) {
-      nameMap = map;
-      break;
+      if (!selected || values.size < selected.size) {
+        selected = { map: nameMap, size: values.size };
+      }
     }
   }
   arr.sort((a, b) => {
-    if (nameMap) {
-      const na = nameMap.get(a);
-      const nb = nameMap.get(b);
+    if (selected) {
+      const na = selected.map.get(a);
+      const nb = selected.map.get(b);
       return na < nb ? -1 : na > nb ? 1 : 0;
     }
     const ta = typeof a;

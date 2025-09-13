@@ -28,7 +28,6 @@ export function coin_flip(...args) {
   }
   return _coin_flip();
 }
-coin_flip.__thunk = true;
 
 export function enum_range(...args) {
   if (args.length !== 2) {
@@ -47,7 +46,6 @@ export function random_member(...collections) {
   }
   return _random_member(...collections);
 }
-random_member.__thunk = true;
 
 export function stash(...args) {
   if (args.length === 0 || args.length > 2) {
@@ -66,7 +64,6 @@ export function random(...args) {
   }
   return _random();
 }
-random.__thunk = true;
 
 export function random_int(...args) {
   if (args.length !== 2) {
@@ -78,7 +75,6 @@ export function random_int(...args) {
   }
   return _random_int(a, b);
 }
-random_int.__thunk = true;
 
 export function mask_freq(...args) {
   if (args.length !== 2) {

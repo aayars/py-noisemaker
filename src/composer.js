@@ -40,6 +40,13 @@ function toCamel(str) {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 }
 
+function toSnake(str) {
+  return str
+    .replace(/([A-Z])/g, '_$1')
+    .replace(/-/g, '_')
+    .toLowerCase();
+}
+
 function toCamelKeys(obj = {}) {
   const out = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -232,7 +239,10 @@ export class Preset {
 }
 
 export function Effect(effectName, params = {}) {
-  const effect = EFFECTS[effectName];
+  let effect = EFFECTS[effectName];
+  if (!effect) {
+    effect = EFFECTS[toSnake(effectName)];
+  }
   if (!effect) {
     throw new Error(`"${effectName}" is not a registered effect name.`);
   }
