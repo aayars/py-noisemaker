@@ -144,8 +144,9 @@ export async function shadow(
     [0, 0, 0],
     [-1, -2, -1],
   ];
-  const dx = await convolution(grayTensor, kx).read();
-  const dy = await convolution(grayTensor, ky).read();
+  // convolution() may return a Promise, so await the result before reading
+  const dx = await (await convolution(grayTensor, kx)).read();
+  const dy = await (await convolution(grayTensor, ky)).read();
   const dist = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) {
     dist[i] = Math.fround(
@@ -176,8 +177,8 @@ export async function shadow(
     [-1, 5, -1],
     [0, -1, 0],
   ];
-  shade = convolution(shade, sharpen, { alpha: 0.5 });
-  const shadeArr = shade.read();
+  shade = await convolution(shade, sharpen, { alpha: 0.5 });
+  const shadeArr = await shade.read();
   const highlight = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) {
     highlight[i] = Math.fround(shadeArr[i] * shadeArr[i]);
@@ -352,7 +353,7 @@ export function bloom(tensor, shape, time, speed, alpha = 0.5) {
 }
 register("bloom", bloom, { alpha: 0.5 });
 
-export function derivative(
+export async function derivative(
   tensor,
   shape,
   time,
@@ -372,8 +373,8 @@ export function derivative(
     [0, 1, 0],
     [0, -1, 0],
   ];
-  const dx = convolution(tensor, kx, { normalize: false }).read();
-  const dy = convolution(tensor, ky, { normalize: false }).read();
+  const dx = await (await convolution(tensor, kx, { normalize: false })).read();
+  const dy = await (await convolution(tensor, ky, { normalize: false })).read();
   const out = new Float32Array(h * w * c);
   for (let i = 0; i < out.length; i++) {
     out[i] = distance(dx[i], dy[i], distMetric);
@@ -1000,18 +1001,21 @@ async function voronoiCPU(
   }
   const xOff = isTriangular ? 0 : Math.floor(w / 2);
   const yOff = isTriangular ? 0 : Math.floor(h / 2);
-  if (rangeTensor) rangeTensor = offsetTensor(rangeTensor, xOff, yOff);
-  if (regionsTensor) regionsTensor = offsetTensor(regionsTensor, xOff, yOff);
+  // offsetTensor expects a resolved Tensor; await any pending promises
+  if (rangeTensor) rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff);
+  if (regionsTensor)
+    regionsTensor = await offsetTensor(await regionsTensor, xOff, yOff);
   if (colorRegionsTensor)
-    colorRegionsTensor = offsetTensor(colorRegionsTensor, xOff, yOff);
+    colorRegionsTensor = await offsetTensor(await colorRegionsTensor, xOff, yOff);
   let outTensor;
   if (diagramType === VoronoiDiagramType.range) {
     outTensor = rangeTensor;
   } else if (diagramType === VoronoiDiagramType.color_range && tensor) {
     let rTensor = rangeTensor;
     if (downsample)
-      rTensor = resample(rangeTensor, [originalShape[0], originalShape[1], 1]);
-    const rData = rTensor.read();
+      rTensor = await resample(rangeTensor, [originalShape[0], originalShape[1], 1]);
+    rTensor = await rTensor;
+    const rData = await rTensor.read();
     const out = new Float32Array(originalShape[0] * originalShape[1] * c);
     for (let i = 0; i < rData.length; i++) {
       const r = rData[i];
@@ -1619,7 +1623,7 @@ register("voronoi", voronoi, {
   downsample: true,
 });
 
-export function singularity(
+export async function singularity(
   tensor,
   shape,
   time,
@@ -1633,7 +1637,7 @@ export function singularity(
     distrib: PointDistribution.square,
     shape: dsShape,
   });
-  let out = voronoi(
+  let out = await voronoi(
     tensor,
     dsShape,
     time,
@@ -1655,7 +1659,7 @@ export function singularity(
     false,
   );
   if (dsShape[0] !== h || dsShape[1] !== w) {
-    out = resample(out, [h, w, out.shape[2]]);
+    out = await resample(out, [h, w, out.shape[2]]);
   }
   return out;
 }
@@ -4903,7 +4907,7 @@ export function fibers(tensor, shape, time, speed) {
 }
 register("fibers", fibers, {});
 
-export function scratches(tensor, shape, time, speed) {
+export async function scratches(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
@@ -4930,14 +4934,15 @@ export function scratches(tensor, shape, time, speed) {
       kink,
     );
     const sub = values(randomInt(2, 4), valueShape, { ctx, time, speed });
-    let maskData = mask.read();
-    const subData = sub.read();
+    // ``mask`` and ``sub`` may resolve to promises; ensure data is awaited
+    let maskData = await mask.read();
+    const subData = await sub.read();
     for (let j = 0; j < maskData.length; j++) {
       maskData[j] = Math.max(maskData[j] - subData[j] * 2.0, 0);
     }
     mask = Tensor.fromArray(ctx, maskData, valueShape);
-    const outData = out.read();
-    maskData = mask.read();
+    const outData = await out.read();
+    maskData = await mask.read();
     for (let j = 0; j < h * w; j++) {
       const m = Math.min(maskData[j] * 8.0, 1.0);
       for (let k = 0; k < c; k++) {
