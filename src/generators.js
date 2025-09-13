@@ -15,7 +15,7 @@ import { random as simplexRandom } from './simplex.js';
 import { setSeed as setRngSeed } from './rng.js';
 import { EFFECTS } from './effectsRegistry.js';
 
-function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
+async function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) {
   if (typeof effect === 'function') {
     if (
       effect.__params &&
@@ -26,7 +26,7 @@ function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) 
         displacement: effect.__params.displacement / 2 ** octave,
       };
       const args = effect.__paramNames.map((k) => params[k]);
-      return EFFECTS[effect.__effectName].func(
+      return await EFFECTS[effect.__effectName].func(
         tensor,
         shape,
         time,
@@ -34,10 +34,10 @@ function _applyOctaveEffectOrPreset(effect, tensor, shape, time, speed, octave) 
         ...args,
       );
     }
-    return effect(tensor, shape, time, speed);
+    return await effect(tensor, shape, time, speed);
   } else if (effect && effect.octave_effects) {
     for (const e of effect.octave_effects) {
-      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
+      tensor = await _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
     }
     return tensor;
   }
@@ -88,15 +88,15 @@ export async function basic(freq, shape, opts = {}) {
     setValueSeed(seed);
   }
 
-  let tensor = values(f, shape, { distrib, seed, ...common });
+  let tensor = await values(f, shape, { distrib, seed, ...common });
 
   if (latticeDrift) {
-    tensor = refract(tensor, null, null, latticeDrift / Math.min(f[0], f[1]));
+    tensor = await refract(tensor, null, null, latticeDrift / Math.min(f[0], f[1]));
   }
 
   if (octaveEffects) {
     for (const e of octaveEffects) {
-      tensor = _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
+      tensor = await _applyOctaveEffectOrPreset(e, tensor, shape, time, speed, octave);
     }
   }
 

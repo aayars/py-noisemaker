@@ -1058,14 +1058,14 @@ async function voronoiCPU(
     diagramType === VoronoiDiagramType.flow ||
     diagramType === VoronoiDiagramType.color_flow
   ) {
-    outTensor = offsetTensor(outTensor, xOff, yOff);
+    outTensor = await offsetTensor(outTensor, xOff, yOff);
   }
   if (downsample) {
     const splineOrder =
       diagramType === VoronoiDiagramType.color_regions
         ? InterpolationType.constant
         : InterpolationType.bicubic;
-    outTensor = resample(outTensor, originalShape, splineOrder);
+    outTensor = await resample(outTensor, originalShape, splineOrder);
   }
   if (withRefract) {
     // Python's voronoi effect calls value.refract() directly with the range
@@ -1078,9 +1078,9 @@ async function voronoiCPU(
     let rx = outTensor;
     let ry;
     if (refractYFromOffset) {
-      ry = offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5));
+      ry = await offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5));
     } else {
-      const data = outTensor.read();
+      const data = await outTensor.read();
       const cosData = new Float32Array(h * w);
       const sinData = new Float32Array(h * w);
       for (let i = 0; i < h * w; i++) {
@@ -1091,8 +1091,7 @@ async function voronoiCPU(
       rx = Tensor.fromArray(outTensor.ctx, cosData, [h, w, 1]);
       ry = Tensor.fromArray(outTensor.ctx, sinData, [h, w, 1]);
     }
-
-    outTensor = refractOp(
+    outTensor = await refractOp(
       tensor,
       rx,
       ry,
@@ -2170,7 +2169,7 @@ register("convolve", convolve, {
   alpha: 1,
 });
 
-export function fbm(
+export async function fbm(
   tensor,
   shape,
   time,
@@ -2186,8 +2185,8 @@ export function fbm(
   let total = 0;
   const data = new Float32Array(h * w * c);
   for (let o = 0; o < octaves; o++) {
-    const layer = values(f, shape, { seed: o, time });
-    const layerData = layer.read();
+    const layer = await values(f, shape, { seed: o, time });
+    const layerData = await layer.read();
     for (let i = 0; i < data.length; i++) {
       data[i] += layerData[i] * amp;
     }
@@ -3034,17 +3033,17 @@ export async function refractEffect(
       }
       gray = Tensor.fromArray(tensor.ctx, out, valueShape);
     }
-    rx = convolution(gray, kx, { normalize: true });
-    ry = convolution(gray, ky, { normalize: true });
+    rx = await convolution(gray, kx, { normalize: true });
+    ry = await convolution(gray, ky, { normalize: true });
   } else if (warpFreq !== null && warpFreq !== undefined) {
-    rx = values(warpFreq, valueShape, {
+    rx = await values(warpFreq, valueShape, {
       ctx: tensor.ctx,
       distrib: ValueDistribution.simplex,
       time,
       speed,
       splineOrder,
     });
-    ry = values(warpFreq, valueShape, {
+    ry = await values(warpFreq, valueShape, {
       ctx: tensor.ctx,
       distrib: ValueDistribution.simplex,
       time,
@@ -3057,10 +3056,11 @@ export async function refractEffect(
       if (yFromOffset) {
         const xHalf = Math.floor(w * 0.5);
         const yHalf = Math.floor(h * 0.5);
-        ry = offsetTensor(rx, xHalf, yHalf);
-        tensor = offsetTensor(tensor, xHalf, yHalf);
+        ry = await offsetTensor(rx, xHalf, yHalf);
+        tensor = await offsetTensor(tensor, xHalf, yHalf);
       } else {
-        const rData = rx.read();
+        rx = await rx;
+        const rData = await rx.read();
         const cx = new Float32Array(rData.length);
         const cy = new Float32Array(rData.length);
         const tau32 = Math.fround(TAU);
@@ -3074,6 +3074,8 @@ export async function refractEffect(
       }
     }
   }
+  rx = await rx;
+  ry = await ry;
   rx = await toValueMap(rx);
   ry = await toValueMap(ry);
   if (rx.shape[0] !== h || rx.shape[1] !== w) {
@@ -3082,7 +3084,7 @@ export async function refractEffect(
   if (ry.shape[0] !== h || ry.shape[1] !== w) {
     ry = upsample(ry, h / ry.shape[0]);
   }
-  return refractOp(
+  return await refractOp(
     tensor,
     rx,
     ry,
@@ -3978,14 +3980,14 @@ register("blur", blur, {
   splineOrder: InterpolationType.bicubic,
 });
 
-export function wobble(tensor, shape, time, speed) {
+export async function wobble(tensor, shape, time, speed) {
   const xOffset = Math.floor(
     simplexRandom(time, undefined, speed * 0.5) * shape[1],
   );
   const yOffset = Math.floor(
     simplexRandom(time, undefined, speed * 0.5) * shape[0],
   );
-  return offsetTensor(tensor, xOffset, yOffset);
+  return await offsetTensor(tensor, xOffset, yOffset);
 }
 register("wobble", wobble, {});
 
@@ -4848,8 +4850,8 @@ export async function clouds(tensor, shape, time, speed) {
     seed: randomInt(0, 1000),
   });
   control = await warp(control, preShape, time, speed, 3, 2, 0.125);
-  let shaded = offsetTensor(control, randomInt(-15, 15), randomInt(-15, 15));
-  let shadeData = shaded.read();
+  let shaded = await offsetTensor(control, randomInt(-15, 15), randomInt(-15, 15));
+  let shadeData = await shaded.read();
   for (let i = 0; i < shadeData.length; i++)
     shadeData[i] = Math.min(1, shadeData[i] * 2.5);
   shaded = Tensor.fromArray(ctx, shadeData, preShape);
@@ -4864,7 +4866,7 @@ export async function clouds(tensor, shape, time, speed) {
   const factor = Math.max(1, Math.floor(h / preH));
   let shadedUp = await upsample(shaded, factor);
   let combined = await upsample(control, factor);
-  let shadedDataUp = shadedUp.read();
+  let shadedDataUp = await shadedUp.read();
   for (let i = 0; i < shadedDataUp.length; i++) shadedDataUp[i] *= 0.75;
   shadedUp = Tensor.fromArray(ctx, shadedDataUp, [h, w, 1]);
   const zeros = await values(1, shape, { ctx, distrib: ValueDistribution.zeros });
@@ -5026,13 +5028,13 @@ function randomGlyphMask(shape, glyphs) {
   return Tensor.fromArray(null, out, [h, w, c]);
 }
 
-export function grime(tensor, shape, time, speed) {
+export async function grime(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  let mask = fbm(null, valueShape, time, speed, 5, 8);
-  mask = refractOp(mask);
-  mask = derivative(
+  let mask = await fbm(null, valueShape, time, speed, 5, 8);
+  mask = await refractOp(mask);
+  mask = await derivative(
     mask,
     valueShape,
     time,
@@ -5041,7 +5043,7 @@ export function grime(tensor, shape, time, speed) {
     true,
     0.125,
   );
-  let gateData = mask.read();
+  let gateData = await mask.read();
   const gate = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const v = gateData[i] * gateData[i] * 0.075;
@@ -5051,36 +5053,36 @@ export function grime(tensor, shape, time, speed) {
   const baseData = new Float32Array(h * w * c).fill(0.25);
   const baseTensor = Tensor.fromArray(ctx, baseData, shape);
   let dusty = blend(tensor, baseTensor, gateTensor);
-  let specks = values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
+  let specks = await values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
     splineOrder: InterpolationType.constant,
   });
-  specks = refractOp(specks, null, null, 0.25);
-  let sData = specks.read();
+  specks = await refractOp(specks, null, null, 0.25);
+  let sData = await specks.read();
   for (let i = 0; i < sData.length; i++) {
     sData[i] = Math.max(sData[i] - 0.625, 0);
   }
   specks = Tensor.fromArray(ctx, sData, valueShape);
-  specks = normalize(specks);
-  sData = specks.read();
+  specks = await normalize(specks);
+  sData = await specks.read();
   for (let i = 0; i < sData.length; i++) sData[i] = 1 - Math.sqrt(sData[i]);
   specks = Tensor.fromArray(ctx, sData, valueShape);
-  let noise = values(Math.max(h, w), valueShape, {
+  let noise = await values(Math.max(h, w), valueShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
   });
   dusty = blend(dusty, noise, 0.075);
-  let dustyData = dusty.read();
-  sData = specks.read();
+  let dustyData = await dusty.read();
+  sData = await specks.read();
   for (let i = 0; i < dustyData.length; i++)
     dustyData[i] *= sData[Math.floor(i / c)];
   dusty = Tensor.fromArray(ctx, dustyData, shape);
-  gateData = mask.read();
+  gateData = await mask.read();
   const maskScaled = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const v = gateData[i] * 0.75;
@@ -5213,9 +5215,9 @@ export async function spookyTicker(tensor, shape, time, speed) {
     bottom += rh + 2;
   }
   const alpha = 0.5 + random() * 0.25;
-  const offsetMask = offsetTensor(rendered, -1, -1);
+  const offsetMask = await offsetTensor(rendered, -1, -1);
   const tData = await tensor.read();
-  const oData = offsetMask.read();
+  const oData = await offsetMask.read();
   const diff = new Float32Array(tData.length);
   for (let i = 0; i < tData.length; i++)
     diff[i] = tData[i] - oData[i % (h * w)];
