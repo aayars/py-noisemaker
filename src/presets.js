@@ -1,10 +1,28 @@
 import { parsePresetDSL } from './dsl/index.js';
-import { random, setSeed, getSeed } from './util.js';
+import { random, randomInt, setSeed, getSeed } from './util.js';
 import { Effect } from './composer.js';
+import * as constants from './constants.js';
 export { setSeed };
 
+// Precompute enum value lookups so that arrays of enum numeric values can be
+// sorted deterministically by their enum member names, mirroring Python's
+// Enum sorting behaviour.
+const ENUM_LOOKUPS = [];
+for (const obj of Object.values(constants)) {
+  if (
+    obj &&
+    typeof obj === 'object' &&
+    !Array.isArray(obj) &&
+    Object.values(obj).every((v) => typeof v === 'number')
+  ) {
+    const values = new Set(Object.values(obj));
+    const nameMap = new Map(Object.entries(obj).map(([k, v]) => [v, k]));
+    ENUM_LOOKUPS.push({ values, nameMap });
+  }
+}
+
 export function coin_flip() {
-  return random() < 0.5;
+  return randomInt(0, 1) === 1;
 }
 
 export function enum_range(a, b) {
@@ -20,16 +38,7 @@ export function random_member(...collections) {
   for (const c of collections) {
     if (Array.isArray(c)) {
       const arr = c.slice();
-      arr.sort((a, b) => {
-        const ta = typeof a;
-        const tb = typeof b;
-        if (ta === 'number' && tb === 'number') {
-          return a - b;
-        }
-        const sa = String(a);
-        const sb = String(b);
-        return sa < sb ? -1 : sa > sb ? 1 : 0;
-      });
+      sortArray(arr);
       out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
       const keys = Object.keys(c).sort();
@@ -44,16 +53,7 @@ export function random_member(...collections) {
       }
     } else if (c && typeof c[Symbol.iterator] === 'function') {
       const arr = Array.from(c);
-      arr.sort((a, b) => {
-        const ta = typeof a;
-        const tb = typeof b;
-        if (ta === 'number' && tb === 'number') {
-          return a - b;
-        }
-        const sa = String(a);
-        const sb = String(b);
-        return sa < sb ? -1 : sa > sb ? 1 : 0;
-      });
+      sortArray(arr);
       out.push(...arr);
     } else {
       throw new Error('random_member(arg) should be iterable');
@@ -61,6 +61,31 @@ export function random_member(...collections) {
   }
   const idx = Math.floor(random() * out.length);
   return out[idx];
+}
+
+function sortArray(arr) {
+  let nameMap = null;
+  for (const { values, nameMap: map } of ENUM_LOOKUPS) {
+    if (arr.every((v) => values.has(v))) {
+      nameMap = map;
+      break;
+    }
+  }
+  arr.sort((a, b) => {
+    if (nameMap) {
+      const na = nameMap.get(a);
+      const nb = nameMap.get(b);
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    }
+    const ta = typeof a;
+    const tb = typeof b;
+    if (ta === 'number' && tb === 'number') {
+      return a - b;
+    }
+    const sa = String(a);
+    const sb = String(b);
+    return sa < sb ? -1 : sa > sb ? 1 : 0;
+  });
 }
 
 const _STASH = new Map();
