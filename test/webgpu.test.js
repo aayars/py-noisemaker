@@ -38,8 +38,8 @@ if (res.status !== 0) {
   console.error(res.stderr || res.stdout);
   process.exit(res.status);
 }
-if (!res.stdout.includes('webgpu ok') && !res.stdout.includes('no webgpu')) {
-  console.error('WebGPU test failed');
+if (!res.stdout.includes('webgpu ok')) {
+  console.error(res.stderr || res.stdout || 'WebGPU test failed');
   process.exit(1);
 }
-console.log(res.stdout.includes('webgpu ok') ? 'WebGPU tests passed' : 'WebGPU tests skipped');
+console.log('WebGPU tests passed');

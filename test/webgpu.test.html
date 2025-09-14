@@ -3,37 +3,76 @@
 <body>
 <script type="module">
 import { Context } from '../src/context.js';
-import { basic } from '../src/generators.js';
-import { voronoi } from '../src/effects.js';
-import { blend } from '../src/value.js';
-import { DistanceMetric } from '../src/constants.js';
+import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
+import { Tensor } from '../src/tensor.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain } from '../src/effects.js';
+import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
+const cpuCtx = new Context(null);
 if (!navigator.gpu) {
   document.body.textContent = 'no webgpu';
-} else {
-  await ctx.initWebGPU();
-  let ok = true;
-  const base = await basic(2, [4,4,1], { ctx });
-  const out = await voronoi(base, [4,4,1], 0, 0, undefined, 0, DistanceMetric.triangular);
-  const arr = await out.read();
-  if (arr.length !== 16) ok = false;
-
-  const a = await basic(2, [2,2,1], { ctx });
-  const b = await basic(4, [2,2,1], { ctx });
-  const blended = await blend(a, b, 0.5);
-  const da = await a.read();
-  const db = await b.read();
-  const blendArr = await blended.read();
-  for (let i = 0; i < blendArr.length; i++) {
-    if (Math.abs(blendArr[i] - (da[i] + db[i]) * 0.5) > 1e-6) {
-      ok = false;
-      break;
-    }
-  }
-
-  document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
+  throw new Error('navigator.gpu unavailable');
 }
+await ctx.initWebGPU();
+let ok = true;
+function nearly(a, b, eps = 1e-3) { return Math.abs(a - b) < eps; }
+function testEffect(fn, args = [], time = 0, speed = 0) {
+  const shape = [2,2,3];
+  const base = values(1, shape, { seed: 1, ctx: cpuCtx }).read();
+  const cpuBase = Tensor.fromArray(cpuCtx, base, shape);
+  const gpuBase = Tensor.fromArray(ctx, base, shape);
+  const cpu = fn(cpuBase, shape, time, speed, ...args).read();
+  const gpu = fn(gpuBase, shape, time, speed, ...args).read();
+  if (cpu.length !== gpu.length) return false;
+  for (let i = 0; i < cpu.length; i++) {
+    if (!nearly(cpu[i], gpu[i])) return false;
+  }
+  return true;
+}
+const base = await values(2, [4,4,1], { seed: 1, ctx });
+const down = await downsample(base, 2);
+const up = await upsample(down, 2);
+const mix = await blend(base, base, 0.5);
+const edge = await sobel(base);
+const baseCpu = values(2, [4,4,1], { seed: 1, ctx: cpuCtx }).read();
+const baseGpu = await base.read();
+if (baseCpu.length !== baseGpu.length) ok = false;
+if (ok) {
+  for (let i = 0; i < baseCpu.length; i++) {
+    if (!nearly(baseCpu[i], baseGpu[i])) { ok = false; break; }
+  }
+}
+function testRefract() {
+  const shape = [4,4,1];
+  const srcData = values(2, shape, { seed: 1, ctx: cpuCtx });
+  const rxData = values(2, shape, { seed: 2, ctx: cpuCtx });
+  const ryData = values(2, shape, { seed: 3, ctx: cpuCtx });
+  const cpuOut = refract(srcData, rxData, ryData, 0.25, InterpolationType.linear).read();
+  const srcGpu = Tensor.fromArray(ctx, srcData.read(), shape);
+  const rxGpu = Tensor.fromArray(ctx, rxData.read(), shape);
+  const ryGpu = Tensor.fromArray(ctx, ryData.read(), shape);
+  const gpuOut = refract(srcGpu, rxGpu, ryGpu, 0.25, InterpolationType.linear).read();
+  if (cpuOut.length !== gpuOut.length) return false;
+  for (let i = 0; i < cpuOut.length; i++) {
+    if (!nearly(cpuOut[i], gpuOut[i])) return false;
+  }
+  return true;
+}
+ok = ok &&
+  baseGpu.length === 16 &&
+  (await down.read()).length === 4 &&
+  (await up.read()).length === 16 &&
+  (await mix.read()).length === 16 &&
+  (await edge.read()).length === 16 &&
+  testEffect(adjustBrightness, [0.1]) &&
+  testEffect(adjustContrast, [1.2]) &&
+  testEffect(grain, [0.25]) &&
+  testEffect(dither, [2]) &&
+  testEffect(vignette, [0.2, 0.5]) &&
+  testEffect(reindex, [0.5]) &&
+  testRefract();
+document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
 </script>
 </body>
 </html>
