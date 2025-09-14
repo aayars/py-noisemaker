@@ -42,4 +42,4 @@ if (!res.stdout.includes('webgpu ok')) {
   console.error(res.stderr || res.stdout || 'WebGPU test failed');
   process.exit(1);
 }
-console.log('WebGPU tests passed');
+console.log('WebGPU tests passed (including CRT parity)');

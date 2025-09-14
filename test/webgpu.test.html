@@ -2,10 +2,10 @@
 <html>
 <body>
 <script type="module">
-import { Context } from '../src/context.js';
+import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -59,6 +59,27 @@ function testRefract() {
   }
   return true;
 }
+
+async function testCRT() {
+  const shape = [4,4,3];
+  for (let seed = 0; seed < 3; seed++) {
+    const baseTensor = await values(2, shape, { seed, ctx: cpuCtx });
+    const baseArr = await baseTensor.read();
+    const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+    const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+    setSeed(seed);
+    const cpuOut = await crt(cpuBase, shape, 0, 1);
+    const cpuArr = await cpuOut.read();
+    setSeed(seed);
+    const gpuOut = await crt(gpuBase, shape, 0, 1);
+    const gpuArr = await gpuOut.read();
+    if (cpuArr.length !== gpuArr.length) return false;
+    for (let i = 0; i < cpuArr.length; i++) {
+      if (!nearly(cpuArr[i], gpuArr[i])) return false;
+    }
+  }
+  return true;
+}
 ok = ok &&
   baseGpu.length === 16 &&
   (await down.read()).length === 4 &&
@@ -71,7 +92,8 @@ ok = ok &&
   testEffect(dither, [2]) &&
   testEffect(vignette, [0.2, 0.5]) &&
   testEffect(reindex, [0.5]) &&
-  testRefract();
+  testRefract() &&
+  await testCRT();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
 </script>
 </body>

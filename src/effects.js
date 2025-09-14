@@ -65,6 +65,7 @@ import {
   PIXEL_SORT_WGSL,
   KALEIDO_WGSL,
   NORMAL_MAP_WGSL,
+  CRT_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -3001,6 +3002,7 @@ register("scanline_error", scanlineError, {});
 
 export async function crt(tensor, shape, time, speed) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
 
   // Horizontal scanlines
@@ -3008,12 +3010,66 @@ export async function crt(tensor, shape, time, speed) {
     time,
     speed: speed * 0.1,
     splineOrder: InterpolationType.constant,
+    ctx,
   });
   scanNoise = await normalize(scanNoise);
   const tileH = Math.max(1, Math.floor(h * 0.125));
   scanNoise = await expandTile(scanNoise, [2, 1, 1], [tileH * 2, w, 1], false);
   scanNoise = await resample(scanNoise, valueShape);
   scanNoise = await lensWarp(scanNoise, valueShape, time, speed);
+
+  if (
+    ctx &&
+    ctx.device &&
+    tensor.handle instanceof GPUTexture &&
+    scanNoise.handle instanceof GPUTexture
+  ) {
+    const displacement = 0.0125 + random() * 0.00625; // RNG call 1
+    const disp = Math.round(w * displacement * simplexRandom(time, undefined, speed));
+    const hueShift = random() * 0.1 - 0.05; // RNG call 2
+    const randHue = random() * 0.25 - 0.125; // RNG call 3
+    const vigAlpha = random() * 0.175; // RNG call 4
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([
+        w,
+        h,
+        c,
+        disp,
+        hueShift,
+        randHue,
+        1.125,
+        vigAlpha,
+        0,
+        0,
+        0,
+      ]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      CRT_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: scanNoise.handle.createView() },
+        { binding: 2, resource: { buffer: outBuf } },
+        { binding: 3, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    let outTensor = new Tensor(ctx, outBuf, shape);
+    const data = await outTensor.read();
+    let mean = 0;
+    for (let i = 0; i < data.length; i++) mean += data[i];
+    mean /= data.length;
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (data[i] - mean) * 1.25 + mean;
+    }
+    return Tensor.fromArray(ctx, data, shape);
+  }
 
   const scan = await scanNoise.read();
   const src = await tensor.read();
