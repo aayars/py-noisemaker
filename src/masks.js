@@ -94,6 +94,7 @@ function script({ x, y, row, shape, uvNoise, uvX, uvY }) {
 }
 
 function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
+  if (!atlas || atlas.length === 0) return 0;
   let texX = x % shape[1];
   let texY = y % shape[0];
   const uvValue = uvNoise[uvY][uvX] * (atlas.length - 1);

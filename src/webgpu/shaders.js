@@ -172,14 +172,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     if ((params.corners < 0.5 && fmod(fy, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fy, 2.0) == 1.0)) {
       yy = fmod(yy + 0.5, fy);
     }
-    val = fy <= 1.0 ? 0.0 : floor(yy) / (fy - 1.0);
+    val = select(floor(yy) / (fy - 1.0), 0.0, fy <= 1.0);
   } else if (distrib == ${ValueDistribution.row_index}u) {
     let fx = max(1.0, floor(params.freqX));
     var xx = x / params.width * fx;
     if ((params.corners < 0.5 && fmod(fx, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fx, 2.0) == 1.0)) {
       xx = fmod(xx + 0.5, fx);
     }
-    val = fx <= 1.0 ? 0.0 : floor(xx) / (fx - 1.0);
+    val = select(floor(xx) / (fx - 1.0), 0.0, fx <= 1.0);
   } else if (distrib == ${ValueDistribution.ones}u) {
     val = 1.0;
   } else if (distrib == ${ValueDistribution.mids}u) {

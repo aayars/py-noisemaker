@@ -5289,15 +5289,15 @@ export async function spatter(tensor, shape, time, speed, color = true) {
     distrib: ValueDistribution.exp,
     splineOrder: InterpolationType.linear,
   });
-  let d1 = sp1.read();
+  let d1 = await sp1.read();
   for (let i = 0; i < d1.length; i++) {
     let v = d1[i] - 1.0;
     v = (v - 0.5) * 4 + 0.5;
     d1[i] = Math.min(1, Math.max(0, v));
   }
   sp1 = Tensor.fromArray(ctx, d1, valueShape);
-  let smData = smear.read();
-  let spData = sp1.read();
+  let smData = await smear.read();
+  let spData = await sp1.read();
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
@@ -5308,15 +5308,15 @@ export async function spatter(tensor, shape, time, speed, color = true) {
     distrib: ValueDistribution.exp,
     splineOrder: InterpolationType.linear,
   });
-  let d2 = sp2.read();
+  let d2 = await sp2.read();
   for (let i = 0; i < d2.length; i++) {
     let v = d2[i] - 1.25;
     v = (v - 0.5) * 4 + 0.5;
     d2[i] = Math.min(1, Math.max(0, v));
   }
   sp2 = Tensor.fromArray(ctx, d2, valueShape);
-  smData = smear.read();
-  spData = sp2.read();
+  smData = await smear.read();
+  spData = await sp2.read();
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(smData[i], spData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
@@ -5326,13 +5326,13 @@ export async function spatter(tensor, shape, time, speed, color = true) {
     speed,
     distrib: ValueDistribution.exp,
   });
-  const remData = remover.read();
-  smData = smear.read();
+  const remData = await remover.read();
+  smData = await smear.read();
   for (let i = 0; i < smData.length; i++)
     smData[i] = Math.max(0, smData[i] - remData[i]);
   smear = Tensor.fromArray(ctx, smData, valueShape);
   let mask = await normalize(smear);
-  let maskData = mask.read();
+  let maskData = await mask.read();
   for (let i = 0; i < maskData.length; i++) maskData[i] *= 0.005;
   const alphaTensor = Tensor.fromArray(ctx, maskData, valueShape);
   let overlay;
@@ -5353,8 +5353,8 @@ export async function spatter(tensor, shape, time, speed, color = true) {
         baseData[i * 3 + 2] = 0.125;
       }
       let base = Tensor.fromArray(ctx, baseData, shape);
-      const hsv = rgbToHsv(base);
-      const hsvData = hsv.read();
+      const hsv = await rgbToHsv(base);
+      const hsvData = await hsv.read();
       const delta = random() - 0.5;
       for (let i = 0; i < h * w; i++) {
         hsvData[i * 3] = (hsvData[i * 3] + delta + 1) % 1;
@@ -5494,7 +5494,7 @@ export async function strayHair(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  let mask = values(4, valueShape, { ctx, time, speed });
+  let mask = await values(4, valueShape, { ctx, time, speed });
   const density = 0.0025 + random() * 0.00125;
   const duration = randomInt(8, 16);
   const kink = randomInt(5, 50);
@@ -5511,7 +5511,7 @@ export async function strayHair(tensor, shape, time, speed) {
     1,
     kink,
   );
-  let brightness = values(32, valueShape, { ctx, time, speed });
+  let brightness = await values(32, valueShape, { ctx, time, speed });
   let bData = await brightness.read();
   for (let i = 0; i < bData.length; i++) bData[i] *= 0.333;
   brightness = Tensor.fromArray(ctx, bData, valueShape);
