@@ -67,6 +67,7 @@ import {
   NORMAL_MAP_WGSL,
   CRT_WGSL,
   WORMHOLE_WGSL,
+  REVERB_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -4857,6 +4858,39 @@ export async function reverb(
   const [h, w, c] = shape;
   const reference = ridges ? await ridge(tensor) : tensor;
   const base = await reference.read();
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const outBuf = ctx.createGPUBuffer(
+      base,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    for (let i = 0; i < iterations; i++) {
+      for (let octave = 1; octave <= octaves; octave++) {
+        const mult = 2 ** octave;
+        const nh = Math.floor(h / mult) || 1;
+        const nw = Math.floor(w / mult) || 1;
+        if (nh === 0 || nw === 0) break;
+        const layer = await downsample(reference, mult);
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, nw, nh, c, 1 / mult, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          REVERB_WGSL,
+          [
+            { binding: 0, resource: layer.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+      }
+    }
+    const outData = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
+    const outTensor = Tensor.fromArray(ctx, outData, shape);
+    return normalize(outTensor);
+  }
   const outData = base.slice();
   for (let i = 0; i < iterations; i++) {
     for (let octave = 1; octave <= octaves; octave++) {
