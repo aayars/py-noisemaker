@@ -15,7 +15,6 @@ from noisemaker.constants import ColorSpace, ValueDistribution
 from noisemaker.presets import PRESETS, Preset
 
 import noisemaker.ai as ai
-import noisemaker.dreamer as dreamer
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.effects as effects
@@ -664,15 +663,3 @@ def _use_reasonable_speed(preset, frame_count):
     """Return a reasonable speed parameter for the given animation length."""
 
     return preset.settings.get("speed", 0.25) * (frame_count / 50.0)
-
-
-@main.command(help="Let the machine dream whatever it wants")
-@cli.width_option()
-@cli.height_option()
-@cli.filename_option(default='dream.png')
-def dream(width, height, filename):
-    name, prompt, description = dreamer.dream(width, height, filename=filename)
-
-    print(name)
-    print(prompt)
-    print(description)
