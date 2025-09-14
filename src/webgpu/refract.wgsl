@@ -14,6 +14,14 @@ struct RefractParams {
 @group(0) @binding(3) var<storage, read_write> out: array<f32>;
 @group(0) @binding(4) var<uniform> params: RefractParams;
 
+fn fmod(a: f32, b: f32) -> f32 {
+  return a - b * floor(a / b);
+}
+
+fn fmod2(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+  return a - b * floor(a / b);
+}
+
 fn interpFunc(t: f32) -> f32 {
   let i = u32(params.interp);
   if (i == ${InterpolationType.cosine}u) { return 0.5 - cos(t * 3.141592653589793) * 0.5; }
@@ -38,10 +46,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
   let offset = vec2<f32>(vx * params.displacement * params.width, vy * params.displacement * params.height);
   var samplePos = vec2<f32>(f32(x), f32(y)) + offset;
-  samplePos = mod(samplePos + vec2<f32>(params.width, params.height), vec2<f32>(params.width, params.height));
+  samplePos = fmod2(samplePos + vec2<f32>(params.width, params.height), vec2<f32>(params.width, params.height));
   let c0 = floor(samplePos);
   let f = samplePos - c0;
-  let c1 = mod(c0 + 1.0, vec2<f32>(params.width, params.height));
+  let c1 = fmod2(c0 + 1.0, vec2<f32>(params.width, params.height));
   let i00 = vec2<i32>(i32(c0.x), i32(c0.y));
   let i10 = vec2<i32>(i32(c1.x), i32(c0.y));
   let i01 = vec2<i32>(i32(c0.x), i32(c1.y));

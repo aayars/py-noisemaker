@@ -1,6 +1,13 @@
 import { ValueDistribution, InterpolationType } from '../constants.js';
 
-const loadShader = async (name) => (await fetch(new URL(name, import.meta.url))).text();
+const loadShader = async (name) => {
+  const url = new URL(name, import.meta.url);
+  if (url.protocol === 'file:') {
+    const { readFile } = await import('fs/promises');
+    return readFile(url, 'utf8');
+  }
+  return (await fetch(url)).text();
+};
 
 export const VORONOI_WGSL = await loadShader('./voronoi.wgsl');
 export const EROSION_WORMS_WGSL = await loadShader('./erosion-worms.wgsl');
@@ -40,6 +47,9 @@ fn mod289_4(x: vec4<f32>) -> vec4<f32> { return x - floor(x * (1.0 / 289.0)) * 2
 fn permute3(x: vec3<f32>) -> vec3<f32> { return mod289_3(((x * 34.0) + 1.0) * x); }
 fn permute4(x: vec4<f32>) -> vec4<f32> { return mod289_4(((x * 34.0) + 1.0) * x); }
 fn taylorInvSqrt(r: vec4<f32>) -> vec4<f32> { return 1.79284291400159 - 0.85373472095314 * r; }
+
+fn fmod(a: f32, b: f32) -> f32 { return a - b * floor(a / b); }
+fn fmod2(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> { return a - b * floor(a / b); }
 fn simplex2(v: vec2<f32>) -> f32 {
   let C = vec4<f32>(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
   var i = floor(v + dot(v, C.yy));
@@ -146,11 +156,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let fy = max(1.0, floor(params.freqY));
     var xx = x / params.width * fx;
     var yy = y / params.height * fy;
-    if ((params.corners < 0.5 && mod(fx, 2.0) == 0.0) || (params.corners > 0.5 && mod(fx, 2.0) == 1.0)) {
-      xx = mod(xx + 0.5, fx);
+    if ((params.corners < 0.5 && fmod(fx, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fx, 2.0) == 1.0)) {
+      xx = fmod(xx + 0.5, fx);
     }
-    if ((params.corners < 0.5 && mod(fy, 2.0) == 0.0) || (params.corners > 0.5 && mod(fy, 2.0) == 1.0)) {
-      yy = mod(yy + 0.5, fy);
+    if ((params.corners < 0.5 && fmod(fy, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fy, 2.0) == 1.0)) {
+      yy = fmod(yy + 0.5, fy);
     }
     let ang = 6.283185307179586 * params.time;
     let z = cos(ang) * params.speed;
@@ -159,15 +169,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   } else if (distrib == ${ValueDistribution.column_index}u) {
     let fy = max(1.0, floor(params.freqY));
     var yy = y / params.height * fy;
-    if ((params.corners < 0.5 && mod(fy, 2.0) == 0.0) || (params.corners > 0.5 && mod(fy, 2.0) == 1.0)) {
-      yy = mod(yy + 0.5, fy);
+    if ((params.corners < 0.5 && fmod(fy, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fy, 2.0) == 1.0)) {
+      yy = fmod(yy + 0.5, fy);
     }
     val = fy <= 1.0 ? 0.0 : floor(yy) / (fy - 1.0);
   } else if (distrib == ${ValueDistribution.row_index}u) {
     let fx = max(1.0, floor(params.freqX));
     var xx = x / params.width * fx;
-    if ((params.corners < 0.5 && mod(fx, 2.0) == 0.0) || (params.corners > 0.5 && mod(fx, 2.0) == 1.0)) {
-      xx = mod(xx + 0.5, fx);
+    if ((params.corners < 0.5 && fmod(fx, 2.0) == 0.0) || (params.corners > 0.5 && fmod(fx, 2.0) == 1.0)) {
+      xx = fmod(xx + 0.5, fx);
     }
     val = fx <= 1.0 ? 0.0 : floor(xx) / (fx - 1.0);
   } else if (distrib == ${ValueDistribution.ones}u) {
@@ -269,7 +279,7 @@ struct ReindexParams {
   height: f32,
   channels: f32,
   displacement: f32,
-  mod: f32,
+  modulus: f32,
   pad0: f32,
   pad1: f32,
   pad2: f32,
@@ -289,7 +299,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (params.channels > 1.5) {
     lum = dot(col.xyz, vec3(0.2126,0.7152,0.0722));
   }
-  let off = lum * params.displacement * params.mod + lum;
+  let off = lum * params.displacement * params.modulus + lum;
   let offi = u32(off);
   let xo = offi % w;
   let yo = offi % h;
@@ -316,6 +326,8 @@ struct RippleParams {
 @group(0) @binding(1) var refTex: texture_2d<f32>;
 @group(0) @binding(2) var<storage, read_write> out: array<f32>;
 @group(0) @binding(3) var<uniform> params: RippleParams;
+
+fn fmod2(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> { return a - b * floor(a / b); }
 @compute @workgroup_size(8,8,1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let x = gid.x;
@@ -327,10 +339,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let ang = ref * 6.283185307179586 * params.kink * params.rand;
   let offset = vec2<f32>(cos(ang), sin(ang)) * params.displacement;
   var samplePos = vec2<f32>(f32(x), f32(y)) + offset * vec2<f32>(params.width, params.height);
-  samplePos = mod(samplePos, vec2<f32>(params.width, params.height));
+  samplePos = fmod2(samplePos, vec2<f32>(params.width, params.height));
   let c0 = floor(samplePos);
   let f = samplePos - c0;
-  let c1 = mod(c0 + 1.0, vec2<f32>(params.width, params.height));
+  let c1 = fmod2(c0 + 1.0, vec2<f32>(params.width, params.height));
   let i00 = vec2<i32>(i32(c0.x), i32(c0.y));
   let i10 = vec2<i32>(i32(c1.x), i32(c0.y));
   let i01 = vec2<i32>(i32(c0.x), i32(c1.y));
@@ -542,6 +554,8 @@ struct RotateParams {
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
 @group(0) @binding(2) var<uniform> params: RotateParams;
+
+fn fmod2(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> { return a - b * floor(a / b); }
 @compute @workgroup_size(8,8,1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let x = gid.x;
@@ -558,7 +572,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   var samplePos = uv * vec2<f32>(params.width, params.height);
   let c0 = floor(samplePos);
   let f = samplePos - c0;
-  let c1 = mod(c0 + 1.0, vec2<f32>(params.width, params.height));
+  let c1 = fmod2(c0 + 1.0, vec2<f32>(params.width, params.height));
   let i00 = vec2<i32>(i32(c0.x), i32(c0.y));
   let i10 = vec2<i32>(i32(c1.x), i32(c0.y));
   let i01 = vec2<i32>(i32(c0.x), i32(c1.y));

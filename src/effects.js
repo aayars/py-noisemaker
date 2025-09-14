@@ -670,7 +670,7 @@ export function glowingEdges(
       for (let x = 0; x < bw; x++) row.push(blurFlat[y * bw + x]);
       blurArr.push(row);
     }
-    edges = convolution(edges, blurArr);
+    edges = await convolution(edges, blurArr);
     const sxArr = [
       [-1, 0, 1],
       [-2, 0, 2],
@@ -681,8 +681,8 @@ export function glowingEdges(
       [0, 0, 0],
       [1, 2, 1],
     ];
-    const gx = convolution(edges, sxArr, { normalize: false });
-    const gy = convolution(edges, syArr, { normalize: false });
+    const gx = await convolution(edges, sxArr, { normalize: false });
+    const gy = await convolution(edges, syArr, { normalize: false });
     const gxData = await gx.read();
     const gyData = await gy.read();
     const distData = new Float32Array(gxData.length);
@@ -726,7 +726,7 @@ export function glowingEdges(
       for (let x = 0; x < kw; x++) row.push(kFlat[y * kw + x]);
       kArr.push(row);
     }
-    let blurred = convolution(edges, kArr);
+    let blurred = await convolution(edges, kArr);
     const eData2 = await edges.read();
     const bData = await blurred.read();
     const sum = new Float32Array(eData2.length);
@@ -948,7 +948,10 @@ async function voronoiCPU(
             }
           }
         }
-        if (d < bestDists[n]) {
+        if (
+          d < bestDists[n] - 1e-6 ||
+          (Math.abs(d - bestDists[n]) <= 1e-6 && i < bestIdx[n])
+        ) {
           let j = n;
           while (j > 0 && d < bestDists[j - 1]) {
             bestDists[j] = bestDists[j - 1];
@@ -980,6 +983,7 @@ async function voronoiCPU(
     }
   }
   let rangeTensor = null;
+  let indexTensor = null;
   let regionsTensor = null;
   let colorRegionsTensor = null;
   let rangeData = null;
@@ -999,15 +1003,28 @@ async function voronoiCPU(
       }
     }
     rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1]);
-    regionsTensor = (() => {
-      const data = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) data[i] = indexMap[i] / count;
-      return Tensor.fromArray(tensor ? tensor.ctx : null, data, [h, w, 1]);
-    })();
+    indexTensor = Tensor.fromArray(
+      tensor ? tensor.ctx : null,
+      new Float32Array(indexMap),
+      [h, w, 1],
+    );
+  }
+  const xOff = isTriangular ? 0 : Math.floor(w / 2);
+  const yOff = isTriangular ? 0 : Math.floor(h / 2);
+  // offsetTensor expects a resolved Tensor; await any pending promises
+  if (rangeTensor) rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff);
+  if (indexTensor) indexTensor = await offsetTensor(await indexTensor, xOff, yOff);
+  if (indexTensor) {
+    const idxData = await indexTensor.read();
+    regionsTensor = Tensor.fromArray(
+      tensor ? tensor.ctx : null,
+      Float32Array.from(idxData, (v) => v / count),
+      [h, w, 1],
+    );
     if (regionColorsNeeded) {
       const out = new Float32Array(h * w * c);
       for (let i = 0; i < h * w; i++) {
-        const region = indexMap[i];
+        const region = idxData[i];
         for (let k = 0; k < c; k++) {
           out[i * c + k] = pointColors[region * c + k];
         }
@@ -1015,14 +1032,6 @@ async function voronoiCPU(
       colorRegionsTensor = Tensor.fromArray(tensor.ctx, out, shape);
     }
   }
-  const xOff = isTriangular ? 0 : Math.floor(w / 2);
-  const yOff = isTriangular ? 0 : Math.floor(h / 2);
-  // offsetTensor expects a resolved Tensor; await any pending promises
-  if (rangeTensor) rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff);
-  if (regionsTensor)
-    regionsTensor = await offsetTensor(await regionsTensor, xOff, yOff);
-  if (colorRegionsTensor)
-    colorRegionsTensor = await offsetTensor(await colorRegionsTensor, xOff, yOff);
   let outTensor;
   if (diagramType === VoronoiDiagramType.range) {
     outTensor = rangeTensor;
@@ -1545,7 +1554,7 @@ async function voronoiWebGPU(
       rx = Tensor.fromArray(ctx, cosData, [oh, ow, 1]);
       ry = Tensor.fromArray(ctx, sinData, [oh, ow, 1]);
     }
-    outTensor = refractOp(
+    outTensor = await refractOp(
       tensor,
       rx,
       ry,
@@ -1783,15 +1792,13 @@ export async function singularity(
   diagramType = VoronoiDiagramType.range,
   distMetric = DistanceMetric.euclidean,
 ) {
-  const [h, w] = shape;
-  const dsShape = [Math.floor(h * 0.5), Math.floor(w * 0.5), 1];
   const [x, y] = pointCloud(1, {
     distrib: PointDistribution.square,
-    shape: dsShape,
+    shape,
   });
-  let out = await voronoi(
+  return await voronoi(
     tensor,
-    dsShape,
+    shape,
     time,
     speed,
     diagramType,
@@ -1810,10 +1817,6 @@ export async function singularity(
     [x, y, 1],
     false,
   );
-  if (dsShape[0] !== h || dsShape[1] !== w) {
-    out = await resample(out, [h, w, out.shape[2]]);
-  }
-  return out;
 }
 register("singularity", singularity, {
   diagramType: VoronoiDiagramType.range,
@@ -2316,15 +2319,45 @@ export function convolve(
     }
   }
   let out = convolution(tensor, kernelArr, { normalize: withNormalize });
-  if (kernel === ValueMask.conv2d_edges) {
-    const data = out.read();
-    for (let i = 0; i < data.length; i++) {
-      data[i] = Math.abs(data[i] - 0.5) * 2;
+  const finish = (o) => {
+    const handle = (tensorOut) => {
+      if (kernel === ValueMask.conv2d_edges) {
+        const data = tensorOut.read();
+        if (data && typeof data.then === 'function') {
+          return data.then((arr) => {
+            for (let i = 0; i < arr.length; i++) {
+              arr[i] = Math.abs(arr[i] - 0.5) * 2;
+            }
+            let tOut = Tensor.fromArray(tensorOut.ctx, arr, tensorOut.shape);
+            if (typeof alpha !== 'number' || alpha < 1) {
+              const blended = blend(tensor, tOut, alpha);
+              return blended && typeof blended.then === 'function'
+                ? blended
+                : blended;
+            }
+            return tOut;
+          });
+        }
+        for (let i = 0; i < data.length; i++) {
+          data[i] = Math.abs(data[i] - 0.5) * 2;
+        }
+        tensorOut = Tensor.fromArray(tensorOut.ctx, data, tensorOut.shape);
+      }
+      if (typeof alpha !== 'number' || alpha < 1) {
+        const blended = blend(tensor, tensorOut, alpha);
+        if (blended && typeof blended.then === 'function') return blended;
+        return blended;
+      }
+      return tensorOut;
+    };
+
+    if (o && typeof o.then === 'function') {
+      return o.then(handle);
     }
-    out = Tensor.fromArray(out.ctx, data, out.shape);
-  }
-  if (typeof alpha !== "number" || alpha < 1) out = blend(tensor, out, alpha);
-  return out;
+    return handle(o);
+  };
+
+  return finish(out);
 }
 register("convolve", convolve, {
   kernel: ValueMask.conv2d_blur,
@@ -3122,7 +3155,7 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
 }
 register("tint", tint, { alpha: 0.5 });
 
-export function valueRefract(
+export async function valueRefract(
   tensor,
   shape,
   time,
@@ -3132,7 +3165,7 @@ export function valueRefract(
   displacement = 0.125,
 ) {
   const valueShape = [shape[0], shape[1], 1];
-  const blendValues = values(freq, valueShape, {
+  const blendValues = await values(freq, valueShape, {
     ctx: tensor.ctx,
     distrib,
     time,
@@ -3668,8 +3701,11 @@ async function wormsWebGPU(
   }
   const strideArr = new Float32Array(strideVals);
   const rotArr = new Float32Array(rot);
-  const colorSrc = colors ? colors : tensor;
-  const src = await colorSrc.read();
+  const src = colors
+    ? colors.read
+      ? await colors.read()
+      : colors
+    : await tensor.read();
   const wormColors = new Float32Array(count * c);
   for (let i = 0; i < count; i++) {
     const xi = Math.floor(x[i]);
@@ -3804,6 +3840,8 @@ async function wormsCPU(
   quantize = false,
   colors = null,
 ) {
+  tensor = await tensor;
+  colors = colors ? await colors : null;
   const [h, w, c] = shape;
   const count = Math.floor(Math.max(w, h) * density);
   const wormsY = new Float32Array(count);
@@ -3815,8 +3853,11 @@ async function wormsCPU(
     wormsStride[i] =
       randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0);
   }
-  const colorSrc = colors ? colors : tensor;
-  const src = await colorSrc.read();
+  const src = colors
+    ? colors.read
+      ? await colors.read()
+      : colors
+    : await tensor.read();
   const wormColors = new Float32Array(count * c);
   for (let i = 0; i < count; i++) {
     const xi = Math.floor(wormsX[i]);
@@ -4940,13 +4981,13 @@ export async function dla(
   }
   const scattered = Tensor.fromArray(tensor.ctx, grid, shape);
   const kernelTensor = maskValues(ValueMask.conv2d_blur)[0];
-  const kData = kernelTensor.read();
+  const kData = await kernelTensor.read();
   const kernel = [];
   for (let i = 0; i < 5; i++) {
     kernel.push(Array.from(kData.slice(i * 5, i * 5 + 5)));
   }
-  const convolved = convolution(scattered, kernel);
-  const convData = convolved.read();
+  const convolved = await convolution(scattered, kernel);
+  const convData = await convolved.read();
   const tensorData = await tensor.read();
   const mult = new Float32Array(convData.length);
   for (let i = 0; i < convData.length; i++) {
@@ -5140,21 +5181,21 @@ export async function nebula(tensor, shape, time, speed) {
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
 
-  function simpleMultires(freq, octaves, distrib = ValueDistribution.simplex) {
+  async function simpleMultires(freq, octaves, distrib = ValueDistribution.simplex) {
     const out = new Float32Array(h * w);
     for (let octave = 1; octave <= octaves; octave++) {
       const mult = 2 ** octave;
       const baseFreq = Math.floor(freq * 0.5 * mult);
       if (baseFreq > h && baseFreq > w) break;
-      let layer = values(baseFreq, valueShape, {
+      let layer = await values(baseFreq, valueShape, {
         ctx,
         time,
         speed,
         distrib,
         seed: octave,
       });
-      layer = ridge(layer);
-      const lData = layer.read();
+      layer = await ridge(layer);
+      const lData = await layer.read();
       for (let i = 0; i < out.length; i++) out[i] += lData[i] / mult;
     }
     let min = Infinity;
@@ -5168,10 +5209,10 @@ export async function nebula(tensor, shape, time, speed) {
     return Tensor.fromArray(ctx, out, valueShape);
   }
 
-  let overlay = simpleMultires(randomInt(3, 4), 6, ValueDistribution.exp);
-  const subtractor = simpleMultires(randomInt(2, 4), 4);
-  let oData = overlay.read();
-  const sData = subtractor.read();
+  let overlay = await simpleMultires(randomInt(3, 4), 6, ValueDistribution.exp);
+  const subtractor = await simpleMultires(randomInt(2, 4), 4);
+  let oData = await overlay.read();
+  const sData = await subtractor.read();
   for (let i = 0; i < oData.length; i++)
     oData[i] = (oData[i] - sData[i]) * 0.125;
   overlay = Tensor.fromArray(ctx, oData, valueShape);
@@ -5406,7 +5447,7 @@ export async function scratches(tensor, shape, time, speed) {
   const valueShape = [h, w, 1];
   let out = tensor;
   for (let i = 0; i < 4; i++) {
-    let mask = values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    let mask = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
     const behavior = [WormBehavior.obedient, WormBehavior.unruly][
       randomInt(0, 1)
     ];
@@ -5426,7 +5467,7 @@ export async function scratches(tensor, shape, time, speed) {
       1,
       kink,
     );
-    const sub = values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    const sub = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
     // ``mask`` and ``sub`` may resolve to promises; ensure data is awaited
     let maskData = await mask.read();
     const subData = await sub.read();

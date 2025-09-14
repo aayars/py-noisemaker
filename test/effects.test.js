@@ -278,23 +278,25 @@ arraysClose(
 // voronoi color regions
 const xPts = [1, 3];
 const yPts = [1, 3];
-const vorRes = voronoi(
-  edgeTensor,
-  [4, 4, 1],
-  0,
-  1,
-  VoronoiDiagramType.color_regions,
-  0,
-  DistanceMetric.euclidean,
-  1,
-  0,
-  true,
-  0,
-  0,
-  0,
-  0,
-  false,
-  [xPts, yPts, 2],
+const vorRes = (
+  await voronoi(
+    edgeTensor,
+    [4, 4, 1],
+    0,
+    1,
+    VoronoiDiagramType.color_regions,
+    0,
+    DistanceMetric.euclidean,
+    1,
+    0,
+    true,
+    0,
+    0,
+    0,
+    0,
+    false,
+    [xPts, yPts, 2],
+  )
 ).read();
 assert.strictEqual(vorRes[0], 0);
 assert.strictEqual(vorRes[3], 1);

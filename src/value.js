@@ -1240,114 +1240,152 @@ export function refract(
   splineOrder = InterpolationType.bicubic,
   signedRange = true,
 ) {
-  const [h, w, c] = tensor.shape;
-  const ctx = tensor.ctx;
-  const refX = referenceX || tensor;
-  const refY = referenceY || tensor;
-  const cpuRefract = (src, rx, ry) => {
-    const out = new Float32Array(h * w * c);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        let vx = rx[y * w + x];
-        let vy = ry[y * w + x];
-        if (signedRange) {
-          vx = vx * 2 - 1;
-          vy = vy * 2 - 1;
-        } else {
-          vx *= 2;
-          vy *= 2;
-        }
-        const dx = Math.fround(vx * displacement * w);
-        const dy = Math.fround(vy * displacement * h);
-        let x0 = x + Math.trunc(dx);
-        let y0 = y + Math.trunc(dy);
-        let x1 = x0 + 1;
-        let y1 = y0 + 1;
-        x0 = ((x0 % w) + w) % w;
-        x1 = ((x1 % w) + w) % w;
-        y0 = ((y0 % h) + h) % h;
-        y1 = ((y1 % h) + h) % h;
-        const fx = Math.fround(dx - Math.floor(dx));
-        const fy = Math.fround(dy - Math.floor(dy));
-        const tx = splineOrder === InterpolationType.cosine
-          ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
-          : fx;
-        const ty = splineOrder === InterpolationType.cosine
-          ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
-          : fy;
-        for (let k = 0; k < c; k++) {
-          const s00 = src[(y0 * w + x0) * c + k];
-          const s10 = src[(y0 * w + x1) * c + k];
-          const s01 = src[(y1 * w + x0) * c + k];
-          const s11 = src[(y1 * w + x1) * c + k];
-          const x_y0 = s00 * (1 - tx) + s10 * tx;
-          const x_y1 = s01 * (1 - tx) + s11 * tx;
-          out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+  const run = (t, rx = t, ry = t) => {
+    const [h, w, c] = t.shape;
+    const ctx = t.ctx;
+    const cpuRefract = (src, refx, refy) => {
+      const out = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          let vx = refx[y * w + x];
+          let vy = refy[y * w + x];
+          if (signedRange) {
+            vx = vx * 2 - 1;
+            vy = vy * 2 - 1;
+          } else {
+            vx *= 2;
+            vy *= 2;
+          }
+          const dx = Math.fround(vx * displacement * w);
+          const dy = Math.fround(vy * displacement * h);
+          let x0 = x + Math.trunc(dx);
+          let y0 = y + Math.trunc(dy);
+          let x1 = x0 + 1;
+          let y1 = y0 + 1;
+          x0 = ((x0 % w) + w) % w;
+          x1 = ((x1 % w) + w) % w;
+          y0 = ((y0 % h) + h) % h;
+          y1 = ((y1 % h) + h) % h;
+          const fx = Math.fround(dx - Math.floor(dx));
+          const fy = Math.fround(dy - Math.floor(dy));
+          const tx = splineOrder === InterpolationType.cosine
+            ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
+            : fx;
+          const ty = splineOrder === InterpolationType.cosine
+            ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
+            : fy;
+          for (let k = 0; k < c; k++) {
+            const s00 = src[(y0 * w + x0) * c + k];
+            const s10 = src[(y0 * w + x1) * c + k];
+            const s01 = src[(y1 * w + x0) * c + k];
+            const s11 = src[(y1 * w + x1) * c + k];
+            const x_y0 = s00 * (1 - tx) + s10 * tx;
+            const x_y1 = s01 * (1 - tx) + s11 * tx;
+            out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+          }
         }
       }
+      return Tensor.fromArray(t.ctx, out, [h, w, c]);
+    };
+
+    if (ctx && ctx.device) {
+      let rxTex = rx;
+      let ryTex = ry;
+      const prep = [];
+      if (rxTex.ctx !== ctx) {
+        const rxData = rx.read();
+        if (rxData && typeof rxData.then === 'function') {
+          prep.push(
+            rxData.then((d) => {
+              rxTex = Tensor.fromArray(ctx, d, rx.shape);
+            }),
+          );
+        } else {
+          rxTex = Tensor.fromArray(ctx, rxData, rx.shape);
+        }
+      }
+      if (ryTex.ctx !== ctx) {
+        const ryData = ry.read();
+        if (ryData && typeof ryData.then === 'function') {
+          prep.push(
+            ryData.then((d) => {
+              ryTex = Tensor.fromArray(ctx, d, ry.shape);
+            }),
+          );
+        } else {
+          ryTex = Tensor.fromArray(ctx, ryData, ry.shape);
+        }
+      }
+      const runGPU = () => {
+        if (
+          t.handle instanceof GPUTexture &&
+          rxTex.handle instanceof GPUTexture &&
+          ryTex.handle instanceof GPUTexture
+        ) {
+          return (async () => {
+            try {
+              const device = ctx.device;
+              const outSize = h * w * c;
+              const outBuf = device.createBuffer({
+                size: outSize * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+              });
+              const paramsArr = new Float32Array([
+                w,
+                h,
+                c,
+                displacement,
+                signedRange ? 1 : 0,
+                splineOrder,
+                0,
+                0,
+              ]);
+              const paramsBuf = ctx.createGPUBuffer(
+                paramsArr,
+                GPUBufferUsage.UNIFORM,
+              );
+              await ctx.runCompute(
+                REFRACT_WGSL,
+                [
+                  { binding: 0, resource: t.handle.createView() },
+                  { binding: 1, resource: rxTex.handle.createView() },
+                  { binding: 2, resource: ryTex.handle.createView() },
+                  { binding: 3, resource: { buffer: outBuf } },
+                  { binding: 4, resource: { buffer: paramsBuf } },
+                ],
+                Math.ceil(w / 8),
+                Math.ceil(h / 8),
+              );
+              const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+              return Tensor.fromArray(ctx, out, [h, w, c]);
+            } catch (e) {
+              console.warn('WebGPU refract fallback to CPU', e);
+              const [s, rxData, ryData] = await Promise.all([
+                t.read(),
+                rxTex.read(),
+                ryTex.read(),
+              ]);
+              return cpuRefract(s, rxData, ryData);
+            }
+          })();
+        }
+        return withTensorDatas([t, rx, ry], cpuRefract);
+      };
+      return prep.length ? Promise.all(prep).then(runGPU) : runGPU();
     }
-    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
+    return withTensorDatas([t, rx, ry], cpuRefract);
   };
 
-  if (ctx && ctx.device) {
-    let rxTex = refX;
-    if (rxTex.ctx !== ctx) rxTex = Tensor.fromArray(ctx, refX.read(), refX.shape);
-    let ryTex = refY;
-    if (ryTex.ctx !== ctx) ryTex = Tensor.fromArray(ctx, refY.read(), refY.shape);
-    if (
-      tensor.handle instanceof GPUTexture &&
-      rxTex.handle instanceof GPUTexture &&
-      ryTex.handle instanceof GPUTexture
-    ) {
-      return (async () => {
-        try {
-          const device = ctx.device;
-          const outSize = h * w * c;
-          const outBuf = device.createBuffer({
-            size: outSize * 4,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-          });
-          const paramsArr = new Float32Array([
-            w,
-            h,
-            c,
-            displacement,
-            signedRange ? 1 : 0,
-            splineOrder,
-            0,
-            0,
-          ]);
-          const paramsBuf = ctx.createGPUBuffer(
-            paramsArr,
-            GPUBufferUsage.UNIFORM,
-          );
-          await ctx.runCompute(
-            REFRACT_WGSL,
-            [
-              { binding: 0, resource: tensor.handle.createView() },
-              { binding: 1, resource: rxTex.handle.createView() },
-              { binding: 2, resource: ryTex.handle.createView() },
-              { binding: 3, resource: { buffer: outBuf } },
-              { binding: 4, resource: { buffer: paramsBuf } },
-            ],
-            Math.ceil(w / 8),
-            Math.ceil(h / 8),
-          );
-          const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-          return Tensor.fromArray(ctx, out, [h, w, c]);
-        } catch (e) {
-          console.warn('WebGPU refract fallback to CPU', e);
-          const [s, rxData, ryData] = await Promise.all([
-            tensor.read(),
-            rxTex.read(),
-            ryTex.read(),
-          ]);
-          return cpuRefract(s, rxData, ryData);
-        }
-      })();
-    }
+  if (
+    (tensor && typeof tensor.then === 'function') ||
+    (referenceX && typeof referenceX.then === 'function') ||
+    (referenceY && typeof referenceY.then === 'function')
+  ) {
+    return Promise.all([tensor, referenceX, referenceY]).then(([t, rx, ry]) =>
+      run(t, rx || t, ry || t),
+    );
   }
-  return withTensorDatas([tensor, refX, refY], cpuRefract);
+  return run(tensor, referenceX || tensor, referenceY || tensor);
 }
 
 export function fft(tensor) {
