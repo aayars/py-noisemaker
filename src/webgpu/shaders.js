@@ -18,6 +18,7 @@ export const DOWNSAMPLE_WGSL = await loadShader('./downsample.wgsl');
 export const BLEND_WGSL = await loadShader('./blend.wgsl');
 export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
 export const REFRACT_WGSL = await loadShader('./refract.wgsl');
+export const GLYPH_MAP_WGSL = await loadShader('./glyph-map.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32,

@@ -56,6 +56,7 @@ import {
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
   ROTATE_WGSL,
+  GLYPH_MAP_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -4766,6 +4767,64 @@ export async function glyphMap(
   splineOrder = InterpolationType.constant,
 ) {
   if (mask === null || mask === undefined) mask = ValueMask.truetype;
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    tensor.handle instanceof GPUTexture &&
+    mask === ValueMask.truetype
+  ) {
+    const glyphShape = [15, 15, 1];
+    const glyphs = loadGlyphs(glyphShape) || [];
+    if (!glyphs.length) return tensor;
+    const [h, w, c] = shape;
+    const gh = glyphShape[0];
+    const gw = glyphShape[1];
+    const gCount = glyphs.length;
+    const atlasData = new Float32Array(gw * gh * gCount * 4);
+    for (let gi = 0; gi < gCount; gi++) {
+      const glyph = glyphs[gi];
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          atlasData[((gi * gh + gy) * gw + gx) * 4] = glyph[gy][gx][0];
+        }
+      }
+    }
+    const glyphTex = ctx.createTexture(gw, gh * gCount, atlasData);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([
+        w,
+        h,
+        c,
+        gw,
+        gh,
+        gCount,
+        colorize ? 1 : 0,
+        zoom,
+        alpha,
+        0,
+        0,
+        0,
+      ]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      GLYPH_MAP_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: glyphTex.createView() },
+        { binding: 2, resource: { buffer: outBuf } },
+        { binding: 3, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
+  }
   let glyphShape;
   let glyphs;
   if (mask === ValueMask.truetype) {
