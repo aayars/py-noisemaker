@@ -198,7 +198,7 @@ struct WormParams {
   iterations: f32,
   quantize: f32,
   kink: f32,
-  _pad0: f32,
+  drunkenness: f32,
 };
 @group(0) @binding(0) var<storage, read_write> positions: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read> strides: array<f32>;
@@ -235,7 +235,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   var rot = rots[idx];
 
   for (var iter: u32 = 0u; iter < iterations; iter = iter + 1u) {
-    rot = rot + drunk[iter * count + idx];
+    rot = rot + drunk[iter * count + idx] * params.drunkenness;
     let xi = u32(floor(pos.x)) % width;
     let yi = u32(floor(pos.y)) % height;
     let pix = yi * width + xi;
@@ -248,7 +248,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let val = colors[base + c] * exposure;
       atomicAddF32(&outBuffer[pix * channels + c], val);
     }
-    var next = indexBuffer[pix] + rot;
+    var next = indexBuffer[pix] * params.kink + rot;
     if (params.quantize != 0.0) { next = round(next); }
     pos.y = pos.y + cos(next) * stride;
     pos.x = pos.x + sin(next) * stride;

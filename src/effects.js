@@ -3268,8 +3268,45 @@ function periodicValue(t, v) {
   return (Math.sin((t - v) * TAU) + 1) * 0.5;
 }
 
-export function wormsParams(shape, density = 4.0, stride = 1.0, strideDeviation = 0.05) {
-  // RNG: random→y, random→x, randomNormal→stride, random→rot
+function makeRots(beh, n, time = 0, speed = 1) {
+  const rot = new Float32Array(n);
+  const base = random() * TAU;
+  if (beh === 1) {
+    rot.fill(base);
+  } else if (beh === 2) {
+    for (let i = 0; i < n; i++) {
+      rot[i] = base + (Math.floor(random() * 100) % 4) * (Math.PI / 2);
+    }
+  } else if (beh === 3) {
+    for (let i = 0; i < n; i++) {
+      rot[i] = base + random() * 0.25 - 0.125;
+    }
+  } else if (beh === 4) {
+    for (let i = 0; i < n; i++) rot[i] = random() * TAU;
+  } else if (beh === 5) {
+    const q = Math.floor(n * 0.25);
+    rot.set(makeRots(1, q, time, speed), 0);
+    rot.set(makeRots(2, q, time, speed), q);
+    rot.set(makeRots(3, q, time, speed), q * 2);
+    rot.set(makeRots(4, n - q * 3, time, speed), q * 3);
+  } else if (beh === 10) {
+    for (let i = 0; i < n; i++) rot[i] = periodicValue(time * speed, random());
+  } else {
+    rot.fill(base);
+  }
+  return rot;
+}
+
+export function wormsParams(
+  shape,
+  density = 4.0,
+  stride = 1.0,
+  strideDeviation = 0.05,
+  behavior = 1,
+  time = 0,
+  speed = 1,
+) {
+  // RNG: random→y, random→x, randomNormal→stride, makeRots consumes further RNG
   const [h, w] = shape;
   const count = Math.floor(Math.max(w, h) * density);
   const y = new Float32Array(count);
@@ -3281,9 +3318,7 @@ export function wormsParams(shape, density = 4.0, stride = 1.0, strideDeviation 
     strideVals[i] =
       randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0); // RNG[3]
   }
-  const rotBase = random() * TAU; // RNG[4]
-  const rot = new Float32Array(count);
-  rot.fill(rotBase);
+  const rot = makeRots(behavior, count, time, speed);
   return { x: Array.from(x), y: Array.from(y), stride: Array.from(strideVals), rot: Array.from(rot) };
 }
 
@@ -3580,6 +3615,9 @@ async function wormsWebGPU(
     density,
     stride,
     strideDeviation,
+    behavior,
+    time,
+    speed,
   );
   const count = x.length;
   if (count === 0) return tensor;
@@ -3630,7 +3668,7 @@ async function wormsWebGPU(
     for (let i = 0; i < h * w; i++) valueData[i] = labData[i * 3];
   }
   const indexArr = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) indexArr[i] = valueData[i] * TAU * kink;
+  for (let i = 0; i < h * w; i++) indexArr[i] = valueData[i] * TAU;
   const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration);
   const drunkArr = new Float32Array(iterations * count);
   if (drunkenness) {
@@ -3640,7 +3678,7 @@ async function wormsWebGPU(
       );
       for (let i = 0; i < count; i++) {
         drunkArr[iter * count + i] =
-          (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI;
+          (periodicValue(start, random()) * 2 - 1) * Math.PI;
       }
     }
   }
@@ -3664,7 +3702,7 @@ async function wormsWebGPU(
       iterations,
       quantize ? 1 : 0,
       kink,
-      0,
+      drunkenness,
     ]),
     GPUBufferUsage.UNIFORM,
   );
@@ -3748,36 +3786,7 @@ async function wormsCPU(
       wormColors[i * c + k] = src[base + k];
     }
   }
-  function makeRots(beh, n) {
-    const rot = new Float32Array(n);
-    const base = random() * TAU;
-    if (beh === 1) {
-      rot.fill(base);
-    } else if (beh === 2) {
-      for (let i = 0; i < n; i++) {
-        rot[i] = base + (Math.floor(random() * 100) % 4) * (Math.PI / 2);
-      }
-    } else if (beh === 3) {
-      for (let i = 0; i < n; i++) {
-        rot[i] = base + random() * 0.25 - 0.125;
-      }
-    } else if (beh === 4) {
-      for (let i = 0; i < n; i++) rot[i] = random() * TAU;
-    } else if (beh === 5) {
-      const q = Math.floor(n * 0.25);
-      rot.set(makeRots(1, q), 0);
-      rot.set(makeRots(2, q), q);
-      rot.set(makeRots(3, q), q * 2);
-      rot.set(makeRots(4, n - q * 3), q * 3);
-    } else if (beh === 10) {
-      for (let i = 0; i < n; i++)
-        rot[i] = periodicValue(time * speed, random());
-    } else {
-      rot.fill(base);
-    }
-    return rot;
-  }
-  const wormsRot = makeRots(behavior, count);
+  const wormsRot = makeRots(behavior, count, time, speed);
 
   let valueData;
   if (c === 1) {
