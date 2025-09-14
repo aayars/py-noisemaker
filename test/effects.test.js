@@ -1124,7 +1124,7 @@ const fxData = new Float32Array([
   0.7, 0.7, 0.7, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9,
 ]);
 const fxTensor = Tensor.fromArray(null, fxData, [3, 3, 3]);
-const fxOut = fxaaEffect(fxTensor, [3, 3, 3], 0, 1).read();
+const fxOut = await (await fxaaEffect(fxTensor, [3, 3, 3], 0, 1)).read();
 const fxExpected = loadFixture("fxaaEffect.json");
 arraysClose(Array.from(fxOut), fxExpected);
 

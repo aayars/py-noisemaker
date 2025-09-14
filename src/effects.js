@@ -3418,8 +3418,8 @@ register("refract", refractEffect, {
   yFromOffset: false,
 });
 
-export function fxaaEffect(tensor, shape, time, speed) {
-  return fxaa(tensor);
+export async function fxaaEffect(tensor, shape, time, speed) {
+  return await fxaa(tensor);
 }
 register("fxaa_effect", fxaaEffect, {});
 register("fxaa", fxaaEffect, {});

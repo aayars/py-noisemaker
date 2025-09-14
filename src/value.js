@@ -21,6 +21,7 @@ import {
   SOBEL_WGSL,
   REFRACT_WGSL,
   CONVOLUTION_WGSL,
+  FXAA_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -1561,7 +1562,8 @@ export function zoom(tensor, factor) {
 
 export function fxaa(tensor) {
   const [h, w, c] = tensor.shape;
-  return withTensorData(tensor, (src) => {
+  const ctx = tensor.ctx;
+  const cpuFxaa = (src) => {
     const out = new Float32Array(h * w * c);
     const lumWeights = [0.299, 0.587, 0.114];
     function reflect(i, n) {
@@ -1609,10 +1611,26 @@ export function fxaa(tensor) {
           out[idx(x, y, 1)] = alpha;
         } else if (c === 3 || c === 4) {
           const rgbC = [src[idx(x, y, 0)], src[idx(x, y, 1)], src[idx(x, y, 2)]];
-          const rgbN = [src[idx(x, y - 1, 0)], src[idx(x, y - 1, 1)], src[idx(x, y - 1, 2)]];
-          const rgbS = [src[idx(x, y + 1, 0)], src[idx(x, y + 1, 1)], src[idx(x, y + 1, 2)]];
-          const rgbW = [src[idx(x - 1, y, 0)], src[idx(x - 1, y, 1)], src[idx(x - 1, y, 2)]];
-          const rgbE = [src[idx(x + 1, y, 0)], src[idx(x + 1, y, 1)], src[idx(x + 1, y, 2)]];
+          const rgbN = [
+            src[idx(x, y - 1, 0)],
+            src[idx(x, y - 1, 1)],
+            src[idx(x, y - 1, 2)],
+          ];
+          const rgbS = [
+            src[idx(x, y + 1, 0)],
+            src[idx(x, y + 1, 1)],
+            src[idx(x, y + 1, 2)],
+          ];
+          const rgbW = [
+            src[idx(x - 1, y, 0)],
+            src[idx(x - 1, y, 1)],
+            src[idx(x - 1, y, 2)],
+          ];
+          const rgbE = [
+            src[idx(x + 1, y, 0)],
+            src[idx(x + 1, y, 1)],
+            src[idx(x + 1, y, 2)],
+          ];
           const lC = rgbC[0] * lumWeights[0] + rgbC[1] * lumWeights[1] + rgbC[2] * lumWeights[2];
           const lN = rgbN[0] * lumWeights[0] + rgbN[1] * lumWeights[1] + rgbN[2] * lumWeights[2];
           const lS = rgbS[0] * lumWeights[0] + rgbS[1] * lumWeights[1] + rgbS[2] * lumWeights[2];
@@ -1634,8 +1652,45 @@ export function fxaa(tensor) {
         }
       }
     }
-    return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
-  });
+    return Tensor.fromArray(ctx, out, [h, w, c]);
+  };
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const device = ctx.device;
+        const outSize = h * w * c;
+        const outBuf = device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          FXAA_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, c]);
+      } catch (e) {
+        console.warn('WebGPU fxaa fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuFxaa(data);
+      }
+    })();
+  }
+
+  const srcMaybe = tensor.read();
+  if (srcMaybe && typeof srcMaybe.then === 'function') {
+    return srcMaybe.then(cpuFxaa);
+  }
+  return cpuFxaa(srcMaybe);
 }
 
 export function gaussianBlur(tensor, radius = 1) {

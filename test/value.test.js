@@ -296,9 +296,9 @@ const fxaaInput = Tensor.fromArray(null, new Float32Array([
   0, 1, 0,
   0, 0, 0,
 ]), [3, 3, 1]);
-const fxaaOut = fxaa(fxaaInput);
+const fxaaOut = await (await fxaa(fxaaInput)).read();
 arraysClose(
-  fxaaOut.read(),
+  fxaaOut,
   new Float32Array([
     0,
     0.19695032,
