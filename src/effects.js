@@ -183,7 +183,7 @@ export async function shadow(
   for (let i = 0; i < h * w; i++) {
     highlight[i] = Math.fround(shadeArr[i] * shadeArr[i]);
   }
-  return withTensorData(tensor, (src) => {
+  return withTensorData(tensor, async (src) => {
     const shaded = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
       const sh = shadeArr[i];
@@ -244,9 +244,11 @@ export async function shadow(
           (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2],
         );
       }
-      let result = hsvToRgb(Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]));
+      let result = await hsvToRgb(
+        Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]),
+      );
       if (c === 4) {
-        const res = result.read();
+        const res = await result.read();
         const out = new Float32Array(h * w * 4);
         for (let i = 0; i < h * w; i++) {
           out[i * 4] = res[i * 3];
