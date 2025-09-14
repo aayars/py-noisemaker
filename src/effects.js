@@ -355,7 +355,7 @@ export function bloom(tensor, shape, time, speed, alpha = 0.5) {
 }
 register("bloom", bloom, { alpha: 0.5 });
 
-export async function derivative(
+export function derivative(
   tensor,
   shape,
   time,
@@ -375,16 +375,19 @@ export async function derivative(
     [0, 1, 0],
     [0, -1, 0],
   ];
-  const dx = await (await convolution(tensor, kx, { normalize: false })).read();
-  const dy = await (await convolution(tensor, ky, { normalize: false })).read();
-  const out = new Float32Array(h * w * c);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = distance(dx[i], dy[i], distMetric);
-  }
-  let result = Tensor.fromArray(tensor.ctx, out, shape);
-  if (withNormalize) result = normalize(result);
-  if (alpha !== 1) result = blend(tensor, result, alpha);
-  return result;
+  const dx = convolution(tensor, kx, { normalize: false });
+  const dy = convolution(tensor, ky, { normalize: false });
+  const compute = (dxData, dyData) => {
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < out.length; i++) {
+      out[i] = distance(dxData[i], dyData[i], distMetric);
+    }
+    let result = Tensor.fromArray(tensor.ctx, out, shape);
+    if (withNormalize) result = normalize(result);
+    if (alpha !== 1) result = blend(tensor, result, alpha);
+    return result;
+  };
+  return withTensorDatas([dx, dy], compute);
 }
 register("derivative", derivative, {
   distMetric: DistanceMetric.euclidean,
