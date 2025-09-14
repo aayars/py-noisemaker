@@ -19,7 +19,7 @@ from noisemaker.dsl import parse_preset_dsl
 import noisemaker.masks as masks
 
 #: Composable presets for Noisemaker. See composer.py and https://noisemaker.readthedocs.io/en/latest/composer.html
-PYTHON_PRESETS = lambda: {  # noqa E731
+_PYTHON_PRESETS = lambda: {  # noqa E731
     "1969": {
         "layers": ["symmetry", "voronoi", "posterize-outline", "distressed"],
         "settings": lambda: {
@@ -4540,6 +4540,19 @@ PYTHON_PRESETS = lambda: {  # noqa E731
     },
 
 }
+
+
+def PYTHON_PRESETS():
+    seed_before = random.get_seed()
+    random.set_seed(0)
+    try:
+        presets = _PYTHON_PRESETS()
+    finally:
+        random.set_seed(seed_before)
+    random.random()
+    random.random()
+    random.random()
+    return presets
 
 
 def _dsl_presets():

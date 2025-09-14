@@ -123,15 +123,40 @@
         return result;
       };
     }
+    ctx._glTimerExt = ctx.gl && ctx.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    ctx._glTimerQueries = [];
+    ctx.resolveTimerQueries = function () {
+      if (!ctx.gl || !ctx._glTimerExt) return;
+      while (ctx._glTimerQueries.length) {
+        const q = ctx._glTimerQueries[0];
+        const available = ctx.gl.getQueryParameter(q, ctx.gl.QUERY_RESULT_AVAILABLE);
+        const disjoint = ctx.gl.getParameter(ctx._glTimerExt.GPU_DISJOINT_EXT);
+        if (!available || disjoint) break;
+        const ns = ctx.gl.getQueryParameter(q, ctx.gl.QUERY_RESULT);
+        ctx.profile.webgl2 += ns / 1e6;
+        ctx.gl.deleteQuery(q);
+        ctx._glTimerQueries.shift();
+      }
+    };
     const origDrawQuad = ctx.drawQuad.bind(ctx);
     ctx.drawQuad = function (...args) {
-      const t0 = performance.now();
-      const result = origDrawQuad(...args);
-      if (this.gl && this.gl.finish) {
-        this.gl.finish();
+      if (ctx.gl && ctx._glTimerExt) {
+        ctx.resolveTimerQueries();
+        const q = ctx.gl.createQuery();
+        ctx.gl.beginQuery(ctx._glTimerExt.TIME_ELAPSED_EXT, q);
+        const result = origDrawQuad(...args);
+        ctx.gl.endQuery(ctx._glTimerExt.TIME_ELAPSED_EXT);
+        ctx._glTimerQueries.push(q);
+        return result;
+      } else {
+        const t0 = performance.now();
+        const result = origDrawQuad(...args);
+        if (ctx.gl && ctx.gl.finish) {
+          ctx.gl.finish();
+        }
+        ctx.profile.webgl2 += performance.now() - t0;
+        return result;
       }
-      this.profile.webgl2 += performance.now() - t0;
-      return result;
     };
     const presetSelect = document.getElementById('preset');
     const statusEl = document.getElementById('status');
@@ -293,6 +318,10 @@
           errorBannerEl.textContent = errorText;
           throw e;
         }
+      }
+      if (ctx.gl && ctx._glTimerExt) {
+        ctx.gl.finish();
+        ctx.resolveTimerQueries();
       }
       const elapsed = performance.now() - start;
       const webgpuMs = ctx.profile.webgpu;
