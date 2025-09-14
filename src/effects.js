@@ -508,7 +508,9 @@ export function outline(
   sobelMetric = DistanceMetric.euclidean,
   invert = false,
 ) {
-  const [h, w, c] = shape;
+  const [h, w] = shape;
+  const [, , c = 1] = tensor.shape;
+  const tensorShape = [h, w, c];
   const applyEdges = (src, edges) => {
     if (invert) {
       for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
@@ -520,7 +522,7 @@ export function outline(
         out[i * c + k] = src[i * c + k] * e;
       }
     }
-    return Tensor.fromArray(tensor.ctx, out, shape);
+    return Tensor.fromArray(tensor.ctx, out, tensorShape);
   };
 
   const handleValues = (src, valuesTensor) => {
