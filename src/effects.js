@@ -70,6 +70,7 @@ import {
   CRT_WGSL,
   WOBBLE_WGSL,
   WORMHOLE_WGSL,
+  DLA_WGSL,
   REVERB_WGSL,
   VASELINE_BLUR_WGSL,
   VASELINE_MASK_WGSL,
@@ -5366,7 +5367,7 @@ register("glyph_map", glyphMap, {
   splineOrder: InterpolationType.constant,
 });
 
-export async function dla(
+async function dlaCPU(
   tensor,
   shape,
   time,
@@ -5510,6 +5511,224 @@ export async function dla(
   const out = Tensor.fromArray(tensor.ctx, mult, shape);
   return blend(tensor, out, alpha);
 }
+
+async function dlaWebGPU(
+  tensor,
+  shape,
+  time,
+  speed,
+  padding = 2,
+  seedDensity = 0.01,
+  density = 0.125,
+  xy = null,
+  alpha = 1,
+) {
+  const ctx = tensor ? tensor.ctx : null;
+  if (!ctx || !ctx.device) {
+    return await dlaCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      padding,
+      seedDensity,
+      density,
+      xy,
+      alpha,
+    );
+  }
+  const [height, width, channels] = shape;
+  const scale = 1 / padding;
+  const halfWidth = Math.floor(width * scale);
+  const halfHeight = Math.floor(height * scale);
+  let x, y, seedCount;
+  if (xy === null) {
+    seedCount = Math.floor(
+      Math.sqrt(Math.floor(halfHeight * seedDensity) || 1),
+    );
+    [x, y] = pointCloud(seedCount, {
+      distrib: PointDistribution.random,
+      shape,
+      time,
+      speed,
+    });
+  } else {
+    [x, y, seedCount] = xy;
+  }
+  const walkersCount = halfHeight * halfWidth * density;
+  const walkersPerSeed = Math.floor(walkersCount / seedCount);
+  const offsets = [-1, 0, 1];
+  const expandedRange = 8;
+  const expandedOffsets = [];
+  for (let i = -expandedRange; i <= expandedRange; i++) expandedOffsets.push(i);
+  const clusterSize = halfHeight * halfWidth;
+  const cluster = new Uint32Array(clusterSize);
+  const neighborhood = new Uint32Array(clusterSize);
+  const expanded = new Uint32Array(clusterSize);
+  const walkersArr = new Uint32Array(walkersCount * 2);
+  let wIndex = 0;
+  for (let i = 0; i < seedCount; i++) {
+    const ny = Math.floor(y[i] * scale);
+    const nx = Math.floor(x[i] * scale);
+    cluster[ny * halfWidth + nx] = i + 1;
+    for (const xo of offsets) {
+      for (const yo of offsets) {
+        const nyo = (ny + yo + halfHeight) % halfHeight;
+        const nxo = (nx + xo + halfWidth) % halfWidth;
+        neighborhood[nyo * halfWidth + nxo] = 1;
+      }
+    }
+    for (const xo of expandedOffsets) {
+      for (const yo of expandedOffsets) {
+        const nyo = (ny + yo + halfHeight) % halfHeight;
+        const nxo = (nx + xo + halfWidth) % halfWidth;
+        expanded[nyo * halfWidth + nxo] = 1;
+      }
+    }
+    for (let w = 0; w < walkersPerSeed; w++) {
+      walkersArr[wIndex * 2] = randomInt(0, halfHeight - 1);
+      walkersArr[wIndex * 2 + 1] = randomInt(0, halfWidth - 1);
+      wIndex++;
+    }
+  }
+  const count = wIndex;
+  const iterations = Math.floor(Math.sqrt(walkersCount) * time * time);
+  const randLen = iterations * count;
+  const randY = new Float32Array(randLen);
+  const randX = new Float32Array(randLen);
+  for (let i = 0; i < randLen; i++) {
+    randY[i] = random();
+    randX[i] = random();
+  }
+  const walkersBuf = ctx.createGPUBuffer(
+    walkersArr.subarray(0, count * 2),
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+  );
+  const clusterBuf = ctx.createGPUBuffer(
+    cluster,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const neighborhoodBuf = ctx.createGPUBuffer(
+    neighborhood,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const expandedBuf = ctx.createGPUBuffer(
+    expanded,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const randYBuf = ctx.createGPUBuffer(randY, GPUBufferUsage.STORAGE);
+  const randXBuf = ctx.createGPUBuffer(randX, GPUBufferUsage.STORAGE);
+  const counterBuf = ctx.createGPUBuffer(
+    new Uint32Array([seedCount]),
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsBuf = ctx.createGPUBuffer(
+    new Uint32Array([halfWidth, halfHeight, count, iterations]),
+    GPUBufferUsage.UNIFORM,
+  );
+  try {
+    await ctx.runCompute(
+      DLA_WGSL,
+      [
+        { binding: 0, resource: { buffer: walkersBuf } },
+        { binding: 1, resource: { buffer: clusterBuf } },
+        { binding: 2, resource: { buffer: neighborhoodBuf } },
+        { binding: 3, resource: { buffer: expandedBuf } },
+        { binding: 4, resource: { buffer: randYBuf } },
+        { binding: 5, resource: { buffer: randXBuf } },
+        { binding: 6, resource: { buffer: counterBuf } },
+        { binding: 7, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(count / 64),
+    );
+  } catch (e) {
+    console.warn('dlaWebGPU fallback to CPU', e);
+    return await dlaCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      padding,
+      seedDensity,
+      density,
+      xy,
+      alpha,
+    );
+  }
+  const clusterOut = await ctx.readGPUBuffer(clusterBuf, clusterSize * 4);
+  let maxOrder = 0;
+  for (let i = 0; i < clusterOut.length; i++) {
+    if (clusterOut[i] > maxOrder) maxOrder = clusterOut[i];
+  }
+  const grid = new Float32Array(height * width * channels);
+  for (let i = 0; i < clusterOut.length; i++) {
+    const order = clusterOut[i];
+    if (order === 0) continue;
+    const val = maxOrder - order;
+    const yy = Math.floor(i / halfWidth);
+    const xx = i % halfWidth;
+    const sy = yy * padding;
+    const sx = xx * padding;
+    const base = (sy * width + sx) * channels;
+    for (let k = 0; k < channels; k++) {
+      grid[base + k] = val;
+    }
+  }
+  const scattered = Tensor.fromArray(ctx, grid, shape);
+  const kernelTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const kData = await kernelTensor.read();
+  const kernel = [];
+  for (let i = 0; i < 5; i++) {
+    kernel.push(Array.from(kData.slice(i * 5, i * 5 + 5)));
+  }
+  const convolved = await convolution(scattered, kernel);
+  const zeroTensor = Tensor.fromArray(
+    ctx,
+    new Float32Array(height * width * channels),
+    shape,
+  );
+  const multiplied = await blend(zeroTensor, tensor, convolved);
+  return blend(tensor, multiplied, alpha);
+}
+
+export async function dla(
+  tensor,
+  shape,
+  time,
+  speed,
+  padding = 2,
+  seedDensity = 0.01,
+  density = 0.125,
+  xy = null,
+  alpha = 1,
+) {
+  const ctx = tensor ? tensor.ctx : null;
+  if (ctx && ctx.device) {
+    return await dlaWebGPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      padding,
+      seedDensity,
+      density,
+      xy,
+      alpha,
+    );
+  }
+  return await dlaCPU(
+    tensor,
+    shape,
+    time,
+    speed,
+    padding,
+    seedDensity,
+    density,
+    xy,
+    alpha,
+  );
+}
+
 register("dla", dla, {
   padding: 2,
   seedDensity: 0.01,
