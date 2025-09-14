@@ -30,6 +30,7 @@ export const RGB_TO_HSV_WGSL = await loadShader('./rgb-to-hsv.wgsl');
 export const HSV_TO_RGB_WGSL = await loadShader('./hsv-to-rgb.wgsl');
 export const NORMALIZE_WGSL = await loadShader('./normalize.wgsl');
 export const PIXEL_SORT_WGSL = await loadShader('./pixel-sort.wgsl');
+export const KALEIDO_WGSL = await loadShader('./kaleido.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32,

@@ -63,6 +63,7 @@ import {
   SCRATCHES_BLEND_WGSL,
   DERIVATIVE_WGSL,
   PIXEL_SORT_WGSL,
+  KALEIDO_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -2056,6 +2057,7 @@ export async function kaleido(
   pointCorners = false,
 ) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
   const xyArg = xy ? [xy[0], xy[1], xy[0].length] : null;
   const rTensor = await voronoi(
@@ -2090,6 +2092,34 @@ export async function kaleido(
     );
     fader = await fTensor.read();
     for (let i = 0; i < fader.length; i++) fader[i] = Math.pow(fader[i], 5);
+  }
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const rBuf = ctx.createGPUBuffer(r, GPUBufferUsage.STORAGE);
+    const fadeBuf = ctx.createGPUBuffer(
+      fader || new Float32Array(4),
+      GPUBufferUsage.STORAGE,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, sides, blendEdges ? 1 : 0, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      KALEIDO_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: rBuf } },
+        { binding: 3, resource: { buffer: fadeBuf } },
+        { binding: 4, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, [h, w, c]);
   }
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
