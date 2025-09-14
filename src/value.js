@@ -1354,56 +1354,64 @@ export function ridge(tensor) {
 
 export function convolution(tensor, kernel, opts = {}) {
   const { normalize: doNormalize = true, alpha = 1 } = opts;
-  const [h, w, c] = tensor.shape;
-  const kh = kernel.length;
-  const kw = kernel[0].length;
-  const halfH = Math.floor(kh / 2);
-  const halfW = Math.floor(kw / 2);
-  const compute = (src) => {
-    const out = new Float32Array(h * w * c);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        for (let k = 0; k < c; k++) {
-          let sum = 0;
-          for (let j = 0; j < kh; j++) {
-            for (let i = 0; i < kw; i++) {
-              const yy = (y + j - halfH + h) % h;
-              const xx = (x + i - halfW + w) % w;
-              const val = src[(yy * w + xx) * c + k];
-              const contrib = Math.fround(kernel[j][i] * val);
-              sum = Math.fround(sum + contrib);
+
+  const handle = (t) => {
+    const [h, w, c] = t.shape;
+    const kh = kernel.length;
+    const kw = kernel[0].length;
+    const halfH = Math.floor(kh / 2);
+    const halfW = Math.floor(kw / 2);
+    const compute = (src) => {
+      const out = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          for (let k = 0; k < c; k++) {
+            let sum = 0;
+            for (let j = 0; j < kh; j++) {
+              for (let i = 0; i < kw; i++) {
+                const yy = (y + j - halfH + h) % h;
+                const xx = (x + i - halfW + w) % w;
+                const val = src[(yy * w + xx) * c + k];
+                const contrib = Math.fround(kernel[j][i] * val);
+                sum = Math.fround(sum + contrib);
+              }
             }
+            out[(y * w + x) * c + k] = Math.fround(sum);
           }
-          out[(y * w + x) * c + k] = Math.fround(sum);
         }
       }
-    }
-    let result = Tensor.fromArray(tensor.ctx, out, [h, w, c]);
-    if (doNormalize) {
-      const norm = normalize(result);
-      if (norm && typeof norm.then === 'function') {
-        return norm.then((r) => {
-          if (alpha !== 1) {
-            const blended = blend(tensor, r, alpha);
-            return blended && typeof blended.then === 'function'
-              ? blended
-              : blended;
-          }
-          return r;
-        });
+      let result = Tensor.fromArray(t.ctx, out, [h, w, c]);
+      if (doNormalize) {
+        const norm = normalize(result);
+        if (norm && typeof norm.then === 'function') {
+          return norm.then((r) => {
+            if (alpha !== 1) {
+              const blended = blend(t, r, alpha);
+              return blended && typeof blended.then === 'function'
+                ? blended
+                : blended;
+            }
+            return r;
+          });
+        }
+        result = norm;
       }
-      result = norm;
-    }
-    if (alpha !== 1) {
-      const blended = blend(tensor, result, alpha);
-      if (blended && typeof blended.then === 'function') {
+      if (alpha !== 1) {
+        const blended = blend(t, result, alpha);
+        if (blended && typeof blended.then === 'function') {
+          return blended;
+        }
         return blended;
       }
-      return blended;
-    }
-    return result;
+      return result;
+    };
+    return withTensorData(t, compute);
   };
-  return withTensorData(tensor, compute);
+
+  if (tensor && typeof tensor.then === 'function') {
+    return tensor.then(handle);
+  }
+  return handle(tensor);
 }
 
 export function refract(

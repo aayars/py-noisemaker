@@ -253,6 +253,9 @@ const convKernel = [[0, 1, 0], [1, 0, 1], [0, 1, 0]];
 const convResult = convolution(convInput, convKernel);
 arraysClose(convResult.read(), new Float32Array([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]));
 
+const convAsync = await convolution(Promise.resolve(convInput), convKernel);
+arraysClose(convAsync.read(), new Float32Array([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]));
+
 // refract
 const refrInput = Tensor.fromArray(null, new Float32Array([
   0, 1, 2,
