@@ -2336,8 +2336,6 @@ export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   if (c !== 3) return tensor;
   const disp = Math.round(w * displacement * simplexRandom(time, undefined, speed));
   const hueShift = random() * 0.1 - 0.05;
-  const shifted = adjustHue(tensor, hueShift);
-  const src = shifted.read();
 
   // radial mask to fade effect towards center
   const mask = new Float32Array(h * w);
@@ -2355,32 +2353,34 @@ export function aberration(tensor, shape, time, speed, displacement = 0.005) {
   }
   for (let i = 0; i < mask.length; i++) mask[i] = Math.pow(mask[i] / (max || 1), 3);
 
-  const out = new Float32Array(h * w * 3);
-  const lerp = (a, b, t) => a + (b - a) * t;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const g = w > 1 ? x / (w - 1) : 0;
-      const m = mask[y * w + x];
-      const base = (y * w + x) * 3;
+  return withTensorData(adjustHue(tensor, hueShift), (src) => {
+    const out = new Float32Array(h * w * 3);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const g = w > 1 ? x / (w - 1) : 0;
+        const m = mask[y * w + x];
+        const base = (y * w + x) * 3;
 
-      let rX = Math.min(w - 1, x + disp);
-      rX = lerp(rX, x, g);
-      rX = lerp(x, rX, m);
-      rX = Math.round(rX);
+        let rX = Math.min(w - 1, x + disp);
+        rX = lerp(rX, x, g);
+        rX = lerp(x, rX, m);
+        rX = Math.round(rX);
 
-      let bX = Math.max(0, x - disp);
-      bX = lerp(x, bX, g);
-      bX = lerp(x, bX, m);
-      bX = Math.round(bX);
+        let bX = Math.max(0, x - disp);
+        bX = lerp(x, bX, g);
+        bX = lerp(x, bX, m);
+        bX = Math.round(bX);
 
-      out[base] = src[(y * w + rX) * 3];
-      out[base + 1] = src[base + 1];
-      out[base + 2] = src[(y * w + bX) * 3 + 2];
+        out[base] = src[(y * w + rX) * 3];
+        out[base + 1] = src[base + 1];
+        out[base + 2] = src[(y * w + bX) * 3 + 2];
+      }
     }
-  }
 
-  const displaced = Tensor.fromArray(tensor.ctx, out, shape);
-  return adjustHue(displaced, -hueShift);
+    const displaced = Tensor.fromArray(tensor.ctx, out, shape);
+    return adjustHue(displaced, -hueShift);
+  });
 }
 register("aberration", aberration, { displacement: 0.005 });
 
@@ -3976,7 +3976,7 @@ export async function sine(
 }
 register("sine", sine, { amount: 1.0, rgb: false, freq: 1, octaves: 1 });
 
-export function blur(
+export async function blur(
   tensor,
   shape,
   time,
@@ -3991,7 +3991,8 @@ export function blur(
     c,
   ];
   let small = proportionalDownsample(tensor, shape, newShape);
-  const data = small.read();
+  small = small && typeof small.then === 'function' ? await small : small;
+  const data = await small.read();
   for (let i = 0; i < data.length; i++) data[i] *= 4;
   small = Tensor.fromArray(tensor.ctx, data, small.shape);
   return resample(small, shape, splineOrder);
@@ -4023,8 +4024,8 @@ export async function reverb(
 ) {
   if (!octaves) return tensor;
   const [h, w, c] = shape;
-  const reference = ridges ? ridge(tensor) : tensor;
-  const base = reference.read();
+  const reference = ridges ? await ridge(tensor) : tensor;
+  const base = await reference.read();
   const outData = base.slice();
   for (let i = 0; i < iterations; i++) {
     for (let octave = 1; octave <= octaves; octave++) {
@@ -4035,7 +4036,7 @@ export async function reverb(
       const octaveShape = [nh, nw, c];
       let layer = proportionalDownsample(reference, shape, octaveShape);
       layer = await expandTileInternal(layer, octaveShape, shape);
-      const layerData = layer.read();
+      const layerData = await layer.read();
       for (let j = 0; j < outData.length; j++) {
         outData[j] += layerData[j] / mult;
       }
@@ -4049,7 +4050,8 @@ register("reverb", reverb, { octaves: 2, iterations: 1, ridges: true });
 async function expandTileInternal(tensor, inputShape, outputShape) {
   const [ih, iw, c] = inputShape;
   const [oh, ow] = outputShape;
-  const src = await tensor.read();
+  const t = tensor && typeof tensor.then === 'function' ? await tensor : tensor;
+  const src = await t.read();
   const out = new Float32Array(oh * ow * c);
   const xOff = Math.floor(iw / 2);
   const yOff = Math.floor(ih / 2);
@@ -4062,7 +4064,7 @@ async function expandTileInternal(tensor, inputShape, outputShape) {
       for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
     }
   }
-  return Tensor.fromArray(tensor.ctx, out, [oh, ow, c]);
+  return Tensor.fromArray(t.ctx, out, [oh, ow, c]);
 }
 
 async function resizeWithCropOrPad(tensor, shape, size) {
