@@ -20,6 +20,7 @@ import {
   BLEND_WGSL,
   SOBEL_WGSL,
   REFRACT_WGSL,
+  CONVOLUTION_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -1175,11 +1176,13 @@ export function convolution(tensor, kernel, opts = {}) {
 
   const handle = (t) => {
     const [h, w, c] = t.shape;
+    const ctx = t.ctx;
     const kh = kernel.length;
     const kw = kernel[0].length;
     const halfH = Math.floor(kh / 2);
     const halfW = Math.floor(kw / 2);
-    const compute = (src) => {
+
+    const cpuCompute = (src) => {
       const out = new Float32Array(h * w * c);
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
@@ -1223,7 +1226,71 @@ export function convolution(tensor, kernel, opts = {}) {
       }
       return result;
     };
-    return withTensorData(t, compute);
+
+    if (
+      ctx &&
+      ctx.device &&
+      typeof GPUTexture !== 'undefined' &&
+      t.handle instanceof GPUTexture
+    ) {
+      return (async () => {
+        try {
+          const device = ctx.device;
+          const outSize = h * w * c;
+          const outBuf = device.createBuffer({
+            size: outSize * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+          });
+          const kernelArr = new Float32Array(kh * kw);
+          let idx = 0;
+          let kSum = 0;
+          for (let j = 0; j < kh; j++) {
+            for (let i = 0; i < kw; i++) {
+              const v = kernel[j][i];
+              kernelArr[idx++] = v;
+              kSum += v;
+            }
+          }
+          const kernelBuf = ctx.createGPUBuffer(
+            kernelArr,
+            GPUBufferUsage.STORAGE,
+          );
+          const paramsArr = new Float32Array([
+            w,
+            h,
+            c,
+            kw,
+            kh,
+            doNormalize ? 1 : 0,
+            alpha,
+            kSum,
+          ]);
+          const paramsBuf = ctx.createGPUBuffer(
+            paramsArr,
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            CONVOLUTION_WGSL,
+            [
+              { binding: 0, resource: t.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: kernelBuf } },
+              { binding: 3, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+          return Tensor.fromArray(ctx, out, [h, w, c]);
+        } catch (e) {
+          console.warn('WebGPU convolution fallback to CPU', e);
+          const src = await t.read();
+          return cpuCompute(src);
+        }
+      })();
+    }
+
+    return withTensorData(t, cpuCompute);
   };
 
   if (tensor && typeof tensor.then === 'function') {

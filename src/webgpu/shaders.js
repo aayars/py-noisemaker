@@ -16,6 +16,7 @@ export const RESAMPLE_WGSL = await loadShader('./resample.wgsl');
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
 export const DOWNSAMPLE_WGSL = await loadShader('./downsample.wgsl');
 export const BLEND_WGSL = await loadShader('./blend.wgsl');
+export const CONVOLUTION_WGSL = await loadShader('./convolution.wgsl');
 export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
 export const REFRACT_WGSL = await loadShader('./refract.wgsl');
 export const WARP_WGSL = await loadShader('./warp.wgsl');
