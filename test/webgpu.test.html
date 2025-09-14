@@ -5,7 +5,7 @@
 import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -30,6 +30,8 @@ function testEffect(fn, args = [], time = 0, speed = 0) {
   }
   return true;
 }
+setSeed(1);
+
 const base = await values(2, [4,4,1], { seed: 1, ctx });
 const down = await downsample(base, 2);
 const up = await upsample(down, 2);
@@ -94,6 +96,7 @@ ok = ok &&
   testEffect(reindex, [0.5]) &&
   testEffect(wobble, [], 0.8, 1) &&
   testEffect(grime) &&
+  testEffect(vaseline) &&
   testRefract() &&
   await testCRT();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';

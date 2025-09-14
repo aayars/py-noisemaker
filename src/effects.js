@@ -71,6 +71,8 @@ import {
   WOBBLE_WGSL,
   WORMHOLE_WGSL,
   REVERB_WGSL,
+  VASELINE_BLUR_WGSL,
+  VASELINE_MASK_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -4445,10 +4447,56 @@ export async function vignette(
 }
 register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 
+async function vaselineWebGPU(tensor, shape, alpha) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const blurTex = ctx.device.createTexture({
+    size: { width: w, height: h, depthOrArrayLayers: 1 },
+    format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
+    usage: GPUTextureUsage.STORAGE_BINDING |
+           GPUTextureUsage.TEXTURE_BINDING |
+           GPUTextureUsage.COPY_SRC |
+           GPUTextureUsage.COPY_DST,
+  });
+  const blurParams = ctx.createGPUBuffer(new Float32Array([w, h, c]), GPUBufferUsage.UNIFORM);
+  await ctx.runCompute(
+    VASELINE_BLUR_WGSL,
+    [
+      { binding: 0, resource: tensor.handle.createView() },
+      { binding: 1, resource: blurTex.createView() },
+      { binding: 2, resource: { buffer: blurParams } },
+    ],
+    Math.ceil(w / 8),
+    Math.ceil(h / 8),
+  );
+  const blurred = new Tensor(ctx, blurTex, shape);
+  const maskTex = ctx.device.createTexture({
+    size: { width: w, height: h, depthOrArrayLayers: 1 },
+    format: 'r32float',
+    usage: GPUTextureUsage.STORAGE_BINDING |
+           GPUTextureUsage.TEXTURE_BINDING |
+           GPUTextureUsage.COPY_SRC |
+           GPUTextureUsage.COPY_DST,
+  });
+  const maskParams = ctx.createGPUBuffer(new Float32Array([w, h]), GPUBufferUsage.UNIFORM);
+  await ctx.runCompute(
+    VASELINE_MASK_WGSL,
+    [
+      { binding: 0, resource: maskTex.createView() },
+      { binding: 1, resource: { buffer: maskParams } },
+    ],
+    Math.ceil(w / 8),
+    Math.ceil(h / 8),
+  );
+  const mask = new Tensor(ctx, maskTex, [h, w, 1]);
+  const masked = await blend(tensor, blurred, mask);
+  return await blend(tensor, masked, alpha);
+}
 export async function vaseline(tensor, shape, time, speed, alpha = 1.0) {
-  // Python's implementation ignores time/speed and always blurs with a fixed
-  // kernel.  Accept ``time`` and ``speed`` to satisfy the registry interface
-  // but discard them when generating the blurred mask.
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    return await vaselineWebGPU(tensor, shape, alpha);
+  }
   const blurred = await bloom(tensor, shape, 0, 1, 1.0);
   const masked = await centerMaskInternal(tensor, blurred, shape);
   return await blend(tensor, masked, alpha);

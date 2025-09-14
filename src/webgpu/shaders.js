@@ -38,6 +38,8 @@ export const CRT_WGSL = await loadShader('./crt.wgsl');
 export const WOBBLE_WGSL = await loadShader('./wobble.wgsl');
 export const WORMHOLE_WGSL = await loadShader('./wormhole.wgsl');
 export const REVERB_WGSL = await loadShader('./reverb.wgsl');
+export const VASELINE_BLUR_WGSL = await loadShader("./vaseline-blur.wgsl");
+export const VASELINE_MASK_WGSL = await loadShader("./vaseline-mask.wgsl");
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32,
