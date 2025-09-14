@@ -2919,11 +2919,11 @@ export async function ripple(
 ) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
-  let ref = reference || values(freq, [h, w, 1], { ctx, time, speed, splineOrder });
+  let ref = reference || (await values(freq, [h, w, 1], { ctx, time, speed, splineOrder }));
   const rand = simplexRandom(time, undefined, speed);
   if (ctx && ctx.device) {
     let refTex = ref;
-    if (refTex.ctx !== ctx) refTex = Tensor.fromArray(ctx, ref.read(), ref.shape);
+    if (refTex.ctx !== ctx) refTex = Tensor.fromArray(ctx, await ref.read(), ref.shape);
     if (tensor.handle instanceof GPUTexture && refTex.handle instanceof GPUTexture) {
       const outBuf = ctx.createGPUBuffer(
         new Float32Array(h * w * c),
@@ -2947,7 +2947,7 @@ export async function ripple(
       return new Tensor(ctx, outBuf, shape);
     }
   }
-  const refData = ref.read();
+  const refData = await ref.read();
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
