@@ -262,3 +262,319 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }
 `;
 
+export const REINDEX_WGSL = /* wgsl */ `
+struct ReindexParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  displacement: f32;
+  mod: f32;
+  pad0: f32;
+  pad1: f32;
+  pad2: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+@group(0) @binding(2) var<uniform> params: ReindexParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  var lum = col.x;
+  if (params.channels > 1.5) {
+    lum = dot(col.xyz, vec3(0.2126,0.7152,0.0722));
+  }
+  let off = lum * params.displacement * params.mod + lum;
+  let offi = u32(off);
+  let xo = offi % w;
+  let yo = offi % h;
+  let val = textureLoad(tex, vec2<i32>(i32(xo), i32(yo)), 0);
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;
+export const RIPPLE_WGSL = /* wgsl */ `
+struct RippleParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  displacement: f32;
+  kink: f32;
+  rand: f32;
+  pad0: f32;
+  pad1: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var refTex: texture_2d<f32>;
+@group(0) @binding(2) var<storage, read_write> out: array<f32>;
+@group(0) @binding(3) var<uniform> params: RippleParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let ref = textureLoad(refTex, vec2<i32>(i32(x), i32(y)), 0).x;
+  let ang = ref * 6.283185307179586 * params.kink * params.rand;
+  let offset = vec2<f32>(cos(ang), sin(ang)) * params.displacement;
+  var samplePos = vec2<f32>(f32(x), f32(y)) + offset * vec2<f32>(params.width, params.height);
+  samplePos = mod(samplePos, vec2<f32>(params.width, params.height));
+  let c0 = floor(samplePos);
+  let f = samplePos - c0;
+  let c1 = mod(c0 + 1.0, vec2<f32>(params.width, params.height));
+  let i00 = vec2<i32>(i32(c0.x), i32(c0.y));
+  let i10 = vec2<i32>(i32(c1.x), i32(c0.y));
+  let i01 = vec2<i32>(i32(c0.x), i32(c1.y));
+  let i11 = vec2<i32>(i32(c1.x), i32(c1.y));
+  let s00 = textureLoad(tex, i00, 0);
+  let s10 = textureLoad(tex, i10, 0);
+  let s01 = textureLoad(tex, i01, 0);
+  let s11 = textureLoad(tex, i11, 0);
+  let sx = f.x;
+  let sy = f.y;
+  let mx0 = mix(s00, s10, sx);
+  let mx1 = mix(s01, s11, sx);
+  let val = mix(mx0, mx1, sy);
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;
+export const COLOR_MAP_WGSL = /* wgsl */ `
+struct ColorMapParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  displacement: f32;
+  horizontal: f32;
+  clutWidth: f32;
+  clutHeight: f32;
+  clutChannels: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var clut: texture_2d<f32>;
+@group(0) @binding(2) var<storage, read_write> out: array<f32>;
+@group(0) @binding(3) var<uniform> params: ColorMapParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  var lum = col.x;
+  if (params.channels > 1.5) {
+    lum = dot(col.xyz, vec3(0.2126,0.7152,0.0722));
+  }
+  let ref = lum * params.displacement;
+  let xi = (i32(x) + i32(floor(ref * (params.width - 1.0)))) % i32(w);
+  let yi = params.horizontal > 0.5
+    ? i32(y)
+    : (i32(y) + i32(floor(ref * (params.height - 1.0)))) % i32(h);
+  let sx = u32(floor(f32(xi) * params.clutWidth / params.width));
+  let sy = u32(floor(f32(yi) * params.clutHeight / params.height));
+  let c = textureLoad(clut, vec2<i32>(i32(sx), i32(sy)), 0);
+  let cc = u32(params.clutChannels);
+  let base = (y * w + x) * cc;
+  if (cc > 0u) { out[base] = c.x; }
+  if (cc > 1u) { out[base + 1u] = c.y; }
+  if (cc > 2u) { out[base + 2u] = c.z; }
+  if (cc > 3u) { out[base + 3u] = c.w; }
+}`;
+export const VIGNETTE_WGSL = /* wgsl */ `
+struct VignetteParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  brightness: f32;
+  alpha: f32;
+  pad0: f32;
+  pad1: f32;
+  pad2: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+@group(0) @binding(2) var<uniform> params: VignetteParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  let uv = vec2<f32>(f32(x)/params.width, f32(y)/params.height);
+  let dist = distance(uv, vec2<f32>(0.5,0.5)) / length(vec2<f32>(0.5,0.5));
+  let vignetted = mix(col, vec4<f32>(params.brightness), dist*dist);
+  let val = mix(col, vignetted, params.alpha);
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;
+export const DITHER_WGSL = /* wgsl */ `
+struct DitherParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  levels: f32;
+  pad0: f32;
+  pad1: f32;
+  pad2: f32;
+  pad3: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var noise: texture_2d<f32>;
+@group(0) @binding(2) var<storage, read_write> out: array<f32>;
+@group(0) @binding(3) var<uniform> params: DitherParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  var c = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  let n = textureLoad(noise, vec2<i32>(i32(x), i32(y)), 0).x - 0.5;
+  let inv = 1.0 / params.levels;
+  c = floor(clamp(c + n * inv, 0.0, 1.0) * params.levels) * inv;
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = c.x; }
+  if (ch > 1u) { out[base + 1u] = c.y; }
+  if (ch > 2u) { out[base + 2u] = c.z; }
+  if (ch > 3u) { out[base + 3u] = c.w; }
+}`;
+export const ADJUST_BRIGHTNESS_WGSL = /* wgsl */ `
+struct BrightnessParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  amount: f32;
+  pad0: f32;
+  pad1: f32;
+  pad2: f32;
+  pad3: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+@group(0) @binding(2) var<uniform> params: BrightnessParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0) + params.amount;
+  let val = clamp(col, -1.0, 1.0);
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;
+export const ADJUST_CONTRAST_WGSL = /* wgsl */ `
+struct ContrastParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  amount: f32;
+  mean0: f32;
+  mean1: f32;
+  mean2: f32;
+  pad0: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+@group(0) @binding(2) var<uniform> params: ContrastParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  var val = col;
+  if (params.channels > 0.5) {
+    val.x = clamp((col.x - params.mean0) * params.amount + params.mean0, 0.0, 1.0);
+  }
+  if (params.channels > 1.5) {
+    val.y = clamp((col.y - params.mean1) * params.amount + params.mean1, 0.0, 1.0);
+  }
+  if (params.channels > 2.5) {
+    val.z = clamp((col.z - params.mean2) * params.amount + params.mean2, 0.0, 1.0);
+  }
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;
+export const ROTATE_WGSL = /* wgsl */ `
+struct RotateParams {
+  width: f32;
+  height: f32;
+  channels: f32;
+  angle: f32;
+  pad0: f32;
+  pad1: f32;
+  pad2: f32;
+  pad3: f32;
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> out: array<f32>;
+@group(0) @binding(2) var<uniform> params: RotateParams;
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = u32(params.width);
+  let h = u32(params.height);
+  if (x >= w || y >= h) { return; }
+  var uv = vec2<f32>(f32(x)/params.width, f32(y)/params.height);
+  uv = uv - vec2<f32>(0.5, 0.5);
+  let c = cos(params.angle);
+  let s = sin(params.angle);
+  uv = vec2<f32>(c * uv.x + s * uv.y, -s * uv.x + c * uv.y) + vec2<f32>(0.5, 0.5);
+  uv = fract(uv);
+  var samplePos = uv * vec2<f32>(params.width, params.height);
+  let c0 = floor(samplePos);
+  let f = samplePos - c0;
+  let c1 = mod(c0 + 1.0, vec2<f32>(params.width, params.height));
+  let i00 = vec2<i32>(i32(c0.x), i32(c0.y));
+  let i10 = vec2<i32>(i32(c1.x), i32(c0.y));
+  let i01 = vec2<i32>(i32(c0.x), i32(c1.y));
+  let i11 = vec2<i32>(i32(c1.x), i32(c1.y));
+  let s00 = textureLoad(tex, i00, 0);
+  let s10 = textureLoad(tex, i10, 0);
+  let s01 = textureLoad(tex, i01, 0);
+  let s11 = textureLoad(tex, i11, 0);
+  let sx = f.x;
+  let sy = f.y;
+  let mx0 = mix(s00, s10, sx);
+  let mx1 = mix(s01, s11, sx);
+  let val = mix(mx0, mx1, sy);
+  let ch = u32(params.channels);
+  let base = (y * w + x) * ch;
+  if (ch > 0u) { out[base] = val.x; }
+  if (ch > 1u) { out[base + 1u] = val.y; }
+  if (ch > 2u) { out[base + 2u] = val.z; }
+  if (ch > 3u) { out[base + 3u] = val.w; }
+}`;

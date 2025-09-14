@@ -16,7 +16,6 @@ import {
   upsample,
   resample,
   proportionalDownsample,
-  FULLSCREEN_VS,
   refract as refractOp,
   convolution,
   fxaa,
@@ -45,7 +44,19 @@ import {
   VoronoiDiagramType,
   WormBehavior,
 } from "./constants.js";
-import { VORONOI_WGSL, EROSION_WORMS_WGSL, WORMS_WGSL } from "./webgpu/shaders.js";
+import {
+  VORONOI_WGSL,
+  EROSION_WORMS_WGSL,
+  WORMS_WGSL,
+  REINDEX_WGSL,
+  RIPPLE_WGSL,
+  COLOR_MAP_WGSL,
+  VIGNETTE_WGSL,
+  DITHER_WGSL,
+  ADJUST_BRIGHTNESS_WGSL,
+  ADJUST_CONTRAST_WGSL,
+  ROTATE_WGSL,
+} from "./webgpu/shaders.js";
 
 
 export async function warp(
@@ -2791,22 +2802,25 @@ export async function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_disp;\nuniform float u_mod;\nuniform float u_channels;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 col = texture(u_tex, uv);\n float lum = col.r;\n if(u_channels > 1.5){ lum = dot(col.rgb, vec3(0.2126,0.7152,0.0722)); }\n float off = lum * u_disp * u_mod + lum;\n float xo = floor(mod(off, res.x));\n float yo = floor(mod(off, res.y));\n vec2 suv = (vec2(xo, yo) + 0.5) / res;\n outColor = texture(u_tex, suv);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_mod"), Math.min(h, w));
-    gl.uniform1f(gl.getUniformLocation(prog, "u_channels"), c);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, shape);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, displacement, Math.min(h, w), 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      REINDEX_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
   }
   const src = await tensor.read();
   let lumTensor;
@@ -2878,25 +2892,26 @@ export async function ripple(
     let refTex = ref;
     if (refTex.ctx !== ctx) refTex = Tensor.fromArray(ctx, ref.read(), ref.shape);
     if (tensor.handle instanceof GPUTexture && refTex.handle instanceof GPUTexture) {
-      const gl = ctx.gl;
-      const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_ref;\nuniform float u_disp;\nuniform float u_kink;\nuniform float u_rand;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n float ref = texture(u_ref, uv).r;\n float ang = ref * ${TAU} * u_kink * u_rand;\n vec2 offset = vec2(cos(ang), sin(ang)) * u_disp;\n vec2 uv2 = fract(uv + offset);\n outColor = texture(u_tex, uv2);\n}`;
-      const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-      const pp = ctx.pingPong(w, h);
-      gl.useProgram(prog);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, refTex.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_ref"), 1);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_kink"), kink);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_rand"), rand);
-      ctx.bindFramebuffer(pp.writeFbo, w, h);
-      ctx.drawQuad();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.deleteProgram(prog);
-      return new Tensor(ctx, pp.writeTex, shape);
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, displacement, kink, rand, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        RIPPLE_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: refTex.handle.createView() },
+          { binding: 2, resource: { buffer: outBuf } },
+          { binding: 3, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      return new Tensor(ctx, outBuf, shape);
     }
   }
   const refData = ref.read();
@@ -2958,28 +2973,36 @@ export async function colorMap(
     tensor.handle instanceof GPUTexture &&
     clut.handle instanceof GPUTexture
   ) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_clut;\nuniform float u_disp;\nuniform float u_horizontal;\nuniform float u_channels;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 col = texture(u_tex, uv);\n float lum = col.r;\n if(u_channels > 1.5){ lum = dot(col.rgb, vec3(0.2126,0.7152,0.0722)); }\n float ref = lum * u_disp;\n float xo = floor(ref * float(${w - 1})) / float(${w});\n float yo = u_horizontal > 0.5 ? 0.0 : floor(ref * float(${h - 1})) / float(${h});\n vec2 uv2 = fract(uv + vec2(xo, yo));\n outColor = texture(u_clut, uv2);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, clut.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_clut"), 1);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_disp"), displacement);
-    gl.uniform1f(
-      gl.getUniformLocation(prog, "u_horizontal"),
-      horizontal ? 1 : 0,
+    const cc = clut.shape[2];
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * cc),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
-    gl.uniform1f(gl.getUniformLocation(prog, "u_channels"), c);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, [h, w, clut.shape[2]]);
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([
+        w,
+        h,
+        c,
+        displacement,
+        horizontal ? 1 : 0,
+        clut.shape[1],
+        clut.shape[0],
+        cc,
+      ]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      COLOR_MAP_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: clut.handle.createView() },
+        { binding: 2, resource: { buffer: outBuf } },
+        { binding: 3, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, [h, w, cc]);
   }
   const [ch, cw, cc] = clut.shape;
   const clutData = clut.read();
@@ -4010,21 +4033,25 @@ export async function vignette(
   const norm = await normalize(tensor);
   const ctx = tensor.ctx;
   if (ctx && ctx.device && norm.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_brightness;\nuniform float u_alpha;\nout vec4 outColor;\nvoid main(){\n vec2 res = vec2(${w}.0, ${h}.0);\n vec2 uv = gl_FragCoord.xy / res;\n vec4 color = texture(u_tex, uv);\n float dist = distance(uv, vec2(0.5,0.5)) / length(vec2(0.5,0.5));\n vec4 vignetted = mix(color, vec4(u_brightness), dist*dist);\n outColor = mix(color, vignetted, u_alpha);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, norm.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_brightness"), brightness);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_alpha"), alpha);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, brightness, alpha, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      VIGNETTE_WGSL,
+      [
+        { binding: 0, resource: norm.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, [h, w, c]);
   }
   const edgeData = new Float32Array(h * w * c);
   edgeData.fill(brightness);
@@ -4106,23 +4133,26 @@ export async function dither(tensor, shape, time, speed, levels = 2) {
       speed: speed * 1000,
     });
     if (tensor.handle instanceof GPUTexture && noise.handle instanceof GPUTexture) {
-      const gl = ctx.gl;
-      const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform sampler2D u_noise;\nuniform float u_levels;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 c = texture(u_tex, uv);\n float n = texture(u_noise, uv).r - 0.5;\n vec4 v = c + n / u_levels;\n v = floor(clamp(v,0.0,1.0)*u_levels)/u_levels;\n outColor = v;\n}`;
-      const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-      const pp = ctx.pingPong(w, h);
-      gl.useProgram(prog);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, noise.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, "u_noise"), 1);
-      gl.uniform1f(gl.getUniformLocation(prog, "u_levels"), levels);
-      ctx.bindFramebuffer(pp.writeFbo, w, h);
-      ctx.drawQuad();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.deleteProgram(prog);
-      return new Tensor(ctx, pp.writeTex, shape);
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, levels, 0, 0, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        DITHER_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: noise.handle.createView() },
+          { binding: 2, resource: { buffer: outBuf } },
+          { binding: 3, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      return new Tensor(ctx, outBuf, shape);
     }
   }
   const noise = values(Math.max(h, w), [h, w, 1], {
@@ -4228,23 +4258,28 @@ export function normalizeEffect(tensor, shape, time, speed) {
 register("normalize", normalizeEffect, {});
 
 export async function adjustBrightness(tensor, shape, time, speed, amount = 0.125) {
-  const [h, w] = shape;
+  const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv) + u_amount;\n outColor = clamp(color, -1.0, 1.0);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_amount"), amount);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, shape);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, amount, 0, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      ADJUST_BRIGHTNESS_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
   }
   const src = await tensor.read();
   const out = new Float32Array(src.length);
@@ -4274,26 +4309,34 @@ export async function adjustContrast(tensor, shape, time, speed, amount = 1.25) 
     mean[ch] = Math.fround(mean[ch] / pixelCount);
   }
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_amount;\nuniform vec3 u_mean;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 color = texture(u_tex, uv);\n vec3 v = (color.rgb - u_mean) * u_amount + u_mean;\n outColor = vec4(clamp(v, 0.0, 1.0), color.a);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_amount"), amount);
-    gl.uniform3f(
-      gl.getUniformLocation(prog, "u_mean"),
-      mean[0],
-      mean[1] || mean[0],
-      mean[2] || mean[0],
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, shape);
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([
+        w,
+        h,
+        c,
+        amount,
+        mean[0],
+        mean[1] || mean[0],
+        mean[2] || mean[0],
+        0,
+      ]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      ADJUST_CONTRAST_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
   }
   const out = new Float32Array(src.length);
   for (let i = 0; i < pixelCount; i++) {
@@ -4490,20 +4533,25 @@ async function rotate2D(tensor, shape, angle) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform float u_angle;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n uv -= 0.5;\n float c = cos(u_angle);\n float s = sin(u_angle);\n uv = vec2(c * uv.x + s * uv.y, -s * uv.x + c * uv.y) + 0.5;\n uv = fract(uv);\n outColor = texture(u_tex, uv);\n}`;
-    const prog = ctx.createProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, "u_tex"), 0);
-    gl.uniform1f(gl.getUniformLocation(prog, "u_angle"), angle);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.deleteProgram(prog);
-    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, angle, 0, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      ROTATE_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, [h, w, c]);
   }
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
