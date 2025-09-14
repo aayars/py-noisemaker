@@ -7,6 +7,9 @@ export const WORMS_WGSL = fs.readFileSync(new URL('./worms.wgsl', import.meta.ur
 export const RESAMPLE_WGSL = fs.readFileSync(new URL('./resample.wgsl', import.meta.url), 'utf8');
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
 export const DOWNSAMPLE_WGSL = fs.readFileSync(new URL('./downsample.wgsl', import.meta.url), 'utf8');
+export const BLEND_WGSL = fs.readFileSync(new URL('./blend.wgsl', import.meta.url), 'utf8');
+export const SOBEL_WGSL = fs.readFileSync(new URL('./sobel.wgsl', import.meta.url), 'utf8');
+export const REFRACT_WGSL = fs.readFileSync(new URL('./refract.wgsl', import.meta.url), 'utf8');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32;
@@ -258,3 +261,4 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   out[idx] = val;
 }
 `;
+

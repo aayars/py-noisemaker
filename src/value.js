@@ -13,7 +13,14 @@ import {
   withTensorDatas,
 } from './util.js';
 import { simplex as simplexNoise, setSeed as setSimplexSeed } from './simplex.js';
-import { VALUE_WGSL, RESAMPLE_WGSL, DOWNSAMPLE_WGSL } from './webgpu/shaders.js';
+import {
+  VALUE_WGSL,
+  RESAMPLE_WGSL,
+  DOWNSAMPLE_WGSL,
+  BLEND_WGSL,
+  SOBEL_WGSL,
+  REFRACT_WGSL,
+} from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
 let _opCounter = 0;
@@ -736,6 +743,11 @@ export function blend(a, b, t) {
   const ctx = a.ctx;
   const bChannels = b.shape[2];
 
+  if (typeof t === 'number') {
+    if (t <= 0) return a;
+    if (t >= 1) return b;
+  }
+
   const cpuBlend = (da, db, dt) => {
     const [bh, bw, bc] = b.shape;
     const [th, tw, tc] = dt ? t.shape : [0, 0, 0];
@@ -788,22 +800,38 @@ export function blend(a, b, t) {
     a.handle instanceof GPUTexture &&
     b.handle instanceof GPUTexture
   ) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
-    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, a.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_a'), 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, b.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_b'), 1);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_t'), t);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return new Tensor(ctx, pp.writeTex, [h, w, c]);
+    return (async () => {
+      try {
+        const device = ctx.device;
+        const outSize = h * w * c;
+        const outBuf = device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, t, 0, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          BLEND_WGSL,
+          [
+            { binding: 0, resource: a.handle.createView() },
+            { binding: 1, resource: b.handle.createView() },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, c]);
+      } catch (e) {
+        console.warn('WebGPU blend fallback to CPU', e);
+        const [da, db] = await Promise.all([a.read(), b.read()]);
+        return cpuBlend(da, db, null);
+      }
+    })();
   }
 
   const daMaybe = a.read();
@@ -916,22 +944,7 @@ export function sobel(tensor) {
   }
   const [h, w, c] = tensor.shape;
   const ctx = tensor.ctx;
-  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec2 t = u_texel;\n vec4 s00 = texture(u_tex, uv + vec2(-t.x,-t.y));\n vec4 s10 = texture(u_tex, uv + vec2(0.0,-t.y));\n vec4 s20 = texture(u_tex, uv + vec2(t.x,-t.y));\n vec4 s01 = texture(u_tex, uv + vec2(-t.x,0.0));\n vec4 s21 = texture(u_tex, uv + vec2(t.x,0.0));\n vec4 s02 = texture(u_tex, uv + vec2(-t.x,t.y));\n vec4 s12 = texture(u_tex, uv + vec2(0.0,t.y));\n vec4 s22 = texture(u_tex, uv + vec2(t.x,t.y));\n vec4 gx = -s00 + s20 - 2.0*s01 + 2.0*s21 - s02 + s22;\n vec4 gy = -s00 - 2.0*s10 - s20 + s02 + 2.0*s12 + s22;\n outColor = sqrt(gx*gx + gy*gy);\n}`;
-    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(w, h);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_texel'), 1 / w, 1 / h);
-    ctx.bindFramebuffer(pp.writeFbo, w, h);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return new Tensor(ctx, pp.writeTex, [h, w, c]);
-  }
-  return withTensorData(tensor, (src) => {
+  const cpuSobel = (src) => {
     const out = new Float32Array(src.length);
     const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
     const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
@@ -943,7 +956,9 @@ export function sobel(tensor) {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         for (let k = 0; k < c; k++) {
-          let gx = 0, gy = 0, idx = 0;
+          let gx = 0,
+            gy = 0,
+            idx = 0;
           for (let yy = -1; yy <= 1; yy++) {
             for (let xx = -1; xx <= 1; xx++) {
               const v = get(x + xx, y + yy, k);
@@ -957,7 +972,41 @@ export function sobel(tensor) {
       }
     }
     return Tensor.fromArray(ctx, out, [h, w, c]);
-  });
+  };
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const device = ctx.device;
+        const outSize = h * w * c;
+        const outBuf = device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          SOBEL_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, c]);
+      } catch (e) {
+        console.warn('WebGPU sobel fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuSobel(data);
+      }
+    })();
+  }
+  return withTensorData(tensor, cpuSobel);
 }
 
 export function hsvToRgb(tensor) {
@@ -1195,42 +1244,7 @@ export function refract(
   const ctx = tensor.ctx;
   const refX = referenceX || tensor;
   const refY = referenceY || tensor;
-
-  if (ctx && ctx.device) {
-    let rxTex = refX;
-    if (rxTex.ctx !== ctx) rxTex = Tensor.fromArray(ctx, refX.read(), refX.shape);
-    let ryTex = refY;
-    if (ryTex.ctx !== ctx) ryTex = Tensor.fromArray(ctx, refY.read(), refY.shape);
-    if (
-      tensor.handle instanceof GPUTexture &&
-      rxTex.handle instanceof GPUTexture &&
-      ryTex.handle instanceof GPUTexture
-    ) {
-      const gl = ctx.gl;
-      const fs = `#version 300 es\nprecision highp float;\nout vec4 outColor;\nuniform sampler2D u_tex;\nuniform sampler2D u_rx;\nuniform sampler2D u_ry;\nuniform vec2 u_size;\nuniform float u_disp;\nuniform int u_signed;\nuniform int u_interp;\nfloat interp(float t){\n if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;\n return t;\n}\nvoid main(){\n vec2 coord = gl_FragCoord.xy - 0.5;\n ivec2 icoord = ivec2(coord);\n float vx = texelFetch(u_rx, icoord, 0).r;\n float vy = texelFetch(u_ry, icoord, 0).r;\n if(u_signed==1){ vx = vx*2.0 - 1.0; vy = vy*2.0 - 1.0; } else { vx *= 2.0; vy *= 2.0; }\n vec2 offset = vec2(vx * u_disp * u_size.x, vy * u_disp * u_size.y);\n vec2 samplePos = mod(coord + offset + u_size, u_size);\n vec2 c0 = floor(samplePos);\n vec2 f = samplePos - c0;\n vec2 c1 = mod(c0 + 1.0, u_size);\n ivec2 i00 = ivec2(c0);\n ivec2 i10 = ivec2(c1.x, c0.y);\n ivec2 i01 = ivec2(c0.x, c1.y);\n ivec2 i11 = ivec2(c1);\n float sx = interp(f.x);\n float sy = interp(f.y);\n vec4 s00 = texelFetch(u_tex, i00, 0);\n vec4 s10 = texelFetch(u_tex, i10, 0);\n vec4 s01 = texelFetch(u_tex, i01, 0);\n vec4 s11 = texelFetch(u_tex, i11, 0);\n vec4 x_y0 = mix(s00, s10, sx);\n vec4 x_y1 = mix(s01, s11, sx);\n outColor = mix(x_y0, x_y1, sy);\n}`;
-      const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-      const pp = ctx.pingPong(w, h);
-      gl.useProgram(prog);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, rxTex.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, 'u_rx'), 1);
-      gl.activeTexture(gl.TEXTURE2);
-      gl.bindTexture(gl.TEXTURE_2D, ryTex.handle);
-      gl.uniform1i(gl.getUniformLocation(prog, 'u_ry'), 2);
-      gl.uniform2f(gl.getUniformLocation(prog, 'u_size'), w, h);
-      gl.uniform1f(gl.getUniformLocation(prog, 'u_disp'), displacement);
-      gl.uniform1i(gl.getUniformLocation(prog, 'u_signed'), signedRange ? 1 : 0);
-      gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
-      ctx.bindFramebuffer(pp.writeFbo, w, h);
-      ctx.drawQuad();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return new Tensor(ctx, pp.writeTex, [h, w, c]);
-    }
-  }
-  return withTensorDatas([tensor, refX, refY], (src, rx, ry) => {
+  const cpuRefract = (src, rx, ry) => {
     const out = new Float32Array(h * w * c);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -1273,7 +1287,67 @@ export function refract(
       }
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
-  });
+  };
+
+  if (ctx && ctx.device) {
+    let rxTex = refX;
+    if (rxTex.ctx !== ctx) rxTex = Tensor.fromArray(ctx, refX.read(), refX.shape);
+    let ryTex = refY;
+    if (ryTex.ctx !== ctx) ryTex = Tensor.fromArray(ctx, refY.read(), refY.shape);
+    if (
+      tensor.handle instanceof GPUTexture &&
+      rxTex.handle instanceof GPUTexture &&
+      ryTex.handle instanceof GPUTexture
+    ) {
+      return (async () => {
+        try {
+          const device = ctx.device;
+          const outSize = h * w * c;
+          const outBuf = device.createBuffer({
+            size: outSize * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+          });
+          const paramsArr = new Float32Array([
+            w,
+            h,
+            c,
+            displacement,
+            signedRange ? 1 : 0,
+            splineOrder,
+            0,
+            0,
+          ]);
+          const paramsBuf = ctx.createGPUBuffer(
+            paramsArr,
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            REFRACT_WGSL,
+            [
+              { binding: 0, resource: tensor.handle.createView() },
+              { binding: 1, resource: rxTex.handle.createView() },
+              { binding: 2, resource: ryTex.handle.createView() },
+              { binding: 3, resource: { buffer: outBuf } },
+              { binding: 4, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+          return Tensor.fromArray(ctx, out, [h, w, c]);
+        } catch (e) {
+          console.warn('WebGPU refract fallback to CPU', e);
+          const [s, rxData, ryData] = await Promise.all([
+            tensor.read(),
+            rxTex.read(),
+            ryTex.read(),
+          ]);
+          return cpuRefract(s, rxData, ryData);
+        }
+      })();
+    }
+  }
+  return withTensorDatas([tensor, refX, refY], cpuRefract);
 }
 
 export function fft(tensor) {
