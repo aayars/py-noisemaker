@@ -15,8 +15,8 @@ export class Context {
     this.presentationFormat = null;
     this.isCPU = !this.gpu;
     this.currentTarget = null;
-    this._presentPipeline = null;
-    this._presentSampler = null;
+    this._renderPipeline = null;
+    this._renderSampler = null;
   }
 
   async initWebGPU() {
@@ -130,9 +130,9 @@ export class Context {
     this.queue.submit([encoder.finish()]);
   }
 
-  present(texture) {
+  renderTexture(texture, target = null) {
     if (this.isCPU || !this.device) return;
-    if (!this._presentPipeline) {
+    if (!this._renderPipeline) {
       const vs = `
         struct VSOut {
           @builtin(position) pos: vec4<f32>,
@@ -162,22 +162,22 @@ export class Context {
           return textureSample(tex, samp, uv);
         }
       `;
-      this._presentPipeline = this.createRenderPipeline(vs, fs, [
+      this._renderPipeline = this.createRenderPipeline(vs, fs, [
         { format: this.presentationFormat },
       ]);
-      this._presentSampler = this.device.createSampler({
+      this._renderSampler = this.device.createSampler({
         magFilter: 'nearest',
         minFilter: 'nearest',
       });
     }
-    const bindGroup = this.createBindGroup(this._presentPipeline, [
-      { binding: 0, resource: this._presentSampler },
+    const bindGroup = this.createBindGroup(this._renderPipeline, [
+      { binding: 0, resource: this._renderSampler },
       { binding: 1, resource: texture.createView() },
     ]);
     const encoder = this.device.createCommandEncoder();
-    const view = this.gpu.getCurrentTexture().createView();
+    const view = (target || this.gpu.getCurrentTexture()).createView();
     const pass = this.beginRenderPass(encoder, view);
-    pass.setPipeline(this._presentPipeline);
+    pass.setPipeline(this._renderPipeline);
     pass.setBindGroup(0, bindGroup);
     pass.draw(6);
     pass.end();

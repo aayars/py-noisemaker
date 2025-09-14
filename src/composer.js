@@ -212,73 +212,54 @@ export class Preset {
 
       const drawArray = (arrPromise) =>
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
-      if (ctx.device) {
-        if (ctx.gl) {
-          const gl = ctx.gl;
-          ctx.canvas.width = w;
-          ctx.canvas.height = h;
-          const colorExpr =
-            c > 3
-              ? 'color'
-              : c === 1
-              ? 'vec4(color.rrr, 1.0)'
-              : c === 2
-              ? 'vec4(color.rrr, color.g)'
-              : 'vec4(color.rgb, 1.0)';
-          const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${colorExpr};\n}`;
-          const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-          gl.useProgram(prog);
-          gl.activeTexture(gl.TEXTURE0);
-          let tex = tensor.handle;
-          const isTex = tex instanceof GPUTexture;
-          if (!isTex) {
-            const texRes = withTensorData(tensor, (data) => {
-              // WebGL textures expect 4 channels; pad smaller tensors when coming
-              // from WebGPU computations.
-              if (c !== 4) {
-                const padded = new Float32Array(w * h * 4);
-                for (let i = 0; i < w * h; i++) {
-                  const src = i * c;
-                  const dst = i * 4;
-                  const r = data[src];
-                  const g = c > 2 ? data[src + 1] : r;
-                  const b = c > 2 ? data[src + 2] : r;
-                  const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
-                  const a = Number.isFinite(aVal) ? aVal : 1;
-                  padded[dst] = r;
-                  padded[dst + 1] = g;
-                  padded[dst + 2] = b;
-                  padded[dst + 3] = a;
-                }
-                data = padded;
+
+      let gpuCtx = null;
+      if (ctx.canvas.getContext) {
+        try {
+          gpuCtx = ctx.canvas.getContext('webgpu');
+        } catch (_) {
+          gpuCtx = null;
+        }
+      }
+      if (gpuCtx) {
+        ctx.gpu = gpuCtx;
+        if (!ctx.device) await ctx.initWebGPU();
+      }
+      if (!ctx.isCPU && ctx.device && gpuCtx) {
+        ctx.canvas.width = w;
+        ctx.canvas.height = h;
+        const renderTex = (tex) => ctx.renderTexture(tex, gpuCtx.getCurrentTexture());
+        let tex = tensor.handle;
+        const isTex = typeof GPUTexture !== 'undefined' && tex instanceof GPUTexture;
+        if (!isTex || c !== 4) {
+          const texRes = withTensorData(tensor, (data) => {
+            if (c !== 4) {
+              const padded = new Float32Array(w * h * 4);
+              for (let i = 0; i < w * h; i++) {
+                const src = i * c;
+                const dst = i * 4;
+                const r = data[src];
+                const g = c > 2 ? data[src + 1] : r;
+                const b = c > 2 ? data[src + 2] : r;
+                const aVal = c > 3 ? data[src + 3] : c === 2 ? data[src + 1] : 1;
+                const a = Number.isFinite(aVal) ? aVal : 1;
+                padded[dst] = r;
+                padded[dst + 1] = g;
+                padded[dst + 2] = b;
+                padded[dst + 3] = a;
               }
-              return ctx.createTexture(w, h, data);
-            });
-            if (texRes && typeof texRes.then === 'function') {
-              drawPromise = texRes.then((t) => {
-                gl.bindTexture(gl.TEXTURE_2D, t);
-                gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-                ctx.bindFramebuffer(null, w, h);
-                ctx.drawQuad();
-                gl.bindTexture(gl.TEXTURE_2D, null);
-              });
-            } else {
-              tex = texRes;
-              gl.bindTexture(gl.TEXTURE_2D, tex);
-              gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-              ctx.bindFramebuffer(null, w, h);
-              ctx.drawQuad();
-              gl.bindTexture(gl.TEXTURE_2D, null);
+              data = padded;
             }
+            return ctx.createTexture(w, h, data);
+          });
+          if (texRes && typeof texRes.then === 'function') {
+            drawPromise = texRes.then(renderTex);
           } else {
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-            gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-            ctx.bindFramebuffer(null, w, h);
-            ctx.drawQuad();
-            gl.bindTexture(gl.TEXTURE_2D, null);
+            tex = texRes;
+            renderTex(tex);
           }
-        } else if (ctx.canvas.getContext) {
-          drawPromise = drawArray(tensor.read());
+        } else {
+          renderTex(tex);
         }
       } else if (ctx.gl && !ctx.isCPU) {
         const gl = ctx.gl;
@@ -292,16 +273,22 @@ export class Preset {
             : c === 2
             ? 'vec4(color.rrr, color.g)'
             : 'vec4(color.rgb, 1.0)';
-        const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nout vec4 outColor;\nvoid main(){\n vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);\n vec4 color = texture(u_tex, uv);\n outColor = ${colorExpr};\n}`;
+        const fs = `#version 300 es
+precision highp float;
+uniform sampler2D u_tex;
+out vec4 outColor;
+void main(){
+ vec2 uv = vec2(gl_FragCoord.x / ${w}.0, 1.0 - gl_FragCoord.y / ${h}.0);
+ vec4 color = texture(u_tex, uv);
+ outColor = ${colorExpr};
+}`;
         const prog = ctx.getProgram(FULLSCREEN_VS, fs);
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
         let tex = tensor.handle;
-        const isTex = tex instanceof GPUTexture;
+        const isTex = typeof GPUTexture !== 'undefined' && tex instanceof GPUTexture;
         if (!isTex) {
           const texRes = withTensorData(tensor, (data) => {
-            // WebGL textures expect 4 channels; pad smaller tensors when coming
-            // from WebGPU or CPU computations.
             if (c !== 4) {
               const padded = new Float32Array(w * h * 4);
               for (let i = 0; i < w * h; i++) {
