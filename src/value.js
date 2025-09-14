@@ -807,6 +807,7 @@ export function blend(a, b, t) {
   ) {
     return (async () => {
       try {
+        const device = ctx.device;
         const outSize = h * w * c;
         const outBuf = device.createBuffer({
           size: outSize * 4,
