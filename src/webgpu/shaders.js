@@ -33,6 +33,7 @@ export const NORMALIZE_WGSL = await loadShader('./normalize.wgsl');
 export const PIXEL_SORT_WGSL = await loadShader('./pixel-sort.wgsl');
 export const KALEIDO_WGSL = await loadShader('./kaleido.wgsl');
 export const CRT_WGSL = await loadShader('./crt.wgsl');
+export const WOBBLE_WGSL = await loadShader('./wobble.wgsl');
 export const WORMHOLE_WGSL = await loadShader('./wormhole.wgsl');
 export const REVERB_WGSL = await loadShader('./reverb.wgsl');
 export const VALUE_WGSL = /* wgsl */ `

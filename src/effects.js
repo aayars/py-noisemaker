@@ -66,6 +66,7 @@ import {
   KALEIDO_WGSL,
   NORMAL_MAP_WGSL,
   CRT_WGSL,
+  WOBBLE_WGSL,
   WORMHOLE_WGSL,
   REVERB_WGSL,
 } from "./webgpu/shaders.js";
@@ -4841,6 +4842,29 @@ export async function wobble(tensor, shape, time, speed) {
   const yOffset = Math.floor(
     simplexRandom(time, undefined, speed * 0.5) * shape[0],
   );
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, xOffset, yOffset, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      WOBBLE_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
+  }
   return await offsetTensor(tensor, xOffset, yOffset);
 }
 register("wobble", wobble, {});
