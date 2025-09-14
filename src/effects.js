@@ -57,8 +57,73 @@ import {
   ADJUST_CONTRAST_WGSL,
   ROTATE_WGSL,
   GLYPH_MAP_WGSL,
+  WARP_WGSL,
 } from "./webgpu/shaders.js";
 
+
+export async function warpWebGPU(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 2,
+  octaves = 5,
+  displacement = 1,
+  splineOrder = InterpolationType.bicubic,
+  signedRange = true,
+) {
+  const ctx = tensor.ctx;
+  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
+  const [h, w, c] = shape;
+  const flows = [];
+  for (let octave = 1; octave <= octaves; octave++) {
+    const mult = 2 ** octave;
+    const f = [
+      Math.floor(baseFreq[0] * 0.5 * mult),
+      Math.floor(baseFreq[1] * 0.5 * mult),
+    ];
+    if (f[0] >= h || f[1] >= w) break;
+    const opts = { ctx, time, speed, splineOrder };
+    const rx = await values(f, [h, w, 1], opts);
+    const ry = await values(f, [h, w, 1], opts);
+    flows.push({ rx, ry, mult });
+  }
+  let out = tensor;
+  for (const { rx, ry, mult } of flows) {
+    const disp = displacement / mult;
+    const outSize = h * w * c;
+    const outBuf = ctx.device.createBuffer({
+      size: outSize * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    const paramsArr = new Float32Array([
+      w,
+      h,
+      c,
+      disp,
+      signedRange ? 1 : 0,
+      0,
+      0,
+      0,
+    ]);
+    const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+    await ctx.runCompute(
+      WARP_WGSL,
+      [
+        { binding: 0, resource: out.handle.createView() },
+        { binding: 1, resource: rx.handle.createView() },
+        { binding: 2, resource: ry.handle.createView() },
+        { binding: 3, resource: { buffer: outBuf } },
+        { binding: 4, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    const outData = await ctx.readGPUBuffer(outBuf, outSize * 4);
+    out = Tensor.fromArray(ctx, outData, [h, w, c]);
+  }
+  return out;
+}
 
 export async function warp(
   tensor,
@@ -71,6 +136,19 @@ export async function warp(
   splineOrder = InterpolationType.bicubic,
   signedRange = true,
 ) {
+  if (tensor.ctx && tensor.ctx.device) {
+    return warpWebGPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      freq,
+      octaves,
+      displacement,
+      splineOrder,
+      signedRange,
+    );
+  }
   let out = tensor;
   const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
   for (let octave = 1; octave <= octaves; octave++) {
