@@ -62,6 +62,7 @@ import {
   SCRATCHES_MASK_WGSL,
   SCRATCHES_BLEND_WGSL,
   DERIVATIVE_WGSL,
+  PIXEL_SORT_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -4843,42 +4844,41 @@ export async function rotate(tensor, shape, time, speed, angle = null) {
 register("rotate", rotate, { angle: 0 });
 
 async function _pixelSort(tensor, shape, angle, darkest) {
+  const ctx = tensor.ctx;
   const [h, w, c] = shape;
-  let srcData = await tensor.read();
-  if (darkest) {
-    const inv = new Float32Array(srcData.length);
-    for (let i = 0; i < srcData.length; i++) inv[i] = 1 - srcData[i];
-    srcData = inv;
-  }
-  let working = Tensor.fromArray(tensor.ctx, srcData, shape);
+  const srcData = await tensor.read();
+  let working = Tensor.fromArray(ctx, srcData, shape);
   const want = Math.max(h, w) * 2;
   working = await resizeWithCropOrPad(working, shape, want);
   if (angle !== false) {
     working = await rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
-  const data = working.read();
+  const data = await working.read();
   const sorted = new Float32Array(want * want * c);
   for (let y = 0; y < want; y++) {
-    const brightness = new Float32Array(want);
-    for (let x = 0; x < want; x++) {
-      let b = 0;
-      for (let k = 0; k < c; k++) b += data[(y * want + x) * c + k];
-      brightness[x] = b / c;
-    }
-    let maxIdx = 0;
-    for (let x = 1; x < want; x++)
-      if (brightness[x] > brightness[maxIdx]) maxIdx = x;
-    for (let k = 0; k < c; k++) {
-      const channel = new Array(want);
-      for (let x = 0; x < want; x++) channel[x] = data[(y * want + x) * c + k];
-      channel.sort((a, b) => b - a);
-      for (let x = 0; x < want; x++) {
-        const xx = (x - maxIdx + want) % want;
-        sorted[(y * want + x) * c + k] = channel[xx];
-      }
-    }
+    const row = data.subarray(y * want * c, (y + 1) * want * c);
+    const srcBuf = ctx.createGPUBuffer(row, GPUBufferUsage.STORAGE);
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(want * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Uint32Array([want, c, darkest ? 1 : 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      PIXEL_SORT_WGSL,
+      [
+        { binding: 0, resource: { buffer: srcBuf } },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      1,
+    );
+    const outRow = await ctx.readGPUBuffer(outBuf, want * c * 4);
+    sorted.set(outRow, y * want * c);
   }
-  let sortedTensor = Tensor.fromArray(tensor.ctx, sorted, [want, want, c]);
+  let sortedTensor = Tensor.fromArray(ctx, sorted, [want, want, c]);
   if (angle !== false) {
     sortedTensor = await rotate2D(
       sortedTensor,
@@ -4887,13 +4887,14 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     );
   }
   sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
-  const sortedData = sortedTensor.read();
+  const sortedData = await sortedTensor.read();
   const out = new Float32Array(sortedData.length);
   for (let i = 0; i < sortedData.length; i++) {
-    const v = Math.max(srcData[i], sortedData[i]);
+    const orig = srcData[i];
+    const v = Math.max(darkest ? 1 - orig : orig, sortedData[i]);
     out[i] = darkest ? 1 - v : v;
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  return Tensor.fromArray(ctx, out, shape);
 }
 
 export async function pixelSort(
