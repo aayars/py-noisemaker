@@ -74,6 +74,7 @@ import {
   REVERB_WGSL,
   VASELINE_BLUR_WGSL,
   VASELINE_MASK_WGSL,
+  TINT_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -3381,6 +3382,31 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
   // Consume similar noise to maintain randomness parity with Python impl
   values(3, shape, { ctx: tensor.ctx, time, speed, corners: true });
 
+  const rand1 = random() * 0.333;
+  const rand2 = random();
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, alpha, rand1, rand2]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      TINT_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
+  }
+
   const src = await tensor.read();
   let alphaChan = null;
   let rgbData;
@@ -3399,8 +3425,6 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
     rgbData = src.slice();
   }
 
-  const rand1 = random() * 0.333;
-  const rand2 = random();
   const colorData = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const r = rgbData[i * 3];
@@ -3411,25 +3435,25 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
     colorData[i * 3 + 2] = b;
   }
 
-    const baseTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
-    const hsvTensor = await rgbToHsv(baseTensor);
-    const hsv = await hsvTensor.read();
-    const hsvMix = new Float32Array(h * w * 3);
-    for (let i = 0; i < h * w; i++) {
-      hsvMix[i * 3] = colorData[i * 3];
-      hsvMix[i * 3 + 1] = colorData[i * 3 + 1];
-      hsvMix[i * 3 + 2] = hsv[i * 3 + 2];
-    }
-    const colorized = await hsvToRgb(
-      Tensor.fromArray(tensor.ctx, hsvMix, [h, w, 3])
-    );
-    let out = await blend(baseTensor, colorized, alpha);
+  const baseTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+  const hsvTensor = await rgbToHsv(baseTensor);
+  const hsv = await hsvTensor.read();
+  const hsvMix = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    hsvMix[i * 3] = colorData[i * 3];
+    hsvMix[i * 3 + 1] = colorData[i * 3 + 1];
+    hsvMix[i * 3 + 2] = hsv[i * 3 + 2];
+  }
+  const colorized = await hsvToRgb(
+    Tensor.fromArray(tensor.ctx, hsvMix, [h, w, 3])
+  );
+  let out = await blend(baseTensor, colorized, alpha);
 
-    if (c === 4) {
-      const outData = await out.read();
-      const final = new Float32Array(h * w * 4);
-      for (let i = 0; i < h * w; i++) {
-        final[i * 4] = outData[i * 3];
+  if (c === 4) {
+    const outData = await out.read();
+    const final = new Float32Array(h * w * 4);
+    for (let i = 0; i < h * w; i++) {
+      final[i * 4] = outData[i * 3];
       final[i * 4 + 1] = outData[i * 3 + 1];
       final[i * 4 + 2] = outData[i * 3 + 2];
       final[i * 4 + 3] = alphaChan[i];

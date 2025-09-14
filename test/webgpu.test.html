@@ -5,7 +5,7 @@
 import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -27,6 +27,40 @@ function testEffect(fn, args = [], time = 0, speed = 0) {
   if (cpu.length !== gpu.length) return false;
   for (let i = 0; i < cpu.length; i++) {
     if (!nearly(cpu[i], gpu[i])) return false;
+  }
+  return true;
+}
+
+async function testTint() {
+  const shape3 = [4,4,3];
+  const baseTensor3 = await values(2, shape3, { seed: 1, ctx: cpuCtx });
+  const baseArr3 = await baseTensor3.read();
+  const cpuBase3 = Tensor.fromArray(cpuCtx, baseArr3, shape3);
+  const gpuBase3 = Tensor.fromArray(ctx, baseArr3, shape3);
+  setSeed(1);
+  const cpuOut3 = await tint(cpuBase3, shape3, 0, 1, 0.5);
+  const cpuArr3 = await cpuOut3.read();
+  setSeed(1);
+  const gpuOut3 = await tint(gpuBase3, shape3, 0, 1, 0.5);
+  const gpuArr3 = await gpuOut3.read();
+  if (cpuArr3.length !== gpuArr3.length) return false;
+  for (let i = 0; i < cpuArr3.length; i++) {
+    if (!nearly(cpuArr3[i], gpuArr3[i])) return false;
+  }
+  const shape4 = [4,4,4];
+  const baseTensor4 = await values(2, shape4, { seed: 1, ctx: cpuCtx });
+  const baseArr4 = await baseTensor4.read();
+  const cpuBase4 = Tensor.fromArray(cpuCtx, baseArr4, shape4);
+  const gpuBase4 = Tensor.fromArray(ctx, baseArr4, shape4);
+  setSeed(1);
+  const cpuOut4 = await tint(cpuBase4, shape4, 0, 1, 0.5);
+  const cpuArr4 = await cpuOut4.read();
+  setSeed(1);
+  const gpuOut4 = await tint(gpuBase4, shape4, 0, 1, 0.5);
+  const gpuArr4 = await gpuOut4.read();
+  if (cpuArr4.length !== gpuArr4.length) return false;
+  for (let i = 0; i < cpuArr4.length; i++) {
+    if (!nearly(cpuArr4[i], gpuArr4[i])) return false;
   }
   return true;
 }
@@ -117,6 +151,7 @@ ok = ok &&
   testEffect(grime) &&
   testEffect(vaseline) &&
   testRefract() &&
+  await testTint() &&
   await testCRT() &&
   await testDLA();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
