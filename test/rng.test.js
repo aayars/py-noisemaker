@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { setSeed, random, randomInt, choice } from '../src/rng.js';
+import { setSeed, random, randomInt, choice, Random } from '../src/rng.js';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -32,6 +32,26 @@ for (const file of fs.readdirSync(fixturesDir)) {
     const v = choice(seq);
     const exp = seq[Math.floor(expected[i] * seq.length)];
     assert.strictEqual(v, exp, `choice seed ${seed} index ${i}`);
+  }
+
+  const rng = new Random(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = rng.random();
+    assert.ok(Math.abs(v - expected[i]) < 1e-9, `class seed ${seed} index ${i}`);
+  }
+
+  const rngInt = new Random(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = rngInt.randomInt(0, 99);
+    const exp = Math.floor(expected[i] * 100);
+    assert.strictEqual(v, exp, `class randomInt seed ${seed} index ${i}`);
+  }
+
+  const rngChoice = new Random(seed);
+  for (let i = 0; i < expected.length; i++) {
+    const v = rngChoice.choice(seq);
+    const exp = seq[Math.floor(expected[i] * seq.length)];
+    assert.strictEqual(v, exp, `class choice seed ${seed} index ${i}`);
   }
 }
 

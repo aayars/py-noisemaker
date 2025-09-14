@@ -40,6 +40,7 @@ SEEDS = [
 ]
 
 COUNT = 10
+LONG_COUNT = 1000
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -127,6 +128,33 @@ def test_choice_class(seed: int) -> None:
     expected = out["values"]
     actual = [py_rng.choice(seq) for _ in range(COUNT)]
     assert actual == expected
+    assert rng.get_call_count() == out["callCount"]
+    assert py_rng.state == out["seed"]
+
+
+# -------- Long sequence tests --------
+
+
+@pytest.mark.parametrize("seed", SEEDS[:3])
+def test_random_long_sequence(seed: int) -> None:
+    rng.set_seed(seed)
+    rng.reset_call_count()
+    out = js_rng("random", seed, LONG_COUNT)
+    expected = out["values"]
+    actual = [rng.random() for _ in range(LONG_COUNT)]
+    assert np.allclose(actual, expected, atol=1e-9)
+    assert rng.get_call_count() == out["callCount"]
+    assert rng.get_seed() == out["seed"]
+
+
+@pytest.mark.parametrize("seed", SEEDS[:3])
+def test_random_class_long_sequence(seed: int) -> None:
+    rng.reset_call_count()
+    py_rng = rng.Random(seed)
+    out = js_rng("random", seed, LONG_COUNT, scope="class")
+    expected = out["values"]
+    actual = [py_rng.random() for _ in range(LONG_COUNT)]
+    assert np.allclose(actual, expected, atol=1e-9)
     assert rng.get_call_count() == out["callCount"]
     assert py_rng.state == out["seed"]
 
