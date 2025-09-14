@@ -64,6 +64,7 @@ import {
   DERIVATIVE_WGSL,
   PIXEL_SORT_WGSL,
   KALEIDO_WGSL,
+  NORMAL_MAP_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -889,6 +890,50 @@ register("glowing_edges", glowingEdges, {
 
 export function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    tensor.handle instanceof GPUTexture
+  ) {
+    return (async () => {
+      try {
+        const outSize = h * w * 3;
+        const outBuf = ctx.device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          NORMAL_MAP_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, 3]);
+      } catch (e) {
+        console.warn("WebGPU normalMap fallback to CPU", e);
+        const data = await tensor.read();
+        return normalMap(
+          Tensor.fromArray(null, data, [h, w, c]),
+          shape,
+          time,
+          speed,
+        );
+      }
+    })();
+  }
+
   return withTensorData(tensor, (src) => {
     const gray = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {

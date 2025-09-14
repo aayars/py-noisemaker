@@ -19,6 +19,7 @@ export const BLEND_WGSL = await loadShader('./blend.wgsl');
 export const CONVOLUTION_WGSL = await loadShader('./convolution.wgsl');
 export const DERIVATIVE_WGSL = await loadShader('./derivative.wgsl');
 export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
+export const NORMAL_MAP_WGSL = await loadShader('./normal-map.wgsl');
 export const REFRACT_WGSL = await loadShader('./refract.wgsl');
 export const WARP_WGSL = await loadShader('./warp.wgsl');
 export const SPATTER_MASK_WGSL = await loadShader('./spatter-mask.wgsl');
