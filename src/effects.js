@@ -45,7 +45,7 @@ import {
   VoronoiDiagramType,
   WormBehavior,
 } from "./constants.js";
-import { VORONOI_WGSL, WORMS_WGSL } from "./webgpu/shaders.js";
+import { VORONOI_WGSL, EROSION_WORMS_WGSL, WORMS_WGSL } from "./webgpu/shaders.js";
 
 
 export async function warp(
@@ -1545,6 +1545,115 @@ async function voronoiWebGPU(
     outTensor = await blend(tensor, outTensor, alpha);
   }
   return outTensor;
+}
+
+async function erosionWormsWebGPU(
+  tensor,
+  shape,
+  density,
+  iterations,
+  contraction,
+  quantize,
+) {
+  const ctx = tensor.ctx;
+  const [h, w, c] = shape;
+  const count = Math.floor(Math.sqrt(h * w) * density);
+  const x = new Float32Array(count);
+  const y = new Float32Array(count);
+  const wormsArr = new Float32Array(count * 5);
+  for (let i = 0; i < count; i++) {
+    const xi = random() * (w - 1);
+    const yi = random() * (h - 1);
+    const ang = random() * TAU;
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang);
+    const inertia = randomNormal(0.75, 0.25);
+    x[i] = xi;
+    y[i] = yi;
+    const base = i * 5;
+    wormsArr[base] = xi;
+    wormsArr[base + 1] = yi;
+    wormsArr[base + 2] = dx;
+    wormsArr[base + 3] = dy;
+    wormsArr[base + 4] = inertia;
+  }
+  const src = await tensor.read();
+  const startColors = new Float32Array(count * c);
+  for (let i = 0; i < count; i++) {
+    const xi = Math.floor(x[i]);
+    const yi = Math.floor(y[i]);
+    const base = (yi * w + xi) * c;
+    for (let k = 0; k < c; k++) {
+      startColors[i * c + k] = src[base + k];
+    }
+  }
+  const valuesArr = new Float32Array(h * w);
+  for (let yi = 0; yi < h; yi++) {
+    for (let xi = 0; xi < w; xi++) {
+      const idx = yi * w + xi;
+      if (c === 1) {
+        valuesArr[idx] = src[idx];
+      } else {
+        const base = idx * c;
+        const r = src[base];
+        const g = src[base + 1] || 0;
+        const b = src[base + 2] || 0;
+        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+    }
+  }
+  const wormsBuf = ctx.createGPUBuffer(
+    wormsArr,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const valuesBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
+  const startBuf = ctx.createGPUBuffer(startColors, GPUBufferUsage.STORAGE);
+  const outBuf = ctx.createGPUBuffer(
+    new Float32Array(h * w * c),
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramData = new Float32Array(8);
+  const paramU32 = new Uint32Array(paramData.buffer);
+  paramData[0] = w;
+  paramData[1] = h;
+  paramU32[2] = count;
+  paramU32[3] = iterations;
+  paramData[4] = contraction;
+  paramData[5] = quantize ? 1 : 0;
+  paramU32[6] = c;
+  paramData[7] = 0;
+  const paramsBuf = ctx.createGPUBuffer(paramData, GPUBufferUsage.UNIFORM);
+  const module = ctx.device.createShaderModule({ code: EROSION_WORMS_WGSL });
+  const pipeline = ctx.device.createComputePipeline({
+    layout: "auto",
+    compute: { module, entryPoint: "main" },
+  });
+  const bindGroup = ctx.device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: wormsBuf } },
+      { binding: 1, resource: { buffer: valuesBuf } },
+      { binding: 2, resource: { buffer: startBuf } },
+      { binding: 3, resource: { buffer: outBuf } },
+      { binding: 4, resource: { buffer: paramsBuf } },
+    ],
+  });
+  const encoder = ctx.device.createCommandEncoder();
+  const pass = encoder.beginComputePass();
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.dispatchWorkgroups(Math.ceil(count / 64));
+  pass.end();
+  const t0 = performance.now();
+  ctx.queue.submit([encoder.finish()]);
+  if (ctx.queue.onSubmittedWorkDone) {
+    await ctx.queue.onSubmittedWorkDone();
+    if (ctx.profile) {
+      ctx.profile.webgpu += performance.now() - t0;
+    }
+  }
+  const outTensor = new Tensor(ctx, outBuf, [h, w, c]);
+  return { outTensor, valuesArr };
 }
 
 export async function voronoi(
@@ -3286,85 +3395,115 @@ export async function erosionWorms(
   xyBlend = 0,
 ) {
   const [h, w, c] = shape;
-  const count = Math.floor(Math.sqrt(h * w) * density);
-  const x = new Float32Array(count);
-  const y = new Float32Array(count);
-  const xDir = new Float32Array(count);
-  const yDir = new Float32Array(count);
-  const inertia = new Float32Array(count);
-  for (let i = 0; i < count; i++) {
-    x[i] = random() * (w - 1);
-    y[i] = random() * (h - 1);
-    const ang = random() * TAU;
-    xDir[i] = Math.cos(ang);
-    yDir[i] = Math.sin(ang);
-    inertia[i] = randomNormal(0.75, 0.25);
-  }
-  const src = await tensor.read();
-  const startColors = new Float32Array(count * c);
-  for (let i = 0; i < count; i++) {
-    const xi = Math.floor(x[i]);
-    const yi = Math.floor(y[i]);
-    const base = (yi * w + xi) * c;
-    for (let k = 0; k < c; k++) {
-      startColors[i * c + k] = src[base + k];
+  let valuesArr;
+  let outTensor;
+  if (tensor && tensor.ctx && tensor.ctx.device) {
+    ({ outTensor, valuesArr } = await erosionWormsWebGPU(
+      tensor,
+      shape,
+      density,
+      iterations,
+      contraction,
+      quantize,
+    ));
+  } else {
+    const count = Math.floor(Math.sqrt(h * w) * density);
+    const x = new Float32Array(count);
+    const y = new Float32Array(count);
+    const xDir = new Float32Array(count);
+    const yDir = new Float32Array(count);
+    const inertia = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      x[i] = random() * (w - 1);
+      y[i] = random() * (h - 1);
+      const ang = random() * TAU;
+      xDir[i] = Math.cos(ang);
+      yDir[i] = Math.sin(ang);
+      inertia[i] = randomNormal(0.75, 0.25);
     }
-  }
-  // grayscale values
-  const valuesArr = new Float32Array(h * w);
-  for (let yi = 0; yi < h; yi++) {
-    for (let xi = 0; xi < w; xi++) {
-      const idx = yi * w + xi;
-      if (c === 1) {
-        valuesArr[idx] = src[idx];
-      } else {
-        const base = idx * c;
-        const r = src[base];
-        const g = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
-    }
-  }
-  const out = new Float32Array(h * w * c);
-  for (let iter = 0; iter < iterations; iter++) {
-    const exposure =
-      iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
-    for (let j = 0; j < count; j++) {
-      const xi = Math.floor(x[j]) % w;
-      const yi = Math.floor(y[j]) % h;
-      const idx = yi * w + xi;
-      const base = idx * c;
+    const src = await tensor.read();
+    const startColors = new Float32Array(count * c);
+    for (let i = 0; i < count; i++) {
+      const xi = Math.floor(x[i]);
+      const yi = Math.floor(y[i]);
+      const base = (yi * w + xi) * c;
       for (let k = 0; k < c; k++) {
-        out[base + k] += startColors[j * c + k] * exposure;
+        startColors[i * c + k] = src[base + k];
       }
-      const x1 = (xi + 1) % w;
-      const y1 = (yi + 1) % h;
-      const sv = valuesArr[idx];
-      const x1v = valuesArr[yi * w + x1];
-      const y1v = valuesArr[y1 * w + xi];
-      const x1y1v = valuesArr[y1 * w + x1];
-      const u = x[j] - Math.floor(x[j]);
-      const v = y[j] - Math.floor(y[j]);
-      const gX = (y1v - sv) * (1 - u) + (x1y1v - x1v) * u;
-      const gY = (x1v - sv) * (1 - v) + (x1y1v - y1v) * v;
-      const gx = quantize ? Math.floor(gX) : gX;
-      const gy = quantize ? Math.floor(gY) : gY;
-      const len = distance(gx, gy) * contraction || 1;
-      xDir[j] = xDir[j] * (1 - inertia[j]) + (gx / len) * inertia[j];
-      yDir[j] = yDir[j] * (1 - inertia[j]) + (gy / len) * inertia[j];
-      x[j] = (x[j] + xDir[j]) % w;
-      y[j] = (y[j] + yDir[j]) % h;
     }
+    valuesArr = new Float32Array(h * w);
+    for (let yi = 0; yi < h; yi++) {
+      for (let xi = 0; xi < w; xi++) {
+        const idx = yi * w + xi;
+        if (c === 1) {
+          valuesArr[idx] = src[idx];
+        } else {
+          const base = idx * c;
+          const r = src[base];
+          const g = src[base + 1] || 0;
+          const b = src[base + 2] || 0;
+          valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+      }
+    }
+    const out = new Float32Array(h * w * c);
+    for (let iter = 0; iter < iterations; iter++) {
+      const exposure =
+        iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
+      for (let j = 0; j < count; j++) {
+        const xi = Math.floor(x[j]) % w;
+        const yi = Math.floor(y[j]) % h;
+        const idx = yi * w + xi;
+        const base = idx * c;
+        for (let k = 0; k < c; k++) {
+          out[base + k] += startColors[j * c + k] * exposure;
+        }
+        const x1 = (xi + 1) % w;
+        const y1 = (yi + 1) % h;
+        const sv = valuesArr[idx];
+        const x1v = valuesArr[yi * w + x1];
+        const y1v = valuesArr[y1 * w + xi];
+        const x1y1v = valuesArr[y1 * w + x1];
+        const u = x[j] - Math.floor(x[j]);
+        const v = y[j] - Math.floor(y[j]);
+        const gX = (y1v - sv) * (1 - u) + (x1y1v - x1v) * u;
+        const gY = (x1v - sv) * (1 - v) + (x1y1v - y1v) * v;
+        const gx = quantize ? Math.floor(gX) : gX;
+        const gy = quantize ? Math.floor(gY) : gY;
+        const len = distance(gx, gy) * contraction || 1;
+        xDir[j] = xDir[j] * (1 - inertia[j]) + (gx / len) * inertia[j];
+        yDir[j] = yDir[j] * (1 - inertia[j]) + (gy / len) * inertia[j];
+        x[j] = (x[j] + xDir[j]) % w;
+        y[j] = (y[j] + yDir[j]) % h;
+      }
+    }
+    outTensor = Tensor.fromArray(tensor.ctx, out, shape);
   }
-  let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
-  outTensor = clamp01(outTensor);
+  outTensor = await clamp01(outTensor);
   if (inverse) {
-    const d = outTensor.read();
+    const d = await outTensor.read();
     for (let i = 0; i < d.length; i++) d[i] = 1 - d[i];
     outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
   }
   if (xyBlend) {
+    if (!valuesArr) {
+      const src = await tensor.read();
+      valuesArr = new Float32Array(h * w);
+      for (let yi = 0; yi < h; yi++) {
+        for (let xi = 0; xi < w; xi++) {
+          const idx = yi * w + xi;
+          if (c === 1) {
+            valuesArr[idx] = src[idx];
+          } else {
+            const base = idx * c;
+            const r = src[base];
+            const g = src[base + 1] || 0;
+            const b = src[base + 2] || 0;
+            valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          }
+        }
+      }
+    }
     const valMask = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) valMask[i] = valuesArr[i] * xyBlend;
     const mask = Tensor.fromArray(tensor.ctx, valMask, [h, w, 1]);
@@ -5521,4 +5660,4 @@ export function skew(tensor, shape, time, speed, angle = 0, range = 1) {
 }
 register("skew", skew, { angle: 0, range: 1 });
 
-export { voronoiCPU, voronoiWebGPU, wormsCPU, wormsWebGPU };
+export { voronoiCPU, voronoiWebGPU, erosionWormsWebGPU, wormsCPU, wormsWebGPU };
