@@ -22,6 +22,7 @@ import {
   REFRACT_WGSL,
   CONVOLUTION_WGSL,
   FXAA_WGSL,
+  NORMALIZE_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -804,7 +805,6 @@ export function blend(a, b, t) {
   ) {
     return (async () => {
       try {
-        const device = ctx.device;
         const outSize = h * w * c;
         const outBuf = device.createBuffer({
           size: outSize * 4,
@@ -861,6 +861,7 @@ export function normalize(tensor) {
     return tensor.then(normalize);
   }
   const [h, w, c] = tensor.shape;
+  const ctx = tensor.ctx;
   const compute = (src) => {
     let min = Infinity;
     let max = -Infinity;
@@ -879,6 +880,65 @@ export function normalize(tensor) {
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
   };
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== 'undefined' &&
+    tensor.handle instanceof GPUTexture
+  ) {
+    return (async () => {
+      try {
+        const outSize = h * w * c;
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(outSize),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const reduceBuf = ctx.createGPUBuffer(
+          new Float32Array(2),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        );
+        // Pass 1: compute min/max
+        paramsArr[3] = 0;
+        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr.buffer, paramsArr.byteOffset, paramsArr.byteLength);
+        await ctx.runCompute(
+          NORMALIZE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: reduceBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          1,
+          1,
+        );
+        // Pass 2: scale
+        paramsArr[3] = 1;
+        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr.buffer, paramsArr.byteOffset, paramsArr.byteLength);
+        await ctx.runCompute(
+          NORMALIZE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: reduceBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, c]);
+      } catch (e) {
+        console.warn('WebGPU normalize fallback to CPU', e);
+        const src = await tensor.read();
+        return compute(src);
+      }
+    })();
+  }
   const srcMaybe = tensor.read();
   if (srcMaybe && typeof srcMaybe.then === 'function') {
     return srcMaybe.then(compute);
