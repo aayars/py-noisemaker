@@ -56,7 +56,7 @@ fn simplex2(v: vec2<f32>) -> f32 {
   var x0 = v - i + dot(i, C.xx);
   var i1 = select(vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 0.0), x0.x > x0.y);
   var x12 = x0.xyxy + C.xxzz;
-  x12.xy = x12.xy - i1;
+  x12 = vec4<f32>(x12.xy - i1, x12.zw);
   i = mod289_2(i);
   var p = permute3(permute3(i.y + vec3<f32>(0.0, i1.y, 1.0)) + i.x + vec3<f32>(0.0, i1.x, 1.0));
   var m = max(0.5 - vec3<f32>(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), vec3<f32>(0.0));
