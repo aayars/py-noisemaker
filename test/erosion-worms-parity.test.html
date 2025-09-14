@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { Context } from '../src/context.js';
+import { Tensor } from '../src/tensor.js';
+import { erosionWorms, erosionWormsWebGPU } from '../src/effects.js';
+
+const canvas = document.createElement('canvas');
+const ctx = new Context(canvas);
+if (!navigator.gpu) {
+  document.body.textContent = 'no webgpu';
+} else {
+  await ctx.initWebGPU();
+  const shape = [8,8,1];
+  const baseData = new Float32Array(shape[0]*shape[1]*shape[2]);
+  for (let i=0;i<baseData.length;i++) baseData[i] = i / baseData.length;
+  const tensorGPU1 = Tensor.fromArray(ctx, baseData, shape);
+  const tensorCPU1 = Tensor.fromArray(null, baseData, shape);
+  const outGPU1 = await erosionWormsWebGPU(tensorGPU1, shape, 0, 0, 50, 50, 1.0, false, 0.25, false, 0);
+  const outCPU1 = await erosionWorms(tensorCPU1, shape, 0, 0);
+  const arrGPU1 = await outGPU1.read();
+  const arrCPU1 = await outCPU1.read();
+  let ok = true;
+  const tol = 1e-3;
+  for (let i=0;i<arrCPU1.length;i++) {
+    if (Math.abs(arrCPU1[i] - arrGPU1[i]) > tol) { ok = false; break; }
+  }
+  const tensorGPU2 = Tensor.fromArray(ctx, baseData, shape);
+  const tensorCPU2 = Tensor.fromArray(null, baseData, shape);
+  const outGPU2 = await erosionWormsWebGPU(tensorGPU2, shape, 0, 0, 50, 5, 1.0, true, 0.25, false, 0.2);
+  const outCPU2 = await erosionWorms(tensorCPU2, shape, 0, 0, 50, 5, 1.0, true, 0.25, false, 0.2);
+  const arrGPU2 = await outGPU2.read();
+  const arrCPU2 = await outCPU2.read();
+  for (let i=0;i<arrCPU2.length;i++) {
+    if (Math.abs(arrCPU2[i] - arrGPU2[i]) > tol) { ok = false; break; }
+  }
+  document.body.textContent = ok ? 'erosion worms parity ok' : 'erosion worms parity fail';
+}
+</script>
+</body>
+</html>
