@@ -4399,24 +4399,46 @@ register("snow", snow, { alpha: 0.25 });
 
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] !== 3) return tensor;
-  const hsvMaybe = rgbToHsv(tensor);
-  const process = (hsv) => {
-    const dataMaybe = hsv.read();
-    const adjust = (data) => {
-      for (let i = 0; i < shape[0] * shape[1]; i++) {
-        data[i * 3 + 1] = data[i * 3 + 1] * amount;
+  const ctx = tensor.ctx;
+  const cpuSat = (t) => {
+    const hsvMaybe = rgbToHsv(t);
+    const process = (hsv) => {
+      const dataMaybe = hsv.read();
+      const adjust = (data) => {
+        for (let i = 0; i < shape[0] * shape[1]; i++) {
+          data[i * 3 + 1] = data[i * 3 + 1] * amount;
+        }
+        return hsvToRgb(Tensor.fromArray(t.ctx, data, hsv.shape));
+      };
+      if (dataMaybe && typeof dataMaybe.then === "function") {
+        return dataMaybe.then(adjust);
       }
-      return hsvToRgb(Tensor.fromArray(tensor.ctx, data, hsv.shape));
+      return adjust(dataMaybe);
     };
-    if (dataMaybe && typeof dataMaybe.then === "function") {
-      return dataMaybe.then(adjust);
+    if (hsvMaybe && typeof hsvMaybe.then === "function") {
+      return hsvMaybe.then(process);
     }
-    return adjust(dataMaybe);
+    return process(hsvMaybe);
   };
-  if (hsvMaybe && typeof hsvMaybe.then === "function") {
-    return hsvMaybe.then(process);
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const hsv = await rgbToHsv(tensor);
+        const data = await hsv.read();
+        for (let i = 0; i < shape[0] * shape[1]; i++) {
+          data[i * 3 + 1] = data[i * 3 + 1] * amount;
+        }
+        return await hsvToRgb(Tensor.fromArray(ctx, data, hsv.shape));
+      } catch (e) {
+        console.warn('WebGPU saturation fallback to CPU', e);
+        const data = await tensor.read();
+        const cpuTensor = Tensor.fromArray(null, data, tensor.shape);
+        return cpuSat(cpuTensor);
+      }
+    })();
   }
-  return process(hsvMaybe);
+  return cpuSat(tensor);
 }
 register("saturation", saturation, { amount: 0.75 });
 register("adjust_saturation", saturation, { amount: 0.75 });

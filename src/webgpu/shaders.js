@@ -26,6 +26,8 @@ export const SCRATCHES_MASK_WGSL = await loadShader('./scratches-mask.wgsl');
 export const SCRATCHES_BLEND_WGSL = await loadShader('./scratches-blend.wgsl');
 export const FXAA_WGSL = await loadShader('./fxaa.wgsl');
 export const GLYPH_MAP_WGSL = await loadShader('./glyph-map.wgsl');
+export const RGB_TO_HSV_WGSL = await loadShader('./rgb-to-hsv.wgsl');
+export const HSV_TO_RGB_WGSL = await loadShader('./hsv-to-rgb.wgsl');
 export const NORMALIZE_WGSL = await loadShader('./normalize.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {

@@ -23,6 +23,8 @@ import {
   CONVOLUTION_WGSL,
   FXAA_WGSL,
   NORMALIZE_WGSL,
+  RGB_TO_HSV_WGSL,
+  HSV_TO_RGB_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -1073,7 +1075,8 @@ export function sobel(tensor) {
 
 export function hsvToRgb(tensor) {
   const [h, w, c] = tensor.shape;
-  const compute = (src) => {
+  const ctx = tensor.ctx;
+  const cpuHsvToRgb = (src) => {
     const out = new Float32Array(h * w * 3);
     for (let i = 0; i < h * w; i++) {
       const H = Math.fround(src[i * c]);
@@ -1127,18 +1130,45 @@ export function hsvToRgb(tensor) {
       out[i * 3 + 1] = Math.fround(g1 + m);
       out[i * 3 + 2] = Math.fround(b1 + m);
     }
-    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+    return Tensor.fromArray(ctx, out, [h, w, 3]);
   };
-  const srcMaybe = tensor.read();
-  if (srcMaybe && typeof srcMaybe.then === 'function') {
-    return srcMaybe.then(compute);
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const outSize = h * w * 3;
+        const outBuf = ctx.device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, 0]);
+        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          HSV_TO_RGB_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, 3]);
+      } catch (e) {
+        console.warn('WebGPU hsvToRgb fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuHsvToRgb(data);
+      }
+    })();
   }
-  return compute(srcMaybe);
+  return withTensorData(tensor, cpuHsvToRgb);
 }
 
 export function rgbToHsv(tensor) {
   const [h, w, c] = tensor.shape;
-  const compute = (src) => {
+  const ctx = tensor.ctx;
+  const cpuRgbToHsv = (src) => {
     const out = new Float32Array(h * w * 3);
     for (let i = 0; i < h * w; i++) {
       const r = src[i * c];
@@ -1164,13 +1194,39 @@ export function rgbToHsv(tensor) {
       out[i * 3 + 1] = Math.fround(sVal);
       out[i * 3 + 2] = Math.fround(max);
     }
-    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+    return Tensor.fromArray(ctx, out, [h, w, 3]);
   };
-  const srcMaybe = tensor.read();
-  if (srcMaybe && typeof srcMaybe.then === 'function') {
-    return srcMaybe.then(compute);
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const outSize = h * w * 3;
+        const outBuf = ctx.device.createBuffer({
+          size: outSize * 4,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const paramsArr = new Float32Array([w, h, c, 0]);
+        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          RGB_TO_HSV_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [h, w, 3]);
+      } catch (e) {
+        console.warn('WebGPU rgbToHsv fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuRgbToHsv(data);
+      }
+    })();
   }
-  return compute(srcMaybe);
+  return withTensorData(tensor, cpuRgbToHsv);
 }
 
 export function adjustHue(tensor, amount) {
