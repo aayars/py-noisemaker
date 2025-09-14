@@ -1,15 +1,16 @@
-import fs from 'fs';
 import { ValueDistribution, InterpolationType } from '../constants.js';
 
-export const VORONOI_WGSL = fs.readFileSync(new URL('./voronoi.wgsl', import.meta.url), 'utf8');
-export const EROSION_WORMS_WGSL = fs.readFileSync(new URL('./erosion-worms.wgsl', import.meta.url), 'utf8');
-export const WORMS_WGSL = fs.readFileSync(new URL('./worms.wgsl', import.meta.url), 'utf8');
-export const RESAMPLE_WGSL = fs.readFileSync(new URL('./resample.wgsl', import.meta.url), 'utf8');
+const loadShader = async (name) => (await fetch(new URL(name, import.meta.url))).text();
+
+export const VORONOI_WGSL = await loadShader('./voronoi.wgsl');
+export const EROSION_WORMS_WGSL = await loadShader('./erosion-worms.wgsl');
+export const WORMS_WGSL = await loadShader('./worms.wgsl');
+export const RESAMPLE_WGSL = await loadShader('./resample.wgsl');
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
-export const DOWNSAMPLE_WGSL = fs.readFileSync(new URL('./downsample.wgsl', import.meta.url), 'utf8');
-export const BLEND_WGSL = fs.readFileSync(new URL('./blend.wgsl', import.meta.url), 'utf8');
-export const SOBEL_WGSL = fs.readFileSync(new URL('./sobel.wgsl', import.meta.url), 'utf8');
-export const REFRACT_WGSL = fs.readFileSync(new URL('./refract.wgsl', import.meta.url), 'utf8');
+export const DOWNSAMPLE_WGSL = await loadShader('./downsample.wgsl');
+export const BLEND_WGSL = await loadShader('./blend.wgsl');
+export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
+export const REFRACT_WGSL = await loadShader('./refract.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32;
