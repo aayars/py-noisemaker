@@ -335,8 +335,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let w = u32(params.width);
   let h = u32(params.height);
   if (x >= w || y >= h) { return; }
-  let ref = textureLoad(refTex, vec2<i32>(i32(x), i32(y)), 0).x;
-  let ang = ref * 6.283185307179586 * params.kink * params.rand;
+  let refVal = textureLoad(refTex, vec2<i32>(i32(x), i32(y)), 0).x;
+  let ang = refVal * 6.283185307179586 * params.kink * params.rand;
   let offset = vec2<f32>(cos(ang), sin(ang)) * params.displacement;
   var samplePos = vec2<f32>(f32(x), f32(y)) + offset * vec2<f32>(params.width, params.height);
   samplePos = fmod2(samplePos, vec2<f32>(params.width, params.height));
@@ -390,11 +390,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (params.channels > 1.5) {
     lum = dot(col.xyz, vec3(0.2126,0.7152,0.0722));
   }
-  let ref = lum * params.displacement;
-  let xi = (i32(x) + i32(floor(ref * (params.width - 1.0)))) % i32(w);
+  let refVal = lum * params.displacement;
+  let xi = (i32(x) + i32(floor(refVal * (params.width - 1.0)))) % i32(w);
   let yi = params.horizontal > 0.5
     ? i32(y)
-    : (i32(y) + i32(floor(ref * (params.height - 1.0)))) % i32(h);
+    : (i32(y) + i32(floor(refVal * (params.height - 1.0)))) % i32(h);
   let sx = u32(floor(f32(xi) * params.clutWidth / params.width));
   let sy = u32(floor(f32(yi) * params.clutHeight / params.height));
   let c = textureLoad(clut, vec2<i32>(i32(sx), i32(sy)), 0);
