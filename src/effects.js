@@ -59,6 +59,8 @@ import {
   GLYPH_MAP_WGSL,
   WARP_WGSL,
   SPATTER_MASK_WGSL,
+  SCRATCHES_MASK_WGSL,
+  SCRATCHES_BLEND_WGSL,
   DERIVATIVE_WGSL,
 } from "./webgpu/shaders.js";
 
@@ -5753,7 +5755,7 @@ export async function fibers(tensor, shape, time, speed) {
 }
 register("fibers", fibers, {});
 
-export async function scratches(tensor, shape, time, speed) {
+async function scratchesCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
@@ -5799,6 +5801,100 @@ export async function scratches(tensor, shape, time, speed) {
     out = Tensor.fromArray(ctx, outData, shape);
   }
   return out;
+}
+
+async function scratchesWebGPU(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  let out = tensor;
+  for (let i = 0; i < 4; i++) {
+    let mask = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    const behavior = [WormBehavior.obedient, WormBehavior.unruly][
+      randomInt(0, 1)
+    ];
+    const density = 0.25 + random() * 0.25;
+    const duration = 2 + random() * 2;
+    const kink = 0.125 + random() * 0.125;
+    mask = await worms(
+      mask,
+      valueShape,
+      time,
+      speed,
+      behavior,
+      density,
+      duration,
+      0.75,
+      0.5,
+      1,
+      kink,
+    );
+    const sub = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
+    const maskTex = ctx.device.createTexture({
+      size: { width: w, height: h, depthOrArrayLayers: 1 },
+      format: 'r32float',
+      usage:
+        GPUTextureUsage.STORAGE_BINDING |
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.COPY_SRC |
+        GPUTextureUsage.COPY_DST,
+    });
+    const maskParams = ctx.createGPUBuffer(
+      new Float32Array([w, h]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      SCRATCHES_MASK_WGSL,
+      [
+        { binding: 0, resource: mask.handle.createView() },
+        { binding: 1, resource: sub.handle.createView() },
+        { binding: 2, resource: maskTex.createView() },
+        { binding: 3, resource: { buffer: maskParams } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    mask = new Tensor(ctx, maskTex, valueShape);
+    const outTex = ctx.device.createTexture({
+      size: { width: w, height: h, depthOrArrayLayers: 1 },
+      format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
+      usage:
+        GPUTextureUsage.STORAGE_BINDING |
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.COPY_SRC |
+        GPUTextureUsage.COPY_DST,
+    });
+    const blendParams = ctx.createGPUBuffer(
+      new Float32Array([w, h, c]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      SCRATCHES_BLEND_WGSL,
+      [
+        { binding: 0, resource: out.handle.createView() },
+        { binding: 1, resource: mask.handle.createView() },
+        { binding: 2, resource: outTex.createView() },
+        { binding: 3, resource: { buffer: blendParams } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    out = new Tensor(ctx, outTex, shape);
+  }
+  return out;
+}
+
+export async function scratches(tensor, shape, time, speed) {
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && shape[2] >= 3) {
+    try {
+      return await scratchesWebGPU(tensor, shape, time, speed);
+    } catch (e) {
+      console.warn('WebGPU scratches fallback to CPU', e);
+      return scratchesCPU(tensor, shape, time, speed);
+    }
+  }
+  return scratchesCPU(tensor, shape, time, speed);
 }
 register("scratches", scratches, {});
 
