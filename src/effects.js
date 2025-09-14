@@ -45,7 +45,7 @@ import {
   VoronoiDiagramType,
   WormBehavior,
 } from "./constants.js";
-import { VORONOI_WGSL } from "./webgpu/shaders.js";
+import { VORONOI_WGSL, WORMS_WGSL } from "./webgpu/shaders.js";
 
 
 export async function warp(
@@ -3395,7 +3395,183 @@ register("erosion_worms", erosionWorms, {
   xyBlend: 0,
 });
 
-export async function worms(
+async function wormsWebGPU(
+  tensor,
+  shape,
+  time = 0,
+  speed = 1,
+  behavior = 1,
+  density = 4.0,
+  duration = 4.0,
+  stride = 1.0,
+  strideDeviation = 0.05,
+  alpha = 0.5,
+  kink = 1.0,
+  drunkenness = 0.0,
+  quantize = false,
+  colors = null,
+) {
+  const ctx = tensor ? tensor.ctx : null;
+  if (
+    !ctx ||
+    !ctx.device ||
+    (quantize && shape[2] > 1) ||
+    behavior !== WormBehavior.obedient
+  ) {
+    return await wormsCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      behavior,
+      density,
+      duration,
+      stride,
+      strideDeviation,
+      alpha,
+      kink,
+      drunkenness,
+      quantize,
+      colors,
+    );
+  }
+  const [h, w, c] = shape;
+  const { x, y, stride: strideVals, rot } = wormsParams(
+    shape,
+    density,
+    stride,
+    strideDeviation,
+  );
+  const count = x.length;
+  if (count === 0) return tensor;
+  const posArr = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    posArr[i * 2] = x[i];
+    posArr[i * 2 + 1] = y[i];
+  }
+  const strideArr = new Float32Array(strideVals);
+  const rotArr = new Float32Array(rot);
+  const colorSrc = colors ? colors : tensor;
+  const src = await colorSrc.read();
+  const wormColors = new Float32Array(count * c);
+  for (let i = 0; i < count; i++) {
+    const xi = Math.floor(x[i]);
+    const yi = Math.floor(y[i]);
+    const base = (yi * w + xi) * c;
+    for (let k = 0; k < c; k++) {
+      wormColors[i * c + k] = src[base + k];
+    }
+  }
+  let valueData;
+  if (c === 1) {
+    valueData = await tensor.read();
+  } else if (c === 2) {
+    const srcVals = await tensor.read();
+    valueData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) valueData[i] = srcVals[i * 2];
+  } else {
+    let rgbTensor;
+    const clamped = await clamp01(tensor);
+    if (c === 3) {
+      rgbTensor = clamped;
+    } else {
+      const srcVals = await clamped.read();
+      const rgbVals = new Float32Array(h * w * 3);
+      for (let i = 0; i < h * w; i++) {
+        const base = i * c;
+        rgbVals[i * 3] = srcVals[base];
+        rgbVals[i * 3 + 1] = srcVals[base + 1];
+        rgbVals[i * 3 + 2] = srcVals[base + 2];
+      }
+      rgbTensor = Tensor.fromArray(tensor.ctx, rgbVals, [h, w, 3]);
+    }
+    const labTensor = await rgbToOklab(rgbTensor);
+    const labData = await labTensor.read();
+    valueData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) valueData[i] = labData[i * 3];
+  }
+  const indexArr = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) indexArr[i] = valueData[i] * TAU * kink;
+  const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration);
+  const drunkArr = new Float32Array(iterations * count);
+  if (drunkenness) {
+    for (let iter = 0; iter < iterations; iter++) {
+      const start = Math.floor(
+        Math.min(h, w) * time * speed + iter * speed * 10,
+      );
+      for (let i = 0; i < count; i++) {
+        drunkArr[iter * count + i] =
+          (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI;
+      }
+    }
+  }
+  const posBuf = ctx.createGPUBuffer(posArr, GPUBufferUsage.STORAGE);
+  const strideBuf = ctx.createGPUBuffer(strideArr, GPUBufferUsage.STORAGE);
+  const rotBuf = ctx.createGPUBuffer(rotArr, GPUBufferUsage.STORAGE);
+  const colorBuf = ctx.createGPUBuffer(wormColors, GPUBufferUsage.STORAGE);
+  const indexBuf = ctx.createGPUBuffer(indexArr, GPUBufferUsage.STORAGE);
+  const drunkBuf = ctx.createGPUBuffer(drunkArr, GPUBufferUsage.STORAGE);
+  const outBuf = ctx.device.createBuffer({
+    size: h * w * c * 4,
+    usage:
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  });
+  const paramsBuf = ctx.createGPUBuffer(
+    new Float32Array([
+      w,
+      h,
+      c,
+      count,
+      iterations,
+      quantize ? 1 : 0,
+      kink,
+      0,
+    ]),
+    GPUBufferUsage.UNIFORM,
+  );
+  try {
+    await ctx.runCompute(
+      WORMS_WGSL,
+      [
+        { binding: 0, resource: { buffer: posBuf } },
+        { binding: 1, resource: { buffer: strideBuf } },
+        { binding: 2, resource: { buffer: rotBuf } },
+        { binding: 3, resource: { buffer: colorBuf } },
+        { binding: 4, resource: { buffer: indexBuf } },
+        { binding: 5, resource: { buffer: drunkBuf } },
+        { binding: 6, resource: { buffer: outBuf } },
+        { binding: 7, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(count / 64),
+    );
+  } catch (e) {
+    return await wormsCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      behavior,
+      density,
+      duration,
+      stride,
+      strideDeviation,
+      alpha,
+      kink,
+      drunkenness,
+      quantize,
+      colors,
+    );
+  }
+  const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
+  let outTensor = Tensor.fromArray(ctx, out, shape);
+  outTensor = await normalize(outTensor);
+  const d = await outTensor.read();
+  for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
+  outTensor = Tensor.fromArray(ctx, d, shape);
+  return blend(tensor, outTensor, alpha);
+}
+
+async function wormsCPU(
   tensor,
   shape,
   time = 0,
@@ -3529,6 +3705,57 @@ export async function worms(
   for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
   outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
   return blend(tensor, outTensor, alpha);
+}
+export async function worms(
+  tensor,
+  shape,
+  time = 0,
+  speed = 1,
+  behavior = 1,
+  density = 4.0,
+  duration = 4.0,
+  stride = 1.0,
+  strideDeviation = 0.05,
+  alpha = 0.5,
+  kink = 1.0,
+  drunkenness = 0.0,
+  quantize = false,
+  colors = null,
+) {
+  if (tensor && tensor.ctx && tensor.ctx.device) {
+    return await wormsWebGPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      behavior,
+      density,
+      duration,
+      stride,
+      strideDeviation,
+      alpha,
+      kink,
+      drunkenness,
+      quantize,
+      colors,
+    );
+  }
+  return await wormsCPU(
+    tensor,
+    shape,
+    time,
+    speed,
+    behavior,
+    density,
+    duration,
+    stride,
+    strideDeviation,
+    alpha,
+    kink,
+    drunkenness,
+    quantize,
+    colors,
+  );
 }
 register("worms", worms, {
   behavior: 1,
@@ -5294,4 +5521,4 @@ export function skew(tensor, shape, time, speed, angle = 0, range = 1) {
 }
 register("skew", skew, { angle: 0, range: 1 });
 
-export { voronoiCPU, voronoiWebGPU };
+export { voronoiCPU, voronoiWebGPU, wormsCPU, wormsWebGPU };

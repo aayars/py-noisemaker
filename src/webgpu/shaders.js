@@ -186,6 +186,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
   }
   worms[idx] = worm;
+}
+`;
 
 export const WORMS_WGSL = `
 struct WormParams {
