@@ -80,6 +80,13 @@ export async function warpWebGPU(
   signedRange = true,
 ) {
   const ctx = tensor.ctx;
+  const ensureGPU = async (t) => {
+    if (!t.handle || typeof t.handle.createView !== "function") {
+      const data = await t.read();
+      return Tensor.fromArray(ctx, data, t.shape);
+    }
+    return t;
+  };
   const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
   const [h, w, c] = shape;
   const flows = [];
@@ -91,11 +98,13 @@ export async function warpWebGPU(
     ];
     if (f[0] >= h || f[1] >= w) break;
     const opts = { ctx, time, speed, splineOrder };
-    const rx = await values(f, [h, w, 1], opts);
-    const ry = await values(f, [h, w, 1], opts);
+    let rx = await values(f, [h, w, 1], opts);
+    let ry = await values(f, [h, w, 1], opts);
+    rx = await ensureGPU(rx);
+    ry = await ensureGPU(ry);
     flows.push({ rx, ry, mult });
   }
-  let out = tensor;
+  let out = await ensureGPU(tensor);
   for (const { rx, ry, mult } of flows) {
     const disp = displacement / mult;
     const outSize = h * w * c;
