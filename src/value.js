@@ -190,10 +190,10 @@ export function values(freq, shape, opts = {}) {
 
   if (
     ctx &&
-    !ctx.isCPU &&
+    ctx.device &&
     gpuDistrib &&
     channels === 1 &&
-    (!maskTex || ctx.gl.isTexture(maskTex.handle))
+    (!maskTex || maskTex.handle instanceof GPUTexture)
   ) {
     const gl = ctx.gl;
     const fs = `#version 300 es
@@ -442,7 +442,7 @@ void main(){
     gl.uniform1f(gl.getUniformLocation(prog, 'u_corners'), corners ? 1 : 0);
     gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
     gl.uniform1i(gl.getUniformLocation(prog, 'u_distrib'), distrib);
-    if (maskTex && ctx.gl.isTexture(maskTex.handle)) {
+    if (maskTex && maskTex.handle instanceof GPUTexture) {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, maskTex.handle);
       gl.uniform1i(gl.getUniformLocation(prog, 'u_mask'), 0);
@@ -742,7 +742,7 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
     return Promise.resolve(tensor.read()).then(cpuResample);
   }
 
-  if (ctx && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
     const gl = ctx.gl;
     const fs = `#version 300 es
 precision highp float;
@@ -806,7 +806,7 @@ export function downsample(tensor, factor) {
   const ctx = tensor.ctx;
   const nh = Math.floor(h / factor);
   const nw = Math.floor(w / factor);
-  if (ctx && !ctx.isCPU && factor === 2 && ctx.gl.isTexture(tensor.handle)) {
+  if (ctx && ctx.device && factor === 2 && tensor.handle instanceof GPUTexture) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (gl_FragCoord.xy*2.0 - vec2(1.0)) * u_texel;\n vec4 sum = texture(u_tex, uv) + texture(u_tex, uv + vec2(u_texel.x,0.0)) + texture(u_tex, uv + vec2(0.0,u_texel.y)) + texture(u_tex, uv + u_texel);\n outColor = sum * 0.25;\n}`;
     const prog = ctx.getProgram(FULLSCREEN_VS, fs);
@@ -1018,12 +1018,12 @@ export function blend(a, b, t) {
 
   if (
     ctx &&
-    !ctx.isCPU &&
+    ctx.device &&
     b.ctx === ctx &&
     typeof t === 'number' &&
     bChannels === c &&
-    ctx.gl.isTexture(a.handle) &&
-    ctx.gl.isTexture(b.handle)
+    a.handle instanceof GPUTexture &&
+    b.handle instanceof GPUTexture
   ) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_a;\nuniform sampler2D u_b;\nuniform float u_t;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec4 ca = texture(u_a, uv);\n vec4 cb = texture(u_b, uv);\n outColor = mix(ca, cb, u_t);\n}`;
@@ -1147,7 +1147,7 @@ export function distance(
 export function sobel(tensor) {
   const [h, w, c] = tensor.shape;
   const ctx = tensor.ctx;
-  if (ctx && !ctx.isCPU && ctx.gl.isTexture(tensor.handle)) {
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
     const gl = ctx.gl;
     const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = gl_FragCoord.xy / vec2(${w}.0, ${h}.0);\n vec2 t = u_texel;\n vec4 s00 = texture(u_tex, uv + vec2(-t.x,-t.y));\n vec4 s10 = texture(u_tex, uv + vec2(0.0,-t.y));\n vec4 s20 = texture(u_tex, uv + vec2(t.x,-t.y));\n vec4 s01 = texture(u_tex, uv + vec2(-t.x,0.0));\n vec4 s21 = texture(u_tex, uv + vec2(t.x,0.0));\n vec4 s02 = texture(u_tex, uv + vec2(-t.x,t.y));\n vec4 s12 = texture(u_tex, uv + vec2(0.0,t.y));\n vec4 s22 = texture(u_tex, uv + vec2(t.x,t.y));\n vec4 gx = -s00 + s20 - 2.0*s01 + 2.0*s21 - s02 + s22;\n vec4 gy = -s00 - 2.0*s10 - s20 + s02 + 2.0*s12 + s22;\n outColor = sqrt(gx*gx + gy*gy);\n}`;
     const prog = ctx.getProgram(FULLSCREEN_VS, fs);
@@ -1427,15 +1427,15 @@ export function refract(
   const refX = referenceX || tensor;
   const refY = referenceY || tensor;
 
-  if (ctx && !ctx.isCPU) {
+  if (ctx && ctx.device) {
     let rxTex = refX;
     if (rxTex.ctx !== ctx) rxTex = Tensor.fromArray(ctx, refX.read(), refX.shape);
     let ryTex = refY;
     if (ryTex.ctx !== ctx) ryTex = Tensor.fromArray(ctx, refY.read(), refY.shape);
     if (
-      ctx.gl.isTexture(tensor.handle) &&
-      ctx.gl.isTexture(rxTex.handle) &&
-      ctx.gl.isTexture(ryTex.handle)
+      tensor.handle instanceof GPUTexture &&
+      rxTex.handle instanceof GPUTexture &&
+      ryTex.handle instanceof GPUTexture
     ) {
       const gl = ctx.gl;
       const fs = `#version 300 es\nprecision highp float;\nout vec4 outColor;\nuniform sampler2D u_tex;\nuniform sampler2D u_rx;\nuniform sampler2D u_ry;\nuniform vec2 u_size;\nuniform float u_disp;\nuniform int u_signed;\nuniform int u_interp;\nfloat interp(float t){\n if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;\n return t;\n}\nvoid main(){\n vec2 coord = gl_FragCoord.xy - 0.5;\n ivec2 icoord = ivec2(coord);\n float vx = texelFetch(u_rx, icoord, 0).r;\n float vy = texelFetch(u_ry, icoord, 0).r;\n if(u_signed==1){ vx = vx*2.0 - 1.0; vy = vy*2.0 - 1.0; } else { vx *= 2.0; vy *= 2.0; }\n vec2 offset = vec2(vx * u_disp * u_size.x, vy * u_disp * u_size.y);\n vec2 samplePos = mod(coord + offset + u_size, u_size);\n vec2 c0 = floor(samplePos);\n vec2 f = samplePos - c0;\n vec2 c1 = mod(c0 + 1.0, u_size);\n ivec2 i00 = ivec2(c0);\n ivec2 i10 = ivec2(c1.x, c0.y);\n ivec2 i01 = ivec2(c0.x, c1.y);\n ivec2 i11 = ivec2(c1);\n float sx = interp(f.x);\n float sy = interp(f.y);\n vec4 s00 = texelFetch(u_tex, i00, 0);\n vec4 s10 = texelFetch(u_tex, i10, 0);\n vec4 s01 = texelFetch(u_tex, i01, 0);\n vec4 s11 = texelFetch(u_tex, i11, 0);\n vec4 x_y0 = mix(s00, s10, sx);\n vec4 x_y1 = mix(s01, s11, sx);\n outColor = mix(x_y0, x_y1, sy);\n}`;

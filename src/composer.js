@@ -230,10 +230,7 @@ export class Preset {
           gl.useProgram(prog);
           gl.activeTexture(gl.TEXTURE0);
           let tex = tensor.handle;
-          const isTex =
-            typeof WebGLTexture !== 'undefined' &&
-            tex instanceof WebGLTexture &&
-            gl.isTexture(tex);
+          const isTex = tex instanceof GPUTexture;
           if (!isTex) {
             const texRes = withTensorData(tensor, (data) => {
               // WebGL textures expect 4 channels; pad smaller tensors when coming
@@ -300,10 +297,7 @@ export class Preset {
         gl.useProgram(prog);
         gl.activeTexture(gl.TEXTURE0);
         let tex = tensor.handle;
-        const isTex =
-          typeof WebGLTexture !== 'undefined' &&
-          tex instanceof WebGLTexture &&
-          gl.isTexture(tex);
+        const isTex = tex instanceof GPUTexture;
         if (!isTex) {
           const texRes = withTensorData(tensor, (data) => {
             // WebGL textures expect 4 channels; pad smaller tensors when coming

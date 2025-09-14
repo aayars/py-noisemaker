@@ -1,11 +1,11 @@
 /**
- * Tensor wrapper around WebGL textures or CPU arrays.
+ * Tensor wrapper around GPU textures, buffers, or CPU arrays.
  */
 
 export class Tensor {
   constructor(ctx, handle, shape, data = null) {
     this.ctx = ctx;
-    this.handle = handle; // WebGL texture, GPUBuffer, or CPU object
+    this.handle = handle; // GPUTexture, GPUBuffer, or CPU object
     this.shape = shape; // [height, width, channels]
     this.data = data; // CPU data if applicable
   }
@@ -13,26 +13,37 @@ export class Tensor {
   static fromArray(ctx, array, shape) {
     const [h, w, c] = shape;
     if (ctx && ctx.device) {
-      const data = array ? array.slice() : new Float32Array(h * w * c);
-      const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
-      const buf = ctx.createGPUBuffer(data, usage);
-      return new Tensor(ctx, buf, shape, null);
-    }
-    if (ctx && !ctx.isCPU) {
-      let data = array;
-      if (!data) {
-        data = new Float32Array(h * w * 4);
-      } else if (data.length !== h * w * 4) {
-        // WebGL textures are always RGBA; pad incoming data if it has fewer channels
-        const padded = new Float32Array(h * w * 4);
-        for (let i = 0, j = 0; i < h * w; i++) {
-          for (let k = 0; k < c; k++, j++) {
-            padded[i * 4 + k] = data[j];
+      const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
+      const channels = format === 'r32float' ? 1 : format === 'rg32float' ? 2 : 4;
+      const tex = ctx.device.createTexture({
+        size: { width: w, height: h, depthOrArrayLayers: 1 },
+        format,
+        usage:
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST |
+          GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+      if (array) {
+        let data = array instanceof Float32Array ? array : new Float32Array(array);
+        if (c !== channels) {
+          const padded = new Float32Array(h * w * channels);
+          for (let i = 0; i < h * w; i++) {
+            for (let k = 0; k < c; k++) {
+              padded[i * channels + k] = data[i * c + k];
+            }
           }
+          data = padded;
         }
-        data = padded;
+        ctx.queue.writeTexture(
+          { texture: tex },
+          data,
+          { bytesPerRow: w * channels * 4 },
+          { width: w, height: h, depthOrArrayLayers: 1 }
+        );
       }
-      const tex = ctx.createTexture(w, h, data);
+      tex.width = w;
+      tex.height = h;
       return new Tensor(ctx, tex, shape, null);
     }
     const data = array ? array.slice() : new Float32Array(h * w * c);
@@ -50,26 +61,44 @@ export class Tensor {
       const size = h * w * c * 4;
       return this.ctx.readGPUBuffer(this.handle, size);
     }
-    if (this.ctx && !this.ctx.isCPU) {
-      const gl = this.ctx.gl;
-      const fbo = this.ctx.createFBO(this.handle);
-      this.ctx.bindFramebuffer(fbo, w, h);
-      const out = new Float32Array(h * w * 4);
-      gl.readPixels(0, 0, w, h, gl.RGBA, gl.FLOAT, out);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      const arr = new Float32Array(h * w * c);
-      for (let y = 0; y < h; y++) {
-        const srcRow = (h - 1 - y) * w;
-        const dstRow = y * w;
-        for (let x = 0; x < w; x++) {
-          const srcBase = (srcRow + x) * 4;
-          const dstBase = (dstRow + x) * c;
-          for (let k = 0; k < c; k++) {
-            arr[dstBase + k] = out[srcBase + k];
+    if (
+      this.ctx &&
+      this.ctx.device &&
+      typeof GPUTexture !== 'undefined' &&
+      this.handle instanceof GPUTexture
+    ) {
+      const channels = c === 1 ? 1 : c === 2 ? 2 : 4;
+      const bytesPerPixel = channels * 4;
+      const bytesPerRow = Math.ceil((w * bytesPerPixel) / 256) * 256;
+      const size = bytesPerRow * h;
+      const buffer = this.ctx.device.createBuffer({
+        size,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      const encoder = this.ctx.device.createCommandEncoder();
+      encoder.copyTextureToBuffer(
+        { texture: this.handle },
+        { buffer, bytesPerRow },
+        { width: w, height: h, depthOrArrayLayers: 1 }
+      );
+      this.ctx.queue.submit([encoder.finish()]);
+      return this.ctx.readGPUBuffer(buffer, size).then((arr) => {
+        if (bytesPerRow === w * bytesPerPixel && channels === c) {
+          return arr.subarray(0, h * w * c);
+        }
+        const out = new Float32Array(h * w * c);
+        const stride = bytesPerRow / 4;
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const srcBase = y * stride + x * channels;
+            const dstBase = (y * w + x) * c;
+            for (let k = 0; k < c; k++) {
+              out[dstBase + k] = arr[srcBase + k];
+            }
           }
         }
-      }
-      return arr;
+        return out;
+      });
     }
     return this.data.slice();
   }
