@@ -59,6 +59,7 @@ import {
   GLYPH_MAP_WGSL,
   WARP_WGSL,
   SPATTER_MASK_WGSL,
+  DERIVATIVE_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -478,7 +479,59 @@ export function derivative(
     if (alpha !== 1) result = blend(tensor, result, alpha);
     return result;
   };
-  return withTensorDatas([dx, dy], compute);
+  const handle = (dxT, dyT) => {
+    const ctx = tensor.ctx;
+    if (
+      ctx &&
+      ctx.device &&
+      typeof GPUTexture !== "undefined" &&
+      dxT.handle instanceof GPUTexture &&
+      dyT.handle instanceof GPUTexture
+    ) {
+      return (async () => {
+        try {
+          const device = ctx.device;
+          const outSize = h * w * c;
+          const outBuf = device.createBuffer({
+            size: outSize * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+          });
+          const paramsArr = new Float32Array([w, h, c, distMetric, 0, 0, 0, 0]);
+          const paramsBuf = ctx.createGPUBuffer(
+            paramsArr,
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            DERIVATIVE_WGSL,
+            [
+              { binding: 0, resource: dxT.handle.createView() },
+              { binding: 1, resource: dyT.handle.createView() },
+              { binding: 2, resource: { buffer: outBuf } },
+              { binding: 3, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+          let result = Tensor.fromArray(ctx, out, shape);
+          if (withNormalize) result = await normalize(result);
+          if (alpha !== 1) result = await blend(tensor, result, alpha);
+          return result;
+        } catch (e) {
+          console.warn("WebGPU derivative fallback to CPU", e);
+          return withTensorDatas([dxT, dyT], compute);
+        }
+      })();
+    }
+    return withTensorDatas([dxT, dyT], compute);
+  };
+  if (
+    (dx && typeof dx.then === "function") ||
+    (dy && typeof dy.then === "function")
+  ) {
+    return Promise.all([dx, dy]).then(([dxx, dyy]) => handle(dxx, dyy));
+  }
+  return handle(dx, dy);
 }
 register("derivative", derivative, {
   distMetric: DistanceMetric.euclidean,
