@@ -13,22 +13,22 @@ export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
 export const REFRACT_WGSL = await loadShader('./refract.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
-  width: f32;
-  height: f32;
-  freqX: f32;
-  freqY: f32;
-  seed: f32;
-  time: f32;
-  speed: f32;
-  corners: f32;
-  interp: f32;
-  distrib: f32;
-  useMask: f32;
-  maskWidth: f32;
-  maskHeight: f32;
-  pad1: f32;
-  pad2: f32;
-  pad3: f32;
+  width: f32,
+  height: f32,
+  freqX: f32,
+  freqY: f32,
+  seed: f32,
+  time: f32,
+  speed: f32,
+  corners: f32,
+  interp: f32,
+  distrib: f32,
+  useMask: f32,
+  maskWidth: f32,
+  maskHeight: f32,
+  pad1: f32,
+  pad2: f32,
+  pad3: f32,
 };
 @group(0) @binding(0) var<storage, read_write> out: array<f32>;
 @group(0) @binding(1) var<uniform> params: ValueParams;
@@ -265,14 +265,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
 export const REINDEX_WGSL = /* wgsl */ `
 struct ReindexParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  displacement: f32;
-  mod: f32;
-  pad0: f32;
-  pad1: f32;
-  pad2: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  displacement: f32,
+  mod: f32,
+  pad0: f32,
+  pad1: f32,
+  pad2: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
@@ -303,14 +303,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const RIPPLE_WGSL = /* wgsl */ `
 struct RippleParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  displacement: f32;
-  kink: f32;
-  rand: f32;
-  pad0: f32;
-  pad1: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  displacement: f32,
+  kink: f32,
+  rand: f32,
+  pad0: f32,
+  pad1: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var refTex: texture_2d<f32>;
@@ -353,14 +353,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const COLOR_MAP_WGSL = /* wgsl */ `
 struct ColorMapParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  displacement: f32;
-  horizontal: f32;
-  clutWidth: f32;
-  clutHeight: f32;
-  clutChannels: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  displacement: f32,
+  horizontal: f32,
+  clutWidth: f32,
+  clutHeight: f32,
+  clutChannels: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var clut: texture_2d<f32>;
@@ -395,14 +395,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const VIGNETTE_WGSL = /* wgsl */ `
 struct VignetteParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  brightness: f32;
-  alpha: f32;
-  pad0: f32;
-  pad1: f32;
-  pad2: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  brightness: f32,
+  alpha: f32,
+  pad0: f32,
+  pad1: f32,
+  pad2: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
@@ -428,14 +428,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const DITHER_WGSL = /* wgsl */ `
 struct DitherParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  levels: f32;
-  pad0: f32;
-  pad1: f32;
-  pad2: f32;
-  pad3: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  levels: f32,
+  pad0: f32,
+  pad1: f32,
+  pad2: f32,
+  pad3: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var noise: texture_2d<f32>;
@@ -461,14 +461,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const ADJUST_BRIGHTNESS_WGSL = /* wgsl */ `
 struct BrightnessParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  amount: f32;
-  pad0: f32;
-  pad1: f32;
-  pad2: f32;
-  pad3: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  amount: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
@@ -480,8 +476,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let w = u32(params.width);
   let h = u32(params.height);
   if (x >= w || y >= h) { return; }
-  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0) + params.amount;
-  let val = clamp(col, -1.0, 1.0);
+  let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+  let val = clamp(
+    col + vec4<f32>(params.amount),
+    vec4<f32>(-1.0, -1.0, -1.0, -1.0),
+    vec4<f32>(1.0, 1.0, 1.0, 1.0)
+  );
   let ch = u32(params.channels);
   let base = (y * w + x) * ch;
   if (ch > 0u) { out[base] = val.x; }
@@ -491,14 +491,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const ADJUST_CONTRAST_WGSL = /* wgsl */ `
 struct ContrastParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  amount: f32;
-  mean0: f32;
-  mean1: f32;
-  mean2: f32;
-  pad0: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  amount: f32,
+  mean0: f32,
+  mean1: f32,
+  mean2: f32,
+  pad0: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
@@ -530,14 +530,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`;
 export const ROTATE_WGSL = /* wgsl */ `
 struct RotateParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  angle: f32;
-  pad0: f32;
-  pad1: f32;
-  pad2: f32;
-  pad3: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  angle: f32,
+  pad0: f32,
+  pad1: f32,
+  pad2: f32,
+  pad3: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;

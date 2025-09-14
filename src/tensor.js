@@ -42,8 +42,6 @@ export class Tensor {
           { width: w, height: h, depthOrArrayLayers: 1 }
         );
       }
-      tex.width = w;
-      tex.height = h;
       return new Tensor(ctx, tex, shape, null);
     }
     const data = array ? array.slice() : new Float32Array(h * w * c);

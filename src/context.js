@@ -43,9 +43,20 @@ export class Context {
 
   async createComputePipeline(code) {
     if (!this.device) throw new Error('WebGPU device not initialized');
+    const module = this.createShaderModule(code);
+    if (module.getCompilationInfo) {
+      const info = await module.getCompilationInfo();
+      const errors = info.messages.filter((m) => m.type === 'error');
+      if (errors.length) {
+        const details = errors
+          .map((m) => `${m.lineNum}:${m.linePos} ${m.message}`)
+          .join('\n');
+        throw new Error(`Shader compilation failed:\n${details}`);
+      }
+    }
     return this.device.createComputePipelineAsync({
       layout: 'auto',
-      compute: { module: this.createShaderModule(code), entryPoint: 'main' },
+      compute: { module, entryPoint: 'main' },
     });
   }
 
@@ -102,8 +113,6 @@ export class Context {
         { width, height, depthOrArrayLayers: 1 }
       );
     }
-    texture.width = width;
-    texture.height = height;
     return texture;
   }
 
@@ -162,18 +171,45 @@ export class Context {
           return textureSample(tex, samp, uv);
         }
       `;
-      this._renderPipeline = this.createRenderPipeline(vs, fs, [
-        { format: this.presentationFormat },
-      ]);
+      const bindGroupLayout = this.device.createBindGroupLayout({
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: { type: 'non-filtering' },
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { sampleType: 'unfilterable-float' },
+          },
+        ],
+      });
+      const pipelineLayout = this.device.createPipelineLayout({
+        bindGroupLayouts: [bindGroupLayout],
+      });
+      this._renderPipeline = this.device.createRenderPipeline({
+        layout: pipelineLayout,
+        vertex: { module: this.createShaderModule(vs), entryPoint: 'main' },
+        fragment: {
+          module: this.createShaderModule(fs),
+          entryPoint: 'main',
+          targets: [{ format: this.presentationFormat }],
+        },
+        primitive: { topology: 'triangle-list' },
+      });
       this._renderSampler = this.device.createSampler({
         magFilter: 'nearest',
         minFilter: 'nearest',
       });
     }
-    const bindGroup = this.createBindGroup(this._renderPipeline, [
-      { binding: 0, resource: this._renderSampler },
-      { binding: 1, resource: texture.createView() },
-    ]);
+    const bindGroup = this.device.createBindGroup({
+      layout: this._renderPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: this._renderSampler },
+        { binding: 1, resource: texture.createView() },
+      ],
+    });
     const encoder = this.device.createCommandEncoder();
     const view = (target || this.gpu.getCurrentTexture()).createView();
     const pass = this.beginRenderPass(encoder, view);
@@ -207,6 +243,11 @@ export class Context {
     const device = this.device;
     device.pushErrorScope('validation');
     const pipeline = await this.createComputePipeline(code);
+    const compileErr = await device.popErrorScope();
+    if (compileErr) {
+      throw compileErr;
+    }
+    device.pushErrorScope('validation');
     const bindGroup = this.createBindGroup(pipeline, bindEntries);
     const encoder = device.createCommandEncoder();
     const pass = this.beginComputePass(encoder);
@@ -236,6 +277,19 @@ export class Context {
     const bufSize = buffer.size || buffer._size || size;
     if (bufSize < size) {
       throw new Error(`Buffer too small: ${bufSize} < ${size}`);
+    }
+    if (buffer.usage & GPUBufferUsage.MAP_READ) {
+      const t0 = performance.now();
+      if (this.queue.onSubmittedWorkDone) {
+        await this.queue.onSubmittedWorkDone();
+        if (this.profile) {
+          this.profile.webgpu += performance.now() - t0;
+        }
+      }
+      await buffer.mapAsync(GPUMapMode.READ);
+      const arr = buffer.getMappedRange().slice(0, size);
+      buffer.unmap();
+      return new Float32Array(arr);
     }
     device.pushErrorScope('validation');
     const readBuf = device.createBuffer({

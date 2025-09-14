@@ -4266,7 +4266,7 @@ export async function adjustBrightness(tensor, shape, time, speed, amount = 0.12
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
     const paramsBuf = ctx.createGPUBuffer(
-      new Float32Array([w, h, c, amount, 0, 0, 0, 0]),
+      new Float32Array([w, h, c, amount]),
       GPUBufferUsage.UNIFORM,
     );
     await ctx.runCompute(

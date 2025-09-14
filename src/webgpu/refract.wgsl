@@ -1,12 +1,12 @@
 struct RefractParams {
-  width: f32;
-  height: f32;
-  channels: f32;
-  displacement: f32;
-  signed: f32;
-  interp: f32;
-  pad0: f32;
-  pad1: f32;
+  width: f32,
+  height: f32,
+  channels: f32,
+  displacement: f32,
+  signed: f32,
+  interp: f32,
+  pad0: f32,
+  pad1: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var rx: texture_2d<f32>;
