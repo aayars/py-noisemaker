@@ -101,7 +101,7 @@ export function parse(tokens, enforcePresetKeys = true) {
   }
 
   function parseTernary() {
-    let node = parseAdd();
+    let node = parseComparison();
     if (peekIs('identifier') && peek().value === 'if') {
       consume('identifier'); // 'if'
       const testExpr = parseTernary();
@@ -114,6 +114,21 @@ export function parse(tokens, enforcePresetKeys = true) {
       consume(':');
       const falseExpr = parseTernary();
       return { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr };
+    }
+    return node;
+  }
+
+  function parseComparison() {
+    let node = parseAdd();
+    while (true) {
+      const t = peek();
+      if (t && (t.type === '<' || t.type === '>')) {
+        consume(t.type);
+        const right = parseAdd();
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+      } else {
+        break;
+      }
     }
     return node;
   }

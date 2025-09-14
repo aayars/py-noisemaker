@@ -86,6 +86,10 @@ function evalNode(node, ctx) {
               if (Array.isArray(L) && typeof R === 'number') return L.map((n) => n / R);
               if (typeof L === 'number' && Array.isArray(R)) return R.map((n) => L / n);
               return L / R;
+            case '<':
+              return L < R;
+            case '>':
+              return L > R;
             default:
               throw new Error(`Unknown operator ${op}`);
           }
@@ -119,6 +123,10 @@ function evalNode(node, ctx) {
           if (Array.isArray(l) && typeof r === 'number') return l.map((n) => n / r);
           if (typeof l === 'number' && Array.isArray(r)) return r.map((n) => l / n);
           return l / r;
+        case '<':
+          return l < r;
+        case '>':
+          return l > r;
         default:
           throw new Error(`Unknown operator ${op}`);
       }

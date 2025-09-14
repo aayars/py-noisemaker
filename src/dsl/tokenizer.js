@@ -1,5 +1,5 @@
 // Support ternary operator and equals sign for named arguments
-const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ':', '.', '+', '-', '*', '/', '?', '=']);
+const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ':', '.', '+', '-', '*', '/', '?', '=', '<', '>']);
 
 function isDigit(ch) {
   return ch >= '0' && ch <= '9';

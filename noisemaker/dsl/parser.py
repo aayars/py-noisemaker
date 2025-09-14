@@ -128,7 +128,7 @@ def parse(tokens, enforce_preset_keys=True):
         token = consume('identifier')
         return {'type': 'Identifier', 'name': token['value']}
     def parseNumberExpr():
-        node = parseAdd()
+        node = parseComparison()
         t = peek()
         if t and t['type'] == 'identifier' and t['value'] == 'if':
             consume('identifier')
@@ -144,6 +144,18 @@ def parse(tokens, enforce_preset_keys=True):
             false_expr = parseNumberExpr()
             node = {'type': 'TernaryExpr', 'test': node, 'consequent': true_expr, 'alternate': false_expr}
         return node
+    def parseComparison():
+        node = parseAdd()
+        while True:
+            t = peek()
+            if t and t['type'] in ('<', '>'):
+                consume(t['type'])
+                right = parseAdd()
+                node = {'type': 'BinaryExpr', 'operator': t['type'], 'left': node, 'right': right}
+            else:
+                break
+        return node
+
     def parseAdd():
         node = parseMul()
         while True:

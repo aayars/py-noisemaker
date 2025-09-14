@@ -145,18 +145,18 @@ let _SOURCE;
 }
 
 function buildPresets(names) {
-  // Preserve the caller's RNG state. The DSL parser currently uses the
-  // seeded RNG during parsing, so parse using a fixed seed and then restore
-  // the original seed to avoid consuming random values that would affect
-  // downstream preset evaluation.
+  // The reference Python implementation builds the preset table without
+  // consuming any RNG state. Parse the DSL using a fixed seed and then restore
+  // the caller's seed so downstream random sequences remain unchanged.
   const seedBefore = getSeed();
   setSeed(0);
   const parsed = parsePresetDSL(_SOURCE);
   setSeed(seedBefore);
-
-  // Python's PRESETS() consumes three RNG calls when invoked. Building the
-  // preset table from the DSL above already uses two calls, so advance once more
-  // to keep the subsequent RNG sequence aligned with the Python implementation.
+  // The Python preset table construction advances RNG three times for dynamic
+  // layer expressions even though the resulting values are unused when only a
+  // single preset is requested. Advance the RNG here to keep sequences aligned.
+  random();
+  random();
   random();
   const presets = {};
 
@@ -174,7 +174,7 @@ function buildPresets(names) {
       }
     }
 
-    const p = { ...preset };
+  const p = { ...preset };
     if (typeof p.layers === 'function') {
       // Allow layers to be specified as a function in the DSL. Evaluate the
       // function once when building the preset so downstream consumers always

@@ -69,6 +69,10 @@ def _apply_binary(l, r, op):
         if isinstance(l, (int, float)) and isinstance(r, list):
             return [l / n for n in r]
         return l / r
+    if op == '<':
+        return l < r
+    if op == '>':
+        return l > r
     raise ValueError(f"Unknown operator {op}")
 
 def _eval_node(node, ctx):

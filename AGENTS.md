@@ -41,6 +41,9 @@ Read and follow to the letter:
     - VANILLA_JS_PORT_SPEC.md porting document
     - PY_JS_PARITY_SPEC.md cross-language parity requirements
 
+Never simulate weighted randomness by repeating values in collections passed to
+`random_member`; use explicit probability checks instead (e.g., `random() < p`).
+
 ## Javascript/Python Parity Testing
 
 - When the focus is JS, you may not change the reference python implementation.

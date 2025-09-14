@@ -25,9 +25,9 @@ const seed = parseInt(seedStr, 10);
 // not reset the seed so that any random calls made while constructing the
 // preset (e.g., during PRESETS()) advance the RNG identically to Python.
 setSeed(seed);
-// Build the full preset dictionary so that any RNG usage during preset
-// definition mirrors Python's PRESETS() call.
-const presets = PRESETS();
+// Build only the requested preset (and its ancestors) so that RNG state
+// remains aligned with Python, which does not evaluate unrelated presets.
+const presets = PRESETS(name);
 const preset = new Preset(name, presets);
 const raw = JSON.parse(JSON.stringify(preset.settings));
 console.log(JSON.stringify(snakeKeys(raw)));
