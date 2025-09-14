@@ -103,6 +103,16 @@ Identifiers must resolve to registered operations or surfaces.  Unknown
 identifiers emit `S001` diagnostics.  Each operation defines its own parameter
 validation, issuing `S002` when clamping out‑of‑range values.
 
+### Naming Conventions
+
+* Preset names use **kebab-case**.
+* Preset setting keys use **snake_case**.
+* Function wrappers and argument keys use **snake_case**.
+* Enum wrapper members use **snake_case**.
+* Underlying implementations:
+  * Python enums and functions use `snake_case`.
+  * JavaScript enums and functions use `camelCase`.
+
 ## 6. Diagnostics
 
 | Code | Stage    | Severity | Message |

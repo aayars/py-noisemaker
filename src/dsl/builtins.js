@@ -122,19 +122,19 @@ export const operations = Object.freeze({
   mask_freq,
   preset,
   // expose helper functions used via enum method-style calls
-  distanceMetricAbsoluteMembers: constants.distanceMetricAbsoluteMembers,
-  distanceMetricAll: constants.distanceMetricAll,
-  colorSpaceMembers: constants.colorSpaceMembers,
-  valueMaskProceduralMembers: constants.valueMaskProceduralMembers,
-  valueMaskGridMembers: constants.valueMaskGridMembers,
-  valueMaskGlyphMembers: constants.valueMaskGlyphMembers,
-  valueMaskNonproceduralMembers: constants.valueMaskNonproceduralMembers,
-  valueMaskRgbMembers: constants.valueMaskRgbMembers,
-  circularMembers: constants.circularMembers,
-  gridMembers: constants.gridMembers,
-  wormBehaviorAll: constants.wormBehaviorAll,
-  maskShape: _maskShape,
-  squareMasks: _squareMasks,
+  distance_metric_absolute_members: constants.distanceMetricAbsoluteMembers,
+  distance_metric_all: constants.distanceMetricAll,
+  color_space_members: constants.colorSpaceMembers,
+  value_mask_procedural_members: constants.valueMaskProceduralMembers,
+  value_mask_grid_members: constants.valueMaskGridMembers,
+  value_mask_glyph_members: constants.valueMaskGlyphMembers,
+  value_mask_nonprocedural_members: constants.valueMaskNonproceduralMembers,
+  value_mask_rgb_members: constants.valueMaskRgbMembers,
+  circular_members: constants.circularMembers,
+  grid_members: constants.gridMembers,
+  worm_behavior_all: constants.wormBehaviorAll,
+  mask_shape: _maskShape,
+  square_masks: _squareMasks,
 });
 
 export const enums = { ...constants, PALETTES: _PALETTES };
@@ -144,29 +144,29 @@ export const enums = { ...constants, PALETTES: _PALETTES };
 // to resolve to the appropriate helper without mutating the frozen enum objects.
 export const enumMethods = Object.freeze({
   DistanceMetric: {
-    absolute_members: operations.distanceMetricAbsoluteMembers,
-    all: operations.distanceMetricAll,
+    absolute_members: operations.distance_metric_absolute_members,
+    all: operations.distance_metric_all,
   },
   PointDistribution: {
-    grid_members: () => operations.gridMembers,
-    circular_members: () => operations.circularMembers,
+    grid_members: () => operations.grid_members,
+    circular_members: () => operations.circular_members,
   },
   ColorSpace: {
-    color_members: operations.colorSpaceMembers,
+    color_members: operations.color_space_members,
   },
   ValueMask: {
-    procedural_members: () => operations.valueMaskProceduralMembers,
-    grid_members: () => operations.valueMaskGridMembers,
-    glyph_members: () => operations.valueMaskGlyphMembers,
-    nonprocedural_members: () => operations.valueMaskNonproceduralMembers,
-    rgb_members: () => operations.valueMaskRgbMembers,
+    procedural_members: () => operations.value_mask_procedural_members,
+    grid_members: () => operations.value_mask_grid_members,
+    glyph_members: () => operations.value_mask_glyph_members,
+    nonprocedural_members: () => operations.value_mask_nonprocedural_members,
+    rgb_members: () => operations.value_mask_rgb_members,
   },
   WormBehavior: {
-    all: () => operations.wormBehaviorAll,
+    all: () => operations.worm_behavior_all,
   },
   masks: {
-    mask_shape: operations.maskShape,
-    square_masks: operations.squareMasks,
+    mask_shape: operations.mask_shape,
+    square_masks: operations.square_masks,
   },
 });
 

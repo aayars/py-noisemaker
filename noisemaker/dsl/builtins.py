@@ -119,19 +119,19 @@ operations = {
     "mask_freq": mask_freq,
     "preset": preset,
     # expose helper functions used via enum method-style calls
-    "distanceMetricAbsoluteMembers": constants.DistanceMetric.absolute_members,
-    "distanceMetricAll": constants.DistanceMetric.all,
-    "colorSpaceMembers": constants.ColorSpace.color_members,
-    "valueMaskProceduralMembers": constants.ValueMask.procedural_members,
-    "valueMaskGridMembers": constants.ValueMask.grid_members,
-    "valueMaskGlyphMembers": constants.ValueMask.glyph_members,
-    "valueMaskNonproceduralMembers": constants.ValueMask.nonprocedural_members,
-    "valueMaskRgbMembers": constants.ValueMask.rgb_members,
-    "circularMembers": constants.PointDistribution.circular_members,
-    "gridMembers": constants.PointDistribution.grid_members,
-    "wormBehaviorAll": constants.WormBehavior.all,
-    "maskShape": _masks.mask_shape,
-    "squareMasks": _masks.square_masks,
+    "distance_metric_absolute_members": constants.DistanceMetric.absolute_members,
+    "distance_metric_all": constants.DistanceMetric.all,
+    "color_space_members": constants.ColorSpace.color_members,
+    "value_mask_procedural_members": constants.ValueMask.procedural_members,
+    "value_mask_grid_members": constants.ValueMask.grid_members,
+    "value_mask_glyph_members": constants.ValueMask.glyph_members,
+    "value_mask_nonprocedural_members": constants.ValueMask.nonprocedural_members,
+    "value_mask_rgb_members": constants.ValueMask.rgb_members,
+    "circular_members": constants.PointDistribution.circular_members,
+    "grid_members": constants.PointDistribution.grid_members,
+    "worm_behavior_all": constants.WormBehavior.all,
+    "mask_shape": _masks.mask_shape,
+    "square_masks": _masks.square_masks,
 }
 
 # Merge constants with PALETTES so the DSL can reference the palette table as
@@ -141,29 +141,29 @@ _enum_dict["PALETTES"] = _PALETTES
 enums = types.SimpleNamespace(**_enum_dict)
 enumMethods = {
     "DistanceMetric": {
-        "absolute_members": operations["distanceMetricAbsoluteMembers"],
-        "all": operations["distanceMetricAll"],
+        "absolute_members": operations["distance_metric_absolute_members"],
+        "all": operations["distance_metric_all"],
     },
     "PointDistribution": {
-        "grid_members": lambda: operations["gridMembers"](),
-        "circular_members": lambda: operations["circularMembers"](),
+        "grid_members": lambda: operations["grid_members"](),
+        "circular_members": lambda: operations["circular_members"](),
     },
     "ColorSpace": {
-        "color_members": operations["colorSpaceMembers"],
+        "color_members": operations["color_space_members"],
     },
     "ValueMask": {
-        "procedural_members": lambda: operations["valueMaskProceduralMembers"](),
-        "grid_members": lambda: operations["valueMaskGridMembers"](),
-        "glyph_members": lambda: operations["valueMaskGlyphMembers"](),
-        "nonprocedural_members": lambda: operations["valueMaskNonproceduralMembers"](),
-        "rgb_members": lambda: operations["valueMaskRgbMembers"](),
+        "procedural_members": lambda: operations["value_mask_procedural_members"](),
+        "grid_members": lambda: operations["value_mask_grid_members"](),
+        "glyph_members": lambda: operations["value_mask_glyph_members"](),
+        "nonprocedural_members": lambda: operations["value_mask_nonprocedural_members"](),
+        "rgb_members": lambda: operations["value_mask_rgb_members"](),
     },
     "WormBehavior": {
-        "all": lambda: operations["wormBehaviorAll"](),
+        "all": lambda: operations["worm_behavior_all"](),
     },
     "masks": {
-        "mask_shape": operations["maskShape"],
-        "square_masks": lambda: operations["squareMasks"](),
+        "mask_shape": operations["mask_shape"],
+        "square_masks": lambda: operations["square_masks"](),
     },
 }
 
