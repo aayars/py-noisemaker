@@ -69,7 +69,6 @@
   </style>
 </head>
 <body>
-  <div id="errorBanner" style="display:none;background:#fee;color:#900;padding:10px;width:100%;box-sizing:border-box;white-space:pre-wrap;"></div>
   <div id="left">
     <h1>Noisemaker JS Demo</h1>
     <span>
@@ -92,12 +91,41 @@
         <span id="status"></span>
       </div>
     </div>
+    <div id="errorBanner" style="display:none;background:#fee;color:#900;padding:10px;width:100%;box-sizing:border-box;white-space:pre-wrap;"></div>
   </div>
   <script type="module">
     import { Context } from './src/context.js';
     import { render, Preset } from './src/composer.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
+
+    const errorBannerEl = document.getElementById('errorBanner');
+
+    function showError(message) {
+      errorBannerEl.style.display = 'block';
+      errorBannerEl.textContent += (errorBannerEl.textContent ? '\n' : '') + message;
+    }
+
+    const origConsoleError = console.error.bind(console);
+    console.error = (...args) => {
+      origConsoleError(...args);
+      showError(args.map(String).join(' '));
+    };
+
+    console.warn = (...args) => {
+      origConsoleError(...args);
+      showError(args.map(String).join(' '));
+    };
+
+    window.addEventListener('error', (e) => {
+      showError(`${e.message}\n${e.error?.stack || ''}`);
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      const reason = e.reason;
+      showError(reason && reason.stack ? `${reason.message}\n${reason.stack}` : String(reason));
+    });
+
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
     // Attempt to initialize WebGPU. Enable the API in your browser for best
@@ -108,11 +136,15 @@
     //   - Firefox Nightly: dom.webgpu.enabled in about:config
     // If `navigator.gpu` is missing or adapter/device requests fail, the demo
     // will display the error.
-    await ctx.initWebGPU();
+    try {
+      await ctx.initWebGPU();
+    } catch (e) {
+      showError(e.message || String(e));
+      throw e;
+    }
     ctx.profile = { webgpu: 0 };
     const presetSelect = document.getElementById('preset');
     const statusEl = document.getElementById('status');
-    const errorBannerEl = document.getElementById('errorBanner');
     const presetFormulaEl = document.getElementById('presetFormula');
     const presetEvalEl = document.getElementById('presetEvaluated');
     const tabFormulaBtn = document.getElementById('tabFormula');
@@ -235,6 +267,8 @@
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
       let start = performance.now();
+      errorBannerEl.style.display = 'none';
+      errorBannerEl.textContent = '';
       try {
         await render(presetObj, seed, {
           width: canvas.width,
@@ -248,8 +282,7 @@
         }
       } catch (e) {
         const errorText = `${e.message || e}\n${e.stack || ''}`;
-        errorBannerEl.style.display = 'block';
-        errorBannerEl.textContent = errorText;
+        showError(errorText);
         throw e;
       }
       const elapsed = performance.now() - start;
