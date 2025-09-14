@@ -22,11 +22,11 @@ fn fmod2(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
   return a - b * floor(a / b);
 }
 
-fn interpFunc(t: f32) -> f32 {
-  let i = u32(params.interp);
-  if (i == ${InterpolationType.cosine}u) { return 0.5 - cos(t * 3.141592653589793) * 0.5; }
-  return t;
-}
+  fn interpFunc(t: f32) -> f32 {
+    let i = u32(params.interp);
+    if (i == 2u) { return 0.5 - cos(t * 3.141592653589793) * 0.5; }
+    return t;
+  }
 
 @compute @workgroup_size(8,8,1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {

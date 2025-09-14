@@ -89,7 +89,8 @@ fn simplex2(v: vec2<f32>) -> f32 {
   m = m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h));
   var g = vec3<f32>(0.0);
   g.x = a0.x * x0.x + h.x * x0.y;
-  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  g.y = a0.y * x12.x + h.y * x12.y;
+  g.z = a0.z * x12.z + h.z * x12.w;
   return 130.0 * dot(m, g);
 }
 fn simplex3(v: vec3<f32>) -> f32 {
