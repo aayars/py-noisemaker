@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import { Context, setSeed } from '../src/context.js';
+import { Tensor } from '../src/tensor.js';
+import { wormhole } from '../src/effects.js';
+
+const canvas = document.createElement('canvas');
+const ctx = new Context(canvas);
+if (!navigator.gpu) {
+  document.body.textContent = 'no webgpu';
+} else {
+  await ctx.initWebGPU();
+  const shape = [4,4,1];
+  const data = new Float32Array(shape[0]*shape[1]*shape[2]);
+  for (let i=0;i<data.length;i++) data[i] = i / data.length;
+  const tensorGPU = Tensor.fromArray(ctx, data, shape);
+  const tensorCPU = Tensor.fromArray(null, data, shape);
+  setSeed(123);
+  const outGPU = await wormhole(tensorGPU, shape, 0, 1, 1.0, 1.0, 1.0);
+  const arrGPU = await outGPU.read();
+  setSeed(123);
+  const outCPU = await wormhole(tensorCPU, shape, 0, 1, 1.0, 1.0, 1.0);
+  const arrCPU = await outCPU.read();
+  let ok = true;
+  const tol = 1e-3;
+  for (let i=0;i<arrCPU.length;i++) {
+    if (Math.abs(arrCPU[i] - arrGPU[i]) > tol) { ok = false; break; }
+  }
+  document.body.textContent = ok ? 'wormhole parity ok' : 'wormhole parity fail';
+}
+</script>
+</body>
+</html>

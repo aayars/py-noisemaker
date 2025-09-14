@@ -66,6 +66,7 @@ import {
   KALEIDO_WGSL,
   NORMAL_MAP_WGSL,
   CRT_WGSL,
+  WORMHOLE_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -4287,6 +4288,53 @@ export async function wormhole(
   alpha = 1.0,
 ) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const src = await tensor.read();
+    const valuesArr = new Float32Array(h * w);
+    if (c === 1) {
+      for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
+    } else {
+      const labTensor = await rgbToOklab(tensor);
+      const lab = await labTensor.read();
+      for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
+    }
+    const stride = 1024 * inputStride;
+    const yOff = Math.floor(h * 0.5 + random() * h * 0.5);
+    const xOff = Math.floor(random() * w * 0.5);
+    const lumBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
+    const outBuf = ctx.device.createBuffer({
+      size: h * w * c * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, stride, kink, xOff, yOff, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    try {
+      await ctx.runCompute(
+        WORMHOLE_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: { buffer: lumBuf } },
+          { binding: 2, resource: { buffer: outBuf } },
+          { binding: 3, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+    } catch (e) {
+      const cpuTensor = Tensor.fromArray(null, await tensor.read(), shape);
+      return await wormhole(cpuTensor, shape, time, speed, kink, inputStride, alpha);
+    }
+    const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
+    let outTensor = Tensor.fromArray(ctx, out, shape);
+    outTensor = await normalize(outTensor);
+    const d = await outTensor.read();
+    for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
+    outTensor = Tensor.fromArray(ctx, d, shape);
+    return blend(tensor, outTensor, alpha);
+  }
   const src = await tensor.read();
   const valuesArr = new Float32Array(h * w);
   if (c === 1) {
