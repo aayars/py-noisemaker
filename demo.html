@@ -41,9 +41,7 @@
     #info {
       margin-top: 20px;
     }
-    #device,
-    #renderTime,
-    #seed {
+    #status {
       font-size: 14px;
       margin-bottom: 10px;
     }
@@ -91,9 +89,7 @@
       <pre id="presetFormula"></pre>
       <pre id="presetEvaluated"></pre>
       <div style="text-align: right">
-        <span id="device"></span>
-        <span id="renderTime"></span>
-        <span id="seed"></span>
+        <span id="status"></span>
       </div>
     </div>
   </div>
@@ -113,10 +109,32 @@
     // If `navigator.gpu` is missing or adapter/device requests fail, the demo
     // will log the error and fall back to WebGL.
     await ctx.initWebGPU();
+    ctx.profile = { webgpu: 0, webgl2: 0 };
+    if (ctx.queue) {
+      const origSubmit = ctx.queue.submit.bind(ctx.queue);
+      ctx.queue.submit = function (...args) {
+        const t0 = performance.now();
+        const result = origSubmit(...args);
+        if (this.onSubmittedWorkDone) {
+          this.onSubmittedWorkDone().then(() => {
+            ctx.profile.webgpu += performance.now() - t0;
+          });
+        }
+        return result;
+      };
+    }
+    const origDrawQuad = ctx.drawQuad.bind(ctx);
+    ctx.drawQuad = function (...args) {
+      const t0 = performance.now();
+      const result = origDrawQuad(...args);
+      if (this.gl && this.gl.finish) {
+        this.gl.finish();
+      }
+      this.profile.webgl2 += performance.now() - t0;
+      return result;
+    };
     const presetSelect = document.getElementById('preset');
-    const renderTimeEl = document.getElementById('renderTime');
-    const deviceEl = document.getElementById('device');
-    const seedEl = document.getElementById('seed');
+    const statusEl = document.getElementById('status');
     const errorBannerEl = document.getElementById('errorBanner');
     const presetFormulaEl = document.getElementById('presetFormula');
     const presetEvalEl = document.getElementById('presetEvaluated');
@@ -233,11 +251,11 @@
 
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
-    const device = ctx.isCPU ? 'cpu' : 'gpu';
-    deviceEl.textContent = ctx.device ? `webgpu+${device}` : device;
 
     async function draw(seed, presetName) {
       setSeed(seed);
+      ctx.profile.webgpu = 0;
+      ctx.profile.webgl2 = 0;
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
       let start = performance.now();
@@ -249,6 +267,9 @@
           presets,
           debug: false,
         });
+        if (ctx.queue && ctx.queue.onSubmittedWorkDone) {
+          await ctx.queue.onSubmittedWorkDone();
+        }
       } catch (e) {
         const errorText = `${e.message || e}\n${e.stack || ''}`;
         if (ctx.device) {
@@ -256,7 +277,6 @@
           errorBannerEl.style.display = 'block';
           errorBannerEl.textContent = `WebGPU failed, falling back to WebGL:\n${errorText}`;
           ctx.device = null;
-          deviceEl.textContent = device;
           start = performance.now();
           await render(presetObj, seed, {
             width: canvas.width,
@@ -265,6 +285,9 @@
             presets,
             debug: false,
           });
+          if (ctx.queue && ctx.queue.onSubmittedWorkDone) {
+            await ctx.queue.onSubmittedWorkDone();
+          }
         } else {
           errorBannerEl.style.display = 'block';
           errorBannerEl.textContent = errorText;
@@ -272,8 +295,11 @@
         }
       }
       const elapsed = performance.now() - start;
-      seedEl.textContent = `seed: ${seed}`;
-      renderTimeEl.textContent = `rendering time: ${elapsed.toFixed(2)} ms`;
+      const webgpuMs = ctx.profile.webgpu;
+      const webgl2Ms = ctx.profile.webgl2;
+      const cpuMs = Math.max(0, elapsed - webgpuMs - webgl2Ms);
+      statusEl.textContent =
+        `render time: ${elapsed.toFixed(2)} ms | webgpu: ${webgpuMs.toFixed(2)} ms | webgl2: ${webgl2Ms.toFixed(2)} ms | cpu: ${cpuMs.toFixed(2)} ms | seed: ${seed}`;
       presetFormulaEl.textContent = presetSource[presetName] || '';
       presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
     }
