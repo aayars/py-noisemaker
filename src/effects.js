@@ -61,6 +61,8 @@ import {
   SPATTER_MASK_WGSL,
   SCRATCHES_MASK_WGSL,
   SCRATCHES_BLEND_WGSL,
+  GRIME_MASK_WGSL,
+  GRIME_BLEND_WGSL,
   DERIVATIVE_WGSL,
   PIXEL_SORT_WGSL,
   KALEIDO_WGSL,
@@ -6237,7 +6239,7 @@ function randomGlyphMask(shape, glyphs) {
   return Tensor.fromArray(null, out, [h, w, c]);
 }
 
-export async function grime(tensor, shape, time, speed) {
+async function grimeCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
@@ -6261,7 +6263,7 @@ export async function grime(tensor, shape, time, speed) {
   const gateTensor = Tensor.fromArray(ctx, gate, shape);
   const baseData = new Float32Array(h * w * c).fill(0.25);
   const baseTensor = Tensor.fromArray(ctx, baseData, shape);
-    let dusty = await blend(tensor, baseTensor, gateTensor);
+  let dusty = await blend(tensor, baseTensor, gateTensor);
   let specks = await values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
     ctx,
     time,
@@ -6285,7 +6287,7 @@ export async function grime(tensor, shape, time, speed) {
     speed,
     distrib: ValueDistribution.exp,
   });
-    dusty = await blend(dusty, noise, 0.075);
+  dusty = await blend(dusty, noise, 0.075);
   let dustyData = await dusty.read();
   sData = await specks.read();
   for (let i = 0; i < dustyData.length; i++)
@@ -6298,9 +6300,111 @@ export async function grime(tensor, shape, time, speed) {
     for (let k = 0; k < c; k++) maskScaled[i * c + k] = v;
   }
   const maskTensor = Tensor.fromArray(ctx, maskScaled, shape);
-    return await blend(tensor, dusty, maskTensor);
+  return await blend(tensor, dusty, maskTensor);
+}
+
+async function grimeWebGPU(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+  const maskTex = ctx.device.createTexture({
+    size: { width: w, height: h, depthOrArrayLayers: 1 },
+    format: 'r32float',
+    usage:
+      GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.COPY_DST,
+  });
+  const maskParams = ctx.createGPUBuffer(
+    new Float32Array([w, h, time, speed]),
+    GPUBufferUsage.UNIFORM,
+  );
+  await ctx.runCompute(
+    GRIME_MASK_WGSL,
+    [
+      { binding: 0, resource: maskTex.createView() },
+      { binding: 1, resource: { buffer: maskParams } },
+    ],
+    Math.ceil(w / 8),
+    Math.ceil(h / 8),
+  );
+  let mask = new Tensor(ctx, maskTex, valueShape);
+  mask = await refractOp(mask);
+  mask = await derivative(
+    mask,
+    valueShape,
+    time,
+    speed,
+    DistanceMetric.chebyshev,
+    true,
+    0.125,
+  );
+  let specks = await values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+    splineOrder: InterpolationType.constant,
+  });
+  specks = await refractOp(specks, null, null, 0.25);
+  let sData = await specks.read();
+  for (let i = 0; i < sData.length; i++) {
+    sData[i] = Math.max(sData[i] - 0.625, 0);
   }
-  register("grime", grime, {});
+  specks = Tensor.fromArray(ctx, sData, valueShape);
+  specks = await normalize(specks);
+  sData = await specks.read();
+  for (let i = 0; i < sData.length; i++) sData[i] = 1 - Math.sqrt(sData[i]);
+  specks = Tensor.fromArray(ctx, sData, valueShape);
+  let noise = await values(Math.max(h, w), valueShape, {
+    ctx,
+    time,
+    speed,
+    distrib: ValueDistribution.exp,
+  });
+  const outTex = ctx.device.createTexture({
+    size: { width: w, height: h, depthOrArrayLayers: 1 },
+    format: 'rgba32float',
+    usage:
+      GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.COPY_DST,
+  });
+  const blendParams = ctx.createGPUBuffer(
+    new Float32Array([w, h, c]),
+    GPUBufferUsage.UNIFORM,
+  );
+  await ctx.runCompute(
+    GRIME_BLEND_WGSL,
+    [
+      { binding: 0, resource: tensor.handle.createView() },
+      { binding: 1, resource: mask.handle.createView() },
+      { binding: 2, resource: noise.handle.createView() },
+      { binding: 3, resource: specks.handle.createView() },
+      { binding: 4, resource: outTex.createView() },
+      { binding: 5, resource: { buffer: blendParams } },
+    ],
+    Math.ceil(w / 8),
+    Math.ceil(h / 8),
+  );
+  return new Tensor(ctx, outTex, shape);
+}
+
+export async function grime(tensor, shape, time, speed) {
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device && shape[2] >= 3) {
+    try {
+      return await grimeWebGPU(tensor, shape, time, speed);
+    } catch (e) {
+      console.warn('WebGPU grime fallback to CPU', e);
+      return grimeCPU(tensor, shape, time, speed);
+    }
+  }
+  return grimeCPU(tensor, shape, time, speed);
+}
+register("grime", grime, {});
 
 export async function watermark(tensor, shape, time, speed) {
   const [h, w, c] = shape;
