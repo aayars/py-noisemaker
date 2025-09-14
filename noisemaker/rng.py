@@ -24,6 +24,12 @@ class Random:
             a, b = b, a
         return int(self.random() * (b - a + 1)) + a
 
+    def choice(self, seq):
+        if not seq:
+            raise IndexError("Cannot choose from an empty sequence")
+        idx = self.random_int(0, len(seq) - 1)
+        return seq[idx]
+
 
 def set_seed(seed: int) -> None:
     """Set the global RNG seed."""

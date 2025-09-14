@@ -69,11 +69,11 @@ def js_effect(name: str, seed: int) -> np.ndarray:
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
 
 
-def js_rng(fn: str, seed: int, *args) -> list:
-    """Invoke the JavaScript RNG function and return the resulting list."""
+def js_rng(fn: str, seed: int, *args, scope: str = "global") -> dict:
+    """Invoke the JavaScript RNG function and return its JSON output."""
 
     script = Path(__file__).with_name("run_rng.js")
-    cmd = ["node", str(script), fn, str(seed), *map(str, args)]
+    cmd = ["node", str(script), scope, fn, str(seed), *map(str, args)]
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     return json.loads(result.stdout)
 
