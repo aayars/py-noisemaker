@@ -58,6 +58,7 @@ import {
   ROTATE_WGSL,
   GLYPH_MAP_WGSL,
   WARP_WGSL,
+  SPATTER_MASK_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -5402,7 +5403,7 @@ export async function nebula(tensor, shape, time, speed) {
 }
 register("nebula", nebula, {});
 
-export async function spatter(tensor, shape, time, speed, color = true) {
+async function spatterCPU(tensor, shape, time, speed, color = true) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
@@ -5500,11 +5501,130 @@ export async function spatter(tensor, shape, time, speed, color = true) {
       }
       overlay = hsvToRgb(Tensor.fromArray(ctx, hsvData, hsv.shape));
     }
-    } else {
-      overlay = await values(1, shape, { ctx, distrib: ValueDistribution.ones });
-    }
-    return blend(tensor, overlay, alphaTensor);
+  } else {
+    overlay = await values(1, shape, { ctx, distrib: ValueDistribution.ones });
   }
+  return blend(tensor, overlay, alphaTensor);
+}
+
+export async function spatter(tensor, shape, time, speed, color = true) {
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    try {
+      const [h, w] = shape;
+      const valueShape = [h, w, 1];
+      let smear = await values(randomInt(3, 6), valueShape, {
+        ctx,
+        time,
+        speed,
+        distrib: ValueDistribution.exp,
+      });
+      smear = await warp(
+        smear,
+        valueShape,
+        time,
+        speed,
+        randomInt(2, 3),
+        randomInt(1, 2),
+        1 + random(),
+      );
+      let sp1 = await values(randomInt(32, 64), valueShape, {
+        ctx,
+        time,
+        speed,
+        distrib: ValueDistribution.exp,
+        splineOrder: InterpolationType.linear,
+      });
+      sp1 = await adjustBrightness(sp1, valueShape, time, speed, -1.0);
+      sp1 = await adjustContrast(sp1, valueShape, time, speed, 4.0);
+      let sp2 = await values(randomInt(150, 200), valueShape, {
+        ctx,
+        time,
+        speed,
+        distrib: ValueDistribution.exp,
+        splineOrder: InterpolationType.linear,
+      });
+      sp2 = await adjustBrightness(sp2, valueShape, time, speed, -1.25);
+      sp2 = await adjustContrast(sp2, valueShape, time, speed, 4.0);
+      const remover = await values(randomInt(2, 3), valueShape, {
+        ctx,
+        time,
+        speed,
+        distrib: ValueDistribution.exp,
+      });
+      const outTex = ctx.device.createTexture({
+        size: { width: w, height: h, depthOrArrayLayers: 1 },
+        format: 'r32float',
+        usage:
+          GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST,
+      });
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        SPATTER_MASK_WGSL,
+        [
+          { binding: 0, resource: smear.handle.createView() },
+          { binding: 1, resource: sp1.handle.createView() },
+          { binding: 2, resource: sp2.handle.createView() },
+          { binding: 3, resource: remover.handle.createView() },
+          { binding: 4, resource: outTex.createView() },
+          { binding: 5, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      let mask = new Tensor(ctx, outTex, valueShape);
+      mask = await normalize(mask);
+      const zero = await values(1, valueShape, {
+        ctx,
+        distrib: ValueDistribution.zeros,
+      });
+      mask = await blend(zero, mask, 0.005);
+      let overlay;
+      if (shape[2] === 3 && color) {
+        if (Array.isArray(color)) {
+          const colData = new Float32Array(h * w * 3);
+          for (let i = 0; i < h * w; i++) {
+            colData[i * 3] = color[0];
+            colData[i * 3 + 1] = color[1];
+            colData[i * 3 + 2] = color[2];
+          }
+          overlay = Tensor.fromArray(ctx, colData, shape);
+        } else {
+          const baseData = new Float32Array(h * w * 3);
+          for (let i = 0; i < h * w; i++) {
+            baseData[i * 3] = 0.875;
+            baseData[i * 3 + 1] = 0.125;
+            baseData[i * 3 + 2] = 0.125;
+          }
+          let base = Tensor.fromArray(ctx, baseData, shape);
+          const hsv = await rgbToHsv(base);
+          const hsvData = await hsv.read();
+          const delta = random() - 0.5;
+          for (let i = 0; i < h * w; i++) {
+            hsvData[i * 3] = (hsvData[i * 3] + delta + 1) % 1;
+          }
+          overlay = hsvToRgb(Tensor.fromArray(ctx, hsvData, hsv.shape));
+        }
+      } else {
+        overlay = await values(1, shape, {
+          ctx,
+          distrib: ValueDistribution.ones,
+        });
+      }
+      return blend(tensor, overlay, mask);
+    } catch (e) {
+      console.warn('WebGPU spatter fallback to CPU', e);
+      return spatterCPU(tensor, shape, time, speed, color);
+    }
+  }
+  return spatterCPU(tensor, shape, time, speed, color);
+}
 register("spatter", spatter, { color: true });
 
 export async function clouds(tensor, shape, time, speed) {
