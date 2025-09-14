@@ -1,201 +1,187 @@
 /**
- * WebGL2 context helper with CPU fallback and shader utilities.
+ * WebGPU context helper with CPU fallback and shader utilities.
  */
 
 import { Random, setSeed, getSeed, random } from './rng.js';
-
-// Cache compiled shader programs keyed by vertex/fragment source.
-const PROGRAM_CACHE = new Map();
-
-export function disposePrograms() {
-  for (const { gl, program } of PROGRAM_CACHE.values()) {
-    try {
-      gl.deleteProgram(program);
-    } catch (e) {
-      // ignore errors during context loss
-    }
-  }
-  PROGRAM_CACHE.clear();
-}
 
 export { Random, setSeed, getSeed, random };
 
 export class Context {
   constructor(canvas) {
     this.canvas = canvas;
-    this.gl = canvas && canvas.getContext ? canvas.getContext('webgl2') : null;
-    this.isCPU = true;
+    this.gpu = canvas && canvas.getContext ? canvas.getContext('webgpu') : null;
     this.device = null;
     this.queue = null;
-
-    if (this.gl) {
-      const gl = this.gl;
-      const origIsTexture = gl.isTexture.bind(gl);
-      gl.isTexture = (obj) => {
-        if (
-          typeof WebGLTexture !== 'undefined' &&
-          obj instanceof WebGLTexture
-        ) {
-          return origIsTexture(obj);
-        }
-        try {
-          return origIsTexture(obj);
-        } catch (e) {
-          return false;
-        }
-      };
-      const hasColorBufferFloat = gl.getExtension('EXT_color_buffer_float');
-      // Linear filtering for float textures is core in WebGL2 and we only use
-      // NEAREST sampling, so `OES_texture_float_linear` isn't required. Some
-      // browsers omit this extension which previously forced a CPU fallback
-      // and produced glitchy output.
-      if (hasColorBufferFloat) {
-        this.isCPU = false;
-        // Explicitly operate on 32-bit float textures
-        this.textureFormat = gl.RGBA32F;
-        this.textureType = gl.FLOAT;
-
-        // setup a fullscreen quad
-        this.quadVao = gl.createVertexArray();
-        gl.bindVertexArray(this.quadVao);
-        const buf = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        gl.bufferData(
-          gl.ARRAY_BUFFER,
-          new Float32Array([
-            -1, -1, 1, -1, -1, 1,
-            -1, 1, 1, -1, 1, 1
-          ]),
-          gl.STATIC_DRAW
-        );
-        gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-        gl.bindVertexArray(null);
-      } else {
-        // Lose the WebGL context so a 2D context can be acquired later
-        gl.getExtension('WEBGL_lose_context')?.loseContext?.();
-        this.gl = null;
-      }
-    }
-  }
-
-  compileShader(type, source) {
-    const gl = this.gl;
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const info = gl.getShaderInfoLog(shader);
-      gl.deleteShader(shader);
-      throw new Error(info || 'Shader compilation failed');
-    }
-    return shader;
-  }
-
-  createProgram(vsSource, fsSource) {
-    const gl = this.gl;
-    const prog = gl.createProgram();
-    const vs = this.compileShader(gl.VERTEX_SHADER, vsSource);
-    const fs = this.compileShader(gl.FRAGMENT_SHADER, fsSource);
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.bindAttribLocation(prog, 0, 'position');
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      const info = gl.getProgramInfoLog(prog);
-      gl.deleteProgram(prog);
-      throw new Error(info || 'Program link failed');
-    }
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-    return prog;
-  }
-
-  getProgram(vsSource, fsSource) {
-    const key = `${vsSource}\u0000${fsSource}`;
-    const cached = PROGRAM_CACHE.get(key);
-    if (cached && cached.gl === this.gl) {
-      return cached.program;
-    }
-    const prog = this.createProgram(vsSource, fsSource);
-    PROGRAM_CACHE.set(key, { gl: this.gl, program: prog });
-    return prog;
-  }
-
-  createTexture(width, height, data = null) {
-    if (this.isCPU) {
-      const arr = data ? new Float32Array(data) : new Float32Array(width * height * 4);
-      return { width, height, channels: 4, data: arr };
-    }
-    const gl = this.gl;
-    const tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    const initData = data || new Float32Array(width * height * 4);
-    if (data) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      this.textureFormat,
-      width,
-      height,
-      0,
-      gl.RGBA,
-      this.textureType,
-      initData
-    );
-    if (data) gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    return tex;
-  }
-
-  createFBO(texture) {
-    if (this.isCPU) return { texture };
-    const gl = this.gl;
-    const fbo = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(
-      gl.FRAMEBUFFER,
-      gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D,
-      texture,
-      0
-    );
-    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    if (status !== gl.FRAMEBUFFER_COMPLETE) {
-      throw new Error('Framebuffer incomplete: ' + status);
-    }
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return fbo;
-  }
-
-  bindFramebuffer(fbo, width, height) {
-    if (this.isCPU) return;
-    const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.viewport(0, 0, width, height);
-  }
-
-  drawQuad() {
-    if (this.isCPU) return;
-    const gl = this.gl;
-    gl.bindVertexArray(this.quadVao);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.bindVertexArray(null);
+    this.presentationFormat = null;
+    this.isCPU = !this.gpu;
+    this.currentTarget = null;
+    this._presentPipeline = null;
+    this._presentSampler = null;
   }
 
   async initWebGPU() {
-    if (this.device || typeof navigator === 'undefined' || !navigator.gpu) {
+    if (this.device || !this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
       return false;
     }
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) return false;
     this.device = await adapter.requestDevice();
     this.queue = this.device.queue;
+    this.presentationFormat =
+      navigator.gpu.getPreferredCanvasFormat ?
+        navigator.gpu.getPreferredCanvasFormat() :
+        this.gpu.getPreferredFormat?.(adapter) || 'bgra8unorm';
+    this.gpu.configure({ device: this.device, format: this.presentationFormat });
+    this.isCPU = false;
     return true;
+  }
+
+  createShaderModule(code) {
+    if (!this.device) throw new Error('WebGPU device not initialized');
+    return this.device.createShaderModule({ code });
+  }
+
+  async createComputePipeline(code) {
+    if (!this.device) throw new Error('WebGPU device not initialized');
+    return this.device.createComputePipelineAsync({
+      layout: 'auto',
+      compute: { module: this.createShaderModule(code), entryPoint: 'main' },
+    });
+  }
+
+  createRenderPipeline(vsCode, fsCode, targets = [{ format: this.presentationFormat }]) {
+    if (!this.device) throw new Error('WebGPU device not initialized');
+    return this.device.createRenderPipeline({
+      layout: 'auto',
+      vertex: { module: this.createShaderModule(vsCode), entryPoint: 'main' },
+      fragment: { module: this.createShaderModule(fsCode), entryPoint: 'main', targets },
+      primitive: { topology: 'triangle-list' },
+    });
+  }
+
+  createBindGroup(pipeline, entries, index = 0) {
+    if (!this.device) throw new Error('WebGPU device not initialized');
+    return this.device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(index),
+      entries,
+    });
+  }
+
+  beginRenderPass(encoder, view, clearValue = [0, 0, 0, 1]) {
+    return encoder.beginRenderPass({
+      colorAttachments: [
+        { view, loadOp: 'clear', storeOp: 'store', clearValue },
+      ],
+    });
+  }
+
+  beginComputePass(encoder) {
+    return encoder.beginComputePass();
+  }
+
+  createTexture(width, height, data = null) {
+    if (this.isCPU || !this.device) {
+      const arr = data ? new Float32Array(data) : new Float32Array(width * height * 4);
+      return { width, height, channels: 4, data: arr };
+    }
+    const texture = this.device.createTexture({
+      size: { width, height, depthOrArrayLayers: 1 },
+      format: 'rgba32float',
+      usage:
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.COPY_SRC |
+        GPUTextureUsage.COPY_DST |
+        GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    if (data) {
+      const arr = data instanceof Float32Array ? data : new Float32Array(data);
+      this.queue.writeTexture(
+        { texture },
+        arr,
+        { bytesPerRow: width * 4 * 4 },
+        { width, height, depthOrArrayLayers: 1 }
+      );
+    }
+    texture.width = width;
+    texture.height = height;
+    return texture;
+  }
+
+  createFBO(texture) {
+    if (this.isCPU) return { texture };
+    return texture.createView();
+  }
+
+  bindFramebuffer(fbo, width, height) {
+    if (this.isCPU) return;
+    this.currentTarget = { view: fbo, width, height };
+  }
+
+  drawQuad(pipeline, bindGroup) {
+    if (this.isCPU) return;
+    const encoder = this.device.createCommandEncoder();
+    const view =
+      this.currentTarget?.view || this.gpu.getCurrentTexture().createView();
+    const pass = this.beginRenderPass(encoder, view);
+    pass.setPipeline(pipeline);
+    if (bindGroup) pass.setBindGroup(0, bindGroup);
+    pass.draw(6);
+    pass.end();
+    this.queue.submit([encoder.finish()]);
+  }
+
+  present(texture) {
+    if (this.isCPU || !this.device) return;
+    if (!this._presentPipeline) {
+      const vs = `
+        struct VSOut {
+          @builtin(position) pos: vec4<f32>,
+          @location(0) uv: vec2<f32>,
+        };
+        @vertex
+        fn main(@builtin(vertex_index) idx : u32) -> VSOut {
+          var pos = array<vec2<f32>,6>(
+            vec2(-1.0,-1.0), vec2(1.0,-1.0), vec2(-1.0,1.0),
+            vec2(-1.0,1.0), vec2(1.0,-1.0), vec2(1.0,1.0)
+          );
+          var uv = array<vec2<f32>,6>(
+            vec2(0.0,1.0), vec2(1.0,1.0), vec2(0.0,0.0),
+            vec2(0.0,0.0), vec2(1.0,1.0), vec2(1.0,0.0)
+          );
+          var out: VSOut;
+          out.pos = vec4<f32>(pos[idx], 0.0, 1.0);
+          out.uv = uv[idx];
+          return out;
+        }
+      `;
+      const fs = `
+        @group(0) @binding(0) var samp : sampler;
+        @group(0) @binding(1) var tex : texture_2d<f32>;
+        @fragment
+        fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+          return textureSample(tex, samp, uv);
+        }
+      `;
+      this._presentPipeline = this.createRenderPipeline(vs, fs, [
+        { format: this.presentationFormat },
+      ]);
+      this._presentSampler = this.device.createSampler({
+        magFilter: 'nearest',
+        minFilter: 'nearest',
+      });
+    }
+    const bindGroup = this.createBindGroup(this._presentPipeline, [
+      { binding: 0, resource: this._presentSampler },
+      { binding: 1, resource: texture.createView() },
+    ]);
+    const encoder = this.device.createCommandEncoder();
+    const view = this.gpu.getCurrentTexture().createView();
+    const pass = this.beginRenderPass(encoder, view);
+    pass.setPipeline(this._presentPipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(6);
+    pass.end();
+    this.queue.submit([encoder.finish()]);
   }
 
   createGPUBuffer(array, usage) {
@@ -210,8 +196,6 @@ export class Context {
     });
     new array.constructor(buf.getMappedRange()).set(array);
     buf.unmap();
-    // Safari's implementation reports `0` for `buffer.size`, so record the size
-    // explicitly for later validation.
     buf._size = byteLength;
     return buf;
   }
@@ -221,21 +205,11 @@ export class Context {
       throw new Error('WebGPU device not initialized');
     }
     const device = this.device;
-
-    // Capture validation errors so callers can fall back to WebGL.
     device.pushErrorScope('validation');
-
-    const module = device.createShaderModule({ code });
-    const pipeline = await device.createComputePipelineAsync({
-      layout: 'auto',
-      compute: { module, entryPoint: 'main' },
-    });
-    const bindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: bindEntries,
-    });
+    const pipeline = await this.createComputePipeline(code);
+    const bindGroup = this.createBindGroup(pipeline, bindEntries);
     const encoder = device.createCommandEncoder();
-    const pass = encoder.beginComputePass();
+    const pass = this.beginComputePass(encoder);
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(x, y, z);
@@ -248,7 +222,6 @@ export class Context {
         this.profile.webgpu += performance.now() - t0;
       }
     }
-
     const err = await device.popErrorScope();
     if (err) {
       throw err;
@@ -260,15 +233,10 @@ export class Context {
       throw new Error('WebGPU device not initialized');
     }
     const device = this.device;
-    // Some browsers (notably Safari) report `0` for `GPUBuffer.size`, and not all
-    // buffers are created via `createGPUBuffer` which records `_size`. When the
-    // actual size can't be determined, assume the caller-provided `size` is
-    // correct rather than throwing spurious errors.
     const bufSize = buffer.size || buffer._size || size;
     if (bufSize < size) {
       throw new Error(`Buffer too small: ${bufSize} < ${size}`);
     }
-    // Capture validation errors so callers can fall back to WebGL.
     device.pushErrorScope('validation');
     const readBuf = device.createBuffer({
       size,
@@ -315,4 +283,3 @@ export class PingPong {
     [this.readFbo, this.writeFbo] = [this.writeFbo, this.readFbo];
   }
 }
-
