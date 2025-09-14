@@ -1,12 +1,12 @@
 struct ReverbParams {
-  dstWidth: f32;
-  dstHeight: f32;
-  srcWidth: f32;
-  srcHeight: f32;
-  channels: f32;
-  weight: f32;
-  pad0: f32;
-  pad1: f32;
+  dstWidth: f32,
+  dstHeight: f32,
+  srcWidth: f32,
+  srcHeight: f32,
+  channels: f32,
+  weight: f32,
+  pad0: f32,
+  pad1: f32,
 };
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> out: array<f32>;
