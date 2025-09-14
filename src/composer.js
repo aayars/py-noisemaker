@@ -24,7 +24,19 @@ const UNUSED_OKAY = [
 ];
 
 function resolveValue(v, settings) {
-  if (typeof v === 'function') return v(settings);
+  if (typeof v === 'function') {
+    // Mirror Python's arity-sensitive resolution: functions expecting zero
+    // args are invoked with no params, those expecting one arg receive the
+    // settings object, and others are left untouched.
+    try {
+      const arity = v.length;
+      if (arity === 0) return resolveValue(v(), settings);
+      if (arity === 1) return resolveValue(v(settings), settings);
+      return v;
+    } catch {
+      return v;
+    }
+  }
   if (Array.isArray(v)) return v.map((x) => resolveValue(x, settings));
   if (v && typeof v === 'object') {
     const out = {};
