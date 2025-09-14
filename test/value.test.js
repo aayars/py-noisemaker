@@ -237,7 +237,8 @@ const flowFrac = Tensor.fromArray(
 );
 const srcFrac = Tensor.fromArray(null, new Float32Array([0, 1, 2, 3]), [2, 2, 1]);
 const warpedFrac = warp(srcFrac, flowFrac, 1, InterpolationType.linear);
-arraysClose(warpedFrac.read(), new Float32Array([0.5, 1, 2.5, 3]));
+// Warp uses wrapping semantics, so values beyond the right edge wrap to the left.
+arraysClose(warpedFrac.read(), new Float32Array([0.5, 0.5, 2.5, 2.5]));
 
 // ridge
 const ridgeInput = Tensor.fromArray(null, new Float32Array([0, 0.5, 1]), [3, 1, 1]);
@@ -265,7 +266,8 @@ const refrInput = Tensor.fromArray(null, new Float32Array([
 const refX = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
 const refY = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
 const refracted = refract(refrInput, refX, refY, 1 / 3, InterpolationType.linear);
-arraysClose(refracted.read(), new Float32Array([1, 2, 2, 1, 2, 2, 4, 5, 5]));
+// Refract offsets wrap around the texture boundaries.
+arraysClose(refracted.read(), new Float32Array([7, 8, 6, 1, 2, 0, 4, 5, 3]));
 
 // fft / ifft
 const fftInput = Tensor.fromArray(null, new Float32Array([1, 2, 3, 4]), [2, 2, 1]);

@@ -98,6 +98,7 @@
     import { render, Preset } from './src/composer.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
+    import { Tensor } from './src/tensor.js';
     const canvas = document.getElementById('noise');
     const ctx = new Context(canvas);
     // Attempt to initialize WebGPU. Enable the API in your browser for best
@@ -110,19 +111,6 @@
     // will log the error and fall back to WebGL.
     await ctx.initWebGPU();
     ctx.profile = { webgpu: 0, webgl2: 0 };
-    if (ctx.queue) {
-      const origSubmit = ctx.queue.submit.bind(ctx.queue);
-      ctx.queue.submit = function (...args) {
-        const t0 = performance.now();
-        const result = origSubmit(...args);
-        if (this.onSubmittedWorkDone) {
-          this.onSubmittedWorkDone().then(() => {
-            ctx.profile.webgpu += performance.now() - t0;
-          });
-        }
-        return result;
-      };
-    }
     ctx._glTimerExt = ctx.gl && ctx.gl.getExtension('EXT_disjoint_timer_query_webgl2');
     ctx._glTimerQueries = [];
     ctx.resolveTimerQueries = function () {
@@ -136,6 +124,15 @@
         ctx.profile.webgl2 += ns / 1e6;
         ctx.gl.deleteQuery(q);
         ctx._glTimerQueries.shift();
+      }
+    };
+    ctx.waitForTimerQueries = async function () {
+      if (!ctx.gl || !ctx._glTimerExt) return;
+      while (ctx._glTimerQueries.length) {
+        ctx.resolveTimerQueries();
+        if (ctx._glTimerQueries.length) {
+          await new Promise((r) => setTimeout(r, 0));
+        }
       }
     };
     const origDrawQuad = ctx.drawQuad.bind(ctx);
@@ -157,6 +154,20 @@
         ctx.profile.webgl2 += performance.now() - t0;
         return result;
       }
+    };
+
+    const origTensorRead = Tensor.prototype.read;
+    Tensor.prototype.read = function (...args) {
+      if (this.ctx && this.ctx.gl && this.ctx._glTimerExt) {
+        this.ctx.resolveTimerQueries();
+        const q = this.ctx.gl.createQuery();
+        this.ctx.gl.beginQuery(this.ctx._glTimerExt.TIME_ELAPSED_EXT, q);
+        const res = origTensorRead.apply(this, args);
+        this.ctx.gl.endQuery(this.ctx._glTimerExt.TIME_ELAPSED_EXT);
+        this.ctx._glTimerQueries.push(q);
+        return res;
+      }
+      return origTensorRead.apply(this, args);
     };
     const presetSelect = document.getElementById('preset');
     const statusEl = document.getElementById('status');
@@ -321,7 +332,7 @@
       }
       if (ctx.gl && ctx._glTimerExt) {
         ctx.gl.finish();
-        ctx.resolveTimerQueries();
+        await ctx.waitForTimerQueries();
       }
       const elapsed = performance.now() - start;
       const webgpuMs = ctx.profile.webgpu;

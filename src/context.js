@@ -240,7 +240,14 @@ export class Context {
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(x, y, z);
     pass.end();
+    const t0 = performance.now();
     this.queue.submit([encoder.finish()]);
+    if (this.queue.onSubmittedWorkDone) {
+      await this.queue.onSubmittedWorkDone();
+      if (this.profile) {
+        this.profile.webgpu += performance.now() - t0;
+      }
+    }
 
     const err = await device.popErrorScope();
     if (err) {
@@ -269,7 +276,14 @@ export class Context {
     });
     const encoder = device.createCommandEncoder();
     encoder.copyBufferToBuffer(buffer, 0, readBuf, 0, size);
+    const t0 = performance.now();
     this.queue.submit([encoder.finish()]);
+    if (this.queue.onSubmittedWorkDone) {
+      await this.queue.onSubmittedWorkDone();
+      if (this.profile) {
+        this.profile.webgpu += performance.now() - t0;
+      }
+    }
     await readBuf.mapAsync(GPUMapMode.READ);
     const arr = readBuf.getMappedRange().slice(0);
     readBuf.unmap();

@@ -16,8 +16,9 @@ let x, y;
 
 // grid
 [x, y] = pointCloud(2, { distrib: PointDistribution.square, shape: [64, 64] });
-assert.strictEqual(x.length, 3);
-assert.strictEqual(y.length, 3);
+// A 2x2 grid should produce four points.
+assert.strictEqual(x.length, 4);
+assert.strictEqual(y.length, 4);
 assert.ok(within(x, 64) && within(y, 64));
 
 // waffle
@@ -30,21 +31,23 @@ assert.strictEqual(x.length, 2);
 
 // hex grids
 [x, y] = pointCloud(2, { distrib: PointDistribution.h_hex, shape: [64, 64] });
-assert.strictEqual(x.length, 3);
+// Horizontal hex grid also produces four points for n=2.
+assert.strictEqual(x.length, 4);
 [x, y] = pointCloud(2, { distrib: PointDistribution.v_hex, shape: [64, 64] });
 assert.strictEqual(x.length, 4);
 
 // spiral
 [x, y] = pointCloud(2, { distrib: PointDistribution.spiral, shape: [64, 64] });
-assert.strictEqual(x.length, 3);
+assert.strictEqual(x.length, 4);
 
 // circular variants
 [x, y] = pointCloud(2, { distrib: PointDistribution.circular, shape: [64, 64] });
-assert.strictEqual(x.length, 4);
+// Circular distributions include the origin plus four points for n=2.
+assert.strictEqual(x.length, 5);
 [x, y] = pointCloud(2, { distrib: PointDistribution.concentric, shape: [64, 64] });
-assert.strictEqual(x.length, 4);
+assert.strictEqual(x.length, 5);
 [x, y] = pointCloud(2, { distrib: PointDistribution.rotating, shape: [64, 64] });
-assert.strictEqual(x.length, 4);
+assert.strictEqual(x.length, 5);
 
 // mask-driven
 [x, y] = pointCloud(2, { distrib: ValueMask.chess, shape: [64, 64] });

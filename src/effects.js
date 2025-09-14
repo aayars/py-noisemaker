@@ -1388,7 +1388,14 @@ async function voronoiWebGPU(
   pass.setBindGroup(0, bindGroup);
   pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8), 1);
   pass.end();
+  const t0 = performance.now();
   ctx.queue.submit([encoder.finish()]);
+  if (ctx.queue.onSubmittedWorkDone) {
+    await ctx.queue.onSubmittedWorkDone();
+    if (ctx.profile) {
+      ctx.profile.webgpu += performance.now() - t0;
+    }
+  }
 
   let rangeTensor = new Tensor(ctx, rangeBuf, [h, w, 1]);
   let regionsTensor = new Tensor(ctx, indexBuf, [h, w, 1]);
