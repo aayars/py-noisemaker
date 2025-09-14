@@ -13,7 +13,7 @@ import {
   withTensorDatas,
 } from './util.js';
 import { simplex as simplexNoise, setSeed as setSimplexSeed } from './simplex.js';
-import { VALUE_WGSL } from './webgpu/shaders.js';
+import { VALUE_WGSL, RESAMPLE_WGSL, DOWNSAMPLE_WGSL } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
 let _opCounter = 0;
@@ -519,56 +519,31 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
   }
 
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es
-precision highp float;
-uniform sampler2D u_tex;
-uniform vec2 u_srcSize;
-uniform vec2 u_dstSize;
-uniform int u_interp;
-out vec4 outColor;
-float interp(float t){
- if(u_interp==${InterpolationType.linear}) return t;
- if(u_interp==${InterpolationType.cosine}) return 0.5 - cos(t*3.141592653589793)*0.5;
- return t*t*(3.0-2.0*t);
-}
-void main(){
- vec2 uv = (gl_FragCoord.xy - 0.5) / u_dstSize;
- vec2 coord = uv * (u_srcSize - 1.0);
- vec2 c0 = floor(coord);
- vec2 f = coord - c0;
- vec2 c1 = min(c0 + 1.0, u_srcSize - 1.0);
- vec2 uv00 = (c0 + 0.5) / u_srcSize;
- vec2 uv10 = (vec2(c1.x, c0.y) + 0.5) / u_srcSize;
- vec2 uv01 = (vec2(c0.x, c1.y) + 0.5) / u_srcSize;
- vec2 uv11 = (c1 + 0.5) / u_srcSize;
- vec4 v00 = texture(u_tex, uv00);
- vec4 v10 = texture(u_tex, uv10);
- vec4 v01 = texture(u_tex, uv01);
- vec4 v11 = texture(u_tex, uv11);
- if(u_interp==${InterpolationType.constant}){
-  outColor = v00;
- }else{
-  float sx = interp(f.x);
-  float sy = interp(f.y);
-  vec4 mx0 = mix(v00, v10, sx);
-  vec4 mx1 = mix(v01, v11, sx);
-  outColor = mix(mx0, mx1, sy);
- }
-}`;
-    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(nw, nh);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_srcSize'), w, h);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_dstSize'), nw, nh);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_interp'), splineOrder);
-    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return Promise.resolve(new Tensor(ctx, pp.writeTex, [nh, nw, nc]));
+    return (async () => {
+      try {
+        const device = ctx.device;
+        const outSize = nh * nw * nc;
+        const outBuf = device.createBuffer({ size: outSize * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+        const paramsArr = new Float32Array([ w, h, nw, nh, nc, splineOrder, 0, 0 ]);
+        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          RESAMPLE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(nw / 8),
+          Math.ceil(nh / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [nh, nw, nc]);
+      } catch (e) {
+        console.warn('WebGPU resample fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuResample(data);
+      }
+    })();
   }
 
   const srcMaybe = tensor.read();
@@ -582,22 +557,7 @@ export function downsample(tensor, factor) {
   const ctx = tensor.ctx;
   const nh = Math.floor(h / factor);
   const nw = Math.floor(w / factor);
-  if (ctx && ctx.device && factor === 2 && tensor.handle instanceof GPUTexture) {
-    const gl = ctx.gl;
-    const fs = `#version 300 es\nprecision highp float;\nuniform sampler2D u_tex;\nuniform vec2 u_texel;\nout vec4 outColor;\nvoid main(){\n vec2 uv = (gl_FragCoord.xy*2.0 - vec2(1.0)) * u_texel;\n vec4 sum = texture(u_tex, uv) + texture(u_tex, uv + vec2(u_texel.x,0.0)) + texture(u_tex, uv + vec2(0.0,u_texel.y)) + texture(u_tex, uv + u_texel);\n outColor = sum * 0.25;\n}`;
-    const prog = ctx.getProgram(FULLSCREEN_VS, fs);
-    const pp = ctx.pingPong(nw, nh);
-    gl.useProgram(prog);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, tensor.handle);
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_tex'), 0);
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_texel'), 1 / w, 1 / h);
-    ctx.bindFramebuffer(pp.writeFbo, nw, nh);
-    ctx.drawQuad();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return new Tensor(ctx, pp.writeTex, [nh, nw, c]);
-  }
-  return withTensorData(tensor, (src) => {
+  const cpuDownsample = (src) => {
     const out = new Float32Array(nh * nw * c);
     for (let y = 0; y < nh; y++) {
       for (let x = 0; x < nw; x++) {
@@ -614,9 +574,36 @@ export function downsample(tensor, factor) {
       }
     }
     return Tensor.fromArray(ctx, out, [nh, nw, c]);
-  });
+  };
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const device = ctx.device;
+        const outSize = nh * nw * c;
+        const outBuf = device.createBuffer({ size: outSize * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+        const paramsArr = new Float32Array([w, h, nw, nh, factor, c, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          DOWNSAMPLE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(nw / 8),
+          Math.ceil(nh / 8),
+        );
+        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+        return Tensor.fromArray(ctx, out, [nh, nw, c]);
+      } catch (e) {
+        console.warn('WebGPU downsample fallback to CPU', e);
+        const data = await tensor.read();
+        return cpuDownsample(data);
+      }
+    })();
+  }
+  return withTensorData(tensor, cpuDownsample);
 }
-
 export function proportionalDownsample(tensor, shape, newShape) {
   const [h, w, c] = shape;
   const [nh, nw] = newShape;

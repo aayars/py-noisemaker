@@ -2025,7 +2025,13 @@ export async function densityMap(tensor, shape, time, speed) {
 register("density_map", densityMap, {});
 register("density_map", densityMap, {});
 
-export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
+export async function jpegDecimate(
+  tensor,
+  shape,
+  time,
+  speed,
+  iterations = 25,
+) {
   let out = tensor;
   const [h, w] = shape;
   const maxFactor = Math.min(h, w);
@@ -2035,7 +2041,8 @@ export function jpegDecimate(tensor, shape, time, speed, iterations = 25) {
   for (let i = 0; i < iterations; i++) {
     const maxFactor = Math.max(2, Math.min(shape[0], shape[1]));
     const factor = Math.min(randomInt(2, 8), maxFactor);
-    out = upsample(downsample(out, factor), factor);
+    const down = await downsample(out, factor);
+    out = await upsample(down, factor);
   }
   return out;
 }
@@ -2084,13 +2091,13 @@ export async function convFeedback(
   iterations = 50,
   alpha = 0.5,
 ) {
-  let convolved = downsample(tensor, 2);
+  let convolved = await downsample(tensor, 2);
   for (let i = 0; i < iterations; i++) {
     convolved = await convolveKernel(convolved, BLUR_KERNEL, 5, true);
     convolved = await convolveKernel(convolved, SHARPEN_KERNEL, 3, false);
   }
-  convolved = normalize(convolved);
-  const data = convolved.read();
+  convolved = await normalize(convolved);
+  const data = await convolved.read();
   const up = new Float32Array(data.length);
   const downArr = new Float32Array(data.length);
   for (let i = 0; i < data.length; i++) {
@@ -2104,8 +2111,8 @@ export async function convFeedback(
     combined,
     convolved.shape,
   );
-  const resampled = upsample(combinedTensor, 2);
-  return blend(tensor, resampled, alpha);
+  const resampled = await upsample(combinedTensor, 2);
+  return await blend(tensor, resampled, alpha);
 }
 register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
 register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
@@ -3239,10 +3246,10 @@ export async function refractEffect(
   rx = await toValueMap(rx);
   ry = await toValueMap(ry);
   if (rx.shape[0] !== h || rx.shape[1] !== w) {
-    rx = upsample(rx, h / rx.shape[0]);
+    rx = await upsample(rx, h / rx.shape[0]);
   }
   if (ry.shape[0] !== h || ry.shape[1] !== w) {
-    ry = upsample(ry, h / ry.shape[0]);
+    ry = await upsample(ry, h / ry.shape[0]);
   }
   return await refractOp(
     tensor,
@@ -4945,8 +4952,8 @@ export async function frame(tensor, shape, time, speed) {
   const halfH = Math.max(1, Math.floor(h * 0.5));
   const halfW = Math.max(1, Math.floor(w * 0.5));
   const halfShape = [halfH, halfW, c];
-  const noise = values(64, halfShape, { seed: 0, time });
-  const nData = noise.read();
+  const noise = await values(64, halfShape, { seed: 0, time });
+  const nData = await noise.read();
   const cx = (halfW - 1) / 2;
   const cy = (halfH - 1) / 2;
   const maskData = new Float32Array(halfH * halfW);
@@ -4964,12 +4971,12 @@ export async function frame(tensor, shape, time, speed) {
     for (let k = 0; k < c; k++) maskC[i * c + k] = maskData[i];
   }
   const maskTensor = Tensor.fromArray(tensor.ctx, maskC, halfShape);
-  let faded = downsample(tensor, 2);
-  faded = adjustBrightness(faded, halfShape, time, speed, 0.1);
-  faded = adjustContrast(faded, halfShape, time, speed, 0.75);
+  let faded = await downsample(tensor, 2);
+  faded = await adjustBrightness(faded, halfShape, time, speed, 0.1);
+  faded = await adjustContrast(faded, halfShape, time, speed, 0.75);
   if (halfH > 1 && halfW > 1) {
-    faded = lightLeak(faded, halfShape, time, speed, 0.125);
-    faded = vignette(faded, halfShape, time, speed, 0.05, 0.75);
+    faded = await lightLeak(faded, halfShape, time, speed, 0.125);
+    faded = await vignette(faded, halfShape, time, speed, 0.05, 0.75);
   }
   const shade = await (
     await shadow(noise, [halfH, halfW, 1], time, speed, 1.0)
@@ -4979,9 +4986,9 @@ export async function frame(tensor, shape, time, speed) {
     for (let k = 0; k < c; k++) edgeData[i * c + k] = 0.9 + shade[i] * 0.1;
   }
   const edgeTex = Tensor.fromArray(tensor.ctx, edgeData, halfShape);
-  let out = blend(faded, edgeTex, maskTensor);
-  out = aberration(out, halfShape, time, speed, 0.00666);
-  out = upsample(out, 2);
+  let out = await blend(faded, edgeTex, maskTensor);
+  out = await aberration(out, halfShape, time, speed, 0.00666);
+  out = await upsample(out, 2);
   return out;
 }
 register("frame", frame, {});

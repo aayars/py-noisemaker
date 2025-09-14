@@ -179,10 +179,10 @@ const derivRes = derivative(edgeTensor, [4, 4, 1], 0, 1).read();
 arraysClose(Array.from(derivRes), manualDeriv);
 
 // sobel operator
-const blurred = blur(edgeTensor, [4, 4, 1], 0, 1);
-let sob = sobelValue(blurred);
-sob = normalize(sob);
-let sobData = sob.read();
+const blurred = await blur(edgeTensor, [4, 4, 1], 0, 1);
+let sob = await sobelValue(blurred);
+sob = await normalize(sob);
+let sobData = await sob.read();
 for (let i = 0; i < sobData.length; i++)
   sobData[i] = Math.abs(sobData[i] * 2 - 1);
 function offsetArray(data, shape, xOff, yOff) {
@@ -263,7 +263,7 @@ arraysClose(Array.from(nmRes), nmExpect);
 
 // singularity
 const sgTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
-const sgRes = singularity(sgTensor, [4, 4, 1], 0, 1).read();
+const sgRes = (await singularity(sgTensor, [4, 4, 1], 0, 1)).read();
 arraysClose(
   Array.from(sgRes),
   [
@@ -315,14 +315,14 @@ const jdData = new Float32Array([
 ]);
 const jdTensor = Tensor.fromArray(null, jdData, [2, 2, 3]);
 setSeed(7);
-const jdOut = jpegDecimate(jdTensor, [2, 2, 3], 0, 1, 1).read();
+const jdOut = (await jpegDecimate(jdTensor, [2, 2, 3], 0, 1, 1)).read();
 const jdExpected = loadFixture("jpegDecimate.json");
 arraysClose(Array.from(jdOut), jdExpected);
 
 // convFeedback regression
 const cfData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const cfTensor = Tensor.fromArray(null, cfData, [2, 2, 1]);
-const cfOut = convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5).read();
+const cfOut = (await convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5)).read();
 const cfExpected = loadFixture("convFeedback.json");
 arraysClose(Array.from(cfOut), cfExpected);
 
