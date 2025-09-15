@@ -61,6 +61,65 @@ export class Tensor {
     return new Tensor(ctx, null, shape, data);
   }
 
+  static fromGPUBuffer(ctx, buffer, shape, target = null) {
+    const [h, w, c] = shape;
+    if (!ctx || !ctx.device) {
+      throw new Error('GPU context required');
+    }
+    const channels = c === 1 ? 1 : c === 2 ? 2 : 4;
+    const bytesPerPixel = channels * 4;
+    const rowStride = w * bytesPerPixel;
+    const bytesPerRow = Math.ceil(rowStride / 256) * 256;
+    const tex =
+      target &&
+      target.ctx === ctx &&
+      typeof GPUTexture !== 'undefined' &&
+      target.handle instanceof GPUTexture
+        ? target.handle
+        : ctx.device.createTexture({
+            size: { width: w, height: h, depthOrArrayLayers: 1 },
+            format:
+              channels === 1
+                ? 'r32float'
+                : channels === 2
+                ? 'rg32float'
+                : 'rgba32float',
+            usage:
+              GPUTextureUsage.TEXTURE_BINDING |
+              GPUTextureUsage.COPY_SRC |
+              GPUTextureUsage.COPY_DST |
+              GPUTextureUsage.RENDER_ATTACHMENT,
+          });
+    const encoder = ctx.device.createCommandEncoder();
+    if (bytesPerRow === rowStride) {
+      encoder.copyBufferToTexture(
+        { buffer, bytesPerRow },
+        { texture: tex },
+        { width: w, height: h, depthOrArrayLayers: 1 },
+      );
+    } else {
+      const padded = ctx.device.createBuffer({
+        size: bytesPerRow * h,
+        usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      for (let y = 0; y < h; y++) {
+        const src = y * rowStride;
+        const dst = y * bytesPerRow;
+        encoder.copyBufferToBuffer(buffer, src, padded, dst, rowStride);
+      }
+      encoder.copyBufferToTexture(
+        { buffer: padded, bytesPerRow },
+        { texture: tex },
+        { width: w, height: h, depthOrArrayLayers: 1 },
+      );
+    }
+    ctx.queue.submit([encoder.finish()]);
+    if (target && target.ctx === ctx && target.handle === tex) {
+      return target;
+    }
+    return new Tensor(ctx, tex, shape, null);
+  }
+
   read() {
     const [h, w, c] = this.shape;
     if (

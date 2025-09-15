@@ -103,6 +103,7 @@ export async function warpWebGPU(
   };
   const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
   const [h, w, c] = shape;
+  const channels = c === 1 ? 1 : c === 2 ? 2 : 4;
   const flows = [];
   for (let octave = 1; octave <= octaves; octave++) {
     const mult = 2 ** octave;
@@ -119,17 +120,17 @@ export async function warpWebGPU(
     flows.push({ rx, ry, mult });
   }
   let out = await ensureGPU(tensor);
+  const outSize = h * w * channels;
+  const outBuf = ctx.device.createBuffer({
+    size: outSize * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
   for (const { rx, ry, mult } of flows) {
     const disp = displacement / mult;
-    const outSize = h * w * c;
-    const outBuf = ctx.device.createBuffer({
-      size: outSize * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
     const paramsArr = new Float32Array([
       w,
       h,
-      c,
+      channels,
       disp,
       signedRange ? 1 : 0,
       0,
@@ -149,9 +150,9 @@ export async function warpWebGPU(
       Math.ceil(w / 8),
       Math.ceil(h / 8),
     );
-    const outData = await ctx.readGPUBuffer(outBuf, outSize * 4);
-    out = Tensor.fromArray(ctx, outData, [h, w, c]);
+    out = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], out);
   }
+  outBuf.destroy();
   return out;
 }
 
