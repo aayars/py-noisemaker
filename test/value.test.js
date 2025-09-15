@@ -5,6 +5,8 @@ import { ValueDistribution, ValueMask, InterpolationType } from '../src/constant
 import { Tensor } from '../src/tensor.js';
 import { Context } from '../src/context.js';
 
+const DEBUG = false; // Set true to diagnose shader issues.
+
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);
   for (let i = 0; i < a.length; i++) {
@@ -146,7 +148,7 @@ if (typeof document !== 'undefined' && document.createElement) {
 } else if (typeof OffscreenCanvas !== 'undefined') {
   gpuCanvas = new OffscreenCanvas(1, 1);
 }
-const gpuBlendCtx = new Context(gpuCanvas);
+const gpuBlendCtx = new Context(gpuCanvas, DEBUG);
 if (!gpuBlendCtx.isCPU) {
   const a3g = values(4, [2, 2, 3], { seed: 1, ctx: gpuBlendCtx });
   const b1g = values(4, [2, 2, 1], { seed: 2, ctx: gpuBlendCtx });
@@ -346,8 +348,8 @@ if (typeof document !== 'undefined' && document.createElement) {
 } else if (typeof OffscreenCanvas !== 'undefined') {
   canvas = new OffscreenCanvas(1, 1);
 }
-const gpuCtx = new Context(canvas);
-const cpuCtx = new Context(null);
+const gpuCtx = new Context(canvas, DEBUG);
+const cpuCtx = new Context(null, DEBUG);
 if (!gpuCtx.isCPU) {
   const distribs = Object.values(ValueDistribution);
   for (const d of distribs) {

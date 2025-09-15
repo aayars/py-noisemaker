@@ -4,6 +4,8 @@ import { basic } from '../../src/generators.js';
 import { voronoi as voronoiEffect } from '../../src/effects.js';
 import { Context } from '../../src/context.js';
 
+const DEBUG = false; // Set true to diagnose shader issues.
+
 const [,, encoded] = process.argv;
 const params = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
 
@@ -11,7 +13,7 @@ const seed = params.seed;
 setSeed(seed);
 setValueSeed(seed);
 
-const ctx = new Context(null);
+const ctx = new Context(null, DEBUG);
 await ctx.initWebGPU();
 const base = await basic(2, [128, 128, 3], { hueRotation: 0, ctx });
 

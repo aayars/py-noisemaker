@@ -9,9 +9,10 @@ import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt
 import { InterpolationType } from '../src/constants.js';
 import { PRESETS } from '../src/presets.js';
 import { Preset } from '../src/composer.js';
+const DEBUG = false; // Set true to diagnose shader issues.
 const canvas = document.createElement('canvas');
-const ctx = new Context(canvas);
-const cpuCtx = new Context(null);
+const ctx = new Context(canvas, DEBUG);
+const cpuCtx = new Context(null, DEBUG);
 if (!navigator.gpu) {
   document.body.textContent = 'no webgpu';
   throw new Error('navigator.gpu unavailable');

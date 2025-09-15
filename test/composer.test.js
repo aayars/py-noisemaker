@@ -8,6 +8,8 @@ import { ColorSpace } from '../src/constants.js';
 import { PRESETS as JS_PRESETS } from '../src/presets.js';
 import { setSeed } from '../src/rng.js';
 
+const DEBUG = false; // Set true to diagnose shader issues.
+
 const log = [];
 function record(tensor, shape, time, speed, label = '') {
   log.push(label);
@@ -44,7 +46,7 @@ const PRESETS = {
 const preset = new Preset('child', PRESETS, { freq: 3 });
 assert.strictEqual(preset.settings.freq, 3);
 
-const ctx = new Context(null);
+const ctx = new Context(null, DEBUG);
 await preset.render(0, { ctx, width: 8, height: 8 });
 
 assert.deepStrictEqual(log, [

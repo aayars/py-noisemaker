@@ -124,7 +124,7 @@ export class Preset {
   async render(seed = 0, opts = {}) {
     opts = toCamelKeys(opts);
     const {
-      ctx = new Context(null),
+      ctx: ctxOpt,
       width = 256,
       height = 256,
       time = 0,
@@ -132,6 +132,7 @@ export class Preset {
       withAlpha = false,
       debug = this.debug,
     } = opts;
+    const ctx = ctxOpt || new Context(null, debug);
 
     if (debug) {
       debugLog(true, `render start: seed=${seed}`, {

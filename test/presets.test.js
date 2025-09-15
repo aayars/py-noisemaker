@@ -3,6 +3,8 @@ import { PRESETS, setSeed } from '../src/presets.js';
 import { Preset } from '../src/composer.js';
 import { Context } from '../src/context.js';
 
+const DEBUG = false; // Set true to diagnose shader issues.
+
 function sanitize(obj) {
   return JSON.parse(JSON.stringify(obj, (k, v) => (typeof v === 'function' ? null : v)));
 }
@@ -56,7 +58,7 @@ setSeed(987);
 const vd2 = PRESETS()['vignette-dark'].settings();
 assert.deepStrictEqual(sanitize(vd1), sanitize(vd2));
 
-const ctx = new Context(null);
+const ctx = new Context(null, DEBUG);
 const basic = new Preset('basic', presets);
 await basic.render(0, { ctx, width: 1, height: 1 });
 

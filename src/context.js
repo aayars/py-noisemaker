@@ -7,8 +7,9 @@ import { Random, setSeed, getSeed, random } from './rng.js';
 export { Random, setSeed, getSeed, random };
 
 export class Context {
-  constructor(canvas) {
+  constructor(canvas, debug = false) {
     this.canvas = canvas;
+    this.debug = debug;
     this.gpu = canvas && canvas.getContext ? canvas.getContext('webgpu') : null;
     this.device = null;
     this.queue = null;
@@ -295,17 +296,19 @@ export class Context {
       throw new Error('WebGPU device not initialized');
     }
     const device = this.device;
-    device.pushErrorScope('validation');
+    if (this.debug) device.pushErrorScope('validation');
     let pipeline = this._pipelineCache.get(code);
     if (!pipeline) {
       pipeline = await this.createComputePipeline(code);
       this._pipelineCache.set(code, pipeline);
     }
-    const compileErr = await device.popErrorScope();
-    if (compileErr) {
-      throw compileErr;
+    if (this.debug) {
+      const compileErr = await device.popErrorScope();
+      if (compileErr) {
+        throw compileErr;
+      }
     }
-    device.pushErrorScope('validation');
+    if (this.debug) device.pushErrorScope('validation');
     const bindGroup = this.createBindGroup(pipeline, bindEntries);
     const encoder = device.createCommandEncoder();
     const pass = this.beginComputePass(encoder);
@@ -315,9 +318,11 @@ export class Context {
     pass.end();
     this.queue.submit([encoder.finish()]);
     this._pendingDispatch = true;
-    const err = await device.popErrorScope();
-    if (err) {
-      throw err;
+    if (this.debug) {
+      const err = await device.popErrorScope();
+      if (err) {
+        throw err;
+      }
     }
   }
 
@@ -337,7 +342,7 @@ export class Context {
       buffer.unmap();
       return new Float32Array(arr);
     }
-    device.pushErrorScope('validation');
+    if (this.debug) device.pushErrorScope('validation');
     const readBuf = device.createBuffer({
       size,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
@@ -350,9 +355,11 @@ export class Context {
     await readBuf.mapAsync(GPUMapMode.READ);
     const arr = readBuf.getMappedRange().slice(0);
     readBuf.unmap();
-    const err = await device.popErrorScope();
-    if (err) {
-      throw err;
+    if (this.debug) {
+      const err = await device.popErrorScope();
+      if (err) {
+        throw err;
+      }
     }
     return new Float32Array(arr);
   }

@@ -2,7 +2,9 @@ import { PRESETS } from '../src/presets.js';
 import { Preset } from '../src/composer.js';
 import { Context } from '../src/context.js';
 
-const ctx = new Context(null);
+const DEBUG = false; // Set true to diagnose shader issues.
+
+const ctx = new Context(null, DEBUG);
 const presets = PRESETS();
 const problems = [];
 const SKIP = [];

@@ -6,8 +6,9 @@ import { Context } from '../src/context.js';
 import { Tensor } from '../src/tensor.js';
 import { erosionWorms, erosionWormsWebGPU } from '../src/effects.js';
 
+const DEBUG = false; // Set true to diagnose shader issues.
 const canvas = document.createElement('canvas');
-const ctx = new Context(canvas);
+const ctx = new Context(canvas, DEBUG);
 if (!navigator.gpu) {
   document.body.textContent = 'no webgpu';
 } else {

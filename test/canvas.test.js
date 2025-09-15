@@ -5,6 +5,8 @@ import { ColorSpace, ValueDistribution } from '../src/constants.js';
 import { ImageData } from 'canvas';
 global.ImageData = ImageData;
 
+const DEBUG = false; // Set true to diagnose shader issues.
+
 const fakeCtx2d = {
   img: null,
   createImageData(w, h) {
@@ -26,7 +28,7 @@ const fakeCanvas = {
   }
 };
 
-const ctx = new Context(fakeCanvas);
+const ctx = new Context(fakeCanvas, DEBUG);
 
 // grayscale sanity check
 const presets = {
