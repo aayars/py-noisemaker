@@ -7,9 +7,10 @@ import { Random, setSeed, getSeed, random } from './rng.js';
 export { Random, setSeed, getSeed, random };
 
 export class Context {
-  constructor(canvas, debug = false) {
+  constructor(canvas, debug = false, powerPreference = 'high-performance') {
     this.canvas = canvas;
     this.debug = debug;
+    this.powerPreference = powerPreference;
     this.gpu = canvas && canvas.getContext ? canvas.getContext('webgpu') : null;
     this.device = null;
     this.queue = null;
@@ -26,7 +27,9 @@ export class Context {
     if (this.device || !this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
       return false;
     }
-    const adapter = await navigator.gpu.requestAdapter();
+    const adapter = await navigator.gpu.requestAdapter({
+      powerPreference: this.powerPreference,
+    });
     if (!adapter) return false;
     this.device = await adapter.requestDevice();
     this.queue = this.device.queue;

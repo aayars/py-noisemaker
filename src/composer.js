@@ -131,8 +131,9 @@ export class Preset {
       speed = 1,
       withAlpha = false,
       debug = this.debug,
+      powerPreference = 'high-performance',
     } = opts;
-    const ctx = ctxOpt || new Context(null, debug);
+    const ctx = ctxOpt || new Context(null, debug, powerPreference);
 
     if (debug) {
       debugLog(true, `render start: seed=${seed}`, {

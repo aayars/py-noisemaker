@@ -26,6 +26,8 @@ Create an HTML file that imports the source modules directly:
 
   const canvas = document.getElementById('noise');
   const ctx = new Context(canvas);
+  // Use 'low-power' as the third argument for battery-friendly mode:
+  // const ctx = new Context(canvas, false, 'low-power');
 
   // Render the built-in "basic" preset with a fixed seed
   const tensor = render('basic', 42, { width: 256, height: 256, ctx });
