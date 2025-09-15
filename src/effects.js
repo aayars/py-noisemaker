@@ -1624,14 +1624,8 @@ async function voronoiWebGPU(
   pass.setBindGroup(0, bindGroup);
   pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8), 1);
   pass.end();
-  const t0 = performance.now();
   ctx.queue.submit([encoder.finish()]);
-  if (ctx.queue.onSubmittedWorkDone) {
-    await ctx.queue.onSubmittedWorkDone();
-    if (ctx.profile) {
-      ctx.profile.webgpu += performance.now() - t0;
-    }
-  }
+  ctx._pendingDispatch = true;
 
   let rangeTensor = new Tensor(ctx, rangeBuf, [h, w, 1]);
   let regionsTensor = new Tensor(ctx, indexBuf, [h, w, 1]);
@@ -1652,6 +1646,7 @@ async function voronoiWebGPU(
   if (colorFlowTensor) colorFlowTensor = await offsetTensor(colorFlowTensor, xOff, yOff);
   let colorRegionsTensor = null;
   if (regionColorsNeeded) {
+    await ctx.flush();
     const idxData = await regionsTensor.read();
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < idxData.length; i++) {
@@ -1663,6 +1658,7 @@ async function voronoiWebGPU(
     colorRegionsTensor = Tensor.fromArray(ctx, out, [h, w, c]);
   }
   if (!needFlow) {
+    await ctx.flush();
     const raw = await rangeTensor.read();
     let min = Infinity;
     let max = -Infinity;
@@ -1694,6 +1690,7 @@ async function voronoiWebGPU(
         InterpolationType.bicubic,
       );
     }
+    await ctx.flush();
     const rData = await rTensor.read();
     const src = await tensor.read();
     const out = new Float32Array(originalShape[0] * originalShape[1] * c);
@@ -1711,12 +1708,14 @@ async function voronoiWebGPU(
   } else if (diagramType === VoronoiDiagramType.color_regions && tensor) {
     outTensor = colorRegionsTensor;
   } else if (diagramType === VoronoiDiagramType.range_regions && tensor) {
+    await ctx.flush();
     const rData = await rangeTensor.read();
     const rangeSq = new Float32Array(rData.length);
     for (let i = 0; i < rData.length; i++) rangeSq[i] = rData[i] * rData[i];
     const rangeSqTensor = Tensor.fromArray(ctx, rangeSq, [h, w, 1]);
     outTensor = await blend(colorRegionsTensor, rangeTensor, rangeSqTensor);
   } else if (diagramType === VoronoiDiagramType.flow) {
+    await ctx.flush();
     const fData = await flowTensor.read();
     const out = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
@@ -1725,6 +1724,7 @@ async function voronoiWebGPU(
     }
     outTensor = Tensor.fromArray(ctx, out, [h, w, 1]);
   } else if (diagramType === VoronoiDiagramType.color_flow && tensor) {
+    await ctx.flush();
     const fData = await colorFlowTensor.read();
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < h * w; i++) {
@@ -1885,17 +1885,13 @@ async function erosionWormsWebGPU(
   pass.setBindGroup(0, bindGroup);
   pass.dispatchWorkgroups(Math.ceil(count / 64));
   pass.end();
-  const t0 = performance.now();
   ctx.queue.submit([encoder.finish()]);
-  if (ctx.queue.onSubmittedWorkDone) {
-    await ctx.queue.onSubmittedWorkDone();
-    if (ctx.profile) {
-      ctx.profile.webgpu += performance.now() - t0;
-    }
-  }
+  ctx._pendingDispatch = true;
   let outTensor = new Tensor(ctx, outBuf, [h, w, c]);
+  await ctx.flush();
   outTensor = await clamp01(outTensor);
   if (inverse) {
+    await ctx.flush();
     const d = await outTensor.read();
     for (let i = 0; i < d.length; i++) d[i] = 1 - d[i];
     outTensor = Tensor.fromArray(ctx, d, [h, w, c]);
