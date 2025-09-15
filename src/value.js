@@ -168,6 +168,41 @@ export function values(freq, shape, opts = {}) {
     speed = 1,
   } = opts;
   const gpuDistrib = GPU_DISTRIBS.has(distrib);
+  const chainTensor = (maybeTensor, fn) => {
+    if (maybeTensor && typeof maybeTensor.then === 'function') {
+      return maybeTensor.then(fn);
+    }
+    return fn(maybeTensor);
+  };
+  const promoteToGPU = (t) => {
+    if (!ctx || !ctx.device) {
+      return t;
+    }
+    const convert = (tensor) => {
+      if (!(tensor instanceof Tensor)) {
+        return tensor;
+      }
+      if (
+        tensor.ctx === ctx &&
+        typeof GPUTexture !== 'undefined' &&
+        tensor.handle instanceof GPUTexture
+      ) {
+        return tensor;
+      }
+      if (
+        tensor.ctx === ctx &&
+        typeof GPUBuffer !== 'undefined' &&
+        tensor.handle instanceof GPUBuffer
+      ) {
+        return Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape, tensor);
+      }
+      if (tensor.data) {
+        return Tensor.fromArray(ctx, tensor.data, tensor.shape);
+      }
+      return tensor;
+    };
+    return chainTensor(t, convert);
+  };
   let maskData = null;
   let maskWidth = 0;
   let maskHeight = 0;
@@ -258,7 +293,7 @@ export function values(freq, shape, opts = {}) {
         for (let i = 0; i < data.length; i++) {
           data[i] = Math.pow(data[i], 4);
         }
-        return Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+        return Tensor.fromArray(ctx, data, [initHeight, initWidth, channels]);
       });
     }
   } else {
@@ -355,24 +390,28 @@ export function values(freq, shape, opts = {}) {
         }
       }
     }
-    tensor = Tensor.fromArray(null, data, [initHeight, initWidth, channels]);
+    tensor = Tensor.fromArray(ctx, data, [initHeight, initWidth, channels]);
   }
 
   if (maskData) {
-    let mTensor = Tensor.fromArray(null, maskData, [maskHeight, maskWidth, maskChannels]);
+    const maskOutShape = needsFullSize
+      ? [height, width, maskChannels]
+      : [maskHeight, maskWidth, maskChannels];
+    let mTensor = Tensor.fromArray(ctx, maskData, [maskHeight, maskWidth, maskChannels]);
     if (needsFullSize) {
-      mTensor = resample(mTensor, [height, width, maskChannels], splineOrder);
-      mTensor = pinCorners(
+      mTensor = chainTensor(
         mTensor,
-        [height, width, maskChannels],
-        [freqY, freqX],
-        corners
+        (mt) => resample(mt, [height, width, maskChannels], splineOrder),
+      );
+      mTensor = chainTensor(
+        mTensor,
+        (mt) =>
+          pinCorners(mt, [height, width, maskChannels], [freqY, freqX], corners),
       );
     }
     const combine = (t) =>
       withTensorDatas([mTensor, t], (mArr, tArr) => {
-        const mh = mTensor.shape[0];
-        const mw = mTensor.shape[1];
+        const [mh, mw] = maskOutShape;
         const total = mh * mw;
         if (channels === 2) {
           const out = new Float32Array(total * 2);
@@ -380,7 +419,7 @@ export function values(freq, shape, opts = {}) {
             out[i * 2] = tArr[i * channels];
             out[i * 2 + 1] = mArr[i];
           }
-          return Tensor.fromArray(null, out, [mh, mw, 2]);
+          return Tensor.fromArray(ctx, out, [mh, mw, 2]);
         } else if (channels === 4) {
           const out = new Float32Array(total * 4);
           for (let i = 0; i < total; i++) {
@@ -389,25 +428,28 @@ export function values(freq, shape, opts = {}) {
             out[i * 4 + 2] = tArr[i * channels + 2];
             out[i * 4 + 3] = mArr[i];
           }
-          return Tensor.fromArray(null, out, [mh, mw, 4]);
+          return Tensor.fromArray(ctx, out, [mh, mw, 4]);
         }
         for (let i = 0; i < total; i++) {
           for (let c = 0; c < channels; c++) {
             tArr[i * channels + c] *= mArr[i];
           }
         }
-        return Tensor.fromArray(null, tArr, [mh, mw, channels]);
+        return Tensor.fromArray(ctx, tArr, [mh, mw, channels]);
       });
     tensor = tensor && typeof tensor.then === 'function' ? tensor.then(combine) : combine(tensor);
   }
 
+  tensor = promoteToGPU(tensor);
+
   if (!needsFullSize) {
-    tensor = resample(tensor, [height, width, channels], splineOrder);
-    tensor = pinCorners(
+    tensor = chainTensor(
       tensor,
-      [height, width, channels],
-      [freqY, freqX],
-      corners
+      (t) => resample(t, [height, width, channels], splineOrder),
+    );
+    tensor = chainTensor(
+      tensor,
+      (t) => pinCorners(t, [height, width, channels], [freqY, freqX], corners),
     );
   }
 
