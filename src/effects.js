@@ -2433,7 +2433,7 @@ export function centerMask(
   return blend(center, edges, maskTensor);
 }
 
-export async function innerTile(tensor, shape, freq) {
+export function innerTile(tensor, shape, freq) {
   let fy, fx;
   if (typeof freq === "number") {
     fy = fx = freq;
@@ -2444,30 +2444,31 @@ export async function innerTile(tensor, shape, freq) {
   const [h, w, c] = shape;
   const smallH = Math.max(1, Math.floor(h / fy));
   const smallW = Math.max(1, Math.floor(w / fx));
-  const src = await tensor.read();
-  const patch = new Float32Array(smallH * smallW * c);
-  for (let y = 0; y < smallH; y++) {
-    for (let x = 0; x < smallW; x++) {
-      for (let k = 0; k < c; k++) {
-        patch[(y * smallW + x) * c + k] =
-          src[(y * fy * w + x * fx) * c + k];
+  return withTensorData(tensor, (src) => {
+    const patch = new Float32Array(smallH * smallW * c);
+    for (let y = 0; y < smallH; y++) {
+      for (let x = 0; x < smallW; x++) {
+        for (let k = 0; k < c; k++) {
+          patch[(y * smallW + x) * c + k] =
+            src[(y * fy * w + x * fx) * c + k];
+        }
       }
     }
-  }
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    const sy = Math.floor(y / fy);
-    for (let x = 0; x < w; x++) {
-      const sx = Math.floor(x / fx);
-      for (let k = 0; k < c; k++) {
-        out[(y * w + x) * c + k] = patch[(sy * smallW + sx) * c + k];
+    const out = new Float32Array(h * w * c);
+    for (let y = 0; y < h; y++) {
+      const sy = Math.floor(y / fy);
+      for (let x = 0; x < w; x++) {
+        const sx = Math.floor(x / fx);
+        for (let k = 0; k < c; k++) {
+          out[(y * w + x) * c + k] = patch[(sy * smallW + sx) * c + k];
+        }
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+    return Tensor.fromArray(tensor.ctx, out, shape);
+  });
 }
 
-export async function expandTile(
+export function expandTile(
   tensor,
   inputShape,
   outputShape,
@@ -2477,18 +2478,19 @@ export async function expandTile(
   const [outH, outW] = outputShape;
   const xOff = withOffset ? Math.floor(inW / 2) : 0;
   const yOff = withOffset ? Math.floor(inH / 2) : 0;
-  const src = await tensor.read();
-  const out = new Float32Array(outH * outW * c);
-  for (let y = 0; y < outH; y++) {
-    const sy = (y + yOff) % inH;
-    for (let x = 0; x < outW; x++) {
-      const sx = (x + xOff) % inW;
-      for (let k = 0; k < c; k++) {
-        out[(y * outW + x) * c + k] = src[(sy * inW + sx) * c + k];
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(outH * outW * c);
+    for (let y = 0; y < outH; y++) {
+      const sy = (y + yOff) % inH;
+      for (let x = 0; x < outW; x++) {
+        const sx = (x + xOff) % inW;
+        for (let k = 0; k < c; k++) {
+          out[(y * outW + x) * c + k] = src[(sy * inW + sx) * c + k];
+        }
       }
     }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [outH, outW, c]);
+    return Tensor.fromArray(tensor.ctx, out, [outH, outW, c]);
+  });
 }
 
 export function offsetIndex(yIndex, height, xIndex, width) {
@@ -3752,13 +3754,12 @@ export async function refractEffect(
       splineOrder,
     });
   } else {
-    if (!rx) rx = tensor;
+      if (!rx) rx = tensor;
     if (!ry) {
       if (yFromOffset) {
         const xHalf = Math.floor(w * 0.5);
         const yHalf = Math.floor(h * 0.5);
         ry = await offsetTensor(rx, xHalf, yHalf);
-        tensor = await offsetTensor(tensor, xHalf, yHalf);
       } else {
         rx = await rx;
         const rData = await rx.read();
@@ -5185,12 +5186,12 @@ async function expandTileInternal(tensor, inputShape, outputShape) {
   const t = tensor && typeof tensor.then === 'function' ? await tensor : tensor;
   const src = await t.read();
   const out = new Float32Array(oh * ow * c);
-  const xOff = Math.floor(iw / 2);
-  const yOff = Math.floor(ih / 2);
+  const xOff = Math.floor((ow - iw) / 2);
+  const yOff = Math.floor((oh - ih) / 2);
   for (let y = 0; y < oh; y++) {
-    const sy = (yOff + y) % ih;
+    const sy = ((y - yOff) % ih + ih) % ih;
     for (let x = 0; x < ow; x++) {
-      const sx = (xOff + x) % iw;
+      const sx = ((x - xOff) % iw + iw) % iw;
       const srcBase = (sy * iw + sx) * c;
       const dstBase = (y * ow + x) * c;
       for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
