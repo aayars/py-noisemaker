@@ -10,11 +10,16 @@ export class Tensor {
     this.data = data; // CPU data if applicable
   }
 
+  static storageChannels(c) {
+    return c <= 1 ? 1 : c === 2 ? 2 : 4;
+  }
+
   static fromArray(ctx, array, shape) {
     const [h, w, c] = shape;
     if (ctx && ctx.device) {
-      const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
-      const channels = format === 'r32float' ? 1 : format === 'rg32float' ? 2 : 4;
+      const channels = Tensor.storageChannels(c);
+      const format =
+        channels === 1 ? 'r32float' : channels === 2 ? 'rg32float' : 'rgba32float';
       const bytesPerPixel = channels * 4;
       const bytesPerRow = Math.ceil((w * bytesPerPixel) / 256) * 256;
       const tex = ctx.device.createTexture({
@@ -24,7 +29,8 @@ export class Tensor {
           GPUTextureUsage.TEXTURE_BINDING |
           GPUTextureUsage.COPY_SRC |
           GPUTextureUsage.COPY_DST |
-          GPUTextureUsage.RENDER_ATTACHMENT,
+          GPUTextureUsage.RENDER_ATTACHMENT |
+          GPUTextureUsage.STORAGE_BINDING,
       });
       if (array) {
         let data = array instanceof Float32Array ? array : new Float32Array(array);
@@ -66,7 +72,71 @@ export class Tensor {
     if (!ctx || !ctx.device) {
       throw new Error('GPU context required');
     }
-    const channels = c === 1 ? 1 : c === 2 ? 2 : 4;
+    const channels = Tensor.storageChannels(c);
+    if (channels !== c) {
+      if (!ctx._bufferExpandPipeline) {
+        const module = ctx.createShaderModule(BUFFER_EXPAND_WGSL);
+        ctx._bufferExpandPipeline = ctx.device.createComputePipeline({
+          layout: 'auto',
+          compute: { module, entryPoint: 'main' },
+        });
+      }
+      const pipeline = ctx._bufferExpandPipeline;
+      const bytesPerPixel = channels * 4;
+      const rowStride = w * bytesPerPixel;
+      const bytesPerRow = Math.ceil(rowStride / 256) * 256;
+      const dstStride = bytesPerRow / 4;
+      const srcStride = w * c;
+      const expanded = ctx.device.createBuffer({
+        size: bytesPerRow * h,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      });
+      const tex =
+        target &&
+        target.ctx === ctx &&
+        typeof GPUTexture !== 'undefined' &&
+        target.handle instanceof GPUTexture
+          ? target.handle
+          : ctx.device.createTexture({
+              size: { width: w, height: h, depthOrArrayLayers: 1 },
+              format: 'rgba32float',
+              usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_SRC |
+                GPUTextureUsage.COPY_DST |
+                GPUTextureUsage.RENDER_ATTACHMENT |
+                GPUTextureUsage.STORAGE_BINDING,
+            });
+      const paramsArr = new Uint32Array([w, h, c, channels, srcStride, dstStride, 0, 0]);
+      const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+      const bindGroup = ctx.device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer } },
+          { binding: 1, resource: { buffer: expanded } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+      });
+      const encoder = ctx._encoder || ctx.device.createCommandEncoder();
+      const pass = encoder.beginComputePass();
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8), 1);
+      pass.end();
+      encoder.copyBufferToTexture(
+        { buffer: expanded, bytesPerRow },
+        { texture: tex },
+        { width: w, height: h, depthOrArrayLayers: 1 },
+      );
+      if (!ctx._encoder) {
+        ctx.queue.submit([encoder.finish()]);
+        ctx._pendingDispatch = true;
+      }
+      if (target && target.ctx === ctx && target.handle === tex) {
+        return target;
+      }
+      return new Tensor(ctx, tex, shape, null);
+    }
     const bytesPerPixel = channels * 4;
     const rowStride = w * bytesPerPixel;
     const bytesPerRow = Math.ceil(rowStride / 256) * 256;
@@ -88,7 +158,8 @@ export class Tensor {
               GPUTextureUsage.TEXTURE_BINDING |
               GPUTextureUsage.COPY_SRC |
               GPUTextureUsage.COPY_DST |
-              GPUTextureUsage.RENDER_ATTACHMENT,
+              GPUTextureUsage.RENDER_ATTACHMENT |
+              GPUTextureUsage.STORAGE_BINDING,
           });
     const encoder = ctx._encoder || ctx.device.createCommandEncoder();
     const submit = !ctx._encoder;
@@ -185,4 +256,47 @@ export class Tensor {
     return res;
   }
 }
+
+const BUFFER_EXPAND_WGSL = `
+struct BufferExpandParams {
+  width: u32,
+  height: u32,
+  srcChannels: u32,
+  dstChannels: u32,
+  srcStride: u32,
+  dstStride: u32,
+  pad0: u32,
+  pad1: u32,
+};
+@group(0) @binding(0) var<storage, read> src: array<f32>;
+@group(0) @binding(1) var<storage, read_write> dst: array<f32>;
+@group(0) @binding(2) var<uniform> params: BufferExpandParams;
+
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let x = gid.x;
+  let y = gid.y;
+  let w = params.width;
+  let h = params.height;
+  if (x >= w || y >= h) { return; }
+  let srcCh = params.srcChannels;
+  let dstCh = params.dstChannels;
+  let srcStride = params.srcStride;
+  let dstStride = params.dstStride;
+  let srcBase = y * srcStride + x * srcCh;
+  let dstBase = y * dstStride + x * dstCh;
+  var r = 0.0;
+  var g = 0.0;
+  var b = 0.0;
+  var a = 1.0;
+  if (srcCh > 0u) { r = src[srcBase]; }
+  if (srcCh > 1u) { g = src[srcBase + 1u]; } else { g = r; }
+  if (srcCh > 2u) { b = src[srcBase + 2u]; } else { b = r; }
+  if (srcCh > 3u) { a = src[srcBase + 3u]; } else if (srcCh == 2u) { a = g; }
+  if (dstCh > 0u) { dst[dstBase] = r; }
+  if (dstCh > 1u) { dst[dstBase + 1u] = g; }
+  if (dstCh > 2u) { dst[dstBase + 2u] = b; }
+  if (dstCh > 3u) { dst[dstBase + 3u] = a; }
+}
+`;
 
