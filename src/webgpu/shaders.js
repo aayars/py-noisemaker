@@ -1,52 +1,100 @@
 import { ValueDistribution, InterpolationType } from '../constants.js';
 
+const shaderCache = new Map();
 const loadShader = async (name) => {
-  const url = new URL(name, import.meta.url);
-  if (url.protocol === 'file:') {
-    const { readFile } = await import('fs/promises');
-    return readFile(url, 'utf8');
+  if (shaderCache.has(name)) {
+    return shaderCache.get(name);
   }
-  return (await fetch(url)).text();
+  const url = new URL(name, import.meta.url);
+  const promise =
+    url.protocol === 'file:'
+      ? import('fs/promises').then(({ readFile }) => readFile(url, 'utf8'))
+      : fetch(url).then((r) => r.text());
+  shaderCache.set(name, promise);
+  return promise;
 };
 
-export const VORONOI_WGSL = await loadShader('./voronoi.wgsl');
-export const EROSION_WORMS_WGSL = await loadShader('./erosion-worms.wgsl');
-export const WORMS_WGSL = await loadShader('./worms.wgsl');
-export const RESAMPLE_WGSL = await loadShader('./resample.wgsl');
+const shaderSources = await Promise.all([
+  loadShader('./voronoi.wgsl'),
+  loadShader('./erosion-worms.wgsl'),
+  loadShader('./worms.wgsl'),
+  loadShader('./resample.wgsl'),
+  loadShader('./downsample.wgsl'),
+  loadShader('./blend-const.wgsl'),
+  loadShader('./blend.wgsl'),
+  loadShader('./convolution.wgsl'),
+  loadShader('./derivative.wgsl'),
+  loadShader('./sobel.wgsl'),
+  loadShader('./normal-map.wgsl'),
+  loadShader('./refract.wgsl'),
+  loadShader('./warp.wgsl'),
+  loadShader('./spatter-mask.wgsl'),
+  loadShader('./scratches-mask.wgsl'),
+  loadShader('./scratches-blend.wgsl'),
+  loadShader('./grime-mask.wgsl'),
+  loadShader('./grime-blend.wgsl'),
+  loadShader('./fxaa.wgsl'),
+  loadShader('./glyph-map.wgsl'),
+  loadShader('./rgb-to-hsv.wgsl'),
+  loadShader('./hsv-to-rgb.wgsl'),
+  loadShader('./tint.wgsl'),
+  loadShader('./normalize.wgsl'),
+  loadShader('./pixel-sort.wgsl'),
+  loadShader('./kaleido.wgsl'),
+  loadShader('./crt.wgsl'),
+  loadShader('./wobble.wgsl'),
+  loadShader('./vortex.wgsl'),
+  loadShader('./wormhole.wgsl'),
+  loadShader('./dla.wgsl'),
+  loadShader('./reverb.wgsl'),
+  loadShader('./vaseline-blur.wgsl'),
+  loadShader('./vaseline-mask.wgsl'),
+  loadShader('./lens-distortion.wgsl'),
+  loadShader('./degauss.wgsl'),
+  loadShader('./vhs.wgsl'),
+]);
+
+export const [
+  VORONOI_WGSL,
+  EROSION_WORMS_WGSL,
+  WORMS_WGSL,
+  RESAMPLE_WGSL,
+  DOWNSAMPLE_WGSL,
+  BLEND_CONST_WGSL,
+  BLEND_WGSL,
+  CONVOLUTION_WGSL,
+  DERIVATIVE_WGSL,
+  SOBEL_WGSL,
+  NORMAL_MAP_WGSL,
+  REFRACT_WGSL,
+  WARP_WGSL,
+  SPATTER_MASK_WGSL,
+  SCRATCHES_MASK_WGSL,
+  SCRATCHES_BLEND_WGSL,
+  GRIME_MASK_WGSL,
+  GRIME_BLEND_WGSL,
+  FXAA_WGSL,
+  GLYPH_MAP_WGSL,
+  RGB_TO_HSV_WGSL,
+  HSV_TO_RGB_WGSL,
+  TINT_WGSL,
+  NORMALIZE_WGSL,
+  PIXEL_SORT_WGSL,
+  KALEIDO_WGSL,
+  CRT_WGSL,
+  WOBBLE_WGSL,
+  VORTEX_WGSL,
+  WORMHOLE_WGSL,
+  DLA_WGSL,
+  REVERB_WGSL,
+  VASELINE_BLUR_WGSL,
+  VASELINE_MASK_WGSL,
+  LENS_DISTORTION_WGSL,
+  DEGAUSS_WGSL,
+  VHS_WGSL,
+] = shaderSources;
+
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
-export const DOWNSAMPLE_WGSL = await loadShader('./downsample.wgsl');
-export const BLEND_CONST_WGSL = await loadShader('./blend-const.wgsl');
-export const BLEND_WGSL = await loadShader('./blend.wgsl');
-export const CONVOLUTION_WGSL = await loadShader('./convolution.wgsl');
-export const DERIVATIVE_WGSL = await loadShader('./derivative.wgsl');
-export const SOBEL_WGSL = await loadShader('./sobel.wgsl');
-export const NORMAL_MAP_WGSL = await loadShader('./normal-map.wgsl');
-export const REFRACT_WGSL = await loadShader('./refract.wgsl');
-export const WARP_WGSL = await loadShader('./warp.wgsl');
-export const SPATTER_MASK_WGSL = await loadShader('./spatter-mask.wgsl');
-export const SCRATCHES_MASK_WGSL = await loadShader('./scratches-mask.wgsl');
-export const SCRATCHES_BLEND_WGSL = await loadShader('./scratches-blend.wgsl');
-export const GRIME_MASK_WGSL = await loadShader('./grime-mask.wgsl');
-export const GRIME_BLEND_WGSL = await loadShader('./grime-blend.wgsl');
-export const FXAA_WGSL = await loadShader('./fxaa.wgsl');
-export const GLYPH_MAP_WGSL = await loadShader('./glyph-map.wgsl');
-export const RGB_TO_HSV_WGSL = await loadShader('./rgb-to-hsv.wgsl');
-export const HSV_TO_RGB_WGSL = await loadShader('./hsv-to-rgb.wgsl');
-export const TINT_WGSL = await loadShader('./tint.wgsl');
-export const NORMALIZE_WGSL = await loadShader('./normalize.wgsl');
-export const PIXEL_SORT_WGSL = await loadShader('./pixel-sort.wgsl');
-export const KALEIDO_WGSL = await loadShader('./kaleido.wgsl');
-export const CRT_WGSL = await loadShader('./crt.wgsl');
-export const WOBBLE_WGSL = await loadShader('./wobble.wgsl');
-export const VORTEX_WGSL = await loadShader('./vortex.wgsl');
-export const WORMHOLE_WGSL = await loadShader('./wormhole.wgsl');
-export const DLA_WGSL = await loadShader('./dla.wgsl');
-export const REVERB_WGSL = await loadShader('./reverb.wgsl');
-export const VASELINE_BLUR_WGSL = await loadShader("./vaseline-blur.wgsl");
-export const VASELINE_MASK_WGSL = await loadShader("./vaseline-mask.wgsl");
-export const LENS_DISTORTION_WGSL = await loadShader('./lens-distortion.wgsl');
-export const DEGAUSS_WGSL = await loadShader('./degauss.wgsl');
-export const VHS_WGSL = await loadShader('./vhs.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32,
