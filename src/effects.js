@@ -35,6 +35,7 @@ import {
 } from "./util.js";
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
+import { getBufferPool } from "./bufferPool.js";
 import {
   InterpolationType,
   DistanceMetric,
@@ -120,14 +121,17 @@ export async function warpWebGPU(
     flows.push({ rx, ry, mult });
   }
   let out = await ensureGPU(tensor);
-  const outSize = h * w * channels;
-  const outBuf = ctx.device.createBuffer({
-    size: outSize * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-  });
+  const outSize = h * w * channels * 4;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(outSize, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
+  const paramsArr = new Float32Array(8);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
   for (const { rx, ry, mult } of flows) {
     const disp = displacement / mult;
-    const paramsArr = new Float32Array([
+    paramsArr.set([
       w,
       h,
       channels,
@@ -137,7 +141,7 @@ export async function warpWebGPU(
       0,
       0,
     ]);
-    const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+    ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
     await ctx.runCompute(
       WARP_WGSL,
       [
@@ -152,7 +156,8 @@ export async function warpWebGPU(
     );
     out = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], out);
   }
-  outBuf.destroy();
+  pool.release(outBuf);
+  pool.release(paramsBuf);
   return out;
 }
 
@@ -4500,7 +4505,7 @@ register("worms", worms, {
   colors: null,
 });
 
-export async function wormhole(
+export function wormhole(
   tensor,
   shape,
   time,
@@ -4512,58 +4517,61 @@ export async function wormhole(
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    const src = await tensor.read();
-    const valuesArr = new Float32Array(h * w);
-    if (c === 1) {
-      for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
-    } else {
-      const labTensor = await rgbToOklab(tensor);
-      const lab = await labTensor.read();
-      for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
-    }
-    const stride = 1024 * inputStride;
-    const yOff = Math.floor(h * 0.5 + random() * h * 0.5);
-    const xOff = Math.floor(random() * w * 0.5);
-    const lumBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
-    const outBuf = ctx.device.createBuffer({
-      size: h * w * c * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-    const paramsBuf = ctx.createGPUBuffer(
-      new Float32Array([w, h, c, stride, kink, xOff, yOff, 0]),
-      GPUBufferUsage.UNIFORM,
-    );
-    try {
-      await ctx.runCompute(
-        WORMHOLE_WGSL,
-        [
-          { binding: 0, resource: tensor.handle.createView() },
-          { binding: 1, resource: { buffer: lumBuf } },
-          { binding: 2, resource: { buffer: outBuf } },
-          { binding: 3, resource: { buffer: paramsBuf } },
-        ],
-        Math.ceil(w / 8),
-        Math.ceil(h / 8),
+    return (async () => {
+      const src = await tensor.read();
+      const valuesArr = new Float32Array(h * w);
+      if (c === 1) {
+        for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
+      } else {
+        const labTensor = await rgbToOklab(tensor);
+        const lab = await labTensor.read();
+        for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
+      }
+      const stride = 1024 * inputStride;
+      const yOff = Math.floor(h * 0.5 + random() * h * 0.5);
+      const xOff = Math.floor(random() * w * 0.5);
+      const lumBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
+      const outBuf = ctx.device.createBuffer({
+        size: h * w * c * 4,
+        usage:
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, stride, kink, xOff, yOff, 0]),
+        GPUBufferUsage.UNIFORM,
       );
-    } catch (e) {
-      const cpuTensor = Tensor.fromArray(null, await tensor.read(), shape);
-      return await wormhole(cpuTensor, shape, time, speed, kink, inputStride, alpha);
-    }
-    const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
-    let outTensor = Tensor.fromArray(ctx, out, shape);
-    outTensor = await normalize(outTensor);
-    const d = await outTensor.read();
-    for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
-    outTensor = Tensor.fromArray(ctx, d, shape);
-    return blend(tensor, outTensor, alpha);
+      try {
+        await ctx.runCompute(
+          WORMHOLE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: lumBuf } },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+      } catch (e) {
+        const cpuTensor = Tensor.fromArray(null, await tensor.read(), shape);
+        return wormhole(cpuTensor, shape, time, speed, kink, inputStride, alpha);
+      }
+      const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
+      let outTensor = Tensor.fromArray(ctx, out, shape);
+      outTensor = await normalize(outTensor);
+      const d = await outTensor.read();
+      for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
+      outTensor = Tensor.fromArray(ctx, d, shape);
+      return blend(tensor, outTensor, alpha);
+    })();
   }
-  const src = await tensor.read();
+  const src = tensor.read();
   const valuesArr = new Float32Array(h * w);
   if (c === 1) {
     for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
   } else {
-    const labTensor = await rgbToOklab(tensor);
-    const lab = await labTensor.read();
+    const labTensor = rgbToOklab(tensor);
+    const lab = labTensor.read();
     for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
   }
   const stride = 1024 * inputStride;
@@ -5081,7 +5089,7 @@ export async function sine(
 }
 register("sine", sine, { amount: 1.0, rgb: false, freq: 1, octaves: 1 });
 
-export async function blur(
+export function blur(
   tensor,
   shape,
   time,
@@ -5096,11 +5104,17 @@ export async function blur(
     c,
   ];
   let small = proportionalDownsample(tensor, shape, newShape);
-  small = small && typeof small.then === 'function' ? await small : small;
-  const data = await small.read();
-  for (let i = 0; i < data.length; i++) data[i] *= 4;
-  small = Tensor.fromArray(tensor.ctx, data, small.shape);
-  return resample(small, shape, splineOrder);
+  const process = (s) =>
+    withTensorData(s, (data) => {
+      const arr = data instanceof Float32Array ? data.slice() : new Float32Array(data);
+      for (let i = 0; i < arr.length; i++) arr[i] *= 4;
+      const sm = Tensor.fromArray(tensor.ctx, arr, s.shape);
+      return resample(sm, shape, splineOrder);
+    });
+  if (small && typeof small.then === 'function') {
+    return small.then(process);
+  }
+  return process(small);
 }
 register("blur", blur, {
   amount: 10.0,
