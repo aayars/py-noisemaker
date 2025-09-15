@@ -1,9 +1,15 @@
 // Miscellaneous utilities: canvas export, logging, seeded random, shape and color helpers.
 
 import { Tensor } from './tensor.js';
-import { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice } from './rng.js';
+import { Random, getSeed, getBaseSeed, random, randomInt, choice, setSeed as setRNGSeed } from './rng.js';
+import { setSeed as setSimplexSeed } from './simplex.js';
 
-export { Random, setSeed, getSeed, getBaseSeed, random, randomInt, choice };
+export function setSeed(s) {
+  setRNGSeed(s);
+  setSimplexSeed(s);
+}
+
+export { Random, getSeed, getBaseSeed, random, randomInt, choice };
 
 export function withTensorData(tensor, fn) {
   const handle = (t) => {

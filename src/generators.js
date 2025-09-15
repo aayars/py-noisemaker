@@ -348,12 +348,14 @@ export async function multires(freq, shape, opts = {}) {
   for (const e of postEffects) {
     const res = await _applyPostEffectOrPreset(e, tensor, shape, time, speed);
     tensor = res.tensor;
+    shape = tensor.shape;
     final = final.concat(res.final);
   }
 
   final = final.concat(finalEffects);
   for (const e of final) {
     tensor = await _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+    shape = tensor.shape;
   }
 
   tensor = await normalize(tensor);
@@ -368,6 +370,7 @@ async function _applyPostEffectOrPreset(effectOrPreset, tensor, shape, time, spe
     for (const e of effectOrPreset.post_effects) {
       const res = await _applyPostEffectOrPreset(e, tensor, shape, time, speed);
       tensor = res.tensor;
+      shape = tensor.shape;
       final = final.concat(res.final);
     }
     return { tensor, final };
@@ -380,6 +383,7 @@ async function _applyFinalEffectOrPreset(effectOrPreset, tensor, shape, time, sp
   } else {
     for (const e of effectOrPreset.post_effects.concat(effectOrPreset.final_effects)) {
       tensor = await _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
+      shape = tensor.shape;
     }
     return tensor;
   }

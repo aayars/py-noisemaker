@@ -2528,7 +2528,8 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
       const srcBase = i * srcChannels;
       const dstBase = i * outShape[2];
       for (let k = 0; k < outShape[2]; k++) {
-        tmp[dstBase + k] = src[srcBase + k];
+        const srcIdx = srcBase + Math.min(k, srcChannels - 1);
+        tmp[dstBase + k] = src[srcIdx];
       }
     }
     src = tmp;
@@ -4833,26 +4834,32 @@ export function snow(tensor, shape, time, speed, alpha = 0.25) {
     speed: speed * 100,
     splineOrder: InterpolationType.constant,
   });
-  let limiter = values(Math.max(h, w), shape, {
+  const limiter = values(Math.max(h, w), shape, {
     ctx,
     time,
     speed: speed * 100,
     distrib: ValueDistribution.exp,
     splineOrder: InterpolationType.constant,
   });
-  const lData = limiter.read();
-  if (typeof alpha === "number") {
-    for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
-  } else {
-    const aData = alpha.read();
-    const tc = alpha.shape[2];
-    for (let i = 0; i < h * w; i++) {
-      const t = aData[i * tc];
-      for (let k = 0; k < c; k++) lData[i * c + k] *= t;
+
+  const apply = (lData, aData = null) => {
+    if (typeof alpha === "number") {
+      for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
+    } else {
+      const tc = aData.length / (h * w);
+      for (let i = 0; i < h * w; i++) {
+        const t = aData[i * tc];
+        for (let k = 0; k < c; k++) lData[i * c + k] *= t;
+      }
     }
+    const limT = Tensor.fromArray(ctx, lData, shape);
+    return blend(tensor, staticNoise, limT);
+  };
+
+  if (typeof alpha === "number") {
+    return withTensorData(limiter, (lData) => apply(lData));
   }
-  limiter = Tensor.fromArray(ctx, lData, shape);
-  return blend(tensor, staticNoise, limiter);
+  return withTensorDatas([limiter, alpha], (lData, aData) => apply(lData, aData));
 }
 register("snow", snow, { alpha: 0.25 });
 
