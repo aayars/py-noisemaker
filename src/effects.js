@@ -5397,28 +5397,38 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   }
   const data = await working.read();
   const sorted = new Float32Array(want * want * c);
-  for (let y = 0; y < want; y++) {
-    const row = data.subarray(y * want * c, (y + 1) * want * c);
-    const srcBuf = ctx.createGPUBuffer(row, GPUBufferUsage.STORAGE);
-    const outBuf = ctx.createGPUBuffer(
-      new Float32Array(want * c),
-      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    );
-    const paramsBuf = ctx.createGPUBuffer(
-      new Uint32Array([want, c, darkest ? 1 : 0]),
-      GPUBufferUsage.UNIFORM,
-    );
-    await ctx.runCompute(
-      PIXEL_SORT_WGSL,
-      [
-        { binding: 0, resource: { buffer: srcBuf } },
-        { binding: 1, resource: { buffer: outBuf } },
-        { binding: 2, resource: { buffer: paramsBuf } },
-      ],
-      1,
-    );
+  const rowBuffers = [];
+  await ctx.withEncoder(async () => {
+    for (let y = 0; y < want; y++) {
+      const row = data.subarray(y * want * c, (y + 1) * want * c);
+      const srcBuf = ctx.createGPUBuffer(row, GPUBufferUsage.STORAGE);
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(want * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Uint32Array([want, c, darkest ? 1 : 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        PIXEL_SORT_WGSL,
+        [
+          { binding: 0, resource: { buffer: srcBuf } },
+          { binding: 1, resource: { buffer: outBuf } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+        1,
+      );
+      rowBuffers.push({ outBuf, srcBuf, paramsBuf });
+    }
+  });
+  for (let y = 0; y < rowBuffers.length; y++) {
+    const { outBuf, srcBuf, paramsBuf } = rowBuffers[y];
     const outRow = await ctx.readGPUBuffer(outBuf, want * c * 4);
     sorted.set(outRow, y * want * c);
+    if (typeof srcBuf.destroy === "function") srcBuf.destroy();
+    if (typeof paramsBuf.destroy === "function") paramsBuf.destroy();
+    if (typeof outBuf.destroy === "function") outBuf.destroy();
   }
   let sortedTensor = Tensor.fromArray(ctx, sorted, [want, want, c]);
   if (angle !== false) {
@@ -6590,7 +6600,7 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  let out = tensor;
+  const iterations = [];
   for (let i = 0; i < 4; i++) {
     let mask = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
     const behavior = [WormBehavior.obedient, WormBehavior.unruly][
@@ -6613,34 +6623,40 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
       kink,
     );
     const sub = await values(randomInt(2, 4), valueShape, { ctx, time, speed });
-    const maskTex = ctx.device.createTexture({
-      size: { width: w, height: h, depthOrArrayLayers: 1 },
-      format: 'r32float',
-      usage:
-        GPUTextureUsage.STORAGE_BINDING |
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.COPY_SRC |
-        GPUTextureUsage.COPY_DST,
-    });
-    const maskParams = ctx.createGPUBuffer(
-      new Float32Array([w, h]),
-      GPUBufferUsage.UNIFORM,
-    );
-    const outTex = ctx.device.createTexture({
-      size: { width: w, height: h, depthOrArrayLayers: 1 },
-      format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
-      usage:
-        GPUTextureUsage.STORAGE_BINDING |
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.COPY_SRC |
-        GPUTextureUsage.COPY_DST,
-    });
-    const blendParams = ctx.createGPUBuffer(
-      new Float32Array([w, h, c]),
-      GPUBufferUsage.UNIFORM,
-    );
-    let maskTensor;
-    await ctx.withEncoder(async () => {
+    iterations.push({ mask, sub });
+  }
+  let out = tensor;
+  const resources = [];
+  await ctx.withEncoder(async () => {
+    for (const { mask, sub } of iterations) {
+      resources.push(out);
+      const maskTex = ctx.device.createTexture({
+        size: { width: w, height: h, depthOrArrayLayers: 1 },
+        format: 'r32float',
+        usage:
+          GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST,
+      });
+      const maskParams = ctx.createGPUBuffer(
+        new Float32Array([w, h]),
+        GPUBufferUsage.UNIFORM,
+      );
+      const outTex = ctx.device.createTexture({
+        size: { width: w, height: h, depthOrArrayLayers: 1 },
+        format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
+        usage:
+          GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST,
+      });
+      const blendParams = ctx.createGPUBuffer(
+        new Float32Array([w, h, c]),
+        GPUBufferUsage.UNIFORM,
+      );
+      resources.push(maskParams, blendParams);
       await ctx.runCompute(
         SCRATCHES_MASK_WGSL,
         [
@@ -6652,7 +6668,8 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
         Math.ceil(w / 8),
         Math.ceil(h / 8),
       );
-      maskTensor = new Tensor(ctx, maskTex, valueShape);
+      const maskTensor = new Tensor(ctx, maskTex, valueShape);
+      resources.push(maskTensor);
       await ctx.runCompute(
         SCRATCHES_BLEND_WGSL,
         [
@@ -6664,10 +6681,13 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
         Math.ceil(w / 8),
         Math.ceil(h / 8),
       );
-    });
-    mask = maskTensor;
-    out = new Tensor(ctx, outTex, shape);
-  }
+      const newOut = new Tensor(ctx, outTex, shape);
+      resources.push(newOut);
+      out = newOut;
+    }
+  });
+  iterations.length = 0;
+  resources.length = 0;
   return out;
 }
 
