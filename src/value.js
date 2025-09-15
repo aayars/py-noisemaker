@@ -968,34 +968,50 @@ export function normalize(tensor) {
           GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         );
         // Pass 1: compute min/max
-        paramsArr[3] = 0;
-        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr.buffer, paramsArr.byteOffset, paramsArr.byteLength);
-        await ctx.runCompute(
-          NORMALIZE_WGSL,
-          [
-            { binding: 0, resource: tensor.handle.createView() },
-            { binding: 1, resource: { buffer: outBuf } },
-            { binding: 2, resource: { buffer: reduceBuf } },
-            { binding: 3, resource: { buffer: paramsBuf } },
-          ],
-          1,
-          1,
-        );
-        // Pass 2: scale
-        paramsArr[3] = 1;
-        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr.buffer, paramsArr.byteOffset, paramsArr.byteLength);
-        await ctx.runCompute(
-          NORMALIZE_WGSL,
-          [
-            { binding: 0, resource: tensor.handle.createView() },
-            { binding: 1, resource: { buffer: outBuf } },
-            { binding: 2, resource: { buffer: reduceBuf } },
-            { binding: 3, resource: { buffer: paramsBuf } },
-          ],
-          Math.ceil(w / 8),
-          Math.ceil(h / 8),
-        );
-        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+        let result;
+        await ctx.withEncoder(async () => {
+          paramsArr[3] = 0;
+          ctx.queue.writeBuffer(
+            paramsBuf,
+            0,
+            paramsArr.buffer,
+            paramsArr.byteOffset,
+            paramsArr.byteLength,
+          );
+          await ctx.runCompute(
+            NORMALIZE_WGSL,
+            [
+              { binding: 0, resource: tensor.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: reduceBuf } },
+              { binding: 3, resource: { buffer: paramsBuf } },
+            ],
+            1,
+            1,
+          );
+          // Pass 2: scale
+          paramsArr[3] = 1;
+          ctx.queue.writeBuffer(
+            paramsBuf,
+            0,
+            paramsArr.buffer,
+            paramsArr.byteOffset,
+            paramsArr.byteLength,
+          );
+          await ctx.runCompute(
+            NORMALIZE_WGSL,
+            [
+              { binding: 0, resource: tensor.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: reduceBuf } },
+              { binding: 3, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+        });
+        return result;
       } catch (e) {
         console.warn('WebGPU normalize fallback to CPU', e);
         const src = await tensor.read();

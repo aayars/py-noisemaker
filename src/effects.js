@@ -129,32 +129,36 @@ export async function warpWebGPU(
     paramsArr.byteLength,
     GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   );
-  for (const { rx, ry, mult } of flows) {
-    const disp = displacement / mult;
-    paramsArr.set([
-      w,
-      h,
-      channels,
-      disp,
-      signedRange ? 1 : 0,
-      0,
-      0,
-      0,
-    ]);
-    ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
-    await ctx.runCompute(
-      WARP_WGSL,
-      [
-        { binding: 0, resource: out.handle.createView() },
-        { binding: 1, resource: rx.handle.createView() },
-        { binding: 2, resource: ry.handle.createView() },
-        { binding: 3, resource: { buffer: outBuf } },
-        { binding: 4, resource: { buffer: paramsBuf } },
-      ],
-      Math.ceil(w / 8),
-      Math.ceil(h / 8),
-    );
-    out = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], out);
+  if (flows.length) {
+    await ctx.withEncoder(async () => {
+      for (const { rx, ry, mult } of flows) {
+        const disp = displacement / mult;
+        paramsArr.set([
+          w,
+          h,
+          channels,
+          disp,
+          signedRange ? 1 : 0,
+          0,
+          0,
+          0,
+        ]);
+        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+        await ctx.runCompute(
+          WARP_WGSL,
+          [
+            { binding: 0, resource: out.handle.createView() },
+            { binding: 1, resource: rx.handle.createView() },
+            { binding: 2, resource: ry.handle.createView() },
+            { binding: 3, resource: { buffer: outBuf } },
+            { binding: 4, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        out = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], out);
+      }
+    });
   }
   pool.release(outBuf);
   pool.release(paramsBuf);
@@ -4683,17 +4687,6 @@ async function vaselineWebGPU(tensor, shape, alpha) {
            GPUTextureUsage.COPY_DST,
   });
   const blurParams = ctx.createGPUBuffer(new Float32Array([w, h, c]), GPUBufferUsage.UNIFORM);
-  await ctx.runCompute(
-    VASELINE_BLUR_WGSL,
-    [
-      { binding: 0, resource: tensor.handle.createView() },
-      { binding: 1, resource: blurTex.createView() },
-      { binding: 2, resource: { buffer: blurParams } },
-    ],
-    Math.ceil(w / 8),
-    Math.ceil(h / 8),
-  );
-  const blurred = new Tensor(ctx, blurTex, shape);
   const maskTex = ctx.device.createTexture({
     size: { width: w, height: h, depthOrArrayLayers: 1 },
     format: 'r32float',
@@ -4703,15 +4696,28 @@ async function vaselineWebGPU(tensor, shape, alpha) {
            GPUTextureUsage.COPY_DST,
   });
   const maskParams = ctx.createGPUBuffer(new Float32Array([w, h]), GPUBufferUsage.UNIFORM);
-  await ctx.runCompute(
-    VASELINE_MASK_WGSL,
-    [
-      { binding: 0, resource: maskTex.createView() },
-      { binding: 1, resource: { buffer: maskParams } },
-    ],
-    Math.ceil(w / 8),
-    Math.ceil(h / 8),
-  );
+  await ctx.withEncoder(async () => {
+    await ctx.runCompute(
+      VASELINE_BLUR_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: blurTex.createView() },
+        { binding: 2, resource: { buffer: blurParams } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    await ctx.runCompute(
+      VASELINE_MASK_WGSL,
+      [
+        { binding: 0, resource: maskTex.createView() },
+        { binding: 1, resource: { buffer: maskParams } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+  });
+  const blurred = new Tensor(ctx, blurTex, shape);
   const mask = new Tensor(ctx, maskTex, [h, w, 1]);
   const masked = await blend(tensor, blurred, mask);
   return await blend(tensor, masked, alpha);
@@ -5174,28 +5180,32 @@ export async function reverb(
       base,
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
-    for (let i = 0; i < iterations; i++) {
-      for (let octave = 1; octave <= octaves; octave++) {
-        const mult = 2 ** octave;
-        const nh = Math.floor(h / mult) || 1;
-        const nw = Math.floor(w / mult) || 1;
-        if (nh === 0 || nw === 0) break;
-        const layer = await downsample(reference, mult);
-        const paramsBuf = ctx.createGPUBuffer(
-          new Float32Array([w, h, nw, nh, c, 1 / mult, 0, 0]),
-          GPUBufferUsage.UNIFORM,
-        );
-        await ctx.runCompute(
-          REVERB_WGSL,
-          [
-            { binding: 0, resource: layer.handle.createView() },
-            { binding: 1, resource: { buffer: outBuf } },
-            { binding: 2, resource: { buffer: paramsBuf } },
-          ],
-          Math.ceil(w / 8),
-          Math.ceil(h / 8),
-        );
-      }
+    if (iterations > 0) {
+      await ctx.withEncoder(async () => {
+        for (let i = 0; i < iterations; i++) {
+          for (let octave = 1; octave <= octaves; octave++) {
+            const mult = 2 ** octave;
+            const nh = Math.floor(h / mult) || 1;
+            const nw = Math.floor(w / mult) || 1;
+            if (nh === 0 || nw === 0) break;
+            const layer = await downsample(reference, mult);
+            const paramsBuf = ctx.createGPUBuffer(
+              new Float32Array([w, h, nw, nh, c, 1 / mult, 0, 0]),
+              GPUBufferUsage.UNIFORM,
+            );
+            await ctx.runCompute(
+              REVERB_WGSL,
+              [
+                { binding: 0, resource: layer.handle.createView() },
+                { binding: 1, resource: { buffer: outBuf } },
+                { binding: 2, resource: { buffer: paramsBuf } },
+              ],
+              Math.ceil(w / 8),
+              Math.ceil(h / 8),
+            );
+          }
+        }
+      });
     }
     const outData = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
     const outTensor = Tensor.fromArray(ctx, outData, shape);
@@ -6616,18 +6626,6 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
       new Float32Array([w, h]),
       GPUBufferUsage.UNIFORM,
     );
-    await ctx.runCompute(
-      SCRATCHES_MASK_WGSL,
-      [
-        { binding: 0, resource: mask.handle.createView() },
-        { binding: 1, resource: sub.handle.createView() },
-        { binding: 2, resource: maskTex.createView() },
-        { binding: 3, resource: { buffer: maskParams } },
-      ],
-      Math.ceil(w / 8),
-      Math.ceil(h / 8),
-    );
-    mask = new Tensor(ctx, maskTex, valueShape);
     const outTex = ctx.device.createTexture({
       size: { width: w, height: h, depthOrArrayLayers: 1 },
       format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
@@ -6641,17 +6639,33 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
       new Float32Array([w, h, c]),
       GPUBufferUsage.UNIFORM,
     );
-    await ctx.runCompute(
-      SCRATCHES_BLEND_WGSL,
-      [
-        { binding: 0, resource: out.handle.createView() },
-        { binding: 1, resource: mask.handle.createView() },
-        { binding: 2, resource: outTex.createView() },
-        { binding: 3, resource: { buffer: blendParams } },
-      ],
-      Math.ceil(w / 8),
-      Math.ceil(h / 8),
-    );
+    let maskTensor;
+    await ctx.withEncoder(async () => {
+      await ctx.runCompute(
+        SCRATCHES_MASK_WGSL,
+        [
+          { binding: 0, resource: mask.handle.createView() },
+          { binding: 1, resource: sub.handle.createView() },
+          { binding: 2, resource: maskTex.createView() },
+          { binding: 3, resource: { buffer: maskParams } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      maskTensor = new Tensor(ctx, maskTex, valueShape);
+      await ctx.runCompute(
+        SCRATCHES_BLEND_WGSL,
+        [
+          { binding: 0, resource: out.handle.createView() },
+          { binding: 1, resource: maskTensor.handle.createView() },
+          { binding: 2, resource: outTex.createView() },
+          { binding: 3, resource: { buffer: blendParams } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+    });
+    mask = maskTensor;
     out = new Tensor(ctx, outTex, shape);
   }
   return out;

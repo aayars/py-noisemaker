@@ -90,7 +90,8 @@ export class Tensor {
               GPUTextureUsage.COPY_DST |
               GPUTextureUsage.RENDER_ATTACHMENT,
           });
-    const encoder = ctx.device.createCommandEncoder();
+    const encoder = ctx._encoder || ctx.device.createCommandEncoder();
+    const submit = !ctx._encoder;
     if (bytesPerRow === rowStride) {
       encoder.copyBufferToTexture(
         { buffer, bytesPerRow },
@@ -113,7 +114,10 @@ export class Tensor {
         { width: w, height: h, depthOrArrayLayers: 1 },
       );
     }
-    ctx.queue.submit([encoder.finish()]);
+    if (submit) {
+      ctx.queue.submit([encoder.finish()]);
+      ctx._pendingDispatch = true;
+    }
     if (target && target.ctx === ctx && target.handle === tex) {
       return target;
     }
