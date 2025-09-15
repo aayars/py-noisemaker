@@ -21,6 +21,7 @@ export class Context {
     this._renderSampler = null;
     this._pipelineCache = new Map();
     this._pendingDispatch = false;
+    this._encoder = null;
   }
 
   async initWebGPU() {
@@ -170,7 +171,7 @@ export class Context {
 
   drawQuad(pipeline, bindGroup) {
     if (this.isCPU) return;
-    const encoder = this.device.createCommandEncoder();
+    const encoder = this._encoder || this.device.createCommandEncoder();
     const view =
       this.currentTarget?.view || this.gpu.getCurrentTexture().createView();
     const pass = this.beginRenderPass(encoder, view);
@@ -178,8 +179,10 @@ export class Context {
     if (bindGroup) pass.setBindGroup(0, bindGroup);
     pass.draw(6);
     pass.end();
-    this.queue.submit([encoder.finish()]);
-    this._pendingDispatch = true;
+    if (!this._encoder) {
+      this.queue.submit([encoder.finish()]);
+      this._pendingDispatch = true;
+    }
   }
 
   renderTexture(texture, target = null) {
@@ -253,15 +256,17 @@ export class Context {
         { binding: 1, resource: texture.createView() },
       ],
     });
-    const encoder = this.device.createCommandEncoder();
+    const encoder = this._encoder || this.device.createCommandEncoder();
     const view = (target || this.gpu.getCurrentTexture()).createView();
     const pass = this.beginRenderPass(encoder, view);
     pass.setPipeline(this._renderPipeline);
     pass.setBindGroup(0, bindGroup);
     pass.draw(6);
     pass.end();
-    this.queue.submit([encoder.finish()]);
-    this._pendingDispatch = true;
+    if (!this._encoder) {
+      this.queue.submit([encoder.finish()]);
+      this._pendingDispatch = true;
+    }
   }
 
   createGPUBuffer(array, usage) {
@@ -294,6 +299,25 @@ export class Context {
     }
   }
 
+  async withEncoder(callback) {
+    if (!this.device) {
+      throw new Error('WebGPU device not initialized');
+    }
+    if (this._encoder) {
+      return await callback(this._encoder);
+    }
+    const encoder = this.device.createCommandEncoder();
+    this._encoder = encoder;
+    try {
+      const result = await callback(encoder);
+      this.queue.submit([encoder.finish()]);
+      this._pendingDispatch = true;
+      return result;
+    } finally {
+      this._encoder = null;
+    }
+  }
+
   async runCompute(code, bindEntries, x, y = 1, z = 1) {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
@@ -313,14 +337,16 @@ export class Context {
     }
     if (this.debug) device.pushErrorScope('validation');
     const bindGroup = this.createBindGroup(pipeline, bindEntries);
-    const encoder = device.createCommandEncoder();
+    const encoder = this._encoder || device.createCommandEncoder();
     const pass = this.beginComputePass(encoder);
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(x, y, z);
     pass.end();
-    this.queue.submit([encoder.finish()]);
-    this._pendingDispatch = true;
+    if (!this._encoder) {
+      this.queue.submit([encoder.finish()]);
+      this._pendingDispatch = true;
+    }
     if (this.debug) {
       const err = await device.popErrorScope();
       if (err) {
