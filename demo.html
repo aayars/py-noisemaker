@@ -100,6 +100,8 @@
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
 
+    const benchmark = window.location.hash.includes('benchmark');
+
     const errorBannerEl = document.getElementById('errorBanner');
 
     function showError(message) {
@@ -299,7 +301,11 @@
           presets,
           debug: false,
         });
-        if (ctx.queue && ctx.queue.onSubmittedWorkDone) {
+        if (
+          benchmark &&
+          ctx.queue &&
+          ctx.queue.onSubmittedWorkDone
+        ) {
           await ctx.queue.onSubmittedWorkDone();
         }
       } catch (e) {
