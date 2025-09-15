@@ -288,9 +288,12 @@
     async function draw(seed, presetName) {
       setSeed(seed);
       ctx.profile.webgpu = 0;
+      const presetEvalStart = performance.now();
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
-      let start = performance.now();
+      const presetEvalMs = performance.now() - presetEvalStart;
+      const renderStart = performance.now();
+      let renderMs = 0;
       errorBannerEl.style.display = 'none';
       errorBannerEl.textContent = '';
       try {
@@ -313,11 +316,16 @@
         showError(errorText);
         throw e;
       }
-      const elapsed = performance.now() - start;
+      renderMs = performance.now() - renderStart;
       const webgpuMs = ctx.profile.webgpu;
-      const cpuMs = Math.max(0, elapsed - webgpuMs);
-      statusEl.textContent =
-        `render time: ${elapsed.toFixed(2)} ms | webgpu: ${webgpuMs.toFixed(2)} ms | cpu: ${cpuMs.toFixed(2)} ms | seed: ${seed}`;
+      const cpuMs = Math.max(0, renderMs - webgpuMs);
+      statusEl.innerHTML = [
+        `eval: ${presetEvalMs.toFixed(2)} ms`,
+        `webgpu: ${webgpuMs.toFixed(2)} ms`,
+        `cpu: ${cpuMs.toFixed(2)} ms`,
+        `total: ${renderMs.toFixed(2)} ms`,
+        `seed: ${seed}`,
+      ].join('<br>');
       presetFormulaEl.textContent = presetSource[presetName] || '';
       presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
     }
