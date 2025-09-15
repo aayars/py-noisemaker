@@ -224,7 +224,10 @@ export class Context {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
     }
-    const byteLength = array.byteLength;
+    let byteLength = array.byteLength;
+    if (usage & GPUBufferUsage.UNIFORM) {
+      byteLength = Math.ceil(byteLength / 16) * 16;
+    }
     const buf = this.device.createBuffer({
       size: byteLength,
       usage,

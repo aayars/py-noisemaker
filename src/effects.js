@@ -3558,7 +3558,8 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
     const paramsBuf = ctx.createGPUBuffer(
-      new Float32Array([w, h, c, alpha, rand1, rand2]),
+      // Pad to 32 bytes for uniform buffer alignment
+      new Float32Array([w, h, c, alpha, rand1, rand2, 0, 0]),
       GPUBufferUsage.UNIFORM,
     );
     await ctx.runCompute(
