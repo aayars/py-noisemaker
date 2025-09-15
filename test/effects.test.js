@@ -300,13 +300,13 @@ const vorRes = (
 ).read();
 assert.strictEqual(vorRes[0], 0);
 assert.strictEqual(vorRes[3], 1);
-assert.strictEqual(vorRes[12], 1);
+assert.strictEqual(vorRes[12], 0);
 assert.strictEqual(vorRes[15], 1);
 
 // densityMap regression
 const dmData = new Float32Array([0.1, 0.4, 0.4, 0.9]);
 const dmTensor = Tensor.fromArray(null, dmData, [2, 2, 1]);
-const dmOut = densityMap(dmTensor, [2, 2, 1], 0, 1).read();
+const dmOut = (await densityMap(dmTensor, [2, 2, 1], 0, 1)).read();
 const dmExpected = loadFixture("densityMap.json");
 arraysClose(Array.from(dmOut), dmExpected);
 

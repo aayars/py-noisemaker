@@ -69,6 +69,7 @@ import {
   NORMAL_MAP_WGSL,
   CRT_WGSL,
   WOBBLE_WGSL,
+  VORTEX_WGSL,
   WORMHOLE_WGSL,
   DLA_WGSL,
   REVERB_WGSL,
@@ -2713,7 +2714,7 @@ register("invert", invert, {});
 
 export async function vortex(tensor, shape, time, speed, displacement = 64) {
   const valueShape = [shape[0], shape[1], 1];
-  let dispMap = await singularity(null, valueShape, time, speed);
+  let dispMap = await singularity(tensor, valueShape, time, speed);
   dispMap = await normalize(dispMap);
   let x = await convolve(
     dispMap,
@@ -2732,7 +2733,7 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
     false,
   );
   let fader = await singularity(
-    null,
+    tensor,
     valueShape,
     time,
     speed,
@@ -2740,16 +2741,56 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
     DistanceMetric.chebyshev,
   );
   fader = await invert(await normalize(fader), valueShape, time, speed);
-  const xData = await x.read();
-  const yData = await y.read();
-  const fData = await fader.read();
+  const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    tensor.handle instanceof GPUTexture &&
+    x.handle instanceof GPUTexture &&
+    y.handle instanceof GPUTexture &&
+    fader.handle instanceof GPUTexture
+  ) {
+    try {
+      const outSize = shape[0] * shape[1] * shape[2];
+      const outBuf = ctx.device.createBuffer({
+        size: outSize * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      });
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([shape[1], shape[0], shape[2], disp, 0, 0, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        VORTEX_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: x.handle.createView() },
+          { binding: 2, resource: y.handle.createView() },
+          { binding: 3, resource: fader.handle.createView() },
+          { binding: 4, resource: { buffer: outBuf } },
+          { binding: 5, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(shape[1] / 8),
+        Math.ceil(shape[0] / 8),
+      );
+      const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+      return Tensor.fromArray(ctx, out, shape);
+    } catch (e) {
+      console.warn('WebGPU vortex fallback to CPU', e);
+    }
+  }
+  const [xData, yData, fData] = await Promise.all([
+    x.read(),
+    y.read(),
+    fader.read(),
+  ]);
   for (let i = 0; i < xData.length; i++) {
     xData[i] *= fData[i];
     yData[i] *= fData[i];
   }
   x = Tensor.fromArray(tensor.ctx, xData, valueShape);
   y = Tensor.fromArray(tensor.ctx, yData, valueShape);
-  const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
   return refractOp(tensor, x, y, disp);
 }
 register("vortex", vortex, { displacement: 64 });
