@@ -194,7 +194,7 @@ export function values(freq, shape, opts = {}) {
       speed,
     });
     [maskHeight, maskWidth, maskChannels] = maskTensor.shape;
-    maskData = maskTensor.read();
+    maskData = maskTensor.data;
   }
 
   if (ctx && ctx.device && gpuDistrib && channels === 1) {
@@ -236,8 +236,7 @@ export function values(freq, shape, opts = {}) {
           ],
           Math.ceil(size / 64),
         );
-        const out = await ctx.readGPUBuffer(outBuf, size * 4);
-        return Tensor.fromArray(ctx, out, [height, width, channels]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [height, width, channels]);
       } catch (e) {
         console.warn('WebGPU value fallback to CPU', e);
         return values(freq, shape, { ...opts, ctx: null });
@@ -522,13 +521,10 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
     return Tensor.fromArray(tensor.ctx, out, [nh, nw, nc]);
   };
 
-  if (
-    ctx &&
-    ctx.device &&
-    typeof GPUBuffer !== 'undefined' &&
-    tensor.handle instanceof GPUBuffer
-  ) {
-    return Promise.resolve(tensor.read()).then(cpuResample);
+  if (ctx && ctx.device) {
+    if (typeof GPUBuffer !== 'undefined' && tensor.handle instanceof GPUBuffer) {
+      tensor = Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape, tensor);
+    }
   }
 
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
@@ -549,8 +545,7 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
           Math.ceil(nw / 8),
           Math.ceil(nh / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [nh, nw, nc]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [nh, nw, nc]);
       } catch (e) {
         console.warn('WebGPU resample fallback to CPU', e);
         const data = await tensor.read();
@@ -588,32 +583,37 @@ export function downsample(tensor, factor) {
     }
     return Tensor.fromArray(ctx, out, [nh, nw, c]);
   };
-  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    return (async () => {
-      try {
-        const device = ctx.device;
-        const outSize = nh * nw * c;
-        const outBuf = device.createBuffer({ size: outSize * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-        const paramsArr = new Float32Array([w, h, nw, nh, factor, c, 0, 0]);
-        const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
-        await ctx.runCompute(
-          DOWNSAMPLE_WGSL,
-          [
-            { binding: 0, resource: tensor.handle.createView() },
-            { binding: 1, resource: { buffer: outBuf } },
-            { binding: 2, resource: { buffer: paramsBuf } },
-          ],
-          Math.ceil(nw / 8),
-          Math.ceil(nh / 8),
-        );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [nh, nw, c]);
-      } catch (e) {
-        console.warn('WebGPU downsample fallback to CPU', e);
-        const data = await tensor.read();
-        return cpuDownsample(data);
-      }
-    })();
+  if (ctx && ctx.device) {
+    let tex = tensor;
+    if (typeof GPUBuffer !== 'undefined' && tex.handle instanceof GPUBuffer) {
+      tex = Tensor.fromGPUBuffer(ctx, tex.handle, tex.shape, tex);
+    }
+    if (tex.handle instanceof GPUTexture) {
+      return (async () => {
+        try {
+          const device = ctx.device;
+          const outSize = nh * nw * c;
+          const outBuf = device.createBuffer({ size: outSize * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+          const paramsArr = new Float32Array([w, h, nw, nh, factor, c, 0, 0]);
+          const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+          await ctx.runCompute(
+            DOWNSAMPLE_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(nw / 8),
+            Math.ceil(nh / 8),
+          );
+          return Tensor.fromGPUBuffer(ctx, outBuf, [nh, nw, c]);
+        } catch (e) {
+          console.warn('WebGPU downsample fallback to CPU', e);
+          const data = await tex.read();
+          return cpuDownsample(data);
+        }
+      })();
+    }
   }
   return withTensorData(tensor, cpuDownsample);
 }
@@ -746,7 +746,25 @@ export function blend(a, b, t) {
   }
 
   const [h, w, c] = a.shape;
-  const ctx = a.ctx;
+  let ctx = a.ctx;
+  if (ctx && ctx.device) {
+    if (typeof GPUBuffer !== 'undefined' && a.handle instanceof GPUBuffer) {
+      a = Tensor.fromGPUBuffer(ctx, a.handle, a.shape, a);
+    }
+    if (typeof GPUBuffer !== 'undefined' && b.handle instanceof GPUBuffer) {
+      b = Tensor.fromGPUBuffer(ctx, b.handle, b.shape, b);
+    }
+    if (
+      typeof t !== 'number' &&
+      t &&
+      t.ctx === ctx &&
+      typeof GPUBuffer !== 'undefined' &&
+      t.handle instanceof GPUBuffer
+    ) {
+      t = Tensor.fromGPUBuffer(ctx, t.handle, t.shape, t);
+    }
+  }
+  ctx = a.ctx;
   const bChannels = b.shape[2];
 
   if (typeof t === 'number') {
@@ -901,6 +919,14 @@ export function normalize(tensor) {
   }
   const [h, w, c] = tensor.shape;
   const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUBuffer !== 'undefined' &&
+    tensor.handle instanceof GPUBuffer
+  ) {
+    return normalize(Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape, tensor));
+  }
   const compute = (src) => {
     let min = Infinity;
     let max = -Infinity;
@@ -969,8 +995,7 @@ export function normalize(tensor) {
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, c]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
       } catch (e) {
         console.warn('WebGPU normalize fallback to CPU', e);
         const src = await tensor.read();
@@ -1098,8 +1123,7 @@ export function sobel(tensor) {
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, c]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
       } catch (e) {
         console.warn('WebGPU sobel fallback to CPU', e);
         const data = await tensor.read();
@@ -1190,8 +1214,7 @@ export function hsvToRgb(tensor) {
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, 3]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, 3]);
       } catch (e) {
         console.warn('WebGPU hsvToRgb fallback to CPU', e);
         const data = await tensor.read();
@@ -1254,8 +1277,7 @@ export function rgbToHsv(tensor) {
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, 3]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, 3]);
       } catch (e) {
         console.warn('WebGPU rgbToHsv fallback to CPU', e);
         const data = await tensor.read();
@@ -1331,6 +1353,14 @@ export function convolution(tensor, kernel, opts = {}) {
   const handle = (t) => {
     const [h, w, c] = t.shape;
     const ctx = t.ctx;
+    if (
+      ctx &&
+      ctx.device &&
+      typeof GPUBuffer !== 'undefined' &&
+      t.handle instanceof GPUBuffer
+    ) {
+      return handle(Tensor.fromGPUBuffer(ctx, t.handle, t.shape, t));
+    }
     const kh = kernel.length;
     const kw = kernel[0].length;
     const halfH = Math.floor(kh / 2);
@@ -1434,8 +1464,7 @@ export function convolution(tensor, kernel, opts = {}) {
             Math.ceil(w / 8),
             Math.ceil(h / 8),
           );
-          const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-          return Tensor.fromArray(ctx, out, [h, w, c]);
+          return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
         } catch (e) {
           console.warn('WebGPU convolution fallback to CPU', e);
           const src = await t.read();
@@ -1462,8 +1491,30 @@ export function refract(
   signedRange = true,
 ) {
   const run = (t, rx = t, ry = t) => {
-    const [h, w, c] = t.shape;
+    let [h, w, c] = t.shape;
     const ctx = t.ctx;
+    if (ctx && ctx.device) {
+      if (typeof GPUBuffer !== 'undefined' && t.handle instanceof GPUBuffer) {
+        t = Tensor.fromGPUBuffer(ctx, t.handle, t.shape, t);
+      }
+      if (
+        typeof GPUBuffer !== 'undefined' &&
+        rx &&
+        rx.ctx === ctx &&
+        rx.handle instanceof GPUBuffer
+      ) {
+        rx = Tensor.fromGPUBuffer(ctx, rx.handle, rx.shape, rx);
+      }
+      if (
+        typeof GPUBuffer !== 'undefined' &&
+        ry &&
+        ry.ctx === ctx &&
+        ry.handle instanceof GPUBuffer
+      ) {
+        ry = Tensor.fromGPUBuffer(ctx, ry.handle, ry.shape, ry);
+      }
+      [h, w, c] = t.shape;
+    }
     const cpuRefract = (src, refx, refy) => {
       const out = new Float32Array(h * w * c);
       for (let y = 0; y < h; y++) {
@@ -1577,8 +1628,7 @@ export function refract(
                 Math.ceil(w / 8),
                 Math.ceil(h / 8),
               );
-              const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-              return Tensor.fromArray(ctx, out, [h, w, c]);
+              return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
             } catch (e) {
               console.warn('WebGPU refract fallback to CPU', e);
               const [s, rxData, ryData] = await Promise.all([
@@ -1716,6 +1766,14 @@ export function zoom(tensor, factor) {
 export function fxaa(tensor) {
   const [h, w, c] = tensor.shape;
   const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUBuffer !== 'undefined' &&
+    tensor.handle instanceof GPUBuffer
+  ) {
+    return fxaa(Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape, tensor));
+  }
   const cpuFxaa = (src) => {
     const out = new Float32Array(h * w * c);
     const lumWeights = [0.299, 0.587, 0.114];
@@ -1829,8 +1887,7 @@ export function fxaa(tensor) {
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, c]);
+        return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
       } catch (e) {
         console.warn('WebGPU fxaa fallback to CPU', e);
         const data = await tensor.read();
