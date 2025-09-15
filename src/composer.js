@@ -214,14 +214,14 @@ export class Preset {
         Promise.resolve(arrPromise).then((arr) => draw2D(arr));
 
       let gpuCtx = null;
-      if (ctx.canvas.getContext) {
+      if (!ctx.isCPU && ctx.canvas.getContext) {
         try {
           gpuCtx = ctx.canvas.getContext('webgpu');
         } catch (_) {
           gpuCtx = null;
         }
       }
-      if (gpuCtx) {
+      if (!ctx.isCPU && gpuCtx) {
         ctx.gpu = gpuCtx;
         if (!ctx.device) await ctx.initWebGPU();
       }

@@ -76,6 +76,7 @@
     <select id="preset"></select>
     <button id="randomPreset">Random Preset</button>
     <button id="reroll">Re-roll</button>
+    <label><input type="checkbox" id="webgpuToggle" checked /> WebGPU</label>
     </span>
     <canvas id="noise" width="512" height="512"></canvas>
   </div>
@@ -127,22 +128,43 @@
     });
 
     const canvas = document.getElementById('noise');
-    const ctx = new Context(canvas);
+    const webgpuToggle = document.getElementById('webgpuToggle');
+    if (!navigator.gpu) {
+      webgpuToggle.checked = false;
+      webgpuToggle.disabled = true;
+    }
+    let ctx;
+
     // Attempt to initialize WebGPU. Enable the API in your browser for best
     // performance:
     //   - Chrome/Edge: set the WebGPU flag at chrome://flags or launch with
     //     --enable-unsafe-webgpu
     //   - Safari: Develop > Experimental Features > WebGPU
     //   - Firefox Nightly: dom.webgpu.enabled in about:config
-    // If `navigator.gpu` is missing or adapter/device requests fail, the demo
-    // will display the error.
-    try {
-      await ctx.initWebGPU();
-    } catch (e) {
-      showError(e.message || String(e));
-      throw e;
+    async function initCtx() {
+      ctx = new Context(canvas);
+      if (webgpuToggle.checked) {
+        try {
+          const ok = await ctx.initWebGPU();
+          if (!ok) {
+            webgpuToggle.checked = false;
+            ctx.gpu = null;
+            ctx.isCPU = true;
+          }
+        } catch (e) {
+          webgpuToggle.checked = false;
+          ctx.gpu = null;
+          ctx.isCPU = true;
+          showError(e.message || String(e));
+        }
+      } else {
+        ctx.gpu = null;
+        ctx.isCPU = true;
+      }
+      ctx.profile = { webgpu: 0 };
     }
-    ctx.profile = { webgpu: 0 };
+
+    await initCtx();
     const presetSelect = document.getElementById('preset');
     const statusEl = document.getElementById('status');
     const presetFormulaEl = document.getElementById('presetFormula');
@@ -307,6 +329,12 @@
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
+      const seed = Math.floor(random() * 1e9);
+      draw(seed, currentPreset);
+    });
+
+    webgpuToggle.addEventListener('change', async () => {
+      await initCtx();
       const seed = Math.floor(random() * 1e9);
       draw(seed, currentPreset);
     });
