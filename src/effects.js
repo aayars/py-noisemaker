@@ -75,6 +75,7 @@ import {
   REVERB_WGSL,
   VASELINE_BLUR_WGSL,
   VASELINE_MASK_WGSL,
+  LENS_DISTORTION_WGSL,
   TINT_WGSL,
 } from "./webgpu/shaders.js";
 
@@ -2936,6 +2937,37 @@ register("lens_warp", lensWarp, { displacement: 0.0625 });
 
 export async function lensDistortion(tensor, shape, time, speed, displacement = 1) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    let tex = tensor;
+    if (!(tensor.handle instanceof GPUTexture)) {
+      const data = await tensor.read();
+      tex = Tensor.fromArray(ctx, data, shape);
+    }
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, displacement, 0, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      LENS_DISTORTION_WGSL,
+      [
+        { binding: 0, resource: tex.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
+  }
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   const maxDist = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5) || 1;

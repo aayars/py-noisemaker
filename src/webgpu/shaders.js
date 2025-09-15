@@ -43,6 +43,7 @@ export const DLA_WGSL = await loadShader('./dla.wgsl');
 export const REVERB_WGSL = await loadShader('./reverb.wgsl');
 export const VASELINE_BLUR_WGSL = await loadShader("./vaseline-blur.wgsl");
 export const VASELINE_MASK_WGSL = await loadShader("./vaseline-mask.wgsl");
+export const LENS_DISTORTION_WGSL = await loadShader('./lens-distortion.wgsl');
 export const VALUE_WGSL = /* wgsl */ `
 struct ValueParams {
   width: f32,

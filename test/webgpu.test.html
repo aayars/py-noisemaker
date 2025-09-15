@@ -5,7 +5,7 @@
 import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -147,6 +147,8 @@ ok = ok &&
   testEffect(dither, [2]) &&
   testEffect(vignette, [0.2, 0.5]) &&
   testEffect(reindex, [0.5]) &&
+  testEffect(lensDistortion, [0.5]) &&
+  testEffect(lensDistortion, [-0.5]) &&
   testEffect(wobble, [], 0.8, 1) &&
   testEffect(grime) &&
   testEffect(vaseline) &&
