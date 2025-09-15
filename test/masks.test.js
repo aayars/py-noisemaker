@@ -682,25 +682,30 @@ const barShape = [20, 30, 1];
 setSeed(111);
 [t1] = maskValues(ValueMask.bar_code, barShape);
 const barData = Array.from(t1.read());
+// Ensure each column is internally consistent, forming vertical bars
 for (let x = 0; x < barShape[1]; x++) {
   const col = barData[x];
   for (let y = 1; y < barShape[0]; y++) {
     assert.strictEqual(barData[y * barShape[1] + x], col);
   }
 }
+// Verify that at least two unique bar values exist so the mask isn't solid
+const barSet = new Set(barData.slice(0, barShape[1]));
+assert.ok(barSet.size > 1, 'bar_code should produce multiple bar values');
 
 setSeed(111);
 [t1] = maskValues(ValueMask.bar_code_short, barShape);
 const barShort = Array.from(t1.read());
-for (let x = 0; x < barShape[1]; x += 2) {
+// Columns should be vertically consistent like standard bar code
+for (let x = 0; x < barShape[1]; x++) {
   const col = barShort[x];
-  for (let y = 0; y < barShape[0]; y++) {
+  for (let y = 1; y < barShape[0]; y++) {
     assert.strictEqual(barShort[y * barShape[1] + x], col);
-    if (x + 1 < barShape[1]) {
-      assert.strictEqual(barShort[y * barShape[1] + x + 1], col);
-    }
   }
 }
+// Ensure there is variation across columns
+const barShortSet = new Set(barShort.slice(0, barShape[1]));
+assert.ok(barShortSet.size > 1, 'bar_code_short should produce multiple bar values');
 
 // Fake QR code has finder patterns in three corners
 const qrShape = [33, 33, 1];

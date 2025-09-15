@@ -161,11 +161,21 @@ function truchetTile(opts) {
 }
 
 function barCode({ uvNoise, uvX }) {
-  return (uvNoise[0][uvX] + 1) / 2 > 0.5 ? 1 : 0;
+  // uvNoise values are already in the [0, 1] range. The previous
+  // implementation mistakenly shifted the value into the [0.5, 1]
+  // interval by adding 1 and dividing by 2, which meant the
+  // comparison against 0.5 always evaluated to true. As a result the
+  // bar code mask produced a solid field of 1s rather than alternating
+  // bars. The Python reference simply compares the noise value
+  // directly to 0.5, so do the same here to restore proper masking
+  // behaviour.
+  return uvNoise[0][uvX] < 0.5 ? 1 : 0;
 }
 
 function barCodeShort({ uvNoise, uvX }) {
-  return (uvNoise[0][uvX] + 1) / 2 > 0.5 ? 1 : 0;
+  // `bar_code_short` is the same as `bar_code` but with a smaller
+  // atlas; replicate the corrected logic.
+  return uvNoise[0][uvX] < 0.5 ? 1 : 0;
 }
 
 function fakeQr({ x, y, glyphShape, uvNoise }) {
@@ -2555,7 +2565,9 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
       for (let k = 0; k < c; k++) {
         data[(y * w + x) * c + k] = pixel[k % pixel.length];
       }
-      maskRow.push(pixel[0]);
+      // Store the full pixel so procedural masks can reference prior
+      // channel values (parity with Python implementation)
+      maskRow.push(pixel);
     }
   }
 
