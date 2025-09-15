@@ -2508,16 +2508,35 @@ export function offsetIndex(yIndex, height, xIndex, width) {
 
 export async function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels <= 0) return tensor;
-  if (shape[2] === 3) {
-    tensor = await fromSRGB(tensor);
+  const outShape = shape.slice();
+  let t = tensor;
+  if (outShape[2] === 3) {
+    t = await fromSRGB(t);
   }
-  const src = await tensor.read();
-  const out = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    out[i] = Math.floor(src[i] * levels + (1 / levels) * 0.5) / levels;
+  let src = await t.read();
+  const expected = outShape[0] * outShape[1] * outShape[2];
+  if (src.length !== expected) {
+    const pixels = outShape[0] * outShape[1];
+    const srcChannels = src.length / pixels;
+    const tmp = new Float32Array(expected);
+    for (let i = 0; i < pixels; i++) {
+      const srcBase = i * srcChannels;
+      const dstBase = i * outShape[2];
+      for (let k = 0; k < outShape[2]; k++) {
+        tmp[dstBase + k] = src[srcBase + k];
+      }
+    }
+    src = tmp;
   }
-  let result = Tensor.fromArray(tensor.ctx, out, shape);
-  if (shape[2] === 3) {
+  const out = new Float32Array(expected);
+  for (let i = 0; i < expected; i++) {
+    out[i] = Math.min(
+      1,
+      Math.max(0, Math.floor(src[i] * levels + 0.5 / levels) / levels),
+    );
+  }
+  let result = Tensor.fromArray(t.ctx, out, outShape);
+  if (outShape[2] === 3) {
     result = await toSRGB(result);
   }
   return result;

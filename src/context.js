@@ -106,10 +106,21 @@ export class Context {
     });
     if (data) {
       const arr = data instanceof Float32Array ? data : new Float32Array(data);
+      const bytesPerPixel = 4 * 4;
+      const bytesPerRow = Math.ceil((width * bytesPerPixel) / 256) * 256;
+      let upload = arr;
+      if (bytesPerRow !== width * bytesPerPixel) {
+        const stride = bytesPerRow / 4;
+        const padded = new Float32Array(stride * height);
+        for (let y = 0; y < height; y++) {
+          padded.set(arr.subarray(y * width * 4, (y + 1) * width * 4), y * stride);
+        }
+        upload = padded;
+      }
       this.queue.writeTexture(
         { texture },
-        arr,
-        { bytesPerRow: width * 4 * 4 },
+        upload,
+        { bytesPerRow },
         { width, height, depthOrArrayLayers: 1 }
       );
     }

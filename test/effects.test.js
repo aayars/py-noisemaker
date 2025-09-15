@@ -390,15 +390,15 @@ const palData = new Float32Array([
   0.25, 0.25, 0.25,
 ]);
 const palTensor = Tensor.fromArray(null, palData, [2, 2, 3]);
-const jsPal = palette(palTensor, [2, 2, 3], 0, 1, "grayscale").read();
+const jsPal = (await palette(palTensor, [2, 2, 3], 0, 1, "grayscale")).read();
 const palExpected = loadFixture("palette.json");
 arraysClose(Array.from(jsPal), palExpected);
-assert.throws(() => palette(palTensor, [2, 2, 3], 0, 1, "bogus"));
+await assert.rejects(palette(palTensor, [2, 2, 3], 0, 1, "bogus"));
 
 // invert
 const invData = new Float32Array([0.2, 0.5, 0.8]);
 const invTensor = Tensor.fromArray(null, invData, [1, 3, 1]);
-const invResult = invert(invTensor, [1, 3, 1], 0, 1).read();
+const invResult = (await invert(invTensor, [1, 3, 1], 0, 1)).read();
 arraysClose(Array.from(invResult), [0.8, 0.5, 0.2]);
 
 // aberration deterministic check
@@ -458,17 +458,24 @@ arraysClose(Array.from(abResult), Array.from(expected));
 const reData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const reTensor = Tensor.fromArray(null, reData, [2, 2, 1]);
 const manualRe = new Float32Array(4);
+const lum = reData.slice();
+let lumMin = Math.min(...lum);
+let lumMax = Math.max(...lum);
+const range = lumMax - lumMin || 1;
+for (let i = 0; i < lum.length; i++) lum[i] = (lum[i] - lumMin) / range;
 const mod = 2;
 for (let y = 0; y < 2; y++) {
   for (let x = 0; x < 2; x++) {
     const idx = y * 2 + x;
-    const r = reData[idx];
-    const xo = Math.floor((r * 0.5 * mod + r) % 2);
-    const yo = Math.floor((r * 0.5 * mod + r) % 2);
+    const r = lum[idx];
+    const off = r * 0.5 * mod + r;
+    const xo = Math.floor(off % 2);
+    const yo = Math.floor(off % 2);
     manualRe[idx] = reData[yo * 2 + xo];
   }
 }
-const jsRe = reindex(reTensor, [2, 2, 1], 0, 1, 0.5).read();
+const jsReTensor = await reindex(reTensor, [2, 2, 1], 0, 1, 0.5);
+const jsRe = await jsReTensor.read();
 arraysClose(Array.from(jsRe), Array.from(manualRe));
 
 // ripple deterministic
@@ -476,7 +483,15 @@ setSeed(10);
 const ripData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const ripTensor = Tensor.fromArray(null, ripData, [2, 2, 1]);
 setSeed(10);
-const jsRipple = ripple(ripTensor, [2, 2, 1], 0, 1, 2, 0.5, 1).read();
+const jsRipple = (await ripple(
+  ripTensor,
+  [2, 2, 1],
+  0,
+  1,
+  2,
+  0.5,
+  1,
+)).read();
 const rippleExpected = loadFixture("ripple.json");
 arraysClose(Array.from(jsRipple), rippleExpected);
 

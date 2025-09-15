@@ -15,6 +15,8 @@ export class Tensor {
     if (ctx && ctx.device) {
       const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
       const channels = format === 'r32float' ? 1 : format === 'rg32float' ? 2 : 4;
+      const bytesPerPixel = channels * 4;
+      const bytesPerRow = Math.ceil((w * bytesPerPixel) / 256) * 256;
       const tex = ctx.device.createTexture({
         size: { width: w, height: h, depthOrArrayLayers: 1 },
         format,
@@ -35,11 +37,22 @@ export class Tensor {
           }
           data = padded;
         }
+        if (bytesPerRow !== w * bytesPerPixel) {
+          const stride = bytesPerRow / 4;
+          const padded = new Float32Array(stride * h);
+          for (let y = 0; y < h; y++) {
+            padded.set(
+              data.subarray(y * w * channels, (y + 1) * w * channels),
+              y * stride,
+            );
+          }
+          data = padded;
+        }
         ctx.queue.writeTexture(
           { texture: tex },
           data,
-          { bytesPerRow: w * channels * 4 },
-          { width: w, height: h, depthOrArrayLayers: 1 }
+          { bytesPerRow },
+          { width: w, height: h, depthOrArrayLayers: 1 },
         );
       }
       return new Tensor(ctx, tex, shape, null);
