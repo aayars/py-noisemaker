@@ -6023,7 +6023,7 @@ export async function sketch(tensor, shape, time, speed) {
     valuesTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
   }
   valuesTensor = await adjustContrast(valuesTensor, [h, w, 1], time, speed, 2.0);
-  valuesTensor = clamp01(valuesTensor);
+  valuesTensor = await clamp01(valuesTensor);
   const outlineTensorTmp = await derivative(
     valuesTensor,
     [h, w, 1],
