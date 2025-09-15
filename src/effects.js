@@ -76,6 +76,7 @@ import {
   VASELINE_BLUR_WGSL,
   VASELINE_MASK_WGSL,
   LENS_DISTORTION_WGSL,
+  DEGAUSS_WGSL,
   TINT_WGSL,
 } from "./webgpu/shaders.js";
 
@@ -2159,7 +2160,12 @@ export async function kaleido(
     fader = await fTensor.read();
     for (let i = 0; i < fader.length; i++) fader[i] = Math.pow(fader[i], 5);
   }
-  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    tensor.handle instanceof GPUTexture
+  ) {
     const outBuf = ctx.createGPUBuffer(
       new Float32Array(h * w * c),
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -3007,8 +3013,63 @@ export async function degauss(tensor, shape, time, speed, displacement = 0.0625)
   const [h, w, c] = shape;
   const channelShape = [h, w, 1];
   const src = await tensor.read();
-  const out = new Float32Array(h * w * c);
   const channels = Math.min(3, c);
+  const ctx = tensor.ctx;
+    if (
+      ctx &&
+      ctx.device &&
+      typeof GPUTexture !== "undefined" &&
+      tensor.handle instanceof GPUTexture
+    ) {
+    const channelTensors = [];
+    for (let k = 0; k < channels; k++) {
+      const channelData = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) channelData[i] = src[i * c + k] || 0;
+      const channelTensor = Tensor.fromArray(ctx, channelData, channelShape);
+      channelTensors.push(
+        await lensWarp(channelTensor, channelShape, time, speed, displacement),
+      );
+    }
+    let alphaTensor = null;
+    if (c > 3) {
+      const alphaData = new Float32Array(h * w);
+      for (let i = 0; i < h * w; i++) alphaData[i] = src[i * c + 3] || 0;
+      alphaTensor = Tensor.fromArray(ctx, alphaData, channelShape);
+    }
+    const device = ctx.device;
+    const outSize = h * w * c;
+    const outBuf = device.createBuffer({
+      size: outSize * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+    const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+    await ctx.runCompute(
+      DEGAUSS_WGSL,
+      [
+        { binding: 0, resource: channelTensors[0].handle.createView() },
+        {
+          binding: 1,
+          resource: (channelTensors[1] || channelTensors[0]).handle.createView(),
+        },
+        {
+          binding: 2,
+          resource: (channelTensors[2] || channelTensors[0]).handle.createView(),
+        },
+        {
+          binding: 3,
+          resource: (alphaTensor || channelTensors[0]).handle.createView(),
+        },
+        { binding: 4, resource: { buffer: outBuf } },
+        { binding: 5, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+    return Tensor.fromArray(ctx, out, shape);
+  }
+  const out = new Float32Array(h * w * c);
   for (let k = 0; k < channels; k++) {
     const channelData = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) channelData[i] = src[i * c + k] || 0;
@@ -3022,10 +3083,13 @@ export async function degauss(tensor, shape, time, speed, displacement = 0.0625)
       channelShape,
       time,
       speed,
-      displacement
+      displacement,
     );
     const warped = await warpedTensor.read();
     for (let i = 0; i < h * w; i++) out[i * c + k] = warped[i];
+  }
+  if (c > 3) {
+    for (let i = 0; i < h * w; i++) out[i * c + 3] = src[i * c + 3];
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }

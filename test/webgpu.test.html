@@ -5,7 +5,7 @@
 import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion, degauss } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -61,6 +61,30 @@ async function testTint() {
   if (cpuArr4.length !== gpuArr4.length) return false;
   for (let i = 0; i < cpuArr4.length; i++) {
     if (!nearly(cpuArr4[i], gpuArr4[i])) return false;
+  }
+  return true;
+}
+
+async function testDegauss() {
+  const shapes = [
+    [4,4,3],
+    [4,4,4],
+  ];
+  for (const shape of shapes) {
+    const baseTensor = await values(2, shape, { seed: 1, ctx: cpuCtx });
+    const baseArr = await baseTensor.read();
+    const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+    const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+    setSeed(1);
+    const cpuOut = await degauss(cpuBase, shape, 0, 1, 0.0625);
+    const cpuArr = await cpuOut.read();
+    setSeed(1);
+    const gpuOut = await degauss(gpuBase, shape, 0, 1, 0.0625);
+    const gpuArr = await gpuOut.read();
+    if (cpuArr.length !== gpuArr.length) return false;
+    for (let i = 0; i < cpuArr.length; i++) {
+      if (!nearly(cpuArr[i], gpuArr[i])) return false;
+    }
   }
   return true;
 }
@@ -154,6 +178,7 @@ ok = ok &&
   testEffect(vaseline) &&
   testRefract() &&
   await testTint() &&
+  await testDegauss() &&
   await testCRT() &&
   await testDLA();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
