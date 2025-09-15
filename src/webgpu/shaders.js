@@ -421,9 +421,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
   let refVal = lum * params.displacement;
   let xi = (i32(x) + i32(floor(refVal * (params.width - 1.0)))) % i32(w);
-  let yi = params.horizontal > 0.5
-    ? i32(y)
-    : (i32(y) + i32(floor(refVal * (params.height - 1.0)))) % i32(h);
+  let yi = select(
+    (i32(y) + i32(floor(refVal * (params.height - 1.0)))) % i32(h),
+    i32(y),
+    params.horizontal > 0.5,
+  );
   let sx = u32(floor(f32(xi) * params.clutWidth / params.width));
   let sy = u32(floor(f32(yi) * params.clutHeight / params.height));
   let c = textureLoad(clut, vec2<i32>(i32(sx), i32(sy)), 0);

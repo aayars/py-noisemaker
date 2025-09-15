@@ -30,7 +30,7 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>) {
     loop {
       if (k >= channels) { break; }
       let v = src[base + k];
-      b = b + (darkest == 1u ? (1.0 - v) : v);
+      b = b + select(v, 1.0 - v, darkest == 1u);
       k = k + 1u;
     }
     brightness[i] = b / f32(channels);
@@ -72,7 +72,7 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>) {
     var idx = tid;
     while (idx < width) {
       let orig = src[idx * channels + chan];
-      values[idx] = darkest == 1u ? (1.0 - orig) : orig;
+      values[idx] = select(orig, 1.0 - orig, darkest == 1u);
       idx = idx + 256u;
     }
     var padIdx = width + tid;
