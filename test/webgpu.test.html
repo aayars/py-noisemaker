@@ -7,6 +7,8 @@ import { values, downsample, upsample, blend, sobel, refract } from '../src/valu
 import { Tensor } from '../src/tensor.js';
 import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion, degauss, vhs } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
+import { PRESETS } from '../src/presets.js';
+import { Preset } from '../src/composer.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
 const cpuCtx = new Context(null);
@@ -180,6 +182,24 @@ async function testDLA() {
   }
   return true;
 }
+
+async function testDeathStarPlans() {
+  const presets = PRESETS();
+  const preset = new Preset('death-star-plans', presets);
+  const out = await preset.render(0, { ctx, width: 64, height: 64 });
+  const data = await out.read();
+  const [h, w, c] = out.shape;
+  for (let y = Math.floor(h / 3); y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      for (let k = 0; k < c; k++) {
+        if (data[(y * w + x) * c + k] !== 0) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
 ok = ok &&
   baseGpu.length === 16 &&
   (await down.read()).length === 4 &&
@@ -202,7 +222,8 @@ ok = ok &&
   await testDegauss() &&
   await testVHS() &&
   await testCRT() &&
-  await testDLA();
+  await testDLA() &&
+  await testDeathStarPlans();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';
 </script>
 </body>

@@ -215,6 +215,8 @@ export class Preset {
 
       let gpuCtx = null;
       if (!ctx.isCPU && ctx.canvas.getContext) {
+        ctx.canvas.width = w;
+        ctx.canvas.height = h;
         try {
           gpuCtx = ctx.canvas.getContext('webgpu');
         } catch (_) {
@@ -223,11 +225,16 @@ export class Preset {
       }
       if (!ctx.isCPU && gpuCtx) {
         ctx.gpu = gpuCtx;
-        if (!ctx.device) await ctx.initWebGPU();
+        if (!ctx.device) {
+          await ctx.initWebGPU();
+        } else {
+          ctx.gpu.configure({ device: ctx.device, format: ctx.presentationFormat });
+        }
       }
       if (!ctx.isCPU && ctx.device && gpuCtx) {
         ctx.canvas.width = w;
         ctx.canvas.height = h;
+        ctx.gpu.configure({ device: ctx.device, format: ctx.presentationFormat });
         const renderTex = (tex) => ctx.renderTexture(tex, gpuCtx.getCurrentTexture());
         let tex = tensor.handle;
         const isTex = typeof GPUTexture !== 'undefined' && tex instanceof GPUTexture;
