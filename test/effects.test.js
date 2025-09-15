@@ -502,7 +502,7 @@ const clutData = new Float32Array([
   0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.1,
 ]);
 const clutTensor = Tensor.fromArray(null, clutData, [2, 2, 3]);
-const jsColorMap = colorMap(
+const jsColorMap = (await colorMap(
   cmTensor,
   [2, 2, 1],
   0,
@@ -510,14 +510,15 @@ const jsColorMap = colorMap(
   clutTensor,
   false,
   0.5,
-).read();
+)).read();
 const colorMapExpected = loadFixture("colorMap.json");
 arraysClose(Array.from(jsColorMap), colorMapExpected);
 
 // vignette regression (numpy impl)
+setSeed(1);
 const vigData = new Float32Array([0.1, 0.5, 0.3, 0.8]);
 const vigTensor = Tensor.fromArray(null, vigData, [2, 2, 1]);
-const jsVig = vignette(vigTensor, [2, 2, 1], 0, 1, 0.25, 0.5).read();
+const jsVig = (await vignette(vigTensor, [2, 2, 1], 0, 1, 0.25, 0.5)).read();
 const vigExpected = loadFixture("vignette.json");
 arraysClose(Array.from(jsVig), vigExpected);
 
@@ -539,7 +540,7 @@ for (let i = 0; i < 4; i++) {
   manualDit[i] = v;
 }
 setSeed(1);
-const jsDit = dither(ditTensor, [2, 2, 1], 0, 1, 2).read();
+const jsDit = (await dither(ditTensor, [2, 2, 1], 0, 1, 2)).read();
 arraysClose(Array.from(jsDit), Array.from(manualDit));
 
 // grain deterministic
@@ -594,14 +595,26 @@ arraysClose(Array.from(ahOut), ahExpected);
 // adjustBrightness regression
 const brightData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
 const brightTensor = Tensor.fromArray(null, brightData, [2, 2, 1]);
-const brightOut = adjustBrightness(brightTensor, [2, 2, 1], 0, 1, 0.125).read();
+const brightOut = (await adjustBrightness(
+  brightTensor,
+  [2, 2, 1],
+  0,
+  1,
+  0.125,
+)).read();
 const brightExpected = loadFixture("adjustBrightness.json");
 arraysClose(Array.from(brightOut), brightExpected);
 
 // adjustContrast regression
 const contrastData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
 const contrastTensor = Tensor.fromArray(null, contrastData, [2, 2, 1]);
-const contrastOut = adjustContrast(contrastTensor, [2, 2, 1], 0, 1, 1.25).read();
+const contrastOut = (await adjustContrast(
+  contrastTensor,
+  [2, 2, 1],
+  0,
+  1,
+  1.25,
+)).read();
 const contrastExpected = loadFixture("adjustContrast.json");
 arraysClose(Array.from(contrastOut), contrastExpected);
 
@@ -622,7 +635,14 @@ arraysClose(Array.from(ridgeOut), ridgeExpected);
 // sine regression
 const sineData = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]);
 const sineTensor = Tensor.fromArray(null, sineData, [2, 1, 3]);
-const sineOut = sine(sineTensor, [2, 1, 3], 0, 1, 1.0, false).read();
+const sineOut = (await sine(
+  sineTensor,
+  [2, 1, 3],
+  0,
+  1,
+  1.0,
+  false,
+)).read();
 const sineExpected = loadFixture("sine.json");
 arraysClose(Array.from(sineOut), sineExpected);
 

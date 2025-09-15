@@ -162,6 +162,20 @@ if (!gpuBlendCtx.isCPU) {
     }
   }
   arraysClose(blendGPU.read(), expected);
+
+  const maskg = values(4, [2, 2, 1], { seed: 3, ctx: gpuBlendCtx });
+  const blendMaskGPU = await blend(a3g, b1g, maskg);
+  const dm = maskg.read();
+  const expectedMask = new Float32Array(2 * 2 * 3);
+  for (let i = 0; i < 4; i++) {
+    const bVal = db[i];
+    const tVal = dm[i];
+    for (let k = 0; k < 3; k++) {
+      const idx = i * 3 + k;
+      expectedMask[idx] = da[idx] * (1 - tVal) + bVal * tVal;
+    }
+  }
+  arraysClose(await blendMaskGPU.read(), expectedMask);
 } else {
   console.log('Skipping GPU blend mismatch test');
 }

@@ -96,6 +96,8 @@ const base = await values(2, [4,4,1], { seed: 1, ctx });
 const down = await downsample(base, 2);
 const up = await upsample(down, 2);
 const mix = await blend(base, base, 0.5);
+const mask = await values(2, [4,4,1], { seed: 2, ctx });
+const mixMask = await blend(base, base, mask);
 const edge = await sobel(base);
 const baseCpu = values(2, [4,4,1], { seed: 1, ctx: cpuCtx }).read();
 const baseGpu = await base.read();
@@ -205,6 +207,7 @@ ok = ok &&
   (await down.read()).length === 4 &&
   (await up.read()).length === 16 &&
   (await mix.read()).length === 16 &&
+  (await mixMask.read()).length === 16 &&
   (await edge.read()).length === 16 &&
   testEffect(adjustBrightness, [0.1]) &&
   testEffect(adjustContrast, [1.2]) &&

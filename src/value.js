@@ -18,6 +18,7 @@ import {
   RESAMPLE_WGSL,
   DOWNSAMPLE_WGSL,
   BLEND_WGSL,
+  BLEND_CONST_WGSL,
   SOBEL_WGSL,
   REFRACT_WGSL,
   CONVOLUTION_WGSL,
@@ -780,61 +781,96 @@ export function blend(a, b, t) {
   if (
     ctx &&
     ctx.device &&
-    typeof GPUBuffer !== 'undefined' &&
-    a.handle instanceof GPUBuffer &&
     b.ctx === ctx &&
-    b.handle instanceof GPUBuffer &&
-    (typeof t === 'number' || (t.ctx === ctx && t.handle instanceof GPUBuffer))
-  ) {
-    if (typeof t === 'number') {
-      return Promise.all([a.read(), b.read()]).then(([da, db]) =>
-        cpuBlend(da, db, null)
-      );
-    }
-    return Promise.all([a.read(), b.read(), t.read()]).then(([da, db, dt]) =>
-      cpuBlend(da, db, dt)
-    );
-  }
-
-  if (
-    ctx &&
-    ctx.device &&
-    b.ctx === ctx &&
-    typeof t === 'number' &&
     bChannels === c &&
     a.handle instanceof GPUTexture &&
-    b.handle instanceof GPUTexture
+    b.handle instanceof GPUTexture &&
+    (typeof t === 'number' ||
+      (t.ctx === ctx &&
+        t.handle instanceof GPUTexture &&
+        t.shape[0] === h &&
+        t.shape[1] === w &&
+        (t.shape[2] === 1 || t.shape[2] === c)))
   ) {
     return (async () => {
       try {
         const device = ctx.device;
-        const outSize = h * w * c;
-        const outBuf = device.createBuffer({
-          size: outSize * 4,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
+        const outTex = device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format,
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
         });
-        const paramsArr = new Float32Array([w, h, c, t, 0, 0, 0, 0]);
+        let shader, paramsArr, entries;
+        if (typeof t === 'number') {
+          paramsArr = new Float32Array([
+            w,
+            h,
+            c,
+            t,
+            0,
+            0,
+            0,
+            0,
+          ]);
+          shader = BLEND_CONST_WGSL.replace('rgba32float', format);
+        } else {
+          const tChannels = t.shape[2];
+          paramsArr = new Float32Array([
+            w,
+            h,
+            c,
+            tChannels,
+            0,
+            0,
+            0,
+            0,
+          ]);
+          shader = BLEND_WGSL.replace('rgba32float', format);
+        }
         const paramsBuf = ctx.createGPUBuffer(
           paramsArr,
           GPUBufferUsage.UNIFORM,
         );
-        await ctx.runCompute(
-          BLEND_WGSL,
-          [
+        if (typeof t === 'number') {
+          entries = [
             { binding: 0, resource: a.handle.createView() },
             { binding: 1, resource: b.handle.createView() },
-            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 2, resource: outTex.createView() },
             { binding: 3, resource: { buffer: paramsBuf } },
-          ],
+          ];
+        } else {
+          entries = [
+            { binding: 0, resource: a.handle.createView() },
+            { binding: 1, resource: b.handle.createView() },
+            { binding: 2, resource: t.handle.createView() },
+            { binding: 3, resource: outTex.createView() },
+            { binding: 4, resource: { buffer: paramsBuf } },
+          ];
+        }
+        await ctx.runCompute(
+          shader,
+          entries,
           Math.ceil(w / 8),
           Math.ceil(h / 8),
         );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, c]);
+        return new Tensor(ctx, outTex, [h, w, c]);
       } catch (e) {
         console.warn('WebGPU blend fallback to CPU', e);
-        const [da, db] = await Promise.all([a.read(), b.read()]);
-        return cpuBlend(da, db, null);
+        const daPromise = a.read();
+        const dbPromise = b.read();
+        const dtPromise = typeof t === 'number' ? null : t.read();
+        const arr = await Promise.all(
+          dtPromise ? [daPromise, dbPromise, dtPromise] : [daPromise, dbPromise],
+        );
+        const da = arr[0];
+        const db = arr[1];
+        const dt = dtPromise ? arr[2] : null;
+        return cpuBlend(da, db, dt);
       }
     })();
   }
