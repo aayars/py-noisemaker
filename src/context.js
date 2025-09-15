@@ -22,6 +22,7 @@ export class Context {
     this._pipelineCache = new Map();
     this._pendingDispatch = false;
     this._encoder = null;
+    this._workDonePromise = null;
   }
 
   async initWebGPU() {
@@ -289,14 +290,24 @@ export class Context {
   }
 
   async flush() {
-    if (this._pendingDispatch && this.queue?.onSubmittedWorkDone) {
-      const t0 = performance.now();
-      await this.queue.onSubmittedWorkDone();
-      if (this.profile) {
-        this.profile.webgpu += performance.now() - t0;
-      }
-      this._pendingDispatch = false;
+    if (!this._pendingDispatch || !this.queue?.onSubmittedWorkDone) {
+      return;
     }
+    if (!this._workDonePromise) {
+      const start = this.profile ? performance.now() : 0;
+      this._workDonePromise = (async () => {
+        try {
+          await this.queue.onSubmittedWorkDone();
+          if (this.profile) {
+            this.profile.webgpu += performance.now() - start;
+          }
+          this._pendingDispatch = false;
+        } finally {
+          this._workDonePromise = null;
+        }
+      })();
+    }
+    await this._workDonePromise;
   }
 
   async withEncoder(callback) {
@@ -364,33 +375,46 @@ export class Context {
     if (bufSize < size) {
       throw new Error(`Buffer too small: ${bufSize} < ${size}`);
     }
-    await this.flush();
-    if (buffer.usage & GPUBufferUsage.MAP_READ) {
-      await buffer.mapAsync(GPUMapMode.READ);
-      const arr = buffer.getMappedRange().slice(0, size);
-      buffer.unmap();
-      return new Float32Array(arr);
+    const canMapDirectly = Boolean(buffer.usage & GPUBufferUsage.MAP_READ);
+    const scopePushed = this.debug && !canMapDirectly;
+    let staging = buffer;
+    if (!canMapDirectly) {
+      if (scopePushed) device.pushErrorScope('validation');
+      staging = device.createBuffer({
+        size,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      const encoder = device.createCommandEncoder();
+      encoder.copyBufferToBuffer(buffer, 0, staging, 0, size);
+      this.queue.submit([encoder.finish()]);
+      this._pendingDispatch = true;
     }
-    if (this.debug) device.pushErrorScope('validation');
-    const readBuf = device.createBuffer({
-      size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
-    const encoder = device.createCommandEncoder();
-    encoder.copyBufferToBuffer(buffer, 0, readBuf, 0, size);
-    this.queue.submit([encoder.finish()]);
-    this._pendingDispatch = true;
-    await this.flush();
-    await readBuf.mapAsync(GPUMapMode.READ);
-    const arr = readBuf.getMappedRange().slice(0);
-    readBuf.unmap();
-    if (this.debug) {
-      const err = await device.popErrorScope();
-      if (err) {
-        throw err;
+    let mapped = false;
+    let result;
+    try {
+      await staging.mapAsync(GPUMapMode.READ, 0, size);
+      mapped = true;
+      const mappedRange = staging.getMappedRange(0, size);
+      result = new Float32Array(mappedRange.slice(0));
+    } finally {
+      if (mapped) {
+        staging.unmap();
+      }
+      if (!canMapDirectly && staging !== buffer && staging.destroy) {
+        try {
+          staging.destroy();
+        } catch (_) {
+          // ignore destroy failures
+        }
+      }
+      if (scopePushed) {
+        const err = await device.popErrorScope();
+        if (err) {
+          throw err;
+        }
       }
     }
-    return new Float32Array(arr);
+    return result;
   }
 
   pingPong(width, height) {
