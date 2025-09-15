@@ -91,8 +91,33 @@ export class Context {
   }
 
   createTexture(width, height, data = null) {
+    // WebGPU textures are always RGBA float32. If the caller provides fewer
+    // channels, pad the data so each pixel occupies four components. This
+    // prevents stride misalignment when uploading to the GPU.
+    const padChannels = (arr) => {
+      if (!arr) return new Float32Array(width * height * 4);
+      if (arr.length === width * height * 4) return new Float32Array(arr);
+      const pixels = width * height;
+      const srcChannels = arr.length / pixels;
+      const out = new Float32Array(pixels * 4);
+      for (let i = 0; i < pixels; i++) {
+        const src = i * srcChannels;
+        const dst = i * 4;
+        const r = arr[src];
+        const g = srcChannels > 1 ? arr[src + 1] : r;
+        const b = srcChannels > 2 ? arr[src + 2] : r;
+        const a =
+          srcChannels > 3 ? arr[src + 3] : srcChannels === 2 ? arr[src + 1] : 1;
+        out[dst] = r;
+        out[dst + 1] = g;
+        out[dst + 2] = b;
+        out[dst + 3] = a;
+      }
+      return out;
+    };
+
     if (this.isCPU || !this.device) {
-      const arr = data ? new Float32Array(data) : new Float32Array(width * height * 4);
+      const arr = padChannels(data ? (data instanceof Float32Array ? data : new Float32Array(data)) : null);
       return { width, height, channels: 4, data: arr };
     }
     const texture = this.device.createTexture({
@@ -105,7 +130,7 @@ export class Context {
         GPUTextureUsage.RENDER_ATTACHMENT,
     });
     if (data) {
-      const arr = data instanceof Float32Array ? data : new Float32Array(data);
+      const arr = padChannels(data instanceof Float32Array ? data : new Float32Array(data));
       const bytesPerPixel = 4 * 4;
       const bytesPerRow = Math.ceil((width * bytesPerPixel) / 256) * 256;
       let upload = arr;

@@ -1219,7 +1219,12 @@ async function voronoiCPU(
   const xOff = isTriangular ? 0 : Math.floor(w / 2);
   const yOff = isTriangular ? 0 : Math.floor(h / 2);
   // offsetTensor expects a resolved Tensor; await any pending promises
-  if (rangeTensor) rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff);
+  if (rangeTensor) {
+    rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff);
+    if (downsample) {
+      rangeTensor = await resample(rangeTensor, [originalShape[0], originalShape[1], 1]);
+    }
+  }
   if (indexTensor) indexTensor = await offsetTensor(await indexTensor, xOff, yOff);
   if (indexTensor) {
     const idxData = await indexTensor.read();
