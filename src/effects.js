@@ -36,6 +36,7 @@ import {
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
 import { getBufferPool } from "./bufferPool.js";
+
 import {
   InterpolationType,
   DistanceMetric,
@@ -80,7 +81,185 @@ import {
   DEGAUSS_WGSL,
   TINT_WGSL,
   VHS_WGSL,
+  UNARY_OP_WGSL,
+  BINARY_OP_WGSL,
+  GRAYSCALE_WGSL,
+  EXPAND_CHANNELS_WGSL,
 } from "./webgpu/shaders.js";
+
+const UNARY_OP_INVERT = 0;
+const UNARY_OP_SQUARE = 1;
+const UNARY_OP_CLAMP01 = 2;
+const BINARY_OP_MIN_ONE_MINUS = 0;
+
+function ensureTextureTensor(tensor) {
+  const ctx = tensor?.ctx;
+  if (!ctx || !ctx.device) return tensor;
+  if (
+    typeof GPUTexture !== "undefined" &&
+    tensor.handle instanceof GPUTexture
+  ) {
+    return tensor;
+  }
+  if (typeof GPUBuffer !== "undefined" && tensor.handle instanceof GPUBuffer) {
+    return Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape);
+  }
+  return tensor;
+}
+
+async function runUnaryShader(tensor, op, target = null) {
+  const ctx = tensor?.ctx;
+  if (!ctx || !ctx.device) {
+    throw new Error("WebGPU context required for unary shader");
+  }
+  const tex = ensureTextureTensor(tensor);
+  const [h, w, c] = tex.shape;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(
+    h * w * c * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Uint32Array([w, h, c, op]);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+  let result;
+  try {
+    await ctx.runCompute(
+      UNARY_OP_WGSL,
+      [
+        { binding: 0, resource: tex.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], target || undefined);
+  } finally {
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+  }
+  return target || result;
+}
+
+async function runBinaryShader(a, b, op, target = null) {
+  const ctx = a?.ctx;
+  if (!ctx || !ctx.device || !b || b.ctx !== ctx) {
+    throw new Error("WebGPU context required for binary shader");
+  }
+  const texA = ensureTextureTensor(a);
+  const texB = ensureTextureTensor(b);
+  const [h, w, c] = texA.shape;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(
+    h * w * c * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Uint32Array([w, h, c, op]);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+  let result;
+  try {
+    await ctx.runCompute(
+      BINARY_OP_WGSL,
+      [
+        { binding: 0, resource: texA.handle.createView() },
+        { binding: 1, resource: texB.handle.createView() },
+        { binding: 2, resource: { buffer: outBuf } },
+        { binding: 3, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], target || undefined);
+  } finally {
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+  }
+  return target || result;
+}
+
+async function runGrayscaleShader(tensor, srcChannels) {
+  const ctx = tensor?.ctx;
+  if (!ctx || !ctx.device) {
+    throw new Error("WebGPU context required for grayscale shader");
+  }
+  const tex = ensureTextureTensor(tensor);
+  const [h, w] = tex.shape;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(
+    h * w * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Uint32Array([w, h, srcChannels, 0]);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+  let result;
+  try {
+    await ctx.runCompute(
+      GRAYSCALE_WGSL,
+      [
+        { binding: 0, resource: tex.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, 1]);
+  } finally {
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+  }
+  return result;
+}
+
+async function expandChannelsShader(tensor, channels) {
+  const ctx = tensor?.ctx;
+  if (!ctx || !ctx.device) {
+    throw new Error("WebGPU context required for expand shader");
+  }
+  const tex = ensureTextureTensor(tensor);
+  const [h, w] = tex.shape;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(
+    h * w * channels * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Uint32Array([w, h, channels, 0]);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+  let result;
+  try {
+    await ctx.runCompute(
+      EXPAND_CHANNELS_WGSL,
+      [
+        { binding: 0, resource: tex.handle.createView() },
+        { binding: 1, resource: { buffer: outBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, channels]);
+  } finally {
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+  }
+  return result;
+}
 
 
 export async function warpWebGPU(
@@ -2744,6 +2923,15 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
 register("palette", palette, { name: null, alpha: 1 });
 
 export async function invert(tensor, shape, time, speed) {
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    try {
+      const tex = ensureTextureTensor(tensor);
+      return await runUnaryShader(tex, UNARY_OP_INVERT);
+    } catch (e) {
+      console.warn("WebGPU invert fallback to CPU", e);
+    }
+  }
   const src = await tensor.read();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
@@ -6070,7 +6258,7 @@ export async function frame(tensor, shape, time, speed) {
 }
 register("frame", frame, {});
 
-export async function sketch(tensor, shape, time, speed) {
+async function sketchCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   let valuesTensor = tensor;
   if (c !== 1) {
@@ -6161,6 +6349,77 @@ export async function sketch(tensor, shape, time, speed) {
     for (let k = 0; k < c; k++) out[i * c + k] = src[i];
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
+}
+
+async function sketchWebGPU(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  let valuesTensor = ensureTextureTensor(tensor);
+  if (c !== 1) {
+    valuesTensor = await runGrayscaleShader(valuesTensor, tensor.shape[2]);
+  }
+  valuesTensor = await adjustContrast(valuesTensor, [h, w, valuesTensor.shape[2]], time, speed, 2.0);
+  valuesTensor = ensureTextureTensor(valuesTensor);
+  valuesTensor = await runUnaryShader(valuesTensor, UNARY_OP_CLAMP01, valuesTensor);
+  let outlineTensor = await derivative(valuesTensor, [h, w, 1], time, speed);
+  outlineTensor = ensureTextureTensor(outlineTensor);
+  const invValTensor = await runUnaryShader(valuesTensor, UNARY_OP_INVERT);
+  let d2Tensor = await derivative(invValTensor, [h, w, 1], time, speed);
+  d2Tensor = ensureTextureTensor(d2Tensor);
+  outlineTensor = await runBinaryShader(
+    outlineTensor,
+    d2Tensor,
+    BINARY_OP_MIN_ONE_MINUS,
+    outlineTensor,
+  );
+  outlineTensor = await adjustContrast(outlineTensor, [h, w, 1], time, speed, 0.25);
+  outlineTensor = ensureTextureTensor(outlineTensor);
+  outlineTensor = await normalize(outlineTensor);
+  outlineTensor = ensureTextureTensor(outlineTensor);
+  valuesTensor = await vignette(valuesTensor, [h, w, 1], time, speed, 1.0, 0.875);
+  valuesTensor = ensureTextureTensor(valuesTensor);
+  let wormsTensor = await worms(
+    invValTensor,
+    [h, w, 1],
+    time,
+    speed,
+    2,
+    125,
+    0.5,
+    1,
+    0.25,
+    1.0,
+  );
+  wormsTensor = ensureTextureTensor(wormsTensor);
+  wormsTensor = await runUnaryShader(wormsTensor, UNARY_OP_INVERT, wormsTensor);
+  wormsTensor = await normalize(wormsTensor);
+  wormsTensor = ensureTextureTensor(wormsTensor);
+  let combined = await blend(wormsTensor, outlineTensor, 0.75);
+  combined = ensureTextureTensor(combined);
+  combined = await warp(
+    combined,
+    [h, w, 1],
+    time,
+    speed,
+    Math.max(1, Math.floor(Math.max(h, w) * 0.125)),
+    1,
+    0.0025,
+  );
+  combined = ensureTextureTensor(combined);
+  combined = await runUnaryShader(combined, UNARY_OP_SQUARE, combined);
+  if (c === 1) return combined;
+  return await expandChannelsShader(combined, c);
+}
+
+export async function sketch(tensor, shape, time, speed) {
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    try {
+      return await sketchWebGPU(tensor, shape, time, speed);
+    } catch (e) {
+      console.warn("WebGPU sketch fallback to CPU", e);
+    }
+  }
+  return await sketchCPU(tensor, shape, time, speed);
 }
 register("sketch", sketch, {});
 

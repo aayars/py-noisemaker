@@ -52,6 +52,10 @@ const shaderSources = await Promise.all([
   loadShader('./lens-distortion.wgsl'),
   loadShader('./degauss.wgsl'),
   loadShader('./vhs.wgsl'),
+  loadShader('./unary-op.wgsl'),
+  loadShader('./binary-op.wgsl'),
+  loadShader('./grayscale.wgsl'),
+  loadShader('./expand-channels.wgsl'),
 ]);
 
 export const [
@@ -92,6 +96,10 @@ export const [
   LENS_DISTORTION_WGSL,
   DEGAUSS_WGSL,
   VHS_WGSL,
+  UNARY_OP_WGSL,
+  BINARY_OP_WGSL,
+  GRAYSCALE_WGSL,
+  EXPAND_CHANNELS_WGSL,
 ] = shaderSources;
 
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
