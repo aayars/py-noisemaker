@@ -3734,8 +3734,8 @@ export async function refractEffect(
       }
       gray = Tensor.fromArray(tensor.ctx, out, valueShape);
     }
-    rx = await convolution(gray, kx, { normalize: true });
-    ry = await convolution(gray, ky, { normalize: true });
+    rx = await convolution(gray, kx, { normalize: false });
+    ry = await convolution(gray, ky, { normalize: false });
   } else if (warpFreq !== null && warpFreq !== undefined) {
     rx = await values(warpFreq, valueShape, {
       ctx: tensor.ctx,

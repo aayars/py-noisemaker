@@ -1115,6 +1115,48 @@ const rfOut = refractEffect(
 const rfExpected = loadFixture("refractEffect.json");
 arraysClose(Array.from(rfOut), rfExpected);
 
+// refractEffect derivative parity
+const fdTensor = Tensor.fromArray(
+  null,
+  new Float32Array([
+    0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0,
+  ]),
+  [4, 4, 1],
+);
+const kx = [
+  [-1, 0, 1],
+  [-2, 0, 2],
+  [-1, 0, 1],
+];
+const ky = [
+  [-1, -2, -1],
+  [0, 0, 0],
+  [1, 2, 1],
+];
+const dx = await convolution(fdTensor, kx, { normalize: false });
+const dy = await convolution(fdTensor, ky, { normalize: false });
+const fdExpected = await (
+  await refract(fdTensor, dx, dy, 0.5, InterpolationType.bicubic, false)
+).read();
+const fdOut = await (
+  await refractEffect(
+    fdTensor,
+    [4, 4, 1],
+    0,
+    1,
+    0.5,
+    null,
+    null,
+    null,
+    InterpolationType.bicubic,
+    true,
+  )
+).read();
+arraysClose(Array.from(fdOut), Array.from(fdExpected));
+
 // fxaaEffect regression
 const fxData = new Float32Array([
   0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3,
