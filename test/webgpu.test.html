@@ -5,7 +5,7 @@
 import { Context, setSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion, degauss } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion, degauss, vhs } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 const canvas = document.createElement('canvas');
 const ctx = new Context(canvas);
@@ -141,6 +141,27 @@ async function testCRT() {
   return true;
 }
 
+async function testVHS() {
+  const shape = [4,4,3];
+  for (let seed = 0; seed < 3; seed++) {
+    const baseTensor = await values(2, shape, { seed, ctx: cpuCtx });
+    const baseArr = await baseTensor.read();
+    const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+    const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+    setSeed(seed);
+    const cpuOut = await vhs(cpuBase, shape, 0, 1);
+    const cpuArr = await cpuOut.read();
+    setSeed(seed);
+    const gpuOut = await vhs(gpuBase, shape, 0, 1);
+    const gpuArr = await gpuOut.read();
+    if (cpuArr.length !== gpuArr.length) return false;
+    for (let i = 0; i < cpuArr.length; i++) {
+      if (!nearly(cpuArr[i], gpuArr[i])) return false;
+    }
+  }
+  return true;
+}
+
 async function testDLA() {
   const shape = [16,16,1];
   const baseTensor = await values(2, shape, { seed: 1, ctx: cpuCtx });
@@ -179,6 +200,7 @@ ok = ok &&
   testRefract() &&
   await testTint() &&
   await testDegauss() &&
+  await testVHS() &&
   await testCRT() &&
   await testDLA();
 document.body.textContent = ok ? 'webgpu ok' : 'webgpu fail';

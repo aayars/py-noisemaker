@@ -78,6 +78,7 @@ import {
   LENS_DISTORTION_WGSL,
   DEGAUSS_WGSL,
   TINT_WGSL,
+  VHS_WGSL,
 } from "./webgpu/shaders.js";
 
 
@@ -2880,24 +2881,53 @@ register("glitch", glitch, {});
 
 export async function vhs(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const scanNoiseTensor = await values(
-    Math.floor(h * 0.5) + 1,
-    [h, w, 1],
-    {
-      time,
-      speed: speed * 100,
-    }
-  );
-  const scanNoise = await scanNoiseTensor.read();
-  const gradNoiseTensor = await values(5, [h, w, 1], { time, speed });
-  const gradNoise = await gradNoiseTensor.read();
+  const ctx = tensor.ctx;
+  const scanNoise = await values(Math.floor(h * 0.5) + 1, [h, w, 1], {
+    time,
+    speed: speed * 100,
+    ctx,
+  });
+  const gradNoise = await values(5, [h, w, 1], { time, speed, ctx });
+
+  if (
+    ctx &&
+    ctx.device &&
+    tensor.handle instanceof GPUTexture &&
+    scanNoise.handle instanceof GPUTexture &&
+    gradNoise.handle instanceof GPUTexture
+  ) {
+    const outBuf = ctx.createGPUBuffer(
+      new Float32Array(h * w * c),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, 0, 0, 0, 0, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    await ctx.runCompute(
+      VHS_WGSL,
+      [
+        { binding: 0, resource: tensor.handle.createView() },
+        { binding: 1, resource: scanNoise.handle.createView() },
+        { binding: 2, resource: gradNoise.handle.createView() },
+        { binding: 3, resource: { buffer: outBuf } },
+        { binding: 4, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    return new Tensor(ctx, outBuf, shape);
+  }
+
+  const scanArr = await scanNoise.read();
+  const gradArr = await gradNoise.read();
   const src = await tensor.read();
   const blended = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
-    let g = gradNoise[i] - 0.5;
+    let g = gradArr[i] - 0.5;
     if (g < 0) g = 0;
     g = Math.min(g * 2, 1);
-    const noise = scanNoise[i];
+    const noise = scanArr[i];
     for (let k = 0; k < c; k++) {
       blended[i * c + k] = src[i * c + k] * (1 - g) + noise * g;
     }
@@ -2906,17 +2936,17 @@ export async function vhs(tensor, shape, time, speed) {
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
-      let g = gradNoise[idx] - 0.5;
+      let g = gradArr[idx] - 0.5;
       if (g < 0) g = 0;
       g = Math.min(g * 2, 1);
-      const xOff = Math.floor(scanNoise[idx] * w * g * g);
+      const xOff = Math.floor(scanArr[idx] * w * g * g);
       const srcX = (x - xOff + w) % w;
       for (let k = 0; k < c; k++) {
         out[idx * c + k] = blended[(y * w + srcX) * c + k];
       }
     }
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  return Tensor.fromArray(ctx, out, shape);
 }
 register("vhs", vhs, {});
 
