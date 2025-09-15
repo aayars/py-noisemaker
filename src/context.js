@@ -17,6 +17,8 @@ export class Context {
     this.currentTarget = null;
     this._renderPipeline = null;
     this._renderSampler = null;
+    this._pipelineCache = new Map();
+    this._pendingDispatch = false;
   }
 
   async initWebGPU() {
@@ -173,6 +175,7 @@ export class Context {
     pass.draw(6);
     pass.end();
     this.queue.submit([encoder.finish()]);
+    this._pendingDispatch = true;
   }
 
   renderTexture(texture, target = null) {
@@ -254,6 +257,7 @@ export class Context {
     pass.draw(6);
     pass.end();
     this.queue.submit([encoder.finish()]);
+    this._pendingDispatch = true;
   }
 
   createGPUBuffer(array, usage) {
@@ -275,13 +279,28 @@ export class Context {
     return buf;
   }
 
+  async flush() {
+    if (this._pendingDispatch && this.queue?.onSubmittedWorkDone) {
+      const t0 = performance.now();
+      await this.queue.onSubmittedWorkDone();
+      if (this.profile) {
+        this.profile.webgpu += performance.now() - t0;
+      }
+      this._pendingDispatch = false;
+    }
+  }
+
   async runCompute(code, bindEntries, x, y = 1, z = 1) {
     if (!this.device) {
       throw new Error('WebGPU device not initialized');
     }
     const device = this.device;
     device.pushErrorScope('validation');
-    const pipeline = await this.createComputePipeline(code);
+    let pipeline = this._pipelineCache.get(code);
+    if (!pipeline) {
+      pipeline = await this.createComputePipeline(code);
+      this._pipelineCache.set(code, pipeline);
+    }
     const compileErr = await device.popErrorScope();
     if (compileErr) {
       throw compileErr;
@@ -294,14 +313,8 @@ export class Context {
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(x, y, z);
     pass.end();
-    const t0 = performance.now();
     this.queue.submit([encoder.finish()]);
-    if (this.queue.onSubmittedWorkDone) {
-      await this.queue.onSubmittedWorkDone();
-      if (this.profile) {
-        this.profile.webgpu += performance.now() - t0;
-      }
-    }
+    this._pendingDispatch = true;
     const err = await device.popErrorScope();
     if (err) {
       throw err;
@@ -317,14 +330,8 @@ export class Context {
     if (bufSize < size) {
       throw new Error(`Buffer too small: ${bufSize} < ${size}`);
     }
+    await this.flush();
     if (buffer.usage & GPUBufferUsage.MAP_READ) {
-      const t0 = performance.now();
-      if (this.queue.onSubmittedWorkDone) {
-        await this.queue.onSubmittedWorkDone();
-        if (this.profile) {
-          this.profile.webgpu += performance.now() - t0;
-        }
-      }
       await buffer.mapAsync(GPUMapMode.READ);
       const arr = buffer.getMappedRange().slice(0, size);
       buffer.unmap();
@@ -337,14 +344,9 @@ export class Context {
     });
     const encoder = device.createCommandEncoder();
     encoder.copyBufferToBuffer(buffer, 0, readBuf, 0, size);
-    const t0 = performance.now();
     this.queue.submit([encoder.finish()]);
-    if (this.queue.onSubmittedWorkDone) {
-      await this.queue.onSubmittedWorkDone();
-      if (this.profile) {
-        this.profile.webgpu += performance.now() - t0;
-      }
-    }
+    this._pendingDispatch = true;
+    await this.flush();
     await readBuf.mapAsync(GPUMapMode.READ);
     const arr = readBuf.getMappedRange().slice(0);
     readBuf.unmap();
