@@ -304,6 +304,9 @@
           presets,
           debug: false,
         });
+        if (ctx.flush) {
+          await ctx.flush();
+        }
         if (
           benchmark &&
           ctx.queue &&
