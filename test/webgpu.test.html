@@ -2,10 +2,10 @@
 <html>
 <body>
 <script type="module">
-import { Context, setSeed } from '../src/context.js';
+import { Context, setSeed, getSeed } from '../src/context.js';
 import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
-import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, dla, tint, lensDistortion, degauss, vhs } from '../src/effects.js';
+import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, warp, dla, tint, lensDistortion, degauss, vhs } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
 import { PRESETS } from '../src/presets.js';
 import { Preset } from '../src/composer.js';
@@ -167,6 +167,31 @@ async function testVHS() {
   return true;
 }
 
+async function testWarpMultiChannel() {
+  const prevSeed = getSeed();
+  try {
+    const shape = [4, 4, 3];
+    const freq = 2;
+    const baseTensor = await values(freq, shape, { seed: 5, ctx: cpuCtx });
+    const baseArr = await baseTensor.read();
+    const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+    const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+    setSeed(11);
+    const cpuOut = await warp(cpuBase, shape, 0, 1, freq, 2, 0.25);
+    const cpuArr = await cpuOut.read();
+    setSeed(11);
+    const gpuOut = await warp(gpuBase, shape, 0, 1, freq, 2, 0.25);
+    const gpuArr = await gpuOut.read();
+    if (cpuArr.length !== gpuArr.length) return false;
+    for (let i = 0; i < cpuArr.length; i++) {
+      if (!nearly(cpuArr[i], gpuArr[i])) return false;
+    }
+    return true;
+  } finally {
+    setSeed(prevSeed);
+  }
+}
+
 async function testDLA() {
   const shape = [16,16,1];
   const baseTensor = await values(2, shape, { seed: 1, ctx: cpuCtx });
@@ -225,6 +250,7 @@ ok = ok &&
   await testTint() &&
   await testDegauss() &&
   await testVHS() &&
+  await testWarpMultiChannel() &&
   await testCRT() &&
   await testDLA() &&
   await testDeathStarPlans();
