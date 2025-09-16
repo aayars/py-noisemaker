@@ -228,6 +228,33 @@
       presetSelect.appendChild(option);
     });
 
+    function toSnake(str) {
+      return str
+        .replace(/([A-Z])/g, '_$1')
+        .replace(/-/g, '_')
+        .toLowerCase();
+    }
+
+    function isPlainObject(value) {
+      if (!value || typeof value !== 'object') return false;
+      const proto = Object.getPrototypeOf(value);
+      return proto === Object.prototype || proto === null;
+    }
+
+    function toSnakeKeys(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => toSnakeKeys(item));
+      }
+      if (isPlainObject(value)) {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+          out[toSnake(k)] = toSnakeKeys(v);
+        }
+        return out;
+      }
+      return value;
+    }
+
     function formatPreset(obj, indent = 0) {
       const pad = '  '.repeat(indent);
       if (typeof obj === 'function') {
@@ -275,17 +302,19 @@
         Object.fromEntries(Object.entries(obj || {}));
       const toPlain = (effects) =>
         effects.map((fn) => ({
-          effect: fn.__effectName || fn.name || 'fn',
-          ...(fn.__params || {}),
+          effect: toSnake(fn.__effectName || fn.name || 'fn'),
+          ...toSnakeKeys(fn.__params || {}),
         }));
-      const settings = toPlainObject(preset.settings);
-      const generator = toPlainObject(preset.generator);
+      const rawSettings = toPlainObject(preset.settings);
+      const rawGenerator = toPlainObject(preset.generator);
+      const settings = toSnakeKeys(rawSettings);
+      const generator = toSnakeKeys(rawGenerator);
       const merged = { ...settings, ...generator };
       const colorSpace =
-        generator.color_space ??
-        generator.colorSpace ??
-        settings.color_space ??
-        settings.colorSpace ??
+        rawGenerator.color_space ??
+        rawGenerator.colorSpace ??
+        rawSettings.color_space ??
+        rawSettings.colorSpace ??
         ColorSpace.hsv;
       merged.color_space = colorSpace;
       if (seed !== undefined) {
