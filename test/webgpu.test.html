@@ -167,6 +167,37 @@ async function testVHS() {
   return true;
 }
 
+async function testVaselineChannels() {
+  const prevSeed = getSeed();
+  try {
+    const shapes = [
+      [4,4,1],
+      [4,4,2],
+      [4,4,3],
+      [4,4,4],
+    ];
+    for (const shape of shapes) {
+      const baseTensor = await values(2, shape, { seed: 5, ctx: cpuCtx });
+      const baseArr = await baseTensor.read();
+      const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+      const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+      setSeed(9);
+      const cpuOut = await vaseline(cpuBase, shape, 0, 1, 0.5);
+      const cpuArr = await cpuOut.read();
+      setSeed(9);
+      const gpuOut = await vaseline(gpuBase, shape, 0, 1, 0.5);
+      const gpuArr = await gpuOut.read();
+      if (cpuArr.length !== gpuArr.length) return false;
+      for (let i = 0; i < cpuArr.length; i++) {
+        if (!nearly(cpuArr[i], gpuArr[i])) return false;
+      }
+    }
+    return true;
+  } finally {
+    setSeed(prevSeed);
+  }
+}
+
 async function testWarpMultiChannel() {
   const prevSeed = getSeed();
   try {
@@ -250,6 +281,7 @@ ok = ok &&
   await testTint() &&
   await testDegauss() &&
   await testVHS() &&
+  await testVaselineChannels() &&
   await testWarpMultiChannel() &&
   await testCRT() &&
   await testDLA() &&

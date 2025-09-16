@@ -39,5 +39,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   blurred = (blurred - vec4<f32>(0.5)) * 1.5 + vec4<f32>(0.5);
   let orig = textureLoad(tex, vec2<i32>(x, y), 0);
   var out = clamp((orig + blurred) * 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
-  textureStore(outTex, vec2<i32>(x, y), vec4<f32>(out.xyz, 1.0));
+  let ch = max(u32(params.channels + 0.5), 1u);
+  var res = orig;
+  if (ch > 0u) { res.x = out.x; }
+  if (ch > 1u) { res.y = out.y; }
+  if (ch > 2u) { res.z = out.z; }
+  if (ch > 3u) { res.w = out.w; }
+  textureStore(outTex, vec2<i32>(x, y), res);
 }

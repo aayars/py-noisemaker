@@ -4865,9 +4865,10 @@ register("vignette", vignette, { brightness: 0.0, alpha: 1.0 });
 async function vaselineWebGPU(tensor, shape, alpha) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
+  const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
   const blurTex = ctx.device.createTexture({
     size: { width: w, height: h, depthOrArrayLayers: 1 },
-    format: c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float',
+    format,
     usage: GPUTextureUsage.STORAGE_BINDING |
            GPUTextureUsage.TEXTURE_BINDING |
            GPUTextureUsage.COPY_SRC |
@@ -4884,8 +4885,9 @@ async function vaselineWebGPU(tensor, shape, alpha) {
   });
   const maskParams = ctx.createGPUBuffer(new Float32Array([w, h]), GPUBufferUsage.UNIFORM);
   await ctx.withEncoder(async () => {
+    const blurShader = VASELINE_BLUR_WGSL.replace('rgba32float', format);
     await ctx.runCompute(
-      VASELINE_BLUR_WGSL,
+      blurShader,
       [
         { binding: 0, resource: tensor.handle.createView() },
         { binding: 1, resource: blurTex.createView() },
