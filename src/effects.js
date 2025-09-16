@@ -7159,9 +7159,10 @@ async function grimeWebGPU(tensor, shape, time, speed) {
     speed,
     distrib: ValueDistribution.exp,
   });
+  const format = c === 1 ? 'r32float' : c === 2 ? 'rg32float' : 'rgba32float';
   const outTex = ctx.device.createTexture({
     size: { width: w, height: h, depthOrArrayLayers: 1 },
-    format: 'rgba32float',
+    format,
     usage:
       GPUTextureUsage.STORAGE_BINDING |
       GPUTextureUsage.TEXTURE_BINDING |
@@ -7172,8 +7173,9 @@ async function grimeWebGPU(tensor, shape, time, speed) {
     new Float32Array([w, h, c]),
     GPUBufferUsage.UNIFORM,
   );
+  const shader = GRIME_BLEND_WGSL.replace('rgba32float', format);
   await ctx.runCompute(
-    GRIME_BLEND_WGSL,
+    shader,
     [
       { binding: 0, resource: tensor.handle.createView() },
       { binding: 1, resource: mask.handle.createView() },

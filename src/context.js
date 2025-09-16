@@ -215,7 +215,12 @@ export class Context {
         @group(0) @binding(1) var tex : texture_2d<f32>;
         @fragment
         fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
-          return textureSample(tex, samp, uv);
+          let dims = vec2<f32>(textureDimensions(tex));
+          let size = max(dims, vec2<f32>(1.0, 1.0));
+          let invSize = vec2<f32>(1.0, 1.0) / size;
+          let clamped = clamp(uv, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0) - invSize);
+          let coord = (floor(clamped * size) + vec2<f32>(0.5, 0.5)) / size;
+          return textureSampleLevel(tex, samp, coord, 0.0);
         }
       `;
       const bindGroupLayout = this.device.createBindGroupLayout({

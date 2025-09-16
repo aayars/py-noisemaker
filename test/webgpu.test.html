@@ -3,7 +3,7 @@
 <body>
 <script type="module">
 import { Context, setSeed, getSeed } from '../src/context.js';
-import { values, downsample, upsample, blend, sobel, refract } from '../src/value.js';
+import { values, downsample, upsample, blend, sobel, refract, normalize } from '../src/value.js';
 import { Tensor } from '../src/tensor.js';
 import { adjustBrightness, adjustContrast, vignette, reindex, dither, grain, crt, wobble, grime, vaseline, warp, dla, tint, lensDistortion, degauss, vhs } from '../src/effects.js';
 import { InterpolationType } from '../src/constants.js';
@@ -90,6 +90,35 @@ async function testDegauss() {
     }
   }
   return true;
+}
+
+async function testNormalizeMultiChannel() {
+  const prevSeed = getSeed();
+  try {
+    const shapes = [
+      [4,4,1],
+      [4,4,2],
+      [4,4,3],
+      [4,4,4],
+    ];
+    for (const shape of shapes) {
+      const baseTensor = await values(2, shape, { seed: 13, ctx: cpuCtx });
+      const baseArr = await baseTensor.read();
+      const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+      const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+      const cpuOut = await normalize(cpuBase);
+      const cpuArr = await cpuOut.read();
+      const gpuOut = await normalize(gpuBase);
+      const gpuArr = await gpuOut.read();
+      if (cpuArr.length !== gpuArr.length) return false;
+      for (let i = 0; i < cpuArr.length; i++) {
+        if (!nearly(cpuArr[i], gpuArr[i])) return false;
+      }
+    }
+    return true;
+  } finally {
+    setSeed(prevSeed);
+  }
 }
 setSeed(1);
 
@@ -186,6 +215,35 @@ async function testVaselineChannels() {
       const cpuArr = await cpuOut.read();
       setSeed(9);
       const gpuOut = await vaseline(gpuBase, shape, 0, 1, 0.5);
+      const gpuArr = await gpuOut.read();
+      if (cpuArr.length !== gpuArr.length) return false;
+      for (let i = 0; i < cpuArr.length; i++) {
+        if (!nearly(cpuArr[i], gpuArr[i])) return false;
+      }
+    }
+    return true;
+  } finally {
+    setSeed(prevSeed);
+  }
+}
+
+async function testGrimeChannels() {
+  const prevSeed = getSeed();
+  try {
+    const shapes = [
+      [4,4,3],
+      [4,4,4],
+    ];
+    for (const shape of shapes) {
+      const baseTensor = await values(2, shape, { seed: 6, ctx: cpuCtx });
+      const baseArr = await baseTensor.read();
+      const cpuBase = Tensor.fromArray(cpuCtx, baseArr, shape);
+      const gpuBase = Tensor.fromArray(ctx, baseArr, shape);
+      setSeed(13);
+      const cpuOut = await grime(cpuBase, shape, 0, 1);
+      const cpuArr = await cpuOut.read();
+      setSeed(13);
+      const gpuOut = await grime(gpuBase, shape, 0, 1);
       const gpuArr = await gpuOut.read();
       if (cpuArr.length !== gpuArr.length) return false;
       for (let i = 0; i < cpuArr.length; i++) {
@@ -299,8 +357,10 @@ ok = ok &&
   testRefract() &&
   await testTint() &&
   await testDegauss() &&
+  await testNormalizeMultiChannel() &&
   await testVHS() &&
   await testVaselineChannels() &&
+  await testGrimeChannels() &&
   await testMultiChannelValues() &&
   await testWarpMultiChannel() &&
   await testCRT() &&

@@ -1157,12 +1157,6 @@ export function normalize(tensor) {
     typeof GPUTexture !== 'undefined' &&
     tensor.handle instanceof GPUTexture
   ) {
-    if (c > 2) {
-      return (async () => {
-        const src = await tensor.read();
-        return compute(src);
-      })();
-    }
     return (async () => {
       try {
         const outSize = h * w * c;
