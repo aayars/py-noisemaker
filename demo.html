@@ -97,6 +97,7 @@
   <script type="module">
     import { Context } from './src/context.js';
     import { render, Preset } from './src/composer.js';
+    import { ColorSpace } from './src/constants.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
 
@@ -256,15 +257,30 @@
       return JSON.stringify(obj);
     }
 
-    function serializePreset(preset) {
+    function serializePreset(preset, seed) {
+      const toPlainObject = (obj) =>
+        Object.fromEntries(Object.entries(obj || {}));
       const toPlain = (effects) =>
         effects.map((fn) => ({
           effect: fn.__effectName || fn.name || 'fn',
           ...(fn.__params || {}),
         }));
+      const settings = toPlainObject(preset.settings);
+      const generator = toPlainObject(preset.generator);
+      const merged = { ...settings, ...generator };
+      const colorSpace =
+        generator.color_space ??
+        generator.colorSpace ??
+        settings.color_space ??
+        settings.colorSpace ??
+        ColorSpace.hsv;
+      merged.color_space = colorSpace;
+      if (seed !== undefined) {
+        merged.seed = seed;
+      }
       return {
-        settings: Object.fromEntries(Object.entries(preset.settings)),
-        generator: preset.generator,
+        settings: merged,
+        generator,
         octaves: toPlain(preset.octave_effects),
         post: toPlain(preset.post_effects),
         final: toPlain(preset.final_effects),
@@ -330,7 +346,7 @@
         `seed: ${seed}`,
       ].join('<br>');
       presetFormulaEl.textContent = presetSource[presetName] || '';
-      presetEvalEl.textContent = formatPreset(serializePreset(presetObj));
+      presetEvalEl.textContent = formatPreset(serializePreset(presetObj, seed));
     }
 
     try {
