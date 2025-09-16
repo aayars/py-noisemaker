@@ -223,23 +223,14 @@ fn interpFunc(t: f32) -> f32 {
   return t * t * (3.0 - 2.0 * t);
 }
 
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let width = u32(params.width);
-  let height = u32(params.height);
-  let idx = gid.x;
-  if (idx >= width * height) { return; }
-  let x = f32(idx % width);
-  let y = f32(idx / width);
-  var val: f32 = 0.0;
-  let embedMask = params.maskAsChannel > 0.5;
-  let channels = max(u32(params.channels + 0.5), 1u);
-  let dx = (x + 0.5) / params.width - 0.5;
-  let dy = (y + 0.5) / params.height - 0.5;
-  let distrib = u32(params.distrib);
+fn channel_seed(channel: u32) -> f32 {
+  return fmod(params.seed + f32(channel) * 65535.0, 65536.0);
+}
 
+fn compute_value(channel: u32, x: f32, y: f32, dx: f32, dy: f32, distrib: u32) -> f32 {
+  var val: f32 = 0.0;
   if (distrib == ${ValueDistribution.exp}u) {
-    let r = rand2D(x, y, params.seed, params.time, params.speed);
+    let r = rand2D(x, y, channel_seed(channel), params.time, params.speed);
     val = pow(r, 3.0);
   } else if (distrib == ${ValueDistribution.simplex}u) {
     let fx = max(1.0, floor(params.freqX));
@@ -254,7 +245,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
     let ang = 6.283185307179586 * params.time;
     let z = cos(ang) * params.speed;
-    let s = params.seed % 65536.0;
+    let s = channel_seed(channel);
     val = (simplex3(vec3<f32>(xx + s, yy + s, z)) + 1.0) * 0.5;
   } else if (distrib == ${ValueDistribution.column_index}u) {
     let fy = max(1.0, floor(params.freqY));
@@ -329,7 +320,23 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let nx1 = mix(r01, r11, sx);
     val = mix(nx0, nx1, sy);
   }
+  return val;
+}
 
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let width = u32(params.width);
+  let height = u32(params.height);
+  let idx = gid.x;
+  if (idx >= width * height) { return; }
+  let x = f32(idx % width);
+  let y = f32(idx / width);
+  let embedMask = params.maskAsChannel > 0.5;
+  let channels = max(u32(params.channels + 0.5), 1u);
+  let dx = (x + 0.5) / params.width - 0.5;
+  let dy = (y + 0.5) / params.height - 0.5;
+  let distrib = u32(params.distrib);
+  var val = compute_value(0u, x, y, dx, dy, distrib);
   var maskVal = 1.0;
   if (params.useMask > 0.5) {
     let mw = u32(params.maskWidth);
@@ -366,11 +373,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let base = idx * channels;
   out[base] = val;
   var c = 1u;
+  let needsChannelVariation = (distrib == ${ValueDistribution.simplex}u) || (distrib == ${ValueDistribution.exp}u);
   while (c < channels) {
     if (embedMask && c == channels - 1u) {
       out[base + c] = maskVal;
     } else {
-      out[base + c] = val;
+      var channelVal = val;
+      if (needsChannelVariation) {
+        channelVal = compute_value(c, x, y, dx, dy, distrib);
+        if (params.useMask > 0.5 && !embedMask) {
+          channelVal = channelVal * maskVal;
+        }
+      }
+      out[base + c] = channelVal;
     }
     c = c + 1u;
   }

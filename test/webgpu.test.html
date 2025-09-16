@@ -198,6 +198,25 @@ async function testVaselineChannels() {
   }
 }
 
+async function testMultiChannelValues() {
+  const prevSeed = getSeed();
+  try {
+    const shape = [4,4,3];
+    const freq = 2;
+    const cpuTensor = await values(freq, shape, { seed: 7, ctx: cpuCtx });
+    const gpuTensor = await values(freq, shape, { seed: 7, ctx });
+    const cpuArr = await cpuTensor.read();
+    const gpuArr = await gpuTensor.read();
+    if (cpuArr.length !== gpuArr.length) return false;
+    for (let i = 0; i < cpuArr.length; i++) {
+      if (!nearly(cpuArr[i], gpuArr[i])) return false;
+    }
+    return true;
+  } finally {
+    setSeed(prevSeed);
+  }
+}
+
 async function testWarpMultiChannel() {
   const prevSeed = getSeed();
   try {
@@ -282,6 +301,7 @@ ok = ok &&
   await testDegauss() &&
   await testVHS() &&
   await testVaselineChannels() &&
+  await testMultiChannelValues() &&
   await testWarpMultiChannel() &&
   await testCRT() &&
   await testDLA() &&
