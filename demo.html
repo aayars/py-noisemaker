@@ -35,6 +35,16 @@
       padding: 4px 8px;
       width: 128px;
     }
+    #seedLabel {
+      margin-left: 10px;
+    }
+    #seedInput {
+      width: 128px;
+      margin-left: 10px;
+      margin-top: 10px;
+      padding: 4px 8px;
+      box-sizing: border-box;
+    }
     select {
       width: 256px;
     }
@@ -76,6 +86,8 @@
     <select id="preset"></select>
     <button id="randomPreset">Random Preset</button>
     <button id="reroll">Re-roll</button>
+    <label id="seedLabel" for="seedInput">Seed:</label>
+    <input id="seedInput" type="number" step="1" value="42" />
     <label><input type="checkbox" id="webgpuToggle" checked /> WebGPU</label>
     </span>
     <canvas id="noise" width="512" height="512"></canvas>
@@ -174,6 +186,7 @@
     const presetEvalEl = document.getElementById('presetEvaluated');
     const tabFormulaBtn = document.getElementById('tabFormula');
     const tabEvalBtn = document.getElementById('tabEvaluated');
+    const seedInput = document.getElementById('seedInput');
     let presets = PRESETS();
     const presetNames = Object.keys(presets).filter(
       (name) => !name.startsWith('maybe-')
@@ -300,6 +313,13 @@
 
     presetSelect.value = 'basic';
     let currentPreset = presetSelect.value;
+    let currentSeed = Number(seedInput.value) || 42;
+    seedInput.value = currentSeed;
+
+    function parseSeed(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
+    }
 
     async function draw(seed, presetName) {
       setSeed(seed);
@@ -349,27 +369,56 @@
       presetEvalEl.textContent = formatPreset(serializePreset(presetObj, seed));
     }
 
+    function renderPreset(seed = currentSeed, presetName = currentPreset) {
+      const nextSeed = parseSeed(seed);
+      currentSeed = nextSeed;
+      seedInput.value = nextSeed;
+      return draw(nextSeed, presetName);
+    }
+
+    function renderWithCatch(seed, presetName) {
+      return renderPreset(seed, presetName).catch((e) => {
+        console.error(e);
+      });
+    }
+
     try {
-      await draw(42, currentPreset);
+      await renderPreset(currentSeed, currentPreset);
     } catch (e) {
       console.error(e);
     }
 
+    function applySeedFromInput() {
+      renderWithCatch(seedInput.value, currentPreset);
+    }
+
+    seedInput.addEventListener('change', applySeedFromInput);
+    seedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applySeedFromInput();
+      }
+    });
+
     document.getElementById('reroll').addEventListener('click', () => {
       const seed = Math.floor(random() * 1e9);
-      draw(seed, currentPreset);
+      renderWithCatch(seed, currentPreset);
     });
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
       const seed = Math.floor(random() * 1e9);
-      draw(seed, currentPreset);
+      renderWithCatch(seed, currentPreset);
     });
 
     webgpuToggle.addEventListener('change', async () => {
       await initCtx();
       const seed = Math.floor(random() * 1e9);
-      draw(seed, currentPreset);
+      try {
+        await renderPreset(seed, currentPreset);
+      } catch (e) {
+        console.error(e);
+      }
     });
 
     document
@@ -380,7 +429,7 @@
         presetSelect.value = randomPreset;
         currentPreset = randomPreset;
         const seed = Math.floor(random() * 1e9);
-        draw(seed, currentPreset);
+        renderWithCatch(seed, currentPreset);
       });
 
     showTab('formula');
