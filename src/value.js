@@ -26,6 +26,7 @@ import {
   NORMALIZE_WGSL,
   RGB_TO_HSV_WGSL,
   HSV_TO_RGB_WGSL,
+  OCTAVE_COMBINE_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -232,17 +233,19 @@ export function values(freq, shape, opts = {}) {
     maskData = maskTensor.data;
   }
 
-  if (ctx && ctx.device && gpuDistrib && channels === 1) {
+  if (ctx && ctx.device && gpuDistrib) {
     return (async () => {
       try {
-        const size = width * height * channels;
+        const pixelCount = width * height;
+        const outSize = pixelCount * channels;
         const outBuf = ctx.device.createBuffer({
-          size: size * 4,
+          size: outSize * 4,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
         });
         const maskBuf = maskData
           ? ctx.createGPUBuffer(maskData, GPUBufferUsage.STORAGE)
           : ctx.createGPUBuffer(new Float32Array([1]), GPUBufferUsage.STORAGE);
+        const maskAsChannel = maskData && (channels === 2 || channels === 4) ? 1 : 0;
         const paramsArr = new Float32Array([
           width,
           height,
@@ -257,8 +260,8 @@ export function values(freq, shape, opts = {}) {
           maskData ? 1 : 0,
           maskWidth,
           maskHeight,
-          0,
-          0,
+          channels,
+          maskAsChannel,
           0,
         ]);
         const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
@@ -269,7 +272,7 @@ export function values(freq, shape, opts = {}) {
             { binding: 1, resource: { buffer: paramsBuf } },
             { binding: 2, resource: { buffer: maskBuf } },
           ],
-          Math.ceil(size / 64),
+          Math.ceil(pixelCount / 64),
         );
         return Tensor.fromGPUBuffer(ctx, outBuf, [height, width, channels]);
       } catch (e) {
@@ -772,6 +775,167 @@ export function warp(tensor, flow, amount = 1, splineOrder = InterpolationType.b
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
   });
+}
+
+export const OctaveCombineMode = Object.freeze({
+  falloff: 0,
+  reduceMax: 1,
+  alpha: 2,
+});
+
+export function combineOctaves(base, layer, mode = OctaveCombineMode.falloff, weight = 0) {
+  if (
+    (base && typeof base.then === 'function') ||
+    (layer && typeof layer.then === 'function')
+  ) {
+    return Promise.all([base, layer]).then(([a, b]) =>
+      combineOctaves(a, b, mode, weight),
+    );
+  }
+
+  if (!base || !layer) {
+    throw new Error('combineOctaves requires two tensors');
+  }
+
+  const [h, w, c] = base.shape;
+  const ctx = base.ctx || layer.ctx || null;
+
+  const cpuCombine = (dataA, dataB) => {
+    const out = new Float32Array(dataA.length);
+    if (mode === OctaveCombineMode.falloff) {
+      for (let i = 0; i < out.length; i++) {
+        out[i] = dataA[i] + dataB[i] * weight;
+      }
+    } else if (mode === OctaveCombineMode.reduceMax) {
+      for (let i = 0; i < out.length; i++) {
+        out[i] = Math.max(dataA[i], dataB[i]);
+      }
+    } else if (mode === OctaveCombineMode.alpha && c > 0) {
+      for (let i = 0; i < h * w; i++) {
+        const baseIdx = i * c;
+        const alpha = dataB[baseIdx + c - 1];
+        for (let k = 0; k < c; k++) {
+          out[baseIdx + k] =
+            dataA[baseIdx + k] * (1 - alpha) + dataB[baseIdx + k] * alpha;
+        }
+      }
+    } else {
+      out.set(dataB);
+    }
+    return Tensor.fromArray(ctx, out, [h, w, c]);
+  };
+
+  if (
+    ctx &&
+    ctx.device &&
+    base.ctx === ctx &&
+    layer.ctx === ctx &&
+    typeof GPUTexture !== 'undefined'
+  ) {
+    return (async () => {
+      try {
+        const ensureTexture = (tensor) => {
+          if (!(tensor instanceof Tensor)) {
+            return tensor;
+          }
+          if (tensor.ctx !== ctx) {
+            return tensor;
+          }
+          if (tensor.handle instanceof GPUTexture) {
+            return tensor;
+          }
+          if (
+            typeof GPUBuffer !== 'undefined' &&
+            tensor.handle instanceof GPUBuffer
+          ) {
+            return Tensor.fromGPUBuffer(ctx, tensor.handle, tensor.shape, tensor);
+          }
+          if (tensor.data) {
+            return Tensor.fromArray(ctx, tensor.data, tensor.shape);
+          }
+          return tensor;
+        };
+
+        const aTensor = ensureTexture(base);
+        const bTensor = ensureTexture(layer);
+
+        if (
+          !(aTensor instanceof Tensor) ||
+          !(bTensor instanceof Tensor) ||
+          !(aTensor.handle instanceof GPUTexture) ||
+          !(bTensor.handle instanceof GPUTexture)
+        ) {
+          const data = await Promise.all([base.read(), layer.read()]);
+          return cpuCombine(data[0], data[1]);
+        }
+
+        const storageChannels = Tensor.storageChannels(c);
+        const format =
+          storageChannels === 1
+            ? 'r32float'
+            : storageChannels === 2
+            ? 'rg32float'
+            : 'rgba32float';
+
+        const outTex = ctx.device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format,
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
+        });
+
+        const paramsArr = new Float32Array([
+          w,
+          h,
+          c,
+          mode,
+          weight,
+          0,
+          0,
+          0,
+        ]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM,
+        );
+        const shader = OCTAVE_COMBINE_WGSL.replace('rgba32float', format);
+
+        await ctx.runCompute(
+          shader,
+          [
+            { binding: 0, resource: aTensor.handle.createView() },
+            { binding: 1, resource: bTensor.handle.createView() },
+            { binding: 2, resource: outTex.createView() },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+
+        return new Tensor(ctx, outTex, [h, w, c]);
+      } catch (e) {
+        console.warn('WebGPU combineOctaves fallback to CPU', e);
+        const data = await Promise.all([base.read(), layer.read()]);
+        return cpuCombine(data[0], data[1]);
+      }
+    })();
+  }
+
+  const dataAMaybe = base.read();
+  const dataBMaybe = layer.read();
+  if (
+    (dataAMaybe && typeof dataAMaybe.then === 'function') ||
+    (dataBMaybe && typeof dataBMaybe.then === 'function')
+  ) {
+    return Promise.all([dataAMaybe, dataBMaybe]).then(([da, db]) =>
+      cpuCombine(da, db),
+    );
+  }
+
+  return cpuCombine(dataAMaybe, dataBMaybe);
 }
 
 export function blend(a, b, t) {

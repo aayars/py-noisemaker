@@ -6,6 +6,8 @@ import {
   ridge,
   refract,
   normalize,
+  combineOctaves,
+  OctaveCombineMode,
   freqForShape,
   setSeed as setValueSeed,
 } from './value.js';
@@ -319,28 +321,17 @@ export async function multires(freq, shape, opts = {}) {
       speed,
       ctx,
     });
-    const data = await tensor.read();
-    const layerData = await layer.read();
-    const c = shape[2];
-    const out = new Float32Array(data.length);
+    let combineMode = OctaveCombineMode.falloff;
+    let weight = 1 / multiplier;
     if (octaveBlending === OctaveBlending.reduce_max) {
-      for (let i = 0; i < data.length; i++) {
-        out[i] = Math.max(data[i], layerData[i]);
-      }
-    } else if (octaveBlending === OctaveBlending.alpha && c >= 1) {
-      for (let i = 0; i < shape[0] * shape[1]; i++) {
-        const base = i * c;
-        const a = layerData[base + c - 1];
-        for (let k = 0; k < c; k++) {
-          out[base + k] = data[base + k] * (1 - a) + layerData[base + k] * a;
-        }
-      }
-    } else {
-      for (let i = 0; i < data.length; i++) {
-        out[i] = data[i] + layerData[i] / multiplier;
-      }
+      combineMode = OctaveCombineMode.reduceMax;
+      weight = 0;
+    } else if (octaveBlending === OctaveBlending.alpha && shape[2] >= 1) {
+      combineMode = OctaveCombineMode.alpha;
+      weight = 0;
     }
-    tensor = Tensor.fromArray(ctx, out, shape);
+    tensor = await combineOctaves(tensor, layer, combineMode, weight);
+    shape = tensor.shape;
   }
   tensor = await normalize(tensor);
 

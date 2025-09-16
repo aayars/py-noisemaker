@@ -56,6 +56,7 @@ const shaderSources = await Promise.all([
   loadShader('./binary-op.wgsl'),
   loadShader('./grayscale.wgsl'),
   loadShader('./expand-channels.wgsl'),
+  loadShader('./octave-combine.wgsl'),
 ]);
 
 export const [
@@ -100,6 +101,7 @@ export const [
   BINARY_OP_WGSL,
   GRAYSCALE_WGSL,
   EXPAND_CHANNELS_WGSL,
+  OCTAVE_COMBINE_WGSL,
 ] = shaderSources;
 
 export const UPSAMPLE_WGSL = RESAMPLE_WGSL;
@@ -118,9 +120,9 @@ struct ValueParams {
   useMask: f32,
   maskWidth: f32,
   maskHeight: f32,
-  pad1: f32,
-  pad2: f32,
-  pad3: f32,
+  channels: f32,
+  maskAsChannel: f32,
+  pad0: f32,
 };
 @group(0) @binding(0) var<storage, read_write> out: array<f32>;
 @group(0) @binding(1) var<uniform> params: ValueParams;
@@ -230,6 +232,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let x = f32(idx % width);
   let y = f32(idx / width);
   var val: f32 = 0.0;
+  let embedMask = params.maskAsChannel > 0.5;
+  let channels = max(u32(params.channels + 0.5), 1u);
   let dx = (x + 0.5) / params.width - 0.5;
   let dy = (y + 0.5) / params.height - 0.5;
   let distrib = u32(params.distrib);
@@ -326,6 +330,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     val = mix(nx0, nx1, sy);
   }
 
+  var maskVal = 1.0;
   if (params.useMask > 0.5) {
     let mw = u32(params.maskWidth);
     let mh = u32(params.maskHeight);
@@ -353,9 +358,22 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let mx1v = mix(m01, m11, sx);
       mval = mix(mx0v, mx1v, sy);
     }
-    val = val * mval;
+    maskVal = mval;
+    if (!embedMask) {
+      val = val * maskVal;
+    }
   }
-  out[idx] = val;
+  let base = idx * channels;
+  out[base] = val;
+  var c = 1u;
+  while (c < channels) {
+    if (embedMask && c == channels - 1u) {
+      out[base + c] = maskVal;
+    } else {
+      out[base + c] = val;
+    }
+    c = c + 1u;
+  }
 }
 `;
 
