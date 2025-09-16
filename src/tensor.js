@@ -8,6 +8,18 @@ export class Tensor {
     this.handle = handle; // GPUTexture, GPUBuffer, or CPU object
     this.shape = shape; // [height, width, channels]
     this.data = data; // CPU data if applicable
+    if (
+      typeof GPUTexture !== 'undefined' &&
+      handle instanceof GPUTexture &&
+      Array.isArray(shape)
+    ) {
+      try {
+        handle._noisemakerShape = shape.slice();
+        handle._noisemakerChannels = shape[2] ?? 4;
+      } catch (_) {
+        // Silently ignore metadata assignment failures (e.g. frozen objects).
+      }
+    }
   }
 
   static storageChannels(c) {
@@ -255,6 +267,26 @@ export class Tensor {
     }
     return res;
   }
+}
+
+export function markPresentationNormalized(tensor, normalized = true) {
+  if (!tensor) {
+    return tensor;
+  }
+  try {
+    tensor._noisemakerPresentationNormalized = normalized;
+  } catch (_) {
+    /* ignore assignment failures */
+  }
+  const handle = tensor.handle;
+  if (handle && typeof handle === 'object') {
+    try {
+      handle._noisemakerPresentationNormalized = normalized;
+    } catch (_) {
+      /* ignore assignment failures */
+    }
+  }
+  return tensor;
 }
 
 const BUFFER_EXPAND_WGSL = `

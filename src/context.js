@@ -6,6 +6,108 @@ import { Random, setSeed, getSeed, random } from './rng.js';
 
 export { Random, setSeed, getSeed, random };
 
+// PresentParams packs two vec4<f32> plus a scalar channel count. WGSL uniform
+// buffers align structs to 16-byte boundaries, so the GPU requires 64 bytes
+// (16 floats) even though only 9 values carry data.
+const PRESENT_PARAMS_FLOATS = 16;
+const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
+const RANGE_EPSILON = 1e-6;
+
+const PRESENT_STATS_WGSL = `
+struct PresentStatsParams {
+  width: u32,
+  height: u32,
+  channels: u32,
+  _pad: u32,
+};
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var<storage, read_write> stats: array<f32>;
+@group(0) @binding(2) var<uniform> params: PresentStatsParams;
+
+@compute @workgroup_size(8, 8, 1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  if (gid.x != 0u || gid.y != 0u) {
+    return;
+  }
+  let w = max(params.width, 1u);
+  let h = max(params.height, 1u);
+  let c = max(params.channels, 1u);
+  var minv = vec4<f32>(1e20, 1e20, 1e20, 1e20);
+  var maxv = vec4<f32>(-1e20, -1e20, -1e20, -1e20);
+  for (var y: u32 = 0u; y < h; y = y + 1u) {
+    for (var x: u32 = 0u; x < w; x = x + 1u) {
+      let col = textureLoad(tex, vec2<i32>(i32(x), i32(y)), 0);
+      if (c > 0u) {
+        let v = col.x;
+        minv.x = min(minv.x, v);
+        maxv.x = max(maxv.x, v);
+      }
+      if (c > 1u) {
+        let v = col.y;
+        minv.y = min(minv.y, v);
+        maxv.y = max(maxv.y, v);
+      }
+      if (c > 2u) {
+        let v = col.z;
+        minv.z = min(minv.z, v);
+        maxv.z = max(maxv.z, v);
+      }
+      if (c > 3u) {
+        let v = col.w;
+        minv.w = min(minv.w, v);
+        maxv.w = max(maxv.w, v);
+      }
+    }
+  }
+  if (c == 1u) {
+    minv.y = minv.x;
+    maxv.y = maxv.x;
+    minv.z = minv.x;
+    maxv.z = maxv.x;
+    minv.w = 0.0;
+    maxv.w = 1.0;
+  } else if (c == 2u) {
+    minv.z = minv.x;
+    maxv.z = maxv.x;
+    minv.w = minv.y;
+    maxv.w = maxv.y;
+  } else if (c == 3u) {
+    minv.w = 0.0;
+    maxv.w = 1.0;
+  }
+  stats[0] = minv.x;
+  stats[1] = maxv.x;
+  stats[2] = minv.y;
+  stats[3] = maxv.y;
+  stats[4] = minv.z;
+  stats[5] = maxv.z;
+  stats[6] = minv.w;
+  stats[7] = maxv.w;
+}
+`;
+
+function inferChannelsFromFormat(format) {
+  switch (format) {
+    case 'r8unorm':
+    case 'r16float':
+    case 'r32float':
+      return 1;
+    case 'rg8unorm':
+    case 'rg16float':
+    case 'rg32float':
+      return 2;
+    case 'rgba8unorm':
+    case 'rgba8unorm-srgb':
+    case 'bgra8unorm':
+    case 'bgra8unorm-srgb':
+    case 'rgba16float':
+    case 'rgba32float':
+      return 4;
+    default:
+      return 4;
+  }
+}
+
 export class Context {
   constructor(canvas, debug = false, powerPreference = 'high-performance') {
     this.canvas = canvas;
@@ -19,6 +121,8 @@ export class Context {
     this.currentTarget = null;
     this._renderPipeline = null;
     this._renderSampler = null;
+    this._renderParamsBuffer = null;
+    this._renderParamsArray = new Float32Array(PRESENT_PARAMS_FLOATS);
     this._pipelineCache = new Map();
     this._pendingDispatch = false;
     this._encoder = null;
@@ -137,6 +241,12 @@ export class Context {
         GPUTextureUsage.COPY_DST |
         GPUTextureUsage.RENDER_ATTACHMENT,
     });
+    try {
+      texture._noisemakerShape = [height, width, 4];
+      texture._noisemakerChannels = 4;
+    } catch (_) {
+      // ignore if metadata assignment fails
+    }
     if (data) {
       const arr = padChannels(data instanceof Float32Array ? data : new Float32Array(data));
       const bytesPerPixel = 4 * 4;
@@ -186,13 +296,28 @@ export class Context {
     }
   }
 
-  renderTexture(texture, target = null) {
+  // `target` may be a GPUTexture, GPUTextureView, or a callback returning
+  // either, allowing callers to defer swap chain acquisition until the render
+  // pass is ready to encode.
+  async renderTexture(source, target = null) {
     if (this.isCPU || !this.device) return;
+    const info = this._resolveTextureInfo(source);
+    if (!info) return;
+    const { texture, width, height, channels, normalized } = info;
+    const channelCount = Math.min(Math.max(Math.floor(channels), 1), 4);
+    const range = await this._computePresentRange(
+      texture,
+      width,
+      height,
+      channelCount,
+      Boolean(normalized),
+    );
+    if (!range) return;
+    const { minVals, invRange } = range;
     if (!this._renderPipeline) {
       const vs = `
         struct VSOut {
           @builtin(position) pos: vec4<f32>,
-          @location(0) uv: vec2<f32>,
         };
         @vertex
         fn main(@builtin(vertex_index) idx : u32) -> VSOut {
@@ -200,27 +325,53 @@ export class Context {
             vec2(-1.0,-1.0), vec2(1.0,-1.0), vec2(-1.0,1.0),
             vec2(-1.0,1.0), vec2(1.0,-1.0), vec2(1.0,1.0)
           );
-          var uv = array<vec2<f32>,6>(
-            vec2(0.0,1.0), vec2(1.0,1.0), vec2(0.0,0.0),
-            vec2(0.0,0.0), vec2(1.0,1.0), vec2(1.0,0.0)
-          );
           var out: VSOut;
           out.pos = vec4<f32>(pos[idx], 0.0, 1.0);
-          out.uv = uv[idx];
           return out;
         }
       `;
       const fs = `
-        @group(0) @binding(0) var samp : sampler;
-        @group(0) @binding(1) var tex : texture_2d<f32>;
+        struct PresentParams {
+          minVals: vec4<f32>,
+          invRange: vec4<f32>,
+          channels: f32,
+          padding: vec3<f32>,
+        };
+        @group(0) @binding(0) var tex : texture_2d<f32>;
+        @group(0) @binding(1) var<uniform> params : PresentParams;
         @fragment
-        fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
-          let dims = vec2<f32>(textureDimensions(tex));
-          let size = max(dims, vec2<f32>(1.0, 1.0));
-          let invSize = vec2<f32>(1.0, 1.0) / size;
-          let clamped = clamp(uv, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0) - invSize);
-          let coord = (floor(clamped * size) + vec2<f32>(0.5, 0.5)) / size;
-          return textureSampleLevel(tex, samp, coord, 0.0);
+        fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+          let dims = textureDimensions(tex);
+          let width = max(i32(dims.x), 1);
+          let height = max(i32(dims.y), 1);
+          let pixel = clamp(
+            vec2<i32>(floor(fragCoord.xy)),
+            vec2<i32>(0, 0),
+            vec2<i32>(width - 1, height - 1)
+          );
+          let color = textureLoad(tex, pixel, 0);
+          let adjusted = (color - params.minVals) * params.invRange;
+          let channels = params.channels;
+          var rgb: vec3<f32>;
+          var alpha: f32;
+          if (channels < 1.5) {
+            let gray = adjusted.x;
+            rgb = vec3<f32>(gray, gray, gray);
+            alpha = 1.0;
+          } else if (channels < 2.5) {
+            let gray = adjusted.x;
+            rgb = vec3<f32>(gray, gray, gray);
+            alpha = adjusted.y;
+          } else if (channels < 3.5) {
+            rgb = adjusted.xyz;
+            alpha = 1.0;
+          } else {
+            rgb = adjusted.xyz;
+            alpha = adjusted.w;
+          }
+          let clampedRgb = clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+          let clampedAlpha = clamp(alpha, 0.0, 1.0);
+          return vec4<f32>(clampedRgb, clampedAlpha);
         }
       `;
       const bindGroupLayout = this.device.createBindGroupLayout({
@@ -228,12 +379,12 @@ export class Context {
           {
             binding: 0,
             visibility: GPUShaderStage.FRAGMENT,
-            sampler: { type: 'non-filtering' },
+            texture: { sampleType: 'unfilterable-float' },
           },
           {
             binding: 1,
             visibility: GPUShaderStage.FRAGMENT,
-            texture: { sampleType: 'unfilterable-float' },
+            buffer: { type: 'uniform' },
           },
         ],
       });
@@ -250,20 +401,58 @@ export class Context {
         },
         primitive: { topology: 'triangle-list' },
       });
-      this._renderSampler = this.device.createSampler({
-        magFilter: 'nearest',
-        minFilter: 'nearest',
-      });
     }
+    if (
+      !this._renderParamsBuffer ||
+      (this._renderParamsBuffer.size ?? this._renderParamsBuffer._size ?? 0) <
+        PRESENT_PARAMS_SIZE
+    ) {
+      if (this._renderParamsBuffer?.destroy) {
+        try {
+          this._renderParamsBuffer.destroy();
+        } catch (_) {
+          // ignore destroy errors
+        }
+      }
+      this._renderParamsBuffer = this.device.createBuffer({
+        size: PRESENT_PARAMS_SIZE,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+      this._renderParamsBuffer._size = PRESENT_PARAMS_SIZE;
+    }
+    const paramsData = this._renderParamsArray;
+    paramsData.fill(0);
+    paramsData.set(minVals, 0);
+    paramsData.set(invRange, 4);
+    paramsData[8] = channelCount;
+    this.queue.writeBuffer(
+      this._renderParamsBuffer,
+      0,
+      paramsData.buffer,
+      paramsData.byteOffset,
+      paramsData.byteLength,
+    );
     const bindGroup = this.device.createBindGroup({
       layout: this._renderPipeline.getBindGroupLayout(0),
       entries: [
-        { binding: 0, resource: this._renderSampler },
-        { binding: 1, resource: texture.createView() },
+        { binding: 0, resource: texture.createView() },
+        { binding: 1, resource: { buffer: this._renderParamsBuffer } },
       ],
     });
+    let resolvedTarget = target;
+    if (typeof resolvedTarget === 'function') {
+      resolvedTarget = resolvedTarget();
+    }
+    let targetView = null;
+    if (resolvedTarget) {
+      if (typeof resolvedTarget.createView === 'function') {
+        targetView = resolvedTarget.createView();
+      } else {
+        targetView = resolvedTarget;
+      }
+    }
     const encoder = this._encoder || this.device.createCommandEncoder();
-    const view = (target || this.gpu.getCurrentTexture()).createView();
+    const view = targetView || this.gpu.getCurrentTexture().createView();
     const pass = this.beginRenderPass(encoder, view);
     pass.setPipeline(this._renderPipeline);
     pass.setBindGroup(0, bindGroup);
@@ -272,6 +461,152 @@ export class Context {
     if (!this._encoder) {
       this.queue.submit([encoder.finish()]);
       this._pendingDispatch = true;
+    }
+  }
+
+  _resolveTextureInfo(source) {
+    let texture = source;
+    let width = 0;
+    let height = 0;
+    let channels = 4;
+    let normalized = false;
+    const flag = '_noisemakerPresentationNormalized';
+    if (source && typeof source === 'object') {
+      if (source[flag]) normalized = Boolean(source[flag]);
+      const maybeShape = source.shape;
+      const maybeHandle = source.handle;
+      if (
+        Array.isArray(maybeShape) &&
+        maybeShape.length >= 3 &&
+        maybeHandle
+      ) {
+        height = maybeShape[0];
+        width = maybeShape[1];
+        channels = maybeShape[2];
+        texture = maybeHandle;
+      }
+      if (
+        !normalized &&
+        maybeHandle &&
+        typeof maybeHandle === 'object' &&
+        maybeHandle[flag]
+      ) {
+        normalized = Boolean(maybeHandle[flag]);
+      }
+    }
+    if (!texture) {
+      return null;
+    }
+    if (!normalized && texture && typeof texture === 'object' && texture[flag]) {
+      normalized = Boolean(texture[flag]);
+    }
+    const metaShape = texture._noisemakerShape;
+    if (Array.isArray(metaShape) && metaShape.length >= 3) {
+      height = height || metaShape[0];
+      width = width || metaShape[1];
+      channels = metaShape[2];
+    }
+    if (!width && typeof texture.width === 'number') width = texture.width;
+    if (!height && typeof texture.height === 'number') height = texture.height;
+    if (!channels && typeof texture._noisemakerChannels === 'number') {
+      channels = texture._noisemakerChannels;
+    }
+    if (!channels && typeof texture.format === 'string') {
+      channels = inferChannelsFromFormat(texture.format);
+    }
+    channels = Math.min(Math.max(Math.floor(channels || 4), 1), 4);
+    if (!width || !height) {
+      return null;
+    }
+    return { texture, width, height, channels, normalized };
+  }
+
+  async _computePresentRange(texture, width, height, channels, normalizedHint = false) {
+    if (!this.device) return null;
+    if (normalizedHint) {
+      const minVals = new Float32Array(4);
+      const invRange = new Float32Array(4);
+      minVals.fill(0);
+      invRange.fill(1);
+      return { minVals, invRange };
+    }
+    const statsBuf = this.device.createBuffer({
+      size: 8 * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    statsBuf._size = 8 * 4;
+    const paramsArr = new Uint32Array([width, height, channels, 0]);
+    const paramsBuf = this.createGPUBuffer(
+      paramsArr,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    );
+    try {
+      await this.runCompute(
+        PRESENT_STATS_WGSL,
+        [
+          { binding: 0, resource: texture.createView() },
+          { binding: 1, resource: { buffer: statsBuf } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+        1,
+        1,
+        1,
+      );
+      const stats = await this.readGPUBuffer(statsBuf, 8 * 4);
+      const minVals = new Float32Array(4);
+      const invRange = new Float32Array(4);
+      const normalized = new Array(4).fill(false);
+      for (let i = 0; i < 4; i++) {
+        const minVal = stats[i * 2];
+        const maxVal = stats[i * 2 + 1];
+        const range = maxVal - minVal;
+        const finite = Number.isFinite(minVal) && Number.isFinite(maxVal);
+        if (!finite || Math.abs(range) <= RANGE_EPSILON) {
+          minVals[i] = 0;
+          invRange[i] = 1;
+        } else {
+          minVals[i] = minVal;
+          invRange[i] = 1 / range;
+        }
+        if (finite) {
+          const withinUnit = minVal >= -RANGE_EPSILON && maxVal <= 1 + RANGE_EPSILON;
+          const touchesZero = minVal <= RANGE_EPSILON;
+          const touchesOne = maxVal >= 1 - RANGE_EPSILON;
+          const flat = Math.abs(range) <= RANGE_EPSILON;
+          // Treat the channel as already normalized only when it stays within the
+          // unit interval *and* either spans the [0, 1] endpoints or is a flat
+          // line at one of them (e.g. an opaque alpha channel). This avoids
+          // skipping normalization for palettes that merely sit inside the unit
+          // interval without actually using its extremes.
+          if (withinUnit && ((touchesZero && touchesOne) || (flat && (touchesZero || touchesOne)))) {
+            normalized[i] = true;
+          }
+        }
+      }
+      const activeChannels = Math.min(Math.max(channels, 1), 4);
+      const alreadyNormalized = normalized
+        .slice(0, activeChannels)
+        .every(Boolean);
+      if (alreadyNormalized) {
+        minVals.fill(0);
+        invRange.fill(1);
+      }
+      return { minVals, invRange };
+    } finally {
+      if (paramsBuf && paramsBuf.destroy) {
+        try {
+          paramsBuf.destroy();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (statsBuf && statsBuf.destroy) {
+        try {
+          statsBuf.destroy();
+        } catch (_) {
+          /* ignore */
+        }
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { Tensor } from "./tensor.js";
+import { Tensor, markPresentationNormalized } from "./tensor.js";
 import {
   warp as warpOp,
   sobel as sobelValue,
@@ -2917,7 +2917,7 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
     blended = Tensor.fromArray(tensor.ctx, final, [h, w, 4]);
   }
 
-  return blended;
+  return markPresentationNormalized(blended);
 }
 register("palette", palette, { name: null, alpha: 1 });
 

@@ -237,7 +237,10 @@ export class Preset {
         ctx.canvas.width = w;
         ctx.canvas.height = h;
         ctx.gpu.configure({ device: ctx.device, format: ctx.presentationFormat });
-        const renderTex = (tex) => ctx.renderTexture(tex, gpuCtx.getCurrentTexture());
+        const renderTex = (tex) => {
+          const res = ctx.renderTexture(tex, () => gpuCtx.getCurrentTexture());
+          return res && typeof res.then === 'function' ? res : Promise.resolve(res);
+        };
         let tex = tensor.handle;
         const isTex = typeof GPUTexture !== 'undefined' && tex instanceof GPUTexture;
         if (!isTex || c !== 4) {
@@ -262,13 +265,13 @@ export class Preset {
             return ctx.createTexture(w, h, data);
           });
           if (texRes && typeof texRes.then === 'function') {
-            drawPromise = texRes.then(renderTex);
+            drawPromise = texRes.then((created) => renderTex(created));
           } else {
             tex = texRes;
-            renderTex(tex);
+            drawPromise = renderTex(tex);
           }
         } else {
-          renderTex(tex);
+          drawPromise = renderTex(tex);
         }
       } else if (ctx.gl && !ctx.isCPU) {
         const gl = ctx.gl;
