@@ -13,6 +13,268 @@ const PRESENT_PARAMS_FLOATS = 16;
 const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
 const RANGE_EPSILON = 1e-6;
 
+const GPU_STORAGE_TEXTURE_USAGE =
+  typeof GPUTextureUsage !== 'undefined'
+    ? GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.TEXTURE_BINDING
+    : 0;
+
+const STORAGE_TEXTURE_FORMAT = 'rgba32float';
+const FRAME_UNIFORM_SIZE = 32;
+
+const DATA_VIEW_WRITE_SIZES = {
+  setFloat32: 4,
+  setInt32: 4,
+  setUint32: 4,
+  setFloat16: 2,
+  setInt16: 2,
+  setUint16: 2,
+  setInt8: 1,
+  setUint8: 1,
+  setBigInt64: 8,
+  setBigUint64: 8,
+  setFloat64: 8,
+};
+
+function alignTo(value, alignment) {
+  const remainder = value % alignment;
+  return remainder === 0 ? value : value + (alignment - remainder);
+}
+
+function alignDown(value, alignment) {
+  return value - (value % alignment);
+}
+
+function createTrackedDataView(buffer, onWrite) {
+  const view = new DataView(buffer);
+  const handler = {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value === 'function') {
+        if (Object.prototype.hasOwnProperty.call(DATA_VIEW_WRITE_SIZES, prop)) {
+          const byteSize = DATA_VIEW_WRITE_SIZES[prop];
+          return function trackedSetter(byteOffset, ...args) {
+            onWrite(byteOffset, byteSize);
+            return value.call(target, byteOffset, ...args);
+          };
+        }
+        return value.bind(target);
+      }
+      return value;
+    },
+  };
+  const proxy = new Proxy(view, handler);
+  Object.defineProperty(proxy, 'markDirty', {
+    value(offset = 0, size = buffer.byteLength) {
+      onWrite(offset, size);
+    },
+  });
+  Object.defineProperty(proxy, 'arrayBuffer', {
+    get() {
+      return buffer;
+    },
+  });
+  return proxy;
+}
+
+class GPUUniformBufferEntry {
+  constructor(ctx, size) {
+    this.ctx = ctx;
+    this.size = size;
+    this.buffers = [
+      ctx.device.createBuffer({
+        size,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      }),
+      ctx.device.createBuffer({
+        size,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      }),
+    ];
+    this.arrays = [new ArrayBuffer(size), new ArrayBuffer(size)];
+    this.views = this.arrays.map((buffer, index) =>
+      createTrackedDataView(buffer, (offset, byteSize) =>
+        this.markDirty(index, offset, byteSize),
+      ),
+    );
+    this.dirtyStart = [size, size];
+    this.dirtyEnd = [0, 0];
+    this.inUse = false;
+  }
+
+  acquire() {
+    this.inUse = true;
+    return this;
+  }
+
+  release() {
+    this.inUse = false;
+  }
+
+  getArrayBuffer(index) {
+    return this.arrays[index];
+  }
+
+  getView(index) {
+    return this.views[index];
+  }
+
+  getGPUBuffer(index) {
+    return this.buffers[index];
+  }
+
+  markDirty(index, offset, byteSize) {
+    if (!Number.isFinite(offset) || !Number.isFinite(byteSize)) {
+      return;
+    }
+    const start = Math.max(0, Math.min(this.size, offset));
+    const end = Math.max(start, Math.min(this.size, offset + byteSize));
+    this.dirtyStart[index] = Math.min(this.dirtyStart[index], start);
+    this.dirtyEnd[index] = Math.max(this.dirtyEnd[index], end);
+  }
+
+  flush(index) {
+    if (!this.ctx?.queue) return;
+    const start = this.dirtyStart[index];
+    const end = this.dirtyEnd[index];
+    if (!(end > start)) {
+      return;
+    }
+    const alignedStart = Math.max(0, alignDown(start, 4));
+    const alignedEnd = Math.min(this.size, alignTo(end, 4));
+    const size = Math.max(0, alignedEnd - alignedStart);
+    if (!size) {
+      this.resetDirty(index);
+      return;
+    }
+    this.ctx.queue.writeBuffer(
+      this.buffers[index],
+      alignedStart,
+      this.arrays[index],
+      alignedStart,
+      size,
+    );
+    this.resetDirty(index);
+  }
+
+  flushAll() {
+    for (let i = 0; i < this.buffers.length; i++) {
+      this.flush(i);
+    }
+  }
+
+  resetDirty(index) {
+    this.dirtyStart[index] = this.size;
+    this.dirtyEnd[index] = 0;
+  }
+
+  destroy() {
+    for (const buffer of this.buffers) {
+      if (buffer && typeof buffer.destroy === 'function') {
+        try {
+          buffer.destroy();
+        } catch (_) {
+          /* ignore destroy failures */
+        }
+      }
+    }
+    this.buffers = [];
+    this.arrays = [];
+    this.views = [];
+  }
+}
+
+class CPUUniformBufferEntry {
+  constructor(size) {
+    this.size = size;
+    this.arrays = [new ArrayBuffer(size), new ArrayBuffer(size)];
+    this.views = this.arrays.map((buffer) =>
+      createTrackedDataView(buffer, () => {}),
+    );
+    this.inUse = false;
+  }
+
+  acquire() {
+    this.inUse = true;
+    return this;
+  }
+
+  release() {
+    this.inUse = false;
+  }
+
+  getArrayBuffer(index) {
+    return this.arrays[index];
+  }
+
+  getView(index) {
+    return this.views[index];
+  }
+
+  getGPUBuffer() {
+    return null;
+  }
+
+  flushAll() {}
+
+  flush(index) {
+    void index;
+  }
+
+  destroy() {
+    this.arrays = [];
+    this.views = [];
+  }
+}
+
+class UniformBufferPool {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.bySize = new Map();
+  }
+
+  acquire(size) {
+    const alignedSize = alignTo(size, 16);
+    let entries = this.bySize.get(alignedSize);
+    if (!entries) {
+      entries = [];
+      this.bySize.set(alignedSize, entries);
+    }
+    let entry = entries.find((item) => !item.inUse);
+    if (!entry) {
+      if (this.ctx?.device) {
+        entry = new GPUUniformBufferEntry(this.ctx, alignedSize);
+      } else {
+        entry = new CPUUniformBufferEntry(alignedSize);
+      }
+      entries.push(entry);
+    }
+    return entry.acquire();
+  }
+
+  release(entry) {
+    if (!entry) return;
+    entry.release();
+    if (entry.resetDirty) {
+      entry.resetDirty(0);
+      entry.resetDirty(1);
+    }
+  }
+
+  destroy() {
+    for (const entries of this.bySize.values()) {
+      for (const entry of entries) {
+        if (typeof entry.destroy === 'function') {
+          entry.destroy();
+        }
+      }
+    }
+    this.bySize.clear();
+  }
+}
+
 const PRESENT_STATS_WGSL = `
 struct PresentStatsParams {
   width: u32,
@@ -127,6 +389,12 @@ export class Context {
     this._pendingDispatch = false;
     this._encoder = null;
     this._workDonePromise = null;
+    this._storageTextureCache = new Map();
+    this._pingPongCache = new Map();
+    this._uniformBufferPool = null;
+    this._bindGroupLayoutCache = new Map();
+    this._pipelineLayoutCache = new Map();
+    this._frameUniform = null;
   }
 
   async initWebGPU() {
@@ -263,6 +531,282 @@ export class Context {
       );
     }
     return texture;
+  }
+
+  _createCPUTexture(width, height) {
+    const data = new Float32Array(width * height * 4);
+    const texture = { width, height, channels: 4, data };
+    try {
+      texture._noisemakerShape = [height, width, 4];
+      texture._noisemakerChannels = 4;
+    } catch (_) {
+      /* ignore metadata errors */
+    }
+    return texture;
+  }
+
+  _createStorageTexture(width, height) {
+    const usage =
+      GPU_STORAGE_TEXTURE_USAGE ||
+      (typeof GPUTextureUsage !== 'undefined'
+        ? GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST |
+          GPUTextureUsage.TEXTURE_BINDING
+        : 0);
+    const texture = this.device.createTexture({
+      size: { width, height, depthOrArrayLayers: 1 },
+      format: STORAGE_TEXTURE_FORMAT,
+      usage,
+    });
+    try {
+      texture._noisemakerShape = [height, width, 4];
+      texture._noisemakerChannels = 4;
+    } catch (_) {
+      /* ignore metadata errors */
+    }
+    return texture;
+  }
+
+  _destroyTexture(texture) {
+    if (!texture) return;
+    if (typeof texture.destroy === 'function') {
+      try {
+        texture.destroy();
+      } catch (_) {
+        /* ignore destroy failures */
+      }
+    }
+  }
+
+  ensureStorageTexture(width, height, id = 'default') {
+    const key = `${width}x${height}:${id}`;
+    let record = this._storageTextureCache.get(key);
+    const format = STORAGE_TEXTURE_FORMAT;
+    const needsRecreate =
+      !record ||
+      record.width !== width ||
+      record.height !== height ||
+      record.format !== format;
+    if (needsRecreate) {
+      if (record?.texture && !this.isCPU && this.device) {
+        this._destroyTexture(record.texture);
+      }
+      const texture =
+        this.isCPU || !this.device
+          ? this._createCPUTexture(width, height)
+          : this._createStorageTexture(width, height);
+      record = { key, width, height, format, texture };
+      this._storageTextureCache.set(key, record);
+    }
+    return record.texture;
+  }
+
+  ensurePingPongTextures(width, height) {
+    const key = `${width}x${height}`;
+    let record = this._pingPongCache.get(key);
+    const format = STORAGE_TEXTURE_FORMAT;
+    const needsRecreate =
+      !record ||
+      record.width !== width ||
+      record.height !== height ||
+      record.format !== format ||
+      !Array.isArray(record.textures) ||
+      record.textures.length !== 2;
+    if (needsRecreate) {
+      if (record && record.textures && !this.isCPU && this.device) {
+        for (const tex of record.textures) {
+          this._destroyTexture(tex);
+        }
+      }
+      const textures = this.isCPU || !this.device
+        ? [
+            this._createCPUTexture(width, height),
+            this._createCPUTexture(width, height),
+          ]
+        : [
+            this._createStorageTexture(width, height),
+            this._createStorageTexture(width, height),
+          ];
+      const views = this.isCPU || !this.device
+        ? [null, null]
+        : textures.map((texture) => texture.createView());
+      record = { key, width, height, format, textures, views };
+      this._pingPongCache.set(key, record);
+    }
+    return record;
+  }
+
+  _ensureFrameUniformObject() {
+    if (!this.device) return null;
+    if (this._frameUniform) return this._frameUniform;
+    const buffer = this.device.createBuffer({
+      size: FRAME_UNIFORM_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const arrayBuffer = new ArrayBuffer(FRAME_UNIFORM_SIZE);
+    const float32 = new Float32Array(arrayBuffer);
+    const uint32 = new Uint32Array(arrayBuffer);
+    const info = {
+      buffer,
+      arrayBuffer,
+      float32,
+      uint32,
+      dirtyStart: arrayBuffer.byteLength,
+      dirtyEnd: 0,
+      view: null,
+    };
+    info.view = createTrackedDataView(arrayBuffer, (offset, byteSize) => {
+      const start = Math.max(0, Math.min(arrayBuffer.byteLength, offset));
+      const end = Math.max(start, Math.min(arrayBuffer.byteLength, offset + byteSize));
+      info.dirtyStart = Math.min(info.dirtyStart, start);
+      info.dirtyEnd = Math.max(info.dirtyEnd, end);
+    });
+    this._frameUniform = info;
+    return info;
+  }
+
+  ensureFrameUniforms(width, height, seed, time, frameIndex) {
+    if (!this.device) {
+      return null;
+    }
+    const info = this._ensureFrameUniformObject();
+    if (!info) return null;
+    const { float32, uint32, arrayBuffer } = info;
+    let dirtyStart = info.dirtyStart;
+    let dirtyEnd = info.dirtyEnd;
+    const updateRange = (offsetBytes) => {
+      dirtyStart = Math.min(dirtyStart, offsetBytes);
+      dirtyEnd = Math.max(dirtyEnd, offsetBytes + 4);
+    };
+    const setFloat = (index, value) => {
+      if (!Number.isFinite(value)) value = 0;
+      if (float32[index] !== value) {
+        float32[index] = value;
+        updateRange(index * 4);
+      }
+    };
+    const setUint = (index, value) => {
+      const normalized = value >>> 0;
+      if (uint32[index] !== normalized) {
+        uint32[index] = normalized;
+        updateRange(index * 4);
+      }
+    };
+
+    setFloat(0, Number(width) || 0);
+    setFloat(1, Number(height) || 0);
+    setFloat(2, Number(time) || 0);
+    setUint(3, Number(seed) || 0);
+    setUint(4, Number(frameIndex) || 0);
+
+    info.dirtyStart = dirtyStart;
+    info.dirtyEnd = dirtyEnd;
+
+    if (this.queue && dirtyEnd > dirtyStart) {
+      const alignedStart = Math.max(0, alignDown(dirtyStart, 4));
+      const alignedEnd = Math.min(arrayBuffer.byteLength, alignTo(dirtyEnd, 4));
+      const byteSize = Math.max(0, alignedEnd - alignedStart);
+      if (byteSize) {
+        this.queue.writeBuffer(
+          info.buffer,
+          alignedStart,
+          arrayBuffer,
+          alignedStart,
+          byteSize,
+        );
+      }
+      info.dirtyStart = arrayBuffer.byteLength;
+      info.dirtyEnd = 0;
+    }
+
+    return {
+      buffer: info.buffer,
+      arrayBuffer,
+      float32,
+      uint32,
+      view: info.view,
+      size: arrayBuffer.byteLength,
+    };
+  }
+
+  dispose(options = {}) {
+    const { keepLookupTextures = true } = options || {};
+    if (this._renderParamsBuffer?.destroy) {
+      try {
+        this._renderParamsBuffer.destroy();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    this._renderParamsBuffer = null;
+    this._renderPipeline = null;
+    if (!keepLookupTextures) {
+      this._destroyLookupTextures?.();
+    }
+    for (const record of this._storageTextureCache.values()) {
+      if (!this.isCPU && this.device) {
+        this._destroyTexture(record.texture);
+      }
+    }
+    this._storageTextureCache.clear();
+    for (const record of this._pingPongCache.values()) {
+      if (!this.isCPU && this.device && Array.isArray(record.textures)) {
+        for (const tex of record.textures) {
+          this._destroyTexture(tex);
+        }
+      }
+    }
+    this._pingPongCache.clear();
+    if (this._uniformBufferPool) {
+      this._uniformBufferPool.destroy();
+      this._uniformBufferPool = null;
+    }
+    if (this._frameUniform?.buffer?.destroy) {
+      try {
+        this._frameUniform.buffer.destroy();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    this._frameUniform = null;
+  }
+
+  getCachedBindGroupLayout(signature, entriesFactory) {
+    if (!this.device) return null;
+    if (!signature) return null;
+    const key = typeof signature === 'string' ? signature : JSON.stringify(signature);
+    let record = this._bindGroupLayoutCache.get(key);
+    if (!record) {
+      if (typeof entriesFactory !== 'function') {
+        return null;
+      }
+      const entries = entriesFactory();
+      if (!entries || !entries.length) {
+        return null;
+      }
+      const layout = this.device.createBindGroupLayout({ entries });
+      record = { layout, entries };
+      this._bindGroupLayoutCache.set(key, record);
+    }
+    return record.layout;
+  }
+
+  getCachedPipelineLayout(shaderId, signature, bindGroupLayouts) {
+    if (!this.device) return null;
+    const normalizedSignature =
+      typeof signature === 'string' ? signature : JSON.stringify(signature);
+    const key = `${shaderId || 'generic'}|${normalizedSignature}`;
+    let layout = this._pipelineLayoutCache.get(key);
+    if (!layout) {
+      const layouts = (Array.isArray(bindGroupLayouts) ? bindGroupLayouts : []).filter(Boolean);
+      if (!layouts.length) {
+        return null;
+      }
+      layout = this.device.createPipelineLayout({ bindGroupLayouts: layouts });
+      this._pipelineLayoutCache.set(key, layout);
+    }
+    return layout;
   }
 
   createFBO(texture) {
@@ -624,6 +1168,24 @@ export class Context {
     return buf;
   }
 
+  _getUniformBufferPool() {
+    if (!this._uniformBufferPool) {
+      this._uniformBufferPool = new UniformBufferPool(this);
+    }
+    return this._uniformBufferPool;
+  }
+
+  acquireUniformBufferPair(size) {
+    return this._getUniformBufferPool().acquire(size);
+  }
+
+  releaseUniformBufferPair(entry) {
+    if (!entry) return;
+    if (this._uniformBufferPool) {
+      this._uniformBufferPool.release(entry);
+    }
+  }
+
   async flush() {
     if (!this._pendingDispatch || !this.queue?.onSubmittedWorkDone) {
       return;
@@ -753,23 +1315,35 @@ export class Context {
   }
 
   pingPong(width, height) {
-    return new PingPong(this, width, height);
+    const record = this.ensurePingPongTextures(width, height);
+    return new PingPong(this, width, height, record);
   }
 }
 
 export class PingPong {
-  constructor(ctx, width, height) {
+  constructor(ctx, width, height, record) {
     this.ctx = ctx;
     this.width = width;
     this.height = height;
-    this.readTex = ctx.createTexture(width, height);
-    this.writeTex = ctx.createTexture(width, height);
-    this.readFbo = ctx.createFBO(this.readTex);
-    this.writeFbo = ctx.createFBO(this.writeTex);
+    this._record = record;
+    this._textures = record?.textures || [];
+    this._views = record?.views || [];
+    this.readIndex = 0;
+    this.writeIndex = 1;
+    this._updateHandles();
   }
 
   swap() {
-    [this.readTex, this.writeTex] = [this.writeTex, this.readTex];
-    [this.readFbo, this.writeFbo] = [this.writeFbo, this.readFbo];
+    [this.readIndex, this.writeIndex] = [this.writeIndex, this.readIndex];
+    this._updateHandles();
+  }
+
+  _updateHandles() {
+    this.readTex = this._textures[this.readIndex];
+    this.writeTex = this._textures[this.writeIndex];
+    const readView = this._views[this.readIndex] || null;
+    const writeView = this._views[this.writeIndex] || null;
+    this.readFbo = readView || this.ctx.createFBO(this.readTex);
+    this.writeFbo = writeView || this.ctx.createFBO(this.writeTex);
   }
 }

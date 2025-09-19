@@ -1,6 +1,9 @@
 import * as SHADERS from './shaders.js';
 
 const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
+const COMPUTE_STAGE_VISIBILITY =
+  typeof GPUShaderStage !== 'undefined' ? GPUShaderStage.COMPUTE : 0;
+const STORAGE_TEXTURE_FORMAT = 'rgba32float';
 
 /**
  * Represents a single std140 uniform field within a stage specific buffer.
@@ -54,6 +57,12 @@ const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
  *   constants. `null` when unavailable.
  * @property {object|null} pipeline Cached `GPUComputePipeline` instance. The
  *   pipeline is optional because unit tests run without WebGPU access.
+ * @property {string|null} bindingSignature Stable key describing the bind-group
+ *   requirements for caching.
+ * @property {GPUBindGroupLayout|null} bindGroupLayout Cached bind-group layout
+ *   when a WebGPU device is available.
+ * @property {GPUPipelineLayout|null} pipelineLayout Cached pipeline layout when
+ *   a WebGPU device is available.
  * @property {UniformLayout|null} uniformLayout std140 layout for the stage
  *   specific uniform buffer or `null` when the stage does not expose uniforms.
  * @property {Record<string, number|boolean|Array<number>>} uniformDefaults
@@ -117,7 +126,7 @@ export class PresetProgram {
     this.stages = stages;
     this.sharedResources = sharedResources;
     this.topologySignature = stages.map((stage) => stage.signature).join('|');
-    this.uniformBuffers = stages.map((stage) => buildUniformBufferPair(stage));
+    this.uniformBuffers = stages.map((stage) => buildUniformBufferPair(stage, ctx));
   }
 
   /**
@@ -144,19 +153,38 @@ export class PresetProgram {
    * @param {number} [bufferIndex=0] Selects either buffer in the double buffered
    *   pair. The index is modulo the available views so callers can pass frame
    *   counters directly.
-   * @returns {{ buffer: ArrayBuffer, view: DataView, layout: UniformLayout }|null}
+   * @returns {{
+   *   arrayBuffer: ArrayBuffer,
+   *   view: DataView,
+   *   layout: UniformLayout,
+   *   gpuBuffer: GPUBuffer|null,
+   *   flush: () => void,
+   *   index: number,
+   * }|null}
    */
   getUniformBufferView(index, bufferIndex = 0) {
     const holder = this.uniformBuffers[index];
     if (!holder) return null;
-    const views = holder.views;
+    const views = holder.views || [];
     if (!views.length) return null;
     const selected = views[((bufferIndex % views.length) + views.length) % views.length];
     return {
-      buffer: holder.buffers[selected.index],
+      arrayBuffer: selected.arrayBuffer,
       view: selected.view,
       layout: this.stages[index].uniformLayout,
+      gpuBuffer: selected.gpuBuffer || null,
+      flush: selected.flush || (() => {}),
+      index: selected.index,
     };
+  }
+
+  dispose() {
+    for (const holder of this.uniformBuffers) {
+      if (holder?.release) {
+        holder.release();
+      }
+    }
+    this.uniformBuffers = [];
   }
 
   /**
@@ -174,14 +202,152 @@ export class PresetProgram {
   }
 }
 
-function buildUniformBufferPair(stage) {
+function buildUniformBufferPair(stage, ctx) {
   const layout = stage.uniformLayout;
   if (!layout || !layout.size) {
-    return { buffers: [], views: [] };
+    return { entry: null, views: [] };
   }
-  const buffers = [new ArrayBuffer(layout.size), new ArrayBuffer(layout.size)];
-  const views = buffers.map((buffer, index) => ({ view: new DataView(buffer), index }));
-  return { buffers, views };
+  const buildFallback = () => {
+    const buffers = [new ArrayBuffer(layout.size), new ArrayBuffer(layout.size)];
+    const views = buffers.map((buffer, index) => ({
+      index,
+      view: new DataView(buffer),
+      arrayBuffer: buffer,
+      gpuBuffer: null,
+      flush: () => {},
+    }));
+    return { entry: null, views, release: () => {} };
+  };
+  if (!ctx) {
+    return buildFallback();
+  }
+  let entry = null;
+  try {
+    entry = ctx.acquireUniformBufferPair(layout.size);
+  } catch {
+    entry = null;
+  }
+  if (!entry) {
+    return buildFallback();
+  }
+  const views = [0, 1].map((index) => {
+    const view = typeof entry.getView === 'function' ? entry.getView(index) : null;
+    const arrayBuffer =
+      typeof entry.getArrayBuffer === 'function'
+        ? entry.getArrayBuffer(index)
+        : view?.buffer || new ArrayBuffer(layout.size);
+    const flush = () => {
+      if (typeof entry.flush === 'function') {
+        entry.flush(index);
+      } else if (typeof entry.flushAll === 'function') {
+        entry.flushAll();
+      }
+    };
+    const gpuBuffer =
+      typeof entry.getGPUBuffer === 'function' ? entry.getGPUBuffer(index) : null;
+    return {
+      index,
+      view: view || new DataView(arrayBuffer),
+      arrayBuffer,
+      gpuBuffer,
+      flush,
+    };
+  });
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    if (entry && typeof ctx.releaseUniformBufferPair === 'function') {
+      ctx.releaseUniformBufferPair(entry);
+    }
+    entry = null;
+  };
+  return { entry, views, release };
+}
+
+function buildBindingSignature(descriptor) {
+  const parts = [];
+  const bindings = descriptor.bindings || {};
+  if (bindings.hasUniform) parts.push('uniform');
+  if (bindings.hasFrameUniform) parts.push('frame');
+  if (bindings.readsTexture) parts.push('read-storage');
+  if (bindings.writesTexture) parts.push('write-storage');
+  if (Array.isArray(bindings.auxiliary)) {
+    for (const aux of bindings.auxiliary) {
+      const type = aux?.resourceType || 'unknown';
+      const opt = aux?.optional ? 'opt' : 'req';
+      parts.push(`aux:${type}:${opt}`);
+    }
+  }
+  return parts.length ? parts.join('|') : 'none';
+}
+
+function buildBindGroupLayoutEntries(descriptor) {
+  const entries = [];
+  const bindings = descriptor.bindings || {};
+  const visibility =
+    typeof GPUShaderStage !== 'undefined' ? GPUShaderStage.COMPUTE : COMPUTE_STAGE_VISIBILITY;
+  if (visibility === 0) {
+    return entries;
+  }
+  if (bindings.hasUniform) {
+    entries.push({
+      binding: 0,
+      visibility,
+      buffer: { type: 'uniform' },
+    });
+  }
+  if (bindings.hasFrameUniform) {
+    entries.push({
+      binding: 1,
+      visibility,
+      buffer: { type: 'uniform' },
+    });
+  }
+  if (bindings.readsTexture) {
+    entries.push({
+      binding: 2,
+      visibility,
+      storageTexture: { access: 'read-only', format: STORAGE_TEXTURE_FORMAT, viewDimension: '2d' },
+    });
+  }
+  if (bindings.writesTexture) {
+    entries.push({
+      binding: 3,
+      visibility,
+      storageTexture: { access: 'write-only', format: STORAGE_TEXTURE_FORMAT, viewDimension: '2d' },
+    });
+  }
+  const auxiliaries = Array.isArray(bindings.auxiliary) ? bindings.auxiliary : [];
+  auxiliaries.forEach((aux, idx) => {
+    const binding = 4 + idx;
+    const entry = buildAuxiliaryLayoutEntry(aux, binding, visibility);
+    if (entry) {
+      entries.push(entry);
+    }
+  });
+  return entries;
+}
+
+function buildAuxiliaryLayoutEntry(aux, binding, visibility) {
+  if (!aux) return null;
+  const type = aux.resourceType || 'texture';
+  switch (type) {
+    case 'sampler':
+      return { binding, visibility, sampler: {} };
+    case 'buffer':
+    case 'arraybuffer':
+    case 'typedarray':
+      return { binding, visibility, buffer: { type: 'read-only-storage' } };
+    case 'null':
+      return null;
+    default:
+      return {
+        binding,
+        visibility,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d' },
+      };
+  }
 }
 
 function collectPresetStages(preset) {
@@ -255,6 +421,9 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     shaderId: resolveShaderId(stage),
     shaderSource: null,
     pipeline: null,
+    bindingSignature: null,
+    bindGroupLayout: null,
+    pipelineLayout: null,
     uniformLayout: null,
     uniformDefaults: {},
     resourceParams: [],
@@ -309,6 +478,21 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
 
   descriptor.shaderSource = resolveShaderSource(descriptor, sharedResources);
   descriptor.pipeline = acquirePipeline(descriptor, ctx, sharedResources);
+
+  descriptor.bindingSignature = buildBindingSignature(descriptor);
+  if (ctx && typeof ctx.getCachedBindGroupLayout === 'function') {
+    descriptor.bindGroupLayout = ctx.getCachedBindGroupLayout(
+      descriptor.bindingSignature,
+      () => buildBindGroupLayoutEntries(descriptor),
+    );
+  }
+  if (descriptor.bindGroupLayout && ctx && typeof ctx.getCachedPipelineLayout === 'function') {
+    descriptor.pipelineLayout = ctx.getCachedPipelineLayout(
+      descriptor.shaderId,
+      descriptor.bindingSignature,
+      [descriptor.bindGroupLayout],
+    );
+  }
 
   if (!descriptor.shaderSource) {
     descriptor.gpuSupported = false;
