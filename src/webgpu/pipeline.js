@@ -4,6 +4,8 @@ const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
 const COMPUTE_STAGE_VISIBILITY =
   typeof GPUShaderStage !== 'undefined' ? GPUShaderStage.COMPUTE : 0;
 const STORAGE_TEXTURE_FORMAT = 'rgba32float';
+const PRESENT_PARAMS_FLOATS = 16;
+const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
 
 /**
  * Represents a single std140 uniform field within a stage specific buffer.
@@ -176,6 +178,517 @@ export class PresetProgram {
       flush: selected.flush || (() => {}),
       index: selected.index,
     };
+  }
+
+  async execute(ctx, options = {}) {
+    const context = ctx || this.ctx;
+    if (!context || !context.device || !context.queue) {
+      throw new Error('PresetProgram.execute requires an initialized WebGPU context.');
+    }
+    if (!Array.isArray(this.stages) || !this.stages.length) {
+      throw new Error('PresetProgram.execute requires at least one GPU stage.');
+    }
+
+    const {
+      encoder: providedEncoder = null,
+      width: optWidth,
+      height: optHeight,
+      time = 0,
+      frameIndex = 0,
+      seed = 0,
+      present = false,
+      target: targetOverride,
+      presentationTarget,
+      readback = false,
+    } = options || {};
+
+    const width = Math.max(1, Math.floor(Number(optWidth) || 0));
+    const height = Math.max(1, Math.floor(Number(optHeight) || 0));
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      throw new Error('PresetProgram.execute requires positive width and height.');
+    }
+
+    const autoSubmit = !providedEncoder;
+    const device = context.device;
+    const queue = context.queue;
+    const pingPong = context.pingPong(width, height);
+    const frameUniformInfo = context.ensureFrameUniforms(width, height, seed, time, frameIndex);
+    const presentationTargetOption =
+      presentationTarget !== undefined ? presentationTarget : targetOverride;
+    const gpuMapModeRead = typeof GPUMapMode !== 'undefined' ? GPUMapMode.READ : 1;
+
+    const encode = async (encoder) => {
+      const state = {
+        finalTexture: pingPong.readTex,
+        finalView: pingPong.readFbo,
+        readbackRequest: null,
+        profileInfo: null,
+      };
+
+      const timestampSupported = Boolean(
+        device.features && typeof device.features.has === 'function' && device.features.has('timestamp-query'),
+      );
+      const canWriteTimestamp = timestampSupported && typeof encoder.writeTimestamp === 'function';
+      const querySet = canWriteTimestamp
+        ? this._timestampQuerySet || device.createQuerySet({ type: 'timestamp', count: 2 })
+        : null;
+      if (querySet && !this._timestampQuerySet) {
+        this._timestampQuerySet = querySet;
+      }
+      let resolveBuffer = null;
+      if (querySet) {
+        const baseUsage =
+          (typeof GPUBufferUsage !== 'undefined' ? GPUBufferUsage.COPY_DST : 0) |
+          (typeof GPUBufferUsage !== 'undefined' && GPUBufferUsage.MAP_READ
+            ? GPUBufferUsage.MAP_READ
+            : 0);
+        const queryResolveUsage =
+          typeof GPUBufferUsage !== 'undefined' && GPUBufferUsage.QUERY_RESOLVE
+            ? GPUBufferUsage.QUERY_RESOLVE
+            : 0;
+        const usage = baseUsage | queryResolveUsage;
+        resolveBuffer = usage
+          ? device.createBuffer({ size: 16, usage })
+          : null;
+        if (resolveBuffer && canWriteTimestamp) {
+          encoder.writeTimestamp(querySet, 0);
+        }
+      }
+
+      for (let index = 0; index < this.stages.length; index += 1) {
+        const descriptor = this.stages[index];
+        if (!descriptor || descriptor.gpuSupported === false) {
+          continue;
+        }
+
+        let pipeline = descriptor.pipeline;
+        if (pipeline && typeof pipeline.then === 'function') {
+          try {
+            pipeline = await pipeline;
+          } catch (err) {
+            console.warn('Failed to resolve pipeline for stage', descriptor?.label, err);
+            pipeline = null;
+          }
+        }
+        if (!pipeline && descriptor.shaderSource && typeof context.createComputePipeline === 'function') {
+          try {
+            pipeline = await context.createComputePipeline(descriptor.shaderSource);
+            descriptor.pipeline = pipeline;
+          } catch (err) {
+            console.warn('Failed to create pipeline for stage', descriptor?.label, err);
+            pipeline = null;
+          }
+        }
+        if (!pipeline) {
+          continue;
+        }
+
+        const uniformView = this.getUniformBufferView(index, frameIndex);
+        if (uniformView && typeof uniformView.flush === 'function') {
+          uniformView.flush();
+        }
+
+        const entries = [];
+        if (descriptor.bindings?.hasUniform && uniformView?.gpuBuffer) {
+          entries.push({ binding: 0, resource: { buffer: uniformView.gpuBuffer } });
+        }
+        if (descriptor.bindings?.hasFrameUniform && frameUniformInfo?.buffer) {
+          entries.push({ binding: 1, resource: { buffer: frameUniformInfo.buffer } });
+        }
+        if (descriptor.bindings?.readsTexture && pingPong.readFbo) {
+          entries.push({ binding: 2, resource: pingPong.readFbo });
+        }
+        if (descriptor.bindings?.writesTexture && pingPong.writeFbo) {
+          entries.push({ binding: 3, resource: pingPong.writeFbo });
+        }
+
+        const resources = Array.isArray(descriptor.resourceParams) ? descriptor.resourceParams : [];
+        for (let auxIndex = 0; auxIndex < resources.length; auxIndex += 1) {
+          const binding = 4 + auxIndex;
+          const resourceSpec = resources[auxIndex];
+          let entry = null;
+          const helperArgs = {
+            ctx: context,
+            program: this,
+            descriptor,
+            resource: resourceSpec,
+            binding,
+            stageIndex: index,
+            pingPong,
+            width,
+            height,
+            frameIndex,
+          };
+          if (this.sharedResources) {
+            const helpers = this.sharedResources;
+            if (!entry && typeof helpers.resolveResourceBinding === 'function') {
+              entry = helpers.resolveResourceBinding(helperArgs);
+            }
+            if (!entry && typeof helpers.getAuxiliaryBindGroupEntry === 'function') {
+              entry = helpers.getAuxiliaryBindGroupEntry(helperArgs);
+            }
+            if (!entry && typeof helpers.buildStageBindGroupEntry === 'function') {
+              entry = helpers.buildStageBindGroupEntry(helperArgs);
+            }
+          }
+          if (!entry && resourceSpec?.value) {
+            const value = resourceSpec.value;
+            if (value && typeof value === 'object') {
+              if (typeof value.createView === 'function') {
+                entry = { resource: value.createView() };
+              } else if ('resource' in value) {
+                entry = { resource: value.resource };
+              }
+            }
+            if (!entry && value) {
+              entry = { resource: value };
+            }
+          }
+          if (entry && entry.resource) {
+            entries.push({ binding, resource: entry.resource });
+          }
+        }
+
+        const layout =
+          descriptor.bindGroupLayout || (pipeline.getBindGroupLayout ? pipeline.getBindGroupLayout(0) : null);
+        if (!layout) {
+          continue;
+        }
+        let bindGroup;
+        try {
+          bindGroup = device.createBindGroup({ layout, entries });
+        } catch (err) {
+          console.warn('Failed to create bind group for stage', descriptor?.label, err);
+          continue;
+        }
+
+        const pass = context.beginComputePass(encoder);
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        const workgroupSize = Array.isArray(descriptor.specialization?.workgroupSize)
+          ? descriptor.specialization.workgroupSize
+          : DEFAULT_WORKGROUP_SIZE;
+        const wgX = Math.max(1, Math.floor(workgroupSize[0] || DEFAULT_WORKGROUP_SIZE[0]));
+        const wgY = Math.max(1, Math.floor(workgroupSize[1] || DEFAULT_WORKGROUP_SIZE[1]));
+        const dispatchX = Math.max(1, Math.ceil(width / wgX));
+        const dispatchY = Math.max(1, Math.ceil(height / wgY));
+        pass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+        pass.end();
+
+        pingPong.swap();
+        state.finalTexture = pingPong.readTex;
+        state.finalView = pingPong.readFbo;
+      }
+
+      if (state.finalTexture) {
+        try {
+          state.finalTexture._noisemakerPresentationNormalized = true;
+          state.finalTexture._noisemakerChannels = 4;
+          state.finalTexture._noisemakerShape = [height, width, 4];
+        } catch (err) {
+          void err;
+        }
+      }
+
+      if (present && state.finalView && context.presentationFormat) {
+        if (!context._renderPipeline) {
+          const vs = `
+            struct VSOut {
+              @builtin(position) pos: vec4<f32>,
+            };
+            @vertex
+            fn main(@builtin(vertex_index) idx : u32) -> VSOut {
+              var pos = array<vec2<f32>,6>(
+                vec2(-1.0,-1.0), vec2(1.0,-1.0), vec2(-1.0,1.0),
+                vec2(-1.0,1.0), vec2(1.0,-1.0), vec2(1.0,1.0)
+              );
+              var out: VSOut;
+              out.pos = vec4<f32>(pos[idx], 0.0, 1.0);
+              return out;
+            }
+          `;
+          const fs = `
+            struct PresentParams {
+              minVals: vec4<f32>,
+              invRange: vec4<f32>,
+              channels: f32,
+              padding: vec3<f32>,
+            };
+            @group(0) @binding(0) var tex : texture_2d<f32>;
+            @group(0) @binding(1) var<uniform> params : PresentParams;
+            @fragment
+            fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+              let dims = textureDimensions(tex);
+              let width = max(i32(dims.x), 1);
+              let height = max(i32(dims.y), 1);
+              let pixel = clamp(
+                vec2<i32>(floor(fragCoord.xy)),
+                vec2<i32>(0, 0),
+                vec2<i32>(width - 1, height - 1)
+              );
+              let color = textureLoad(tex, pixel, 0);
+              let adjusted = (color - params.minVals) * params.invRange;
+              let channels = params.channels;
+              var rgb: vec3<f32>;
+              var alpha: f32;
+              if (channels < 1.5) {
+                let gray = adjusted.x;
+                rgb = vec3<f32>(gray, gray, gray);
+                alpha = 1.0;
+              } else if (channels < 2.5) {
+                let gray = adjusted.x;
+                rgb = vec3<f32>(gray, gray, gray);
+                alpha = adjusted.y;
+              } else if (channels < 3.5) {
+                rgb = adjusted.xyz;
+                alpha = 1.0;
+              } else {
+                rgb = adjusted.xyz;
+                alpha = adjusted.w;
+              }
+              let clampedRgb = clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+              let clampedAlpha = clamp(alpha, 0.0, 1.0);
+              return vec4<f32>(clampedRgb, clampedAlpha);
+            }
+          `;
+          const bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+              {
+                binding: 0,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture: { sampleType: 'unfilterable-float' },
+              },
+              {
+                binding: 1,
+                visibility: GPUShaderStage.FRAGMENT,
+                buffer: { type: 'uniform' },
+              },
+            ],
+          });
+          const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+          context._renderPipeline = device.createRenderPipeline({
+            layout: pipelineLayout,
+            vertex: { module: context.createShaderModule(vs), entryPoint: 'main' },
+            fragment: {
+              module: context.createShaderModule(fs),
+              entryPoint: 'main',
+              targets: [{ format: context.presentationFormat }],
+            },
+            primitive: { topology: 'triangle-list' },
+          });
+        }
+        if (!context._renderParamsArray || context._renderParamsArray.length !== PRESENT_PARAMS_FLOATS) {
+          context._renderParamsArray = new Float32Array(PRESENT_PARAMS_FLOATS);
+        }
+        if (
+          !context._renderParamsBuffer ||
+          (context._renderParamsBuffer.size ?? context._renderParamsBuffer._size ?? 0) < PRESENT_PARAMS_SIZE
+        ) {
+          if (context._renderParamsBuffer?.destroy) {
+            try {
+              context._renderParamsBuffer.destroy();
+            } catch (err) {
+              void err;
+            }
+          }
+          context._renderParamsBuffer = device.createBuffer({
+            size: PRESENT_PARAMS_SIZE,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          });
+          context._renderParamsBuffer._size = PRESENT_PARAMS_SIZE;
+        }
+        const paramsArray = context._renderParamsArray;
+        paramsArray.fill(0);
+        paramsArray.set([0, 0, 0, 0], 0);
+        paramsArray.set([1, 1, 1, 1], 4);
+        paramsArray[8] = 4;
+        queue.writeBuffer(
+          context._renderParamsBuffer,
+          0,
+          paramsArray.buffer,
+          paramsArray.byteOffset,
+          paramsArray.byteLength,
+        );
+        const renderBindGroup = device.createBindGroup({
+          layout: context._renderPipeline.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: state.finalView },
+            { binding: 1, resource: { buffer: context._renderParamsBuffer } },
+          ],
+        });
+        let resolvedTarget = presentationTargetOption;
+        if (typeof resolvedTarget === 'function') {
+          resolvedTarget = resolvedTarget();
+        }
+        let targetView = null;
+        if (resolvedTarget) {
+          targetView = typeof resolvedTarget.createView === 'function' ? resolvedTarget.createView() : resolvedTarget;
+        } else if (context.gpu && typeof context.gpu.getCurrentTexture === 'function') {
+          const swapTexture = context.gpu.getCurrentTexture();
+          if (swapTexture && typeof swapTexture.createView === 'function') {
+            targetView = swapTexture.createView();
+          }
+        }
+        if (targetView) {
+          const pass = context.beginRenderPass(encoder, targetView);
+          pass.setPipeline(context._renderPipeline);
+          pass.setBindGroup(0, renderBindGroup);
+          pass.draw(6);
+          pass.end();
+        }
+      }
+
+      if (readback && state.finalTexture) {
+        const bytesPerPixel = 16;
+        const rowStride = width * bytesPerPixel;
+        const bytesPerRow = alignTo(rowStride, 256);
+        const bufferSize = bytesPerRow * height;
+        const stagingBuffer = device.createBuffer({
+          size: bufferSize,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        encoder.copyTextureToBuffer(
+          { texture: state.finalTexture },
+          { buffer: stagingBuffer, bytesPerRow, rowsPerImage: height },
+          { width, height, depthOrArrayLayers: 1 },
+        );
+        state.readbackRequest = {
+          buffer: stagingBuffer,
+          size: bufferSize,
+          bytesPerRow,
+          rowStride,
+          width,
+          height,
+          gpuMapModeRead,
+        };
+      }
+
+      if (querySet && resolveBuffer && canWriteTimestamp) {
+        encoder.writeTimestamp(querySet, 1);
+        encoder.resolveQuerySet(querySet, 0, 2, resolveBuffer, 0);
+        state.profileInfo = { querySet, resolveBuffer };
+      }
+
+      return state;
+    };
+
+    const finalizeResult = async (state, autoSubmitted) => {
+      const result = {
+        texture: state?.finalTexture || null,
+        textureView: state?.finalView || null,
+        width,
+        height,
+        readback: null,
+        readbackBuffer: null,
+        readbackLayout: null,
+        gpuTimeMs: null,
+        profileInfo: null,
+      };
+
+      if (!state) {
+        return result;
+      }
+
+      if (state.readbackRequest) {
+        if (autoSubmitted) {
+          const { buffer, bytesPerRow, rowStride, size, width: rw, height: rh } = state.readbackRequest;
+          try {
+            await buffer.mapAsync(gpuMapModeRead, 0, size);
+            const mapped = buffer.getMappedRange(0, size).slice(0);
+            const src = new Float32Array(mapped);
+            const floatsPerRow = bytesPerRow / 4;
+            const floatsPerStride = rowStride / 4;
+            const total = rw * rh * 4;
+            const out = new Float32Array(total);
+            if (bytesPerRow === rowStride) {
+              out.set(src.subarray(0, total));
+            } else {
+              for (let y = 0; y < rh; y += 1) {
+                const srcOffset = y * floatsPerRow;
+                const dstOffset = y * floatsPerStride;
+                out.set(src.subarray(srcOffset, srcOffset + floatsPerStride), dstOffset);
+              }
+            }
+            result.readback = out;
+          } finally {
+            try {
+              state.readbackRequest.buffer.unmap();
+            } catch (err) {
+              void err;
+            }
+            if (state.readbackRequest.buffer.destroy) {
+              try {
+                state.readbackRequest.buffer.destroy();
+              } catch (err) {
+                void err;
+              }
+            }
+          }
+        } else {
+          result.readbackBuffer = state.readbackRequest.buffer;
+          result.readbackLayout = {
+            size: state.readbackRequest.size,
+            bytesPerRow: state.readbackRequest.bytesPerRow,
+            rowStride: state.readbackRequest.rowStride,
+            width: state.readbackRequest.width,
+            height: state.readbackRequest.height,
+            mapMode: gpuMapModeRead,
+          };
+        }
+      }
+
+      if (state.profileInfo) {
+        if (autoSubmitted) {
+          const { resolveBuffer } = state.profileInfo;
+          if (resolveBuffer) {
+            try {
+              await resolveBuffer.mapAsync(gpuMapModeRead, 0, 16);
+              const copy = resolveBuffer.getMappedRange(0, 16).slice(0);
+              const timestamps = new BigUint64Array(copy);
+              const begin = timestamps[0] || 0n;
+              const end = timestamps[1] || 0n;
+              const diff = end > begin ? end - begin : 0n;
+              const period = Number(context.device?.limits?.timestampPeriod || 1);
+              const gpuMs = Number(diff) * (period / 1e6);
+              if (Number.isFinite(gpuMs)) {
+                result.gpuTimeMs = gpuMs;
+                if (context.profile) {
+                  if (typeof context.profile.webgpu !== 'number') {
+                    context.profile.webgpu = 0;
+                  }
+                  context.profile.webgpu += gpuMs;
+                }
+              }
+            } finally {
+              try {
+                resolveBuffer.unmap();
+              } catch (err) {
+                void err;
+              }
+              if (resolveBuffer.destroy) {
+                try {
+                  resolveBuffer.destroy();
+                } catch (err) {
+                  void err;
+                }
+              }
+            }
+          }
+        } else {
+          result.profileInfo = state.profileInfo;
+        }
+      }
+
+      return result;
+    };
+
+    if (autoSubmit) {
+      const state = await context.withEncoder((encoder) => encode(encoder));
+      return finalizeResult(state, true);
+    }
+
+    const state = await encode(providedEncoder);
+    return finalizeResult(state, false);
   }
 
   dispose() {
