@@ -130,22 +130,17 @@ export class Context {
   }
 
   async initWebGPU() {
-    if (this.device || !this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
+    this.device = null;
+    this.queue = null;
+    this.presentationFormat = null;
+    this.isCPU = true;
+    if (!this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
       return false;
     }
-    const adapter = await navigator.gpu.requestAdapter({
-      powerPreference: this.powerPreference,
-    });
-    if (!adapter) return false;
-    this.device = await adapter.requestDevice();
-    this.queue = this.device.queue;
-    this.presentationFormat =
-      navigator.gpu.getPreferredCanvasFormat ?
-        navigator.gpu.getPreferredCanvasFormat() :
-        this.gpu.getPreferredFormat?.(adapter) || 'bgra8unorm';
-    this.gpu.configure({ device: this.device, format: this.presentationFormat });
-    this.isCPU = false;
-    return true;
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('WebGPU pipeline has been removed. Falling back to CPU rendering.');
+    }
+    return false;
   }
 
   createShaderModule(code) {
