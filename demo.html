@@ -88,7 +88,7 @@
     <button id="reroll">Re-roll</button>
     <label id="seedLabel" for="seedInput">Seed:</label>
     <input id="seedInput" type="number" step="1" value="42" />
-    <label><input type="checkbox" id="webgpuToggle" checked /> WebGPU</label>
+    <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
     </span>
     <canvas id="noise" width="512" height="512"></canvas>
   </div>
@@ -142,13 +142,56 @@
       showError(reason && reason.stack ? `${reason.message}\n${reason.stack}` : String(reason));
     });
 
-    const canvas = document.getElementById('noise');
+    let canvas = document.getElementById('noise');
+    let activeCanvasBackend = 'cpu';
     const webgpuToggle = document.getElementById('webgpuToggle');
-    if (!navigator.gpu) {
+    const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu;
+    if (!hasWebGPU) {
       webgpuToggle.checked = false;
       webgpuToggle.disabled = true;
     }
     let ctx;
+    let renderQueue = Promise.resolve();
+
+    function ensureCanvasForBackend(backend) {
+      if (activeCanvasBackend === backend && canvas?.isConnected) {
+        return canvas;
+      }
+      const newCanvas = canvas.cloneNode(false);
+      newCanvas.width = canvas.width;
+      newCanvas.height = canvas.height;
+      newCanvas.id = canvas.id;
+      canvas.parentNode.replaceChild(newCanvas, canvas);
+      canvas = newCanvas;
+      activeCanvasBackend = backend;
+      return canvas;
+    }
+
+    function createCPUContext(targetCanvas) {
+      const cpuCtx = new Context(null);
+      cpuCtx.canvas = targetCanvas;
+      cpuCtx.gpu = null;
+      cpuCtx.device = null;
+      cpuCtx.queue = null;
+      cpuCtx.presentationFormat = null;
+      cpuCtx.isCPU = true;
+      cpuCtx.profile = { webgpu: 0 };
+      return cpuCtx;
+    }
+
+    function disposeCtx(existingCtx) {
+      if (!existingCtx) return;
+      try {
+        existingCtx.gpu?.unconfigure?.();
+      } catch (_) {
+        /* ignore */
+      }
+      try {
+        existingCtx.device?.destroy?.();
+      } catch (_) {
+        /* ignore */
+      }
+    }
 
     // Attempt to initialize WebGPU. Enable the API in your browser for best
     // performance:
@@ -157,26 +200,39 @@
     //   - Safari: Develop > Experimental Features > WebGPU
     //   - Firefox Nightly: dom.webgpu.enabled in about:config
     async function initCtx() {
-      ctx = new Context(canvas);
-      if (webgpuToggle.checked) {
+      await renderQueue;
+      disposeCtx(ctx);
+      const useWebGPU = hasWebGPU && webgpuToggle.checked;
+      const targetCanvas = ensureCanvasForBackend(useWebGPU ? 'gpu' : 'cpu');
+      if (useWebGPU) {
+        const nextCtx = new Context(targetCanvas);
         try {
-          const ok = await ctx.initWebGPU();
-          if (!ok) {
+          const ok = await nextCtx.initWebGPU();
+          if (ok) {
+            ctx = nextCtx;
+          } else {
+            disposeCtx(nextCtx);
             webgpuToggle.checked = false;
-            ctx.gpu = null;
-            ctx.isCPU = true;
+            showError('WebGPU unavailable or failed to initialize; falling back to CPU.');
+            const fallbackCanvas = ensureCanvasForBackend('cpu');
+            ctx = createCPUContext(fallbackCanvas);
           }
         } catch (e) {
+          disposeCtx(nextCtx);
           webgpuToggle.checked = false;
-          ctx.gpu = null;
-          ctx.isCPU = true;
           showError(e.message || String(e));
+          const fallbackCanvas = ensureCanvasForBackend('cpu');
+          ctx = createCPUContext(fallbackCanvas);
         }
       } else {
-        ctx.gpu = null;
-        ctx.isCPU = true;
+        ctx = createCPUContext(targetCanvas);
       }
-      ctx.profile = { webgpu: 0 };
+      if (!ctx.profile) {
+        ctx.profile = { webgpu: 0 };
+      } else {
+        ctx.profile.webgpu = 0;
+      }
+      return !ctx.isCPU;
     }
 
     await initCtx();
@@ -351,8 +407,13 @@
     }
 
     async function draw(seed, presetName) {
+      const activeCtx = ctx;
       setSeed(seed);
-      ctx.profile.webgpu = 0;
+      if (!activeCtx.profile) {
+        activeCtx.profile = { webgpu: 0 };
+      } else {
+        activeCtx.profile.webgpu = 0;
+      }
       const presetEvalStart = performance.now();
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
@@ -365,19 +426,19 @@
         await render(presetObj, seed, {
           width: canvas.width,
           height: canvas.height,
-          ctx,
+          ctx: activeCtx,
           presets,
           debug: false,
         });
-        if (ctx.flush) {
-          await ctx.flush();
+        if (activeCtx.flush) {
+          await activeCtx.flush();
         }
         if (
           benchmark &&
-          ctx.queue &&
-          ctx.queue.onSubmittedWorkDone
+          activeCtx.queue &&
+          activeCtx.queue.onSubmittedWorkDone
         ) {
-          await ctx.queue.onSubmittedWorkDone();
+          await activeCtx.queue.onSubmittedWorkDone();
         }
       } catch (e) {
         const errorText = `${e.message || e}\n${e.stack || ''}`;
@@ -385,7 +446,7 @@
         throw e;
       }
       renderMs = performance.now() - renderStart;
-      const webgpuMs = ctx.profile.webgpu;
+      const webgpuMs = activeCtx.profile?.webgpu ?? 0;
       const cpuMs = Math.max(0, renderMs - webgpuMs);
       statusEl.innerHTML = [
         `eval: ${presetEvalMs.toFixed(2)} ms`,
@@ -402,13 +463,17 @@
       const nextSeed = parseSeed(seed);
       currentSeed = nextSeed;
       seedInput.value = nextSeed;
-      return draw(nextSeed, presetName);
+      const renderPromise = renderQueue.then(() => draw(nextSeed, presetName));
+      renderQueue = renderPromise.catch(() => {});
+      return renderPromise;
     }
 
     function renderWithCatch(seed, presetName) {
-      return renderPreset(seed, presetName).catch((e) => {
+      const promise = renderPreset(seed, presetName);
+      promise.catch((e) => {
         console.error(e);
       });
+      return promise;
     }
 
     try {
@@ -441,10 +506,14 @@
     });
 
     webgpuToggle.addEventListener('change', async () => {
-      await initCtx();
-      const seed = Math.floor(random() * 1e9);
       try {
-        await renderPreset(seed, currentPreset);
+        await initCtx();
+      } catch (e) {
+        console.error(e);
+        return;
+      }
+      try {
+        await renderPreset(currentSeed, currentPreset);
       } catch (e) {
         console.error(e);
       }
