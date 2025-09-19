@@ -188,17 +188,31 @@ function buildPresets(names) {
     const preset = parsed[name];
     if (!preset) return;
 
-    // Recursively build any layer references that are also presets.
-    if (Array.isArray(preset.layers)) {
-      for (const layer of preset.layers) {
-        if (typeof layer === 'string' && parsed[layer]) {
-          build(layer);
+    let resolvedLayers = null;
+    if (preset.layers !== undefined) {
+      resolvedLayers = resolveSettingValue(preset.layers, Object.create(null));
+      if (Array.isArray(resolvedLayers)) {
+        // Recursively build any layer references that are also presets.
+        for (const layer of resolvedLayers) {
+          if (typeof layer === 'string' && parsed[layer]) {
+            build(layer);
+          }
         }
       }
     }
 
     const p = { ...preset };
-    if (typeof p.layers === 'function') {
+    if (resolvedLayers !== null) {
+      // Ensure downstream consumers always see a concrete array of layer names,
+      // matching the behaviour of the reference Python implementation where
+      // dynamic layer expressions are resolved during preset table
+      // construction.
+      if (Array.isArray(resolvedLayers)) {
+        p.layers = resolvedLayers.slice();
+      } else {
+        p.layers = resolvedLayers;
+      }
+    } else if (typeof p.layers === 'function') {
       // Allow layers to be specified as a function in the DSL. Evaluate the
       // function once when building the preset so downstream consumers always
       // see a concrete array of layer names, matching the Python behaviour.
