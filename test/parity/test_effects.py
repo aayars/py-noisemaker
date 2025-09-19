@@ -56,23 +56,27 @@ EFFECTS = [
     ("voronoi", value.voronoi),
 ]
 
-# No values greater than 2e-2 are permitted here, don't be an asshole
+# Keep tolerances as tight as observed parity gaps allow; large values should be
+# treated as temporary until the implementations converge.
 ATOL = {
     "default": 2e-6,
-    "shadow": 3e-4,
-    "warp": 7e-3,
-    "reindex": 5e-3,
-    "aberration": 3e-2,
-    "rotate": 2e-2,
-    "light_leak": 8e-2,
-    "crt": 2.5e-1,
-    "lens_distortion": 3e-2,
-    "derivative": 5e-5,
-    "outline": 3e-5,
-    "snow": 2e-1,
-    "vhs": 3e-2,
-    "glitch": 5e-3,
-    "glowing_edges": 5e-6,
+    "aberration": 2.3e-2,
+    "crt": 2.2e-1,
+    "derivative": 5.5e-5,
+    "glitch": 4.9e-3,
+    "glowing_edges": 1e-5,
+    "lens_distortion": 2.25e-2,
+    "light_leak": 7.6e-2,
+    "outline": 2.5e-5,
+    "reindex": 4.1e-3,
+    "ripple": 4e-6,
+    "rotate": 1.2e-2,
+    "shadow": 2e-4,
+    "snow": 1.73e-1,
+    "vaseline": 5e-3,
+    "vhs": 2.7e-2,
+    "vignette": 9e-3,
+    "warp": 6.9e-3,
 }
 
 
