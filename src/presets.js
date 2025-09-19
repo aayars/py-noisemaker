@@ -132,6 +132,36 @@ export function mapEffect(e, settings) {
   return e;
 }
 
+function resolveSettingValue(value, settings) {
+  if (typeof value === 'function') {
+    try {
+      const arity = value.length;
+      if (arity === 0) return resolveSettingValue(value(), settings);
+      if (arity === 1) return resolveSettingValue(value(settings), settings);
+      return value;
+    } catch {
+      return value;
+    }
+  }
+  if (Array.isArray(value)) return value.map((v) => resolveSettingValue(v, settings));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = resolveSettingValue(v, settings);
+    }
+    return out;
+  }
+  return value;
+}
+
+function evaluateSettings(template) {
+  const resolved = {};
+  for (const [key, value] of Object.entries(template)) {
+    resolved[key] = resolveSettingValue(value, resolved);
+  }
+  return resolved;
+}
+
 let _SOURCE;
 {
   const url = new URL('../dsl/presets.dsl', import.meta.url);
@@ -151,13 +181,6 @@ function buildPresets(names) {
   const seedBefore = getSeed();
   setSeed(0);
   const parsed = parsePresetDSL(_SOURCE);
-  setSeed(seedBefore);
-  // The Python preset table construction advances RNG three times for dynamic
-  // layer expressions even though the resulting values are unused when only a
-  // single preset is requested. Advance the RNG here to keep sequences aligned.
-  random();
-  random();
-  random();
   const presets = {};
 
   function build(name) {
@@ -174,7 +197,7 @@ function buildPresets(names) {
       }
     }
 
-  const p = { ...preset };
+    const p = { ...preset };
     if (typeof p.layers === 'function') {
       // Allow layers to be specified as a function in the DSL. Evaluate the
       // function once when building the preset so downstream consumers always
@@ -183,7 +206,7 @@ function buildPresets(names) {
     }
     if (p.settings && typeof p.settings === 'object') {
       const s = p.settings;
-      p.settings = () => ({ ...s });
+      p.settings = () => evaluateSettings(s);
     }
     if (p.generator && typeof p.generator === 'object') {
       const g = p.generator;
@@ -239,6 +262,14 @@ function buildPresets(names) {
   for (const name of names) {
     build(name);
   }
+
+  setSeed(seedBefore);
+  // The Python preset table construction advances RNG three times for dynamic
+  // layer expressions even though the resulting values are unused when only a
+  // single preset is requested. Advance the RNG here to keep sequences aligned.
+  random();
+  random();
+  random();
 
   return presets;
 }
