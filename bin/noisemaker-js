@@ -1,0 +1,196 @@
+#!/usr/bin/env node
+
+import { Preset } from '../src/composer.js';
+import { PRESETS } from '../src/presets.js';
+import { Context } from '../src/context.js';
+import { PNG } from 'pngjs';
+import path from 'node:path';
+import { mkdir } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+
+function printUsage() {
+  const message = `Usage:\n  noisemaker-js generate <presetName> --filename <filename> [options]\n\nOptions:\n  --width <pixels>       Output width in pixels (default: 1024)\n  --height <pixels>      Output height in pixels (default: 1024)\n  --seed <value>         Seed for deterministic output (default: 0)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 1)\n  --with-alpha           Preserve alpha channel (default: disabled)\n  --debug                Enable verbose preset debugging\n  --help                 Show this message\n`;
+  console.log(message);
+}
+
+function parseOptions(argv) {
+  const options = {
+    filename: undefined,
+    width: 1024,
+    height: 1024,
+    seed: 0,
+    time: 0,
+    speed: 1,
+    withAlpha: false,
+    debug: false,
+  };
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) {
+      throw new Error(`Unrecognized argument "${arg}"`);
+    }
+    const key = arg.slice(2);
+    if (key === 'help') {
+      options.help = true;
+      continue;
+    }
+    if (key === 'with-alpha') {
+      options.withAlpha = true;
+      continue;
+    }
+    if (key === 'debug') {
+      options.debug = true;
+      continue;
+    }
+    const next = argv[++i];
+    if (next === undefined) {
+      throw new Error(`Option "${arg}" requires a value`);
+    }
+    switch (key) {
+      case 'filename':
+        options.filename = next;
+        break;
+      case 'width':
+        options.width = Number.parseInt(next, 10);
+        break;
+      case 'height':
+        options.height = Number.parseInt(next, 10);
+        break;
+      case 'seed':
+        options.seed = Number.parseInt(next, 10);
+        break;
+      case 'time':
+        options.time = Number.parseFloat(next);
+        break;
+      case 'speed':
+        options.speed = Number.parseFloat(next);
+        break;
+      default:
+        throw new Error(`Unknown option "${arg}"`);
+    }
+  }
+
+  if (Number.isNaN(options.width) || options.width <= 0) {
+    throw new Error('Width must be a positive integer');
+  }
+  if (Number.isNaN(options.height) || options.height <= 0) {
+    throw new Error('Height must be a positive integer');
+  }
+  if (Number.isNaN(options.seed)) {
+    throw new Error('Seed must be a number');
+  }
+  if (Number.isNaN(options.time)) {
+    throw new Error('Time must be a number');
+  }
+  if (!Number.isFinite(options.speed) || Number.isNaN(options.speed)) {
+    throw new Error('Speed must be a finite number');
+  }
+
+  return options;
+}
+
+function clampToByte(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  const scaled = Math.round(value * 255);
+  return Math.max(0, Math.min(255, scaled));
+}
+
+async function writePNG(tensor, filename) {
+  const [height, width, channels] = tensor.shape;
+  const data = await tensor.read();
+  const png = new PNG({ width, height });
+  const totalPixels = width * height;
+
+  for (let i = 0; i < totalPixels; i++) {
+    const src = i * channels;
+    const dst = i * 4;
+    const r = data[src] ?? 0;
+    const g = channels > 1 ? data[src + 1] : r;
+    const b = channels > 2 ? data[src + 2] : r;
+    const a = channels > 3 ? data[src + 3] : channels === 2 ? data[src + 1] : 1;
+    png.data[dst] = clampToByte(r);
+    png.data[dst + 1] = clampToByte(g);
+    png.data[dst + 2] = clampToByte(b);
+    png.data[dst + 3] = clampToByte(a);
+  }
+
+  const outputPath = path.resolve(process.cwd(), filename);
+  const directory = path.dirname(outputPath);
+  await mkdir(directory, { recursive: true });
+
+  await new Promise((resolve, reject) => {
+    const stream = createWriteStream(outputPath);
+    stream.on('finish', resolve);
+    stream.on('error', reject);
+    png.pack().pipe(stream);
+  });
+
+  return outputPath;
+}
+
+async function main(argv) {
+  if (!argv.length || argv.includes('--help') || argv.includes('-h')) {
+    printUsage();
+    return 0;
+  }
+
+  const command = argv[0];
+  if (command !== 'generate') {
+    throw new Error(`Unknown command "${command}"`);
+  }
+
+  const presetName = argv[1];
+  if (!presetName) {
+    throw new Error('Preset name is required');
+  }
+
+  const options = parseOptions(argv.slice(2));
+  if (options.help) {
+    printUsage();
+    return 0;
+  }
+  if (!options.filename) {
+    options.filename = "art.png";
+  }
+
+  const presets = PRESETS();
+  if (!Object.prototype.hasOwnProperty.call(presets, presetName)) {
+    const available = Object.keys(presets)
+      .sort()
+      .join(', ');
+    throw new Error(`Preset "${presetName}" not found. Available presets: ${available}`);
+  }
+
+  const ctx = new Context(null, options.debug);
+  const preset = new Preset(presetName, presets, undefined, options.seed, {
+    debug: options.debug,
+  });
+
+  const tensor = await preset.render(options.seed, {
+    ctx,
+    width: options.width,
+    height: options.height,
+    time: options.time,
+    speed: options.speed,
+    withAlpha: options.withAlpha,
+    debug: options.debug,
+  });
+
+  const outputPath = await writePNG(tensor, options.filename);
+  console.log(`Wrote ${outputPath}`);
+  return 0;
+}
+
+main(process.argv.slice(2))
+  .then((code) => {
+    if (typeof code === 'number') {
+      process.exitCode = code;
+    }
+  })
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });

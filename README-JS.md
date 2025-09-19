@@ -12,6 +12,20 @@ or canned images are used.  Any difference between languages is treated as a
 test failure—do not modify the Python reference implementation, and do not skip
 or weaken tests to hide problems.
 
+## Command-line rendering
+
+The experimental JavaScript build now includes a small Node-powered CLI for
+rendering presets without opening the browser. After installing dependencies
+(`npm install`), run the `noisemaker-js` command:
+
+```bash
+noisemaker-js generate basic --filename output.png --width 512 --height 512 --seed 123
+```
+
+Additional options include `--time`, `--speed`, `--with-alpha`, and `--debug`
+to mirror the browser controls. The CLI writes a PNG file to the requested
+location and creates parent directories as needed.
+
 ## Vanilla JS effects registry
 
 The Vanilla JavaScript port includes an `effectsRegistry` helper that tracks all
