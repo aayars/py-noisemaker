@@ -2816,24 +2816,33 @@ export async function fbm(
   gain = 0.5,
 ) {
   const [h, w, c] = shape;
-  let f = freq;
-  let amp = 1;
-  let total = 0;
+  const ctx = tensor?.ctx ?? null;
+  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, [h, w]);
   const data = new Float32Array(h * w * c);
-  for (let o = 0; o < octaves; o++) {
-    const layer = await values(f, shape, { seed: o, time });
-    const layerData = await layer.read();
-    for (let i = 0; i < data.length; i++) {
-      data[i] += layerData[i] * amp;
+  for (let octave = 1; octave <= octaves; octave++) {
+    const octaveFreq = baseFreq.map((f) =>
+      Math.floor(f * Math.pow(lacunarity, octave - 1)),
+    );
+    if (octaveFreq[0] > h && octaveFreq[1] > w) {
+      break;
     }
-    total += amp;
-    amp *= gain;
-    f *= lacunarity;
+    const layerMaybe = await values(octaveFreq, shape, { ctx, time, speed });
+    const layerDataMaybe = layerMaybe.read();
+    const layerData =
+      layerDataMaybe && typeof layerDataMaybe.then === "function"
+        ? await layerDataMaybe
+        : layerDataMaybe;
+    const layerArray =
+      layerData instanceof Float32Array
+        ? layerData
+        : new Float32Array(layerData ?? []);
+    const weight = Math.pow(gain, octave);
+    for (let i = 0; i < data.length; i++) {
+      data[i] += layerArray[i] * weight;
+    }
   }
-  for (let i = 0; i < data.length; i++) {
-    data[i] /= total;
-  }
-  return Tensor.fromArray(tensor ? tensor.ctx : null, data, shape);
+  const tensorOut = Tensor.fromArray(ctx, data, shape);
+  return await normalize(tensorOut);
 }
 register("fbm", fbm, { freq: 4, octaves: 4, lacunarity: 2, gain: 0.5 });
 
@@ -4295,17 +4304,21 @@ export async function erosionWorms(
     valueTensor = await resample(valueTensor, valueShape);
   }
   const valuesMaybe = valueTensor.read();
-  const valuesData =
+  const valuesRaw =
     valuesMaybe && typeof valuesMaybe.then === "function"
       ? await valuesMaybe
       : valuesMaybe;
+  const valuesData =
+    valuesRaw instanceof Float32Array
+      ? valuesRaw
+      : new Float32Array(valuesRaw ?? []);
 
   const widthScale = w - 1;
   const heightScale = h - 1;
   for (let i = 0; i < count; i++) {
     x[i] = Math.fround(x[i] * widthScale);
     y[i] = Math.fround(y[i] * heightScale);
-    const len = Math.hypot(xDir[i], yDir[i]) || 1;
+    const len = Math.hypot(xDir[i], yDir[i]);
     xDir[i] = Math.fround(xDir[i] / len);
     yDir[i] = Math.fround(yDir[i] / len);
   }
@@ -4329,10 +4342,9 @@ export async function erosionWorms(
 
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
-    const exposure =
-      iterations > 1
-        ? Math.fround(1 - Math.abs(1 - (iter / (iterations - 1)) * 2))
-        : 1;
+    const exposure = Math.fround(
+      1 - Math.abs(1 - (iter / (iterations - 1)) * 2),
+    );
     for (let j = 0; j < count; j++) {
       const baseXi = wrap(Math.floor(x[j]), w);
       const baseYi = wrap(Math.floor(y[j]), h);
@@ -4370,7 +4382,7 @@ export async function erosionWorms(
       const lenRaw = Math.fround(
         distance(gx, gy, DistanceMetric.euclidean) * contraction,
       );
-      const len = lenRaw || 1e-9;
+      const len = lenRaw;
       const inertiaVal = inertia[j];
       const targetX = Math.fround(gx / len);
       const targetY = Math.fround(gy / len);
@@ -6418,30 +6430,31 @@ async function simpleMultiresTensor(freq, shape, time, speed, octaves, ctx) {
     ? freq
     : freqForShape(freq, [h, w]);
   const data = new Float32Array(h * w * c);
-  let weightSum = 0;
   for (let octave = 1; octave <= octaves; octave++) {
-    const multiplier = 2 ** octave;
     const baseFreq = freqArr.map((f) =>
-      Math.max(1, Math.floor((f * 0.5) * multiplier)),
+      Math.floor(f * Math.pow(2, octave - 1)),
     );
     if (baseFreq[0] > h && baseFreq[1] > w) {
       break;
     }
-    const layer = await values(baseFreq, shape, {
+    const layerTensor = await values(baseFreq, shape, {
       ctx,
       time,
       speed,
     });
-    const layerData = await layer.read();
-    const weight = 1 / multiplier;
+    const layerDataMaybe = layerTensor.read();
+    const layerData =
+      layerDataMaybe && typeof layerDataMaybe.then === "function"
+        ? await layerDataMaybe
+        : layerDataMaybe;
+    const layerArray =
+      layerData instanceof Float32Array
+        ? layerData
+        : new Float32Array(layerData ?? []);
+    const weight = Math.pow(0.5, octave);
     for (let i = 0; i < data.length; i++) {
-      data[i] += layerData[i] * weight;
+      data[i] += layerArray[i] * weight;
     }
-    weightSum += weight;
-  }
-  if (!weightSum) weightSum = 1;
-  for (let i = 0; i < data.length; i++) {
-    data[i] /= weightSum;
   }
   const tensor = Tensor.fromArray(ctx, data, shape);
   return normalize(tensor);
@@ -7374,8 +7387,38 @@ async function grimeCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  let mask = await fbm(null, valueShape, time, speed, 5, 8);
-  mask = await refractOp(mask);
+
+  const baseMask = await fbm(null, valueShape, time, speed, 5, 8);
+  const baseDataMaybe = baseMask.read();
+  const baseDataRaw =
+    baseDataMaybe && typeof baseDataMaybe.then === "function"
+      ? await baseDataMaybe
+      : baseDataMaybe;
+  const baseData =
+    baseDataRaw instanceof Float32Array
+      ? baseDataRaw
+      : new Float32Array(baseDataRaw ?? []);
+  const rxTensor = Tensor.fromArray(ctx, baseData.slice(), valueShape);
+  const offsetData = new Float32Array(h * w);
+  const xOffset = Math.floor(w * 0.5);
+  const yOffset = Math.floor(h * 0.5);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const oy = (y + yOffset) % h;
+      const ox = (x + xOffset) % w;
+      offsetData[idx] = baseData[oy * w + ox];
+    }
+  }
+  const ryTensor = Tensor.fromArray(ctx, offsetData, valueShape);
+  let mask = await refractOp(
+    baseMask,
+    rxTensor,
+    ryTensor,
+    1.0,
+    InterpolationType.bicubic,
+    true,
+  );
   mask = await derivative(
     mask,
     valueShape,
@@ -7385,46 +7428,133 @@ async function grimeCPU(tensor, shape, time, speed) {
     true,
     0.125,
   );
-  let gateData = await mask.read();
+  let gateDataMaybe = mask.read();
+  let gateData =
+    gateDataMaybe && typeof gateDataMaybe.then === "function"
+      ? await gateDataMaybe
+      : gateDataMaybe;
+  gateData =
+    gateData instanceof Float32Array
+      ? gateData
+      : new Float32Array(gateData ?? []);
   const gate = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const v = gateData[i] * gateData[i] * 0.075;
     for (let k = 0; k < c; k++) gate[i * c + k] = v;
   }
   const gateTensor = Tensor.fromArray(ctx, gate, shape);
-  const baseData = new Float32Array(h * w * c).fill(0.25);
-  const baseTensor = Tensor.fromArray(ctx, baseData, shape);
+  const baseValues = new Float32Array(h * w * c).fill(0.25);
+  const baseTensor = Tensor.fromArray(ctx, baseValues, shape);
   let dusty = await blend(tensor, baseTensor, gateTensor);
-  let specks = await values(Math.max(1, Math.floor(h * 0.25)), valueShape, {
+
+  const speckFreq = [
+    Math.max(1, Math.floor(h * 0.25)),
+    Math.max(1, Math.floor(w * 0.25)),
+  ];
+  let specks = await values(speckFreq, valueShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
-    splineOrder: InterpolationType.constant,
+    mask: ValueMask.dropout,
   });
-  specks = await refractOp(specks, null, null, 0.25);
-  let sData = await specks.read();
-  for (let i = 0; i < sData.length; i++) {
-    sData[i] = Math.max(sData[i] - 0.625, 0);
+  const speckDataMaybe = specks.read();
+  const speckDataRaw =
+    speckDataMaybe && typeof speckDataMaybe.then === "function"
+      ? await speckDataMaybe
+      : speckDataMaybe;
+  const speckData =
+    speckDataRaw instanceof Float32Array
+      ? speckDataRaw
+      : new Float32Array(speckDataRaw ?? []);
+  const cosData = new Float32Array(h * w);
+  const sinData = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    const angle = speckData[i] * TAU;
+    const cosVal = Math.cos(angle) * 0.5 + 0.5;
+    const sinVal = Math.sin(angle) * 0.5 + 0.5;
+    cosData[i] = Math.fround(Math.min(Math.max(cosVal, 0), 1));
+    sinData[i] = Math.fround(Math.min(Math.max(sinVal, 0), 1));
   }
-  specks = Tensor.fromArray(ctx, sData, valueShape);
+  const cosTensor = Tensor.fromArray(ctx, cosData, valueShape);
+  const sinTensor = Tensor.fromArray(ctx, sinData, valueShape);
+  specks = await refractOp(
+    specks,
+    cosTensor,
+    sinTensor,
+    0.25,
+    InterpolationType.bicubic,
+    true,
+  );
+
+  let speckValuesMaybe = specks.read();
+  let speckValues =
+    speckValuesMaybe && typeof speckValuesMaybe.then === "function"
+      ? await speckValuesMaybe
+      : speckValuesMaybe;
+  speckValues =
+    speckValues instanceof Float32Array
+      ? speckValues
+      : new Float32Array(speckValues ?? []);
+  for (let i = 0; i < speckValues.length; i++) {
+    speckValues[i] = Math.max(speckValues[i] - 0.625, 0);
+  }
+  specks = Tensor.fromArray(ctx, speckValues, valueShape);
   specks = await normalize(specks);
-  sData = await specks.read();
-  for (let i = 0; i < sData.length; i++) sData[i] = 1 - Math.sqrt(sData[i]);
-  specks = Tensor.fromArray(ctx, sData, valueShape);
-  let noise = await values(Math.max(h, w), valueShape, {
+  speckValuesMaybe = specks.read();
+  speckValues =
+    speckValuesMaybe && typeof speckValuesMaybe.then === "function"
+      ? await speckValuesMaybe
+      : speckValuesMaybe;
+  speckValues =
+    speckValues instanceof Float32Array
+      ? speckValues
+      : new Float32Array(speckValues ?? []);
+  for (let i = 0; i < speckValues.length; i++) {
+    speckValues[i] = 1 - Math.sqrt(speckValues[i]);
+  }
+  specks = Tensor.fromArray(ctx, speckValues, valueShape);
+
+  let noise = await values([h, w], valueShape, {
     ctx,
     time,
     speed,
     distrib: ValueDistribution.exp,
+    mask: ValueMask.sparse,
   });
   dusty = await blend(dusty, noise, 0.075);
-  let dustyData = await dusty.read();
-  sData = await specks.read();
-  for (let i = 0; i < dustyData.length; i++)
-    dustyData[i] *= sData[Math.floor(i / c)];
+  let dustyDataMaybe = dusty.read();
+  let dustyData =
+    dustyDataMaybe && typeof dustyDataMaybe.then === "function"
+      ? await dustyDataMaybe
+      : dustyDataMaybe;
+  dustyData =
+    dustyData instanceof Float32Array
+      ? dustyData
+      : new Float32Array(dustyData ?? []);
+  const speckMaskMaybe = specks.read();
+  let speckMask =
+    speckMaskMaybe && typeof speckMaskMaybe.then === "function"
+      ? await speckMaskMaybe
+      : speckMaskMaybe;
+  speckMask =
+    speckMask instanceof Float32Array
+      ? speckMask
+      : new Float32Array(speckMask ?? []);
+  for (let i = 0; i < dustyData.length; i++) {
+    dustyData[i] *= speckMask[Math.floor(i / c)];
+  }
   dusty = Tensor.fromArray(ctx, dustyData, shape);
-  gateData = await mask.read();
+
+  gateDataMaybe = mask.read();
+  gateData =
+    gateDataMaybe && typeof gateDataMaybe.then === "function"
+      ? await gateDataMaybe
+      : gateDataMaybe;
+  gateData =
+    gateData instanceof Float32Array
+      ? gateData
+      : new Float32Array(gateData ?? []);
   const maskScaled = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const v = gateData[i] * 0.75;
