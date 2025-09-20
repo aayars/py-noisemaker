@@ -612,94 +612,44 @@ export async function shadow(
 }
 register("shadow", shadow, { alpha: 1, reference: null });
 
-export function bloom(tensor, shape, time, speed, alpha = 0.5) {
+export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
   const [h, w, c] = shape;
-  return withTensorData(tensor, (src) => {
-    const data = new Float32Array(src.length);
-    for (let i = 0; i < src.length; i++) {
-      let v = src[i] * 2 - 1;
-      if (v < 0) v = 0;
-      if (v > 1) v = 1;
-      data[i] = v;
-    }
-    let blurred = Tensor.fromArray(tensor.ctx, data, shape);
-    const targetH = Math.max(1, Math.floor(h / 100));
-    const targetW = Math.max(1, Math.floor(w / 100));
-    const downMaybe = proportionalDownsample(blurred, shape, [targetH, targetW, c]);
+  const src = await tensor.read();
+  const bright = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    let v = src[i] * 2 - 1;
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    bright[i] = v;
+  }
 
-    const handleDown = (down) => {
-      blurred = down;
-      const bDataMaybe = blurred.read();
-      const handleBData = (bData) => {
-        for (let i = 0; i < bData.length; i++) bData[i] *= 4;
-        blurred = Tensor.fromArray(tensor.ctx, bData, blurred.shape);
-        const resampleMaybe = resample(blurred, shape);
-        const handleResample = (resampled) => {
-          blurred = resampled;
-          const xOff = Math.trunc(w * -0.05);
-          const yOff = Math.trunc(h * -0.05);
-          const offsetMaybe = offsetTensor(blurred, xOff, yOff);
-          const handleOffset = (offsetBlur) => {
-            blurred = offsetBlur;
-            const blurReadMaybe = blurred.read();
-            const handleBlurRead = (blurRead) => {
-              for (let i = 0; i < blurRead.length; i++) blurRead[i] += 0.25;
-              const channelMeans = new Array(c).fill(0);
-              for (let i = 0; i < h * w; i++) {
-                for (let k = 0; k < c; k++) channelMeans[k] += blurRead[i * c + k];
-              }
-              for (let k = 0; k < c; k++) channelMeans[k] /= h * w;
-              for (let i = 0; i < h * w; i++) {
-                for (let k = 0; k < c; k++) {
-                  const idx = i * c + k;
-                  blurRead[idx] =
-                    (blurRead[idx] - channelMeans[k]) * 1.5 + channelMeans[k];
-                }
-              }
-              blurred = Tensor.fromArray(tensor.ctx, blurRead, shape);
-              const mixData = new Float32Array(src.length);
-              for (let i = 0; i < src.length; i++) {
-                mixData[i] = (src[i] + blurRead[i]) * 0.5;
-              }
-              const mixedMaybe = clamp01(
-                Tensor.fromArray(tensor.ctx, mixData, shape),
-              );
-              const clampedMaybe = clamp01(tensor);
-              if (
-                (mixedMaybe && typeof mixedMaybe.then === "function") ||
-                (clampedMaybe && typeof clampedMaybe.then === "function")
-              ) {
-                return Promise.all([clampedMaybe, mixedMaybe]).then((arr) =>
-                  blend(arr[0], arr[1], alpha),
-                );
-              }
-              return blend(clampedMaybe, mixedMaybe, alpha);
-            };
-            if (blurReadMaybe && typeof blurReadMaybe.then === "function") {
-              return blurReadMaybe.then(handleBlurRead);
-            }
-            return handleBlurRead(blurReadMaybe);
-          };
-          if (offsetMaybe && typeof offsetMaybe.then === "function") {
-            return offsetMaybe.then(handleOffset);
-          }
-          return handleOffset(offsetMaybe);
-        };
-        if (resampleMaybe && typeof resampleMaybe.then === "function") {
-          return resampleMaybe.then(handleResample);
-        }
-        return handleResample(resampleMaybe);
-      };
-      if (bDataMaybe && typeof bDataMaybe.then === "function") {
-        return bDataMaybe.then(handleBData);
-      }
-      return handleBData(bDataMaybe);
-    };
-    if (downMaybe && typeof downMaybe.then === "function") {
-      return downMaybe.then(handleDown);
-    }
-    return handleDown(downMaybe);
-  });
+  let blurred = Tensor.fromArray(tensor.ctx, bright, shape);
+  const targetShape = [
+    Math.max(1, Math.floor(h / 100)),
+    Math.max(1, Math.floor(w / 100)),
+    c,
+  ];
+  blurred = await proportionalDownsample(blurred, shape, targetShape);
+  const blurredData = await blurred.read();
+  for (let i = 0; i < blurredData.length; i++) {
+    blurredData[i] *= 4;
+  }
+  blurred = Tensor.fromArray(tensor.ctx, blurredData, targetShape);
+  blurred = await resample(blurred, shape);
+  blurred = await adjustBrightness(blurred, shape, time, speed, 0.25);
+  blurred = await adjustContrast(blurred, shape, time, speed, 1.5);
+
+  const blurredFull = await blurred.read();
+  const mixData = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    mixData[i] = (src[i] + blurredFull[i]) * 0.5;
+  }
+  const mixedTensor = Tensor.fromArray(tensor.ctx, mixData, shape);
+  const [baseClamped, mixedClamped] = await Promise.all([
+    clamp01(tensor),
+    clamp01(mixedTensor),
+  ]);
+  return blend(baseClamped, mixedClamped, alpha);
 }
 register("bloom", bloom, { alpha: 0.5 });
 
@@ -2495,29 +2445,25 @@ register("texture", texture, {});
 export async function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const bins = Math.max(h, w);
-  const norm = await normalize(tensor);
-  const vals = await norm.read();
-  const countIdx = new Int32Array(h * w);
+  const normalizedTensor = await normalize(tensor);
+  const vals = await normalizedTensor.read();
+  const total = vals.length;
+  const binIndices = new Int32Array(total);
   const counts = new Int32Array(bins);
-  for (let i = 0; i < h * w; i++) {
-    const v = vals[i * c];
-    const b = Math.min(bins - 1, Math.floor(v * (bins - 1)));
-    countIdx[i] = b;
-    counts[b]++;
+  for (let i = 0; i < total; i++) {
+    let bin = Math.floor(vals[i] * (bins - 1));
+    if (bin < 0) bin = 0;
+    if (bin >= bins) bin = bins - 1;
+    binIndices[i] = bin;
+    counts[bin]++;
   }
-  const out = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) out[i] = counts[countIdx[i]];
-  const normTensor = await normalize(
-    Tensor.fromArray(tensor.ctx, out, [h, w, 1])
-  );
-  const normData = await normTensor.read();
-  const full = new Float32Array(h * w * c);
-  for (let i = 0; i < h * w; i++) {
-    for (let k = 0; k < c; k++) full[i * c + k] = normData[i];
+  const gathered = new Float32Array(total);
+  for (let i = 0; i < total; i++) {
+    gathered[i] = counts[binIndices[i]];
   }
-  return Tensor.fromArray(tensor.ctx, full, shape);
+  const gatheredTensor = Tensor.fromArray(tensor.ctx, gathered, shape);
+  return normalize(gatheredTensor);
 }
-register("density_map", densityMap, {});
 register("density_map", densityMap, {});
 
 export async function jpegDecimate(
@@ -2544,38 +2490,28 @@ export async function jpegDecimate(
 register("jpeg_decimate", jpegDecimate, { iterations: 25 });
 register("jpeg_decimate", jpegDecimate, { iterations: 25 });
 
-const BLUR_KERNEL = maskValues(ValueMask.conv2d_blur)[0].read();
-const SHARPEN_KERNEL = maskValues(ValueMask.conv2d_sharpen)[0].read();
+const kernelCache = new Map();
 
-async function convolveKernel(tensor, kernel, size, normalizeKernel = true) {
-  const [h, w, c] = tensor.shape;
-  const src = await tensor.read();
-  const out = new Float32Array(h * w * c);
-  const r = Math.floor(size / 2);
-  let norm = 0;
-  if (normalizeKernel) {
-    for (let i = 0; i < kernel.length; i++) norm += kernel[i];
-  } else {
-    norm = 1;
-  }
-  if (norm === 0) norm = 1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      for (let k = 0; k < c; k++) {
-        let sum = 0;
-        let idx = 0;
-        for (let yy = -r; yy <= r; yy++) {
-          const ycl = Math.max(0, Math.min(h - 1, y + yy));
-          for (let xx = -r; xx <= r; xx++) {
-            const xcl = Math.max(0, Math.min(w - 1, x + xx));
-            sum += kernel[idx++] * src[(ycl * w + xcl) * c + k];
-          }
-        }
-        out[(y * w + x) * c + k] = sum / norm;
-      }
+async function getKernel(mask) {
+  if (kernelCache.has(mask)) return kernelCache.get(mask);
+  const [tensor] = maskValues(mask);
+  const size = tensor.shape[0];
+  const buildKernel = (data) => {
+    const kernel = [];
+    for (let y = 0; y < size; y++) {
+      kernel.push(Array.from(data.slice(y * size, y * size + size)));
     }
+    return kernel;
+  };
+  const dataMaybe = tensor.read();
+  let result;
+  if (dataMaybe && typeof dataMaybe.then === "function") {
+    result = dataMaybe.then(buildKernel);
+  } else {
+    result = buildKernel(dataMaybe);
   }
-  return Tensor.fromArray(tensor.ctx, out, tensor.shape);
+  kernelCache.set(mask, result);
+  return result;
 }
 
 export async function convFeedback(
@@ -2586,30 +2522,35 @@ export async function convFeedback(
   iterations = 50,
   alpha = 0.5,
 ) {
-  let convolved = await downsample(tensor, 2);
-  for (let i = 0; i < iterations; i++) {
-    convolved = await convolveKernel(convolved, BLUR_KERNEL, 5, true);
-    convolved = await convolveKernel(convolved, SHARPEN_KERNEL, 3, false);
+  const halfShape = [
+    Math.max(1, Math.floor(shape[0] * 0.5)),
+    Math.max(1, Math.floor(shape[1] * 0.5)),
+    shape[2],
+  ];
+  let convolved = await proportionalDownsample(tensor, shape, halfShape);
+  const blurKernel = await getKernel(ValueMask.conv2d_blur);
+  const sharpenKernel = await getKernel(ValueMask.conv2d_sharpen);
+  const iterCount = 100;
+  for (let i = 0; i < iterCount; i++) {
+    convolved = await convolution(convolved, blurKernel);
+    convolved = await convolution(convolved, sharpenKernel);
   }
   convolved = await normalize(convolved);
   const data = await convolved.read();
-  const up = new Float32Array(data.length);
-  const downArr = new Float32Array(data.length);
-  for (let i = 0; i < data.length; i++) {
-    up[i] = Math.max((data[i] - 0.5) * 2, 0);
-    downArr[i] = Math.min(data[i] * 2, 1);
-  }
   const combined = new Float32Array(data.length);
-  for (let i = 0; i < data.length; i++) combined[i] = up[i] + (1 - downArr[i]);
+  for (let i = 0; i < data.length; i++) {
+    const up = Math.max((data[i] - 0.5) * 2, 0);
+    const down = Math.min(data[i] * 2, 1);
+    combined[i] = up + (1 - down);
+  }
   const combinedTensor = Tensor.fromArray(
     convolved.ctx,
     combined,
     convolved.shape,
   );
-  const resampled = await upsample(combinedTensor, 2);
-  return await blend(tensor, resampled, alpha);
+  const resampled = await resample(combinedTensor, shape);
+  return blend(tensor, resampled, alpha);
 }
-register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
 register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
 
 export function blendLayers(control, shape, feather = 1, ...layers) {
@@ -3074,56 +3015,84 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
 }
 register("vortex", vortex, { displacement: 64 });
 
-export function aberration(tensor, shape, time, speed, displacement = 0.005) {
+export async function aberration(
+  tensor,
+  shape,
+  time,
+  speed,
+  displacement = 0.005,
+) {
   const [h, w, c] = shape;
   if (c !== 3) return tensor;
-  const disp = Math.round(w * displacement * simplexRandom(time, undefined, speed));
+
+  const displacementPixels = Math.floor(
+    w * displacement * simplexRandom(time, undefined, speed),
+  );
   const hueShift = random() * 0.1 - 0.05;
 
-  // radial mask to fade effect towards center
-  const mask = new Float32Array(h * w);
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  let max = 0;
+  const maskTensor = await singularity(null, [h, w, 1], time, speed);
+  const maskData = await maskTensor.read();
+  for (let i = 0; i < maskData.length; i++) {
+    maskData[i] = Math.pow(maskData[i], 3);
+  }
+
+  const xIndex = new Float32Array(h * w);
+  const yIndex = new Int32Array(h * w);
+  const gradient = new Float32Array(h * w);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const dx = Math.abs(x - cx);
-      const dy = Math.abs(y - cy);
-      const d = distance(dx, dy, DistanceMetric.euclidean);
-      mask[y * w + x] = d;
-      if (d > max) max = d;
+      const idx = y * w + x;
+      xIndex[idx] = x;
+      yIndex[idx] = y;
+      gradient[idx] = w > 1 ? x / (w - 1) : 0;
     }
   }
-  for (let i = 0; i < mask.length; i++) mask[i] = Math.pow(mask[i] / (max || 1), 3);
 
-  return withTensorData(adjustHue(tensor, hueShift), (src) => {
-    const out = new Float32Array(h * w * 3);
-    const lerp = (a, b, t) => a + (b - a) * t;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const g = w > 1 ? x / (w - 1) : 0;
-        const m = mask[y * w + x];
-        const base = (y * w + x) * 3;
+  const tinted = await adjustHue(tensor, hueShift);
+  const src = await tinted.read();
+  const blendLinear = (a, b, t) => a * (1 - t) + b * t;
+  const blendCosine = (a, b, g) => {
+    const clamped = Math.max(0, Math.min(1, g));
+    const weight = (1 - Math.cos(clamped * Math.PI)) / 2;
+    return a * (1 - weight) + b * weight;
+  };
+  const clampIndex = (value) => {
+    if (value <= 0) return 0;
+    if (value >= w - 1) return w - 1;
+    return Math.floor(value);
+  };
 
-        let rX = Math.min(w - 1, x + disp);
-        rX = lerp(rX, x, g);
-        rX = lerp(x, rX, m);
-        rX = Math.round(rX);
+  const out = new Float32Array(h * w * 3);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const base = idx * 3;
+      const xFloat = xIndex[idx];
+      const g = gradient[idx];
+      const m = maskData[idx];
 
-        let bX = Math.max(0, x - disp);
-        bX = lerp(x, bX, g);
-        bX = lerp(x, bX, m);
-        bX = Math.round(bX);
+      let redOffset = Math.min(w - 1, xFloat + displacementPixels);
+      redOffset = blendLinear(redOffset, xFloat, g);
+      redOffset = blendCosine(xFloat, redOffset, m);
+      const redX = clampIndex(redOffset);
 
-        out[base] = src[(y * w + rX) * 3];
-        out[base + 1] = src[base + 1];
-        out[base + 2] = src[(y * w + bX) * 3 + 2];
-      }
+      let blueOffset = Math.max(0, xFloat - displacementPixels);
+      blueOffset = blendLinear(xFloat, blueOffset, g);
+      blueOffset = blendCosine(xFloat, blueOffset, m);
+      const blueX = clampIndex(blueOffset);
+
+      const greenOffset = blendCosine(xFloat, xFloat, m);
+      const greenX = clampIndex(greenOffset);
+
+      const rowBase = yIndex[idx] * w;
+      out[base] = src[(rowBase + redX) * 3];
+      out[base + 1] = src[(rowBase + greenX) * 3 + 1];
+      out[base + 2] = src[(rowBase + blueX) * 3 + 2];
     }
+  }
 
-    const displaced = Tensor.fromArray(tensor.ctx, out, shape);
-    return adjustHue(displaced, -hueShift);
-  });
+  const displaced = Tensor.fromArray(tensor.ctx, out, shape);
+  return adjustHue(displaced, -hueShift);
 }
 register("aberration", aberration, { displacement: 0.005 });
 
@@ -3788,34 +3757,34 @@ export async function colorMap(
     return new Tensor(ctx, outBuf, [h, w, cc]);
   }
   const [ch, cw, cc] = clut.shape;
-  const clutData = await clut.read();
+  const clutRaw = await clut.read();
+  const clutFloat = new Float32Array(clutRaw.length);
+  for (let i = 0; i < clutRaw.length; i++) {
+    const v = clutRaw[i];
+    clutFloat[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+  let clutTensor = Tensor.fromArray(clut.ctx, clutFloat, [ch, cw, cc]);
+  if (ch !== h || cw !== w) {
+    clutTensor = await resample(clutTensor, [h, w, cc]);
+  }
+  const clutData = await clutTensor.read();
+
   const valueMap = await toValueMap(tensor);
   const normalized = await normalize(valueMap);
   const refData = await normalized.read();
-  const src = await tensor.read();
-  const displacementEps = 1e-5;
-  const computeOffset = (value, size) => {
-    const product = value * displacement * (size - 1);
-    let offsetInt = Math.floor(product);
-    const frac = product - offsetInt;
-    if (offsetInt > 0 && frac > 0 && frac < displacementEps) {
-      offsetInt -= 1;
-    }
-    return offsetInt;
-  };
+
   const out = new Float32Array(h * w * cc);
+  const mod = (n, m) => ((n % m) + m) % m;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
-      const ref = refData[idx];
-      const offsetX = computeOffset(ref, w);
-      const offsetY = computeOffset(ref, h);
-      const xi = (x + offsetX) % w;
-      const yi = horizontal ? y : (y + offsetY) % h;
-      const sx = Math.floor((xi * cw) / w);
-      const sy = Math.floor((yi * ch) / h);
-      const srcIdx = (sy * cw + sx) * cc;
-      const outIdx = (y * w + x) * cc;
+      const ref = refData[idx] * displacement;
+      const xOffset = Math.floor(ref * (w - 1));
+      const yOffset = Math.floor(ref * (h - 1));
+      const xi = mod(x + xOffset, w);
+      const yi = horizontal ? y : mod(y + yOffset, h);
+      const srcIdx = (yi * w + xi) * cc;
+      const outIdx = idx * cc;
       for (let k = 0; k < cc; k++) {
         out[outIdx + k] = clutData[srcIdx + k];
       }
@@ -5211,7 +5180,6 @@ export async function adjustBrightness(tensor, shape, time, speed, amount = 0.12
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register("adjust_brightness", adjustBrightness, { amount: 0.125 });
-register("adjust_brightness", adjustBrightness, { amount: 0.125 });
 
 export const adjust_brightness = adjustBrightness;
 
@@ -5270,7 +5238,6 @@ export async function adjustContrast(tensor, shape, time, speed, amount = 1.25) 
   return Tensor.fromArray(ctx, out, shape);
 }
 register("adjust_contrast", adjustContrast, { amount: 1.25 });
-register("adjust_contrast", adjustContrast, { amount: 1.25 });
 
 export const adjust_contrast = adjustContrast;
 
@@ -5279,7 +5246,6 @@ export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
     return tensor;
   return adjustHue(tensor, amount);
 }
-register("adjust_hue", adjustHueEffect, { amount: 0.25 });
 register("adjust_hue", adjustHueEffect, { amount: 0.25 });
 
 export const adjust_hue = adjustHueEffect;
