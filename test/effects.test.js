@@ -116,6 +116,16 @@ function arraysClose(a, b, eps = 1e-6) {
   }
 }
 
+async function readTensorData(value) {
+  const tensor = await value;
+  if (!tensor) return tensor;
+  if (typeof tensor.read === "function") {
+    const data = tensor.read();
+    return data && typeof data.then === "function" ? await data : data;
+  }
+  return tensor;
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const loadFixture = (name) =>
   JSON.parse(readFileSync(path.join(__dirname, "fixtures", name), "utf8"));
@@ -127,21 +137,23 @@ const edgeData = new Float32Array([
 const edgeTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
 
 // warp
-const warpOut = (
-  await warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear)
-).read();
+const warpOut = await readTensorData(
+  warp(edgeTensor, [4, 4, 1], 0, 1, 2, 2, 1, InterpolationType.linear),
+);
 const warpExpected = loadFixture("warp.json");
 arraysClose(Array.from(warpOut), warpExpected);
 // warp with anisotropic freq array
-const warpArr = (
-  await warp(edgeTensor, [4, 4, 1], 0, 1, [1, 2], 1, 1, InterpolationType.linear)
-).read();
+const warpArr = await readTensorData(
+  warp(edgeTensor, [4, 4, 1], 0, 1, [1, 2], 1, 1, InterpolationType.linear),
+);
 for (const v of warpArr) {
   assert.ok(Number.isFinite(v));
 }
 
 // shadow
-  const shadowOut = (await shadow(edgeTensor, [4, 4, 1], 0, 1, 1)).read();
+  const shadowOut = await readTensorData(
+    shadow(edgeTensor, [4, 4, 1], 0, 1, 1),
+  );
 const shadowExpected = loadFixture("shadow.json");
 arraysClose(Array.from(shadowOut), shadowExpected);
 
@@ -175,14 +187,14 @@ const manualDeriv = (() => {
     normalize(Tensor.fromArray(null, mag, [4, 4, 1])).read()
   );
 })();
-const derivRes = derivative(edgeTensor, [4, 4, 1], 0, 1).read();
+const derivRes = await readTensorData(derivative(edgeTensor, [4, 4, 1], 0, 1));
 arraysClose(Array.from(derivRes), manualDeriv);
 
 // sobel operator
 const blurred = await blur(edgeTensor, [4, 4, 1], 0, 1);
 let sob = await sobelValue(blurred);
 sob = await normalize(sob);
-let sobData = await sob.read();
+let sobData = await readTensorData(sob);
 for (let i = 0; i < sobData.length; i++)
   sobData[i] = Math.abs(sobData[i] * 2 - 1);
 function offsetArray(data, shape, xOff, yOff) {
@@ -200,22 +212,24 @@ function offsetArray(data, shape, xOff, yOff) {
   return out;
 }
 sobData = offsetArray(sobData, [4, 4, 1], -1, -1);
-const sobRes = sobelOperator(edgeTensor, [4, 4, 1], 0, 1).read();
+const sobRes = await readTensorData(sobelOperator(edgeTensor, [4, 4, 1], 0, 1));
 arraysClose(Array.from(sobRes), Array.from(sobData));
 
 // outline
-const outlineRes = outline(edgeTensor, [4, 4, 1], 0, 1).read();
+const outlineRes = await readTensorData(outline(edgeTensor, [4, 4, 1], 0, 1));
 const manualOutline = new Float32Array(16);
 for (let i = 0; i < 16; i++) manualOutline[i] = sobData[i] * edgeData[i];
 arraysClose(Array.from(outlineRes), Array.from(manualOutline));
-const outlineInv = outline(edgeTensor, [4, 4, 1], 0, 1, undefined, true).read();
+const outlineInv = await readTensorData(
+  outline(edgeTensor, [4, 4, 1], 0, 1, undefined, true),
+);
 const manualOutlineInv = new Float32Array(16);
 for (let i = 0; i < 16; i++)
   manualOutlineInv[i] = (1 - sobData[i]) * edgeData[i];
 arraysClose(Array.from(outlineInv), Array.from(manualOutlineInv));
 
 // normal map
-const nmRes = normalMap(edgeTensor, [4, 4, 1], 0, 1).read();
+const nmRes = await readTensorData(normalMap(edgeTensor, [4, 4, 1], 0, 1));
 const nmExpect = (() => {
   const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
   const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
@@ -263,7 +277,9 @@ arraysClose(Array.from(nmRes), nmExpect);
 
 // singularity
 const sgTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
-const sgRes = (await singularity(sgTensor, [4, 4, 1], 0, 1)).read();
+const sgRes = await readTensorData(
+  singularity(sgTensor, [4, 4, 1], 0, 1),
+);
 arraysClose(
   Array.from(sgRes),
   [
@@ -278,8 +294,8 @@ arraysClose(
 // voronoi color regions
 const xPts = [1, 3];
 const yPts = [1, 3];
-const vorRes = (
-  await voronoi(
+const vorRes = await readTensorData(
+  voronoi(
     edgeTensor,
     [4, 4, 1],
     0,
@@ -296,8 +312,8 @@ const vorRes = (
     0,
     false,
     [xPts, yPts, 2],
-  )
-).read();
+  ),
+);
 assert.strictEqual(vorRes[0], 0);
 assert.strictEqual(vorRes[3], 1);
 assert.strictEqual(vorRes[12], 0);
@@ -306,7 +322,9 @@ assert.strictEqual(vorRes[15], 1);
 // densityMap regression
 const dmData = new Float32Array([0.1, 0.4, 0.4, 0.9]);
 const dmTensor = Tensor.fromArray(null, dmData, [2, 2, 1]);
-const dmOut = (await densityMap(dmTensor, [2, 2, 1], 0, 1)).read();
+const dmOut = await readTensorData(
+  densityMap(dmTensor, [2, 2, 1], 0, 1),
+);
 const dmExpected = loadFixture("densityMap.json");
 arraysClose(Array.from(dmOut), dmExpected);
 
@@ -317,14 +335,18 @@ const jdData = new Float32Array([
 ]);
 const jdTensor = Tensor.fromArray(null, jdData, [2, 2, 3]);
 setSeed(7);
-const jdOut = (await jpegDecimate(jdTensor, [2, 2, 3], 0, 1, 1)).read();
+const jdOut = await readTensorData(
+  jpegDecimate(jdTensor, [2, 2, 3], 0, 1, 1),
+);
 const jdExpected = loadFixture("jpegDecimate.json");
 arraysClose(Array.from(jdOut), jdExpected);
 
 // convFeedback regression
 const cfData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const cfTensor = Tensor.fromArray(null, cfData, [2, 2, 1]);
-const cfOut = (await convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5)).read();
+const cfOut = await readTensorData(
+  convFeedback(cfTensor, [2, 2, 1], 0, 1, 2, 0.5),
+);
 const cfExpected = loadFixture("convFeedback.json");
 arraysClose(Array.from(cfOut), cfExpected);
 
@@ -336,28 +358,30 @@ const blControl = Tensor.fromArray(
 );
 const blLayer0 = Tensor.fromArray(null, new Float32Array([0, 0, 0, 0]), [2, 2, 1]);
 const blLayer1 = Tensor.fromArray(null, new Float32Array([1, 1, 1, 1]), [2, 2, 1]);
-const blOut = blendLayers(blControl, [2, 2, 1], 1, blLayer0, blLayer1).read();
+const blOut = await readTensorData(
+  blendLayers(blControl, [2, 2, 1], 1, blLayer0, blLayer1),
+);
 const blExpected = loadFixture("blendLayers.json");
 arraysClose(Array.from(blOut), blExpected);
 
 // centerMask regression
 const cmCenter = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
 const cmEdges = Tensor.fromArray(null, new Float32Array(9).fill(1), [3, 3, 1]);
-const cmOut = centerMask(cmCenter, cmEdges, [3, 3, 1]).read();
+const cmOut = await readTensorData(centerMask(cmCenter, cmEdges, [3, 3, 1]));
 const cmExpected = loadFixture("centerMask.json");
 arraysClose(Array.from(cmOut), cmExpected);
 
 // innerTile regression
 const itData = new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 const itTensor = Tensor.fromArray(null, itData, [4, 4, 1]);
-const itOut = innerTile(itTensor, [4, 4, 1], 2).read();
+const itOut = await readTensorData(innerTile(itTensor, [4, 4, 1], 2));
 const itExpected = loadFixture("innerTile.json");
 arraysClose(Array.from(itOut), itExpected);
 
 // expandTile regression
 const etData = new Float32Array([1, 2, 3, 4]);
 const etTensor = Tensor.fromArray(null, etData, [2, 2, 1]);
-const etOut = expandTile(etTensor, [2, 2, 1], [3, 3, 1]).read();
+const etOut = await readTensorData(expandTile(etTensor, [2, 2, 1], [3, 3, 1]));
 const etExpected = loadFixture("expandTile.json");
 arraysClose(Array.from(etOut), etExpected);
 
@@ -365,20 +389,24 @@ arraysClose(Array.from(etOut), etExpected);
 const yIdx = Tensor.fromArray(null, new Float32Array([0, 0, 1, 1]), [2, 2, 1]);
 const xIdx = Tensor.fromArray(null, new Float32Array([0, 1, 0, 1]), [2, 2, 1]);
 setSeed(1);
-const oiOut = offsetIndex(yIdx, 2, xIdx, 2).read();
+const oiOut = await readTensorData(offsetIndex(yIdx, 2, xIdx, 2));
 const oiExpected = loadFixture("offsetIndex.json");
 arraysClose(Array.from(oiOut), oiExpected);
 
 // sobel regression
-const sobelOut = sobel(edgeTensor, [4, 4, 1], 0, 1).read();
+const sobelOut = await readTensorData(sobel(edgeTensor, [4, 4, 1], 0, 1));
 arraysClose(Array.from(sobelOut), Array.from(manualOutlineInv));
-const sobelRgb = sobel(edgeTensor, [4, 4, 1], 0, 1, undefined, true).read();
+const sobelRgb = await readTensorData(
+  sobel(edgeTensor, [4, 4, 1], 0, 1, undefined, true),
+);
 arraysClose(Array.from(sobelRgb), Array.from(sobData));
 
 // posterize regression
 const posterData = new Float32Array([0.1, 0.5, 0.9, 0.3]);
 const posterTensor = Tensor.fromArray(null, posterData, [2, 2, 1]);
-const jsPoster = (await posterize(posterTensor, [2, 2, 1], 0, 1, 4)).read();
+const jsPoster = await readTensorData(
+  posterize(posterTensor, [2, 2, 1], 0, 1, 4),
+);
 const posterExpected = loadFixture("posterize.json");
 arraysClose(Array.from(jsPoster), posterExpected);
 
@@ -390,7 +418,9 @@ const palData = new Float32Array([
   0.25, 0.25, 0.25,
 ]);
 const palTensor = Tensor.fromArray(null, palData, [2, 2, 3]);
-const jsPal = (await palette(palTensor, [2, 2, 3], 0, 1, "grayscale")).read();
+const jsPal = await readTensorData(
+  palette(palTensor, [2, 2, 3], 0, 1, "grayscale"),
+);
 const palExpected = loadFixture("palette.json");
 arraysClose(Array.from(jsPal), palExpected);
 await assert.rejects(palette(palTensor, [2, 2, 3], 0, 1, "bogus"));
@@ -398,7 +428,9 @@ await assert.rejects(palette(palTensor, [2, 2, 3], 0, 1, "bogus"));
 // invert
 const invData = new Float32Array([0.2, 0.5, 0.8]);
 const invTensor = Tensor.fromArray(null, invData, [1, 3, 1]);
-const invResult = (await invert(invTensor, [1, 3, 1], 0, 1)).read();
+const invResult = await readTensorData(
+  invert(invTensor, [1, 3, 1], 0, 1),
+);
 arraysClose(Array.from(invResult), [0.8, 0.5, 0.2]);
 
 // aberration deterministic check
@@ -411,7 +443,7 @@ const abTensor = Tensor.fromArray(null, abData, abShape);
 setSeed(123);
 const disp = Math.round(abShape[1] * 0.25 * simplexRandom(0, undefined, 1));
 const hueShift = random() * 0.1 - 0.05;
-const shifted = adjustHueValue(abTensor, hueShift).read();
+const shifted = await readTensorData(adjustHueValue(abTensor, hueShift));
 const manual = new Float32Array(abShape[0] * abShape[1] * 3);
 const mask = new Float32Array(abShape[0] * abShape[1]);
 const cx = (abShape[1] - 1) / 2;
@@ -446,12 +478,13 @@ for (let y = 0; y < abShape[0]; y++) {
     manual[base + 2] = shifted[(y * abShape[1] + bX) * 3 + 2];
   }
 }
-const expected = adjustHueValue(
-  Tensor.fromArray(null, manual, abShape),
-  -hueShift,
-).read();
+const expected = await readTensorData(
+  adjustHueValue(Tensor.fromArray(null, manual, abShape), -hueShift),
+);
 setSeed(123);
-const abResult = aberration(abTensor, abShape, 0, 1, 0.25).read();
+const abResult = await readTensorData(
+  aberration(abTensor, abShape, 0, 1, 0.25),
+);
 arraysClose(Array.from(abResult), Array.from(expected));
 
 // reindex deterministic
@@ -474,8 +507,9 @@ for (let y = 0; y < 2; y++) {
     manualRe[idx] = reData[yo * 2 + xo];
   }
 }
-const jsReTensor = await reindex(reTensor, [2, 2, 1], 0, 1, 0.5);
-const jsRe = await jsReTensor.read();
+const jsRe = await readTensorData(
+  reindex(reTensor, [2, 2, 1], 0, 1, 0.5),
+);
 arraysClose(Array.from(jsRe), Array.from(manualRe));
 
 // ripple deterministic
@@ -483,15 +517,9 @@ setSeed(10);
 const ripData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const ripTensor = Tensor.fromArray(null, ripData, [2, 2, 1]);
 setSeed(10);
-const jsRipple = (await ripple(
-  ripTensor,
-  [2, 2, 1],
-  0,
-  1,
-  2,
-  0.5,
-  1,
-)).read();
+const jsRipple = await readTensorData(
+  ripple(ripTensor, [2, 2, 1], 0, 1, 2, 0.5, 1),
+);
 const rippleExpected = loadFixture("ripple.json");
 arraysClose(Array.from(jsRipple), rippleExpected);
 
@@ -502,15 +530,9 @@ const clutData = new Float32Array([
   0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.1,
 ]);
 const clutTensor = Tensor.fromArray(null, clutData, [2, 2, 3]);
-const jsColorMap = (await colorMap(
-  cmTensor,
-  [2, 2, 1],
-  0,
-  1,
-  clutTensor,
-  false,
-  0.5,
-)).read();
+const jsColorMap = await readTensorData(
+  colorMap(cmTensor, [2, 2, 1], 0, 1, clutTensor, false, 0.5),
+);
 const colorMapExpected = loadFixture("colorMap.json");
 arraysClose(Array.from(jsColorMap), colorMapExpected);
 
@@ -518,7 +540,9 @@ arraysClose(Array.from(jsColorMap), colorMapExpected);
 setSeed(1);
 const vigData = new Float32Array([0.1, 0.5, 0.3, 0.8]);
 const vigTensor = Tensor.fromArray(null, vigData, [2, 2, 1]);
-const jsVig = (await vignette(vigTensor, [2, 2, 1], 0, 1, 0.25, 0.5)).read();
+const jsVig = await readTensorData(
+  vignette(vigTensor, [2, 2, 1], 0, 1, 0.25, 0.5),
+);
 const vigExpected = loadFixture("vignette.json");
 arraysClose(Array.from(jsVig), vigExpected);
 
@@ -532,7 +556,7 @@ const noise = values(Math.max(2, 2), [2, 2, 1], {
   seed: 0,
   speed: 1000,
 });
-const nData = noise.read();
+const nData = await readTensorData(noise);
 const manualDit = new Float32Array(4);
 for (let i = 0; i < 4; i++) {
   let v = ditData[i] + (nData[i] - 0.5) / 2;
@@ -540,7 +564,7 @@ for (let i = 0; i < 4; i++) {
   manualDit[i] = v;
 }
 setSeed(1);
-const jsDit = (await dither(ditTensor, [2, 2, 1], 0, 1, 2)).read();
+const jsDit = await readTensorData(dither(ditTensor, [2, 2, 1], 0, 1, 2));
 arraysClose(Array.from(jsDit), Array.from(manualDit));
 
 // grain deterministic
@@ -549,9 +573,9 @@ const grData = new Float32Array([0.3, 0.6, 0.9, 0.0]);
 const grTensor = Tensor.fromArray(null, grData, [2, 2, 1]);
 setSeed(2);
 const gn = values(Math.max(2, 2), [2, 2, 1], { time: 0, speed: 100 });
-const gnData = gn.read();
-const blended = (
-  await blend(
+const gnData = await readTensorData(gn);
+const blended = await readTensorData(
+  blend(
     grTensor,
     Tensor.fromArray(
       null,
@@ -563,16 +587,16 @@ const blended = (
       [2, 2, 1],
     ),
     0.25,
-  )
-).read();
+  ),
+);
 setSeed(2);
-const jsGrain = grain(grTensor, [2, 2, 1], 0, 1, 0.25).read();
+const jsGrain = await readTensorData(grain(grTensor, [2, 2, 1], 0, 1, 0.25));
 arraysClose(Array.from(jsGrain), Array.from(blended));
 
 // saturation regression via python colorsys
 const satData = new Float32Array([0.2, 0.4, 0.6, 0.8, 0.1, 0.3]);
 const satTensor = Tensor.fromArray(null, satData, [2, 1, 3]);
-const jsSat = saturation(satTensor, [2, 1, 3], 0, 1, 0.5).read();
+const jsSat = await readTensorData(saturation(satTensor, [2, 1, 3], 0, 1, 0.5));
 const satExpected = loadFixture("saturation.json");
 arraysClose(Array.from(jsSat), satExpected);
 
@@ -581,143 +605,147 @@ setSeed(5);
 const rhData = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]);
 const rhTensor = Tensor.fromArray(null, rhData, [2, 1, 3]);
 setSeed(5);
-const jsHue = randomHue(rhTensor, [2, 1, 3], 0, 1, 0.05).read();
+const jsHue = await readTensorData(randomHue(rhTensor, [2, 1, 3], 0, 1, 0.05));
 const hueExpected = loadFixture("randomHue.json");
 arraysClose(Array.from(jsHue), hueExpected);
 
 // adjustHue regression
 const ahData = new Float32Array([0.2, 0.4, 0.6, 0.8, 0.1, 0.3]);
 const ahTensor = Tensor.fromArray(null, ahData, [2, 1, 3]);
-const ahOut = adjustHueEffect(ahTensor, [2, 1, 3], 0, 1, 0.25).read();
+const ahOut = await readTensorData(
+  adjustHueEffect(ahTensor, [2, 1, 3], 0, 1, 0.25),
+);
 const ahExpected = loadFixture("adjustHue.json");
 arraysClose(Array.from(ahOut), ahExpected);
 
 // adjustBrightness regression
 const brightData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
 const brightTensor = Tensor.fromArray(null, brightData, [2, 2, 1]);
-const brightOut = (await adjustBrightness(
-  brightTensor,
-  [2, 2, 1],
-  0,
-  1,
-  0.125,
-)).read();
+const brightOut = await readTensorData(
+  adjustBrightness(brightTensor, [2, 2, 1], 0, 1, 0.125),
+);
 const brightExpected = loadFixture("adjustBrightness.json");
 arraysClose(Array.from(brightOut), brightExpected);
 
 // adjustContrast regression
 const contrastData = new Float32Array([0.1, 0.3, 0.5, 0.7]);
 const contrastTensor = Tensor.fromArray(null, contrastData, [2, 2, 1]);
-const contrastOut = (await adjustContrast(
-  contrastTensor,
-  [2, 2, 1],
-  0,
-  1,
-  1.25,
-)).read();
+const contrastOut = await readTensorData(
+  adjustContrast(contrastTensor, [2, 2, 1], 0, 1, 1.25),
+);
 const contrastExpected = loadFixture("adjustContrast.json");
 arraysClose(Array.from(contrastOut), contrastExpected);
 
 // normalize regression
 const normData = new Float32Array([0.2, 0.5, 0.8, 1.2]);
 const normTensor = Tensor.fromArray(null, normData, [2, 2, 1]);
-const normOut = normalizeEffect(normTensor, [2, 2, 1], 0, 1).read();
+const normOut = await readTensorData(
+  normalizeEffect(normTensor, [2, 2, 1], 0, 1),
+);
 const normExpected = loadFixture("normalize.json");
 arraysClose(Array.from(normOut), normExpected);
 
 // ridge regression
 const ridgeData = new Float32Array([0.2, 0.8, 0.4, 0.6]);
 const ridgeTensor = Tensor.fromArray(null, ridgeData, [2, 2, 1]);
-const ridgeOut = ridgeEffect(ridgeTensor, [2, 2, 1], 0, 1).read();
+const ridgeOut = await readTensorData(
+  ridgeEffect(ridgeTensor, [2, 2, 1], 0, 1),
+);
 const ridgeExpected = loadFixture("ridge.json");
 arraysClose(Array.from(ridgeOut), ridgeExpected);
 
 // sine regression
 const sineData = new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]);
 const sineTensor = Tensor.fromArray(null, sineData, [2, 1, 3]);
-const sineOut = (await sine(
-  sineTensor,
-  [2, 1, 3],
-  0,
-  1,
-  1.0,
-  false,
-)).read();
+const sineOut = await readTensorData(
+  sine(sineTensor, [2, 1, 3], 0, 1, 1.0, false),
+);
 const sineExpected = loadFixture("sine.json");
 arraysClose(Array.from(sineOut), sineExpected);
 
 // blur regression
 const blurData = new Float32Array([0.1, 0.5, 0.3, 0.7]);
 const blurTensor = Tensor.fromArray(null, blurData, [2, 2, 1]);
-const blurOut = blur(blurTensor, [2, 2, 1], 0, 1, 10.0).read();
+const blurOut = await readTensorData(blur(blurTensor, [2, 2, 1], 0, 1, 10.0));
 const blurExpected = loadFixture("blur.json");
 arraysClose(Array.from(blurOut), blurExpected);
 
 // wormhole regression
 const whTensor = Tensor.fromArray(null, new Float32Array([0.5]), [1, 1, 1]);
-const whOut = wormhole(whTensor, [1, 1, 1], 0, 1, 1.0, 1.0, 1.0).read();
+const whOut = await readTensorData(
+  wormhole(whTensor, [1, 1, 1], 0, 1, 1.0, 1.0, 1.0),
+);
 const whExpected = loadFixture("wormhole.json");
 arraysClose(Array.from(whOut), whExpected);
 
 // vortex deterministic
 const vxData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const vxTensor = Tensor.fromArray(null, vxData, [2, 2, 1]);
-const randV = simplexRandom(0, undefined, 1);
+setSeed(1);
 const vShape = [2, 2, 1];
-let dispMap = singularity(null, vShape, 0, 1);
-dispMap = normalize(dispMap);
-let vxX = convolve(
+let dispMap = await singularity(vxTensor, vShape, 0, 1);
+dispMap = await normalize(dispMap);
+const vxXTensor = await convolve(
   dispMap,
   vShape,
   0,
   1,
   ValueMask.conv2d_deriv_x,
   false,
-).read();
-let vxY = convolve(
+);
+const vxX = await readTensorData(vxXTensor);
+const vxYTensor = await convolve(
   dispMap,
   vShape,
   0,
   1,
   ValueMask.conv2d_deriv_y,
   false,
-).read();
-let fader = singularity(
-  null,
+);
+const vxY = await readTensorData(vxYTensor);
+let fader = await singularity(
+  vxTensor,
   vShape,
   0,
   1,
   VoronoiDiagramType.range,
   DistanceMetric.chebyshev,
 );
-fader = invert(normalize(fader), vShape, 0, 1).read();
+fader = await invert(await normalize(fader), vShape, 0, 1);
+const fadeData = await readTensorData(fader);
+const randV = simplexRandom(0, undefined, 1);
 for (let i = 0; i < vxX.length; i++) {
-  vxX[i] *= fader[i];
-  vxY[i] *= fader[i];
+  vxX[i] *= fadeData[i];
+  vxY[i] *= fadeData[i];
 }
-const vxManual = refract(
+const vxManualTensor = await refract(
   vxTensor,
   Tensor.fromArray(null, vxX, vShape),
   Tensor.fromArray(null, vxY, vShape),
   randV * 100 * 64,
-).read();
-const vxResult = vortex(vxTensor, vShape, 0, 1, 64).read();
+);
+const vxManual = await readTensorData(vxManualTensor);
+setSeed(1);
+const vxResultTensor = await vortex(vxTensor, vShape, 0, 1, 64);
+const vxResult = await readTensorData(vxResultTensor);
 arraysClose(Array.from(vxResult), Array.from(vxManual));
 
 // worms regression with zero density
 const wormsTensor = Tensor.fromArray(null, new Float32Array([0.4]), [1, 1, 1]);
-const wormsOut = worms(
-  wormsTensor,
-  [1, 1, 1],
-  0,
-  1,
-  1,
-  0.0,
-  4.0,
-  1.0,
-  0.05,
-  0.5,
-).read();
+const wormsOut = await readTensorData(
+  worms(
+    wormsTensor,
+    [1, 1, 1],
+    0,
+    1,
+    1,
+    0.0,
+    4.0,
+    1.0,
+    0.05,
+    0.5,
+  ),
+);
 const wormsExpected = loadFixture("worms.json");
 arraysClose(Array.from(wormsOut), wormsExpected);
 
@@ -725,35 +753,43 @@ arraysClose(Array.from(wormsOut), wormsExpected);
 const ewData = new Float32Array(25);
 ewData[0] = 0.6;
 const ewTensor = Tensor.fromArray(null, ewData, [5, 5, 1]);
-const ewOut = erosionWorms(
-  ewTensor,
-  [5, 5, 1],
-  0,
-  1,
-  0.0,
-  5,
-  1.0,
-  false,
-  0.25,
-).read();
+const ewOut = await readTensorData(
+  erosionWorms(
+    ewTensor,
+    [5, 5, 1],
+    0,
+    1,
+    0.0,
+    5,
+    1.0,
+    false,
+    0.25,
+  ),
+);
 const ewExpected = loadFixture("erosionWorms.json");
 arraysClose(Array.from(ewOut), ewExpected);
 
 // bloom regression
 const bloomData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const bloomTensor = Tensor.fromArray(null, bloomData, [2, 2, 1]);
-const bloomOut = bloom(bloomTensor, [2, 2, 1], 0, 1, 1.0).read();
+const bloomOut = await readTensorData(
+  bloom(bloomTensor, [2, 2, 1], 0, 1, 1.0),
+);
 const bloomExpected = loadFixture("bloom.json");
 arraysClose(Array.from(bloomOut), bloomExpected);
 
 // vaseline regression
-const vasOut = vaseline(bloomTensor, [2, 2, 1], 0, 1, 1.0).read();
+const vasOut = await readTensorData(
+  vaseline(bloomTensor, [2, 2, 1], 0, 1, 1.0),
+);
 const vasExpected = loadFixture("vaseline.json");
 arraysClose(Array.from(vasOut), vasExpected);
 
 // lightLeak regression
 setSeed(1);
-const leakOut = lightLeak(bloomTensor, [2, 2, 1], 0, 1, 0.25).read();
+const leakOut = await readTensorData(
+  lightLeak(bloomTensor, [2, 2, 1], 0, 1, 0.25),
+);
 const leakExpected = loadFixture("lightLeak.json");
 arraysClose(Array.from(leakOut), leakExpected);
 
@@ -762,14 +798,18 @@ setSeed(1);
 const wobData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const wobTensor = Tensor.fromArray(null, wobData, [2, 2, 1]);
 setSeed(1);
-const wobOut = wobble(wobTensor, [2, 2, 1], 0.8, 1).read();
+const wobOut = await readTensorData(
+  wobble(wobTensor, [2, 2, 1], 0.8, 1),
+);
 const wobExpected = loadFixture("wobble.json");
 arraysClose(Array.from(wobOut), wobExpected);
 
 // reverb regression
 const revData = new Float32Array([0.1, 0.4, 0.6, 0.9]);
 const revTensor = Tensor.fromArray(null, revData, [2, 2, 1]);
-const revOut = reverb(revTensor, [2, 2, 1], 0, 1, 2, 1, true).read();
+const revOut = await readTensorData(
+  reverb(revTensor, [2, 2, 1], 0, 1, 2, 1, true),
+);
 const revExpected = loadFixture("reverb.json");
 arraysClose(Array.from(revOut), revExpected);
 
@@ -781,28 +821,32 @@ const dlaData = new Float32Array([
 ]);
 const dlaTensor = Tensor.fromArray(null, dlaData, [4, 4, 1]);
 setSeed(7);
-const dlaOut = dla(dlaTensor, [4, 4, 1], 1, 1, 1, 1, 0.5).read();
+const dlaOut = await readTensorData(dla(dlaTensor, [4, 4, 1], 1, 1, 1, 1, 0.5));
 const dlaExpected = loadFixture("dla.json");
 arraysClose(Array.from(dlaOut), dlaExpected);
 
 // rotate effect
 const rotData = new Float32Array([1, 2, 3, 4]);
 const rotTensor = Tensor.fromArray(null, rotData, [2, 2, 1]);
-const rotOut = rotate(rotTensor, [2, 2, 1], 0, 1, 90).read();
+const rotOut = await readTensorData(
+  rotate(rotTensor, [2, 2, 1], 0, 1, 90),
+);
 const rotExpected = loadFixture("rotate.json");
 arraysClose(Array.from(rotOut), rotExpected);
 
 // pixelSort effect
 const psData = new Float32Array([0.2, 0.8, 0.5, 0.1]);
 const psTensor = Tensor.fromArray(null, psData, [1, 4, 1]);
-const psOut = pixelSort(psTensor, [1, 4, 1], 0, 1).read();
+const psOut = await readTensorData(pixelSort(psTensor, [1, 4, 1], 0, 1));
 const psExpected = loadFixture("pixelSort.json");
 arraysClose(Array.from(psOut), psExpected);
 
 // squareCropAndResize utility
 const scData = new Float32Array([0, 1, 2, 3, 4, 5]);
 const scTensorUtil = Tensor.fromArray(null, scData, [2, 3, 1]);
-const scUtilOut = squareCropAndResize(scTensorUtil, [2, 3, 1], 2).read();
+const scUtilOut = await readTensorData(
+  squareCropAndResize(scTensorUtil, [2, 3, 1], 2),
+);
 assert.deepStrictEqual(Array.from(scUtilOut), [0, 1, 3, 4]);
 
 // sketch regression
@@ -810,13 +854,15 @@ setSeed(1);
 const skData = new Float32Array([0.1, 0.5, 0.3, 0.8]);
 const skTensor = Tensor.fromArray(null, skData, [2, 2, 1]);
 setSeed(1);
-const skOut = sketch(skTensor, [2, 2, 1], 0, 1).read();
+const skOut = await readTensorData(sketch(skTensor, [2, 2, 1], 0, 1));
 const skExpected = loadFixture("sketch.json");
 arraysClose(Array.from(skOut), skExpected);
 
 // simpleFrame regression
 const sfTensor = Tensor.fromArray(null, skData, [2, 2, 1]);
-const sfOut = simpleFrame(sfTensor, [2, 2, 1], 0, 1, 0.5).read();
+const sfOut = await readTensorData(
+  simpleFrame(sfTensor, [2, 2, 1], 0, 1, 0.5),
+);
 const sfExpected = loadFixture("simpleFrame.json");
 arraysClose(Array.from(sfOut), sfExpected);
 
@@ -824,30 +870,32 @@ arraysClose(Array.from(sfOut), sfExpected);
 setSeed(1);
 const frTensor = Tensor.fromArray(null, skData, [2, 2, 1]);
 setSeed(1);
-  const frOut = (await frame(frTensor, [2, 2, 1], 0, 1)).read();
+  const frOut = await readTensorData(frame(frTensor, [2, 2, 1], 0, 1));
 const frExpected = loadFixture("frame.json");
 arraysClose(Array.from(frOut), frExpected);
 
 // lowpoly regression
 setSeed(1);
-const lpOut = lowpoly(edgeTensor, [4, 4, 1], 0, 1, undefined, 2).read();
+const lpOut = await readTensorData(
+  lowpoly(edgeTensor, [4, 4, 1], 0, 1, undefined, 2),
+);
 const lpExpected = loadFixture("lowpoly.json");
 arraysClose(Array.from(lpOut), lpExpected);
 
 // kaleido regression
 setSeed(1);
-const kalOut = kaleido(edgeTensor, [4, 4, 1], 0, 1, 3).read();
+const kalOut = await readTensorData(kaleido(edgeTensor, [4, 4, 1], 0, 1, 3));
 const kalExpected = loadFixture("kaleido.json");
 arraysClose(Array.from(kalOut), kalExpected);
 
 // texture regression
-const texOut = (await texture(edgeTensor, [4, 4, 1], 0, 1)).read();
+const texOut = await readTensorData(texture(edgeTensor, [4, 4, 1], 0, 1));
 const texExpected = loadFixture("texture.json");
 arraysClose(Array.from(texOut), texExpected);
 
 // glyphMap shape test
 const gmTensor = Tensor.fromArray(null, edgeData, [4, 4, 1]);
-const gmOut = glyphMap(gmTensor, [4, 4, 1], 0, 1).read();
+const gmOut = await readTensorData(glyphMap(gmTensor, [4, 4, 1], 0, 1));
 assert.strictEqual(gmOut.length, 16);
 
 // glitch regression
@@ -855,20 +903,22 @@ const glData = new Float32Array([
   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3,
 ]);
 const glTensor = Tensor.fromArray(null, glData, [2, 2, 3]);
-const glOut = glitch(glTensor, [2, 2, 3], 0.25, 1).read();
+const glOut = await readTensorData(glitch(glTensor, [2, 2, 3], 0.25, 1));
 const glExpected = loadFixture("glitch.json");
 arraysClose(Array.from(glOut), glExpected);
 
 // vhs regression
 const vhsTensor = Tensor.fromArray(null, glData, [2, 2, 3]);
-const vhsOut = vhs(vhsTensor, [2, 2, 3], 0.25, 1).read();
+const vhsOut = await readTensorData(vhs(vhsTensor, [2, 2, 3], 0.25, 1));
 const vhsExpected = loadFixture("vhs.json");
 arraysClose(Array.from(vhsOut), vhsExpected);
 
 // scanlineError regression
 const sleData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const sleTensor = Tensor.fromArray(null, sleData, [2, 2, 1]);
-const sleOut = scanlineError(sleTensor, [2, 2, 1], 0.25, 1).read();
+const sleOut = await readTensorData(
+  scanlineError(sleTensor, [2, 2, 1], 0.25, 1),
+);
 const sleExpected = loadFixture("scanlineError.json");
 arraysClose(Array.from(sleOut), sleExpected);
 
@@ -876,14 +926,14 @@ arraysClose(Array.from(sleOut), sleExpected);
 setSeed(1);
 const crtTensor = Tensor.fromArray(null, glData, [2, 2, 3]);
 setSeed(1);
-const crtOut = crt(crtTensor, [2, 2, 3], 0.25, 1).read();
+const crtOut = await readTensorData(crt(crtTensor, [2, 2, 3], 0.25, 1));
 const crtExpected = loadFixture("crt.json");
 arraysClose(Array.from(crtOut), crtExpected);
 
 // snow regression
 const snowData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const snowTensor = Tensor.fromArray(null, snowData, [2, 2, 1]);
-const snowOut = snow(snowTensor, [2, 2, 1], 0, 1).read();
+const snowOut = await readTensorData(snow(snowTensor, [2, 2, 1], 0, 1));
 const snowExpected = loadFixture("snow.json");
 arraysClose(Array.from(snowOut), snowExpected);
 
@@ -891,7 +941,7 @@ arraysClose(Array.from(snowOut), snowExpected);
 setSeed(1);
 const spTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const spOut = (await spatter(spTensor, [4, 4, 1], 0, 1)).read();
+const spOut = await readTensorData(spatter(spTensor, [4, 4, 1], 0, 1));
 const spExpected = loadFixture("spatter.json");
 arraysClose(Array.from(spOut), spExpected);
 
@@ -899,7 +949,7 @@ arraysClose(Array.from(spOut), spExpected);
 setSeed(1);
 const clTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const clOut = (await clouds(clTensor, [4, 4, 1], 0, 1)).read();
+const clOut = await readTensorData(clouds(clTensor, [4, 4, 1], 0, 1));
 const clExpected = loadFixture("clouds.json");
 arraysClose(Array.from(clOut), clExpected);
 
@@ -907,7 +957,7 @@ arraysClose(Array.from(clOut), clExpected);
 setSeed(1);
 const fbTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const fbOut = fibers(fbTensor, [4, 4, 1], 0, 1).read();
+const fbOut = await readTensorData(fibers(fbTensor, [4, 4, 1], 0, 1));
 const fbExpected = loadFixture("fibers.json");
 arraysClose(Array.from(fbOut), fbExpected);
 const fbArr = Array.from(fbOut);
@@ -917,7 +967,7 @@ assert.ok(fbArr.every((v) => v >= 0 && v <= 1));
 setSeed(1);
 const scTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const scOut = scratches(scTensor, [4, 4, 1], 0, 1).read();
+const scOut = await readTensorData(scratches(scTensor, [4, 4, 1], 0, 1));
 const scArr = Array.from(scOut);
 assert.ok(scArr.some((v) => v > 0));
 assert.ok(scArr.every((v) => v >= 0 && v <= 1));
@@ -926,7 +976,7 @@ assert.ok(scArr.every((v) => v >= 0 && v <= 1));
 setSeed(1);
 const shTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 setSeed(1);
-const shOut = strayHair(shTensor, [4, 4, 1], 0, 1).read();
+const shOut = await readTensorData(strayHair(shTensor, [4, 4, 1], 0, 1));
 const shExpected = loadFixture("strayHair.json");
 arraysClose(Array.from(shOut), shExpected);
 const shArr = Array.from(shOut);
@@ -936,7 +986,7 @@ assert.ok(shArr.every((v) => v >= 0 && v <= 1));
 setSeed(1);
 const grimeTensor = Tensor.fromArray(null, new Float32Array(64), [8, 8, 1]);
 setSeed(1);
-const grOut = grime(grimeTensor, [8, 8, 1], 0, 1).read();
+const grOut = await readTensorData(grime(grimeTensor, [8, 8, 1], 0, 1));
 const grExpected = loadFixture("grime.json");
 arraysClose(Array.from(grOut), grExpected, 3e-3);
 
@@ -944,7 +994,7 @@ arraysClose(Array.from(grOut), grExpected, 3e-3);
 setSeed(1);
 const watermarkTensor = Tensor.fromArray(null, new Float32Array(64), [8, 8, 1]);
 setSeed(1);
-const wmOut = (await watermark(watermarkTensor, [8, 8, 1], 0, 1)).read();
+const wmOut = await readTensorData(watermark(watermarkTensor, [8, 8, 1], 0, 1));
 const wmExpected = loadFixture("watermark.json");
 arraysClose(Array.from(wmOut), wmExpected);
 
@@ -952,7 +1002,7 @@ arraysClose(Array.from(wmOut), wmExpected);
 setSeed(1);
 const spookyTensor = Tensor.fromArray(null, new Float32Array(64), [8, 8, 1]);
 setSeed(1);
-const stOut = spookyTicker(spookyTensor, [8, 8, 1], 0, 1).read();
+const stOut = await readTensorData(spookyTicker(spookyTensor, [8, 8, 1], 0, 1));
 const stExpected = loadFixture("spookyTicker.json");
 arraysClose(Array.from(stOut), stExpected);
 
@@ -964,7 +1014,9 @@ const osdTensor = Tensor.fromArray(
   [64, 64, 1],
 );
 setSeed(1);
-const osdOut = onScreenDisplay(osdTensor, [64, 64, 1], 0, 1).read();
+const osdOut = await readTensorData(
+  onScreenDisplay(osdTensor, [64, 64, 1], 0, 1),
+);
 const osdExpected = loadFixture("onScreenDisplay.json");
 arraysClose(Array.from(osdOut), osdExpected);
 
@@ -976,7 +1028,7 @@ const nebTensor = Tensor.fromArray(
   [32, 32, 3],
 );
 setSeed(1);
-const nebOut = nebula(nebTensor, [32, 32, 3], 0, 1).read();
+const nebOut = await readTensorData(nebula(nebTensor, [32, 32, 3], 0, 1));
 const nebExpected = loadFixture("nebula.json");
 arraysClose(Array.from(nebOut), nebExpected);
 
@@ -985,7 +1037,7 @@ const fcData = new Float32Array([
   0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4,
 ]);
 const fcTensor = Tensor.fromArray(null, fcData, [2, 2, 3]);
-const fcOut = falseColor(fcTensor, [2, 2, 3], 0, 1).read();
+const fcOut = await readTensorData(falseColor(fcTensor, [2, 2, 3], 0, 1));
 const fcExpected = loadFixture("falseColor.json");
 arraysClose(Array.from(fcOut), fcExpected);
 
@@ -996,7 +1048,7 @@ const tintData = new Float32Array([
 ]);
 const tintTensor = Tensor.fromArray(null, tintData, [2, 2, 3]);
 setSeed(1);
-const tintOut = tint(tintTensor, [2, 2, 3], 0, 1, 0.5).read();
+const tintOut = await readTensorData(tint(tintTensor, [2, 2, 3], 0, 1, 0.5));
 const tintExpected = loadFixture("tint.json");
 arraysClose(Array.from(tintOut), tintExpected);
 const tintArr = Array.from(tintOut);
@@ -1008,7 +1060,7 @@ const vrData = new Float32Array([
   0.5,
 ]);
 const vrTensor = Tensor.fromArray(null, vrData, [4, 4, 1]);
-const vrOut = valueRefract(vrTensor, [4, 4, 1], 0, 1).read();
+const vrOut = await readTensorData(valueRefract(vrTensor, [4, 4, 1], 0, 1));
 const vrExpected = loadFixture("valueRefract.json");
 arraysClose(Array.from(vrOut), vrExpected);
 const vrArr = Array.from(vrOut);
@@ -1016,7 +1068,7 @@ assert.ok(vrArr.every((v) => v >= 0 && v <= 1));
 
 // lensWarp extreme displacement
 setSeed(1);
-const lwOut = lensWarp(edgeTensor, [4, 4, 1], 0, 1, 5).read();
+const lwOut = await readTensorData(lensWarp(edgeTensor, [4, 4, 1], 0, 1, 5));
 for (const v of lwOut) {
   assert.ok(Number.isFinite(v));
   assert.ok(v >= 0 && v <= 1);
@@ -1024,7 +1076,9 @@ for (const v of lwOut) {
 
 // lensDistortion negative displacement regression
 const ldDisp = -2;
-const ldRes = lensDistortion(edgeTensor, [4, 4, 1], 0, 1, ldDisp).read();
+const ldRes = await readTensorData(
+  lensDistortion(edgeTensor, [4, 4, 1], 0, 1, ldDisp),
+);
 const ldManual = (() => {
   const h = 4,
     w = 4;
@@ -1054,7 +1108,7 @@ arraysClose(Array.from(ldRes), Array.from(ldManual));
 // degauss per-channel lensWarp consistency
 setSeed(2);
 const dgTensor = Tensor.fromArray(null, glData, [2, 2, 3]);
-const dgOut = degauss(dgTensor, [2, 2, 3], 0, 1, 1).read();
+const dgOut = await readTensorData(degauss(dgTensor, [2, 2, 3], 0, 1, 1));
 setSeed(2);
 const channelShape = [2, 2, 1];
 const rChan = Tensor.fromArray(
@@ -1072,9 +1126,9 @@ const bChan = Tensor.fromArray(
   new Float32Array([0.3, 0.6, 0.9, 0.3]),
   channelShape,
 );
-const rWarp = lensWarp(rChan, channelShape, 0, 1, 1).read();
-const gWarp = lensWarp(gChan, channelShape, 0, 1, 1).read();
-const bWarp = lensWarp(bChan, channelShape, 0, 1, 1).read();
+const rWarp = await readTensorData(lensWarp(rChan, channelShape, 0, 1, 1));
+const gWarp = await readTensorData(lensWarp(gChan, channelShape, 0, 1, 1));
+const bWarp = await readTensorData(lensWarp(bChan, channelShape, 0, 1, 1));
 const dgManual = new Float32Array(2 * 2 * 3);
 for (let i = 0; i < 4; i++) {
   dgManual[i * 3] = rWarp[i];
@@ -1089,7 +1143,9 @@ const smTensor = Tensor.fromArray(
   new Float32Array([0.2, 0.5, 0.8, 1.2]),
   [2, 2, 1],
 );
-const smOut = smoothstep(smTensor, [2, 2, 1], 0, 1, 0.25, 0.75).read();
+const smOut = await readTensorData(
+  smoothstep(smTensor, [2, 2, 1], 0, 1, 0.25, 0.75),
+);
 const smExpected = loadFixture("smoothstep.json");
 arraysClose(Array.from(smOut), smExpected);
 
@@ -1099,28 +1155,32 @@ const cvTensor = Tensor.fromArray(
   new Float32Array([0.1, 0.5, 0.3, 0.7]),
   [2, 2, 1],
 );
-const cvOut = convolve(
-  cvTensor,
-  [2, 2, 1],
-  0,
-  1,
-  ValueMask.conv2d_blur,
-  true,
-  1,
-).read();
+const cvOut = await readTensorData(
+  convolve(
+    cvTensor,
+    [2, 2, 1],
+    0,
+    1,
+    ValueMask.conv2d_blur,
+    true,
+    1,
+  ),
+);
 const cvExpected = loadFixture("convolve.json");
 arraysClose(Array.from(cvOut), cvExpected);
 
 // convolve edges regression
-const cvEdgesOut = convolve(
-  cvTensor,
-  [2, 2, 1],
-  0,
-  1,
-  ValueMask.conv2d_edges,
-  true,
-  1,
-).read();
+const cvEdgesOut = await readTensorData(
+  convolve(
+    cvTensor,
+    [2, 2, 1],
+    0,
+    1,
+    ValueMask.conv2d_edges,
+    true,
+    1,
+  ),
+);
 const cvEdgesExpected = loadFixture("convolveEdges.json");
 arraysClose(Array.from(cvEdgesOut), cvEdgesExpected);
 
@@ -1138,15 +1198,9 @@ const rfRef = Tensor.fromArray(
   new Float32Array([0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]),
   [4, 4, 1],
 );
-const rfOut = refractEffect(
-  rfTensor,
-  [4, 4, 1],
-  0,
-  1,
-  0.5,
-  rfRef,
-  rfRef,
-).read();
+const rfOut = await readTensorData(
+  refractEffect(rfTensor, [4, 4, 1], 0, 1, 0.5, rfRef, rfRef),
+);
 const rfExpected = loadFixture("refractEffect.json");
 arraysClose(Array.from(rfOut), rfExpected);
 
@@ -1173,11 +1227,11 @@ const ky = [
 ];
 const dx = await convolution(fdTensor, kx, { normalize: false });
 const dy = await convolution(fdTensor, ky, { normalize: false });
-const fdExpected = await (
-  await refract(fdTensor, dx, dy, 0.5, InterpolationType.bicubic, false)
-).read();
-const fdOut = await (
-  await refractEffect(
+const fdExpected = await readTensorData(
+  refract(fdTensor, dx, dy, 0.5, InterpolationType.bicubic, false),
+);
+const fdOut = await readTensorData(
+  refractEffect(
     fdTensor,
     [4, 4, 1],
     0,
@@ -1188,8 +1242,8 @@ const fdOut = await (
     null,
     InterpolationType.bicubic,
     true,
-  )
-).read();
+  ),
+);
 arraysClose(Array.from(fdOut), Array.from(fdExpected));
 
 // fxaaEffect regression
@@ -1201,7 +1255,7 @@ const fxData = new Float32Array([
   0.7, 0.7, 0.7, 0.8, 0.8, 0.8, 0.9, 0.9, 0.9,
 ]);
 const fxTensor = Tensor.fromArray(null, fxData, [3, 3, 3]);
-const fxOut = await (await fxaaEffect(fxTensor, [3, 3, 3], 0, 1)).read();
+const fxOut = await readTensorData(fxaaEffect(fxTensor, [3, 3, 3], 0, 1));
 const fxExpected = loadFixture("fxaaEffect.json");
 arraysClose(Array.from(fxOut), fxExpected);
 

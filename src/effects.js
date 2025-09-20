@@ -5560,6 +5560,52 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     working = await rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
   const data = await working.read();
+  if (!ctx || !ctx.device) {
+    const valueTensor = await toValueMap(working);
+    const valuesData = await valueTensor.read();
+    const sorted = new Float32Array(want * want * c);
+    for (let y = 0; y < want; y++) {
+      const rowOffset = y * want;
+      const indices = new Array(want);
+      for (let i = 0; i < want; i++) indices[i] = i;
+      indices.sort((a, b) => valuesData[rowOffset + b] - valuesData[rowOffset + a]);
+      const sortedRow = new Float32Array(want * c);
+      for (let pos = 0; pos < want; pos++) {
+        const srcIndex = indices[pos];
+        const srcBase = (rowOffset + srcIndex) * c;
+        const dstBase = pos * c;
+        for (let k = 0; k < c; k++) {
+          sortedRow[dstBase + k] = data[srcBase + k];
+        }
+      }
+      const shift = indices[0] || 0;
+      for (let x = 0; x < want; x++) {
+        const srcPos = (x - shift + want) % want;
+        const dstBase = (rowOffset + x) * c;
+        const srcBase = srcPos * c;
+        for (let k = 0; k < c; k++) {
+          sorted[dstBase + k] = sortedRow[srcBase + k];
+        }
+      }
+    }
+    let sortedTensor = Tensor.fromArray(ctx, sorted, [want, want, c]);
+    if (angle !== false) {
+      sortedTensor = await rotate2D(
+        sortedTensor,
+        [want, want, c],
+        (-angle * Math.PI) / 180,
+      );
+    }
+    sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
+    const sortedData = await sortedTensor.read();
+    const out = new Float32Array(sortedData.length);
+    for (let i = 0; i < sortedData.length; i++) {
+      const orig = srcData[i];
+      const v = Math.max(darkest ? 1 - orig : orig, sortedData[i]);
+      out[i] = darkest ? 1 - v : v;
+    }
+    return Tensor.fromArray(ctx, out, shape);
+  }
   const sorted = new Float32Array(want * want * c);
   const rowBuffers = [];
   await ctx.withEncoder(async () => {
