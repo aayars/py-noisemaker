@@ -2704,7 +2704,7 @@ export function offsetIndex(yIndex, height, xIndex, width) {
 }
 
 export async function posterize(tensor, shape, time, speed, levels = 9) {
-  if (levels <= 0) return tensor;
+  if (levels === 0) return tensor;
   const outShape = shape.slice();
   let t = tensor;
   if (outShape[2] === 3) {
@@ -2727,11 +2727,10 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
     src = tmp;
   }
   const out = new Float32Array(expected);
+  const levelFactor = levels;
+  const halfStep = 0.5 / levelFactor;
   for (let i = 0; i < expected; i++) {
-    out[i] = Math.min(
-      1,
-      Math.max(0, Math.floor(src[i] * levels + 0.5 / levels) / levels),
-    );
+    out[i] = Math.floor(src[i] * levelFactor + halfStep) / levelFactor;
   }
   let result = Tensor.fromArray(t.ctx, out, outShape);
   if (outShape[2] === 3) {
@@ -5063,7 +5062,13 @@ export async function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
     screened[i] = 1 - (1 - src[i]) * (1 - leakData[i]);
   }
   leak = Tensor.fromArray(tensor.ctx, screened, shape);
-  leak = await centerMaskInternal(tensor, leak, shape, 4);
+  leak = await centerMaskInternal(
+    tensor,
+    leak,
+    shape,
+    undefined,
+    DistanceMetric.octagram,
+  );
   const blended = await blend(tensor, leak, alpha);
   // ``vaseline`` ignores the temporal parameters but expects them for
   // registry consistency.
