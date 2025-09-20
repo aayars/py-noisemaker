@@ -287,7 +287,15 @@ export class Preset {
     Object.assign(this.settings, toCamelKeys(settings));
     debugLog(this.debug, 'settings', this.settings);
 
-    this.generator = _flattenAncestorMetadata(this, this.settings, 'generator', {}, presets, this.debug);
+    const generatorMetadata = _flattenAncestorMetadata(
+      this,
+      this.settings,
+      'generator',
+      {},
+      presets,
+      this.debug,
+    );
+    this.generator = Object.keys(generatorMetadata).length ? generatorMetadata : null;
     this.octave_effects = _flattenAncestorMetadata(this, this.settings, 'octaves', [], presets, this.debug);
     this.post_effects = _flattenAncestorMetadata(this, this.settings, 'post', [], presets, this.debug);
     this.final_effects = _flattenAncestorMetadata(this, this.settings, 'final', [], presets, this.debug);
@@ -301,6 +309,19 @@ export class Preset {
     } catch (e) {
       throw new Error(`Preset "${presetName}": ${e.message}`);
     }
+  }
+
+  is_generator() {
+    return this.generator;
+  }
+
+  is_effect() {
+    const post = Array.isArray(this.post_effects) ? this.post_effects : [];
+    if (post.length) {
+      return post;
+    }
+    const final = Array.isArray(this.final_effects) ? this.final_effects : [];
+    return final;
   }
 
   async render(seed = 0, opts = {}) {

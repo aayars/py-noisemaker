@@ -623,10 +623,24 @@
       errorBannerEl.textContent = '';
 
       const presetEvalStart = performance.now();
-      presets = PRESETS(presetName);
-      const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
+      const presetTable = PRESETS(presetName);
+      const presetObj = new Preset(presetName, presetTable, {}, seed, { debug: false });
+      let renderPresetObj = presetObj;
+      let renderPresets = presetTable;
+      if (!presetObj.is_generator() && presetObj.is_effect()) {
+        renderPresets = PRESETS('basic');
+        const basePreset = new Preset('basic', renderPresets, {}, seed, { debug: false });
+        basePreset.name = `${presetName}-on-basic`;
+        const combinedFinal = Array.isArray(basePreset.final_effects)
+          ? basePreset.final_effects.slice()
+          : [];
+        combinedFinal.push(presetObj);
+        basePreset.final_effects = combinedFinal;
+        renderPresetObj = basePreset;
+      }
+      presets = renderPresets;
       const presetEvalMs = performance.now() - presetEvalStart;
-      const stageSnapshots = gatherStageSnapshots(presetObj);
+      const stageSnapshots = gatherStageSnapshots(renderPresetObj);
       let renderMs = 0;
       let webgpuMs = 0;
       let cpuMs = 0;
@@ -636,7 +650,7 @@
 
       if (activeCtx && !activeCtx.isCPU && activeCtx.device && activeCtx.queue) {
         try {
-          const entry = ensureProgramForPreset(activeCtx, presetObj, width, height);
+          const entry = ensureProgramForPreset(activeCtx, renderPresetObj, width, height);
           if (entry) {
             if (entry.unsupported) {
               if (!entry.notified) {
@@ -721,7 +735,7 @@
         }
         const cpuStart = performance.now();
         try {
-          await render(presetObj, seed, {
+          await render(renderPresetObj, seed, {
             width,
             height,
             ctx: activeCtx,
@@ -754,7 +768,7 @@
         `seed: ${seed}`,
       ].join('<br>');
       presetFormulaEl.textContent = presetSource[presetName] || '';
-      presetEvalEl.textContent = formatPreset(serializePreset(presetObj, seed));
+      presetEvalEl.textContent = formatPreset(serializePreset(renderPresetObj, seed));
     }
 
     function renderPreset(seed = currentSeed, presetName = currentPreset) {
