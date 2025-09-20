@@ -4,6 +4,7 @@ from collections import UserDict
 from enum import Enum, EnumMeta
 from functools import partial
 import inspect
+import re
 
 import noisemaker.rng as rng
 
@@ -207,6 +208,81 @@ def _resolve_metadata_value(value, settings):
     return value
 
 
+_CAMEL_PATTERN_1 = re.compile(r"(.)([A-Z][a-z]+)")
+_CAMEL_PATTERN_2 = re.compile(r"([a-z0-9])([A-Z])")
+
+
+def _camel_to_snake(name):
+    if not isinstance(name, str):
+        return name
+
+    s1 = _CAMEL_PATTERN_1.sub(r"\1_\2", name)
+    return _CAMEL_PATTERN_2.sub(r"\1_\2", s1).lower()
+
+
+def _lookup_effect_definition(effect_name):
+    if effect_name in EFFECTS:
+        return effect_name, EFFECTS[effect_name]
+
+    snake = _camel_to_snake(effect_name)
+
+    if snake in EFFECTS:
+        return snake, EFFECTS[snake]
+
+    return effect_name, None
+
+
+def _map_effect(effect, settings):
+    seen = set()
+    depth = 0
+
+    while (
+        callable(effect)
+        and not getattr(effect, "_effect_name", None)
+        and not getattr(effect, "post_effects", None)
+        and not getattr(effect, "final_effects", None)
+    ):
+        identity = id(effect)
+
+        if identity in seen or depth > 64:
+            raise ValueError("Runaway dynamic preset function")
+
+        seen.add(identity)
+        depth += 1
+        effect = _resolve_metadata_value(effect, settings)
+
+    if isinstance(effect, dict) and "__effectName" in effect:
+        raw_name = effect["__effectName"]
+        effect_name, effect_def = _lookup_effect_definition(raw_name)
+        params = {}
+
+        raw_params = effect.get("__params") or {}
+
+        if raw_params:
+            for key, value in raw_params.items():
+                resolved = _resolve_metadata_value(value, settings)
+                params[_camel_to_snake(key)] = resolved
+        elif effect.get("args"):
+            if effect_def is None:
+                raise ValueError(f'"{raw_name}" is not a registered effect name.')
+
+            keys = [k for k in effect_def.keys() if k != "func"]
+            args = effect["args"]
+
+            if len(args) > len(keys):
+                raise ValueError(
+                    f'Effect "{raw_name}" received {len(args)} positional arguments '
+                    f"but only {len(keys)} parameters are available."
+                )
+
+            for index, arg_value in enumerate(args):
+                params[keys[index]] = _resolve_metadata_value(arg_value, settings)
+
+        return Effect(effect_name, **params)
+
+    return effect
+
+
 def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=False):
     """Flatten ancestor preset metadata"""
 
@@ -251,6 +327,8 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=
         if isinstance(ancestor, dict):
             flattened_metadata.update(ancestor)
         else:
+            if use_dsl and key in ("octaves", "post", "final"):
+                ancestor = [_map_effect(e, settings) for e in ancestor]
             flattened_metadata += ancestor
 
     return flattened_metadata
