@@ -106,9 +106,10 @@
     </div>
     <div id="errorBanner" style="display:none;background:#fee;color:#900;padding:10px;width:100%;box-sizing:border-box;white-space:pre-wrap;"></div>
   </div>
-  <script type="module">
+    <script type="module">
     import { Context } from './src/context.js';
-    import { render, Preset } from './src/composer.js';
+    import { render, Preset, gatherStageSnapshots, writeProgramUniforms } from './src/composer.js';
+    import { compilePreset } from './src/webgpu/pipeline.js';
     import { ColorSpace } from './src/constants.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
@@ -152,6 +153,34 @@
     }
     let ctx;
     let renderQueue = Promise.resolve();
+    const programCachesByContext = new Map();
+    let gpuFrameIndex = 0;
+    let lastCanvasSizeKey = `${canvas.width}x${canvas.height}`;
+    let currentPreset = null;
+    let currentSeed = 42;
+
+    const canvasResizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver((entries) => {
+            for (const entry of entries) {
+              if (entry.target === canvas) {
+                handleCanvasResize();
+              }
+            }
+          })
+        : null;
+
+    function observeCanvas(target) {
+      if (!canvasResizeObserver) {
+        lastCanvasSizeKey = `${target?.width ?? canvas.width}x${target?.height ?? canvas.height}`;
+        return;
+      }
+      canvasResizeObserver.disconnect();
+      if (target) {
+        canvasResizeObserver.observe(target);
+        lastCanvasSizeKey = `${target.width}x${target.height}`;
+      }
+    }
 
     function ensureCanvasForBackend(backend) {
       if (activeCanvasBackend === backend && canvas?.isConnected) {
@@ -164,6 +193,7 @@
       canvas.parentNode.replaceChild(newCanvas, canvas);
       canvas = newCanvas;
       activeCanvasBackend = backend;
+      observeCanvas(canvas);
       return canvas;
     }
 
@@ -193,15 +223,112 @@
       }
     }
 
-    // Attempt to initialize WebGPU. Enable the API in your browser for best
-    // performance:
-    //   - Chrome/Edge: set the WebGPU flag at chrome://flags or launch with
-    //     --enable-unsafe-webgpu
-    //   - Safari: Develop > Experimental Features > WebGPU
-    //   - Firefox Nightly: dom.webgpu.enabled in about:config
+    function destroyProgramEntry(entry) {
+      if (!entry) return;
+      if (entry.program) {
+        if (typeof entry.program.destroy === 'function') {
+          try {
+            entry.program.destroy();
+          } catch (err) {
+            void err;
+          }
+        } else if (typeof entry.program.dispose === 'function') {
+          try {
+            entry.program.dispose();
+          } catch (err) {
+            void err;
+          }
+        }
+      }
+      entry.program = null;
+    }
+
+    function clearProgramCacheForContext(context) {
+      if (!context) return;
+      const cache = programCachesByContext.get(context);
+      if (!cache) return;
+      for (const entry of cache.values()) {
+        destroyProgramEntry(entry);
+      }
+      cache.clear();
+      programCachesByContext.delete(context);
+      if (context === ctx) {
+        gpuFrameIndex = 0;
+      }
+    }
+
+    function programHasUnsupportedStages(program) {
+      if (!program || typeof program.stageCount !== 'number') {
+        return true;
+      }
+      for (let i = 0; i < program.stageCount; i += 1) {
+        const descriptor = program.getStageDescriptor(i);
+        if (!descriptor || descriptor.gpuSupported === false) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function ensureProgramForPreset(context, presetObj, width, height) {
+      if (!context || context.isCPU) {
+        return null;
+      }
+      let cache = programCachesByContext.get(context);
+      if (!cache) {
+        cache = new Map();
+        programCachesByContext.set(context, cache);
+      }
+      const key = `${presetObj.name}:${width}x${height}`;
+      let entry = cache.get(key);
+      if (entry && entry.program && !entry.program.matchesPreset(presetObj)) {
+        destroyProgramEntry(entry);
+        cache.delete(key);
+        entry = null;
+      }
+      if (!entry) {
+        entry = { program: null, unsupported: false, notified: false };
+        cache.set(key, entry);
+      }
+      if (!entry.program && !entry.unsupported) {
+        try {
+          const compiled = compilePreset(presetObj, context);
+          if (compiled && compiled.stageCount > 0 && !programHasUnsupportedStages(compiled)) {
+            entry.program = compiled;
+          } else {
+            entry.unsupported = true;
+            compiled?.destroy?.();
+          }
+        } catch (err) {
+          entry.unsupported = true;
+          destroyProgramEntry(entry);
+          throw err;
+        }
+      }
+      return entry;
+    }
+
+    observeCanvas(canvas);
+
     async function initCtx() {
       await renderQueue;
-      disposeCtx(ctx);
+      if (ctx) {
+        clearProgramCacheForContext(ctx);
+        if (typeof ctx.destroy === 'function') {
+          try {
+            ctx.destroy({ keepLookupTextures: false });
+          } catch (err) {
+            void err;
+          }
+        } else if (typeof ctx.dispose === 'function') {
+          try {
+            ctx.dispose({ keepLookupTextures: false });
+          } catch (err) {
+            void err;
+          }
+        }
+        disposeCtx(ctx);
+      }
       const useWebGPU = hasWebGPU && webgpuToggle.checked;
       const targetCanvas = ensureCanvasForBackend(useWebGPU ? 'gpu' : 'cpu');
       if (useWebGPU) {
@@ -211,11 +338,11 @@
           if (ok) {
             ctx = nextCtx;
           } else {
-            disposeCtx(nextCtx);
             webgpuToggle.checked = false;
             showError('WebGPU unavailable or failed to initialize; falling back to CPU.');
             const fallbackCanvas = ensureCanvasForBackend('cpu');
             ctx = createCPUContext(fallbackCanvas);
+            disposeCtx(nextCtx);
           }
         } catch (e) {
           disposeCtx(nextCtx);
@@ -232,6 +359,7 @@
       } else {
         ctx.profile.webgpu = 0;
       }
+      gpuFrameIndex = 0;
       return !ctx.isCPU;
     }
 
@@ -248,13 +376,11 @@
       (name) => !name.startsWith('maybe-')
     );
 
-    // Load the DSL source so that we can display the original recipe
-    // text rather than the evaluated JavaScript values.
     const dslSource = await fetch('./dsl/presets.dsl').then((r) => r.text());
 
     function extractPresetSource(source, name) {
-      const escName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`"${escName}"\\s*:\\s*{`);
+      const escName = name.replace(/[.*+?^${}()|[\]\]/g, '\$&');
+      const pattern = new RegExp(`"${escName}"\s*:\s*{`);
       const match = pattern.exec(source);
       if (!match) {
         return '';
@@ -321,7 +447,7 @@
               return formatPreset(result, indent);
             }
           } catch (e) {
-            // fall back to function's source if invocation fails
+            // ignore invocation failures
           }
         }
         return obj.toString();
@@ -397,8 +523,8 @@
     tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
 
     presetSelect.value = 'basic';
-    let currentPreset = presetSelect.value;
-    let currentSeed = Number(seedInput.value) || 42;
+    currentPreset = presetSelect.value;
+    currentSeed = Number(seedInput.value) || 42;
     seedInput.value = currentSeed;
 
     function parseSeed(value) {
@@ -407,48 +533,144 @@
     }
 
     async function draw(seed, presetName) {
-      const activeCtx = ctx;
+      let activeCtx = ctx;
       setSeed(seed);
       if (!activeCtx.profile) {
         activeCtx.profile = { webgpu: 0 };
       } else {
         activeCtx.profile.webgpu = 0;
       }
+      const width = canvas.width;
+      const height = canvas.height;
+      lastCanvasSizeKey = `${width}x${height}`;
+      errorBannerEl.style.display = 'none';
+      errorBannerEl.textContent = '';
+
       const presetEvalStart = performance.now();
       presets = PRESETS(presetName);
       const presetObj = new Preset(presetName, presets, {}, seed, { debug: false });
       const presetEvalMs = performance.now() - presetEvalStart;
-      const renderStart = performance.now();
+      const stageSnapshots = gatherStageSnapshots(presetObj);
       let renderMs = 0;
-      errorBannerEl.style.display = 'none';
-      errorBannerEl.textContent = '';
-      try {
-        await render(presetObj, seed, {
-          width: canvas.width,
-          height: canvas.height,
-          ctx: activeCtx,
-          presets,
-          debug: false,
-        });
-        if (activeCtx.flush) {
-          await activeCtx.flush();
+      let webgpuMs = 0;
+      let cpuMs = 0;
+      let usedGPU = false;
+      let validationError = null;
+      let gpuError = null;
+
+      if (activeCtx && !activeCtx.isCPU && activeCtx.device && activeCtx.queue) {
+        try {
+          const entry = ensureProgramForPreset(activeCtx, presetObj, width, height);
+          if (entry) {
+            if (entry.unsupported) {
+              if (!entry.notified) {
+                showError('Preset is not supported by WebGPU; falling back to CPU.');
+                entry.notified = true;
+              }
+            } else if (entry.program) {
+              if (stageSnapshots.length) {
+                writeProgramUniforms(entry.program, stageSnapshots, gpuFrameIndex);
+              }
+              let scopePushed = false;
+              if (activeCtx.device?.pushErrorScope) {
+                try {
+                  activeCtx.device.pushErrorScope('validation');
+                  scopePushed = true;
+                } catch (_) {
+                  scopePushed = false;
+                }
+              }
+              const renderStart = performance.now();
+              try {
+                await entry.program.execute(activeCtx, {
+                  width,
+                  height,
+                  time: 0,
+                  frameIndex: gpuFrameIndex,
+                  seed,
+                  present: true,
+                  readback: false,
+                });
+                usedGPU = true;
+              } catch (err) {
+                gpuError = err;
+              }
+              if (scopePushed && activeCtx.device?.popErrorScope) {
+                try {
+                  validationError = await activeCtx.device.popErrorScope();
+                } catch (scopeErr) {
+                  validationError = scopeErr;
+                }
+              } else if (scopePushed) {
+                validationError = null;
+              }
+              if (validationError) {
+                usedGPU = false;
+              }
+              if (usedGPU) {
+                if (activeCtx.flush) {
+                  await activeCtx.flush();
+                }
+                if (benchmark && activeCtx.queue?.onSubmittedWorkDone) {
+                  await activeCtx.queue.onSubmittedWorkDone();
+                }
+                gpuFrameIndex += 1;
+                renderMs = performance.now() - renderStart;
+                webgpuMs = activeCtx.profile?.webgpu ?? 0;
+                if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
+                cpuMs = Math.max(0, renderMs - webgpuMs);
+              } else if (validationError) {
+                showError(`WebGPU validation error: ${validationError.message || validationError}`);
+              } else if (gpuError) {
+                showError(gpuError.message || String(gpuError));
+              }
+            }
+          }
+        } catch (err) {
+          showError(err.message || String(err));
         }
-        if (
-          benchmark &&
-          activeCtx.queue &&
-          activeCtx.queue.onSubmittedWorkDone
-        ) {
+      }
+
+      if (!usedGPU) {
+        const previousCtx = activeCtx;
+        if (previousCtx && !previousCtx.isCPU) {
+          clearProgramCacheForContext(previousCtx);
+          const fallbackCanvas = ensureCanvasForBackend('cpu');
+          const fallbackCtx = createCPUContext(fallbackCanvas);
+          webgpuToggle.checked = false;
+          disposeCtx(previousCtx);
+          ctx = fallbackCtx;
+          activeCtx = fallbackCtx;
+          gpuFrameIndex = 0;
+        }
+        const cpuStart = performance.now();
+        try {
+          await render(presetObj, seed, {
+            width,
+            height,
+            ctx: activeCtx,
+            presets,
+            debug: false,
+          });
+          if (activeCtx.flush) {
+            await activeCtx.flush();
+          }
+        } catch (e) {
+          const errorText = `${e.message || e}\n${e.stack || ''}`;
+          showError(errorText);
+          throw e;
+        }
+        if (benchmark && activeCtx.queue && activeCtx.queue.onSubmittedWorkDone) {
           await activeCtx.queue.onSubmittedWorkDone();
         }
-      } catch (e) {
-        const errorText = `${e.message || e}\n${e.stack || ''}`;
-        showError(errorText);
-        throw e;
+        renderMs = performance.now() - cpuStart;
+        webgpuMs = activeCtx.profile?.webgpu ?? 0;
+        if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
+        cpuMs = renderMs;
       }
-      renderMs = performance.now() - renderStart;
-      const webgpuMs = activeCtx.profile?.webgpu ?? 0;
-      const cpuMs = Math.max(0, renderMs - webgpuMs);
+
       statusEl.innerHTML = [
+        `mode: ${usedGPU ? 'webgpu' : 'cpu'}`,
         `eval: ${presetEvalMs.toFixed(2)} ms`,
         `webgpu: ${webgpuMs.toFixed(2)} ms`,
         `cpu: ${cpuMs.toFixed(2)} ms`,
@@ -530,7 +752,34 @@
         renderWithCatch(seed, currentPreset);
       });
 
+    function handleCanvasResize() {
+      const sizeKey = `${canvas.width}x${canvas.height}`;
+      if (sizeKey === lastCanvasSizeKey) {
+        return;
+      }
+      lastCanvasSizeKey = sizeKey;
+      if (!ctx || ctx.isCPU || !currentPreset) {
+        return;
+      }
+      clearProgramCacheForContext(ctx);
+      if (typeof ctx.destroy === 'function') {
+        try {
+          ctx.destroy({ keepLookupTextures: false });
+        } catch (err) {
+          void err;
+        }
+      } else if (typeof ctx.dispose === 'function') {
+        try {
+          ctx.dispose({ keepLookupTextures: false });
+        } catch (err) {
+          void err;
+        }
+      }
+      renderWithCatch(currentSeed, currentPreset);
+    }
+
     showTab('formula');
   </script>
+
 </body>
 </html>

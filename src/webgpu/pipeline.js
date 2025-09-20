@@ -692,12 +692,45 @@ export class PresetProgram {
   }
 
   dispose() {
-    for (const holder of this.uniformBuffers) {
-      if (holder?.release) {
-        holder.release();
+    this.destroy();
+  }
+
+  destroy() {
+    if (Array.isArray(this.uniformBuffers)) {
+      for (const holder of this.uniformBuffers) {
+        if (holder?.release) {
+          try {
+            holder.release();
+          } catch (err) {
+            void err;
+          }
+        }
       }
     }
     this.uniformBuffers = [];
+    if (this._timestampQuerySet?.destroy) {
+      try {
+        this._timestampQuerySet.destroy();
+      } catch (err) {
+        void err;
+      }
+    }
+    this._timestampQuerySet = null;
+    if (Array.isArray(this.stages)) {
+      for (const descriptor of this.stages) {
+        if (!descriptor) continue;
+        if (descriptor.pipeline && typeof descriptor.pipeline.destroy === 'function') {
+          try {
+            descriptor.pipeline.destroy();
+          } catch (err) {
+            void err;
+          }
+        }
+        descriptor.pipeline = null;
+        descriptor.bindGroupLayout = null;
+        descriptor.pipelineLayout = null;
+      }
+    }
   }
 
   /**

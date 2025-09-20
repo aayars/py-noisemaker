@@ -770,6 +770,19 @@ export class Context {
       }
     }
     this._frameUniform = null;
+    if (this._pipelineCache?.clear) {
+      this._pipelineCache.clear();
+    }
+    if (this._bindGroupLayoutCache?.clear) {
+      this._bindGroupLayoutCache.clear();
+    }
+    if (this._pipelineLayoutCache?.clear) {
+      this._pipelineLayoutCache.clear();
+    }
+  }
+
+  destroy(options = {}) {
+    this.dispose(options);
   }
 
   getCachedBindGroupLayout(signature, entriesFactory) {

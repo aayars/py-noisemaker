@@ -751,6 +751,8 @@ export async function render(presetOrName, seed = 0, opts = {}) {
   return preset.render(seed, opts);
 }
 
+export { gatherStageSnapshots, writeProgramUniforms };
+
 function _flattenAncestors(presetName, presets, unique, ancestors, stack = [], debug = false) {
   debugLog(debug, '_flattenAncestors enter', presetName, 'stack', stack);
   if (stack.includes(presetName)) {
