@@ -89,6 +89,9 @@
     <label id="seedLabel" for="seedInput">Seed:</label>
     <input id="seedInput" type="number" step="1" value="42" />
     <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
+    <label><input type="checkbox" id="timestampToggle" /> GPU timing</label>
+    <label><input type="checkbox" id="dynamicToggle" /> Dynamic res</label>
+    <label><input type="checkbox" id="parityToggle" /> Parity readback</label>
     </span>
     <canvas id="noise" width="512" height="512"></canvas>
   </div>
@@ -146,10 +149,25 @@
     let canvas = document.getElementById('noise');
     let activeCanvasBackend = 'cpu';
     const webgpuToggle = document.getElementById('webgpuToggle');
+    const timestampToggle = document.getElementById('timestampToggle');
+    const dynamicToggle = document.getElementById('dynamicToggle');
+    const parityToggle = document.getElementById('parityToggle');
     const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu;
     if (!hasWebGPU) {
       webgpuToggle.checked = false;
       webgpuToggle.disabled = true;
+      if (timestampToggle) {
+        timestampToggle.checked = false;
+        timestampToggle.disabled = true;
+      }
+      if (dynamicToggle) {
+        dynamicToggle.checked = false;
+        dynamicToggle.disabled = true;
+      }
+      if (parityToggle) {
+        parityToggle.checked = false;
+        parityToggle.disabled = true;
+      }
     }
     let ctx;
     let renderQueue = Promise.resolve();
@@ -205,7 +223,22 @@
       cpuCtx.queue = null;
       cpuCtx.presentationFormat = null;
       cpuCtx.isCPU = true;
-      cpuCtx.profile = { webgpu: 0 };
+      cpuCtx.profile = {
+        webgpu: 0,
+        lastGPUTime: 0,
+        lastDispatchMs: 0,
+        lastCompileMs: 0,
+        dynamicScale: 1,
+        timestampQueryEnabled: false,
+        parityReadback: Boolean(parityToggle?.checked),
+      };
+      if (typeof cpuCtx.setProfilingOptions === 'function') {
+        cpuCtx.setProfilingOptions({
+          timestampQueries: false,
+          dynamicResolution: Boolean(dynamicToggle?.checked),
+          parityReadback: Boolean(parityToggle?.checked),
+        });
+      }
       return cpuCtx;
     }
 
@@ -257,6 +290,42 @@
       }
     }
 
+    function currentProfilingOptions() {
+      return {
+        timestampQueries: Boolean(timestampToggle?.checked),
+        dynamicResolution: Boolean(dynamicToggle?.checked),
+        parityReadback: Boolean(parityToggle?.checked),
+      };
+    }
+
+    function applyProfilingOptions(targetCtx = ctx) {
+      if (!targetCtx) {
+        return;
+      }
+      const options = currentProfilingOptions();
+      if (typeof targetCtx.setProfilingOptions === 'function') {
+        targetCtx.setProfilingOptions(options);
+      } else {
+        targetCtx.profilingOptions = { ...options };
+      }
+      if (!targetCtx.profile) {
+        targetCtx.profile = {
+          webgpu: 0,
+          lastGPUTime: 0,
+          lastDispatchMs: 0,
+          lastCompileMs: 0,
+          dynamicScale: 1,
+          timestampQueryEnabled: Boolean(options.timestampQueries),
+          parityReadback: Boolean(options.parityReadback),
+        };
+      } else {
+        targetCtx.profile.parityReadback = Boolean(options.parityReadback);
+        if (!Number.isFinite(targetCtx.profile.dynamicScale)) {
+          targetCtx.profile.dynamicScale = 1;
+        }
+      }
+    }
+
     function programHasUnsupportedStages(program) {
       if (!program || typeof program.stageCount !== 'number') {
         return true;
@@ -292,7 +361,12 @@
       }
       if (!entry.program && !entry.unsupported) {
         try {
+          const perfReady = typeof performance !== 'undefined' && performance && performance.now;
+          const compileStart = perfReady ? performance.now() : 0;
           const compiled = compilePreset(presetObj, context);
+          if (entry) {
+            entry.compileMs = perfReady ? performance.now() - compileStart : 0;
+          }
           if (compiled && compiled.stageCount > 0 && !programHasUnsupportedStages(compiled)) {
             entry.program = compiled;
           } else {
@@ -354,10 +428,26 @@
       } else {
         ctx = createCPUContext(targetCanvas);
       }
+      applyProfilingOptions(ctx);
       if (!ctx.profile) {
-        ctx.profile = { webgpu: 0 };
+        ctx.profile = {
+          webgpu: 0,
+          lastGPUTime: 0,
+          lastDispatchMs: 0,
+          lastCompileMs: 0,
+          dynamicScale: 1,
+          timestampQueryEnabled: false,
+          parityReadback: Boolean(parityToggle?.checked),
+        };
       } else {
         ctx.profile.webgpu = 0;
+        ctx.profile.lastGPUTime = 0;
+        ctx.profile.lastDispatchMs = 0;
+        ctx.profile.lastCompileMs = ctx.profile.lastCompileMs || 0;
+        if (!Number.isFinite(ctx.profile.dynamicScale)) {
+          ctx.profile.dynamicScale = 1;
+        }
+        ctx.profile.parityReadback = Boolean(parityToggle?.checked);
       }
       gpuFrameIndex = 0;
       return !ctx.isCPU;
@@ -612,10 +702,26 @@
       let activeCtx = ctx;
       setSeed(seed);
       if (!activeCtx.profile) {
-        activeCtx.profile = { webgpu: 0 };
+        activeCtx.profile = {
+          webgpu: 0,
+          lastGPUTime: 0,
+          lastDispatchMs: 0,
+          lastCompileMs: 0,
+          dynamicScale: 1,
+          timestampQueryEnabled: Boolean(timestampToggle?.checked),
+          parityReadback: Boolean(parityToggle?.checked),
+        };
       } else {
         activeCtx.profile.webgpu = 0;
+        activeCtx.profile.lastGPUTime = 0;
+        activeCtx.profile.lastDispatchMs = 0;
+        activeCtx.profile.lastReadback = null;
+        if (!Number.isFinite(activeCtx.profile.dynamicScale)) {
+          activeCtx.profile.dynamicScale = 1;
+        }
+        activeCtx.profile.parityReadback = Boolean(parityToggle?.checked);
       }
+      applyProfilingOptions(activeCtx);
       const width = canvas.width;
       const height = canvas.height;
       lastCanvasSizeKey = `${width}x${height}`;
@@ -645,12 +751,22 @@
       let webgpuMs = 0;
       let cpuMs = 0;
       let usedGPU = false;
-      let validationError = null;
       let gpuError = null;
+      let effectiveWidth = width;
+      let effectiveHeight = height;
 
       if (activeCtx && !activeCtx.isCPU && activeCtx.device && activeCtx.queue) {
         try {
-          const entry = ensureProgramForPreset(activeCtx, renderPresetObj, width, height);
+          const dynamicEnabled = Boolean(activeCtx?.profilingOptions?.dynamicResolution);
+          if (dynamicEnabled) {
+            const scale = Number.isFinite(activeCtx.profile?.dynamicScale)
+              ? Math.max(0.25, Math.min(1, activeCtx.profile.dynamicScale))
+              : 1;
+            activeCtx.profile.dynamicScale = scale;
+            effectiveWidth = Math.max(1, Math.round(width * scale));
+            effectiveHeight = Math.max(1, Math.round(height * scale));
+          }
+          const entry = ensureProgramForPreset(activeCtx, renderPresetObj, effectiveWidth, effectiveHeight);
           if (entry) {
             if (entry.unsupported) {
               if (!entry.notified) {
@@ -661,58 +777,74 @@
               if (stageSnapshots.length) {
                 writeProgramUniforms(entry.program, stageSnapshots, gpuFrameIndex);
               }
-              let scopePushed = false;
-              if (activeCtx.device?.pushErrorScope) {
-                try {
-                  activeCtx.device.pushErrorScope('validation');
-                  scopePushed = true;
-                } catch (_) {
-                  scopePushed = false;
-                }
-              }
               const renderStart = performance.now();
+              let execResult = null;
               try {
-                await entry.program.execute(activeCtx, {
-                  width,
-                  height,
+                execResult = await entry.program.execute(activeCtx, {
+                  width: effectiveWidth,
+                  height: effectiveHeight,
                   time: 0,
                   frameIndex: gpuFrameIndex,
                   seed,
                   present: true,
-                  readback: false,
+                  readback: Boolean(parityToggle?.checked),
                 });
                 usedGPU = true;
               } catch (err) {
                 gpuError = err;
               }
-              if (scopePushed && activeCtx.device?.popErrorScope) {
-                try {
-                  validationError = await activeCtx.device.popErrorScope();
-                } catch (scopeErr) {
-                  validationError = scopeErr;
-                }
-              } else if (scopePushed) {
-                validationError = null;
-              }
-              if (validationError) {
-                usedGPU = false;
-              }
               if (usedGPU) {
-                if (activeCtx.flush) {
+                if (execResult?.queueFlushed !== true && activeCtx.flush) {
                   await activeCtx.flush();
                 }
                 if (benchmark && activeCtx.queue?.onSubmittedWorkDone) {
                   await activeCtx.queue.onSubmittedWorkDone();
                 }
                 gpuFrameIndex += 1;
-                renderMs = performance.now() - renderStart;
-                webgpuMs = activeCtx.profile?.webgpu ?? 0;
+                const totalElapsed = execResult?.totalTimeMs ?? performance.now() - renderStart;
+                renderMs = totalElapsed;
+                const dispatchMs = execResult?.dispatchWallMs ?? activeCtx.profile?.lastDispatchMs ?? 0;
+                activeCtx.profile.lastDispatchMs = dispatchMs;
+                const compileMs = entry.compileMs ?? activeCtx.profile?.lastCompileMs ?? 0;
+                activeCtx.profile.lastCompileMs = compileMs;
+                webgpuMs = execResult?.gpuTimeMs ?? activeCtx.profile?.lastGPUTime ?? 0;
                 if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
                 cpuMs = Math.max(0, renderMs - webgpuMs);
-              } else if (validationError) {
-                showError(`WebGPU validation error: ${validationError.message || validationError}`);
+                if (execResult?.readback) {
+                  activeCtx.profile.lastReadback = execResult.readback;
+                }
+                if (execResult?.readbackLayout) {
+                  activeCtx.profile.lastReadbackLayout = execResult.readbackLayout;
+                }
+                if (dynamicEnabled) {
+                  const targetMs = 16;
+                  let scale = activeCtx.profile.dynamicScale ?? 1;
+                  if (Number.isFinite(webgpuMs)) {
+                    if (webgpuMs > targetMs * 1.2) {
+                      scale = Math.max(0.3, scale * 0.9);
+                    } else if (webgpuMs < targetMs * 0.6) {
+                      scale = Math.min(1, scale * 1.05);
+                    }
+                  }
+                  activeCtx.profile.dynamicScale = Math.min(1, Math.max(0.25, scale));
+                } else {
+                  activeCtx.profile.dynamicScale = 1;
+                }
               } else if (gpuError) {
-                showError(gpuError.message || String(gpuError));
+                usedGPU = false;
+                if (gpuError && gpuError.name === 'StageValidationError') {
+                  const stageLabel = gpuError.stage?.label ?? `stage ${gpuError.stage?.index ?? '?'}`;
+                  const bindingSummary = Array.isArray(gpuError.bindings) && gpuError.bindings.length
+                    ? gpuError.bindings.map((b) => `b${b.binding}:${b.resourceType}`).join(', ')
+                    : 'no bindings reported';
+                  const causeMsg = gpuError.cause?.message || gpuError.message || String(gpuError);
+                  showError(
+                    `WebGPU validation error in ${stageLabel}: ${causeMsg}
+Bindings: ${bindingSummary}`,
+                  );
+                } else {
+                  showError(gpuError.message || String(gpuError));
+                }
               }
             }
           }
@@ -757,16 +889,35 @@
         webgpuMs = activeCtx.profile?.webgpu ?? 0;
         if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
         cpuMs = renderMs;
+        effectiveWidth = width;
+        effectiveHeight = height;
+        if (activeCtx.profile) {
+          activeCtx.profile.lastDispatchMs = 0;
+          activeCtx.profile.lastCompileMs = activeCtx.profile.lastCompileMs || 0;
+        }
       }
 
+      const compileMs = activeCtx.profile?.lastCompileMs ?? 0;
+      const dispatchMs = usedGPU ? activeCtx.profile?.lastDispatchMs ?? 0 : 0;
+      const dynamicEnabled = Boolean(activeCtx?.profilingOptions?.dynamicResolution);
+      const scaleInfo = dynamicEnabled && usedGPU
+        ? `scale: ${(activeCtx.profile?.dynamicScale ?? 1).toFixed(2)}x (${effectiveWidth}×${effectiveHeight})`
+        : null;
       statusEl.innerHTML = [
         `mode: ${usedGPU ? 'webgpu' : 'cpu'}`,
         `eval: ${presetEvalMs.toFixed(2)} ms`,
-        `webgpu: ${webgpuMs.toFixed(2)} ms`,
+        `compile: ${compileMs.toFixed(2)} ms`,
+        `dispatch: ${dispatchMs.toFixed(2)} ms`,
+        `gpu: ${webgpuMs.toFixed(2)} ms`,
         `cpu: ${cpuMs.toFixed(2)} ms`,
         `total: ${renderMs.toFixed(2)} ms`,
+        scaleInfo,
+        `gpu queries: ${timestampToggle?.checked && usedGPU ? 'on' : 'off'}`,
+        `parity: ${parityToggle?.checked ? 'on' : 'off'}`,
         `seed: ${seed}`,
-      ].join('<br>');
+      ]
+        .filter(Boolean)
+        .join('<br>');
       presetFormulaEl.textContent = presetSource[presetName] || '';
       presetEvalEl.textContent = formatPreset(serializePreset(renderPresetObj, seed));
     }
@@ -816,6 +967,15 @@
       const seed = Math.floor(random() * 1e9);
       renderWithCatch(seed, currentPreset);
     });
+
+    function handleProfilingToggle() {
+      applyProfilingOptions();
+      renderWithCatch(currentSeed, currentPreset);
+    }
+
+    [timestampToggle, dynamicToggle, parityToggle]
+      .filter(Boolean)
+      .forEach((toggle) => toggle.addEventListener('change', handleProfilingToggle));
 
     webgpuToggle.addEventListener('change', async () => {
       try {

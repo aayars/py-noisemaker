@@ -7,6 +7,76 @@ const STORAGE_TEXTURE_FORMAT = 'rgba32float';
 const PRESENT_PARAMS_FLOATS = 16;
 const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
 
+export class StageValidationError extends Error {
+  constructor(descriptor, cause, bindings, context = {}) {
+    const stageLabel = descriptor?.label ?? `stage ${descriptor?.index ?? '?'}`;
+    const baseMessage = cause?.message || cause || 'Unknown validation error';
+    super(`Stage "${stageLabel}" validation error: ${baseMessage}`);
+    this.name = 'StageValidationError';
+    this.stage = {
+      index: descriptor?.index ?? null,
+      label: descriptor?.label ?? null,
+      category: descriptor?.category ?? null,
+      shaderId: descriptor?.shaderId ?? null,
+    };
+    this.bindings = Array.isArray(bindings) ? bindings : [];
+    this.cause = cause;
+    this.context = context;
+  }
+}
+
+function describeBindingResource(resource) {
+  if (!resource) return 'null';
+  if (resource.buffer) return 'buffer';
+  if (resource.texture) return 'texture';
+  if (resource.sampler) return 'sampler';
+  if (resource.resource) {
+    return describeBindingResource(resource.resource);
+  }
+  const type = resource.constructor?.name;
+  if (type && type !== 'Object') {
+    return type;
+  }
+  if (typeof resource === 'object') {
+    return 'object';
+  }
+  return typeof resource;
+}
+
+function summarizeBindings(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry) => ({
+    binding: entry?.binding ?? null,
+    resourceType: describeBindingResource(entry?.resource),
+  }));
+}
+
+async function safePopErrorScope(device) {
+  if (!device?.popErrorScope) return null;
+  try {
+    return await device.popErrorScope();
+  } catch (err) {
+    return err;
+  }
+}
+
+function logStageValidationError(descriptor, error, bindings, extras = {}) {
+  if (typeof console === 'undefined' || typeof console.error !== 'function') {
+    return;
+  }
+  const payload = {
+    stage: {
+      index: descriptor?.index ?? null,
+      label: descriptor?.label ?? null,
+      category: descriptor?.category ?? null,
+      shaderId: descriptor?.shaderId ?? null,
+    },
+    bindings,
+    ...extras,
+  };
+  console.error('WebGPU validation error', error, payload);
+}
+
 /**
  * Represents a single std140 uniform field within a stage specific buffer.
  * Offsets and sizes are computed so callers can mirror CPU side packing
@@ -225,33 +295,22 @@ export class PresetProgram {
         profileInfo: null,
       };
 
-      const timestampSupported = Boolean(
-        device.features && typeof device.features.has === 'function' && device.features.has('timestamp-query'),
-      );
-      const canWriteTimestamp = timestampSupported && typeof encoder.writeTimestamp === 'function';
-      const querySet = canWriteTimestamp
-        ? this._timestampQuerySet || device.createQuerySet({ type: 'timestamp', count: 2 })
-        : null;
-      if (querySet && !this._timestampQuerySet) {
-        this._timestampQuerySet = querySet;
-      }
-      let resolveBuffer = null;
-      if (querySet) {
-        const baseUsage =
-          (typeof GPUBufferUsage !== 'undefined' ? GPUBufferUsage.COPY_DST : 0) |
-          (typeof GPUBufferUsage !== 'undefined' && GPUBufferUsage.MAP_READ
-            ? GPUBufferUsage.MAP_READ
-            : 0);
-        const queryResolveUsage =
-          typeof GPUBufferUsage !== 'undefined' && GPUBufferUsage.QUERY_RESOLVE
-            ? GPUBufferUsage.QUERY_RESOLVE
-            : 0;
-        const usage = baseUsage | queryResolveUsage;
-        resolveBuffer = usage
-          ? device.createBuffer({ size: 16, usage })
-          : null;
-        if (resolveBuffer && canWriteTimestamp) {
-          encoder.writeTimestamp(querySet, 0);
+      let timestampInfo = null;
+      if (typeof context.prepareTimestampQueryResources === 'function') {
+        const resources = context.prepareTimestampQueryResources(2);
+        if (
+          resources?.querySet &&
+          resources?.resolveBuffer &&
+          typeof encoder.writeTimestamp === 'function' &&
+          typeof encoder.resolveQuerySet === 'function'
+        ) {
+          timestampInfo = {
+            querySet: resources.querySet,
+            resolveBuffer: resources.resolveBuffer,
+            count: resources.count || 2,
+            usedTimestampQuery: true,
+          };
+          encoder.writeTimestamp(resources.querySet, 0);
         }
       }
 
@@ -349,35 +408,131 @@ export class PresetProgram {
           }
         }
 
-        const layout =
-          descriptor.bindGroupLayout || (pipeline.getBindGroupLayout ? pipeline.getBindGroupLayout(0) : null);
-        if (!layout) {
-          continue;
-        }
-        let bindGroup;
-        try {
-          bindGroup = device.createBindGroup({ layout, entries });
-        } catch (err) {
-          console.warn('Failed to create bind group for stage', descriptor?.label, err);
-          continue;
+        const bindingSummary = summarizeBindings(entries);
+        let scopeActive = false;
+        if (device?.pushErrorScope && device?.popErrorScope) {
+          try {
+            device.pushErrorScope('validation');
+            scopeActive = true;
+          } catch (_) {
+            scopeActive = false;
+          }
         }
 
-        const pass = context.beginComputePass(encoder);
-        pass.setPipeline(pipeline);
-        pass.setBindGroup(0, bindGroup);
-        const workgroupSize = Array.isArray(descriptor.specialization?.workgroupSize)
-          ? descriptor.specialization.workgroupSize
-          : DEFAULT_WORKGROUP_SIZE;
-        const wgX = Math.max(1, Math.floor(workgroupSize[0] || DEFAULT_WORKGROUP_SIZE[0]));
-        const wgY = Math.max(1, Math.floor(workgroupSize[1] || DEFAULT_WORKGROUP_SIZE[1]));
-        const dispatchX = Math.max(1, Math.ceil(width / wgX));
-        const dispatchY = Math.max(1, Math.ceil(height / wgY));
-        pass.dispatchWorkgroups(dispatchX, dispatchY, 1);
-        pass.end();
+        let pass = null;
+        try {
+          const layout =
+            descriptor.bindGroupLayout || (pipeline.getBindGroupLayout ? pipeline.getBindGroupLayout(0) : null);
+          if (!layout) {
+            if (scopeActive) {
+              const validationErr = await safePopErrorScope(device);
+              scopeActive = false;
+              if (validationErr) {
+                logStageValidationError(descriptor, validationErr, bindingSummary, {
+                  width,
+                  height,
+                  frameIndex,
+                  stageIndex: index,
+                });
+                throw new StageValidationError(descriptor, validationErr, bindingSummary, {
+                  width,
+                  height,
+                  frameIndex,
+                  stageIndex: index,
+                });
+              }
+            }
+            continue;
+          }
+          const bindGroup = device.createBindGroup({ layout, entries });
+          pass = context.beginComputePass(encoder);
+          pass.setPipeline(pipeline);
+          pass.setBindGroup(0, bindGroup);
+          const workgroupSize = Array.isArray(descriptor.specialization?.workgroupSize)
+            ? descriptor.specialization.workgroupSize
+            : DEFAULT_WORKGROUP_SIZE;
+          const wgX = Math.max(1, Math.floor(workgroupSize[0] || DEFAULT_WORKGROUP_SIZE[0]));
+          const wgY = Math.max(1, Math.floor(workgroupSize[1] || DEFAULT_WORKGROUP_SIZE[1]));
+          const dispatchX = Math.max(1, Math.ceil(width / wgX));
+          const dispatchY = Math.max(1, Math.ceil(height / wgY));
+          pass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+        } catch (err) {
+          if (pass) {
+            try {
+              pass.end();
+            } catch (_) {
+              /* ignore */
+            }
+            pass = null;
+          }
+          let validationErr = null;
+          if (scopeActive) {
+            validationErr = await safePopErrorScope(device);
+            scopeActive = false;
+          }
+          if (validationErr) {
+            logStageValidationError(descriptor, validationErr, bindingSummary, {
+              width,
+              height,
+              frameIndex,
+              stageIndex: index,
+              cause: err,
+            });
+            throw new StageValidationError(descriptor, validationErr, bindingSummary, {
+              width,
+              height,
+              frameIndex,
+              stageIndex: index,
+              cause: err,
+            });
+          }
+          if (err instanceof StageValidationError) {
+            throw err;
+          }
+          logStageValidationError(descriptor, err, bindingSummary, {
+            width,
+            height,
+            frameIndex,
+            stageIndex: index,
+          });
+          throw new StageValidationError(descriptor, err, bindingSummary, {
+            width,
+            height,
+            frameIndex,
+            stageIndex: index,
+          });
+        } finally {
+          if (pass) {
+            try {
+              pass.end();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        }
 
         pingPong.swap();
         state.finalTexture = pingPong.readTex;
         state.finalView = pingPong.readFbo;
+
+        if (scopeActive) {
+          const validationErr = await safePopErrorScope(device);
+          scopeActive = false;
+          if (validationErr) {
+            logStageValidationError(descriptor, validationErr, bindingSummary, {
+              width,
+              height,
+              frameIndex,
+              stageIndex: index,
+            });
+            throw new StageValidationError(descriptor, validationErr, bindingSummary, {
+              width,
+              height,
+              frameIndex,
+              stageIndex: index,
+            });
+          }
+        }
       }
 
       if (state.finalTexture) {
@@ -563,16 +718,24 @@ export class PresetProgram {
         };
       }
 
-      if (querySet && resolveBuffer && canWriteTimestamp) {
-        encoder.writeTimestamp(querySet, 1);
-        encoder.resolveQuerySet(querySet, 0, 2, resolveBuffer, 0);
-        state.profileInfo = { querySet, resolveBuffer };
+      if (timestampInfo?.querySet && timestampInfo?.resolveBuffer) {
+        encoder.writeTimestamp(timestampInfo.querySet, 1);
+        encoder.resolveQuerySet(
+          timestampInfo.querySet,
+          0,
+          timestampInfo.count || 2,
+          timestampInfo.resolveBuffer,
+          0,
+        );
       }
+
+      state.profileInfo = timestampInfo;
 
       return state;
     };
 
-    const finalizeResult = async (state, autoSubmitted) => {
+    const finalizeResult = async (state, autoSubmitted, dispatchMs, callStart) => {
+      const hasPerf = typeof performance !== 'undefined' && performance && typeof performance.now === 'function';
       const result = {
         texture: state?.finalTexture || null,
         textureView: state?.finalView || null,
@@ -583,6 +746,10 @@ export class PresetProgram {
         readbackLayout: null,
         gpuTimeMs: null,
         profileInfo: null,
+        dispatchWallMs: typeof dispatchMs === 'number' && Number.isFinite(dispatchMs) ? dispatchMs : null,
+        totalTimeMs: null,
+        queueFlushed: false,
+        usedTimestampQuery: Boolean(state?.profileInfo?.usedTimestampQuery),
       };
 
       if (!state) {
@@ -624,6 +791,10 @@ export class PresetProgram {
               }
             }
           }
+          result.queueFlushed = true;
+          if (context) {
+            context._pendingDispatch = false;
+          }
         } else {
           result.readbackBuffer = state.readbackRequest.buffer;
           result.readbackLayout = {
@@ -637,13 +808,14 @@ export class PresetProgram {
         }
       }
 
-      if (state.profileInfo) {
+      if (state.profileInfo?.usedTimestampQuery) {
         if (autoSubmitted) {
-          const { resolveBuffer } = state.profileInfo;
+          const { resolveBuffer, count = 2 } = state.profileInfo;
           if (resolveBuffer) {
+            const byteLength = Math.max(16, Math.ceil(count) * 8);
             try {
-              await resolveBuffer.mapAsync(gpuMapModeRead, 0, 16);
-              const copy = resolveBuffer.getMappedRange(0, 16).slice(0);
+              await resolveBuffer.mapAsync(gpuMapModeRead, 0, byteLength);
+              const copy = resolveBuffer.getMappedRange(0, byteLength).slice(0);
               const timestamps = new BigUint64Array(copy);
               const begin = timestamps[0] || 0n;
               const end = timestamps[1] || 0n;
@@ -652,12 +824,6 @@ export class PresetProgram {
               const gpuMs = Number(diff) * (period / 1e6);
               if (Number.isFinite(gpuMs)) {
                 result.gpuTimeMs = gpuMs;
-                if (context.profile) {
-                  if (typeof context.profile.webgpu !== 'number') {
-                    context.profile.webgpu = 0;
-                  }
-                  context.profile.webgpu += gpuMs;
-                }
               }
             } finally {
               try {
@@ -665,13 +831,10 @@ export class PresetProgram {
               } catch (err) {
                 void err;
               }
-              if (resolveBuffer.destroy) {
-                try {
-                  resolveBuffer.destroy();
-                } catch (err) {
-                  void err;
-                }
-              }
+            }
+            result.queueFlushed = true;
+            if (context) {
+              context._pendingDispatch = false;
             }
           }
         } else {
@@ -679,16 +842,67 @@ export class PresetProgram {
         }
       }
 
+      if (
+        autoSubmitted &&
+        !result.queueFlushed &&
+        (!state.profileInfo || !state.profileInfo.usedTimestampQuery) &&
+        context.queue?.onSubmittedWorkDone
+      ) {
+        const waitStart = hasPerf ? performance.now() : 0;
+        try {
+          await context.queue.onSubmittedWorkDone();
+        } finally {
+          if (context) {
+            context._pendingDispatch = false;
+          }
+        }
+        if (waitStart && hasPerf) {
+          const elapsed = performance.now() - waitStart;
+          if (Number.isFinite(elapsed)) {
+            result.gpuTimeMs = elapsed;
+          }
+        }
+        result.queueFlushed = true;
+      }
+
+      if (context?.profile) {
+        if (Number.isFinite(result.gpuTimeMs)) {
+          context.profile.lastGPUTime = result.gpuTimeMs;
+          context.profile.webgpu = result.gpuTimeMs;
+        } else {
+          context.profile.lastGPUTime = 0;
+          context.profile.webgpu = 0;
+        }
+        if (Number.isFinite(result.dispatchWallMs)) {
+          context.profile.lastDispatchMs = result.dispatchWallMs;
+        } else {
+          context.profile.lastDispatchMs = 0;
+        }
+        context.profile.timestampQueryEnabled = Boolean(result.usedTimestampQuery && result.gpuTimeMs !== null);
+        context.profile.parityReadback = Boolean(readback);
+      }
+
+      if (hasPerf && callStart) {
+        result.totalTimeMs = performance.now() - callStart;
+      }
+
       return result;
     };
 
+    const hasPerf = typeof performance !== 'undefined' && performance && typeof performance.now === 'function';
+    const callStart = hasPerf ? performance.now() : 0;
+
     if (autoSubmit) {
+      const dispatchStart = hasPerf ? performance.now() : 0;
       const state = await context.withEncoder((encoder) => encode(encoder));
-      return finalizeResult(state, true);
+      const dispatchMs = hasPerf ? performance.now() - dispatchStart : null;
+      return finalizeResult(state, true, dispatchMs, callStart);
     }
 
+    const dispatchStart = hasPerf ? performance.now() : 0;
     const state = await encode(providedEncoder);
-    return finalizeResult(state, false);
+    const dispatchMs = hasPerf ? performance.now() - dispatchStart : null;
+    return finalizeResult(state, false, dispatchMs, callStart);
   }
 
   dispose() {
@@ -708,14 +922,6 @@ export class PresetProgram {
       }
     }
     this.uniformBuffers = [];
-    if (this._timestampQuerySet?.destroy) {
-      try {
-        this._timestampQuerySet.destroy();
-      } catch (err) {
-        void err;
-      }
-    }
-    this._timestampQuerySet = null;
     if (Array.isArray(this.stages)) {
       for (const descriptor of this.stages) {
         if (!descriptor) continue;

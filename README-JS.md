@@ -96,3 +96,33 @@ WebGPU only works in secure contexts (HTTPS or `localhost`). If
 - **Validation errors** – check the browser console for details; the demo will
   automatically fall back to WebGL when initialization fails.
 
+### Profiling diagnostics
+
+The demo's status panel now reports GPU diagnostics alongside CPU timing so you
+can verify WebGPU performance at a glance:
+
+- **compile** – time spent compiling WGSL into pipelines when a preset is first
+  used at the current resolution.
+- **dispatch** – CPU wall clock time spent encoding and submitting the compute
+  dispatch for the most recent frame.
+- **gpu** – milliseconds of GPU work measured via timestamp queries when
+  supported, otherwise derived from `queue.onSubmittedWorkDone()`.
+- **gpu queries** – whether timestamp query collection is active.
+- **parity** – indicates whether read-back staging buffers are being captured
+  for image diffing.
+- **scale** – the active dynamic-resolution multiplier and the effective render
+  size being dispatched on the GPU.
+
+Three checkboxes next to the preset selector control the diagnostics:
+
+1. **GPU timing** – enables timestamp query collection. Disable this to compare
+   raw frame times without the extra query resolve overhead.
+2. **Dynamic res** – toggles dynamic resolution scaling. When enabled the GPU
+   dispatch size shrinks or grows to keep frame times near 16 ms, while the
+   presentation shader upscales to the canvas.
+3. **Parity readback** – requests a staging-buffer copy of the final texture so
+   you can diff GPU output against the CPU reference.
+
+Toggles take effect immediately and schedule a re-render so testers can confirm
+timing and parity expectations without reloading the page.
+

@@ -395,6 +395,161 @@ export class Context {
     this._bindGroupLayoutCache = new Map();
     this._pipelineLayoutCache = new Map();
     this._frameUniform = null;
+    this.profile = {
+      webgpu: 0,
+      lastGPUTime: 0,
+      lastDispatchMs: 0,
+      lastCompileMs: 0,
+      dynamicScale: 1,
+      timestampQueryEnabled: false,
+      parityReadback: false,
+    };
+    this.profilingOptions = {
+      timestampQueries: false,
+      dynamicResolution: false,
+      parityReadback: false,
+    };
+    this._timestampSupport = null;
+    this._timestampQuerySet = null;
+    this._timestampQueryCount = 0;
+    this._timestampResolveBuffer = null;
+  }
+
+  setProfilingOptions(options = {}) {
+    const opts = options || {};
+    const current = this.profilingOptions || {};
+    const next = {
+      timestampQueries:
+        'timestampQueries' in opts ? Boolean(opts.timestampQueries) : Boolean(current.timestampQueries),
+      dynamicResolution:
+        'dynamicResolution' in opts ? Boolean(opts.dynamicResolution) : Boolean(current.dynamicResolution),
+      parityReadback:
+        'parityReadback' in opts ? Boolean(opts.parityReadback) : Boolean(current.parityReadback),
+    };
+    this.profilingOptions = next;
+    if (!this.profile) {
+      this.profile = {
+        webgpu: 0,
+        lastGPUTime: 0,
+        lastDispatchMs: 0,
+        lastCompileMs: 0,
+        dynamicScale: 1,
+        timestampQueryEnabled: false,
+        parityReadback: false,
+      };
+    }
+    this.profile.timestampQueryEnabled = next.timestampQueries && this.supportsTimestampQueries();
+    this.profile.parityReadback = next.parityReadback;
+    if (!next.dynamicResolution) {
+      this.profile.dynamicScale = 1;
+    }
+    if (!next.timestampQueries) {
+      this._timestampSupport = null;
+      this._timestampQueryCount = 0;
+      if (this._timestampResolveBuffer?.mapState === 'mapped') {
+        try {
+          this._timestampResolveBuffer.unmap();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      this._destroyTimestampQueryResources();
+    }
+  }
+
+  supportsTimestampQueries() {
+    if (!this.device) return false;
+    if (this._timestampSupport !== null) {
+      return this._timestampSupport;
+    }
+    const features = this.device.features;
+    const hasFeature =
+      features && typeof features.has === 'function' ? features.has('timestamp-query') : false;
+    const hasCreate = typeof this.device.createQuerySet === 'function';
+    this._timestampSupport = Boolean(hasFeature && hasCreate);
+    return this._timestampSupport;
+  }
+
+  _destroyTimestampQueryResources() {
+    if (this._timestampQuerySet?.destroy) {
+      try {
+        this._timestampQuerySet.destroy();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    this._timestampQuerySet = null;
+    this._timestampQueryCount = 0;
+    if (this._timestampResolveBuffer?.destroy) {
+      try {
+        this._timestampResolveBuffer.destroy();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    this._timestampResolveBuffer = null;
+  }
+
+  getTimestampQuerySet(count = 2) {
+    if (!this.supportsTimestampQueries()) return null;
+    if (!this.profilingOptions?.timestampQueries) return null;
+    if (!this._timestampQuerySet || this._timestampQueryCount !== count) {
+      if (this._timestampQuerySet?.destroy) {
+        try {
+          this._timestampQuerySet.destroy();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      this._timestampQuerySet = this.device.createQuerySet({ type: 'timestamp', count });
+      this._timestampQueryCount = count;
+    }
+    return this._timestampQuerySet;
+  }
+
+  getTimestampResolveBuffer(count = 2) {
+    if (!this.supportsTimestampQueries()) return null;
+    if (!this.profilingOptions?.timestampQueries) return null;
+    const bytesPerQuery = 8;
+    const size = Math.max(1, Math.ceil(count)) * bytesPerQuery;
+    const currentSize = this._timestampResolveBuffer?.size ?? this._timestampResolveBuffer?._size ?? 0;
+    if (!this._timestampResolveBuffer || currentSize < size) {
+      if (this._timestampResolveBuffer?.destroy) {
+        try {
+          this._timestampResolveBuffer.destroy();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      const baseUsage =
+        (typeof GPUBufferUsage !== 'undefined' ? GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ : 0);
+      const resolveUsage =
+        typeof GPUBufferUsage !== 'undefined' && GPUBufferUsage.QUERY_RESOLVE
+          ? GPUBufferUsage.QUERY_RESOLVE
+          : 0;
+      const usage = baseUsage | resolveUsage;
+      this._timestampResolveBuffer = usage
+        ? this.device.createBuffer({ size, usage })
+        : null;
+      if (this._timestampResolveBuffer) {
+        this._timestampResolveBuffer._size = size;
+      }
+    }
+    return this._timestampResolveBuffer || null;
+  }
+
+  prepareTimestampQueryResources(count = 2) {
+    if (!this.supportsTimestampQueries()) return null;
+    if (!this.profilingOptions?.timestampQueries) return null;
+    const querySet = this.getTimestampQuerySet(count);
+    const resolveBuffer = this.getTimestampResolveBuffer(count);
+    if (!querySet || !resolveBuffer) {
+      return null;
+    }
+    if (this.profile) {
+      this.profile.timestampQueryEnabled = true;
+    }
+    return { querySet, resolveBuffer, count };
   }
 
   async initWebGPU() {
@@ -779,6 +934,7 @@ export class Context {
     if (this._pipelineLayoutCache?.clear) {
       this._pipelineLayoutCache.clear();
     }
+    this._destroyTimestampQueryResources();
   }
 
   destroy(options = {}) {
@@ -1204,12 +1360,18 @@ export class Context {
       return;
     }
     if (!this._workDonePromise) {
-      const start = this.profile ? performance.now() : 0;
+      const hasPerf = typeof performance !== 'undefined' && performance && performance.now;
+      const start = this.profile && hasPerf ? performance.now() : 0;
       this._workDonePromise = (async () => {
         try {
           await this.queue.onSubmittedWorkDone();
+          const elapsed = start && hasPerf ? performance.now() - start : 0;
           if (this.profile) {
-            this.profile.webgpu += performance.now() - start;
+            if (!this.profilingOptions?.timestampQueries) {
+              this.profile.lastGPUTime = elapsed;
+              this.profile.webgpu = elapsed;
+            }
+            this.profile.lastQueueWaitMs = elapsed;
           }
           this._pendingDispatch = false;
         } finally {
