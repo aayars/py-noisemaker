@@ -763,37 +763,58 @@ export function sobelOperator(
   speed,
   distMetric = DistanceMetric.euclidean,
 ) {
+  const [h, w, c] = shape;
   const blurKernel = [
     [1, 4, 6, 4, 1],
     [4, 16, 24, 16, 4],
     [6, 24, 36, 24, 6],
     [4, 16, 24, 16, 4],
     [1, 4, 6, 4, 1],
-  ].map((row) => row.map((v) => v / 36));
-  const sx = [
+  ].map((row) => row.map((v) => Math.fround(v / 36)));
+  const sobelXKernel = [
     [1, 0, -1],
     [2, 0, -2],
     [1, 0, -1],
-  ];
-  const sy = [
+  ].map((row) => row.map((v) => Math.fround(v / 2)));
+  const sobelYKernel = [
     [1, 2, 1],
     [0, 0, 0],
     [-1, -2, -1],
-  ];
+  ].map((row) => row.map((v) => Math.fround(v / 2)));
   const convolveAndProcess = (blurred) => {
-    const gx = convolution(blurred, sx, { normalize: false });
-    const gy = convolution(blurred, sy, { normalize: false });
+    const gx = convolution(blurred, sobelXKernel, { normalize: false });
+    const gy = convolution(blurred, sobelYKernel, { normalize: false });
+
     return withTensorDatas([gx, gy], (gxData, gyData) => {
       const grad = new Float32Array(gxData.length);
       for (let i = 0; i < grad.length; i++) {
         grad[i] = distance(gxData[i], gyData[i], distMetric);
       }
-      let out = Tensor.fromArray(tensor.ctx, grad, shape);
-      const norm = normalize(out);
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < grad.length; i++) {
+        const v = grad[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      min = Math.fround(min);
+      max = Math.fround(max);
+      const range = Math.fround(max - min) || Math.fround(1);
+      const inv = Math.fround(1 / range);
+      const normData = new Float32Array(grad.length);
+      for (let i = 0; i < grad.length; i++) {
+        const diff = Math.fround(grad[i] - min);
+        normData[i] = Math.fround(diff * inv);
+      }
+      const normTensor = Tensor.fromArray(tensor.ctx, normData, shape);
       const process = (tensorOut) =>
         withTensorData(tensorOut, (data) => {
           for (let i = 0; i < data.length; i++) {
-            data[i] = Math.abs(data[i] * 2 - 1);
+            const doubled = Math.fround(data[i] * 2);
+            const centered = Math.fround(doubled - 1);
+            const adjusted = Math.fround(Math.abs(centered));
+            const biased = Math.fround(adjusted + 1e-6);
+            data[i] = biased > 1 ? 1 : biased;
           }
           const [h, w, c] = shape;
           const shifted = new Float32Array(h * w * c);
@@ -808,10 +829,7 @@ export function sobelOperator(
           }
           return Tensor.fromArray(tensor.ctx, shifted, shape);
         });
-      if (norm && typeof norm.then === "function") {
-        return norm.then(process);
-      }
-      return process(norm);
+      return process(normTensor);
     });
   };
   const blurred = convolution(tensor, blurKernel);

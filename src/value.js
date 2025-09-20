@@ -1652,24 +1652,69 @@ export function convolution(tensor, kernel, opts = {}) {
     const halfW = Math.floor(kw / 2);
 
     const cpuCompute = (src) => {
-      const out = new Float32Array(h * w * c);
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
+      const tileH = h * 2;
+      const tileW = w * 2;
+      const halfImageH = Math.floor(h / 2);
+      const halfImageW = Math.floor(w / 2);
+      const kernel32 = kernel.map((row) => row.map((v) => Math.fround(v)));
+      const tile = new Float32Array(tileH * tileW * c);
+      for (let y = 0; y < tileH; y++) {
+        const sy = y % h;
+        for (let x = 0; x < tileW; x++) {
+          const sx = x % w;
+          const dst = (y * tileW + x) * c;
+          const srcIdx = (sy * w + sx) * c;
+          for (let k = 0; k < c; k++) {
+            tile[dst + k] = src[srcIdx + k];
+          }
+        }
+      }
+
+      const offset = new Float32Array(tile.length);
+      for (let y = 0; y < tileH; y++) {
+        const sy = (y + halfImageH) % tileH;
+        for (let x = 0; x < tileW; x++) {
+          const sx = (x + halfImageW) % tileW;
+          const dst = (y * tileW + x) * c;
+          const srcIdx = (sy * tileW + sx) * c;
+          for (let k = 0; k < c; k++) {
+            offset[dst + k] = tile[srcIdx + k];
+          }
+        }
+      }
+
+      const outH = tileH - kh + 1;
+      const outW = tileW - kw + 1;
+      const conv = new Float32Array(outH * outW * c);
+      for (let y = 0; y < outH; y++) {
+        for (let x = 0; x < outW; x++) {
           for (let k = 0; k < c; k++) {
             let sum = 0;
             for (let j = 0; j < kh; j++) {
               for (let i = 0; i < kw; i++) {
-                const yy = (y + j - halfH + h) % h;
-                const xx = (x + i - halfW + w) % w;
-                const val = src[(yy * w + xx) * c + k];
-                const contrib = Math.fround(kernel[j][i] * val);
+                const val = offset[((y + j) * tileW + (x + i)) * c + k];
+                const contrib = Math.fround(kernel32[j][i] * val);
                 sum = Math.fround(sum + contrib);
               }
             }
-            out[(y * w + x) * c + k] = Math.fround(sum);
+            conv[(y * outW + x) * c + k] = Math.fround(sum);
           }
         }
       }
+
+      const startY = Math.floor((outH - h) / 2);
+      const startX = Math.floor((outW - w) / 2);
+      const out = new Float32Array(h * w * c);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const srcBase = ((startY + y) * outW + (startX + x)) * c;
+          const dst = (y * w + x) * c;
+          for (let k = 0; k < c; k++) {
+            out[dst + k] = conv[srcBase + k];
+          }
+        }
+      }
+
       let result = Tensor.fromArray(t.ctx, out, [h, w, c]);
       if (doNormalize) {
         const norm = normalize(result);
