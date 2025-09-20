@@ -1022,6 +1022,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
                 reference_y = reference_x
                 reference_x = tf.cos(reference_x * math.tau)
                 reference_y = tf.sin(reference_y * math.tau)
+                reference_x = tf.clip_by_value(reference_x * 0.5 + 0.5, 0.0, 1.0)
+                reference_y = tf.clip_by_value(reference_y * 0.5 + 0.5, 0.0, 1.0)
 
     quad_directional = signed_range and not from_derivative
 
@@ -1035,18 +1037,41 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
         y_offsets *= 2.0
 
     # Bilinear interpolation of midpoints
-    x0_offsets = (tf.cast(x_offsets, tf.int32) + x0_index) % width
-    x1_offsets = (x0_offsets + 1) % width
-    y0_offsets = (tf.cast(y_offsets, tf.int32) + y0_index) % height
-    y1_offsets = (y0_offsets + 1) % height
+    x_coords = tf.cast(x0_index, tf.float32)
+    y_coords = tf.cast(y0_index, tf.float32)
+
+    sample_x = x_coords + x_offsets
+    sample_y = y_coords + y_offsets
+
+    width_f = tf.cast(width, tf.float32)
+    height_f = tf.cast(height, tf.float32)
+
+    sample_x_wrapped = tf.math.floormod(sample_x, width_f)
+    sample_y_wrapped = tf.math.floormod(sample_y, height_f)
+
+    x0_base = tf.floor(sample_x_wrapped)
+    y0_base = tf.floor(sample_y_wrapped)
+
+    x0_base = tf.minimum(x0_base, width_f - 1)
+    y0_base = tf.minimum(y0_base, height_f - 1)
+
+    x0_int = tf.cast(x0_base, tf.int32)
+    y0_int = tf.cast(y0_base, tf.int32)
+
+    x0_offsets = tf.math.floormod(x0_int, width)
+    x1_offsets = tf.math.floormod(x0_int + 1, width)
+    y0_offsets = tf.math.floormod(y0_int, height)
+    y1_offsets = tf.math.floormod(y0_int + 1, height)
 
     x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
     x1_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x1_offsets], 2))
     x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
     x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
 
-    x_fract = tf.reshape(x_offsets - tf.floor(x_offsets), [height, width, 1])
-    y_fract = tf.reshape(y_offsets - tf.floor(y_offsets), [height, width, 1])
+    x_fract = tf.reshape(sample_x_wrapped - x0_base, [height, width, 1])
+    y_fract = tf.reshape(sample_y_wrapped - y0_base, [height, width, 1])
+    x_fract = tf.clip_by_value(x_fract, 0.0, 1.0)
+    y_fract = tf.clip_by_value(y_fract, 0.0, 1.0)
 
     x_y0 = blend(x0_y0, x1_y0, x_fract)
     x_y1 = blend(x0_y1, x1_y1, x_fract)

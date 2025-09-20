@@ -285,6 +285,128 @@ const refracted = refract(refrInput, refX, refY, 1 / 3, InterpolationType.linear
 // Refract offsets wrap around the texture boundaries.
 arraysClose(refracted.read(), new Float32Array([7, 8, 6, 1, 2, 0, 4, 5, 3]));
 
+const refXNeg = Tensor.fromArray(null, new Float32Array(9).fill(0.25), [3, 3, 1]);
+const refYZero = Tensor.fromArray(null, new Float32Array(9).fill(0), [3, 3, 1]);
+const refractedNeg = refract(
+  refrInput,
+  refXNeg,
+  refYZero,
+  1 / 3,
+  InterpolationType.linear,
+);
+arraysClose(
+  refractedNeg.read(),
+  new Float32Array([
+    7, 6.5, 7.5,
+    1, 0.5, 1.5,
+    4, 3.5, 4.5,
+  ]),
+);
+
+const wrapCoord = (coord, limit) => {
+  const mod = coord % limit;
+  return mod < 0 ? mod + limit : mod;
+};
+
+const manualRefract = (src, w, h, c, dxs, dys) => {
+  const out = new Float32Array(h * w * c);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const sampleX = wrapCoord(x + dxs[idx], w);
+      const sampleY = wrapCoord(y + dys[idx], h);
+      const x0 = Math.floor(sampleX);
+      const y0 = Math.floor(sampleY);
+      const x1 = (x0 + 1) % w;
+      const y1 = (y0 + 1) % h;
+      const fx = sampleX - x0;
+      const fy = sampleY - y0;
+      for (let k = 0; k < c; k++) {
+        const base = (y0 * w + x0) * c + k;
+        const s00 = src[base];
+        const s10 = src[(y0 * w + x1) * c + k];
+        const s01 = src[(y1 * w + x0) * c + k];
+        const s11 = src[(y1 * w + x1) * c + k];
+        const x_y0 = s00 * (1 - fx) + s10 * fx;
+        const x_y1 = s01 * (1 - fx) + s11 * fx;
+        out[(y * w + x) * c + k] = x_y0 * (1 - fy) + x_y1 * fy;
+      }
+    }
+  }
+  return out;
+};
+
+const complexData = new Float32Array([
+  0, 1, 2, 3,
+  4, 5, 6, 7,
+  8, 9, 10, 11,
+]);
+const complexTensor = Tensor.fromArray(null, complexData, [3, 4, 1]);
+const complexDx = [
+  -1.5, -0.5, 0.5, 1.5,
+  -0.75, 0.75, -1.25, 1.25,
+  0.0, 0.0, 0.0, 0.0,
+];
+const complexDy = [
+  0.5, 0.5, 0.5, 0.5,
+  -1.25, -1.25, -0.75, -0.75,
+  0.25, -0.25, 1.0, -1.0,
+];
+const complexDisp = 0.5;
+const complexRefX = new Float32Array(complexDx.length);
+const complexRefY = new Float32Array(complexDy.length);
+const wComplex = 4;
+const hComplex = 3;
+for (let i = 0; i < complexDx.length; i++) {
+  complexRefX[i] = (complexDx[i] / (complexDisp * wComplex) + 1) * 0.5;
+  complexRefY[i] = (complexDy[i] / (complexDisp * hComplex) + 1) * 0.5;
+}
+const complexRefXTensor = Tensor.fromArray(null, complexRefX, [hComplex, wComplex, 1]);
+const complexRefYTensor = Tensor.fromArray(null, complexRefY, [hComplex, wComplex, 1]);
+const complexRefract = refract(
+  complexTensor,
+  complexRefXTensor,
+  complexRefYTensor,
+  complexDisp,
+  InterpolationType.linear,
+);
+const expectedComplex = manualRefract(
+  complexData,
+  wComplex,
+  hComplex,
+  1,
+  complexDx,
+  complexDy,
+);
+arraysClose(complexRefract.read(), expectedComplex, 1e-5);
+
+const multiWrapData = new Float32Array([
+  0, 1, 2, 3,
+  4, 5, 6, 7,
+]);
+const multiWrapTensor = Tensor.fromArray(null, multiWrapData, [2, 4, 1]);
+const multiWrapRefX = Tensor.fromArray(null, new Float32Array(8).fill(1), [2, 4, 1]);
+const multiWrapRefY = Tensor.fromArray(null, new Float32Array(8).fill(0.5), [2, 4, 1]);
+const multiWrapDisp = 2.125;
+const multiWrapResult = refract(
+  multiWrapTensor,
+  multiWrapRefX,
+  multiWrapRefY,
+  multiWrapDisp,
+  InterpolationType.linear,
+);
+const multiWrapDx = Array(8).fill(multiWrapDisp * 4);
+const multiWrapDy = Array(8).fill(0);
+const multiWrapExpected = manualRefract(
+  multiWrapData,
+  4,
+  2,
+  1,
+  multiWrapDx,
+  multiWrapDy,
+);
+arraysClose(multiWrapResult.read(), multiWrapExpected, 1e-5);
+
 // fft / ifft
 const fftInput = Tensor.fromArray(null, new Float32Array([1, 2, 3, 4]), [2, 2, 1]);
 const fftOut = fft(fftInput);

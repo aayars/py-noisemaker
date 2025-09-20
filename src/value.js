@@ -13,6 +13,7 @@ import {
   withTensorDatas,
 } from './util.js';
 import { simplex as simplexNoise, setSeed as setSimplexSeed } from './simplex.js';
+import { rgbToOklab } from './oklab.js';
 import {
   VALUE_WGSL,
   RESAMPLE_WGSL,
@@ -1559,6 +1560,68 @@ export function valueMap(tensor, palette) {
   return compute(srcMaybe);
 }
 
+export function toValueMap(tensor) {
+  const convert = (t) => {
+    if (!t) return t;
+    const [h, w, c] = t.shape;
+    if (c === 1) {
+      return t;
+    }
+    if (c === 2) {
+      return withTensorData(t, (src) => {
+        const out = new Float32Array(h * w);
+        for (let i = 0; i < h * w; i++) {
+          out[i] = src[i * 2];
+        }
+        return Tensor.fromArray(t.ctx, out, [h, w, 1]);
+      });
+    }
+    const buildLuminance = (rgbTensor) => {
+      const maybeLab = rgbToOklab(rgbTensor);
+      const toL = (labTensor) =>
+        withTensorData(labTensor, (lab) => {
+          const out = new Float32Array(h * w);
+          for (let i = 0; i < h * w; i++) {
+            out[i] = lab[i * 3];
+          }
+          return Tensor.fromArray(rgbTensor.ctx, out, [h, w, 1]);
+        });
+      if (maybeLab && typeof maybeLab.then === 'function') {
+        return maybeLab.then(toL);
+      }
+      return toL(maybeLab);
+    };
+    const toRgb = (clamped) => {
+      if (!clamped) return clamped;
+      const [, , channels] = clamped.shape;
+      if (channels === 3) {
+        return buildLuminance(clamped);
+      }
+      return withTensorData(clamped, (src) => {
+        const rgbData = new Float32Array(h * w * 3);
+        for (let i = 0; i < h * w; i++) {
+          const base = i * channels;
+          const base3 = i * 3;
+          rgbData[base3] = src[base];
+          rgbData[base3 + 1] = src[base + 1];
+          rgbData[base3 + 2] = src[base + 2];
+        }
+        const rgbTensor = Tensor.fromArray(clamped.ctx, rgbData, [h, w, 3]);
+        return buildLuminance(rgbTensor);
+      });
+    };
+    const maybeClamped = clamp01(t);
+    if (maybeClamped && typeof maybeClamped.then === 'function') {
+      return maybeClamped.then(toRgb);
+    }
+    return toRgb(maybeClamped);
+  };
+  if (tensor && typeof tensor.then === 'function') {
+    return tensor.then(convert);
+  }
+  return convert(tensor);
+}
+
 export function ridge(tensor) {
   return withTensorData(tensor, (data) => {
     const out = new Float32Array(data.length);
@@ -1712,7 +1775,8 @@ export function refract(
   splineOrder = InterpolationType.bicubic,
   signedRange = true,
 ) {
-  const run = (t, rx = t, ry = t) => {
+  const quadDirectional = !!signedRange;
+  const run = (t, rx, ry) => {
     let [h, w, c] = t.shape;
     const ctx = t.ctx;
     if (ctx && ctx.device) {
@@ -1737,45 +1801,76 @@ export function refract(
       }
       [h, w, c] = t.shape;
     }
+
+    const rxChannels = rx?.shape?.[2] || 1;
+    const ryChannels = ry?.shape?.[2] || 1;
+    const widthF = Math.fround(w);
+    const heightF = Math.fround(h);
+    const baseScaleX = Math.fround(displacement * widthF);
+    const baseScaleY = Math.fround(displacement * heightF);
+    const scaleX = quadDirectional ? baseScaleX : Math.fround(baseScaleX * 2);
+    const scaleY = quadDirectional ? baseScaleY : Math.fround(baseScaleY * 2);
+
+    const floormod = (value, limit) => {
+      if (limit === 0) return 0;
+      const div = Math.floor(value / limit);
+      let result = Math.fround(value - div * limit);
+      if (result < 0) {
+        result = Math.fround(result + limit);
+      }
+      return result;
+    };
+
     const cpuRefract = (src, refx, refy) => {
       const out = new Float32Array(h * w * c);
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-          let vx = refx[y * w + x];
-          let vy = refy[y * w + x];
-          if (signedRange) {
-            vx = vx * 2 - 1;
-            vy = vy * 2 - 1;
-          } else {
-            vx *= 2;
-            vy *= 2;
+          const idx = y * w + x;
+          let vx = refx[idx * rxChannels];
+          let vy = refy[idx * ryChannels];
+          if (quadDirectional) {
+            vx = Math.fround(vx * 2 - 1);
+            vy = Math.fround(vy * 2 - 1);
           }
-          const dx = Math.fround(vx * displacement * w);
-          const dy = Math.fround(vy * displacement * h);
-          let x0 = x + Math.trunc(dx);
-          let y0 = y + Math.trunc(dy);
-          let x1 = x0 + 1;
-          let y1 = y0 + 1;
-          x0 = ((x0 % w) + w) % w;
-          x1 = ((x1 % w) + w) % w;
-          y0 = ((y0 % h) + h) % h;
-          y1 = ((y1 % h) + h) % h;
-          const fx = Math.fround(dx - Math.floor(dx));
-          const fy = Math.fround(dy - Math.floor(dy));
+          const dx = Math.fround(vx * scaleX);
+          const dy = Math.fround(vy * scaleY);
+          const sampleX = Math.fround(x + dx);
+          const sampleY = Math.fround(y + dy);
+          const wrappedX = floormod(sampleX, widthF);
+          const wrappedY = floormod(sampleY, heightF);
+          let x0 = Math.floor(wrappedX);
+          let y0 = Math.floor(wrappedY);
+          if (x0 < 0) x0 = 0;
+          else if (x0 >= w) x0 = w - 1;
+          if (y0 < 0) y0 = 0;
+          else if (y0 >= h) y0 = h - 1;
+          const x1 = (x0 + 1) % w;
+          const y1 = (y0 + 1) % h;
+          let fx = Math.fround(wrappedX - x0);
+          let fy = Math.fround(wrappedY - y0);
+          if (fx < 0) fx = 0;
+          else if (fx > 1) fx = 1;
+          if (fy < 0) fy = 0;
+          else if (fy > 1) fy = 1;
           const tx = splineOrder === InterpolationType.cosine
             ? Math.fround(0.5 - Math.cos(fx * Math.PI) * 0.5)
             : fx;
           const ty = splineOrder === InterpolationType.cosine
             ? Math.fround(0.5 - Math.cos(fy * Math.PI) * 0.5)
             : fy;
+          const outBase = idx * c;
           for (let k = 0; k < c; k++) {
-            const s00 = src[(y0 * w + x0) * c + k];
-            const s10 = src[(y0 * w + x1) * c + k];
-            const s01 = src[(y1 * w + x0) * c + k];
-            const s11 = src[(y1 * w + x1) * c + k];
-            const x_y0 = s00 * (1 - tx) + s10 * tx;
-            const x_y1 = s01 * (1 - tx) + s11 * tx;
-            out[(y * w + x) * c + k] = x_y0 * (1 - ty) + x_y1 * ty;
+            const base00 = (y0 * w + x0) * c + k;
+            const base10 = (y0 * w + x1) * c + k;
+            const base01 = (y1 * w + x0) * c + k;
+            const base11 = (y1 * w + x1) * c + k;
+            const s00 = src[base00];
+            const s10 = src[base10];
+            const s01 = src[base01];
+            const s11 = src[base11];
+            const x_y0 = Math.fround(s00 * (1 - tx) + s10 * tx);
+            const x_y1 = Math.fround(s01 * (1 - tx) + s11 * tx);
+            out[outBase + k] = Math.fround(x_y0 * (1 - ty) + x_y1 * ty);
           }
         }
       }
@@ -1829,7 +1924,7 @@ export function refract(
                 h,
                 c,
                 displacement,
-                signedRange ? 1 : 0,
+                quadDirectional ? 1 : 0,
                 splineOrder,
                 0,
                 0,
@@ -1869,16 +1964,30 @@ export function refract(
     return withTensorDatas([t, rx, ry], cpuRefract);
   };
 
+  const prepare = (t, rx, ry) => {
+    const rxMaybe = toValueMap(rx);
+    const ryMaybe = toValueMap(ry);
+    const rxIsPromise = rxMaybe && typeof rxMaybe.then === 'function';
+    const ryIsPromise = ryMaybe && typeof ryMaybe.then === 'function';
+    if (rxIsPromise || ryIsPromise) {
+      return Promise.all([
+        rxIsPromise ? rxMaybe : Promise.resolve(rxMaybe),
+        ryIsPromise ? ryMaybe : Promise.resolve(ryMaybe),
+      ]).then(([rxResolved, ryResolved]) => run(t, rxResolved, ryResolved));
+    }
+    return run(t, rxMaybe, ryMaybe);
+  };
+
   if (
     (tensor && typeof tensor.then === 'function') ||
     (referenceX && typeof referenceX.then === 'function') ||
     (referenceY && typeof referenceY.then === 'function')
   ) {
     return Promise.all([tensor, referenceX, referenceY]).then(([t, rx, ry]) =>
-      run(t, rx || t, ry || t),
+      prepare(t, rx || t, ry || t),
     );
   }
-  return run(tensor, referenceX || tensor, referenceY || tensor);
+  return prepare(tensor, referenceX || tensor, referenceY || tensor);
 }
 
 export function fft(tensor) {

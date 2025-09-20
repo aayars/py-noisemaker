@@ -17,6 +17,7 @@ import {
   resample,
   proportionalDownsample,
   refract as refractOp,
+  toValueMap,
   convolution,
   fxaa,
 } from "./value.js";
@@ -3882,36 +3883,6 @@ register("value_refract", valueRefract, {
   displacement: 0.125,
 });
 
-async function toValueMap(t) {
-  const [h, w, c] = t.shape;
-  if (c === 1) return t;
-  if (c === 2) {
-    const src = await t.read();
-    const out = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) out[i] = src[i * 2];
-    return Tensor.fromArray(t.ctx, out, [h, w, 1]);
-  }
-  let rgbTensor;
-  if (c === 3) {
-    rgbTensor = await clamp01(t);
-  } else {
-    const clamped = await clamp01(t);
-    const clampedData = await clamped.read();
-    const rgbData = new Float32Array(h * w * 3);
-    for (let i = 0; i < h * w; i++) {
-      rgbData[i * 3] = clampedData[i * 4];
-      rgbData[i * 3 + 1] = clampedData[i * 4 + 1];
-      rgbData[i * 3 + 2] = clampedData[i * 4 + 2];
-    }
-    rgbTensor = Tensor.fromArray(t.ctx, rgbData, [h, w, 3]);
-  }
-  const labTensor = await rgbToOklab(rgbTensor);
-  const lab = await labTensor.read();
-  const out = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) out[i] = lab[i * 3];
-  return Tensor.fromArray(t.ctx, out, [h, w, 1]);
-}
-
 export async function refractEffect(
   tensor,
   shape,
@@ -3986,8 +3957,12 @@ export async function refractEffect(
         const tau32 = Math.fround(TAU);
         for (let i = 0; i < rData.length; i++) {
           const ang = Math.fround(rData[i]) * tau32;
-          cx[i] = Math.fround(Math.cos(ang));
-          cy[i] = Math.fround(Math.sin(ang));
+          const cosVal = Math.fround(Math.cos(ang));
+          const sinVal = Math.fround(Math.sin(ang));
+          const cx01 = Math.fround(cosVal * 0.5 + 0.5);
+          const cy01 = Math.fround(sinVal * 0.5 + 0.5);
+          cx[i] = Math.min(Math.max(cx01, 0), 1);
+          cy[i] = Math.min(Math.max(cy01, 0), 1);
         }
         rx = Tensor.fromArray(tensor.ctx, cx, rx.shape);
         ry = Tensor.fromArray(tensor.ctx, cy, rx.shape);
