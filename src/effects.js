@@ -3194,11 +3194,23 @@ export async function lensWarp(tensor, shape, time, speed, displacement = 0.0625
     splineOrder: InterpolationType.cosine,
   });
   const noise = await noiseTensor.read();
+  const cosData = new Float32Array(noise.length);
+  const sinData = new Float32Array(noise.length);
   for (let i = 0; i < noise.length; i++) {
-    noise[i] = (noise[i] * 2 - 1) * mask[i];
+    const base = (noise[i] * 2 - 1) * mask[i];
+    const angle = base * Math.PI * 2;
+    let cx = Math.cos(angle) * 0.5 + 0.5;
+    let sy = Math.sin(angle) * 0.5 + 0.5;
+    if (cx < 0) cx = 0;
+    else if (cx > 1) cx = 1;
+    if (sy < 0) sy = 0;
+    else if (sy > 1) sy = 1;
+    cosData[i] = cx;
+    sinData[i] = sy;
   }
-  const distortion = Tensor.fromArray(tensor.ctx, noise, valueShape);
-  return await refractOp(tensor, distortion, null, displacement);
+  const refX = Tensor.fromArray(tensor.ctx, cosData, valueShape);
+  const refY = Tensor.fromArray(tensor.ctx, sinData, valueShape);
+  return await refractOp(tensor, refX, refY, displacement);
 }
 register("lensWarp", lensWarp, { displacement: 0.0625 });
 register("lens_warp", lensWarp, { displacement: 0.0625 });

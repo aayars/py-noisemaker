@@ -47,6 +47,7 @@ const EFFECTS = {
   fxaa: effects.fxaaEffect,
   smoothstep: effects.smoothstep,
   sobel: effects.sobelOperator,
+  lens_warp: effects.lensWarp,
   lens_distortion: effects.lensDistortion,
   vhs: effects.vhs,
   snow: effects.snow,
