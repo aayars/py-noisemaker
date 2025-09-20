@@ -788,48 +788,32 @@ export function sobelOperator(
     return withTensorDatas([gx, gy], (gxData, gyData) => {
       const grad = new Float32Array(gxData.length);
       for (let i = 0; i < grad.length; i++) {
-        grad[i] = distance(gxData[i], gyData[i], distMetric);
+        grad[i] = Math.fround(distance(gxData[i], gyData[i], distMetric));
       }
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = 0; i < grad.length; i++) {
-        const v = grad[i];
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      min = Math.fround(min);
-      max = Math.fround(max);
-      const range = Math.fround(max - min) || Math.fround(1);
-      const inv = Math.fround(1 / range);
-      const normData = new Float32Array(grad.length);
-      for (let i = 0; i < grad.length; i++) {
-        const diff = Math.fround(grad[i] - min);
-        normData[i] = Math.fround(diff * inv);
-      }
-      const normTensor = Tensor.fromArray(tensor.ctx, normData, shape);
-      const process = (tensorOut) =>
-        withTensorData(tensorOut, (data) => {
-          for (let i = 0; i < data.length; i++) {
-            const doubled = Math.fround(data[i] * 2);
-            const centered = Math.fround(doubled - 1);
-            const adjusted = Math.fround(Math.abs(centered));
-            const biased = Math.fround(adjusted + 1e-6);
-            data[i] = biased > 1 ? 1 : biased;
-          }
-          const [h, w, c] = shape;
+      const gradTensor = Tensor.fromArray(tensor.ctx, grad, shape);
+      const handleNormalized = (normTensor) =>
+        withTensorData(normTensor, (data) => {
           const shifted = new Float32Array(h * w * c);
           for (let y = 0; y < h; y++) {
+            const yi = (y - 1 + h) % h;
             for (let x = 0; x < w; x++) {
-              const yi = (y - 1 + h) % h;
               const xi = (x - 1 + w) % w;
+              const dst = (y * w + x) * c;
+              const src = (yi * w + xi) * c;
               for (let k = 0; k < c; k++) {
-                shifted[(y * w + x) * c + k] = data[(yi * w + xi) * c + k];
+                const doubled = Math.fround(data[src + k] * 2);
+                const centered = Math.fround(doubled - 1);
+                shifted[dst + k] = Math.fround(Math.abs(centered));
               }
             }
           }
           return Tensor.fromArray(tensor.ctx, shifted, shape);
         });
-      return process(normTensor);
+      const normalized = normalize(gradTensor);
+      if (normalized && typeof normalized.then === "function") {
+        return normalized.then(handleNormalized);
+      }
+      return handleNormalized(normalized);
     });
   };
   const blurred = convolution(tensor, blurKernel);
