@@ -1,5 +1,5 @@
 import { setSeed } from '../../src/rng.js';
-import { setSeed as setValueSeed } from '../../src/value.js';
+import { setSeed as setValueSeed, values as valueValues } from '../../src/value.js';
 import { basic } from '../../src/generators.js';
 import * as effects from '../../src/effects.js';
 
@@ -26,6 +26,10 @@ const EFFECTS = {
   derivative: effects.derivative,
   normalize: effects.normalizeEffect,
   palette: effects.palette,
+  color_map: async (tensor, shape, time, speed) => {
+    const clut = await valueValues([4, 4], shape, { ctx: tensor.ctx, time, speed });
+    return effects.colorMap(tensor, shape, time, speed, clut);
+  },
   false_color: effects.falseColor,
   warp: effects.warp,
   ripple: effects.ripple,

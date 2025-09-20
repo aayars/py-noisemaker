@@ -39,6 +39,7 @@ EFFECTS = [
     ("normalize", effects.normalize),
     ("ridge", effects.ridge),
     ("palette", effects.palette),
+    ("color_map", effects.color_map),
     ("false_color", effects.false_color),
     ("warp", effects.warp),
     ("ripple", effects.ripple),
@@ -93,7 +94,12 @@ def test_effect_parity(effect_name, fn, seed):
     rng.set_seed(seed)
     value.set_seed(seed)
     tensor = generators.basic(2, [128, 128, 3], hue_rotation=0)
-    tensor = fn(tensor, [128, 128, 3])
+    shape = [128, 128, 3]
+    if effect_name == "color_map":
+        clut = value.values(freq=[4, 4], shape=shape)
+        tensor = fn(tensor, shape, clut=clut)
+    else:
+        tensor = fn(tensor, shape)
     assert tensor.shape == (128, 128, 3)
     js = js_effect(effect_name, seed)
     atol = ATOL.get(effect_name, ATOL["default"])

@@ -790,49 +790,33 @@ export function sobelOperator(
       for (let i = 0; i < grad.length; i++) {
         grad[i] = Math.fround(distance(gxData[i], gyData[i], distMetric));
       }
-      const gradTensor = Tensor.fromArray(tensor.ctx, grad, shape);
-      const handleNormalized = (normTensor) =>
-        withTensorData(normTensor, (data) => {
-          const shifted = new Float32Array(h * w * c);
-          for (let y = 0; y < h; y++) {
-            const yi = (y - 1 + h) % h;
-            for (let x = 0; x < w; x++) {
-              const xi = (x - 1 + w) % w;
-              const dst = (y * w + x) * c;
-              const src = (yi * w + xi) * c;
-              for (let k = 0; k < c; k++) {
-                const doubled = Math.fround(data[src + k] * 2);
-                const centered = Math.fround(doubled - 1);
-                shifted[dst + k] = Math.fround(Math.abs(centered));
-              }
-            }
-          }
-          return Tensor.fromArray(tensor.ctx, shifted, shape);
-        });
-      const normalized = normalize(gradTensor);
-      if (normalized && typeof normalized.then === "function") {
-        return normalized.then(handleNormalized);
-      }
-      return handleNormalized(normalized);
+      return Tensor.fromArray(tensor.ctx, grad, shape);
     });
 
-    const normalized = normalize(gradient);
-    const process = (norm) =>
-      withTensorData(norm, (data) => {
-        const out = new Float32Array(data.length);
-        for (let i = 0; i < data.length; i++) {
-          const doubled = Math.fround(data[i] * 2);
-          const centered = Math.fround(doubled - 1);
-          out[i] = Math.fround(Math.abs(centered));
-        }
-        const ctx = (norm && norm.ctx) || tensor.ctx;
-        return Tensor.fromArray(ctx, out, shape);
-      });
+    const handleGradient = (gradTensor) => {
+      const normalized = normalize(gradTensor);
+      const process = (normTensor) =>
+        withTensorData(normTensor, (data) => {
+          const out = new Float32Array(data.length);
+          for (let i = 0; i < data.length; i++) {
+            const doubled = Math.fround(data[i] * 2);
+            const centered = Math.fround(doubled - 1);
+            out[i] = Math.fround(Math.abs(centered));
+          }
+          const ctx = (normTensor && normTensor.ctx) || tensor.ctx;
+          return Tensor.fromArray(ctx, out, shape);
+        });
+
+      if (normalized && typeof normalized.then === "function") {
+        return normalized.then(process);
+      }
+      return process(normalized);
+    };
 
     const processed =
-      normalized && typeof normalized.then === "function"
-        ? normalized.then(process)
-        : process(normalized);
+      gradient && typeof gradient.then === "function"
+        ? gradient.then(handleGradient)
+        : handleGradient(gradient);
 
     const shift = (result) => offsetTensor(result, -1, -1);
 
