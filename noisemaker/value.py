@@ -31,6 +31,7 @@ def set_seed(seed):
 
     if seed is not None:
         rng.set_seed(seed)
+        tf.random.set_seed(seed & 0xFFFFFFFF)
         simplex._seed = seed
 
 
