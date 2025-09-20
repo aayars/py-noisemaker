@@ -3,6 +3,8 @@ import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
 import { shapeFromParams, setSeed, withTensorData } from './util.js';
+import { Tensor, markPresentationNormalized } from './tensor.js';
+import { compilePreset, buildTopologySignatureFromPreset } from './webgpu/pipeline.js';
 // Ensure all built-in effects register themselves with the registry.
 // The import is intentionally side-effectful.
 import './effects.js';
@@ -73,7 +75,187 @@ function debugLog(enabled, ...args) {
   }
 }
 
+function valueToArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (ArrayBuffer.isView(value)) {
+    return Array.from(value);
+  }
+  if (value === undefined) {
+    return [];
+  }
+  return [value];
+}
+
+function cloneStageParams(params = {}) {
+  const out = {};
+  if (!params || typeof params !== 'object') {
+    return out;
+  }
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      out[key] = value.slice();
+    } else if (ArrayBuffer.isView(value)) {
+      out[key] = Array.from(value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+function gatherStageSnapshots(preset) {
+  const stages = [];
+  if (!preset) return stages;
+
+  const generatorParams = cloneStageParams(preset.generator || {});
+  const generatorName = generatorParams.generator || 'multires';
+  stages.push({
+    signature: `generator:${generatorName}`,
+    params: generatorParams,
+  });
+
+  const buckets = [
+    ['octave_effects', 'octave'],
+    ['post_effects', 'post'],
+    ['final_effects', 'final'],
+  ];
+
+  for (const [key, category] of buckets) {
+    const effects = Array.isArray(preset[key]) ? preset[key] : [];
+    for (const effect of effects) {
+      let name = 'anonymous';
+      let params = {};
+      if (typeof effect === 'function' && effect.__effectName) {
+        name = effect.__effectName;
+        params = cloneStageParams(effect.__params || {});
+      } else if (effect && typeof effect === 'object') {
+        name = effect.name || 'nested';
+        params = cloneStageParams(effect.params || {});
+      }
+      stages.push({
+        signature: `${category}:${name}`,
+        params,
+      });
+    }
+  }
+
+  return stages;
+}
+
+function normalizeUniformComponents(primary, secondary, fallback, components, bool) {
+  const primaryArr = valueToArray(primary);
+  const secondaryArr = valueToArray(secondary);
+  const fallbackArr = valueToArray(fallback);
+  const result = new Array(Math.max(components, 0));
+  for (let i = 0; i < result.length; i += 1) {
+    let value = primaryArr[i];
+    if (value === undefined) value = secondaryArr[i];
+    if (value === undefined && secondaryArr.length) {
+      value = secondaryArr[Math.min(i, secondaryArr.length - 1)];
+    }
+    if (value === undefined) value = fallbackArr[i];
+    if (value === undefined && fallbackArr.length) {
+      value = fallbackArr[Math.min(i, fallbackArr.length - 1)];
+    }
+    if (bool) {
+      result[i] = value ? 1 : 0;
+    } else {
+      const num = Number(value);
+      result[i] = Number.isFinite(num) ? num : 0;
+    }
+  }
+  return result;
+}
+
+function writeUniformLayout(view, layout, params, defaults) {
+  if (!view || !layout || !Array.isArray(layout.fields)) {
+    return;
+  }
+  for (const field of layout.fields) {
+    const values = normalizeUniformComponents(
+      params ? params[field.name] : undefined,
+      defaults ? defaults[field.name] : undefined,
+      field.defaultValue,
+      field.components,
+      Boolean(field.bool),
+    );
+    const slots = Math.max(1, Math.floor(field.size / 4));
+    for (let i = 0; i < slots; i += 1) {
+      const offset = field.offset + i * 4;
+      let value = values[i] !== undefined ? values[i] : 0;
+      if (field.bool) {
+        value = value ? 1 : 0;
+        view.setUint32(offset, value >>> 0, true);
+      } else if (field.scalarType === 'u32') {
+        const uintVal = Number.isFinite(value) ? Math.trunc(value) : 0;
+        view.setUint32(offset, uintVal >>> 0, true);
+      } else if (field.scalarType === 'i32') {
+        const intVal = Number.isFinite(value) ? Math.trunc(value) : 0;
+        view.setInt32(offset, intVal, true);
+      } else {
+        const floatVal = Number.isFinite(value) ? value : 0;
+        view.setFloat32(offset, floatVal, true);
+      }
+    }
+  }
+}
+
+function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
+  if (!program || typeof program.stageCount !== 'number') {
+    return;
+  }
+  const stageMap = new Map();
+  for (const stage of stageSnapshots || []) {
+    if (stage && stage.signature) {
+      stageMap.set(stage.signature, stage);
+    }
+  }
+  const bufferIndex = Number.isFinite(frameIndex) ? frameIndex : 0;
+  for (let i = 0; i < program.stageCount; i += 1) {
+    const descriptor = program.getStageDescriptor(i);
+    if (!descriptor || descriptor.gpuSupported === false) {
+      continue;
+    }
+    if (!descriptor.uniformLayout) {
+      continue;
+    }
+    const snapshot = stageMap.get(descriptor.signature) || null;
+    const uniformView = program.getUniformBufferView(i, bufferIndex);
+    if (!uniformView || !uniformView.view) {
+      continue;
+    }
+    writeUniformLayout(uniformView.view, descriptor.uniformLayout, snapshot?.params || {}, descriptor.uniformDefaults || {});
+  }
+}
+
+function makeProgramCacheKey(name, topology, width, height, colorSpace, withAlpha) {
+  const safeName = name || 'anonymous';
+  const safeTopology = topology || 'none';
+  const w = Math.max(1, Math.floor(Number(width) || 0));
+  const h = Math.max(1, Math.floor(Number(height) || 0));
+  const space = colorSpace ?? 'unknown';
+  return `${safeName}|${safeTopology}|${w}x${h}|${space}|alpha:${withAlpha ? 1 : 0}`;
+}
+
 export class Preset {
+  static _getProgramCache(ctx) {
+    if (!ctx || typeof ctx !== 'object') {
+      return null;
+    }
+    if (!this._programCacheMap) {
+      this._programCacheMap = new WeakMap();
+    }
+    let cache = this._programCacheMap.get(ctx);
+    if (!cache) {
+      cache = new Map();
+      this._programCacheMap.set(ctx, cache);
+    }
+    return cache;
+  }
+
   constructor(presetName, presets, settings = {}, seed, opts = {}) {
     if (seed !== undefined) setSeed(seed);
     this.debug = opts.debug || false;
@@ -132,8 +314,21 @@ export class Preset {
       withAlpha = false,
       debug = this.debug,
       powerPreference = 'high-performance',
+      frameIndex: frameIndexOpt = 0,
+      frame: frameOpt,
+      presentationTarget = undefined,
+      readback: readbackOpt = false,
     } = opts;
     const ctx = ctxOpt || new Context(null, debug, powerPreference);
+
+    const numericFrameIndex = Number(frameIndexOpt);
+    const numericFrameAlt = Number(frameOpt);
+    const frameIndex = Number.isFinite(numericFrameIndex) && numericFrameIndex >= 0
+      ? Math.floor(numericFrameIndex)
+      : Number.isFinite(numericFrameAlt) && numericFrameAlt >= 0
+      ? Math.floor(numericFrameAlt)
+      : 0;
+    const readback = Boolean(readbackOpt);
 
     if (debug) {
       debugLog(true, `render start: seed=${seed}`, {
@@ -163,19 +358,164 @@ export class Preset {
     debugLog(debug, 'render merged settings', merged);
     debugLog(debug, 'render shape', shape);
 
-    let tensor = await multires(freq, shape, {
-      ...merged,
-      color_space: colorSpace,
-      ctx,
-      seed,
-      time,
-      speed,
-      octaveEffects: this.octave_effects,
-      postEffects: this.post_effects,
-      finalEffects: this.final_effects,
-    });
+    let tensor = null;
+    let usedGPU = false;
+
+    const canUseWebGPU = Boolean(ctx && ctx.device && ctx.queue && !ctx.isCPU);
+    if (canUseWebGPU) {
+      const stageSnapshots = gatherStageSnapshots(this);
+      if (stageSnapshots.length) {
+        const generatorParams = cloneStageParams(merged);
+        const generatorStage = stageSnapshots[0];
+        generatorStage.params = generatorParams;
+        if (generatorParams.color_space === undefined) generatorParams.color_space = colorSpace;
+        if (generatorParams.colorSpace === undefined) generatorParams.colorSpace = colorSpace;
+        if (generatorParams.withAlpha === undefined) generatorParams.withAlpha = withAlpha ? 1 : 0;
+        if (generatorParams.width === undefined) generatorParams.width = width;
+        if (generatorParams.height === undefined) generatorParams.height = height;
+      }
+      const dynamicParams = { time, speed, seed, frameIndex };
+      for (const stage of stageSnapshots) {
+        if (!stage || !stage.params) continue;
+        for (const [key, value] of Object.entries(dynamicParams)) {
+          if (stage.params[key] === undefined) {
+            stage.params[key] = value;
+          }
+        }
+      }
+      try {
+        const topologySignature = buildTopologySignatureFromPreset(this);
+        const cache = Preset._getProgramCache(ctx);
+        const cacheKey = cache
+          ? makeProgramCacheKey(this.name, topologySignature, width, height, colorSpace, withAlpha)
+          : null;
+        let program = null;
+        if (cache && cacheKey) {
+          let entry = cache.get(cacheKey);
+          if (entry && entry.program && !entry.program.matchesPreset(this)) {
+            if (typeof entry.program.dispose === 'function') {
+              try {
+                entry.program.dispose();
+              } catch (_) {
+                /* ignore dispose failures */
+              }
+            }
+            cache.delete(cacheKey);
+            entry = null;
+          }
+          if (!entry) {
+            entry = { program: null, unsupported: false };
+            try {
+              const compiled = compilePreset(this, ctx);
+              if (compiled && compiled.stageCount > 0) {
+                let unsupportedStage = false;
+                if (Array.isArray(compiled.stages)) {
+                  unsupportedStage = compiled.stages.some(
+                    (stage) => stage && stage.gpuSupported === false,
+                  );
+                } else {
+                  for (let i = 0; i < compiled.stageCount; i += 1) {
+                    const descriptor = compiled.getStageDescriptor(i);
+                    if (descriptor && descriptor.gpuSupported === false) {
+                      unsupportedStage = true;
+                      break;
+                    }
+                  }
+                }
+                if (unsupportedStage) {
+                  entry.unsupported = true;
+                  if (typeof compiled.dispose === 'function') {
+                    try {
+                      compiled.dispose();
+                    } catch (_) {
+                      /* ignore dispose failures */
+                    }
+                  }
+                } else {
+                  entry.program = compiled;
+                }
+              } else {
+                entry.unsupported = true;
+                if (compiled && typeof compiled.dispose === 'function') {
+                  try {
+                    compiled.dispose();
+                  } catch (_) {
+                    /* ignore dispose failures */
+                  }
+                }
+              }
+            } catch (err) {
+              entry.unsupported = true;
+              if (debug) {
+                debugLog(true, 'WebGPU preset compilation failed', err);
+              }
+            }
+            cache.set(cacheKey, entry);
+          }
+          if (entry && entry.program) {
+            program = entry.program;
+          }
+        }
+        if (program) {
+          try {
+            writeProgramUniforms(program, stageSnapshots, frameIndex);
+            const result = await program.execute(ctx, {
+              width,
+              height,
+              time,
+              frameIndex,
+              seed,
+              present: false,
+              readback,
+              presentationTarget,
+            });
+            if (result?.texture) {
+              const gpuTensor = new Tensor(ctx, result.texture, shape, null);
+              if (result.texture && typeof result.texture === 'object') {
+                try {
+                  result.texture._noisemakerShape = [height, width, 4];
+                  result.texture._noisemakerChannels = 4;
+                } catch (_) {
+                  /* ignore metadata errors */
+                }
+              }
+              markPresentationNormalized(gpuTensor, true);
+              tensor = gpuTensor;
+              usedGPU = true;
+            } else if (result?.readback) {
+              const readShape = [height, width, shape[2] ?? 4];
+              tensor = Tensor.fromArray(ctx, result.readback, readShape);
+              markPresentationNormalized(tensor, true);
+              usedGPU = true;
+            }
+          } catch (err) {
+            if (debug) {
+              debugLog(true, 'WebGPU execution failed', err);
+            }
+          }
+        }
+      } catch (err) {
+        if (debug) {
+          debugLog(true, 'WebGPU pipeline unavailable', err);
+        }
+      }
+    }
+
+    if (!tensor) {
+      tensor = await multires(freq, shape, {
+        ...merged,
+        color_space: colorSpace,
+        ctx,
+        seed,
+        time,
+        speed,
+        octaveEffects: this.octave_effects,
+        postEffects: this.post_effects,
+        finalEffects: this.final_effects,
+      });
+    }
     if (debug) {
-      debugLog(true, 'render complete');
+      debugLog(true, `render complete${usedGPU ? ' (webgpu)' : ''}`);
       const effectNames = [
         ...this.octave_effects,
         ...this.post_effects,
@@ -243,7 +583,9 @@ export class Preset {
         };
         let tex = tensor.handle;
         const isTex = typeof GPUTexture !== 'undefined' && tex instanceof GPUTexture;
-        if (!isTex || c !== 4) {
+        const storageChannels =
+          isTex && tex && typeof tex._noisemakerChannels === 'number' ? tex._noisemakerChannels : c;
+        if (!isTex || storageChannels !== 4) {
           const texRes = withTensorData(tensor, (data) => {
             if (c !== 4) {
               const padded = new Float32Array(w * h * 4);
@@ -396,13 +738,16 @@ export function Effect(effectName, params = {}) {
   return fn;
 }
 
-export async function render(presetName, seed = 0, opts = {}) {
+export async function render(presetOrName, seed = 0, opts = {}) {
   setRngSeed(seed);
   const { presets = {}, settings } = opts;
+  if (presetOrName instanceof Preset) {
+    return presetOrName.render(seed, opts);
+  }
   const preset =
-    typeof presetName === 'string'
-      ? new Preset(presetName, presets, settings, seed, opts)
-      : presetName;
+    typeof presetOrName === 'string'
+      ? new Preset(presetOrName, presets, settings, seed, opts)
+      : presetOrName;
   return preset.render(seed, opts);
 }
 

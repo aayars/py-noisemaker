@@ -1217,7 +1217,7 @@ function alignTo(value, alignment) {
   return remainder === 0 ? value : value + (alignment - remainder);
 }
 
-function buildTopologySignatureFromPreset(preset) {
+export function buildTopologySignatureFromPreset(preset) {
   const stages = collectPresetStages(preset);
   return stages.map((stage) => `${stage.category}:${stage.name}`).join('|');
 }
