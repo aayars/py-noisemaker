@@ -636,6 +636,9 @@ export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
   }
   blurred = Tensor.fromArray(tensor.ctx, blurredData, targetShape);
   blurred = await resample(blurred, shape);
+  const xOffset = Math.trunc(w * -0.05);
+  const yOffset = Math.trunc(h * -0.05);
+  blurred = await offsetTensor(blurred, xOffset, yOffset);
   blurred = await adjustBrightness(blurred, shape, time, speed, 0.25);
   blurred = await adjustContrast(blurred, shape, time, speed, 1.5);
 
