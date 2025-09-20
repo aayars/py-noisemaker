@@ -1001,6 +1001,7 @@ export async function glowingEdges(
   if (edges.shape[0] !== h || edges.shape[1] !== w) {
     edges = await resample(edges, valueShape);
   }
+  edges = await normalize(edges);
   const levels = randomInt(3, 5);
   edges = await posterize(edges, valueShape, time, speed, levels);
   edges = await sobelOperator(edges, valueShape, time, speed, sobelMetric);
@@ -4303,6 +4304,7 @@ export async function erosionWorms(
   if (valueTensor.shape[0] !== h || valueTensor.shape[1] !== w) {
     valueTensor = await resample(valueTensor, valueShape);
   }
+  valueTensor = await normalize(valueTensor);
   const valuesMaybe = valueTensor.read();
   const valuesRaw =
     valuesMaybe && typeof valuesMaybe.then === "function"
@@ -5928,6 +5930,7 @@ export async function glyphMap(
   if (valueTensor.shape[0] !== inH || valueTensor.shape[1] !== inW) {
     valueTensor = await resample(valueTensor, [inH, inW, 1]);
   }
+  valueTensor = await normalize(valueTensor);
   let uvNoise = await proportionalDownsample(
     valueTensor,
     [inH, inW, 1],
