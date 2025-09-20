@@ -498,35 +498,77 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
 
   const cpuResample = (src) => {
     const out = new Float32Array(nh * nw * nc);
+    const f32 = Math.fround;
 
-    function sampleWrapped(ix, iy, k) {
+    const sampleWrapped = (ix, iy, k) => {
       ix = ((ix % w) + w) % w;
       iy = ((iy % h) + h) % h;
-      return src[(iy * w + ix) * c + Math.min(k, c - 1)];
-    }
+      const idx = (iy * w + ix) * c + Math.min(k, c - 1);
+      return f32(src[idx]);
+    };
 
-    function cubic(a, b, c1, d, t) {
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const a0 = d - c1 - a + b;
-      const a1 = a - b - a0;
-      const a2 = c1 - a;
-      const a3 = b;
-      return a0 * t3 + a1 * t2 + a2 * t + a3;
-    }
+    const blendLinear = (a, b, g) => {
+      const gg = f32(g);
+      const oneMinus = f32(1 - gg);
+      const termA = f32(f32(a) * oneMinus);
+      const termB = f32(f32(b) * gg);
+      return f32(termA + termB);
+    };
+
+    const blendCosine = (a, b, g) => {
+      const gg = f32(g);
+      const angle = f32(gg * Math.PI);
+      const cos = f32(Math.cos(angle));
+      const g2 = f32((1 - cos) / 2);
+      const oneMinus = f32(1 - g2);
+      const termA = f32(f32(a) * oneMinus);
+      const termB = f32(f32(b) * g2);
+      return f32(termA + termB);
+    };
+
+    const blendCubic = (a, b, c1, d, g) => {
+      const gg = f32(g);
+      const g2 = f32(gg * gg);
+      const a0 = (() => {
+        const step1 = f32(d - c1);
+        const step2 = f32(step1 - a);
+        return f32(step2 + b);
+      })();
+      const a1 = (() => {
+        const step1 = f32(a - b);
+        return f32(step1 - a0);
+      })();
+      const a2 = f32(c1 - a);
+      const a3 = f32(b);
+      const term1 = (() => {
+        const mul = f32(a0 * gg);
+        return f32(mul * g2);
+      })();
+      const term2 = f32(a1 * g2);
+      const term3 = (() => {
+        const mul = f32(a2 * gg);
+        return f32(mul + a3);
+      })();
+      return f32(f32(term1 + term2) + term3);
+    };
+
+    const scaleY = f32(h / nh);
+    const scaleX = f32(w / nw);
 
     for (let y = 0; y < nh; y++) {
-      const gy = (y * h) / nh;
+      const gy = f32(y * scaleY);
       const y0 = Math.floor(gy);
-      const yf = gy - y0;
+      const yf = f32(gy - y0);
       for (let x = 0; x < nw; x++) {
-        const gx = (x * w) / nw;
+        const gx = f32(x * scaleX);
         const x0 = Math.floor(gx);
-        const xf = gx - x0;
+        const xf = f32(gx - x0);
         for (let k = 0; k < nc; k++) {
           let val;
           if (splineOrder === InterpolationType.constant) {
-            val = sampleWrapped(Math.round(gx), Math.round(gy), k);
+            const sampleX = Math.round(gx);
+            const sampleY = Math.round(gy);
+            val = sampleWrapped(sampleX, sampleY, k);
           } else if (
             splineOrder === InterpolationType.linear ||
             splineOrder === InterpolationType.cosine
@@ -535,31 +577,25 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
             const v10 = sampleWrapped(x0 + 1, y0, k);
             const v01 = sampleWrapped(x0, y0 + 1, k);
             const v11 = sampleWrapped(x0 + 1, y0 + 1, k);
-            const sx =
-              splineOrder === InterpolationType.cosine
-                ? 0.5 - Math.cos(xf * Math.PI) * 0.5
-                : xf;
-            const sy =
-              splineOrder === InterpolationType.cosine
-                ? 0.5 - Math.cos(yf * Math.PI) * 0.5
-                : yf;
-            const mx0 = v00 * (1 - sx) + v10 * sx;
-            const mx1 = v01 * (1 - sx) + v11 * sx;
-            val = mx0 * (1 - sy) + mx1 * sy;
+            const blend =
+              splineOrder === InterpolationType.cosine ? blendCosine : blendLinear;
+            const mx0 = blend(v00, v10, xf);
+            const mx1 = blend(v01, v11, xf);
+            val = blend(mx0, mx1, yf);
           } else {
             const rows = [];
             for (let m = -1; m < 3; m++) {
-              rows[m + 1] = cubic(
+              rows[m + 1] = blendCubic(
                 sampleWrapped(x0 - 1, y0 + m, k),
                 sampleWrapped(x0, y0 + m, k),
                 sampleWrapped(x0 + 1, y0 + m, k),
                 sampleWrapped(x0 + 2, y0 + m, k),
-                xf
+                xf,
               );
             }
-            val = cubic(rows[0], rows[1], rows[2], rows[3], yf);
+            val = blendCubic(rows[0], rows[1], rows[2], rows[3], yf);
           }
-          out[(y * nw + x) * nc + k] = val;
+          out[(y * nw + x) * nc + k] = f32(val);
         }
       }
     }
@@ -1362,57 +1398,42 @@ export function hsvToRgb(tensor) {
   const ctx = tensor.ctx;
   const cpuHsvToRgb = (src) => {
     const out = new Float32Array(h * w * 3);
-    for (let i = 0; i < h * w; i++) {
-      const H = Math.fround(src[i * c]);
-      const S = Math.fround(src[i * c + 1]);
-      const V = Math.fround(src[i * c + 2]);
-      const C = Math.fround(V * S);
-      const hPrime = Math.fround(Math.fround(H * 6) % 6);
-      const X = Math.fround(
-        C * Math.fround(1 - Math.abs(Math.fround(hPrime % 2) - 1)),
-      );
-      let r1, g1, b1;
-      switch (Math.floor(hPrime)) {
-        case 0:
-          r1 = C;
-          g1 = X;
-          b1 = 0;
-          break;
-        case 1:
-          r1 = X;
-          g1 = C;
-          b1 = 0;
-          break;
-        case 2:
-          r1 = 0;
-          g1 = C;
-          b1 = X;
-          break;
-        case 3:
-          r1 = 0;
-          g1 = X;
-          b1 = C;
-          break;
-        case 4:
-          r1 = X;
-          g1 = 0;
-          b1 = C;
-          break;
-        case 5:
-          r1 = C;
-          g1 = 0;
-          b1 = X;
-          break;
-        default:
-          r1 = 0;
-          g1 = 0;
-          b1 = 0;
-          break;
+    const f32buf = new Float32Array(1);
+    const f32 = (x) => {
+      f32buf[0] = x;
+      return f32buf[0];
+    };
+    const clamp01 = (x) => {
+      if (x <= 0) {
+        return f32(0);
       }
-      const m = Math.fround(V - C);
-      out[i * 3] = Math.fround(r1 + m);
-      out[i * 3 + 1] = Math.fround(g1 + m);
-      out[i * 3 + 2] = Math.fround(b1 + m);
+      if (x >= 1) {
+        return f32(1);
+      }
+      return f32(x);
+    };
+    for (let i = 0; i < h * w; i++) {
+      const base = i * c;
+      const H = f32(src[base]);
+      const S = f32(src[base + 1]);
+      const V = f32(src[base + 2]);
+      const dh = f32(f32(H) * f32(6));
+      const dhMinus3 = f32(dh - 3);
+      const dhMinus2 = f32(dh - 2);
+      const dhMinus4 = f32(dh - 4);
+      const dr = clamp01(f32(Math.abs(dhMinus3) - 1));
+      const dg = clamp01(f32(f32(-Math.abs(dhMinus2)) + 2));
+      const db = clamp01(f32(f32(-Math.abs(dhMinus4)) + 2));
+      const oneMinusS = f32(f32(1) - S);
+      const sr = f32(S * dr);
+      const sg = f32(S * dg);
+      const sb = f32(S * db);
+      const r = f32(f32(oneMinusS + sr) * V);
+      const g = f32(f32(oneMinusS + sg) * V);
+      const b = f32(f32(oneMinusS + sb) * V);
+      out[i * 3] = r;
+      out[i * 3 + 1] = g;
+      out[i * 3 + 2] = b;
     }
     return Tensor.fromArray(ctx, out, [h, w, 3]);
   };
@@ -1705,8 +1726,10 @@ export function convolution(tensor, kernel, opts = {}) {
         }
       }
 
-      const startY = Math.floor((outH - h) / 2);
-      const startX = Math.floor((outW - w) / 2);
+      const startY =
+        Math.floor((outH - h) / 2) + Math.floor((kh - 1) / 2);
+      const startX =
+        Math.floor((outW - w) / 2) + Math.floor((kw - 1) / 2);
       const out = new Float32Array(h * w * c);
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {

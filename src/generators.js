@@ -144,6 +144,7 @@ export async function basic(freq, shape, opts = {}) {
     const [h, w] = shape;
     const data = await tensor.read();
     const out = new Float32Array(h * w * 3);
+    const f32 = Math.fround;
     let vMin = Infinity;
     let vMax = -Infinity;
     const hueNoise = hueDistrib
@@ -179,31 +180,50 @@ export async function basic(freq, shape, opts = {}) {
           ? simplexRandom(time, undefined, speed)
           : 0
         : hueRotation;
+    const hueRotF = f32(hueRot);
+    const hueRangeF = f32(
+      originalColorSpace === ColorSpace.hsv ? hueRange : 1.0,
+    );
+    const saturationF = f32(saturation);
     for (let i = 0; i < h * w; i++) {
       const base = i * 3;
-      let hVal = hueNoise
-        ? hueNoise[i]
-        : (data[base] * (originalColorSpace === ColorSpace.hsv ? hueRange : 1.0) +
-            (originalColorSpace === ColorSpace.hsv ? hueRot : 0)) % 1.0;
-      let sVal = satNoise ? satNoise[i] : data[base + 1];
-      sVal *= saturation;
-      let vVal = brightNoise ? brightNoise[i] : data[base + 2];
+      const hueSource = f32(data[base]);
+      const satSource = f32(data[base + 1]);
+      const valSource = f32(data[base + 2]);
+      let hVal;
+      if (hueNoise) {
+        hVal = f32(hueNoise[i]);
+      } else {
+        const scaled = f32(hueSource * hueRangeF);
+        hVal = f32((scaled + hueRotF) % 1.0);
+        if (hVal < 0) {
+          hVal = f32(hVal + 1);
+        }
+      }
+      let sVal = satNoise ? f32(satNoise[i]) : satSource;
+      sVal = f32(sVal * saturationF);
+      let vVal = brightNoise ? f32(brightNoise[i]) : valSource;
       if (ridges && splineOrder) {
-        vVal = 1 - Math.abs(vVal * 2 - 1);
+        const doubled = f32(vVal * 2);
+        const diff = f32(Math.abs(doubled - 1));
+        vVal = f32(1 - diff);
       }
       if (sin) {
-        vVal = Math.sin(sin * vVal);
+        vVal = f32(Math.sin(f32(sin * vVal)));
         if (vVal < vMin) vMin = vVal;
         if (vVal > vMax) vMax = vVal;
       }
-      out[base] = hVal;
-      out[base + 1] = sVal;
-      out[base + 2] = vVal;
+      out[base] = f32(hVal);
+      out[base + 1] = f32(sVal);
+      out[base + 2] = f32(vVal);
     }
     if (sin) {
-      const range = vMax - vMin || 1;
+      const vMinF = f32(vMin);
+      const range = f32(vMax - vMin) || 1;
       for (let i = 0; i < h * w; i++) {
-        out[i * 3 + 2] = (out[i * 3 + 2] - vMin) / range;
+        const idx = i * 3 + 2;
+        const adjusted = f32(out[idx] - vMinF);
+        out[idx] = f32(adjusted / range);
       }
     }
     tensor = Tensor.fromArray(ctx, out, [h, w, 3]);
