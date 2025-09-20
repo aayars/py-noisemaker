@@ -34,20 +34,30 @@ def generate_hashes():
     return _CACHE
 
 
-def js_generator(name: str, seed: int) -> np.ndarray:
-    """Invoke the JavaScript implementation for a generator and return its tensor.
+def js_generator(name: str, seed: int, **options) -> tuple[np.ndarray, int]:
+    """Invoke the JavaScript implementation for a generator.
 
-    The returned array has shape (128, 128, 3) and dtype float32.
+    Returns a tuple of ``(tensor, call_count)`` where ``tensor`` has shape
+    (128, 128, 3) and dtype float32 and ``call_count`` is the number of RNG
+    calls consumed by the JavaScript run.
     """
+
     script = Path(__file__).with_name("run_generators.js")
+    cmd = ["node", str(script), name, str(seed)]
+    if options:
+        encoded = base64.b64encode(json.dumps(options).encode()).decode()
+        cmd.append(encoded)
     result = subprocess.run(
-        ["node", str(script), name, str(seed)],
+        cmd,
         check=True,
         capture_output=True,
         text=True,
     )
-    data = base64.b64decode(result.stdout)
-    return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
+    payload = json.loads(result.stdout)
+    tensor = np.frombuffer(
+        base64.b64decode(payload["tensor"]), dtype="<f4"
+    ).reshape(128, 128, 3)
+    return tensor, payload.get("callCount", 0)
 
 
 def js_effect(name: str, seed: int) -> np.ndarray:

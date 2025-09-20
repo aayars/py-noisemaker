@@ -174,16 +174,20 @@ export async function basic(freq, shape, opts = {}) {
     // produced different results.  To maintain parity we let
     // ``simplexRandom`` derive its own seed so that it mirrors the Python
     // behaviour.
-    const hueRot =
-      hueRotation === null || hueRotation === undefined
-        ? originalColorSpace === ColorSpace.hsv
-          ? simplexRandom(time, undefined, speed)
-          : 0
-        : hueRotation;
-    const hueRotF = f32(hueRot);
     const hueRangeF = f32(
       originalColorSpace === ColorSpace.hsv ? hueRange : 1.0,
     );
+    let hueRotF = 0;
+    if (!hueNoise) {
+      let hueRot = hueRotation;
+      if (hueRot === null || hueRot === undefined) {
+        hueRot =
+          originalColorSpace === ColorSpace.hsv
+            ? simplexRandom(time, undefined, speed)
+            : 0;
+      }
+      hueRotF = f32(hueRot);
+    }
     const saturationF = f32(saturation);
     for (let i = 0; i < h * w; i++) {
       const base = i * 3;

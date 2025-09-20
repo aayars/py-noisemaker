@@ -10,6 +10,8 @@ import numpy as np
 import pytest
 
 from noisemaker import generators, rng, value
+from noisemaker.constants import ValueDistribution
+
 from .utils import js_generator
 
 # 20 randomly chosen 32-bit seeds
@@ -24,15 +26,18 @@ SEEDS = [
 def test_basic(seed):
     rng.set_seed(seed)
     value.set_seed(seed)
+    rng.reset_call_count()
     tensor = generators.basic(2, [128, 128, 3])
     assert tensor.shape == (128, 128, 3)
-    js = js_generator("basic", seed)
+    js, js_calls = js_generator("basic", seed)
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_multires(seed):
     rng.set_seed(seed)
     value.set_seed(seed)
+    rng.reset_call_count()
     tensor = generators.multires(
         None,
         seed,
@@ -44,5 +49,32 @@ def test_multires(seed):
         final_effects=[],
     )
     assert tensor.shape == (128, 128, 3)
-    js = js_generator("multires", seed)
+    js, js_calls = js_generator("multires", seed)
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_multires_hue_distrib(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.multires(
+        None,
+        seed,
+        freq=2,
+        shape=[128, 128, 3],
+        octaves=1,
+        hue_distrib=ValueDistribution.simplex,
+        post_effects=[],
+        final_effects=[],
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "multires",
+        seed,
+        octaves=1,
+        hueDistrib=ValueDistribution.simplex.value,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
