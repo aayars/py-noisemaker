@@ -1,3 +1,6 @@
+import math
+
+import numpy as np
 import tensorflow as tf
 
 _seed = 0x12345678
@@ -35,7 +38,6 @@ def set_seed(seed: int) -> None:
     """Set the global RNG seed."""
     global _seed
     _seed = seed & 0xFFFFFFFF
-    tf.random.set_seed(_seed)
 
 
 def get_seed() -> int:
@@ -90,13 +92,86 @@ def choice(seq):
     return seq[idx]
 
 
+def _normalize_shape(shape) -> tuple:
+    """Normalize *shape* values into a concrete tuple of integers."""
+
+    if shape is None:
+        return ()
+
+    if isinstance(shape, (int, np.integer)):
+        return (int(shape),)
+
+    if isinstance(shape, (list, tuple)):
+        return tuple(int(dim) for dim in shape)
+
+    if tf.is_tensor(shape):
+        static_value = tf.get_static_value(shape)
+        if static_value is not None:
+            shape = static_value
+        else:
+            shape = shape.numpy()
+
+    if isinstance(shape, np.ndarray):
+        if shape.ndim == 0:
+            return (int(shape.item()),)
+        return tuple(int(dim) for dim in shape.tolist())
+
+    return (int(shape),)
+
+
+def _to_tensor(values: np.ndarray, shape: tuple, dtype) -> tf.Tensor:
+    """Convert a flat numpy array to a TensorFlow tensor with the desired shape and dtype."""
+
+    dtype = tf.dtypes.as_dtype(dtype)
+    reshaped = values.reshape(shape if shape else ())
+    tensor = tf.convert_to_tensor(reshaped.astype(dtype.as_numpy_dtype), dtype=dtype)
+    if shape:
+        return tf.reshape(tensor, shape)
+    return tensor
+
+
 def uniform(shape, minval=0.0, maxval=1.0, dtype=tf.float32):
-    """TensorFlow uniform random tensor with RNG-derived seed."""
-    seed = random_int(0, 0xFFFFFFFF)
-    return tf.random.uniform(shape, minval=minval, maxval=maxval, dtype=dtype, seed=seed)
+    """Return a tensor of uniformly distributed random values from the custom RNG."""
+
+    minval = float(minval)
+    maxval = float(maxval)
+
+    shape = _normalize_shape(shape)
+    total = int(np.prod(shape, dtype=np.int64)) if shape else 1
+
+    if total <= 0:
+        return tf.zeros(shape, dtype=tf.dtypes.as_dtype(dtype))
+
+    span = maxval - minval
+    values = np.empty(total, dtype=np.float64)
+    for i in range(total):
+        values[i] = minval + span * random()
+
+    return _to_tensor(values, shape, dtype)
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=tf.float32):
-    """TensorFlow normal random tensor with RNG-derived seed."""
-    seed = random_int(0, 0xFFFFFFFF)
-    return tf.random.normal(shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed)
+    """Return a tensor of normally distributed random values from the custom RNG."""
+
+    mean = float(mean)
+    stddev = float(stddev)
+
+    shape = _normalize_shape(shape)
+    total = int(np.prod(shape, dtype=np.int64)) if shape else 1
+
+    if total <= 0:
+        return tf.zeros(shape, dtype=tf.dtypes.as_dtype(dtype))
+
+    values = np.empty(total, dtype=np.float64)
+    two_pi = math.tau if hasattr(math, "tau") else 2.0 * math.pi
+    for i in range(total):
+        u1 = random()
+        if u1 <= 0.0:
+            u1 = 1e-9
+        u2 = random()
+
+        mag = math.sqrt(-2.0 * math.log(u1))
+        angle = two_pi * u2
+        values[i] = mean + stddev * (mag * math.cos(angle))
+
+    return _to_tensor(values, shape, dtype)
