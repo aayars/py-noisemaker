@@ -37,9 +37,9 @@ def generate_hashes():
 def js_generator(name: str, seed: int, **options) -> tuple[np.ndarray, int]:
     """Invoke the JavaScript implementation for a generator.
 
-    Returns a tuple of ``(tensor, call_count)`` where ``tensor`` has shape
-    (128, 128, 3) and dtype float32 and ``call_count`` is the number of RNG
-    calls consumed by the JavaScript run.
+    Returns a tuple of ``(tensor, call_count)`` where ``tensor`` is reshaped to
+    the array returned by the JavaScript process and ``call_count`` is the
+    number of RNG calls consumed by the JavaScript run.
     """
 
     script = Path(__file__).with_name("run_generators.js")
@@ -54,9 +54,10 @@ def js_generator(name: str, seed: int, **options) -> tuple[np.ndarray, int]:
         text=True,
     )
     payload = json.loads(result.stdout)
+    shape = tuple(payload.get("shape", (128, 128, 3)))
     tensor = np.frombuffer(
         base64.b64decode(payload["tensor"]), dtype="<f4"
-    ).reshape(128, 128, 3)
+    ).reshape(shape)
     return tensor, payload.get("callCount", 0)
 
 
