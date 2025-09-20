@@ -97,3 +97,29 @@ def test_multires_hue_distrib(seed):
     )
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_multires_supersample(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.multires(
+        None,
+        seed,
+        freq=2,
+        shape=[128, 128, 3],
+        octaves=2,
+        hue_rotation=0,
+        with_supersample=True,
+        post_effects=[],
+        final_effects=[],
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "multires",
+        seed,
+        withSupersample=True,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls

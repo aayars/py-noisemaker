@@ -9,6 +9,8 @@ import {
   combineOctaves,
   OctaveCombineMode,
   freqForShape,
+  proportionalDownsample,
+  fxaa,
   setSeed as setValueSeed,
 } from './value.js';
 import { oklabToRgb } from './oklab.js';
@@ -180,13 +182,12 @@ export async function basic(freq, shape, opts = {}) {
     let hueRotF = 0;
     if (!hueNoise) {
       let hueRot = hueRotation;
-      if (hueRot === null || hueRot === undefined) {
-        hueRot =
-          originalColorSpace === ColorSpace.hsv
-            ? simplexRandom(time, undefined, speed)
-            : 0;
+      if (originalColorSpace !== ColorSpace.hsv) {
+        hueRot = 0;
+      } else if (hueRot === null || hueRot === undefined) {
+        hueRot = simplexRandom(time, undefined, speed);
       }
-      hueRotF = f32(hueRot);
+      hueRotF = f32(hueRot ?? 0);
     }
     const saturationF = f32(saturation);
     for (let i = 0; i < h * w; i++) {
@@ -296,84 +297,210 @@ export async function multires(freq, shape, opts = {}) {
     brightnessDistrib = null,
     brightnessFreq = null,
     octaveBlending = OctaveBlending.falloff,
-    octaveEffects = [],
-    postEffects = [],
-    finalEffects = [],
     time = 0,
     speed = 1,
     ctx = null,
     seed = undefined,
   } = opts;
 
+  const octaveEffects = opts.octaveEffects ?? opts.octave_effects ?? [];
+  const postEffects = opts.postEffects ?? opts.post_effects ?? [];
+  const finalEffects = opts.finalEffects ?? opts.final_effects ?? [];
+
+  const withSupersample =
+    opts.withSupersample ?? opts.with_supersample ?? false;
+  const withFxaa = opts.withFxaa ?? opts.with_fxaa ?? false;
+  const withAi = opts.withAi ?? opts.with_ai ?? false;
+  const withUpscale = opts.withUpscale ?? opts.with_upscale ?? false;
+  const stabilityModel = opts.stabilityModel ?? opts.stability_model ?? null;
+  const styleFilename = opts.styleFilename ?? opts.style_filename ?? null;
+  const inputTensor = opts.tensor ?? null;
+
   if (seed !== undefined) {
     setRngSeed(seed);
     setValueSeed(seed);
   }
 
-  const f = Array.isArray(freq) ? freq : freqForShape(freq, shape);
-  const zero = new Float32Array(shape[0] * shape[1] * shape[2]);
-  let tensor = Tensor.fromArray(ctx, zero, shape);
-
-  for (let octave = 1; octave <= octaves; octave++) {
-    const multiplier = 2 ** octave;
-    const baseFreq = [
-      Math.floor(f[0] * 0.5 * multiplier),
-      Math.floor(f[1] * 0.5 * multiplier),
-    ];
-    if (baseFreq[0] > shape[0] && baseFreq[1] > shape[1]) break;
-    const layer = await basic(baseFreq, shape, {
-      ridges,
-      sin,
-      splineOrder,
-      distrib,
-      corners,
-      mask,
-      maskInverse,
-      maskStatic,
-      latticeDrift,
-      color_space,
-      hueRange,
-      hueRotation,
-      saturation,
-      hueDistrib,
-      saturationDistrib,
-      brightnessDistrib,
-      brightnessFreq,
-      octaveEffects,
-      octave,
-      time,
-      speed,
-      ctx,
-    });
-    let combineMode = OctaveCombineMode.falloff;
-    let weight = 1 / multiplier;
-    if (octaveBlending === OctaveBlending.reduce_max) {
-      combineMode = OctaveCombineMode.reduceMax;
-      weight = 0;
-    } else if (octaveBlending === OctaveBlending.alpha && shape[2] >= 1) {
-      combineMode = OctaveCombineMode.alpha;
-      weight = 0;
-    }
-    tensor = await combineOctaves(tensor, layer, combineMode, weight);
-    shape = tensor.shape;
+  if (withAi && withSupersample) {
+    throw new Error('--with-ai and --with-supersample may not be used together.');
   }
+  if (withAi) {
+    throw new Error('AI post-processing is not supported in the JavaScript implementation.');
+  }
+  if (withUpscale) {
+    throw new Error('withUpscale is not supported in the JavaScript implementation.');
+  }
+  void stabilityModel;
+  void styleFilename;
+
+  const originalShape = shape.slice();
+  const freqShape = shape.slice();
+  const rawFreq = Array.isArray(freq)
+    ? freq.slice()
+    : freqForShape(freq, freqShape);
+  const freqArray = [
+    rawFreq[0] ?? rawFreq,
+    rawFreq[1] ?? rawFreq[0] ?? rawFreq,
+  ];
+
+  let workingShape = shape.slice();
+  if (withSupersample) {
+    workingShape[0] *= 2;
+    workingShape[1] *= 2;
+  }
+  const generationShape = workingShape.slice();
+  let combineShape = workingShape;
+  const needsAlphaChannel =
+    octaveBlending === OctaveBlending.alpha &&
+    (combineShape[2] === 1 || combineShape[2] === 3);
+  if (needsAlphaChannel) {
+    combineShape = combineShape.slice();
+    combineShape[2] += 1;
+  }
+
+  let tensor = inputTensor;
+  let currentShape = tensor ? tensor.shape.slice() : combineShape.slice();
+
+  if (!tensor) {
+    const zero = new Float32Array(
+      combineShape[0] * combineShape[1] * combineShape[2],
+    );
+    tensor = Tensor.fromArray(ctx, zero, combineShape);
+
+    for (let octave = 1; octave <= octaves; octave++) {
+      const multiplier = 2 ** octave;
+      const baseFreq = [
+        Math.floor(freqArray[0] * 0.5 * multiplier),
+        Math.floor(freqArray[1] * 0.5 * multiplier),
+      ];
+      if (
+        baseFreq[0] > generationShape[0] &&
+        baseFreq[1] > generationShape[1]
+      ) {
+        break;
+      }
+
+      const layer = await basic(baseFreq, combineShape, {
+        ridges,
+        sin,
+        splineOrder,
+        distrib,
+        corners,
+        mask,
+        maskInverse,
+        maskStatic,
+        latticeDrift,
+        color_space,
+        hueRange,
+        hueRotation,
+        saturation,
+        hueDistrib,
+        saturationDistrib,
+        brightnessDistrib,
+        brightnessFreq,
+        octaveEffects,
+        octave,
+        time,
+        speed,
+        ctx,
+      });
+
+      let combineMode = OctaveCombineMode.falloff;
+      let weight = 1 / multiplier;
+      if (octaveBlending === OctaveBlending.reduce_max) {
+        combineMode = OctaveCombineMode.reduceMax;
+        weight = 0;
+      } else if (octaveBlending === OctaveBlending.alpha && combineShape[2] >= 1) {
+        combineMode = OctaveCombineMode.alpha;
+        weight = 0;
+      }
+      tensor = await combineOctaves(tensor, layer, combineMode, weight);
+      currentShape = tensor.shape.slice();
+    }
+  } else if (octaveEffects && octaveEffects.length) {
+    for (const effect of octaveEffects) {
+      tensor = await _applyOctaveEffectOrPreset(
+        effect,
+        tensor,
+        currentShape,
+        time,
+        speed,
+        1,
+      );
+      currentShape = tensor.shape.slice();
+    }
+  } else if (tensor) {
+    currentShape = tensor.shape.slice();
+  }
+
+  if (needsAlphaChannel && (originalShape[2] === 1 || originalShape[2] === 3)) {
+    const [h, w, c] = tensor.shape;
+    const outChannels = originalShape[2];
+    const data = await tensor.read();
+    const out = new Float32Array(h * w * outChannels);
+    for (let i = 0; i < h * w; i++) {
+      const src = i * c;
+      const dst = i * outChannels;
+      const alpha = data[src + c - 1];
+      if (outChannels === 1) {
+        out[dst] = data[src] * alpha;
+      } else {
+        out[dst] = data[src] * alpha;
+        out[dst + 1] = data[src + 1] * alpha;
+        out[dst + 2] = data[src + 2] * alpha;
+      }
+    }
+    tensor = Tensor.fromArray(ctx, out, [h, w, outChannels]);
+    currentShape = tensor.shape.slice();
+  }
+
   tensor = await normalize(tensor);
+  currentShape = tensor.shape.slice();
 
   let final = [];
   for (const e of postEffects) {
-    const res = await _applyPostEffectOrPreset(e, tensor, shape, time, speed);
+    const res = await _applyPostEffectOrPreset(
+      e,
+      tensor,
+      currentShape,
+      time,
+      speed,
+    );
     tensor = res.tensor;
-    shape = tensor.shape;
-    final = final.concat(res.final);
+    currentShape = tensor.shape.slice();
+    if (res.final && res.final.length) {
+      final = final.concat(res.final);
+    }
   }
 
-  final = final.concat(finalEffects);
+  if (finalEffects && finalEffects.length) {
+    final = final.concat(finalEffects);
+  }
+
   for (const e of final) {
-    tensor = await _applyFinalEffectOrPreset(e, tensor, shape, time, speed);
-    shape = tensor.shape;
+    tensor = await _applyFinalEffectOrPreset(
+      e,
+      tensor,
+      currentShape,
+      time,
+      speed,
+    );
+    currentShape = tensor.shape.slice();
   }
 
   tensor = await normalize(tensor);
+  currentShape = tensor.shape.slice();
+
+  if (withFxaa) {
+    tensor = await fxaa(tensor);
+    currentShape = tensor.shape.slice();
+  }
+
+  if (withSupersample) {
+    tensor = await proportionalDownsample(tensor, currentShape, originalShape);
+    currentShape = tensor.shape.slice();
+  }
+
   return tensor;
 }
 

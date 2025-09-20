@@ -38,7 +38,18 @@ export function random_member(...collections) {
   for (const c of collections) {
     if (Array.isArray(c)) {
       const arr = c.slice();
-      if (c.__enum) Object.defineProperty(arr, '__enum', { value: c.__enum });
+      let enumName = c.__enum;
+      if (!enumName) {
+        for (const lookup of ENUM_LOOKUPS) {
+          if (arr.every((item) => lookup.values.has(item))) {
+            enumName = lookup.name;
+            break;
+          }
+        }
+      }
+      if (enumName) {
+        Object.defineProperty(arr, '__enum', { value: enumName });
+      }
       sortArray(arr);
       out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {

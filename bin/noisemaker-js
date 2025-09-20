@@ -3,13 +3,15 @@
 import { Preset } from '../src/composer.js';
 import { PRESETS } from '../src/presets.js';
 import { Context } from '../src/context.js';
+import { setSeed as setUtilSeed } from '../src/util.js';
+import { setSeed as setValueSeed } from '../src/value.js';
 import { PNG } from 'pngjs';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 
 function printUsage() {
-  const message = `Usage:\n  noisemaker-js generate <presetName> --filename <filename> [options]\n\nOptions:\n  --width <pixels>       Output width in pixels (default: 1024)\n  --height <pixels>      Output height in pixels (default: 1024)\n  --seed <value>         Seed for deterministic output (default: 0)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 1)\n  --with-alpha           Preserve alpha channel (default: disabled)\n  --debug                Enable verbose preset debugging\n  --help                 Show this message\n`;
+  const message = `Usage:\n  noisemaker-js generate <presetName> --filename <filename> [options]\n\nOptions:\n  --width <pixels>       Output width in pixels (default: 1024)\n  --height <pixels>      Output height in pixels (default: 1024)\n  --seed <value>         Seed for deterministic output (default: 0)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 1)\n  --with-alpha           Preserve alpha channel (default: disabled)\n  --with-supersample     Apply x2 supersample antialiasing (default: disabled)\n  --with-fxaa            Apply FXAA antialiasing (default: disabled)\n  --debug                Enable verbose preset debugging\n  --help                 Show this message\n`;
   console.log(message);
 }
 
@@ -22,6 +24,8 @@ function parseOptions(argv) {
     time: 0,
     speed: 1,
     withAlpha: false,
+    withSupersample: false,
+    withFxaa: false,
     debug: false,
   };
 
@@ -37,6 +41,14 @@ function parseOptions(argv) {
     }
     if (key === 'with-alpha') {
       options.withAlpha = true;
+      continue;
+    }
+    if (key === 'with-supersample') {
+      options.withSupersample = true;
+      continue;
+    }
+    if (key === 'with-fxaa') {
+      options.withFxaa = true;
       continue;
     }
     if (key === 'debug') {
@@ -156,6 +168,9 @@ async function main(argv) {
     options.filename = "art.png";
   }
 
+  setUtilSeed(options.seed);
+  setValueSeed(options.seed);
+
   const presets = PRESETS();
   if (!Object.prototype.hasOwnProperty.call(presets, presetName)) {
     const available = Object.keys(presets)
@@ -176,6 +191,8 @@ async function main(argv) {
     time: options.time,
     speed: options.speed,
     withAlpha: options.withAlpha,
+    withSupersample: options.withSupersample,
+    withFxaa: options.withFxaa,
     debug: options.debug,
   });
 

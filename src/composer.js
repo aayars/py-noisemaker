@@ -2,7 +2,7 @@ import { Context } from './context.js';
 import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
-import { shapeFromParams, setSeed, withTensorData } from './util.js';
+import { shapeFromParams, withTensorData } from './util.js';
 import { Tensor, markPresentationNormalized } from './tensor.js';
 import { compilePreset, buildTopologySignatureFromPreset } from './webgpu/pipeline.js';
 // Ensure all built-in effects register themselves with the registry.
@@ -10,7 +10,8 @@ import { compilePreset, buildTopologySignatureFromPreset } from './webgpu/pipeli
 import './effects.js';
 import { EFFECTS } from './effectsRegistry.js';
 import { SettingsDict } from './settings.js';
-import { resetCallCount, getCallCount, setSeed as setRngSeed } from './rng.js';
+import { resetCallCount, getCallCount } from './rng.js';
+import { setSeed as setValueSeed } from './value.js';
 
 const SETTINGS_KEY = 'settings';
 const ALLOWED_KEYS = ['layers', SETTINGS_KEY, 'generator', 'octaves', 'post', 'final', 'ai', 'unique'];
@@ -257,7 +258,6 @@ export class Preset {
   }
 
   constructor(presetName, presets, settings = {}, seed, opts = {}) {
-    if (seed !== undefined) setSeed(seed);
     this.debug = opts.debug || false;
     debugLog(this.debug, 'Constructing preset', presetName);
     this.name = presetName;
@@ -333,6 +333,13 @@ export class Preset {
       time = 0,
       speed = 1,
       withAlpha = false,
+      withSupersample = false,
+      withFxaa = false,
+      withAi = false,
+      withUpscale = false,
+      stabilityModel = null,
+      styleFilename = null,
+      tensor: initialTensor = null,
       debug = this.debug,
       powerPreference = 'high-performance',
       frameIndex: frameIndexOpt = 0,
@@ -524,7 +531,14 @@ export class Preset {
 
     if (!tensor) {
       tensor = await multires(freq, shape, {
-        ...merged,
+        withAlpha,
+        withSupersample,
+        withFxaa,
+        withAi,
+        withUpscale,
+        stabilityModel,
+        styleFilename,
+        tensor: initialTensor,
         color_space: colorSpace,
         ctx,
         seed,
@@ -533,6 +547,7 @@ export class Preset {
         octaveEffects: this.octave_effects,
         postEffects: this.post_effects,
         finalEffects: this.final_effects,
+        ...merged,
       });
     }
     if (debug) {
@@ -760,7 +775,7 @@ export function Effect(effectName, params = {}) {
 }
 
 export async function render(presetOrName, seed = 0, opts = {}) {
-  setRngSeed(seed);
+  setValueSeed(seed);
   const { presets = {}, settings } = opts;
   if (presetOrName instanceof Preset) {
     return presetOrName.render(seed, opts);
