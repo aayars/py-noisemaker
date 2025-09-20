@@ -16,7 +16,6 @@ if (name === 'basic') {
 } else if (name === 'multires') {
   tensor = await multires(2, [128, 128, 3], {
     octaves: 2,
-    hueRotation: 0,
     postEffects: [],
     finalEffects: [],
     ...options,

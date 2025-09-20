@@ -200,7 +200,7 @@ function fakeQr({ x, y, glyphShape, uvNoise }) {
 }
 
 function dropout({ uvNoise, uvX, uvY }) {
-  return uvRandom(uvNoise, uvX, uvY) < 0.25 ? 0 : 1;
+  return uvRandom(uvNoise, uvX, uvY) < 0.25 ? 1 : 0;
 }
 
 const ARECIBO_DNA_TEMPLATE = [

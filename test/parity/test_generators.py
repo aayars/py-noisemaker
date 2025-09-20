@@ -44,12 +44,31 @@ def test_multires(seed):
         freq=2,
         shape=[128, 128, 3],
         octaves=2,
-        hue_rotation=0,
         post_effects=[],
         final_effects=[],
     )
     assert tensor.shape == (128, 128, 3)
     js, js_calls = js_generator("multires", seed)
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_multires_single_octave(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.multires(
+        None,
+        seed,
+        freq=2,
+        shape=[128, 128, 3],
+        octaves=1,
+        post_effects=[],
+        final_effects=[],
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator("multires", seed, octaves=1)
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
 
