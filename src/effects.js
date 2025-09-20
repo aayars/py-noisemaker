@@ -408,168 +408,207 @@ export async function shadow(
   reference = null,
 ) {
   const [h, w, c] = shape;
-  const ref = reference || tensor;
-  const rShape = ref.shape;
-  let grayTensor;
-  if (rShape[2] === 1 || rShape[2] === 2) {
-    const data = await ref.read();
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      gray[i] = data[i * rShape[2]];
-    }
-    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
-  } else {
-    let rgbTensor;
-    if (rShape[2] === 3) {
-      rgbTensor = await clamp01(ref);
-    } else {
-      const clamped = await clamp01(ref);
-      const src = await clamped.read();
-      const rgb = new Float32Array(h * w * 3);
+  const ctx = tensor.ctx;
+  let ref = reference || tensor;
+  ref = await toValueMap(ref);
+  const valueShape = [h, w, 1];
+  if (ref.shape[0] !== h || ref.shape[1] !== w) {
+    ref = await resample(ref, valueShape);
+  }
+  ref = await normalize(ref);
+  const [sobelXTensor, sobelYTensor] = await Promise.all([
+    convolve(
+      ref,
+      valueShape,
+      time,
+      speed,
+      ValueMask.conv2d_sobel_x,
+      true,
+      1,
+    ),
+    convolve(
+      ref,
+      valueShape,
+      time,
+      speed,
+      ValueMask.conv2d_sobel_y,
+      true,
+      1,
+    ),
+  ]);
+  let shade = await withTensorDatas(
+    [sobelXTensor, sobelYTensor],
+    (sobelXData, sobelYData) => {
+      const distData = new Float32Array(h * w);
       for (let i = 0; i < h * w; i++) {
-        const base = i * 4;
-        rgb[i * 3] = src[base];
-        rgb[i * 3 + 1] = src[base + 1];
-        rgb[i * 3 + 2] = src[base + 2];
-      }
-      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
-    }
-    const labTensor = await rgbToOklab(rgbTensor);
-    const lab = await labTensor.read();
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      gray[i] = lab[i * 3];
-    }
-    grayTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
-  }
-  grayTensor = await normalize(grayTensor);
-  const kx = [
-    [1, 0, -1],
-    [2, 0, -2],
-    [1, 0, -1],
-  ];
-  const ky = [
-    [1, 2, 1],
-    [0, 0, 0],
-    [-1, -2, -1],
-  ];
-  // convolution() may return a Promise, so await the result before reading
-  const dx = await (await convolution(grayTensor, kx)).read();
-  const dy = await (await convolution(grayTensor, ky)).read();
-  const dist = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    dist[i] = Math.fround(
-      distance(dx[i], dy[i], DistanceMetric.euclidean),
-    );
-  }
-  let min = Infinity;
-  let max = -Infinity;
-  for (let i = 0; i < h * w; i++) {
-    if (dist[i] < min) min = dist[i];
-    if (dist[i] > max) max = dist[i];
-  }
-  min = Math.fround(min);
-  max = Math.fround(max);
-  let shadeValues;
-  if (min === max) {
-    shadeValues = dist;
-  } else {
-    shadeValues = new Float32Array(h * w);
-    const range = Math.fround(max - min);
-    for (let i = 0; i < h * w; i++) {
-      shadeValues[i] = Math.fround((dist[i] - min) / range);
-    }
-  }
-  let shade = Tensor.fromArray(tensor.ctx, shadeValues, [h, w, 1]);
-  const sharpen = [
-    [0, -1, 0],
-    [-1, 5, -1],
-    [0, -1, 0],
-  ];
-  shade = await convolution(shade, sharpen, { alpha: 0.5 });
-  const shadeArr = await shade.read();
-  const highlight = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) {
-    highlight[i] = Math.fround(shadeArr[i] * shadeArr[i]);
-  }
-  return withTensorData(tensor, async (src) => {
-    const shaded = new Float32Array(h * w * c);
-    for (let i = 0; i < h * w; i++) {
-      const sh = shadeArr[i];
-      const hi = highlight[i];
-      for (let k = 0; k < c; k++) {
-        const val = src[i * c + k];
-        const dark = Math.fround((1 - val) * (1 - hi));
-        const lit = Math.fround(1 - dark);
-        shaded[i * c + k] = Math.fround(lit * sh);
-      }
-    }
-    const shadeTensor = Tensor.fromArray(tensor.ctx, shaded, shape);
-    if (c === 1) {
-      return blend(tensor, shadeTensor, alpha);
-    } else if (c === 2) {
-      const out = src.slice();
-      const alphaData = typeof alpha === "number" ? null : await alpha.read();
-      const tc = alphaData ? alpha.shape[2] : 0;
-      for (let i = 0; i < h * w; i++) {
-        const t = alphaData ? alphaData[i * tc] : alpha;
-        out[i * 2] = Math.fround((1 - t) * src[i * 2] + t * shaded[i * 2]);
-      }
-      return Tensor.fromArray(tensor.ctx, out, shape);
-    } else {
-      let rgbData;
-      let aData = null;
-      if (c === 4) {
-        rgbData = new Float32Array(h * w * 3);
-        aData = new Float32Array(h * w);
-        for (let i = 0; i < h * w; i++) {
-          const base = i * 4;
-          rgbData[i * 3] = src[base];
-          rgbData[i * 3 + 1] = src[base + 1];
-          rgbData[i * 3 + 2] = src[base + 2];
-          aData[i] = src[base + 3];
-        }
-      } else {
-        rgbData = src;
-      }
-      const rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
-      const hsv = await rgbToHsv(rgbTensor);
-      const hsvData = await hsv.read();
-      const shadeRgb = new Float32Array(h * w * 3);
-      for (let i = 0; i < h * w; i++) {
-        shadeRgb[i * 3] = shaded[i * c];
-        shadeRgb[i * 3 + 1] = shaded[i * c + 1];
-        shadeRgb[i * 3 + 2] = shaded[i * c + 2];
-      }
-      const shadeHsv = await rgbToHsv(
-        Tensor.fromArray(tensor.ctx, shadeRgb, [h, w, 3]),
-      );
-      const shadeHsvData = await shadeHsv.read();
-      const alphaData = typeof alpha === "number" ? null : await alpha.read();
-      const tc = alphaData ? alpha.shape[2] : 0;
-      for (let i = 0; i < h * w; i++) {
-        const t = alphaData ? alphaData[i * tc] : alpha;
-        hsvData[i * 3 + 2] = Math.fround(
-          (1 - t) * hsvData[i * 3 + 2] + t * shadeHsvData[i * 3 + 2],
+        distData[i] = distance(
+          sobelXData[i],
+          sobelYData[i],
+          DistanceMetric.euclidean,
         );
       }
-      let result = await hsvToRgb(
-        Tensor.fromArray(tensor.ctx, hsvData, [h, w, 3]),
-      );
-      if (c === 4) {
-        const res = await result.read();
-        const out = new Float32Array(h * w * 4);
-        for (let i = 0; i < h * w; i++) {
-          out[i * 4] = res[i * 3];
-          out[i * 4 + 1] = res[i * 3 + 1];
-          out[i * 4 + 2] = res[i * 3 + 2];
-          out[i * 4 + 3] = aData[i];
-        }
-        result = Tensor.fromArray(tensor.ctx, out, [h, w, 4]);
-      }
-      return result;
+      return Tensor.fromArray(ctx, distData, valueShape);
+    },
+  );
+  shade = await normalize(shade);
+  shade = await convolve(
+    shade,
+    valueShape,
+    time,
+    speed,
+    ValueMask.conv2d_sharpen,
+    true,
+    0.5,
+  );
+  const shadeDataMaybe = shade.read();
+  const shadeData =
+    shadeDataMaybe && typeof shadeDataMaybe.then === "function"
+      ? await shadeDataMaybe
+      : shadeDataMaybe;
+  const highlight = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    highlight[i] = Math.fround(shadeData[i] * shadeData[i]);
+  }
+  const srcMaybe = tensor.read();
+  const srcData =
+    srcMaybe && typeof srcMaybe.then === "function" ? await srcMaybe : srcMaybe;
+  const shadedData = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const sh = shadeData[i];
+    const hi = highlight[i];
+    for (let k = 0; k < c; k++) {
+      const idx = i * c + k;
+      const val = srcData[idx];
+      const dark = Math.fround((1 - val) * (1 - hi));
+      const lit = Math.fround(1 - dark);
+      const shaded = Math.fround(lit * sh);
+      shadedData[idx] = Math.min(1, Math.max(0, shaded));
     }
-  });
+  }
+  const shadedTensor = Tensor.fromArray(ctx, shadedData, shape);
+  if (c === 1) {
+    return blend(tensor, shadedTensor, alpha);
+  }
+  if (c === 2) {
+    const out = srcData.slice();
+    let alphaVals = null;
+    let alphaChannels = 0;
+    if (alpha && typeof alpha === "object") {
+      let alphaTensor = alpha;
+      if (alphaTensor && typeof alphaTensor.then === "function") {
+        alphaTensor = await alphaTensor;
+      }
+      if (alphaTensor && typeof alphaTensor.read === "function") {
+        const alphaMaybe = alphaTensor.read();
+        alphaVals =
+          alphaMaybe && typeof alphaMaybe.then === "function"
+            ? await alphaMaybe
+            : alphaMaybe;
+        alphaChannels = alphaTensor.shape[2] || 1;
+      }
+    }
+    for (let i = 0; i < h * w; i++) {
+      const tVal =
+        alphaVals && alphaChannels
+          ? alphaVals[i * alphaChannels]
+          : alpha;
+      const shadeVal = shadedData[i * c];
+      out[i * 2] = Math.fround(
+        (1 - tVal) * srcData[i * 2] + tVal * shadeVal,
+      );
+    }
+    return Tensor.fromArray(ctx, out, shape);
+  }
+  let rgbTensor;
+  let alphaChannel = null;
+  if (c === 4) {
+    const rgbData = new Float32Array(h * w * 3);
+    alphaChannel = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * 4;
+      const base3 = i * 3;
+      rgbData[base3] = srcData[base];
+      rgbData[base3 + 1] = srcData[base + 1];
+      rgbData[base3 + 2] = srcData[base + 2];
+      alphaChannel[i] = srcData[base + 3];
+    }
+    rgbTensor = Tensor.fromArray(ctx, rgbData, [h, w, 3]);
+  } else {
+    rgbTensor = tensor;
+  }
+  const shadeRgb = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    const base = i * c;
+    const base3 = i * 3;
+    shadeRgb[base3] = shadedData[base];
+    shadeRgb[base3 + 1] = shadedData[base + Math.min(1, c - 1)];
+    shadeRgb[base3 + 2] = shadedData[base + Math.min(2, c - 1)];
+  }
+  let hsvTensor = rgbToHsv(rgbTensor);
+  if (hsvTensor && typeof hsvTensor.then === "function") {
+    hsvTensor = await hsvTensor;
+  }
+  let shadeHsvTensor = rgbToHsv(
+    Tensor.fromArray(ctx, shadeRgb, [h, w, 3]),
+  );
+  if (shadeHsvTensor && typeof shadeHsvTensor.then === "function") {
+    shadeHsvTensor = await shadeHsvTensor;
+  }
+  const hsvDataMaybe = hsvTensor.read();
+  const hsvData =
+    hsvDataMaybe && typeof hsvDataMaybe.then === "function"
+      ? await hsvDataMaybe
+      : hsvDataMaybe;
+  const shadeHsvDataMaybe = shadeHsvTensor.read();
+  const shadeHsvData =
+    shadeHsvDataMaybe && typeof shadeHsvDataMaybe.then === "function"
+      ? await shadeHsvDataMaybe
+      : shadeHsvDataMaybe;
+  let alphaVals = null;
+  let alphaChannels = 0;
+  if (alpha && typeof alpha === "object") {
+    let alphaTensor = alpha;
+    if (alphaTensor && typeof alphaTensor.then === "function") {
+      alphaTensor = await alphaTensor;
+    }
+    if (alphaTensor && typeof alphaTensor.read === "function") {
+      const alphaMaybe = alphaTensor.read();
+      alphaVals =
+        alphaMaybe && typeof alphaMaybe.then === "function"
+          ? await alphaMaybe
+          : alphaMaybe;
+      alphaChannels = alphaTensor.shape[2] || 1;
+    }
+  }
+  for (let i = 0; i < h * w; i++) {
+    const tVal =
+      alphaVals && alphaChannels ? alphaVals[i * alphaChannels] : alpha;
+    hsvData[i * 3 + 2] = Math.fround(
+      (1 - tVal) * hsvData[i * 3 + 2] + tVal * shadeHsvData[i * 3 + 2],
+    );
+  }
+  let result = hsvToRgb(Tensor.fromArray(ctx, hsvData, [h, w, 3]));
+  if (result && typeof result.then === "function") {
+    result = await result;
+  }
+  if (c === 4) {
+    const resDataMaybe = result.read();
+    const resData =
+      resDataMaybe && typeof resDataMaybe.then === "function"
+        ? await resDataMaybe
+        : resDataMaybe;
+    const out = new Float32Array(h * w * 4);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * 4;
+      const base3 = i * 3;
+      out[base] = resData[base3];
+      out[base + 1] = resData[base3 + 1];
+      out[base + 2] = resData[base3 + 2];
+      out[base + 3] = alphaChannel[i];
+    }
+    return Tensor.fromArray(ctx, out, shape);
+  }
+  return result;
 }
 register("shadow", shadow, { alpha: 1, reference: null });
 
@@ -6798,42 +6837,78 @@ export async function spatter(tensor, shape, time, speed, color = true) {
 register("spatter", spatter, { color: true });
 
 export async function clouds(tensor, shape, time, speed) {
-  const [h, w] = shape;
+  const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const preH = Math.max(1, Math.floor(h * 0.25));
   const preW = Math.max(1, Math.floor(w * 0.25));
   const preShape = [preH, preW, 1];
-  let control = await values(randomInt(2, 4), preShape, {
-    ctx,
-    time,
-    speed,
-    distrib: ValueDistribution.exp,
-    seed: randomInt(0, 1000),
-  });
-  control = await warp(control, preShape, time, speed, 3, 2, 0.125);
-  let shaded = await offsetTensor(control, randomInt(-15, 15), randomInt(-15, 15));
-  let shadeData = await shaded.read();
-  for (let i = 0; i < shadeData.length; i++)
-    shadeData[i] = Math.min(1, shadeData[i] * 2.5);
-  shaded = Tensor.fromArray(ctx, shadeData, preShape);
-  const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
-  const kData = blurTensor.read();
-  const kSize = blurTensor.shape[0];
-  const blurKernel = [];
-  for (let i = 0; i < kSize; i++) {
-    blurKernel.push(Array.from(kData.slice(i * kSize, i * kSize + kSize)));
+
+  const baseFreq = freqForShape(randomInt(2, 4), [preH, preW]);
+  const accum = new Float32Array(preH * preW);
+  for (let octave = 1; octave <= 8; octave++) {
+    const mult = 2 ** octave;
+    const octaveFreq = baseFreq.map((f) => Math.floor(f * 0.5 * mult));
+    if (octaveFreq[0] > preH && octaveFreq[1] > preW) break;
+    let layer = await values(octaveFreq, preShape, { ctx, time, speed });
+    layer = await ridge(layer);
+    const data = await layer.read();
+    const inv = 1 / mult;
+    for (let i = 0; i < accum.length; i++) accum[i] += data[i] * inv;
   }
-  for (let i = 0; i < 3; i++) shaded = await convolution(shaded, blurKernel);
-  const factor = Math.max(1, Math.floor(h / preH));
-  let shadedUp = await upsample(shaded, factor);
-  let combined = await upsample(control, factor);
-  let shadedDataUp = await shadedUp.read();
-  for (let i = 0; i < shadedDataUp.length; i++) shadedDataUp[i] *= 0.75;
-  shadedUp = Tensor.fromArray(ctx, shadedDataUp, [h, w, 1]);
-  const zeros = await values(1, shape, { ctx, distrib: ValueDistribution.zeros });
-  const ones = await values(1, shape, { ctx, distrib: ValueDistribution.ones });
-  let out = await blend(tensor, zeros, shadedUp);
-  out = await blend(out, ones, combined);
+  let control = Tensor.fromArray(ctx, accum, preShape);
+  control = await normalize(control);
+  control = await warp(control, preShape, time, speed, 3, 2, 0.125);
+
+  const ones = new Float32Array(preH * preW);
+  ones.fill(1);
+  const zeros = new Float32Array(preH * preW);
+  const layer0 = Tensor.fromArray(ctx, ones, preShape);
+  const layer1 = Tensor.fromArray(ctx, zeros, preShape);
+  let combined = blendLayers(control, preShape, 1.0, layer0, layer1);
+
+  let shaded = await offsetTensor(
+    combined,
+    randomInt(-15, 15),
+    randomInt(-15, 15),
+  );
+  let shadeData = await shaded.read();
+  for (let i = 0; i < shadeData.length; i++) {
+    shadeData[i] = Math.min(shadeData[i] * 2.5, 1);
+  }
+  shaded = Tensor.fromArray(ctx, shadeData, preShape);
+
+  const blurTensor = maskValues(ValueMask.conv2d_blur)[0];
+  const blurData = await blurTensor.read();
+  const blurSize = blurTensor.shape[0];
+  const blurKernel = [];
+  for (let y = 0; y < blurSize; y++) {
+    blurKernel.push(
+      Array.from(blurData.slice(y * blurSize, y * blurSize + blurSize)),
+    );
+  }
+  for (let i = 0; i < 3; i++) {
+    shaded = await convolution(shaded, blurKernel);
+  }
+
+  const postShape = [h, w, 1];
+  shaded = await resample(shaded, postShape);
+  combined = await resample(combined, postShape);
+
+  const shadedArr = await shaded.read();
+  for (let i = 0; i < shadedArr.length; i++) shadedArr[i] *= 0.75;
+  shaded = Tensor.fromArray(ctx, shadedArr, postShape);
+
+  const zerosTensor = await values(1, shape, {
+    ctx,
+    distrib: ValueDistribution.zeros,
+  });
+  const onesTensor = await values(1, shape, {
+    ctx,
+    distrib: ValueDistribution.ones,
+  });
+
+  let out = await blend(tensor, zerosTensor, shaded);
+  out = await blend(out, onesTensor, combined);
   return await shadow(out, shape, time, speed, 0.5);
 }
 register("clouds", clouds, {});
