@@ -919,7 +919,9 @@ Bindings: ${bindingSummary}`,
         .filter(Boolean)
         .join('<br>');
       presetFormulaEl.textContent = presetSource[presetName] || '';
-      presetEvalEl.textContent = formatPreset(serializePreset(renderPresetObj, seed));
+      const evaluatedPreset = serializePreset(renderPresetObj, seed);
+      const { settings: _settings, ...evaluatedWithoutSettings } = evaluatedPreset;
+      presetEvalEl.textContent = formatPreset(evaluatedWithoutSettings);
     }
 
     function renderPreset(seed = currentSeed, presetName = currentPreset) {
