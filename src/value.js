@@ -1685,6 +1685,9 @@ export function convolution(tensor, kernel, opts = {}) {
 
       const outH = tileH - kh + 1;
       const outW = tileW - kw + 1;
+      if (outH <= 0 || outW <= 0) {
+        return doNormalize ? normalize(t) : t;
+      }
       const conv = new Float32Array(outH * outW * c);
       for (let y = 0; y < outH; y++) {
         for (let x = 0; x < outW; x++) {

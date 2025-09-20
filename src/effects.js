@@ -24,7 +24,7 @@ import {
 import { PALETTES } from "./palettes.js";
 import { register } from "./effectsRegistry.js";
 import { random as simplexRandom } from "./simplex.js";
-import { maskValues, maskShape } from "./masks.js";
+import { getAtlas, maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
 import {
   random,
@@ -2672,10 +2672,14 @@ export function expandTile(
   const yOff = withOffset ? Math.floor(inH / 2) : 0;
   return withTensorData(tensor, (src) => {
     const out = new Float32Array(outH * outW * c);
+    const wrap = (n, mod) => {
+      const r = n % mod;
+      return r < 0 ? r + mod : r;
+    };
     for (let y = 0; y < outH; y++) {
-      const sy = (y + yOff) % inH;
+      const sy = wrap(y + yOff, inH);
       for (let x = 0; x < outW; x++) {
-        const sx = (x + xOff) % inW;
+        const sx = wrap(x + xOff, inW);
         for (let k = 0; k < c; k++) {
           out[(y * outW + x) * c + k] = src[(sy * inW + sx) * c + k];
         }
@@ -3109,8 +3113,20 @@ register("aberration", aberration, { displacement: 0.005 });
 
 export async function glitch(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const base = values(4, [h, w, 1], { time, speed: speed * 50 });
-  const noise = base.read();
+  const baseMaybe = values(4, [h, w, 1], {
+    ctx: tensor.ctx,
+    time,
+    speed: speed * 50,
+  });
+  const base =
+    baseMaybe && typeof baseMaybe.then === "function"
+      ? await baseMaybe
+      : baseMaybe;
+  const noiseMaybe = base.read();
+  const noise =
+    noiseMaybe && typeof noiseMaybe.then === "function"
+      ? await noiseMaybe
+      : noiseMaybe;
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
@@ -4259,8 +4275,7 @@ export async function erosionWorms(
       xyBlend,
     );
   }
-  let valuesArr;
-  let outTensor;
+  const ctx = tensor.ctx;
   const count = Math.floor(Math.sqrt(h * w) * density);
   const x = randomUniform(count, 0, 1);
   const y = randomUniform(count, 0, 1);
@@ -4276,79 +4291,79 @@ export async function erosionWorms(
     xDir[i] = Math.fround(xDir[i] / len);
     yDir[i] = Math.fround(yDir[i] / len);
   }
-  const src = await tensor.read();
+
   const startColors = new Float32Array(count * c);
   for (let i = 0; i < count; i++) {
-    const xi = Math.floor(x[i]);
-    const yi = Math.floor(y[i]);
+    const xi = ((Math.floor(x[i]) % w) + w) % w;
+    const yi = ((Math.floor(y[i]) % h) + h) % h;
     const base = (yi * w + xi) * c;
     for (let k = 0; k < c; k++) {
       startColors[i * c + k] = src[base + k];
     }
   }
-  valuesArr = new Float32Array(h * w);
-  for (let yi = 0; yi < h; yi++) {
-    for (let xi = 0; xi < w; xi++) {
-      const idx = yi * w + xi;
-      if (c === 1) {
-        valuesArr[idx] = src[idx];
-      } else {
-        const base = idx * c;
-        const r = src[base];
-        const g = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        valuesArr[idx] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
-    }
-  }
+
+  const wrap = (value, max) => {
+    const mod = value % max;
+    return mod < 0 ? mod + max : mod;
+  };
+
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
     const exposure =
       iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
     for (let j = 0; j < count; j++) {
-      const xi = Math.floor(x[j]) % w;
-      const yi = Math.floor(y[j]) % h;
-      const idx = yi * w + xi;
+      const baseXi = wrap(Math.floor(x[j]), w);
+      const baseYi = wrap(Math.floor(y[j]), h);
+      const idx = baseYi * w + baseXi;
       const base = idx * c;
       for (let k = 0; k < c; k++) {
         out[base + k] += startColors[j * c + k] * exposure;
       }
-      const x1 = (xi + 1) % w;
-      const y1 = (yi + 1) % h;
-      const sv = valuesArr[idx];
-      const x1v = valuesArr[yi * w + x1];
-      const y1v = valuesArr[y1 * w + xi];
-      const x1y1v = valuesArr[y1 * w + x1];
-      const u = x[j] - Math.floor(x[j]);
-      const v = y[j] - Math.floor(y[j]);
+      const x1 = (baseXi + 1) % w;
+      const y1 = (baseYi + 1) % h;
+      const sv = valuesData[idx];
+      const x1v = valuesData[baseYi * w + x1];
+      const y1v = valuesData[y1 * w + baseXi];
+      const x1y1v = valuesData[y1 * w + x1];
+      const floorX = Math.floor(x[j]);
+      const floorY = Math.floor(y[j]);
+      const u = x[j] - floorX;
+      const v = y[j] - floorY;
       const gX = (y1v - sv) * (1 - u) + (x1y1v - x1v) * u;
       const gY = (x1v - sv) * (1 - v) + (x1y1v - y1v) * v;
       const gx = quantize ? Math.floor(gX) : gX;
       const gy = quantize ? Math.floor(gY) : gY;
-      const len = distance(gx, gy) * contraction || 1;
-      xDir[j] = xDir[j] * (1 - inertia[j]) + (gx / len) * inertia[j];
-      yDir[j] = yDir[j] * (1 - inertia[j]) + (gy / len) * inertia[j];
-      x[j] = (x[j] + xDir[j]) % w;
-      y[j] = (y[j] + yDir[j]) % h;
+      const len =
+        distance(gx, gy, DistanceMetric.euclidean) * contraction || 1;
+      xDir[j] = xDir[j] * (1 - inertiaVals[j]) + (gx / len) * inertiaVals[j];
+      yDir[j] = yDir[j] * (1 - inertiaVals[j]) + (gy / len) * inertiaVals[j];
+      x[j] = wrap(x[j] + xDir[j], w);
+      y[j] = wrap(y[j] + yDir[j], h);
     }
   }
-  outTensor = Tensor.fromArray(tensor.ctx, out, shape);
+
+  let outTensor = Tensor.fromArray(ctx, out, shape);
   outTensor = await clamp01(outTensor);
   if (inverse) {
     const d = await outTensor.read();
     for (let i = 0; i < d.length; i++) d[i] = 1 - d[i];
-    outTensor = Tensor.fromArray(outTensor.ctx, d, shape);
+    outTensor = Tensor.fromArray(ctx, d, shape);
   }
-  if (xyBlend) {
-    const valMask = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) valMask[i] = valuesArr[i] * xyBlend;
-    const mask = Tensor.fromArray(tensor.ctx, valMask, [h, w, 1]);
-    tensor = blend(
-      shadow(tensor, shape, time, speed),
-      reindex(tensor, shape, time, speed, 1),
-      mask,
-    );
+
+  const xyAmount =
+    typeof xyBlend === "boolean" ? (xyBlend ? 1 : 0) : xyBlend || 0;
+  if (xyAmount) {
+    const maskData = new Float32Array(h * w);
+    for (let i = 0; i < h * w; i++) {
+      maskData[i] = valuesData[i] * xyAmount;
+    }
+    const mask = Tensor.fromArray(ctx, maskData, [h, w, 1]);
+    const shaded = await shadow(tensor, shape, time, speed);
+    const reindexed = await reindex(tensor, shape, time, speed, 1);
+    const blended = await blend(shaded, reindexed, mask);
+    tensor = blended;
   }
+
   return blend(tensor, outTensor, alpha);
 }
 register("erosion_worms", erosionWorms, {
@@ -5798,76 +5813,162 @@ export async function glyphMap(
     return new Tensor(ctx, outBuf, shape);
   }
   let glyphShape;
-  let glyphs;
+  const glyphEntries = [];
   if (mask === ValueMask.truetype) {
     glyphShape = [15, 15, 1];
-    glyphs = loadGlyphs(glyphShape) || [];
+    const loaded = loadGlyphs(glyphShape) || [];
+    for (const glyph of loaded) {
+      const gh = glyphShape[0];
+      const gw = glyphShape[1];
+      const flat = new Float32Array(gh * gw);
+      let sum = 0;
+      for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+          const v = glyph[y][x][0];
+          flat[y * gw + x] = v;
+          sum += v;
+        }
+      }
+      glyphEntries.push({ data: flat, sum });
+    }
   } else {
     glyphShape = maskShape(mask);
     if (!glyphShape) return tensor;
-    const [g] = maskValues(mask, glyphShape);
-    const data = g.read();
-    const gh = glyphShape[0];
-    const gw = glyphShape[1];
-    const gc = glyphShape[2];
-    const glyph = [];
-    for (let y = 0; y < gh; y++) {
-      const row = [];
-      for (let x = 0; x < gw; x++) {
-        row.push([data[(y * gw + x) * gc]]);
+    const atlas = getAtlas(mask);
+    const baseShape = maskShape(mask);
+    const levels = 100;
+    const uvShapeY = Math.max(1, Math.floor(glyphShape[0] / baseShape[0]));
+    const uvShapeX = Math.max(1, Math.floor(glyphShape[1] / baseShape[1]));
+    for (let i = 0; i < levels; i++) {
+      const uvVal = i / levels;
+      const uvNoise = [];
+      for (let uy = 0; uy < uvShapeY; uy++) {
+        const row = new Array(uvShapeX).fill(uvVal);
+        uvNoise.push(row);
       }
-      glyph.push(row);
+      const [glyphTensor] = maskValues(mask, [...glyphShape], {
+        atlas,
+        time,
+        speed,
+        uvNoise,
+      });
+      const dataMaybe = glyphTensor.read();
+      const glyphData =
+        dataMaybe && typeof dataMaybe.then === "function"
+          ? await dataMaybe
+          : dataMaybe;
+      const flat = glyphData instanceof Float32Array
+        ? glyphData.slice()
+        : new Float32Array(glyphData);
+      let sum = 0;
+      for (let j = 0; j < flat.length; j++) sum += flat[j];
+      glyphEntries.push({ data: flat, sum });
     }
-    glyphs = [glyph];
   }
-  if (!glyphs.length) return tensor;
+  if (!glyphEntries.length) return tensor;
+  glyphEntries.sort((a, b) => a.sum - b.sum);
+  const glyphDataList = glyphEntries.map((entry) => entry.data);
   const [h, w, c] = shape;
   const gh = glyphShape[0];
   const gw = glyphShape[1];
-  const uvH = Math.max(1, Math.floor(h / gh));
-  const uvW = Math.max(1, Math.floor(w / gw));
-  const src = await tensor.read();
-  const out = new Float32Array(h * w * c);
-  for (let cy = 0; cy < uvH; cy++) {
-    for (let cx = 0; cx < uvW; cx++) {
-      const sy = Math.min(h - 1, cy * gh);
-      const sx = Math.min(w - 1, cx * gw);
-      let bright;
-      if (c === 1) {
-        bright = src[sy * w + sx];
-      } else {
-        const base = (sy * w + sx) * c;
-        const r = src[base];
-        const gVal = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        bright = 0.2126 * r + 0.7152 * gVal + 0.0722 * b;
+  const glyphChannels = glyphShape[2] ?? 1;
+  const glyphCount = glyphDataList.length;
+
+  const inH = Math.max(1, Math.floor(h / zoom));
+  const inW = Math.max(1, Math.floor(w / zoom));
+  const uvH = Math.max(1, Math.floor(inH / gh));
+  const uvW = Math.max(1, Math.floor(inW / gw));
+  const approxH = gh * uvH;
+  const approxW = gw * uvW;
+
+  let valueTensor = await toValueMap(tensor);
+  if (valueTensor.shape[0] !== inH || valueTensor.shape[1] !== inW) {
+    valueTensor = await resample(valueTensor, [inH, inW, 1]);
+  }
+  let uvNoise = await proportionalDownsample(
+    valueTensor,
+    [inH, inW, 1],
+    [uvH, uvW],
+  );
+  uvNoise = await resample(uvNoise, [approxH, approxW, 1], splineOrder);
+  const uvDataMaybe = uvNoise.read();
+  const uvData =
+    uvDataMaybe && typeof uvDataMaybe.then === "function"
+      ? await uvDataMaybe
+      : uvDataMaybe;
+
+  const approxData = new Float32Array(approxH * approxW);
+  for (let y = 0; y < approxH; y++) {
+    for (let x = 0; x < approxW; x++) {
+      const idx = y * approxW + x;
+      let gIdx = Math.floor(uvData[idx] * glyphCount);
+      if (glyphCount > 0) {
+        gIdx = ((gIdx % glyphCount) + glyphCount) % glyphCount;
       }
-      const gIndex = Math.min(
-        glyphs.length - 1,
-        Math.floor(bright * glyphs.length),
-      );
-      const glyph = glyphs[gIndex];
+      const glyph = glyphDataList[gIdx];
       if (!glyph) continue;
-      for (let gy = 0; gy < gh; gy++) {
-        for (let gx = 0; gx < gw; gx++) {
-          const yy = cy * gh + gy;
-          const xx = cx * gw + gx;
-          if (yy >= h || xx >= w) continue;
-          const gv = glyph[gy][gx][0];
-          const outBase = (yy * w + xx) * c;
-          if (!colorize) {
-            for (let k = 0; k < c; k++) out[outBase + k] = gv;
-          } else {
-            const srcBase = (sy * w + sx) * c;
-            for (let k = 0; k < c; k++)
-              out[outBase + k] = gv * src[srcBase + k];
-          }
-        }
-      }
+      const gy = y % gh;
+      const gx = x % gw;
+      approxData[idx] = glyph[(gy * gw + gx) * glyphChannels];
     }
   }
-  let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
-  if (alpha !== 1) outTensor = blend(tensor, outTensor, alpha);
+
+  const finalSplineOrder =
+    mask === ValueMask.truetype ? InterpolationType.cosine : splineOrder;
+  let maskTensor = Tensor.fromArray(ctx, approxData, [approxH, approxW, 1]);
+  maskTensor = await resample(maskTensor, [h, w, 1], finalSplineOrder);
+
+  if (!colorize) {
+    if (c === 1) {
+      if (alpha !== 1) {
+        return await blend(tensor, maskTensor, alpha);
+      }
+      return maskTensor;
+    }
+    const maskDataMaybe = maskTensor.read();
+    const maskData =
+      maskDataMaybe && typeof maskDataMaybe.then === "function"
+        ? await maskDataMaybe
+        : maskDataMaybe;
+    const expanded = new Float32Array(h * w * c);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * c;
+      const v = maskData[i];
+      for (let k = 0; k < c; k++) {
+        expanded[base + k] = v;
+      }
+    }
+    let outTensor = Tensor.fromArray(ctx, expanded, shape);
+    if (alpha !== 1) {
+      outTensor = await blend(tensor, outTensor, alpha);
+    }
+    return outTensor;
+  }
+
+  let colorTensor = await proportionalDownsample(tensor, shape, [uvH, uvW]);
+  colorTensor = await resample(colorTensor, shape, finalSplineOrder);
+  const maskDataMaybe = maskTensor.read();
+  const maskData =
+    maskDataMaybe && typeof maskDataMaybe.then === "function"
+      ? await maskDataMaybe
+      : maskDataMaybe;
+  const colorDataMaybe = colorTensor.read();
+  const colorData =
+    colorDataMaybe && typeof colorDataMaybe.then === "function"
+      ? await colorDataMaybe
+      : colorDataMaybe;
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const base = i * c;
+    const v = maskData[i];
+    for (let k = 0; k < c; k++) {
+      out[base + k] = v * colorData[base + k];
+    }
+  }
+  let outTensor = Tensor.fromArray(ctx, out, shape);
+  if (alpha !== 1) {
+    outTensor = await blend(tensor, outTensor, alpha);
+  }
   return outTensor;
 }
 register("glyph_map", glyphMap, {
@@ -6287,48 +6388,148 @@ export async function simpleFrame(tensor, shape, time, speed, brightness = 0) {
 }
 register("simple_frame", simpleFrame, { brightness: 0 });
 
+async function simpleMultiresTensor(freq, shape, time, speed, octaves, ctx) {
+  const [h, w, c] = shape;
+  const freqArr = Array.isArray(freq)
+    ? freq
+    : freqForShape(freq, [h, w]);
+  const data = new Float32Array(h * w * c);
+  let weightSum = 0;
+  for (let octave = 1; octave <= octaves; octave++) {
+    const multiplier = 2 ** octave;
+    const baseFreq = freqArr.map((f) =>
+      Math.max(1, Math.floor((f * 0.5) * multiplier)),
+    );
+    if (baseFreq[0] > h && baseFreq[1] > w) {
+      break;
+    }
+    const layer = await values(baseFreq, shape, {
+      ctx,
+      time,
+      speed,
+    });
+    const layerData = await layer.read();
+    const weight = 1 / multiplier;
+    for (let i = 0; i < data.length; i++) {
+      data[i] += layerData[i] * weight;
+    }
+    weightSum += weight;
+  }
+  if (!weightSum) weightSum = 1;
+  for (let i = 0; i < data.length; i++) {
+    data[i] /= weightSum;
+  }
+  const tensor = Tensor.fromArray(ctx, data, shape);
+  return normalize(tensor);
+}
+
 export async function frame(tensor, shape, time, speed) {
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
   const halfH = Math.max(1, Math.floor(h * 0.5));
   const halfW = Math.max(1, Math.floor(w * 0.5));
   const halfShape = [halfH, halfW, c];
-  const noise = await values(64, halfShape, { seed: 0, time });
-  const nData = await noise.read();
-  const cx = (halfW - 1) / 2;
-  const cy = (halfH - 1) / 2;
-  const maskData = new Float32Array(halfH * halfW);
-  for (let y = 0; y < halfH; y++) {
-    for (let x = 0; x < halfW; x++) {
-      const dx = Math.abs(x - cx) / (cx || 1);
-      const dy = Math.abs(y - cy) / (cy || 1);
-      let m = 1 - Math.max(dx, dy);
-      m = Math.max(0, Math.min(1, m + nData[y * halfW + x] * 0.005));
-      maskData[y * halfW + x] = Math.sqrt(m);
-    }
+  const halfValueShape = [halfH, halfW, 1];
+
+  const noiseMaybe = await simpleMultiresTensor(
+    64,
+    halfValueShape,
+    time,
+    speed,
+    8,
+    ctx,
+  );
+  const noise =
+    noiseMaybe && typeof noiseMaybe.then === "function"
+      ? await noiseMaybe
+      : noiseMaybe;
+  const noiseDataMaybe = noise.read();
+  const noiseData =
+    noiseDataMaybe && typeof noiseDataMaybe.then === "function"
+      ? await noiseDataMaybe
+      : noiseDataMaybe;
+
+  let maskBase = await singularity(
+    null,
+    halfValueShape,
+    time,
+    speed,
+    VoronoiDiagramType.range,
+    DistanceMetric.chebyshev,
+  );
+  let maskDataMaybe = maskBase.read();
+  let maskData =
+    maskDataMaybe && typeof maskDataMaybe.then === "function"
+      ? await maskDataMaybe
+      : maskDataMaybe;
+  for (let i = 0; i < maskData.length; i++) {
+    maskData[i] = 1 - maskData[i];
   }
-  const maskC = new Float32Array(halfH * halfW * c);
-  for (let i = 0; i < halfH * halfW; i++) {
-    for (let k = 0; k < c; k++) maskC[i * c + k] = maskData[i];
+  const combined = new Float32Array(maskData.length);
+  for (let i = 0; i < maskData.length; i++) {
+    combined[i] = maskData[i] + noiseData[i] * 0.005;
   }
-  const maskTensor = Tensor.fromArray(tensor.ctx, maskC, halfShape);
-  let faded = await downsample(tensor, 2);
+  let mask = await normalize(Tensor.fromArray(ctx, combined, halfValueShape));
+  const normDataMaybe = mask.read();
+  const normData =
+    normDataMaybe && typeof normDataMaybe.then === "function"
+      ? await normDataMaybe
+      : normDataMaybe;
+  for (let i = 0; i < normData.length; i++) {
+    normData[i] = Math.sqrt(Math.max(normData[i], 0));
+  }
+  const sqrtMask = Tensor.fromArray(ctx, normData, halfValueShape);
+  const white = Tensor.fromArray(
+    ctx,
+    new Float32Array(halfH * halfW).fill(1),
+    halfValueShape,
+  );
+  const black = Tensor.fromArray(
+    ctx,
+    new Float32Array(halfH * halfW),
+    halfValueShape,
+  );
+  mask = blendLayers(sqrtMask, halfValueShape, 0.0125, white, black, black, black);
+  if (mask && typeof mask.then === "function") {
+    mask = await mask;
+  }
+
+  let faded = await proportionalDownsample(tensor, shape, [halfH, halfW]);
+  faded = faded && typeof faded.then === "function" ? await faded : faded;
   faded = await adjustBrightness(faded, halfShape, time, speed, 0.1);
   faded = await adjustContrast(faded, halfShape, time, speed, 0.75);
   if (halfH > 1 && halfW > 1) {
     faded = await lightLeak(faded, halfShape, time, speed, 0.125);
     faded = await vignette(faded, halfShape, time, speed, 0.05, 0.75);
   }
-  const shade = await (
-    await shadow(noise, [halfH, halfW, 1], time, speed, 1.0)
-  ).read();
+
+  const shadeTensor = await shadow(noise, halfValueShape, time, speed, 1.0);
+  const shadeDataMaybe = shadeTensor.read();
+  const shadeData =
+    shadeDataMaybe && typeof shadeDataMaybe.then === "function"
+      ? await shadeDataMaybe
+      : shadeDataMaybe;
   const edgeData = new Float32Array(halfH * halfW * c);
   for (let i = 0; i < halfH * halfW; i++) {
-    for (let k = 0; k < c; k++) edgeData[i * c + k] = 0.9 + shade[i] * 0.1;
+    const shade = 0.9 + shadeData[i] * 0.1;
+    const base = i * c;
+    for (let k = 0; k < c; k++) {
+      edgeData[base + k] = shade;
+    }
   }
-  const edgeTex = Tensor.fromArray(tensor.ctx, edgeData, halfShape);
-  let out = await blend(faded, edgeTex, maskTensor);
+  const edgeTex = Tensor.fromArray(ctx, edgeData, halfShape);
+
+  let out = await blend(faded, edgeTex, mask);
   out = await aberration(out, halfShape, time, speed, 0.00666);
-  out = await upsample(out, 2);
+  out = await grime(out, halfShape, time, speed);
+  if (c >= 3) {
+    out = await saturation(out, halfShape, time, speed, 0.5);
+    out = await randomHue(out, halfShape, time, speed, 0.05);
+  }
+
+  out = await resample(out, shape);
+  out = await scratches(out, shape, time, speed);
+  out = await strayHair(out, shape, time, speed);
   return out;
 }
 register("frame", frame, {});

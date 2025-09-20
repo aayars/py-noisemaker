@@ -2514,7 +2514,13 @@ const preloadMasks = [
 preloadMasks.forEach((m) => getAtlas(m));
 
 export function maskValues(mask, glyphShape = null, opts = {}) {
-  const { atlas = null, inverse = false, time = 0, speed = 1 } = opts;
+  const {
+    atlas = null,
+    inverse = false,
+    time = 0,
+    speed = 1,
+    uvNoise: uvNoiseOverride = null,
+  } = opts;
   const shape = maskShape(mask);
   if (!glyphShape) glyphShape = [...shape];
   if (shape.length === 3) glyphShape[2] = shape[2];
@@ -2529,15 +2535,19 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
   let uvShape = null;
   if (typeof fn === 'function') {
     uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1];
-    const noiseTensor = simplex([...uvShape, 1], {
-      time,
-      seed: randomInt(1, 65536),
-      speed,
-    });
-    const noiseData = Array.from(noiseTensor.read());
-    uvNoise = [];
-    for (let yy = 0; yy < uvShape[0]; yy++) {
-      uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
+    if (uvNoiseOverride) {
+      uvNoise = uvNoiseOverride;
+    } else {
+      const noiseTensor = simplex([...uvShape, 1], {
+        time,
+        seed: randomInt(1, 65536),
+        speed,
+      });
+      const noiseData = Array.from(noiseTensor.read());
+      uvNoise = [];
+      for (let yy = 0; yy < uvShape[0]; yy++) {
+        uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
+      }
     }
   }
 
@@ -2548,7 +2558,17 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
       if (typeof fn === 'function') {
         const uvY = Math.floor((y / h) * uvShape[0]);
         const uvX = Math.floor((x / w) * uvShape[1]);
-        pixel = fn({ x, y, row: maskRow, shape, uvNoise, uvX, uvY, atlas: atlasData, glyphShape });
+        pixel = fn({
+          x,
+          y,
+          row: maskRow,
+          shape,
+          uvNoise,
+          uvX,
+          uvY,
+          atlas: atlasData,
+          glyphShape,
+        });
       } else {
         pixel = fn[y % shape[0]][x % shape[1]];
       }

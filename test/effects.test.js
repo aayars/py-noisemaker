@@ -899,6 +899,7 @@ const gmOut = await readTensorData(glyphMap(gmTensor, [4, 4, 1], 0, 1));
 assert.strictEqual(gmOut.length, 16);
 
 // glitch regression
+setSeed(1);
 const glData = new Float32Array([
   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3,
 ]);
@@ -908,6 +909,7 @@ const glExpected = loadFixture("glitch.json");
 arraysClose(Array.from(glOut), glExpected);
 
 // vhs regression
+setSeed(1);
 const vhsTensor = Tensor.fromArray(null, glData, [2, 2, 3]);
 const vhsOut = await readTensorData(vhs(vhsTensor, [2, 2, 3], 0.25, 1));
 const vhsExpected = loadFixture("vhs.json");
@@ -931,6 +933,7 @@ const crtExpected = loadFixture("crt.json");
 arraysClose(Array.from(crtOut), crtExpected);
 
 // snow regression
+setSeed(1);
 const snowData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
 const snowTensor = Tensor.fromArray(null, snowData, [2, 2, 1]);
 const snowOut = await readTensorData(snow(snowTensor, [2, 2, 1], 0, 1));
@@ -1033,6 +1036,7 @@ const nebExpected = loadFixture("nebula.json");
 arraysClose(Array.from(nebOut), nebExpected);
 
 // falseColor regression
+setSeed(1);
 const fcData = new Float32Array([
   0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4,
 ]);

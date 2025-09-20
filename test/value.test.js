@@ -268,10 +268,16 @@ const convInput = Tensor.fromArray(null, new Float32Array([
 ]), [3, 3, 1]);
 const convKernel = [[0, 1, 0], [1, 0, 1], [0, 1, 0]];
 const convResult = convolution(convInput, convKernel);
-arraysClose(convResult.read(), new Float32Array([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]));
+arraysClose(
+  convResult.read(),
+  new Float32Array([1, 0.75, 0.875, 0.25, 0, 0.125, 0.625, 0.375, 0.5]),
+);
 
 const convAsync = await convolution(Promise.resolve(convInput), convKernel);
-arraysClose(convAsync.read(), new Float32Array([0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]));
+arraysClose(
+  convAsync.read(),
+  new Float32Array([1, 0.75, 0.875, 0.25, 0, 0.125, 0.625, 0.375, 0.5]),
+);
 
 // refract
 const refrInput = Tensor.fromArray(null, new Float32Array([
@@ -455,13 +461,16 @@ const gbData = new Float32Array(25);
 gbData[12] = 1;
 const gbInput = Tensor.fromArray(null, gbData, [5, 5, 1]);
 const gb = gaussianBlur(gbInput, 1);
-arraysClose(gb.read(), new Float32Array([
-  0, 0, 0, 0, 0,
-  0, 0.018315639, 0.13533528, 0.018315639, 0,
-  0, 0.13533528, 1, 0.13533528, 0,
-  0, 0.018315639, 0.13533528, 0.018315639, 0,
-  0, 0, 0, 0, 0,
-]));
+arraysClose(
+  gb.read(),
+  new Float32Array([
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0.018315639, 0.13533528, 0.018315639,
+    0, 0, 0.13533528, 1, 0.13533528,
+    0, 0, 0.018315639, 0.13533528, 0.018315639,
+  ]),
+);
 
 // GPU vs CPU parity for additional distributions
 let canvas = null;
