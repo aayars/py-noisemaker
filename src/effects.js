@@ -2205,7 +2205,7 @@ export async function singularity(
     0,
     false,
     [x, y, 1],
-    false,
+    true,
   );
 }
 register("singularity", singularity, {
@@ -2321,6 +2321,7 @@ export async function kaleido(
     sdfSides,
     1,
     0,
+    false,
     true,
     pointFreq,
     pointGenerations,
@@ -2332,7 +2333,7 @@ export async function kaleido(
   const r = await rTensor.read();
   let fader = null;
   if (blendEdges) {
-    const fTensor = await singularity(
+    const sTensor = await singularity(
       null,
       valueShape,
       time,
@@ -2340,6 +2341,7 @@ export async function kaleido(
       VoronoiDiagramType.range,
       DistanceMetric.chebyshev,
     );
+    const fTensor = await normalize(sTensor);
     fader = await fTensor.read();
     for (let i = 0; i < fader.length; i++) fader[i] = Math.pow(fader[i], 5);
   }
@@ -2397,8 +2399,8 @@ export async function kaleido(
         nx = nx * (1 - fade) + x * fade;
         ny = ny * (1 - fade) + y * fade;
       }
-      nx = ((Math.floor(nx) % w) + w) % w;
-      ny = ((Math.floor(ny) % h) + h) % h;
+      nx = ((Math.trunc(nx) % w) + w) % w;
+      ny = ((Math.trunc(ny) % h) + h) % h;
       const srcBase = (ny * w + nx) * c;
       const dstBase = idx * c;
       for (let k = 0; k < c; k++) out[dstBase + k] = src[srcBase + k];
@@ -2638,34 +2640,25 @@ export function innerTile(tensor, shape, freq) {
   const smallH = Math.max(1, Math.floor(h / fy));
   const smallW = Math.max(1, Math.floor(w / fx));
   const tileH = Math.max(1, smallH * fy);
-  const tileW = Math.max(1, smallW * fx);
+  const tileW = Math.max(1, smallW * fy);
   return withTensorData(tensor, (src) => {
-    const patch = new Float32Array(smallH * smallW * c);
-    for (let y = 0; y < smallH; y++) {
-      const sampleY = Math.min(y * fy, h - 1);
-      for (let x = 0; x < smallW; x++) {
-        const sampleX = Math.min(x * fx, w - 1);
-        const srcBase = (sampleY * w + sampleX) * c;
-        const dstBase = (y * smallW + x) * c;
-        for (let k = 0; k < c; k++) {
-          patch[dstBase + k] = src[srcBase + k] ?? 0;
-        }
-      }
-    }
     const tiled = new Float32Array(tileH * tileW * c);
     for (let y = 0; y < tileH; y++) {
-      const py = Math.min(Math.floor(y / fy), smallH - 1);
+      const tileY = y % smallH;
+      const srcY = tileY * fy;
+      const rowBase = y * tileW;
       for (let x = 0; x < tileW; x++) {
-        const px = Math.min(Math.floor(x / fx), smallW - 1);
-        const srcBase = (py * smallW + px) * c;
-        const dstBase = (y * tileW + x) * c;
+        const tileX = x % smallW;
+        const srcX = tileX * fx;
+        const srcIndex = (srcY * w + srcX) * c;
+        const dstIndex = (rowBase + x) * c;
         for (let k = 0; k < c; k++) {
-          tiled[dstBase + k] = patch[srcBase + k];
+          tiled[dstIndex + k] = src[srcIndex + k] ?? 0;
         }
       }
     }
-    const patchTensor = Tensor.fromArray(tensor.ctx, tiled, [tileH, tileW, c]);
-    return resample(patchTensor, shape, InterpolationType.linear);
+    const tiledTensor = Tensor.fromArray(tensor.ctx, tiled, [tileH, tileW, c]);
+    return resample(tiledTensor, shape, InterpolationType.linear);
   });
 }
 
