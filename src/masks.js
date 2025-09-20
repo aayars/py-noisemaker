@@ -8,14 +8,6 @@ function uvRandom(uvNoise, uvX, uvY) {
   return (uvNoise[uvY][uvX] + random()) % 1;
 }
 
-function randomNormal(mean = 0, std = 1) {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = random();
-  while (v === 0) v = random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * std + mean;
-}
-
 function _invaders({ x, y, row, shape, uvNoise, uvX, uvY }) {
   const height = shape[0];
   const width = shape[1];

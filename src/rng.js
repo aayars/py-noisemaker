@@ -1,4 +1,84 @@
 let _callCount = 0;
+const TAU = Math.PI * 2;
+
+function normalizeCount(shape) {
+    if (shape === undefined || shape === null) {
+        return 1;
+    }
+
+    if (Array.isArray(shape)) {
+        if (shape.length === 0) {
+            return 1;
+        }
+        let total = 1;
+        for (const dim of shape) {
+            const value = Math.trunc(dim);
+            if (!Number.isFinite(value) || value <= 0) {
+                return 0;
+            }
+            total *= value;
+        }
+        return total;
+    }
+
+    const value = Math.trunc(shape);
+    if (!Number.isFinite(value) || value <= 0) {
+        return 0;
+    }
+    return value;
+}
+
+function buildArray(count) {
+    return count > 0 ? new Float32Array(count) : new Float32Array(0);
+}
+
+export function uniform(count, min = 0, max = 1) {
+    if (count === undefined || count === null) {
+        return min + (max - min) * random();
+    }
+
+    const total = normalizeCount(count);
+    const out = buildArray(total);
+    const span = max - min;
+    for (let i = 0; i < total; i++) {
+        out[i] = Math.fround(min + span * random());
+    }
+    return out;
+}
+
+export function normal(count, mean = 0, stddev = 1) {
+    if (count === undefined || count === null) {
+        let u1 = 0;
+        do {
+            u1 = random();
+        } while (u1 <= 0);
+        const u2 = random();
+        const mag = Math.sqrt(-2 * Math.log(u1));
+        const z0 = mag * Math.cos(TAU * u2);
+        return Math.fround(mean + stddev * z0);
+    }
+
+    const total = normalizeCount(count);
+    const out = buildArray(total);
+    let index = 0;
+    while (index < total) {
+        let u1 = 0;
+        do {
+            u1 = random();
+        } while (u1 <= 0);
+        const u2 = random();
+        const mag = Math.sqrt(-2 * Math.log(u1));
+        const z0 = mag * Math.cos(TAU * u2);
+        out[index] = Math.fround(mean + stddev * z0);
+        index += 1;
+        if (index < total) {
+            const z1 = mag * Math.sin(TAU * u2);
+            out[index] = Math.fround(mean + stddev * z1);
+            index += 1;
+        }
+    }
+    return out;
+}
 
 export class Random {
     /**

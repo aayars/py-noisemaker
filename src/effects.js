@@ -29,6 +29,8 @@ import { loadGlyphs } from "./glyphs.js";
 import {
   random,
   randomInt,
+  uniform as randomUniform,
+  normal as randomNormalArray,
   fromSRGB,
   toSRGB,
   withTensorData,
@@ -1264,9 +1266,11 @@ async function voronoiCPU(
     distMetric === DistanceMetric.hexagram ||
     distMetric === DistanceMetric.sdf;
   if (needFlow) {
+    const jitterX = randomNormalArray(count, 0, 0.0001);
+    const jitterY = randomNormalArray(count, 0, 0.0001);
     for (let i = 0; i < count; i++) {
-      xPts[i] += randomNormal(0, 0.0001);
-      yPts[i] += randomNormal(0, 0.0001);
+      xPts[i] += jitterX[i];
+      yPts[i] += jitterY[i];
     }
   }
   const distMap = new Float32Array(h * w);
@@ -1661,9 +1665,11 @@ async function voronoiWebGPU(
     diagramType === VoronoiDiagramType.flow ||
     diagramType === VoronoiDiagramType.color_flow
   ) {
+    const jitterX = randomNormalArray(count, 0, 0.0001);
+    const jitterY = randomNormalArray(count, 0, 0.0001);
     for (let i = 0; i < count; i++) {
-      xPts[i] += randomNormal(0, 0.0001);
-      yPts[i] += randomNormal(0, 0.0001);
+      xPts[i] += jitterX[i];
+      yPts[i] += jitterY[i];
     }
   }
 
@@ -1990,24 +1996,26 @@ async function erosionWormsWebGPU(
   const ctx = tensor.ctx;
   const [h, w, c] = shape;
   const count = Math.floor(Math.sqrt(h * w) * density);
-  const x = new Float32Array(count);
-  const y = new Float32Array(count);
+  const x = randomUniform(count, 0, 1);
+  const y = randomUniform(count, 0, 1);
+  const dirX = randomNormalArray(count, 0, 1);
+  const dirY = randomNormalArray(count, 0, 1);
+  const inertia = randomNormalArray(count, 0.75, 0.25);
   const wormsArr = new Float32Array(count * 5);
+  const widthScale = w - 1;
+  const heightScale = h - 1;
   for (let i = 0; i < count; i++) {
-    const xi = random() * (w - 1);
-    const yi = random() * (h - 1);
-    const ang = random() * TAU;
-    const dx = Math.cos(ang);
-    const dy = Math.sin(ang);
-    const inertia = randomNormal(0.75, 0.25);
-    x[i] = xi;
-    y[i] = yi;
+    x[i] = Math.fround(x[i] * widthScale);
+    y[i] = Math.fround(y[i] * heightScale);
+    const len = Math.hypot(dirX[i], dirY[i]) || 1;
+    const dx = Math.fround(dirX[i] / len);
+    const dy = Math.fround(dirY[i] / len);
     const base = i * 5;
-    wormsArr[base] = xi;
-    wormsArr[base + 1] = yi;
+    wormsArr[base] = x[i];
+    wormsArr[base + 1] = y[i];
     wormsArr[base + 2] = dx;
     wormsArr[base + 3] = dy;
-    wormsArr[base + 4] = inertia;
+    wormsArr[base + 4] = Math.fround(inertia[i]);
   }
   const src = await tensor.read();
   const startColors = new Float32Array(count * c);
@@ -4067,14 +4075,6 @@ export async function fxaaEffect(tensor, shape, time, speed) {
 register("fxaa_effect", fxaaEffect, {});
 register("fxaa", fxaaEffect, {});
 
-function randomNormal(mean = 0, std = 1) {
-  const u1 = random() || 1e-9;
-  const u2 = random();
-  const mag = Math.sqrt(-2 * Math.log(u1));
-  const z0 = mag * Math.cos(TAU * u2);
-  return z0 * std + mean;
-}
-
 function periodicValue(t, v) {
   return (Math.sin((t - v) * TAU) + 1) * 0.5;
 }
@@ -4123,11 +4123,14 @@ export function wormsParams(
   const y = new Float32Array(count);
   const x = new Float32Array(count);
   const strideVals = new Float32Array(count);
+  const uniformY = randomUniform(count, 0, 1);
+  const uniformX = randomUniform(count, 0, 1);
+  const strideNoise = randomNormalArray(count, stride, strideDeviation);
+  const strideScale = Math.max(w, h) / 1024.0;
   for (let i = 0; i < count; i++) {
-    y[i] = random() * (h - 1); // RNG[1]
-    x[i] = random() * (w - 1); // RNG[2]
-    strideVals[i] =
-      randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0); // RNG[3]
+    y[i] = uniformY[i] * (h - 1); // RNG[1]
+    x[i] = uniformX[i] * (w - 1); // RNG[2]
+    strideVals[i] = strideNoise[i] * strideScale; // RNG[3]
   }
   const rot = makeRots(behavior, count, time, speed);
   return { x: Array.from(x), y: Array.from(y), stride: Array.from(strideVals), rot: Array.from(rot) };
@@ -4259,18 +4262,19 @@ export async function erosionWorms(
   let valuesArr;
   let outTensor;
   const count = Math.floor(Math.sqrt(h * w) * density);
-  const x = new Float32Array(count);
-  const y = new Float32Array(count);
-  const xDir = new Float32Array(count);
-  const yDir = new Float32Array(count);
-  const inertia = new Float32Array(count);
+  const x = randomUniform(count, 0, 1);
+  const y = randomUniform(count, 0, 1);
+  const xDir = randomNormalArray(count, 0, 1);
+  const yDir = randomNormalArray(count, 0, 1);
+  const inertia = randomNormalArray(count, 0.75, 0.25);
+  const widthScale = w - 1;
+  const heightScale = h - 1;
   for (let i = 0; i < count; i++) {
-    x[i] = random() * (w - 1);
-    y[i] = random() * (h - 1);
-    const ang = random() * TAU;
-    xDir[i] = Math.cos(ang);
-    yDir[i] = Math.sin(ang);
-    inertia[i] = randomNormal(0.75, 0.25);
+    x[i] = Math.fround(x[i] * widthScale);
+    y[i] = Math.fround(y[i] * heightScale);
+    const len = Math.hypot(xDir[i], yDir[i]) || 1;
+    xDir[i] = Math.fround(xDir[i] / len);
+    yDir[i] = Math.fround(yDir[i] / len);
   }
   const src = await tensor.read();
   const startColors = new Float32Array(count * c);
@@ -4568,14 +4572,14 @@ async function wormsCPU(
   colors = colors ? await colors : null;
   const [h, w, c] = shape;
   const count = Math.floor(Math.max(w, h) * density);
-  const wormsY = new Float32Array(count);
-  const wormsX = new Float32Array(count);
-  const wormsStride = new Float32Array(count);
+  const wormsY = randomUniform(count, 0, 1);
+  const wormsX = randomUniform(count, 0, 1);
+  const wormsStride = randomNormalArray(count, stride, strideDeviation);
+  const strideScale = Math.max(w, h) / 1024.0;
   for (let i = 0; i < count; i++) {
-    wormsY[i] = random() * (h - 1);
-    wormsX[i] = random() * (w - 1);
-    wormsStride[i] =
-      randomNormal(stride, strideDeviation) * (Math.max(w, h) / 1024.0);
+    wormsY[i] = Math.fround(wormsY[i] * (h - 1));
+    wormsX[i] = Math.fround(wormsX[i] * (w - 1));
+    wormsStride[i] = Math.fround(wormsStride[i] * strideScale);
   }
   const src = colors
     ? colors.read
