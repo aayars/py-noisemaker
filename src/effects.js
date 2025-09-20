@@ -2281,7 +2281,7 @@ export async function lowpoly(
     true,
   );
   const blended = await blend(distance, color, 0.5);
-  return normalize(blended);
+  return await normalize(blended);
 }
 register("lowpoly", lowpoly, {
   distrib: PointDistribution.random,
@@ -2634,24 +2634,23 @@ export function centerMask(
 
 export function innerTile(tensor, shape, freq) {
   const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
-  const fy = Math.max(1, Math.floor(baseFreq[0]));
-  const fx = Math.max(1, Math.floor(baseFreq[1]));
+  const freqY = Math.max(1, Math.trunc(baseFreq[0] ?? 1));
+  const freqX = Math.max(1, Math.trunc(baseFreq[1] ?? 1));
   const [h, w, c] = shape;
-  const smallH = Math.max(1, Math.floor(h / fy));
-  const smallW = Math.max(1, Math.floor(w / fx));
-  const tileH = Math.max(1, smallH * fy);
-  const tileW = Math.max(1, smallW * fy);
+  const innerH = Math.max(1, Math.trunc(h / freqY));
+  const innerW = Math.max(1, Math.trunc(w / freqX));
+  const tileH = Math.max(1, innerH * freqY);
+  const tileW = Math.max(1, innerW * freqY);
   return withTensorData(tensor, (src) => {
     const tiled = new Float32Array(tileH * tileW * c);
     for (let y = 0; y < tileH; y++) {
-      const tileY = y % smallH;
-      const srcY = tileY * fy;
-      const rowBase = y * tileW;
+      const srcY = (y % innerH) * freqY;
+      const srcRow = srcY * w * c;
+      const rowBase = y * tileW * c;
       for (let x = 0; x < tileW; x++) {
-        const tileX = x % smallW;
-        const srcX = tileX * fx;
-        const srcIndex = (srcY * w + srcX) * c;
-        const dstIndex = (rowBase + x) * c;
+        const srcX = (x % innerW) * freqX;
+        const srcIndex = srcRow + srcX * c;
+        const dstIndex = rowBase + x * c;
         for (let k = 0; k < c; k++) {
           tiled[dstIndex + k] = src[srcIndex + k] ?? 0;
         }
@@ -3304,7 +3303,9 @@ export async function lensDistortion(tensor, shape, time, speed, displacement = 
       const yIndex = y / h;
       const xDist = xIndex - 0.5;
       const yDist = yIndex - 0.5;
-      const centerDist = 1 - distance(xDist, yDist) / maxDist;
+      let centerDist = 1 - distance(xDist, yDist) / maxDist;
+      if (centerDist < 0) centerDist = 0;
+      else if (centerDist > 1) centerDist = 1;
       const xOff =
         (xIndex -
           xDist * zoom -
@@ -3315,8 +3316,8 @@ export async function lensDistortion(tensor, shape, time, speed, displacement = 
           yDist * zoom -
           yDist * centerDist * centerDist * displacement) *
         h;
-      const xi = ((Math.floor(xOff) % w) + w) % w;
-      const yi = ((Math.floor(yOff) % h) + h) % h;
+      const xi = ((Math.trunc(xOff) % w) + w) % w;
+      const yi = ((Math.trunc(yOff) % h) + h) % h;
       const srcIdx = (yi * w + xi) * c;
       const dstIdx = (y * w + x) * c;
       for (let k = 0; k < c; k++) {
