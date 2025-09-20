@@ -3582,14 +3582,27 @@ export async function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const lum = await lumTensor.read();
   const mod = Math.min(h, w);
   const out = new Float32Array(h * w * c);
+  const EPSILON = 5e-6;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       const r = lum[idx];
       const off = r * displacement * mod + r;
-      const xo = ((off % w) + w) % w | 0;
-      const yo = ((off % h) + h) % h | 0;
-      const srcIdx = (yo * w + xo) * c;
+      let xPos = off % w;
+      let yPos = off % h;
+      if (xPos < 0) xPos += w;
+      if (yPos < 0) yPos += h;
+      let xInt = Math.floor(xPos);
+      let yInt = Math.floor(yPos);
+      const xFrac = xPos - xInt;
+      const yFrac = yPos - yInt;
+      if (xFrac > 1 - EPSILON) {
+        xInt = (xInt + 1) % w;
+      }
+      if (yFrac > 1 - EPSILON) {
+        yInt = (yInt + 1) % h;
+      }
+      const srcIdx = (yInt * w + xInt) * c;
       for (let k = 0; k < c; k++) {
         out[idx * c + k] = src[srcIdx + k];
       }
