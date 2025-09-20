@@ -379,23 +379,99 @@
     const dslSource = await fetch('./dsl/presets.dsl').then((r) => r.text());
 
     function extractPresetSource(source, name) {
-      const escName = name.replace(/[.*+?^${}()|[\]\]/g, '\$&');
-      const pattern = new RegExp(`"${escName}"\s*:\s*{`);
-      const match = pattern.exec(source);
-      if (!match) {
+      const quotedName = `"${name}"`;
+      let searchStart = 0;
+
+      while (searchStart < source.length) {
+        const nameIdx = source.indexOf(quotedName, searchStart);
+        if (nameIdx === -1) {
+          return '';
+        }
+
+        let idx = nameIdx + quotedName.length;
+        while (idx < source.length && /\s/.test(source[idx])) {
+          idx++;
+        }
+
+        if (idx >= source.length || source[idx] !== ':') {
+          searchStart = nameIdx + quotedName.length;
+          continue;
+        }
+
+        idx++;
+
+        let braceIdx = idx;
+        while (braceIdx < source.length) {
+          const ch = source[braceIdx];
+          if (/\s/.test(ch)) {
+            braceIdx++;
+            continue;
+          }
+          if (ch === '/' && source[braceIdx + 1] === '/') {
+            braceIdx += 2;
+            while (braceIdx < source.length && source[braceIdx] !== '\n') {
+              braceIdx++;
+            }
+            continue;
+          }
+          if (ch === '/' && source[braceIdx + 1] === '*') {
+            braceIdx += 2;
+            while (
+              braceIdx + 1 < source.length &&
+              !(source[braceIdx] === '*' && source[braceIdx + 1] === '/')
+            ) {
+              braceIdx++;
+            }
+            if (braceIdx + 1 < source.length) {
+              braceIdx += 2;
+            }
+            continue;
+          }
+          break;
+        }
+
+        if (braceIdx >= source.length || source[braceIdx] !== '{') {
+          searchStart = nameIdx + quotedName.length;
+          continue;
+        }
+
+        let end = braceIdx;
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+
+        while (end < source.length) {
+          const ch = source[end++];
+
+          if (inString) {
+            if (escaped) {
+              escaped = false;
+              continue;
+            }
+            if (ch === '\\') {
+              escaped = true;
+            } else if (ch === '"') {
+              inString = false;
+            }
+            continue;
+          }
+
+          if (ch === '"') {
+            inString = true;
+          } else if (ch === '{') {
+            depth++;
+          } else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              return source.slice(nameIdx, end);
+            }
+          }
+        }
+
         return '';
       }
-      let idx = match.index + match[0].length;
-      let depth = 1;
-      while (idx < source.length && depth > 0) {
-        const ch = source[idx++];
-        if (ch === '{') {
-          depth++;
-        } else if (ch === '}') {
-          depth--;
-        }
-      }
-      return source.slice(match.index, idx);
+
+      return '';
     }
 
     const presetSource = {};
