@@ -2222,9 +2222,6 @@ export async function lowpoly(
   freq = 10,
   distMetric = DistanceMetric.euclidean,
 ) {
-  // High point counts can cause extremely slow renders on the CPU. Limit the
-  // effective frequency to keep the work manageable for the JS port.
-  freq = Math.min(freq, 8);
   const [xPts, yPts] = pointCloud(freq, {
     distrib,
     shape,
@@ -2249,11 +2246,11 @@ export async function lowpoly(
     VoronoiDiagramType.range,
     1,
     distMetric,
-    1,
+    3,
     1,
     0,
+    false,
     true,
-    1,
     1,
     1,
     PointDistribution.square,
@@ -2270,11 +2267,11 @@ export async function lowpoly(
     VoronoiDiagramType.color_regions,
     0,
     distMetric,
-    1,
+    3,
     1,
     0,
+    false,
     true,
-    1,
     1,
     1,
     PointDistribution.square,
@@ -2308,9 +2305,11 @@ export async function kaleido(
   pointCorners = false,
 ) {
   const [h, w, c] = shape;
-  const ctx = tensor.ctx;
+  const ctx = tensor?.ctx ?? null;
   const valueShape = [h, w, 1];
   const xyArg = xy ? [xy[0], xy[1], xy[0].length] : null;
+  const distMetric =
+    sdfSides < 3 ? DistanceMetric.euclidean : DistanceMetric.sdf;
   const rTensor = await voronoi(
     null,
     valueShape,
@@ -2318,8 +2317,8 @@ export async function kaleido(
     speed,
     VoronoiDiagramType.range,
     0,
-    DistanceMetric.euclidean,
-    1,
+    distMetric,
+    sdfSides,
     1,
     0,
     true,
@@ -2380,11 +2379,13 @@ export async function kaleido(
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   const step = (Math.PI * 2) / sides;
+  const denomX = w > 1 ? w - 1 : 1;
+  const denomY = h > 1 ? h - 1 : 1;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
-      const xi = x / (w - 1) - 0.5;
-      const yi = y / (h - 1) - 0.5;
+      const xi = x / denomX - 0.5;
+      const yi = y / denomY - 0.5;
       const radius = r[idx];
       let a = Math.atan2(yi, xi) + Math.PI / 2;
       a = ((a % step) + step) % step;
@@ -2466,21 +2467,43 @@ export async function jpegDecimate(
   speed,
   iterations = 25,
 ) {
-  let out = tensor;
-  const [h, w] = shape;
-  const maxFactor = Math.min(h, w);
-  if (maxFactor < 2) {
-    return out;
+  const [h, w, c] = shape;
+  if (iterations <= 0 || Math.min(h, w) < 2) {
+    return tensor;
   }
+  let current = tensor;
   for (let i = 0; i < iterations; i++) {
-    const maxFactor = Math.max(2, Math.min(shape[0], shape[1]));
+    const dataMaybe = current.read();
+    const data =
+      dataMaybe && typeof dataMaybe.then === "function"
+        ? await dataMaybe
+        : dataMaybe;
+    const length = data.length;
+    const quality = randomInt(5, 50);
+    const step = Math.max(1, Math.round((60 - quality) / 5));
+    const quantized = new Float32Array(length);
+    for (let idx = 0; idx < length; idx++) {
+      let value = data[idx];
+      if (!Number.isFinite(value)) value = 0;
+      if (value < 0) value = 0;
+      else if (value > 1) value = 1;
+      let byte = Math.round(value * 255);
+      byte = Math.round(byte / step) * step;
+      if (byte < 0) byte = 0;
+      else if (byte > 255) byte = 255;
+      quantized[idx] = byte / 255;
+    }
+    let degraded = Tensor.fromArray(tensor.ctx, quantized, shape);
+    const maxFactor = Math.max(2, Math.min(h, w));
     const factor = Math.min(randomInt(2, 8), maxFactor);
-    const down = await downsample(out, factor);
-    out = await upsample(down, factor);
+    if (factor > 1) {
+      const down = await downsample(degraded, factor);
+      degraded = await upsample(down, factor, InterpolationType.linear);
+    }
+    current = degraded;
   }
-  return out;
+  return current;
 }
-register("jpeg_decimate", jpegDecimate, { iterations: 25 });
 register("jpeg_decimate", jpegDecimate, { iterations: 25 });
 
 const kernelCache = new Map();
@@ -2608,37 +2631,41 @@ export function centerMask(
 }
 
 export function innerTile(tensor, shape, freq) {
-  let fy, fx;
-  if (typeof freq === "number") {
-    fy = fx = freq;
-  } else {
-    fy = freq[0];
-    fx = freq[1];
-  }
+  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
+  const fy = Math.max(1, Math.floor(baseFreq[0]));
+  const fx = Math.max(1, Math.floor(baseFreq[1]));
   const [h, w, c] = shape;
   const smallH = Math.max(1, Math.floor(h / fy));
   const smallW = Math.max(1, Math.floor(w / fx));
+  const tileH = Math.max(1, smallH * fy);
+  const tileW = Math.max(1, smallW * fy);
   return withTensorData(tensor, (src) => {
     const patch = new Float32Array(smallH * smallW * c);
     for (let y = 0; y < smallH; y++) {
+      const sampleY = Math.min(y * fy, h - 1);
       for (let x = 0; x < smallW; x++) {
+        const sampleX = Math.min(x * fx, w - 1);
+        const srcBase = (sampleY * w + sampleX) * c;
+        const dstBase = (y * smallW + x) * c;
         for (let k = 0; k < c; k++) {
-          patch[(y * smallW + x) * c + k] =
-            src[(y * fy * w + x * fx) * c + k];
+          patch[dstBase + k] = src[srcBase + k] ?? 0;
         }
       }
     }
-    const out = new Float32Array(h * w * c);
-    for (let y = 0; y < h; y++) {
-      const sy = Math.floor(y / fy);
-      for (let x = 0; x < w; x++) {
-        const sx = Math.floor(x / fx);
+    const tiled = new Float32Array(tileH * tileW * c);
+    for (let y = 0; y < tileH; y++) {
+      const py = Math.min(Math.floor(y / fy), smallH - 1);
+      for (let x = 0; x < tileW; x++) {
+        const px = Math.min(Math.floor(x / fy), smallW - 1);
+        const srcBase = (py * smallW + px) * c;
+        const dstBase = (y * tileW + x) * c;
         for (let k = 0; k < c; k++) {
-          out[(y * w + x) * c + k] = patch[(sy * smallW + sx) * c + k];
+          tiled[dstBase + k] = patch[srcBase + k];
         }
       }
     }
-    return Tensor.fromArray(tensor.ctx, out, shape);
+    const patchTensor = Tensor.fromArray(tensor.ctx, tiled, [tileH, tileW, c]);
+    return resample(patchTensor, shape, InterpolationType.linear);
   });
 }
 
@@ -5048,7 +5075,7 @@ export async function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   // registry consistency.
   return await vaseline(blended, shape, 0, 1, alpha);
 }
-register("light_leak", lightLeak, { alpha: 0.25 });
+register("lightLeak", lightLeak, { alpha: 0.25 });
 register("light_leak", lightLeak, { alpha: 0.25 });
 
 export async function dither(tensor, shape, time, speed, levels = 2) {
