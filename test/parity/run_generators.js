@@ -14,12 +14,22 @@ let tensor;
 if (name === 'basic') {
   tensor = await basic(2, [128, 128, 3], options);
 } else if (name === 'multires') {
-  tensor = await multires(2, [128, 128, 3], {
+  const merged = {
     octaves: 2,
     postEffects: [],
     finalEffects: [],
     ...options,
-  });
+  };
+  const supersample =
+    merged.withSupersample ?? merged.with_supersample ?? false;
+  if (
+    supersample &&
+    merged.hueRotation === undefined &&
+    merged.hue_rotation === undefined
+  ) {
+    merged.hueRotation = 0;
+  }
+  tensor = await multires(2, [128, 128, 3], merged);
 } else {
   throw new Error(`Unknown generator ${name}`);
 }

@@ -2638,7 +2638,7 @@ export function innerTile(tensor, shape, freq) {
   const smallH = Math.max(1, Math.floor(h / fy));
   const smallW = Math.max(1, Math.floor(w / fx));
   const tileH = Math.max(1, smallH * fy);
-  const tileW = Math.max(1, smallW * fy);
+  const tileW = Math.max(1, smallW * fx);
   return withTensorData(tensor, (src) => {
     const patch = new Float32Array(smallH * smallW * c);
     for (let y = 0; y < smallH; y++) {
@@ -2656,7 +2656,7 @@ export function innerTile(tensor, shape, freq) {
     for (let y = 0; y < tileH; y++) {
       const py = Math.min(Math.floor(y / fy), smallH - 1);
       for (let x = 0; x < tileW; x++) {
-        const px = Math.min(Math.floor(x / fy), smallW - 1);
+        const px = Math.min(Math.floor(x / fx), smallW - 1);
         const srcBase = (py * smallW + px) * c;
         const dstBase = (y * tileW + x) * c;
         for (let k = 0; k < c; k++) {
