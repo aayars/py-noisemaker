@@ -785,7 +785,7 @@ export function sobelOperator(
     const gx = convolution(blurred, sobelXKernel, { normalize: false });
     const gy = convolution(blurred, sobelYKernel, { normalize: false });
 
-    return withTensorDatas([gx, gy], (gxData, gyData) => {
+    const gradient = withTensorDatas([gx, gy], (gxData, gyData) => {
       const grad = new Float32Array(gxData.length);
       for (let i = 0; i < grad.length; i++) {
         grad[i] = Math.fround(distance(gxData[i], gyData[i], distMetric));
@@ -815,6 +815,31 @@ export function sobelOperator(
       }
       return handleNormalized(normalized);
     });
+
+    const normalized = normalize(gradient);
+    const process = (norm) =>
+      withTensorData(norm, (data) => {
+        const out = new Float32Array(data.length);
+        for (let i = 0; i < data.length; i++) {
+          const doubled = Math.fround(data[i] * 2);
+          const centered = Math.fround(doubled - 1);
+          out[i] = Math.fround(Math.abs(centered));
+        }
+        const ctx = (norm && norm.ctx) || tensor.ctx;
+        return Tensor.fromArray(ctx, out, shape);
+      });
+
+    const processed =
+      normalized && typeof normalized.then === "function"
+        ? normalized.then(process)
+        : process(normalized);
+
+    const shift = (result) => offsetTensor(result, -1, -1);
+
+    if (processed && typeof processed.then === "function") {
+      return processed.then(shift);
+    }
+    return shift(processed);
   };
   const blurred = convolution(tensor, blurKernel);
   if (blurred && typeof blurred.then === "function") {
