@@ -3731,25 +3731,30 @@ export async function colorMap(
     return new Tensor(ctx, outBuf, [h, w, cc]);
   }
   const [ch, cw, cc] = clut.shape;
-  const clutData = clut.read();
+  const clutData = await clut.read();
+  const valueMap = await toValueMap(tensor);
+  const normalized = await normalize(valueMap);
+  const refData = await normalized.read();
   const src = await tensor.read();
+  const displacementEps = 1e-5;
+  const computeOffset = (value, size) => {
+    const product = value * displacement * (size - 1);
+    let offsetInt = Math.floor(product);
+    const frac = product - offsetInt;
+    if (offsetInt > 0 && frac > 0 && frac < displacementEps) {
+      offsetInt -= 1;
+    }
+    return offsetInt;
+  };
   const out = new Float32Array(h * w * cc);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
-      let lum;
-      if (c === 1) {
-        lum = src[idx];
-      } else {
-        const base = idx * c;
-        const r = src[base];
-        const g = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
-      const ref = lum * displacement;
-      const xi = (x + Math.floor(ref * (w - 1))) % w;
-      const yi = horizontal ? y : (y + Math.floor(ref * (h - 1))) % h;
+      const ref = refData[idx];
+      const offsetX = computeOffset(ref, w);
+      const offsetY = computeOffset(ref, h);
+      const xi = (x + offsetX) % w;
+      const yi = horizontal ? y : (y + offsetY) % h;
       const sx = Math.floor((xi * cw) / w);
       const sy = Math.floor((yi * ch) / h);
       const srcIdx = (sy * cw + sx) * cc;

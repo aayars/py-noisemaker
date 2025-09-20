@@ -13,21 +13,15 @@ export function rgbToOklab(tensor) {
       const r = srgbToLin(src[i * 3]);
       const g = srgbToLin(src[i * 3 + 1]);
       const b = srgbToLin(src[i * 3 + 2]);
-      const l = Math.fround(0.4121656120 * r + 0.5362752080 * g + 0.0514575653 * b);
-      const m = Math.fround(0.2118591070 * r + 0.6807189584 * g + 0.1074065790 * b);
-      const s = Math.fround(0.0883097947 * r + 0.2818474174 * g + 0.6302613616 * b);
-      const l_ = Math.fround(Math.cbrt(l));
-      const m_ = Math.fround(Math.cbrt(m));
-      const s_ = Math.fround(Math.cbrt(s));
-      out[i * 3] = Math.fround(
-        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-      );
-      out[i * 3 + 1] = Math.fround(
-        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-      );
-      out[i * 3 + 2] = Math.fround(
-        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
-      );
+      const l = 0.4121656120 * r + 0.5362752080 * g + 0.0514575653 * b;
+      const m = 0.2118591070 * r + 0.6807189584 * g + 0.1074065790 * b;
+      const s = 0.0883097947 * r + 0.2818474174 * g + 0.6302613616 * b;
+      const l_ = Math.cbrt(l);
+      const m_ = Math.cbrt(m);
+      const s_ = Math.cbrt(s);
+      out[i * 3] = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
+      out[i * 3 + 1] = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
+      out[i * 3 + 2] = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
   });

@@ -39,6 +39,7 @@ EFFECTS = [
     ("normalize", effects.normalize),
     ("ridge", effects.ridge),
     ("palette", effects.palette),
+    ("false_color", effects.false_color),
     ("warp", effects.warp),
     ("ripple", effects.ripple),
     ("sine", effects.sine),

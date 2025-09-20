@@ -26,6 +26,7 @@ const EFFECTS = {
   derivative: effects.derivative,
   normalize: effects.normalizeEffect,
   palette: effects.palette,
+  false_color: effects.falseColor,
   warp: effects.warp,
   ripple: effects.ripple,
   wobble: effects.wobble,
