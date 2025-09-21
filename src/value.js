@@ -1592,29 +1592,40 @@ export function rgbToHsv(tensor) {
   const ctx = tensor.ctx;
   const cpuRgbToHsv = (src) => {
     const out = new Float32Array(h * w * 3);
+    const f32buf = new Float32Array(1);
+    const f32 = (x) => {
+      f32buf[0] = x;
+      return f32buf[0];
+    };
     for (let i = 0; i < h * w; i++) {
-      const r = src[i * c];
-      const g = src[i * c + 1];
-      const b = src[i * c + 2];
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const d = max - min;
+      const r = f32(src[i * c]);
+      const g = f32(src[i * c + 1]);
+      const b = f32(src[i * c + 2]);
+      const max = f32(Math.max(r, g, b));
+      const min = f32(Math.min(r, g, b));
+      const d = f32(max - min);
       let hVal;
       if (d === 0) {
-        hVal = 0;
+        hVal = f32(0);
       } else if (max === r) {
-        hVal = Math.fround(((g - b) / d) % 6);
+        const numer = f32(g - b);
+        const div = f32(numer / d);
+        let raw = f32(div % 6);
+        if (raw < 0) raw = f32(raw + 6);
+        hVal = raw;
       } else if (max === g) {
-        hVal = Math.fround((b - r) / d + 2);
+        const numer = f32(b - r);
+        hVal = f32(numer / d + 2);
       } else {
-        hVal = Math.fround((r - g) / d + 4);
+        const numer = f32(r - g);
+        hVal = f32(numer / d + 4);
       }
-      hVal = Math.fround(hVal / 6);
-      if (hVal < 0) hVal += 1;
-      const sVal = max === 0 ? 0 : Math.fround(d / max);
-      out[i * 3] = Math.fround(hVal);
-      out[i * 3 + 1] = Math.fround(sVal);
-      out[i * 3 + 2] = Math.fround(max);
+      hVal = f32(hVal / 6);
+      if (hVal < 0) hVal = f32(hVal + 1);
+      const sVal = max === 0 ? f32(0) : f32(d / max);
+      out[i * 3] = f32(hVal);
+      out[i * 3 + 1] = f32(sVal);
+      out[i * 3 + 2] = max;
     }
     return Tensor.fromArray(ctx, out, [h, w, 3]);
   };
