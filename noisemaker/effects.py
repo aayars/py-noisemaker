@@ -981,8 +981,16 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 
     blurred = value.offset(blurred, shape, x=int(tf.cast(width, tf.float32) * -.05), y=int(tf.cast(shape[0], tf.float32) * -.05))
 
-    blurred = tf.image.adjust_brightness(blurred, .25)
-    blurred = tf.image.adjust_contrast(blurred, 1.5)
+    # Mirror the JavaScript bloom implementation exactly: brightness is a straight
+    # addition followed by clamping to ``[-1, 1]`` before the contrast stretch is
+    # applied.  Using the TensorFlow helpers here introduces small numerical
+    # differences, so we implement the arithmetic directly to stay bit-for-bit in
+    # sync with the reference.
+    blurred = tf.clip_by_value(blurred + 0.25, -1.0, 1.0)
+
+    mean = tf.reduce_mean(blurred, axis=[0, 1], keepdims=True)
+    blurred = (blurred - mean) * 1.5 + mean
+    blurred = value.clamp01(blurred)
 
     return value.blend(value.clamp01(tensor), value.clamp01((tensor + blurred) * .5), alpha)
 
