@@ -903,7 +903,11 @@ export function outline(
 
   return withTensorData(tensor, (src) => {
     if (c === 1) {
-      return handleValues(src, tensor);
+      const norm = normalize(tensor);
+      if (norm && typeof norm.then === "function") {
+        return norm.then((v) => handleValues(src, v));
+      }
+      return handleValues(src, norm);
     }
     if (c === 2) {
       const data = new Float32Array(h * w);
@@ -1132,7 +1136,8 @@ export async function normalMap(tensor, shape, time, speed) {
   }
 
   const valueShape = [h, w, 1];
-  const reference = await toValueMap(tensor);
+  let reference = await toValueMap(tensor);
+  reference = await normalize(reference);
   const sobelX = await convolve(
     reference,
     valueShape,
