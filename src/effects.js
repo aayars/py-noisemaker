@@ -2636,17 +2636,20 @@ export function expandTile(
 export function offsetIndex(yIndex, height, xIndex, width) {
   return withTensorDatas([yIndex, xIndex], (yData, xData) => {
     const total = height * width;
-    const out = new Float32Array(total * 2);
-    const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
-    const xOff = Math.floor(random() * width * 0.5);
+    const yArr = new Int32Array(total);
+    const xArr = new Int32Array(total);
     for (let i = 0; i < total; i++) {
-      const yVal = yData[i];
-      const xVal = xData[i];
-      out[i * 2] = ((yVal + yOff) % height + height) % height;
-      out[i * 2 + 1] = ((xVal + xOff) % width + width) % width;
+      yArr[i] = Math.floor(yData[i] ?? 0);
+      xArr[i] = Math.floor(xData[i] ?? 0);
+    }
+    const offs = offsetIndexInternal(yArr, height, xArr, width);
+    const interleaved = new Int32Array(total * 2);
+    for (let i = 0; i < total; i++) {
+      interleaved[i * 2] = offs.y[i];
+      interleaved[i * 2 + 1] = offs.x[i];
     }
     const ctx = (yIndex && yIndex.ctx) || (xIndex && xIndex.ctx) || null;
-    return Tensor.fromArray(ctx, out, [height, width, 2]);
+    return Tensor.fromArray(ctx, interleaved, [height, width, 2]);
   });
 }
 
@@ -5736,23 +5739,39 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   };
   if (!ctx || !ctx.device) {
     const valueTensor = await toValueMap(working);
-    const valuesData = await valueTensor.read();
+    let valuesData = valueTensor.read();
+    if (valuesData && typeof valuesData.then === "function") {
+      valuesData = await valuesData;
+    }
+    if (!(valuesData instanceof Float32Array)) {
+      valuesData = Float32Array.from(valuesData ?? []);
+    }
     const sorted = new Float32Array(want * want * c);
+    const order = new Array(want);
     for (let y = 0; y < want; y++) {
       const rowOffset = y * want;
-      const indices = new Array(want);
-      for (let i = 0; i < want; i++) indices[i] = i;
-      indices.sort((a, b) => valuesData[rowOffset + b] - valuesData[rowOffset + a]);
-      const sortedRow = new Float32Array(want * c);
-      for (let pos = 0; pos < want; pos++) {
-        const srcIndex = indices[pos];
-        const srcBase = (rowOffset + srcIndex) * c;
-        const dstBase = pos * c;
-        for (let k = 0; k < c; k++) {
-          sortedRow[dstBase + k] = data[srcBase + k];
+      let shift = 0;
+      let maxVal = -Infinity;
+      for (let x = 0; x < want; x++) {
+        const v = valuesData[rowOffset + x];
+        if (v > maxVal) {
+          maxVal = v;
+          shift = x;
         }
       }
-      const shift = indices[0] || 0;
+      const sortedRow = new Float32Array(want * c);
+      for (let k = 0; k < c; k++) {
+        for (let i = 0; i < want; i++) order[i] = i;
+        order.sort(
+          (a, b) =>
+            data[(rowOffset + b) * c + k] - data[(rowOffset + a) * c + k],
+        );
+        for (let pos = 0; pos < want; pos++) {
+          const srcIndex = order[pos];
+          const srcBase = (rowOffset + srcIndex) * c;
+          sortedRow[pos * c + k] = data[srcBase + k];
+        }
+      }
       for (let x = 0; x < want; x++) {
         const srcPos = (x - shift + want) % want;
         const dstBase = (rowOffset + x) * c;
@@ -6835,7 +6854,11 @@ export async function nebula(tensor, shape, time, speed) {
   const overlayFreq = [randomInt(3, 4), 1];
   const subtractFreq = [randomInt(2, 4), 1];
   let overlay = await simpleMultires(overlayFreq, 6, ValueDistribution.exp);
-  const subtractor = await simpleMultires(subtractFreq, 4);
+  const subtractor = await simpleMultires(
+    subtractFreq,
+    4,
+    ValueDistribution.exp,
+  );
   const overlayData = await overlay.read();
   const subtractData = await subtractor.read();
   const diff = new Float32Array(h * w);
