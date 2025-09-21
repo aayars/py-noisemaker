@@ -2344,20 +2344,40 @@ register("kaleido", kaleido, {
 });
 
 export async function texture(tensor, shape, time, speed) {
-  const valueShape = [shape[0], shape[1], 1];
-  let noise = await values(64, valueShape, { ctx: tensor.ctx, time, speed });
-  noise = await warp(noise, valueShape, time, speed, 2, 8, 1);
-  noise = await ridge(noise);
-  const shadeTensor = await shadow(noise, valueShape, time, speed, 1);
-  const shade = await shadeTensor.read();
-  const src = await tensor.read();
   const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const valueShape = [h, w, 1];
+
+  const noiseMaybe = await simpleMultiresTensor(
+    64,
+    valueShape,
+    time,
+    speed,
+    8,
+    ctx,
+    true,
+  );
+  const noise =
+    noiseMaybe && typeof noiseMaybe.then === "function"
+      ? await noiseMaybe
+      : noiseMaybe;
+
+  const shadeTensor = await shadow(noise, valueShape, time, speed, 1);
+  const shadeMaybe = shadeTensor.read();
+  const shade =
+    shadeMaybe && typeof shadeMaybe.then === "function"
+      ? await shadeMaybe
+      : shadeMaybe;
+
+  const srcMaybe = tensor.read();
+  const src =
+    srcMaybe && typeof srcMaybe.then === "function" ? await srcMaybe : srcMaybe;
   const out = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     const m = 0.9 + shade[i] * 0.1;
     for (let k = 0; k < c; k++) out[i * c + k] = src[i * c + k] * m;
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  return Tensor.fromArray(ctx, out, shape);
 }
 register("texture", texture, {});
 
@@ -3645,7 +3665,18 @@ export async function ripple(
       return new Tensor(ctx, outBuf, shape);
     }
   }
-  const refData = await ref.read();
+  let refTensor = ref;
+  if (refTensor && typeof refTensor.then === "function") {
+    refTensor = await refTensor;
+  }
+  let refValue = toValueMap(refTensor);
+  if (refValue && typeof refValue.then === "function") {
+    refValue = await refValue;
+  }
+  if (refValue.shape[0] !== h || refValue.shape[1] !== w) {
+    refValue = await resample(refValue, [h, w, 1]);
+  }
+  const refData = await refValue.read();
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
@@ -5072,16 +5103,23 @@ export function grain(tensor, shape, time, speed, alpha = 0.25) {
 }
 register("grain", grain, { alpha: 0.25 });
 
-export function snow(tensor, shape, time, speed, alpha = 0.25) {
-  const [h, w, c] = shape;
+export async function snow(tensor, shape, time, speed, alpha = 0.25) {
+  const [h, w] = shape;
   const ctx = tensor.ctx;
-  const staticNoise = values(Math.max(h, w), shape, {
+  const valueShape = [h, w, 1];
+
+  const resolveTensor = async (maybeTensor) =>
+    maybeTensor && typeof maybeTensor.then === "function"
+      ? await maybeTensor
+      : maybeTensor;
+
+  let staticNoise = values([h, w], valueShape, {
     ctx,
     time,
     speed: speed * 100,
     splineOrder: InterpolationType.constant,
   });
-  const limiter = values(Math.max(h, w), shape, {
+  let limiter = values([h, w], valueShape, {
     ctx,
     time,
     speed: speed * 100,
@@ -5089,24 +5127,50 @@ export function snow(tensor, shape, time, speed, alpha = 0.25) {
     splineOrder: InterpolationType.constant,
   });
 
-  const apply = (lData, aData = null) => {
-    if (typeof alpha === "number") {
-      for (let i = 0; i < lData.length; i++) lData[i] *= alpha;
-    } else {
-      const tc = aData.length / (h * w);
-      for (let i = 0; i < h * w; i++) {
-        const t = aData[i * tc];
-        for (let k = 0; k < c; k++) lData[i * c + k] *= t;
-      }
-    }
-    const limT = Tensor.fromArray(ctx, lData, shape);
-    return blend(tensor, staticNoise, limT);
-  };
+  staticNoise = await resolveTensor(staticNoise);
+  limiter = await resolveTensor(limiter);
+
+  const limiterDataMaybe = limiter.read();
+  const limiterData =
+    limiterDataMaybe && typeof limiterDataMaybe.then === "function"
+      ? await limiterDataMaybe
+      : limiterDataMaybe;
+
+  const scaled = new Float32Array(limiterData.length);
 
   if (typeof alpha === "number") {
-    return withTensorData(limiter, (lData) => apply(lData));
+    for (let i = 0; i < scaled.length; i++) {
+      scaled[i] = limiterData[i] * alpha;
+    }
+    const mask = Tensor.fromArray(ctx, scaled, valueShape);
+    return blend(tensor, staticNoise, mask);
   }
-  return withTensorDatas([limiter, alpha], (lData, aData) => apply(lData, aData));
+
+  let alphaTensor = alpha;
+  if (alphaTensor && typeof alphaTensor.then === "function") {
+    alphaTensor = await alphaTensor;
+  }
+
+  if (!alphaTensor || typeof alphaTensor.read !== "function") {
+    const mask = Tensor.fromArray(ctx, limiterData.slice(), valueShape);
+    return blend(tensor, staticNoise, mask);
+  }
+
+  const alphaDataMaybe = alphaTensor.read();
+  const alphaData =
+    alphaDataMaybe && typeof alphaDataMaybe.then === "function"
+      ? await alphaDataMaybe
+      : alphaDataMaybe;
+  const alphaChannels = alphaTensor.shape?.[2] || 1;
+  const pixelCount = alphaData ? alphaData.length / alphaChannels : 0;
+  for (let i = 0; i < scaled.length; i++) {
+    const idx = alphaData && pixelCount ? Math.min(i, pixelCount - 1) : i;
+    const alphaVal =
+      alphaData && pixelCount ? alphaData[idx * alphaChannels] : 0;
+    scaled[i] = limiterData[i] * alphaVal;
+  }
+  const mask = Tensor.fromArray(ctx, scaled, valueShape);
+  return blend(tensor, staticNoise, mask);
 }
 register("snow", snow, { alpha: 0.25 });
 
@@ -5600,10 +5664,10 @@ export async function squareCropAndResize(tensor, shape, length = 1024) {
   const have = Math.min(h, w);
   let out = tensor;
   if (h !== w) {
-    out = await cropTensor(tensor, shape, [have, have]);
+    out = await cropTensor(out, shape, [have, have]);
   }
   if (have !== length) {
-    out = await resizeBilinear(out, length);
+    out = await resample(out, [length, length, c]);
   }
   return out;
 }
@@ -6397,8 +6461,8 @@ export async function simpleFrame(tensor, shape, time, speed, brightness = 0) {
     0.55,
   );
   border = await posterize(border, [h, w, 1], time, speed, 1);
-  const maskC = new Float32Array(h * w * c);
   const bData = await border.read();
+  const maskC = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
     for (let k = 0; k < c; k++) maskC[i * c + k] = bData[i];
   }
@@ -6410,24 +6474,41 @@ export async function simpleFrame(tensor, shape, time, speed, brightness = 0) {
 }
 register("simple_frame", simpleFrame, { brightness: 0 });
 
-async function simpleMultiresTensor(freq, shape, time, speed, octaves, ctx) {
+async function simpleMultiresTensor(
+  freq,
+  shape,
+  time,
+  speed,
+  octaves,
+  ctx,
+  ridges = false,
+  opts = {},
+) {
   const [h, w, c] = shape;
   const freqArr = Array.isArray(freq)
     ? freq
     : freqForShape(freq, [h, w]);
   const data = new Float32Array(h * w * c);
   for (let octave = 1; octave <= octaves; octave++) {
+    const multiplier = 2 ** octave;
     const baseFreq = freqArr.map((f) =>
-      Math.floor(f * Math.pow(2, octave - 1)),
+      Math.floor(f * 0.5 * multiplier),
     );
     if (baseFreq[0] > h && baseFreq[1] > w) {
       break;
     }
-    const layerTensor = await values(baseFreq, shape, {
+    let layerTensor = await values(baseFreq, shape, {
       ctx,
       time,
       speed,
+      ...opts,
     });
+    if (layerTensor && typeof layerTensor.then === "function") {
+      layerTensor = await layerTensor;
+    }
+    if (ridges) {
+      layerTensor = await ridge(layerTensor);
+    }
     const layerDataMaybe = layerTensor.read();
     const layerData =
       layerDataMaybe && typeof layerDataMaybe.then === "function"
@@ -6437,9 +6518,8 @@ async function simpleMultiresTensor(freq, shape, time, speed, octaves, ctx) {
       layerData instanceof Float32Array
         ? layerData
         : new Float32Array(layerData ?? []);
-    const weight = Math.pow(0.5, octave);
     for (let i = 0; i < data.length; i++) {
-      data[i] += layerArray[i] * weight;
+      data[i] += layerArray[i] / multiplier;
     }
   }
   const tensor = Tensor.fromArray(ctx, data, shape);
@@ -6559,24 +6639,19 @@ register("frame", frame, {});
 
 async function sketchCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
+  const valueShape = [h, w, 1];
   let valuesTensor = tensor;
   if (c !== 1) {
-    const src = await tensor.read();
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      const base = i * c;
-      const r = src[base];
-      const g = src[base + 1] || 0;
-      const b = src[base + 2] || 0;
-      gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    valuesTensor = toValueMap(tensor);
+    if (valuesTensor && typeof valuesTensor.then === "function") {
+      valuesTensor = await valuesTensor;
     }
-    valuesTensor = Tensor.fromArray(tensor.ctx, gray, [h, w, 1]);
   }
-  valuesTensor = await adjustContrast(valuesTensor, [h, w, 1], time, speed, 2.0);
+  valuesTensor = await adjustContrast(valuesTensor, valueShape, time, speed, 2.0);
   valuesTensor = await clamp01(valuesTensor);
   const outlineTensorTmp = await derivative(
     valuesTensor,
-    [h, w, 1],
+    valueShape,
     time,
     speed
   );
@@ -6585,8 +6660,8 @@ async function sketchCPU(tensor, shape, time, speed) {
   const invData = new Float32Array(invValues.length);
   for (let i = 0; i < invValues.length; i++) invData[i] = 1 - invValues[i];
   const d2Tensor = await derivative(
-    Tensor.fromArray(tensor.ctx, invData, [h, w, 1]),
-    [h, w, 1],
+    Tensor.fromArray(tensor.ctx, invData, valueShape),
+    valueShape,
     time,
     speed
   );
@@ -6594,10 +6669,10 @@ async function sketchCPU(tensor, shape, time, speed) {
   for (let i = 0; i < outline.length; i++) {
     outline[i] = Math.min(1 - outline[i], 1 - d2[i]);
   }
-  let outlineTensor = Tensor.fromArray(tensor.ctx, outline, [h, w, 1]);
+  let outlineTensor = Tensor.fromArray(tensor.ctx, outline, valueShape);
   outlineTensor = await adjustContrast(
     outlineTensor,
-    [h, w, 1],
+    valueShape,
     time,
     speed,
     0.25
@@ -6605,16 +6680,16 @@ async function sketchCPU(tensor, shape, time, speed) {
   outlineTensor = await normalize(outlineTensor);
   valuesTensor = await vignette(
     valuesTensor,
-    [h, w, 1],
+    valueShape,
     time,
     speed,
     1.0,
     0.875
   );
-  const invValTensor = Tensor.fromArray(tensor.ctx, invData, [h, w, 1]);
+  const invValTensor = Tensor.fromArray(tensor.ctx, invData, valueShape);
   let wormsTensor = await worms(
     invValTensor,
-    [h, w, 1],
+    valueShape,
     time,
     speed,
     2,
@@ -6631,21 +6706,24 @@ async function sketchCPU(tensor, shape, time, speed) {
   let combined = await blend(cross, outlineTensor, 0.75);
   combined = await warp(
     combined,
-    [h, w, 1],
+    valueShape,
     time,
     speed,
-    Math.max(1, Math.floor(Math.max(h, w) * 0.125)),
+    [
+      Math.max(1, Math.floor(h * 0.125)),
+      Math.max(1, Math.floor(w * 0.125)),
+    ],
     1,
     0.0025
   );
   const combData = await combined.read();
   for (let i = 0; i < combData.length; i++) combData[i] *= combData[i];
-  combined = Tensor.fromArray(tensor.ctx, combData, [h, w, 1]);
+  combined = Tensor.fromArray(tensor.ctx, combData, valueShape);
   if (c === 1) return combined;
   const out = new Float32Array(h * w * c);
-  const src = await combined.read();
   for (let i = 0; i < h * w; i++) {
-    for (let k = 0; k < c; k++) out[i * c + k] = src[i];
+    const v = combData[i];
+    for (let k = 0; k < c; k++) out[i * c + k] = v;
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
 }
