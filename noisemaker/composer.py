@@ -4,6 +4,7 @@ from collections import UserDict, defaultdict
 from enum import Enum, EnumMeta
 from functools import partial
 import inspect
+from functools import lru_cache
 import re
 
 import noisemaker.rng as rng
@@ -213,17 +214,30 @@ def _flatten_ancestors(preset_name, presets, unique, ancestors, layer_cache):
     ancestors.append(preset_name)
 
 
+def _callable_param_count_uncached(value):
+    try:
+        return len(inspect.signature(value).parameters)
+    except (ValueError, TypeError):
+        return None
+
+
+@lru_cache(maxsize=None)
+def _callable_param_count(value):
+    return _callable_param_count_uncached(value)
+
+
 def _resolve_metadata_value(value, settings):
     if callable(value):
         try:
-            params = inspect.signature(value).parameters
-            if len(params) == 0:
-                return _resolve_metadata_value(value(), settings)
-            if len(params) == 1:
-                return _resolve_metadata_value(value(settings), settings)
-            return value
-        except (ValueError, TypeError):
-            return value
+            param_count = _callable_param_count(value)
+        except TypeError:
+            param_count = _callable_param_count_uncached(value)
+
+        if param_count == 0:
+            return _resolve_metadata_value(value(), settings)
+        if param_count == 1:
+            return _resolve_metadata_value(value(settings), settings)
+        return value
     if isinstance(value, list):
         return [_resolve_metadata_value(v, settings) for v in value]
     if isinstance(value, dict):
