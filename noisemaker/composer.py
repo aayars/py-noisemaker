@@ -39,7 +39,7 @@ _STASH = {}
 
 
 class Preset:
-    def __init__(self, preset_name, presets, settings=None, use_dsl=False):
+    def __init__(self, preset_name, presets, settings=None):
         """
         """
 
@@ -67,7 +67,7 @@ class Preset:
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
         # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
         self.settings = SettingsDict(
-            _flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets, use_dsl)
+            _flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets)
         )
 
         if settings:  # Inline overrides from caller (such as from CLI)
@@ -75,22 +75,22 @@ class Preset:
 
         # These args will be sent to generators.multires() to create the noise basis
         self.generator_kwargs = _flatten_ancestor_metadata(
-            self, self.settings, "generator", {}, presets, use_dsl
+            self, self.settings, "generator", {}, presets
         )
 
         # A list of callable effects functions, to be applied per-octave, in order
         self.octave_effects = _flatten_ancestor_metadata(
-            self, self.settings, "octaves", [], presets, use_dsl
+            self, self.settings, "octaves", [], presets
         )
 
         # A list of callable effects functions, to be applied post-reduce, in order
         self.post_effects = _flatten_ancestor_metadata(
-            self, self.settings, "post", [], presets, use_dsl
+            self, self.settings, "post", [], presets
         )
 
         # A list of callable effects functions, to be applied in order after everything else
         self.final_effects = _flatten_ancestor_metadata(
-            self, self.settings, "final", [], presets, use_dsl
+            self, self.settings, "final", [], presets
         )
 
         try:
@@ -283,7 +283,7 @@ def _map_effect(effect, settings):
     return effect
 
 
-def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=False):
+def _flatten_ancestor_metadata(preset, settings, key, default, presets):
     """Flatten ancestor preset metadata"""
 
     if isinstance(default, dict):
@@ -292,12 +292,7 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=
         flattened_metadata = []
 
     for ancestor_name in preset.flattened_layers:
-        if use_dsl:
-            ancestor = presets[ancestor_name].get(key, default)
-        elif key == SETTINGS_KEY:
-            ancestor = presets[ancestor_name].get(key, lambda: default)
-        else:
-            ancestor = presets[ancestor_name].get(key, lambda _: default)
+        ancestor = presets[ancestor_name].get(key, default)
 
         if callable(ancestor):
             try:
@@ -312,11 +307,6 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=
                 else:
                     raise ValueError(f"In ancestor \"{ancestor_name}\": {e}")
 
-        elif not use_dsl:
-            raise ValueError(
-                f"{ancestor_name}: Key \"{key}\" wasn't wrapped in a lambda. "
-                "This can cause unexpected results for the given seed."
-            )
         ancestor = _resolve_metadata_value(ancestor, settings)
 
         if not isinstance(ancestor, type(default)):
@@ -327,7 +317,7 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets, use_dsl=
         if isinstance(ancestor, dict):
             flattened_metadata.update(ancestor)
         else:
-            if use_dsl and key in ("octaves", "post", "final"):
+            if key in ("octaves", "post", "final"):
                 ancestor = [_map_effect(e, settings) for e in ancestor]
             flattened_metadata += ancestor
 

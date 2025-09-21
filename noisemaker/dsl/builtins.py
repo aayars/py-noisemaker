@@ -93,7 +93,7 @@ def preset(*args):
         resolved = {}
         for k, v in settings.items():
             resolved[k] = v(parent_settings) if callable(v) else v
-        return _Preset(name, _PRESETS(use_dsl=True), resolved, use_dsl=True)
+        return _Preset(name, _PRESETS(), resolved)
 
     return _thunk
 

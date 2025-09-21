@@ -15,5 +15,5 @@ preset_name=$1
 seed=$2
 
 noisemaker generate "${preset_name}" --filename compare-orig.png --seed "${seed}"
-noisemaker generate "${preset_name}" --use-dsl --filename compare-pydsl.png --seed "${seed}"
+
 "${script_dir}/noisemaker-js" generate "${preset_name}" --filename compare-jsdsl.png --seed "${seed}"
