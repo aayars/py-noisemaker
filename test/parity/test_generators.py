@@ -56,6 +56,23 @@ def test_basic_grayscale_sin(seed):
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
 
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_basic_oklab(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.basic(2, [128, 128, 3], color_space=ColorSpace.oklab)
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "basic",
+        seed,
+        color_space=ColorSpace.oklab.value,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-5)
+    assert rng.get_call_count() == js_calls
+
+
 @pytest.mark.parametrize("seed", SEEDS)
 def test_multires(seed):
     rng.set_seed(seed)

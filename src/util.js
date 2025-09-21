@@ -145,9 +145,15 @@ export function srgbToLin(v) {
 }
 
 export function linToSRGB(v) {
-  return Math.fround(
-    v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055,
-  );
+  const f32 = Math.fround;
+  const value = f32(v);
+  const threshold = f32(0.0031308);
+  if (value <= threshold) {
+    return f32(f32(value) * f32(12.92));
+  }
+  const gamma = f32(1 / 2.4);
+  const pow = f32(Math.pow(value, gamma));
+  return f32(f32(f32(1.055) * pow) - 0.055);
 }
 
 export function fromSRGB(tensor) {

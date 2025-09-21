@@ -6,6 +6,7 @@ import {
   ridge,
   refract,
   normalize,
+  clamp01,
   combineOctaves,
   OctaveCombineMode,
   freqForShape,
@@ -101,7 +102,24 @@ export async function basic(freq, shape, opts = {}) {
   let tensor = await values(f, shape, { distrib, ...common });
 
   if (latticeDrift) {
-    tensor = await refract(tensor, null, null, latticeDrift / Math.min(f[0], f[1]));
+    const warpShape = [shape[0], shape[1], 1];
+    const warpOpts = {
+      ctx,
+      splineOrder,
+      time,
+      speed,
+      distrib: ValueDistribution.simplex,
+    };
+    const refX = await values(f, warpShape, warpOpts);
+    const refY = await values(f, warpShape, warpOpts);
+    tensor = await refract(
+      tensor,
+      refX,
+      refY,
+      latticeDrift / Math.min(f[0], f[1]),
+      splineOrder,
+      false,
+    );
   }
 
   if (octaveEffects) {
@@ -139,8 +157,26 @@ export async function basic(freq, shape, opts = {}) {
   let cSpace = color_space;
   const originalColorSpace = color_space;
   if (cSpace === ColorSpace.oklab) {
-    // Color conversions may be asynchronous, so await the result
+    const [h, w, c] = tensor.shape;
+    if (c !== 3) {
+      throw new Error('oklab color space requires 3 channels');
+    }
+    const data = await tensor.read();
+    const converted = new Float32Array(data.length);
+    const scale = Math.fround(-0.509);
+    const offsetA = Math.fround(0.276);
+    const offsetB = Math.fround(0.198);
+    for (let i = 0; i < h * w; i++) {
+      const base = i * 3;
+      const aVal = data[base + 1];
+      const bVal = data[base + 2];
+      converted[base] = data[base];
+      converted[base + 1] = Math.fround(aVal * scale + offsetA);
+      converted[base + 2] = Math.fround(bVal * scale + offsetB);
+    }
+    tensor = Tensor.fromArray(ctx, converted, [h, w, 3]);
     tensor = await oklabToRgb(tensor);
+    tensor = await clamp01(tensor);
     cSpace = ColorSpace.rgb;
   }
   if (cSpace === ColorSpace.rgb) {
