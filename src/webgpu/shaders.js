@@ -25,12 +25,10 @@ struct FrameUniforms {
 
 struct StageUniforms {
   freq : vec2<f32>,
-  octaves : u32,
   speed : f32,
-  seed_offset : u32,
-  distrib : i32,
-  spline_order : i32,
-  padding : vec2<u32>,
+  sin_amount : f32,
+  options0 : vec4<u32>,
+  options1 : vec4<u32>,
 };
 
 const PERMUTATION_SIZE : u32 = 256u;
@@ -46,6 +44,10 @@ const NORM_CONSTANT_2D : f32 = 47.0;
 const NORM_CONSTANT_3D : f32 = 103.0;
 
 const TAU : f32 = 6.283185307179586;
+
+const OCTAVE_BLENDING_FALLOFF : u32 = 0u;
+const OCTAVE_BLENDING_REDUCE_MAX : u32 = 10u;
+const OCTAVE_BLENDING_ALPHA : u32 = 20u;
 
 const GRADIENTS_2D : array<i32, 16> = array<i32, 16>(
   5, 2, 2, 5,
@@ -64,6 +66,61 @@ const GRADIENTS_3D : array<i32, 72> = array<i32, 72>(
   -11, -4, -4, -4, -11, -4, -4, -4, -11,
   11, -4, -4, 4, -11, -4, 4, -4, -11,
 );
+
+fn bool_from_u32(value : u32) -> bool {
+  return value != 0u;
+}
+
+fn saturate(value : f32) -> f32 {
+  return clamp(value, 0.0, 1.0);
+}
+
+fn replicate4(value : f32) -> vec4<f32> {
+  return vec4<f32>(value, value, value, value);
+}
+
+fn map_to_unit(value : f32) -> f32 {
+  return value * 0.5 + 0.5;
+}
+
+fn ridge_transform(value : f32) -> f32 {
+  return 1.0 - abs(value * 2.0 - 1.0);
+}
+
+fn compute_octave_frequency(base_freq : vec2<f32>, octave_index : u32) -> vec2<f32> {
+  let multiplier : f32 = pow(2.0, f32(octave_index));
+  var freq : vec2<f32> = floor(base_freq * 0.5 * multiplier);
+  if (freq.x < 1.0) {
+    freq.x = 1.0;
+  }
+  if (freq.y < 1.0) {
+    freq.y = 1.0;
+  }
+  return freq;
+}
+
+fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
+  let alpha_value : f32 = saturate(layer.w);
+  let alpha_vec : vec4<f32> = replicate4(alpha_value);
+  (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
+}
+
+fn finalize_color(color : vec4<f32>, channel_count : u32) -> vec4<f32> {
+  let luminance : f32 = saturate(color.x);
+  var alpha : f32 = saturate(color.w);
+  if (channel_count <= 1u || channel_count == 3u) {
+    alpha = 1.0;
+  } else if (channel_count >= 4u) {
+    if (alpha <= 0.0) {
+      alpha = 1.0;
+    }
+  } else {
+    if (alpha <= 0.0) {
+      alpha = 1.0;
+    }
+  }
+  return vec4<f32>(luminance, luminance, luminance, alpha);
+}
 
 struct PermutationTables {
   perm : array<u32, PERMUTATION_SIZE>,
@@ -542,6 +599,16 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
   return value / NORM_CONSTANT_3D;
 }
 
+fn evaluate_simplex_layer(tables : ptr<function, PermutationTables>, coord : vec2<f32>, z : f32, ridges : bool) -> vec4<f32> {
+  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
+  var normalized : f32 = map_to_unit(raw_value);
+  if (ridges) {
+    normalized = ridge_transform(normalized);
+  }
+  normalized = saturate(normalized);
+  return vec4<f32>(normalized, normalized, normalized, normalized);
+}
+
 @group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
 @group(0) @binding(1) var<uniform> frame_uniforms : FrameUniforms;
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
@@ -554,14 +621,61 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     return;
   }
 
-  var tables : PermutationTables = build_permutation_tables(frame_uniforms.seed + stage_uniforms.seed_offset);
+  let base_freq : vec2<f32> = stage_uniforms.freq;
+  let octaves : u32 = stage_uniforms.options0.x;
+  let octave_blending : u32 = stage_uniforms.options0.y;
+  let channel_count : u32 = stage_uniforms.options0.z;
+  let ridges_enabled : bool = bool_from_u32(stage_uniforms.options0.w);
+  let seed_offset : u32 = stage_uniforms.options1.x;
+
   let angle : f32 = frame_uniforms.time * TAU;
   let z : f32 = cos(angle) * stage_uniforms.speed;
-  let nx : f32 = f32(global_id.x);
-  let ny : f32 = f32(global_id.y);
-  let value : f32 = open_simplex_3d(&tables, nx, ny, z);
-  let normalized : f32 = (value + 1.0) * 0.5;
-  textureStore(output_texture, vec2<i32>(i32(global_id.x), i32(global_id.y)), vec4<f32>(normalized, normalized, normalized, 1.0));
+  let resolution : vec2<f32> = frame_uniforms.resolution;
+  let pixel : vec2<f32> = vec2<f32>(f32(global_id.x), f32(global_id.y));
+  let uv : vec2<f32> = (pixel + vec2<f32>(0.5, 0.5)) / resolution;
+
+  var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+  var weight_sum : f32 = 0.0;
+  var weight : f32 = 0.5;
+  var octave_index : u32 = 1u;
+
+  loop {
+    if (octave_index > octaves) {
+      break;
+    }
+
+    let octave_freq : vec2<f32> = compute_octave_frequency(base_freq, octave_index);
+    if (octave_freq.x > resolution.x && octave_freq.y > resolution.y) {
+      break;
+    }
+
+    let coord : vec2<f32> = uv * octave_freq;
+    var octave_tables : PermutationTables = build_permutation_tables(frame_uniforms.seed + seed_offset + octave_index);
+    let layer : vec4<f32> = evaluate_simplex_layer(&octave_tables, coord, z, ridges_enabled);
+
+    if (octave_blending == OCTAVE_BLENDING_REDUCE_MAX) {
+      accum = max(accum, layer);
+    } else if (octave_blending == OCTAVE_BLENDING_ALPHA) {
+      combine_alpha(&accum, layer);
+    } else {
+      accum = accum + layer * weight;
+      weight_sum = weight_sum + weight;
+    }
+
+    weight = weight * 0.5;
+    octave_index = octave_index + 1u;
+  }
+
+  var final_color : vec4<f32> = accum;
+  if (octave_blending == OCTAVE_BLENDING_FALLOFF) {
+    if (weight_sum > 0.0) {
+      final_color = final_color / weight_sum;
+    }
+  }
+
+  final_color = clamp(final_color, vec4<f32>(0.0, 0.0, 0.0, 0.0), vec4<f32>(1.0, 1.0, 1.0, 1.0));
+  let output_color : vec4<f32> = finalize_color(final_color, channel_count);
+  textureStore(output_texture, vec2<i32>(i32(global_id.x), i32(global_id.y)), output_color);
 }
 `;
 

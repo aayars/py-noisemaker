@@ -1,26 +1,30 @@
 # WGSL Multires Shader TODO
 
-This commit introduces the foundational WGSL module for the `multires` generator,
-including the seeded permutation builder and OpenSimplex 2D/3D routines. The
-compute entry point currently renders a single-octave grayscale output and is
-not yet wired into the WebGPU pipeline. Follow-up work should address the
-remaining pieces before enabling the stage:
+The WGSL module now exposes a richer uniform struct (`StageUniforms`) and
+implements multi-octave accumulation for simplex noise, including falloff and
+reduce-max blending paths. Alpha blending currently uses a provisional
+pre-multiplied mix while we bootstrap mask aware layers. The shader is still not
+wired into the runtime. Follow-up work should address the remaining gaps before
+enabling the stage:
 
-1. **Uniform layout integration** – teach the pipeline to populate the stage
-   uniforms expected by the shader (frequency, octave parameters, distribution
-   flags, etc.) or specialize the WGSL struct per preset.
-2. **Octave accumulation** – port the full multi-octave blending logic (including
-   the `OctaveBlending` modes and alpha handling) and ensure the shader mirrors
-   `generators.multires`.
+1. **Uniform layout integration** – update the WebGPU pipeline to populate the
+   new `StageUniforms` fields (`options0/options1`, `sin_amount`, channel count,
+   etc.) and document the packing strategy alongside the CPU structs.
+2. **Octave fidelity** – tighten parity with `generators.multires` by wiring the
+   real alpha semantics (mask-preserving layers), honouring non-simplex
+   distributions, and mirroring the per-channel/per-octave seed offsets without
+   recomputing permutations in every invocation.
 3. **Color workflow** – replicate the HSV/OKLab conversion path along with hue,
-   saturation, and brightness modulation noise sources.
-4. **Masking and lattice drift** – implement the optional mask resources and the
-   lattice refract step used by the CPU version.
+   saturation, and brightness modulation noise sources (including the optional
+   alternate frequency for brightness).
+4. **Masking, lattice drift, and sin modulation** – implement mask sampling,
+   lattice refract support, and the `sin` parameter. The current shader lacks a
+   global normalization pass so we need a strategy that matches the CPU's
+   `value.normalize` behaviour.
 5. **Pipeline hook-up** – update `resolveShaderId` (and related plumbing) so the
-   generator stage resolves to `MULTIRES_WGSL` once the shader reaches parity.
-6. **Performance tuning** – consider caching the permutation tables per dispatch
-   (e.g., workgroup-shared state) to avoid recomputing them per invocation once
-   correctness is locked in.
+   generator stage resolves to `MULTIRES_WGSL` once feature parity is in place.
+6. **Performance tuning** – avoid rebuilding permutation tables per invocation,
+   and consider workgroup/shared caching once correctness is locked in.
 
 Leave this file in place until the shader reaches feature parity and is enabled
 in the renderer.
