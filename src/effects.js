@@ -3144,7 +3144,9 @@ register("invert", invert, {});
 
 export async function vortex(tensor, shape, time, speed, displacement = 64) {
   const valueShape = [shape[0], shape[1], 1];
-  let dispMap = await singularity(null, valueShape, time, speed);
+  const staticTime = 0;
+  const staticSpeed = 1;
+  let dispMap = await singularity(null, valueShape, staticTime, staticSpeed);
   dispMap = await normalize(dispMap);
   let x = await convolve(
     dispMap,
@@ -3165,12 +3167,17 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
   let fader = await singularity(
     null,
     valueShape,
-    time,
-    speed,
+    staticTime,
+    staticSpeed,
     VoronoiDiagramType.range,
     DistanceMetric.chebyshev,
   );
-  fader = await invert(await normalize(fader), valueShape, time, speed);
+  fader = await invert(
+    await normalize(fader),
+    valueShape,
+    staticTime,
+    staticSpeed,
+  );
   const disp = simplexRandom(time, undefined, speed) * 100 * displacement;
   const ctx = tensor.ctx;
   if (
@@ -5186,8 +5193,8 @@ export async function vignette(
   const maskTensor = await singularity(
     null,
     [h, w, 1],
-    time,
-    speed,
+    0,
+    1,
     VoronoiDiagramType.range,
     DistanceMetric.euclidean,
   );
@@ -8038,8 +8045,8 @@ export async function watermark(tensor, shape, time, speed) {
   const valueShape = [h, w, 1];
   let mask = await values(240, valueShape, {
     ctx,
-    time,
-    speed,
+    time: 0,
+    speed: 1,
     splineOrder: InterpolationType.constant,
     distrib: ValueDistribution.ones,
     mask: ValueMask.alphanum_numeric,
