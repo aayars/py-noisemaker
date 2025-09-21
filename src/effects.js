@@ -2899,7 +2899,7 @@ register("invert", invert, {});
 
 export async function vortex(tensor, shape, time, speed, displacement = 64) {
   const valueShape = [shape[0], shape[1], 1];
-  let dispMap = await singularity(tensor, valueShape, time, speed);
+  let dispMap = await singularity(null, valueShape, time, speed);
   dispMap = await normalize(dispMap);
   let x = await convolve(
     dispMap,
@@ -2918,7 +2918,7 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
     false,
   );
   let fader = await singularity(
-    tensor,
+    null,
     valueShape,
     time,
     speed,
@@ -3898,13 +3898,15 @@ export async function valueRefract(
     time,
     speed,
   });
-  return refractOp(tensor, blendValues, null, displacement);
+  return refractEffect(
+    tensor,
+    shape,
+    time,
+    speed,
+    displacement,
+    blendValues,
+  );
 }
-register("value_refract", valueRefract, {
-  freq: 4,
-  distrib: ValueDistribution.center_circle,
-  displacement: 0.125,
-});
 register("value_refract", valueRefract, {
   freq: 4,
   distrib: ValueDistribution.center_circle,
@@ -4618,37 +4620,17 @@ async function wormsCPU(
   }
   const wormsRot = makeRots(behavior, count, time, speed);
 
-  let valueData;
-  if (c === 1) {
-    valueData = await tensor.read();
-  } else if (c === 2) {
-    const srcVals = await tensor.read();
-    valueData = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) valueData[i] = srcVals[i * 2];
-  } else {
-    let rgbTensor;
-    const clamped = await clamp01(tensor);
-    if (c === 3) {
-      rgbTensor = clamped;
-    } else {
-      const srcVals = await clamped.read();
-      const rgbVals = new Float32Array(h * w * 3);
-      for (let i = 0; i < h * w; i++) {
-        const base = i * c;
-        rgbVals[i * 3] = srcVals[base];
-        rgbVals[i * 3 + 1] = srcVals[base + 1];
-        rgbVals[i * 3 + 2] = srcVals[base + 2];
-      }
-      rgbTensor = Tensor.fromArray(tensor.ctx, rgbVals, [h, w, 3]);
-    }
-    const labTensor = await rgbToOklab(rgbTensor);
-    const labData = await labTensor.read();
-    valueData = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) valueData[i] = labData[i * 3];
-  }
-
+  const valueTensor = await toValueMap(tensor);
+  const valueDataMaybe = valueTensor.read();
+  const valueData =
+    valueDataMaybe && typeof valueDataMaybe.then === "function"
+      ? await valueDataMaybe
+      : valueDataMaybe;
+  const valueChannels = valueTensor.shape[2] || 1;
   const indexArr = new Float32Array(h * w);
-  for (let i = 0; i < h * w; i++) indexArr[i] = valueData[i] * TAU * kink;
+  for (let i = 0; i < h * w; i++) {
+    indexArr[i] = Math.fround(valueData[i * valueChannels] * TAU * kink);
+  }
   const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration);
   const out = new Float32Array(h * w * c);
   for (let iter = 0; iter < iterations; iter++) {
@@ -4748,7 +4730,7 @@ register("worms", worms, {
   colors: null,
 });
 
-export function wormhole(
+export async function wormhole(
   tensor,
   shape,
   time,
@@ -4759,65 +4741,72 @@ export function wormhole(
 ) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
-  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
-    return (async () => {
-      const src = await tensor.read();
-      const valuesArr = new Float32Array(h * w);
-      if (c === 1) {
-        for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
-      } else {
-        const labTensor = await rgbToOklab(tensor);
-        const lab = await labTensor.read();
-        for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
-      }
-      const stride = 1024 * inputStride;
-      const yOff = Math.floor(h * 0.5 + random() * h * 0.5);
-      const xOff = Math.floor(random() * w * 0.5);
-      const lumBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
-      const outBuf = ctx.device.createBuffer({
-        size: h * w * c * 4,
-        usage:
-          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-      });
-      const paramsBuf = ctx.createGPUBuffer(
-        new Float32Array([w, h, c, stride, kink, xOff, yOff, 0]),
-        GPUBufferUsage.UNIFORM,
-      );
-      try {
-        await ctx.runCompute(
-          WORMHOLE_WGSL,
-          [
-            { binding: 0, resource: tensor.handle.createView() },
-            { binding: 1, resource: { buffer: lumBuf } },
-            { binding: 2, resource: { buffer: outBuf } },
-            { binding: 3, resource: { buffer: paramsBuf } },
-          ],
-          Math.ceil(w / 8),
-          Math.ceil(h / 8),
-        );
-      } catch (e) {
-        const cpuTensor = Tensor.fromArray(null, await tensor.read(), shape);
-        return wormhole(cpuTensor, shape, time, speed, kink, inputStride, alpha);
-      }
-      const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
-      let outTensor = Tensor.fromArray(ctx, out, shape);
-      outTensor = await normalize(outTensor);
-      const d = await outTensor.read();
-      for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
-      outTensor = Tensor.fromArray(ctx, d, shape);
-      return blend(tensor, outTensor, alpha);
-    })();
-  }
-  const src = tensor.read();
+  const valueTensorMaybe = toValueMap(tensor);
+  const valueTensor =
+    valueTensorMaybe && typeof valueTensorMaybe.then === "function"
+      ? await valueTensorMaybe
+      : valueTensorMaybe;
+  const valueDataMaybe = valueTensor.read();
+  const valueRaw =
+    valueDataMaybe && typeof valueDataMaybe.then === "function"
+      ? await valueDataMaybe
+      : valueDataMaybe;
+  const valueChannels = valueTensor.shape[2] || 1;
   const valuesArr = new Float32Array(h * w);
-  if (c === 1) {
-    for (let i = 0; i < h * w; i++) valuesArr[i] = src[i];
+  if (valueChannels === 1) {
+    if (valueRaw instanceof Float32Array) {
+      valuesArr.set(valueRaw);
+    } else {
+      for (let i = 0; i < h * w; i++) valuesArr[i] = valueRaw[i] ?? 0;
+    }
   } else {
-    const labTensor = rgbToOklab(tensor);
-    const lab = labTensor.read();
-    for (let i = 0; i < h * w; i++) valuesArr[i] = lab[i * 3];
+    for (let i = 0; i < h * w; i++) {
+      valuesArr[i] = valueRaw[i * valueChannels] ?? 0;
+    }
   }
   const stride = 1024 * inputStride;
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const yOff = Math.floor(h * 0.5 + random() * h * 0.5);
+    const xOff = Math.floor(random() * w * 0.5);
+    const lumBuf = ctx.createGPUBuffer(valuesArr, GPUBufferUsage.STORAGE);
+    const outBuf = ctx.device.createBuffer({
+      size: h * w * c * 4,
+      usage:
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    const paramsBuf = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, stride, kink, xOff, yOff, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    try {
+      await ctx.runCompute(
+        WORMHOLE_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: { buffer: lumBuf } },
+          { binding: 2, resource: { buffer: outBuf } },
+          { binding: 3, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+    } catch (e) {
+      const cpuTensor = Tensor.fromArray(null, await tensor.read(), shape);
+      return wormhole(cpuTensor, shape, time, speed, kink, inputStride, alpha);
+    }
+    const out = await ctx.readGPUBuffer(outBuf, h * w * c * 4);
+    let outTensor = Tensor.fromArray(ctx, out, shape);
+    outTensor = await normalize(outTensor);
+    const d = await outTensor.read();
+    for (let i = 0; i < d.length; i++) d[i] = Math.sqrt(d[i]);
+    outTensor = Tensor.fromArray(ctx, d, shape);
+    return await blend(tensor, outTensor, alpha);
+  }
+  const srcMaybe = tensor.read();
+  const src =
+    srcMaybe && typeof srcMaybe.then === "function"
+      ? await srcMaybe
+      : srcMaybe;
   const xArr = new Int32Array(h * w);
   const yArr = new Int32Array(h * w);
   for (let y = 0; y < h; y++) {
@@ -4857,7 +4846,7 @@ export function wormhole(
     out[i] = Math.sqrt(out[i]);
   }
   const outTensor = Tensor.fromArray(tensor.ctx, out, shape);
-  return blend(tensor, outTensor, alpha);
+  return await blend(tensor, outTensor, alpha);
 }
 register("wormhole", wormhole, { kink: 1.0, inputStride: 1.0, alpha: 1.0 });
 
@@ -7655,37 +7644,55 @@ export async function watermark(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  const glyphs = [
-    ValueMask.lcd_0,
-    ValueMask.lcd_1,
-    ValueMask.lcd_2,
-    ValueMask.lcd_3,
-    ValueMask.lcd_4,
-    ValueMask.lcd_5,
-    ValueMask.lcd_6,
-    ValueMask.lcd_7,
-    ValueMask.lcd_8,
-    ValueMask.lcd_9,
-  ];
-    let mask = randomGlyphMask(valueShape, glyphs);
-    mask = await warp(mask, valueShape, time, speed, 2, 1, 0.5);
-    const noise = await (
-      await values(2, valueShape, { ctx, time, speed })
-    ).read();
-    let mData = await mask.read();
-    for (let i = 0; i < mData.length; i++) mData[i] *= noise[i] * noise[i];
-    mask = Tensor.fromArray(ctx, mData, valueShape);
-    let brightness = await values(16, valueShape, { ctx, time, speed });
-    if (c > 1) {
-      mask = await expandChannels(mask, c);
-      brightness = await expandChannels(brightness, c);
-    }
-    mData = await mask.read();
-    for (let i = 0; i < mData.length; i++) mData[i] *= 0.125;
-    mask = Tensor.fromArray(ctx, mData, shape);
-    return await blend(tensor, brightness, mask);
+  let mask = await values(240, valueShape, {
+    ctx,
+    time,
+    speed,
+    splineOrder: InterpolationType.constant,
+    distrib: ValueDistribution.ones,
+    mask: ValueMask.alphanum_numeric,
+  });
+  mask = await crt(mask, valueShape, time, speed);
+  mask = await warp(mask, valueShape, time, speed, [2, 4], 1, 0.5);
+  const noiseTensor = await values(2, valueShape, { ctx, time, speed });
+  const [maskDataMaybe, noiseDataMaybe] = await Promise.all([
+    mask.read(),
+    noiseTensor.read(),
+  ]);
+  const maskData =
+    maskDataMaybe instanceof Float32Array
+      ? maskDataMaybe.slice()
+      : Float32Array.from(maskDataMaybe ?? []);
+  const noiseData =
+    noiseDataMaybe instanceof Float32Array
+      ? noiseDataMaybe
+      : new Float32Array(noiseDataMaybe ?? []);
+  for (let i = 0; i < maskData.length; i++) {
+    const n = noiseData[i] || 0;
+    maskData[i] = Math.fround(maskData[i] * n * n);
   }
-  register("watermark", watermark, {});
+  mask = Tensor.fromArray(ctx, maskData, valueShape);
+  let brightness = await values(16, valueShape, { ctx, time, speed });
+  if (c > 1) {
+    mask = await expandChannels(mask, c);
+    brightness = await expandChannels(brightness, c);
+  }
+  const maskFinalMaybe = mask.read();
+  const maskFinal =
+    maskFinalMaybe && typeof maskFinalMaybe.then === "function"
+      ? await maskFinalMaybe
+      : maskFinalMaybe;
+  const maskScaled =
+    maskFinal instanceof Float32Array
+      ? maskFinal.slice()
+      : Float32Array.from(maskFinal ?? []);
+  for (let i = 0; i < maskScaled.length; i++) {
+    maskScaled[i] = Math.fround(maskScaled[i] * 0.125);
+  }
+  const maskTensor = Tensor.fromArray(ctx, maskScaled, [h, w, c]);
+  return await blend(tensor, brightness, maskTensor);
+}
+register("watermark", watermark, {});
 
 export async function onScreenDisplay(tensor, shape, time, speed) {
   const [h, w, c] = shape;
