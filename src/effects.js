@@ -3825,63 +3825,37 @@ export async function reindex(tensor, shape, time, speed, displacement = 0.5) {
     return new Tensor(ctx, outBuf, shape);
   }
   const src = await tensor.read();
-  let lumTensor;
-  if (c === 1 || c === 2) {
-    const lum = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      lum[i] = src[i * c];
-    }
-    lumTensor = Tensor.fromArray(tensor.ctx, lum, [h, w, 1]);
-  } else {
-    let rgbTensor;
-    if (c === 3) {
-      rgbTensor = await clamp01(tensor);
-    } else {
-      const clamped = await clamp01(tensor);
-      const clampedData = await clamped.read();
-      const rgb = new Float32Array(h * w * 3);
-      for (let i = 0; i < h * w; i++) {
-        const base = i * c;
-        rgb[i * 3] = clampedData[base];
-        rgb[i * 3 + 1] = clampedData[base + 1];
-        rgb[i * 3 + 2] = clampedData[base + 2];
-      }
-      rgbTensor = Tensor.fromArray(tensor.ctx, rgb, [h, w, 3]);
-    }
-    const labTensor = await rgbToOklab(rgbTensor);
-    const lab = await labTensor.read();
-    const lum = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) lum[i] = lab[i * 3];
-    lumTensor = Tensor.fromArray(tensor.ctx, lum, [h, w, 1]);
+  let valueTensor = toValueMap(tensor);
+  if (valueTensor && typeof valueTensor.then === "function") {
+    valueTensor = await valueTensor;
   }
-  lumTensor = await normalize(lumTensor);
-  const lum = await lumTensor.read();
+  if (
+    valueTensor &&
+    (valueTensor.shape[0] !== h ||
+      valueTensor.shape[1] !== w ||
+      valueTensor.shape[2] !== 1)
+  ) {
+    valueTensor = await resample(valueTensor, [h, w, 1]);
+    if (valueTensor.shape[2] !== 1) {
+      const remap = toValueMap(valueTensor);
+      valueTensor =
+        remap && typeof remap.then === "function" ? await remap : remap;
+    }
+  }
+  valueTensor = await normalize(valueTensor);
+  const ref = await valueTensor.read();
   const mod = Math.min(h, w);
   const out = new Float32Array(h * w * c);
-  const EPSILON = 5e-6;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      const r = lum[idx];
-      const off = r * displacement * mod + r;
-      let xPos = off % w;
-      let yPos = off % h;
-      if (xPos < 0) xPos += w;
-      if (yPos < 0) yPos += h;
-      let xInt = Math.floor(xPos);
-      let yInt = Math.floor(yPos);
-      const xFrac = xPos - xInt;
-      const yFrac = yPos - yInt;
-      if (xFrac > 1 - EPSILON) {
-        xInt = (xInt + 1) % w;
-      }
-      if (yFrac > 1 - EPSILON) {
-        yInt = (yInt + 1) % h;
-      }
-      const srcIdx = (yInt * w + xInt) * c;
-      for (let k = 0; k < c; k++) {
-        out[idx * c + k] = src[srcIdx + k];
-      }
+  for (let i = 0; i < h * w; i++) {
+    const offset = ref[i] * displacement * mod + ref[i];
+    let xi = Math.floor(offset % w);
+    let yi = Math.floor(offset % h);
+    if (xi < 0) xi += w;
+    if (yi < 0) yi += h;
+    const srcIdx = (yi * w + xi) * c;
+    const dstIdx = i * c;
+    for (let k = 0; k < c; k++) {
+      out[dstIdx + k] = src[srcIdx + k];
     }
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
