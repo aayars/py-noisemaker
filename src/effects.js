@@ -1024,9 +1024,12 @@ export async function outline(
       : Float32Array.from(srcDataMaybe || []);
   const out = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
-    const eVal = invert ? 1 - edgeData[i] : edgeData[i];
+    const edgeVal = Math.fround(edgeData[i] ?? 0);
+    const eVal = invert ? Math.fround(1 - edgeVal) : edgeVal;
     for (let k = 0; k < c; k++) {
-      out[i * c + k] = srcData[i * c + k] * eVal;
+      const base = i * c + k;
+      const srcVal = Math.fround(srcData[base] ?? 0);
+      out[base] = Math.fround(srcVal * eVal);
     }
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
@@ -1196,7 +1199,7 @@ export async function normalMap(tensor, shape, time, speed) {
     time,
     speed,
     ValueMask.conv2d_sobel_x,
-    true,
+    false,
     1,
   );
   const sobelY = await convolve(
@@ -1205,13 +1208,13 @@ export async function normalMap(tensor, shape, time, speed) {
     time,
     speed,
     ValueMask.conv2d_sobel_y,
-    true,
+    false,
     1,
   );
   const oneMinusX = await withTensorData(sobelX, (data) => {
     const out = new Float32Array(data.length);
     for (let i = 0; i < data.length; i++) {
-      out[i] = 1 - data[i];
+      out[i] = Math.fround(1 - (data[i] ?? 0));
     }
     return Tensor.fromArray(sobelX.ctx, out, sobelX.shape);
   });
@@ -1220,19 +1223,38 @@ export async function normalMap(tensor, shape, time, speed) {
     normalize(sobelY),
   ]);
   const [xData, yData] = await Promise.all([xTensor.read(), yTensor.read()]);
+  const xArr =
+    xData instanceof Float32Array
+      ? xData
+      : Float32Array.from(xData ?? []);
+  const yArr =
+    yData instanceof Float32Array
+      ? yData
+      : Float32Array.from(yData ?? []);
   const mag = new Float32Array(h * w);
   for (let i = 0; i < h * w; i++) {
-    mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
+    const xi = Math.fround(xArr[i] ?? 0);
+    const yi = Math.fround(yArr[i] ?? 0);
+    const sum = Math.fround(Math.fround(xi * xi) + Math.fround(yi * yi));
+    mag[i] = Math.fround(Math.sqrt(sum));
   }
   const zTensor = await normalize(
     Tensor.fromArray(tensor.ctx, mag, [h, w, 1]),
   );
   const zData = await zTensor.read();
+  const zArr =
+    zData instanceof Float32Array
+      ? zData
+      : Float32Array.from(zData ?? []);
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
-    const z = 1 - Math.abs(zData[i] * 2 - 1) * 0.5 + 0.5;
-    out[i * 3] = xData[i];
-    out[i * 3 + 1] = yData[i];
+    const xi = Math.fround(xArr[i] ?? 0);
+    const yi = Math.fround(yArr[i] ?? 0);
+    const zi = Math.fround(zArr[i] ?? 0);
+    const twoZ = Math.fround(Math.fround(zi * 2) - 1);
+    const z = Math.fround(1 - Math.abs(twoZ) * 0.5 + 0.5);
+    out[i * 3] = xi;
+    out[i * 3 + 1] = yi;
     out[i * 3 + 2] = z;
   }
   return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
@@ -2856,11 +2878,18 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
     }
     src = tmp;
   }
+  const srcArr =
+    src instanceof Float32Array ? src : Float32Array.from(src ?? []);
   const out = new Float32Array(expected);
-  const levelFactor = levels;
-  const halfStep = 0.5 / levelFactor;
+  const levelFactor = Math.fround(levels);
+  const invFactor = levelFactor === 0 ? 0 : Math.fround(1 / levelFactor);
+  const halfStep = Math.fround(invFactor * 0.5);
   for (let i = 0; i < expected; i++) {
-    out[i] = Math.floor(src[i] * levelFactor + halfStep) / levelFactor;
+    const value = Math.fround(srcArr[i] ?? 0);
+    const scaled = Math.fround(value * levelFactor);
+    const shifted = Math.fround(scaled + halfStep);
+    const quantized = Math.floor(shifted);
+    out[i] = Math.fround(quantized * invFactor);
   }
   let result = Tensor.fromArray(t.ctx, out, outShape);
   if (outShape[2] === 3) {
@@ -3015,10 +3044,10 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
     alphaChan = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
       const base = i * 4;
-      rgbData[i * 3] = src[base];
-      rgbData[i * 3 + 1] = src[base + 1];
-      rgbData[i * 3 + 2] = src[base + 2];
-      alphaChan[i] = src[base + 3];
+      rgbData[i * 3] = Math.fround(src[base] ?? 0);
+      rgbData[i * 3 + 1] = Math.fround(src[base + 1] ?? 0);
+      rgbData[i * 3 + 2] = Math.fround(src[base + 2] ?? 0);
+      alphaChan[i] = Math.fround(src[base + 3] ?? 0);
     }
     baseTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
   }
@@ -3026,35 +3055,48 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
   const clamped = await clamp01(baseTensor);
   const labTensor = await rgbToOklab(clamped);
   const labMaybe = labTensor.read();
-  const lab =
+  const labRaw =
     labMaybe && typeof labMaybe.then === "function" ? await labMaybe : labMaybe;
+  const lab =
+    labRaw instanceof Float32Array
+      ? labRaw
+      : Float32Array.from(labRaw ?? []);
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
-    const t = lab[i * 3];
-    out[i * 3] =
-      p.offset[0] +
-      p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0] + time));
-    out[i * 3 + 1] =
-      p.offset[1] +
-      p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1] + time));
-    out[i * 3 + 2] =
-      p.offset[2] +
-      p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2] + time));
+    const t = lab[i * 3] ?? 0;
+    const phase0 = (p.phase[0] ?? 0) + time;
+    const phase1 = (p.phase[1] ?? 0) + time;
+    const phase2 = (p.phase[2] ?? 0) + time;
+    const arg0 = p.freq[0] * t * 0.875 + 0.0625 + phase0;
+    const arg1 = p.freq[1] * t * 0.875 + 0.0625 + phase1;
+    const arg2 = p.freq[2] * t * 0.875 + 0.0625 + phase2;
+    const cos0 = Math.cos(TAU * arg0);
+    const cos1 = Math.cos(TAU * arg1);
+    const cos2 = Math.cos(TAU * arg2);
+    out[i * 3] = Math.fround(p.offset[0] + p.amp[0] * cos0);
+    out[i * 3 + 1] = Math.fround(p.offset[1] + p.amp[1] * cos1);
+    out[i * 3 + 2] = Math.fround(p.offset[2] + p.amp[2] * cos2);
   }
   const colored = Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 
   let tBlend;
   if (typeof alpha === "number") {
-    tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
+    const angle = Math.fround(alpha * Math.PI);
+    const cosVal = Math.fround(Math.cos(angle));
+    tBlend = Math.fround((1 - cosVal) * 0.5);
   } else {
     const aDataMaybe = alpha.read();
     const aData =
       aDataMaybe && typeof aDataMaybe.then === "function"
         ? await aDataMaybe
         : aDataMaybe;
-    const tData = new Float32Array(aData.length);
-    for (let i = 0; i < aData.length; i++) {
-      tData[i] = (1 - Math.cos(aData[i] * Math.PI)) / 2;
+    const arr =
+      aData instanceof Float32Array ? aData : Float32Array.from(aData ?? []);
+    const tData = new Float32Array(arr.length);
+    for (let i = 0; i < arr.length; i++) {
+      const angle = Math.fround(arr[i] * Math.PI);
+      const cosVal = Math.fround(Math.cos(angle));
+      tData[i] = Math.fround((1 - cosVal) * 0.5);
     }
     tBlend = Tensor.fromArray(alpha.ctx, tData, alpha.shape);
   }
@@ -3067,12 +3109,16 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
       blendedDataMaybe && typeof blendedDataMaybe.then === "function"
         ? await blendedDataMaybe
         : blendedDataMaybe;
+    const blendArr =
+      blendedData instanceof Float32Array
+        ? blendedData
+        : Float32Array.from(blendedData ?? []);
     const final = new Float32Array(h * w * 4);
     for (let i = 0; i < h * w; i++) {
-      final[i * 4] = blendedData[i * 3];
-      final[i * 4 + 1] = blendedData[i * 3 + 1];
-      final[i * 4 + 2] = blendedData[i * 3 + 2];
-      final[i * 4 + 3] = alphaChan[i];
+      final[i * 4] = Math.fround(blendArr[i * 3] ?? 0);
+      final[i * 4 + 1] = Math.fround(blendArr[i * 3 + 1] ?? 0);
+      final[i * 4 + 2] = Math.fround(blendArr[i * 3 + 2] ?? 0);
+      final[i * 4 + 3] = Math.fround(alphaChan[i] ?? 0);
     }
     blended = Tensor.fromArray(tensor.ctx, final, [h, w, 4]);
   }
@@ -5888,9 +5934,12 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   } else {
     baseData = new Float32Array(h * w * c);
   }
+  for (let i = 0; i < baseData.length; i++) {
+    baseData[i] = Math.fround(baseData[i] ?? 0);
+  }
   if (darkest) {
     for (let i = 0; i < baseData.length; i++) {
-      baseData[i] = 1 - baseData[i];
+      baseData[i] = Math.fround(1 - baseData[i]);
     }
   }
   const baseTensor = Tensor.fromArray(ctx, baseData, shape);
@@ -5900,27 +5949,29 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   if (angle !== false) {
     working = await rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
-  const data = await working.read();
+  const dataMaybe = await working.read();
+  const workingData =
+    dataMaybe instanceof Float32Array
+      ? dataMaybe
+      : Float32Array.from(dataMaybe ?? []);
   const finalizeOutput = async (tensorOut) => {
     const sortedMaybe = tensorOut.read();
     const sortedData =
       sortedMaybe && typeof sortedMaybe.then === "function"
         ? await sortedMaybe
         : sortedMaybe;
-    let sortedArr;
-    if (sortedData instanceof Float32Array) {
-      sortedArr = sortedData;
-    } else if (sortedData) {
-      sortedArr = Float32Array.from(sortedData);
-    } else {
-      sortedArr = new Float32Array(h * w * c);
-    }
+    const sortedArr =
+      sortedData instanceof Float32Array
+        ? sortedData
+        : sortedData
+        ? Float32Array.from(sortedData)
+        : new Float32Array(h * w * c);
     const out = new Float32Array(h * w * c);
     for (let i = 0; i < out.length; i++) {
-      const baseVal = baseData[i] ?? 0;
-      const sortedVal = sortedArr[i] ?? 0;
+      const baseVal = Math.fround(baseData[i] ?? 0);
+      const sortedVal = Math.fround(sortedArr[i] ?? 0);
       const maxVal = Math.max(baseVal, sortedVal);
-      out[i] = darkest ? 1 - maxVal : maxVal;
+      out[i] = Math.fround(darkest ? 1 - maxVal : maxVal);
     }
     return Tensor.fromArray(ctx, out, shape);
   };
@@ -5940,7 +5991,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
       let shift = 0;
       let maxVal = -Infinity;
       for (let x = 0; x < want; x++) {
-        const v = valuesData[rowOffset + x];
+        const v = Math.fround(valuesData[rowOffset + x] ?? 0);
         if (v > maxVal) {
           maxVal = v;
           shift = x;
@@ -5951,12 +6002,14 @@ async function _pixelSort(tensor, shape, angle, darkest) {
         for (let i = 0; i < want; i++) order[i] = i;
         order.sort(
           (a, b) =>
-            data[(rowOffset + b) * c + k] - data[(rowOffset + a) * c + k],
+            (workingData[(rowOffset + b) * c + k] ?? 0) -
+            (workingData[(rowOffset + a) * c + k] ?? 0),
         );
         for (let pos = 0; pos < want; pos++) {
           const srcIndex = order[pos];
           const srcBase = (rowOffset + srcIndex) * c;
-          sortedRow[pos * c + k] = data[srcBase + k];
+          const value = workingData[srcBase + k] ?? 0;
+          sortedRow[pos * c + k] = Math.fround(value);
         }
       }
       for (let x = 0; x < want; x++) {
@@ -5983,7 +6036,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   const rowBuffers = [];
   await ctx.withEncoder(async () => {
     for (let y = 0; y < want; y++) {
-      const row = data.subarray(y * want * c, (y + 1) * want * c);
+      const row = workingData.subarray(y * want * c, (y + 1) * want * c);
       const srcBuf = ctx.createGPUBuffer(row, GPUBufferUsage.STORAGE);
       const outBuf = ctx.createGPUBuffer(
         new Float32Array(want * c),
@@ -7041,32 +7094,47 @@ export async function nebula(tensor, shape, time, speed) {
   const overlayFreq = [randomInt(3, 4), 1];
   const subtractFreq = [randomInt(2, 4), 1];
   let overlay = await simpleMultires(overlayFreq, 6, ValueDistribution.exp);
-  const subtractor = await simpleMultires(
-    subtractFreq,
-    4,
-    ValueDistribution.exp,
-  );
+  const subtractor = await simpleMultires(subtractFreq, 4);
   const overlayData = await overlay.read();
   const subtractData = await subtractor.read();
+  const overlayArr =
+    overlayData instanceof Float32Array
+      ? overlayData
+      : Float32Array.from(overlayData ?? []);
+  const subtractArr =
+    subtractData instanceof Float32Array
+      ? subtractData
+      : Float32Array.from(subtractData ?? []);
   const diff = new Float32Array(h * w);
   for (let i = 0; i < diff.length; i++) {
-    diff[i] = (overlayData[i] - subtractData[i]) * 0.125;
+    const ov = Math.fround(overlayArr[i] ?? 0);
+    const sub = Math.fround(subtractArr[i] ?? 0);
+    diff[i] = Math.fround((ov - sub) * 0.125);
   }
   overlay = Tensor.fromArray(ctx, diff, valueShape);
 
   overlay = await rotate(overlay, valueShape, time, speed, randomInt(-15, 15));
   const rotatedData = await overlay.read();
+  const rotatedArr =
+    rotatedData instanceof Float32Array
+      ? rotatedData
+      : Float32Array.from(rotatedData ?? []);
   const baseData = await tensor.read();
+  const baseArr =
+    baseData instanceof Float32Array
+      ? baseData
+      : Float32Array.from(baseData ?? []);
   for (let i = 0; i < h * w; i++) {
-    const mult = 1 - rotatedData[i];
+    const mult = Math.fround(1 - (rotatedArr[i] ?? 0));
     for (let k = 0; k < c; k++) {
-      baseData[i * c + k] *= mult;
+      const idx = i * c + k;
+      baseArr[idx] = Math.fround((baseArr[idx] ?? 0) * mult);
     }
   }
 
   const expanded = new Float32Array(h * w * c);
   for (let i = 0; i < h * w; i++) {
-    const v = Math.max(rotatedData[i], 0);
+    const v = Math.fround(Math.max(rotatedArr[i] ?? 0, 0));
     for (let k = 0; k < c; k++) {
       expanded[i * c + k] = v;
     }
@@ -7074,11 +7142,16 @@ export async function nebula(tensor, shape, time, speed) {
   const overlayTensor = Tensor.fromArray(ctx, expanded, shape);
   const tinted = await tint(overlayTensor, shape, time, 1.0, 1.0);
   const tintedData = await tinted.read();
-  for (let i = 0; i < baseData.length; i++) {
-    baseData[i] += tintedData[i];
+  const tintedArr =
+    tintedData instanceof Float32Array
+      ? tintedData
+      : Float32Array.from(tintedData ?? []);
+  for (let i = 0; i < baseArr.length; i++) {
+    const tVal = Math.fround(tintedArr[i] ?? 0);
+    baseArr[i] = Math.fround((baseArr[i] ?? 0) + tVal);
   }
 
-  return Tensor.fromArray(ctx, baseData, shape);
+  return Tensor.fromArray(ctx, baseArr, shape);
 }
 register("nebula", nebula, {});
 
@@ -8015,6 +8088,10 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
     rowDataMaybe && typeof rowDataMaybe.then === "function"
       ? await rowDataMaybe
       : rowDataMaybe;
+  const rowArr =
+    rowData instanceof Float32Array
+      ? rowData
+      : Float32Array.from(rowData ?? []);
   const pad = new Float32Array(h * w * c);
   const yOff = 25;
   const xOff = w - totalWidth - 25;
@@ -8027,12 +8104,12 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
       const srcBase = (y * totalWidth + x) * c;
       const dstBase = (yy * w + xx) * c;
       for (let k = 0; k < c; k++) {
-        pad[dstBase + k] = rowData[srcBase + k];
+        pad[dstBase + k] = Math.fround(rowArr[srcBase + k] ?? 0);
       }
     }
   }
   const rendered = Tensor.fromArray(tensor.ctx, pad, shape);
-  const alpha = 0.5 + random() * 0.25;
+  const alpha = Math.fround(0.5 + random() * 0.25);
   const [renderedDataMaybe, tensorDataMaybe] = await Promise.all([
     rendered.read(),
     tensor.read(),
@@ -8045,10 +8122,19 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
     tensorDataMaybe && typeof tensorDataMaybe.then === "function"
       ? await tensorDataMaybe
       : tensorDataMaybe;
-  for (let i = 0; i < renderedData.length; i++) {
-    renderedData[i] = Math.max(renderedData[i], tensorData[i]);
+  const rendArr =
+    renderedData instanceof Float32Array
+      ? renderedData
+      : Float32Array.from(renderedData ?? []);
+  const tensorArr =
+    tensorData instanceof Float32Array
+      ? tensorData
+      : Float32Array.from(tensorData ?? []);
+  for (let i = 0; i < rendArr.length; i++) {
+    const maxVal = Math.max(rendArr[i] ?? 0, tensorArr[i] ?? 0);
+    rendArr[i] = Math.fround(maxVal);
   }
-  const maxTensor = Tensor.fromArray(tensor.ctx, renderedData, shape);
+  const maxTensor = Tensor.fromArray(tensor.ctx, rendArr, shape);
   return blend(tensor, maxTensor, alpha);
 }
 register("on_screen_display", onScreenDisplay, {});
