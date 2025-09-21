@@ -1,5 +1,6 @@
 import assert from 'assert';
 import { basic, multires } from '../src/generators.js';
+import { ColorSpace } from '../src/constants.js';
 import { register, EFFECTS, EFFECT_METADATA } from '../src/effectsRegistry.js';
 import { Effect } from '../src/composer.js';
 
@@ -31,3 +32,20 @@ await basic(1, [2, 2, 1], { octaveEffects: [eff], octave: 3 });
 assert.strictEqual(captured, 1 / 8);
 delete EFFECTS['test_octave_displacement'];
 delete EFFECT_METADATA['test_octave_displacement'];
+
+const base = await basic(2, [4, 4, 1], {
+  seed: 2,
+  color_space: ColorSpace.grayscale,
+});
+const withSin = await basic(2, [4, 4, 1], {
+  seed: 2,
+  color_space: ColorSpace.grayscale,
+  sin: 1.2,
+});
+const baseData = await base.read();
+const sinData = await withSin.read();
+const expected = new Float32Array(baseData.length);
+for (let i = 0; i < baseData.length; i++) {
+  expected[i] = Math.sin(1.2 * baseData[i]);
+}
+arraysClose(sinData, expected);

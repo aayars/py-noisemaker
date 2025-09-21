@@ -1210,7 +1210,9 @@ async function voronoiCPU(
 ) {
   const originalShape = shape;
   if (downsample) {
-    shape = [Math.floor(shape[0] * 0.5), Math.floor(shape[1] * 0.5), shape[2]];
+    const dh = Math.max(1, Math.floor(shape[0] * 0.5));
+    const dw = Math.max(1, Math.floor(shape[1] * 0.5));
+    shape = [dh, dw, shape[2]];
   }
   const [h, w, c] = shape;
   let xPts, yPts, count;
@@ -1610,7 +1612,9 @@ async function voronoiWebGPU(
 
   const originalShape = shape;
   if (downsample) {
-    shape = [Math.floor(shape[0] * 0.5), Math.floor(shape[1] * 0.5), shape[2]];
+    const dh = Math.max(1, Math.floor(shape[0] * 0.5));
+    const dw = Math.max(1, Math.floor(shape[1] * 0.5));
+    shape = [dh, dw, shape[2]];
   }
   const [h, w] = shape;
 

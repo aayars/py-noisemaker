@@ -240,17 +240,8 @@ export async function basic(freq, shape, opts = {}) {
     if (sin) {
       const data = await tensor.read();
       const out = new Float32Array(data.length);
-      let min = Infinity,
-        max = -Infinity;
       for (let i = 0; i < data.length; i++) {
-        const v = Math.sin(sin * data[i]);
-        out[i] = v;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      const range = max - min || 1;
-      for (let i = 0; i < out.length; i++) {
-        out[i] = (out[i] - min) / range;
+        out[i] = Math.sin(sin * data[i]);
       }
       tensor = Tensor.fromArray(ctx, out, tensor.shape);
     }

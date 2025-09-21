@@ -1726,15 +1726,23 @@ export function convolution(tensor, kernel, opts = {}) {
         }
       }
 
-      const startY =
-        Math.floor((outH - h) / 2) + Math.floor((kh - 1) / 2);
-      const startX =
-        Math.floor((outW - w) / 2) + Math.floor((kw - 1) / 2);
+      const cropY = Math.max(0, Math.floor((outH - h) / 2));
+      const cropX = Math.max(0, Math.floor((outW - w) / 2));
+      const padY = Math.max(0, Math.floor((h - outH) / 2));
+      const padX = Math.max(0, Math.floor((w - outW) / 2));
       const out = new Float32Array(h * w * c);
       for (let y = 0; y < h; y++) {
+        const srcY = y + cropY - padY;
         for (let x = 0; x < w; x++) {
-          const srcBase = ((startY + y) * outW + (startX + x)) * c;
+          const srcX = x + cropX - padX;
           const dst = (y * w + x) * c;
+          if (srcY < 0 || srcY >= outH || srcX < 0 || srcX >= outW) {
+            for (let k = 0; k < c; k++) {
+              out[dst + k] = 0;
+            }
+            continue;
+          }
+          const srcBase = (srcY * outW + srcX) * c;
           for (let k = 0; k < c; k++) {
             out[dst + k] = conv[srcBase + k];
           }

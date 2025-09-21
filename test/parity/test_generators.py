@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from noisemaker import generators, rng, value
-from noisemaker.constants import ValueDistribution
+from noisemaker.constants import ColorSpace, ValueDistribution
 
 from .utils import js_generator
 
@@ -30,6 +30,29 @@ def test_basic(seed):
     tensor = generators.basic(2, [128, 128, 3])
     assert tensor.shape == (128, 128, 3)
     js, js_calls = js_generator("basic", seed)
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_basic_grayscale_sin(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.basic(
+        2,
+        [128, 128, 1],
+        color_space=ColorSpace.grayscale,
+        sin=1.2,
+    )
+    assert tensor.shape == (128, 128, 1)
+    js, js_calls = js_generator(
+        "basic",
+        seed,
+        shape=[128, 128, 1],
+        color_space=ColorSpace.grayscale.value,
+        sin=1.2,
+    )
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
 

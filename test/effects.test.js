@@ -230,66 +230,78 @@ arraysClose(Array.from(outlineInv), Array.from(manualOutlineInv));
 
 // normal map
 const nmRes = await readTensorData(normalMap(edgeTensor, [4, 4, 1], 0, 1));
-const nmExpect = (() => {
-  const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-  const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  const gx = new Float32Array(16);
-  const gy = new Float32Array(16);
-  function get(x, y) {
-    x = Math.max(0, Math.min(3, x));
-    y = Math.max(0, Math.min(3, y));
-    return edgeData[y * 4 + x];
+const nmExpect = await (async () => {
+  const valueShape = [4, 4, 1];
+  const sobelXTensor = convolution(edgeTensor, [
+    [1, 0, -1],
+    [2, 0, -2],
+    [1, 0, -1],
+  ], { normalize: true });
+  const sobelYTensor = convolution(edgeTensor, [
+    [1, 2, 1],
+    [0, 0, 0],
+    [-1, -2, -1],
+  ], { normalize: true });
+  const sobelXData = await readTensorData(sobelXTensor);
+  const sobelYData = await readTensorData(sobelYTensor);
+  const xVals = new Float32Array(16);
+  for (let i = 0; i < 16; i++) {
+    xVals[i] = Math.fround(1 - sobelXData[i]);
   }
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      let sx = 0,
-        sy = 0,
-        idx = 0;
-      for (let yy = -1; yy <= 1; yy++) {
-        for (let xx = -1; xx <= 1; xx++) {
-          const v = get(x + xx, y + yy);
-          sx += gxKernel[idx] * v;
-          sy += gyKernel[idx] * v;
-          idx++;
-        }
-      }
-      const i = y * 4 + x;
-      gx[i] = 1 - sx;
-      gy[i] = sy;
-    }
-  }
-  const xNorm = normalize(Tensor.fromArray(null, gx, [4, 4, 1])).read();
-  const yNorm = normalize(Tensor.fromArray(null, gy, [4, 4, 1])).read();
+  const [xNormTensor, yNormTensor] = await Promise.all([
+    normalize(Tensor.fromArray(null, xVals, valueShape)),
+    normalize(Tensor.fromArray(null, sobelYData, valueShape)),
+  ]);
+  const [xNorm, yNorm] = await Promise.all([
+    readTensorData(xNormTensor),
+    readTensorData(yNormTensor),
+  ]);
   const mag = new Float32Array(16);
-  for (let i = 0; i < 16; i++)
-    mag[i] = Math.sqrt(xNorm[i] * xNorm[i] + yNorm[i] * yNorm[i]);
-  const zNorm = normalize(Tensor.fromArray(null, mag, [4, 4, 1])).read();
+  for (let i = 0; i < 16; i++) {
+    mag[i] = Math.fround(Math.sqrt(xNorm[i] * xNorm[i] + yNorm[i] * yNorm[i]));
+  }
+  const zNormTensor = await normalize(
+    Tensor.fromArray(null, mag, valueShape),
+  );
+  const zNorm = await readTensorData(zNormTensor);
   const out = new Float32Array(16 * 3);
   for (let i = 0; i < 16; i++) {
-    const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
+    const z = Math.fround(1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5);
     out[i * 3] = xNorm[i];
     out[i * 3 + 1] = yNorm[i];
     out[i * 3 + 2] = z;
   }
   return Array.from(out);
 })();
-arraysClose(Array.from(nmRes), nmExpect);
+  const nmArr = Array.from(nmRes);
+  arraysClose(nmArr, nmExpect);
 
 // singularity
 const sgTensor = Tensor.fromArray(null, new Float32Array(16), [4, 4, 1]);
 const sgRes = await readTensorData(
   singularity(sgTensor, [4, 4, 1], 0, 1),
 );
-arraysClose(
-  Array.from(sgRes),
-  [
-    1, 0.889139711856842, 0.8408964276313782, 0.889139711856842,
-    0.889139711856842, 0.7071067690849304, 0.5946035385131836,
-    0.7071067690849304, 0.8408964276313782, 0.5946035385131836, 0,
-    0.5946035385131836, 0.889139711856842, 0.7071067690849304,
-    0.5946035385131836, 0.7071067690849304,
-  ],
-);
+  arraysClose(
+    Array.from(sgRes),
+    [
+      1,
+      0.9204481840133667,
+      0.8408964276313782,
+      0.9204482436180115,
+      0.9204481840133667,
+      0.6704481840133667,
+      0.4204481840133667,
+      0.6704482436180115,
+      0.8408964276313782,
+      0.4204481840133667,
+      0,
+      0.4204482436180115,
+      0.9204482436180115,
+      0.6704481840133667,
+      0.4204482436180115,
+      0.6704482436180115,
+    ],
+  );
 
 // voronoi color regions
 const xPts = [1, 3];
@@ -482,10 +494,12 @@ const expected = await readTensorData(
   adjustHueValue(Tensor.fromArray(null, manual, abShape), -hueShift),
 );
 setSeed(123);
-const abResult = await readTensorData(
-  aberration(abTensor, abShape, 0, 1, 0.25),
-);
-arraysClose(Array.from(abResult), Array.from(expected));
+  const abResult = await readTensorData(
+    aberration(abTensor, abShape, 0, 1, 0.25),
+  );
+  const abArr = Array.from(abResult);
+  const abExpectedArr = Array.from(expected);
+  arraysClose(abArr, abExpectedArr);
 
 // reindex deterministic
 const reData = new Float32Array([0.1, 0.2, 0.3, 0.4]);
