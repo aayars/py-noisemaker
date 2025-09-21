@@ -10,7 +10,12 @@ import numpy as np
 import pytest
 
 from noisemaker import generators, rng, value
-from noisemaker.constants import ColorSpace, ValueDistribution
+from noisemaker.constants import (
+    ColorSpace,
+    InterpolationType,
+    ValueDistribution,
+    ValueMask,
+)
 
 from .utils import js_generator
 
@@ -70,6 +75,38 @@ def test_basic_oklab(seed):
         color_space=ColorSpace.oklab.value,
     )
     assert np.allclose(tensor.numpy(), js, atol=1e-5)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_basic_center_brightness_mask_constant(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.basic(
+        2,
+        [128, 128, 3],
+        distrib=ValueDistribution.center_hexagon,
+        spline_order=InterpolationType.constant,
+        brightness_distrib=ValueDistribution.simplex,
+        brightness_freq=[3, 4],
+        mask=ValueMask.truchet_tile_03,
+        color_space=ColorSpace.rgb,
+        sin=1.0,
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "basic",
+        seed,
+        distrib=ValueDistribution.center_hexagon.value,
+        splineOrder=InterpolationType.constant.value,
+        brightnessDistrib=ValueDistribution.simplex.value,
+        brightnessFreq=[3, 4],
+        mask=ValueMask.truchet_tile_03.value,
+        color_space=ColorSpace.rgb.value,
+        sin=1.0,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
 
 

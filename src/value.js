@@ -104,6 +104,157 @@ function pinCorners(tensor, shape, freq, corners) {
 // in sync with the enumeration so any new distributions automatically opt in.
 const GPU_DISTRIBS = new Set(Object.values(ValueDistribution));
 
+const CENTER_DISTRIBUTIONS = new Set([
+  ValueDistribution.center_circle,
+  ValueDistribution.center_triangle,
+  ValueDistribution.center_diamond,
+  ValueDistribution.center_square,
+  ValueDistribution.center_pentagon,
+  ValueDistribution.center_hexagon,
+  ValueDistribution.center_heptagon,
+  ValueDistribution.center_octagon,
+  ValueDistribution.center_nonagon,
+  ValueDistribution.center_decagon,
+  ValueDistribution.center_hendecagon,
+  ValueDistribution.center_dodecagon,
+]);
+
+function centerDistributionConfig(distrib) {
+  let metric = DistanceMetric.euclidean;
+  let sdfSides = 3;
+  switch (distrib) {
+    case ValueDistribution.center_triangle:
+      metric = DistanceMetric.triangular;
+      break;
+    case ValueDistribution.center_diamond:
+      metric = DistanceMetric.manhattan;
+      break;
+    case ValueDistribution.center_square:
+      metric = DistanceMetric.chebyshev;
+      break;
+    case ValueDistribution.center_pentagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 5;
+      break;
+    case ValueDistribution.center_hexagon:
+      metric = DistanceMetric.hexagram;
+      break;
+    case ValueDistribution.center_heptagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 7;
+      break;
+    case ValueDistribution.center_octagon:
+      metric = DistanceMetric.octagram;
+      break;
+    case ValueDistribution.center_nonagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 9;
+      break;
+    case ValueDistribution.center_decagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 10;
+      break;
+    case ValueDistribution.center_hendecagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 11;
+      break;
+    case ValueDistribution.center_dodecagon:
+      metric = DistanceMetric.sdf;
+      sdfSides = 12;
+      break;
+    default:
+      metric = DistanceMetric.euclidean;
+      break;
+  }
+  return { metric, sdfSides };
+}
+
+function generateCenterDistribution(
+  ctx,
+  initHeight,
+  initWidth,
+  channels,
+  freq,
+  distrib,
+  time,
+  speed,
+) {
+  const { metric, sdfSides } = centerDistributionConfig(distrib);
+  let downHeight = Math.max(1, Math.floor(initHeight * 0.5));
+  let downWidth = Math.max(1, Math.floor(initWidth * 0.5));
+  if (initHeight >= 2) {
+    downHeight = Math.max(2, downHeight);
+  }
+  if (initWidth >= 2) {
+    downWidth = Math.max(2, downWidth);
+  }
+  downHeight = Math.min(initHeight, downHeight);
+  downWidth = Math.min(initWidth, downWidth);
+  const totalDown = downHeight * downWidth;
+  const dist = new Float32Array(totalDown);
+  const centerX = Math.fround(downWidth / 2);
+  const centerY = Math.fround(downHeight / 2);
+  const invWidth = downWidth > 0 ? Math.fround(1 / downWidth) : 1;
+  const invHeight = downHeight > 0 ? Math.fround(1 / downHeight) : 1;
+  for (let y = 0; y < downHeight; y++) {
+    const dy = Math.fround((y - centerY) * invHeight);
+    for (let x = 0; x < downWidth; x++) {
+      const dx = Math.fround((x - centerX) * invWidth);
+      const idx = y * downWidth + x;
+      dist[idx] = Math.fround(distance(dx, dy, metric, sdfSides));
+    }
+  }
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < totalDown; i++) {
+    const v = dist[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const minF = Math.fround(min);
+  const range = Math.fround(max - min) || Math.fround(1);
+  for (let i = 0; i < totalDown; i++) {
+    const norm = Math.fround((dist[i] - minF) / range);
+    dist[i] = Math.fround(Math.sqrt(Math.max(0, Math.min(1, norm))));
+  }
+  const downTensor = Tensor.fromArray(ctx, dist, [downHeight, downWidth, 1]);
+  const finalize = (resized) => {
+    const baseDataMaybe = resized.read();
+    const build = (baseData) => {
+      const total = initHeight * initWidth;
+      const out = new Float32Array(total * channels);
+      const tau = Math.fround(Math.PI * 2);
+      const freqScale = Math.max(freq[0] ?? freq, freq[1] ?? freq[0] ?? freq);
+      const freqF = Math.fround(freqScale || 1);
+      const roundedSpeed = speed > 0 ? Math.floor(1 + speed) : Math.ceil(-1 + speed);
+      const offset = Math.fround(tau * Math.fround(time) * Math.fround(roundedSpeed));
+      for (let i = 0; i < total; i++) {
+        const angle = Math.fround(Math.fround(baseData[i]) * freqF * tau - offset);
+        const sine = Math.fround(Math.sin(angle));
+        const value = Math.fround(Math.fround(sine + 1) * 0.5);
+        const base = i * channels;
+        for (let c = 0; c < channels; c++) {
+          out[base + c] = value;
+        }
+      }
+      return Tensor.fromArray(ctx, out, [initHeight, initWidth, channels]);
+    };
+    if (baseDataMaybe && typeof baseDataMaybe.then === 'function') {
+      return baseDataMaybe.then(build);
+    }
+    return build(baseDataMaybe);
+  };
+  const resized = resample(
+    downTensor,
+    [initHeight, initWidth, 1],
+    InterpolationType.bicubic,
+  );
+  if (resized && typeof resized.then === 'function') {
+    return resized.then(finalize);
+  }
+  return finalize(resized);
+}
+
 export function valueNoise(count, freq = 8) {
   // RNG: freq+1 calls to random for lattice points 0..freq
   const lattice = Array.from({ length: freq + 1 }, () => random());
@@ -289,8 +440,20 @@ export function values(freq, shape, opts = {}) {
   const initWidth = needsFullSize ? width : fx;
   const initHeight = needsFullSize ? height : fy;
   const size = initHeight * initWidth * channels;
+  const freqPair = [fy, fx];
   let tensor;
-  if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
+  if (CENTER_DISTRIBUTIONS.has(distrib)) {
+    tensor = generateCenterDistribution(
+      ctx,
+      initHeight,
+      initWidth,
+      channels,
+      freqPair,
+      distrib,
+      time,
+      speed,
+    );
+  } else if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
     tensor = simplexNoise([initHeight, initWidth, channels], { time, seed, speed });
     if (distrib === ValueDistribution.exp) {
       tensor = withTensorData(tensor, (data) => {
@@ -321,69 +484,6 @@ export function values(freq, shape, opts = {}) {
           case ValueDistribution.row_index:
             val = initWidth === 1 ? 0 : x / (initWidth - 1);
             break;
-          case ValueDistribution.center_circle:
-          case ValueDistribution.center_triangle:
-          case ValueDistribution.center_diamond:
-          case ValueDistribution.center_square:
-          case ValueDistribution.center_pentagon:
-          case ValueDistribution.center_hexagon:
-          case ValueDistribution.center_heptagon:
-          case ValueDistribution.center_octagon:
-          case ValueDistribution.center_nonagon:
-          case ValueDistribution.center_decagon:
-          case ValueDistribution.center_hendecagon:
-          case ValueDistribution.center_dodecagon: {
-            const dx = (x + 0.5) / initWidth - 0.5;
-            const dy = (y + 0.5) / initHeight - 0.5;
-            let metric = DistanceMetric.euclidean;
-            let sdfSides = 5;
-            switch (distrib) {
-              case ValueDistribution.center_triangle:
-                metric = DistanceMetric.triangular;
-                break;
-              case ValueDistribution.center_diamond:
-                metric = DistanceMetric.manhattan;
-                break;
-              case ValueDistribution.center_square:
-                metric = DistanceMetric.chebyshev;
-                break;
-              case ValueDistribution.center_pentagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 5;
-                break;
-              case ValueDistribution.center_hexagon:
-                metric = DistanceMetric.hexagram;
-                break;
-              case ValueDistribution.center_heptagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 7;
-                break;
-              case ValueDistribution.center_octagon:
-                metric = DistanceMetric.octagram;
-                break;
-              case ValueDistribution.center_nonagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 9;
-                break;
-              case ValueDistribution.center_decagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 10;
-                break;
-              case ValueDistribution.center_hendecagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 11;
-                break;
-              case ValueDistribution.center_dodecagon:
-                metric = DistanceMetric.sdf;
-                sdfSides = 12;
-                break;
-              default:
-                metric = DistanceMetric.euclidean;
-            }
-            const d = distance(dx, dy, metric, sdfSides);
-            val = Math.max(0, 1 - d * 2);
-            break;
-          }
           default:
             val = rand2D(x, y, seed, time, speed);
             break;
@@ -566,8 +666,8 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
         for (let k = 0; k < nc; k++) {
           let val;
           if (splineOrder === InterpolationType.constant) {
-            const sampleX = Math.round(gx);
-            const sampleY = Math.round(gy);
+            const sampleX = Math.floor(gx);
+            const sampleY = Math.floor(gy);
             val = sampleWrapped(sampleX, sampleY, k);
           } else if (
             splineOrder === InterpolationType.linear ||
