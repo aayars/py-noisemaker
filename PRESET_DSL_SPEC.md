@@ -73,6 +73,11 @@ HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
 * Floats may omit the leading zero (e.g. `.5`).
 * Trailing commas in lists, dictionaries and argument lists are allowed.
 * `Enum` resolves to JavaScript enum objects exported from `constants.js`.
+* Whitespace and comments are skipped between tokens.  The lexer recognises
+  `//` single-line comments that run until the newline and `/* … */` block
+  comments.  Block comments must be terminated before the end of the file;
+  otherwise tokenisation fails with an "Unterminated multi-line comment"
+  error.
 
 ## 4. Data Types
 
@@ -119,6 +124,7 @@ validation, issuing `S002` when clamping out‑of‑range values.
 |------|----------|----------|---------|
 | L001 | Lexer    | Error    | Unexpected character |
 | L002 | Lexer    | Error    | Unterminated string literal |
+| L003 | Lexer    | Error    | Unterminated multi-line comment |
 | P001 | Parser   | Error    | Unexpected token |
 | P002 | Parser   | Error    | Expected closing parenthesis |
 | S001 | Semantic | Error    | Unknown identifier |

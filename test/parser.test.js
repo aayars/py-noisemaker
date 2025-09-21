@@ -53,4 +53,26 @@ assert.strictEqual(mulUnaryMinus.body.type, 'BinaryExpr');
 const mulUnaryPlus = parse(tokenize('1 * +2'));
 assert.strictEqual(mulUnaryPlus.body.type, 'BinaryExpr');
 
+// C-style comments should be ignored
+const commentSource = `
+// Leading single-line comment
+{
+    /* Multi-line
+       comment */
+    layers: [noise()] // Trailing single-line comment
+}
+`;
+const commentAst = parse(tokenize(commentSource));
+assert.strictEqual(commentAst.body.type, 'ObjectExpr');
+
+// Unterminated multi-line comment should throw
+error = null;
+try {
+  tokenize('/* unterminated comment');
+} catch (e) {
+  error = e;
+}
+assert.ok(error instanceof Error);
+assert.ok(error.message.includes('Unterminated multi-line comment'));
+
 console.log('parser tests passed');

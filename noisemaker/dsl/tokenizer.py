@@ -44,8 +44,30 @@ def tokenize(source):
             ch = peek()
             if ch in (' ', '\t', '\r', '\n'):
                 advance()
-            else:
-                break
+                continue
+            if ch == '/' and peek(1) == '/':
+                advance()
+                advance()
+                while i < length and peek() != '\n':
+                    advance()
+                continue
+            if ch == '/' and peek(1) == '*':
+                comment_line = line
+                comment_column = column
+                advance()
+                advance()
+                closed = False
+                while i < length:
+                    if peek() == '*' and peek(1) == '/':
+                        advance()
+                        advance()
+                        closed = True
+                        break
+                    advance()
+                if not closed:
+                    raise make_error('Unterminated multi-line comment', comment_line, comment_column)
+                continue
+            break
     while i < length:
         skip_whitespace()
         if i >= length:

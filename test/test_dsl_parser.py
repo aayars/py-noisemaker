@@ -38,3 +38,22 @@ def test_python_style_conditional_parse():
 def test_null_parse():
     ast = parse(tokenize('null'))
     assert ast['body']['type'] == 'NullLiteral'
+
+
+def test_c_style_comments():
+    source = '''
+    // Leading single-line comment
+    {
+        /* Multi-line
+           comment */
+        layers: [noise()] // Trailing single-line comment
+    }
+    '''
+    ast = parse(tokenize(source))
+    assert ast['body']['type'] == 'ObjectExpr'
+
+
+def test_unterminated_multiline_comment():
+    with pytest.raises(Exception) as e:
+        tokenize('/* unterminated comment')
+    assert 'Unterminated multi-line comment' in str(e.value)

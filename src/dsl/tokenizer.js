@@ -60,9 +60,37 @@ export function tokenize(source) {
       const ch = peek();
       if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') {
         advance();
-      } else {
-        break;
+        continue;
       }
+      if (ch === '/' && peek(1) === '/') {
+        advance();
+        advance();
+        while (i < length && peek() !== '\n') {
+          advance();
+        }
+        continue;
+      }
+      if (ch === '/' && peek(1) === '*') {
+        const commentLine = line;
+        const commentColumn = column;
+        advance();
+        advance();
+        let closed = false;
+        while (i < length) {
+          if (peek() === '*' && peek(1) === '/') {
+            advance();
+            advance();
+            closed = true;
+            break;
+          }
+          advance();
+        }
+        if (!closed) {
+          throw makeError('Unterminated multi-line comment', commentLine, commentColumn);
+        }
+        continue;
+      }
+      break;
     }
   }
 
