@@ -2678,7 +2678,7 @@ export async function convFeedback(
   shape,
   time,
   speed,
-  iterations = 50,
+  iterations = 100,
   alpha = 0.5,
 ) {
   const halfShape = [
@@ -2689,7 +2689,10 @@ export async function convFeedback(
   let convolved = await proportionalDownsample(tensor, shape, halfShape);
   const blurKernel = await getKernel(ValueMask.conv2d_blur);
   const sharpenKernel = await getKernel(ValueMask.conv2d_sharpen);
-  const iterCount = 100;
+  const iterCountRaw = Number(iterations);
+  const iterCount = Number.isFinite(iterCountRaw)
+    ? Math.max(0, Math.floor(iterCountRaw))
+    : 100;
   for (let i = 0; i < iterCount; i++) {
     convolved = await convolution(convolved, blurKernel);
     convolved = await convolution(convolved, sharpenKernel);
@@ -2710,7 +2713,7 @@ export async function convFeedback(
   const resampled = await resample(combinedTensor, shape);
   return blend(tensor, resampled, alpha);
 }
-register("conv_feedback", convFeedback, { iterations: 50, alpha: 0.5 });
+register("conv_feedback", convFeedback, { iterations: 100, alpha: 0.5 });
 
 export function blendLayers(control, shape, feather = 1, ...layers) {
   let layerCount = layers.length;

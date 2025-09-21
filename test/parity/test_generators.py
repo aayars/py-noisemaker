@@ -177,7 +177,6 @@ def test_multires_single_octave(seed):
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-<<<<<<< ours
 def test_multires_single_octave_hue_rotation(seed):
     rng.set_seed(seed)
     value.set_seed(seed)
@@ -199,7 +198,11 @@ def test_multires_single_octave_hue_rotation(seed):
         octaves=1,
         hue_rotation=0,
     )
-=======
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_multires_frequency_list_single_octave(seed):
     rng.set_seed(seed)
     value.set_seed(seed)
@@ -224,7 +227,6 @@ def test_multires_frequency_list_single_octave(seed):
         octaves=1,
     )
     assert js.shape == (128, 96, 3)
->>>>>>> theirs
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
 
