@@ -737,6 +737,8 @@ const vxManualTensor = await refract(
   Tensor.fromArray(null, vxX, vShape),
   Tensor.fromArray(null, vxY, vShape),
   randV * 100 * 64,
+  InterpolationType.bicubic,
+  false,
 );
 const vxManual = await readTensorData(vxManualTensor);
 setSeed(1);

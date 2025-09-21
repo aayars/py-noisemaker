@@ -1268,22 +1268,69 @@ async function voronoiCPU(
   }
   const [h, w, c] = shape;
   let xPts, yPts, count;
+  const f32 = Math.fround;
+  const blendCosineScalar = (a, b, g) => {
+    const aa = f32(a ?? 0);
+    const bb = f32(b ?? 0);
+    const gg = f32(g);
+    const angle = f32(gg * Math.PI);
+    const cosVal = f32(Math.cos(angle));
+    const g2 = f32((1 - cosVal) * 0.5);
+    const oneMinus = f32(1 - g2);
+    const termA = f32(f32(aa) * oneMinus);
+    const termB = f32(f32(bb) * g2);
+    return f32(termA + termB);
+  };
   if (!xy) {
-    [xPts, yPts] = pointCloud(pointFreq, {
-      distrib: pointDistrib,
-      shape,
-      corners: pointCorners,
-      generations: pointGenerations,
-      drift: pointDrift,
-      time,
-      speed,
-    });
-    count = xPts.length;
+    let baseX;
+    let baseY;
+    if (pointFreq === 1) {
+      [baseX, baseY] = pointCloud(pointFreq, {
+        distrib: PointDistribution.square,
+        shape,
+      });
+    } else {
+      [baseX, baseY] = pointCloud(pointFreq, {
+        distrib: pointDistrib,
+        shape,
+        corners: pointCorners,
+        generations: pointGenerations,
+        drift: pointDrift,
+        time,
+        speed,
+      });
+    }
+    const xBase = Array.from(baseX ?? []);
+    const yBase = Array.from(baseY ?? []);
+    count = xBase.length;
+    if (!count) {
+      return tensor;
+    }
+    const blendedX = new Float32Array(count);
+    const blendedY = new Float32Array(count);
+    const timeVal = f32(time);
+    for (let i = 0; i < count; i++) {
+      const next = (i + 1) % count;
+      blendedX[i] = blendCosineScalar(xBase[i], xBase[next], timeVal);
+      blendedY[i] = blendCosineScalar(yBase[i], yBase[next], timeVal);
+    }
+    xPts = blendedX;
+    yPts = blendedY;
   } else {
-    [xPts, yPts, count] = xy;
+    let rawX;
+    let rawY;
+    let rawCount;
+    [rawX, rawY, rawCount] = xy;
+    xPts = Float32Array.from(rawX ?? []);
+    yPts = Float32Array.from(rawY ?? []);
+    count = rawCount ?? xPts.length;
     if (downsample) {
-      xPts = xPts.map((v) => v / 2);
-      yPts = yPts.map((v) => v / 2);
+      for (let i = 0; i < xPts.length; i++) {
+        xPts[i] = f32(xPts[i] / 2);
+      }
+      for (let i = 0; i < yPts.length; i++) {
+        yPts[i] = f32(yPts[i] / 2);
+      }
     }
   }
   if (count === 0) return tensor;
@@ -1539,19 +1586,26 @@ async function voronoiCPU(
 
     let rx = outTensor;
     let ry;
+    const [outH, outW] = outTensor.shape;
     if (refractYFromOffset) {
-      ry = await offsetTensor(outTensor, Math.floor(w * 0.5), Math.floor(h * 0.5));
+      ry = await offsetTensor(outTensor, Math.floor(outW * 0.5), Math.floor(outH * 0.5));
     } else {
       const data = await outTensor.read();
-      const cosData = new Float32Array(h * w);
-      const sinData = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) {
-        const v = data[i] * TAU;
-        cosData[i] = Math.cos(v);
-        sinData[i] = Math.sin(v);
+      const size = outH * outW;
+      const cosData = new Float32Array(size);
+      const sinData = new Float32Array(size);
+      for (let i = 0; i < size; i++) {
+        const angle = f32(f32(data[i] ?? 0) * TAU);
+        const cosVal = f32(Math.cos(angle));
+        const sinVal = f32(Math.sin(angle));
+        const cx = f32(cosVal * 0.5 + 0.5);
+        const cy = f32(sinVal * 0.5 + 0.5);
+        cosData[i] = f32(Math.min(Math.max(cx, 0), 1));
+        sinData[i] = f32(Math.min(Math.max(cy, 0), 1));
       }
-      rx = Tensor.fromArray(outTensor.ctx, cosData, [h, w, 1]);
-      ry = Tensor.fromArray(outTensor.ctx, sinData, [h, w, 1]);
+      const ctx = outTensor.ctx || (tensor ? tensor.ctx : null);
+      rx = Tensor.fromArray(ctx, cosData, [outH, outW, 1]);
+      ry = Tensor.fromArray(ctx, sinData, [outH, outW, 1]);
     }
     outTensor = await refractOp(
       tensor,
@@ -1562,7 +1616,7 @@ async function voronoiCPU(
       true,
     );
   }
-  if (tensor && diagramType !== VoronoiDiagramType.color_regions) {
+  if (tensor) {
     return blend(tensor, outTensor, alpha);
   }
   return outTensor;
@@ -3125,7 +3179,14 @@ export async function vortex(tensor, shape, time, speed, displacement = 64) {
   }
   x = Tensor.fromArray(tensor.ctx, xData, valueShape);
   y = Tensor.fromArray(tensor.ctx, yData, valueShape);
-  return refractOp(tensor, x, y, disp);
+  return refractOp(
+    tensor,
+    x,
+    y,
+    disp,
+    InterpolationType.bicubic,
+    false,
+  );
 }
 register("vortex", vortex, { displacement: 64 });
 
