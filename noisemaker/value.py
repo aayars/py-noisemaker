@@ -893,25 +893,45 @@ def normalized_sine(value):
 def _conform_kernel_to_tensor(kernel, tensor, shape):
     """Re-shape a convolution kernel to match the given tensor's color dimensions."""
 
-    values, _ = masks.mask_values(kernel)
+    if isinstance(kernel, ValueMask):
+        values, _ = masks.mask_values(kernel)
+        arr = np.asarray(values, dtype=np.float32)
+    else:
+        arr = np.asarray(kernel, dtype=np.float32)
 
-    length = len(values)
+    if arr.ndim == 3 and arr.shape[-1] == 1:
+        arr = arr[:, :, 0]
 
+    if arr.ndim != 2:
+        raise ValueError("Convolution kernel must be 2-D")
+
+    height, width = arr.shape
     channels = shape[-1]
 
-    temp = np.repeat(values, channels)
+    tiled = np.repeat(arr[:, :, None], channels, axis=2)
 
-    temp = tf.reshape(temp, (length, length, channels, 1))
+    temp = tf.reshape(tiled, (height, width, channels, 1))
 
     temp = tf.cast(temp, tf.float32)
 
-    temp /= tf.maximum(tf.reduce_max(temp), tf.reduce_min(temp) * -1)
+    # Normalize the kernel to match the JavaScript implementation, which scales
+    # the filter by the largest absolute value to preserve relative weights.
+    denom = tf.maximum(tf.reduce_max(temp), tf.reduce_min(temp) * -1)
+    temp = tf.math.divide_no_nan(temp, denom)
 
     return temp
 
 
 @effect()
-def convolve(tensor, shape, kernel=None, with_normalize=True, alpha=1.0, time=0.0, speed=1.0):
+def convolve(
+    tensor,
+    shape,
+    kernel=ValueMask.conv2d_blur,
+    with_normalize=True,
+    alpha=1.0,
+    time=0.0,
+    speed=1.0,
+):
     """
     Apply a convolution kernel to an image tensor.
 
@@ -929,6 +949,11 @@ def convolve(tensor, shape, kernel=None, with_normalize=True, alpha=1.0, time=0.
     """
 
     height, width, channels = shape
+
+    if kernel is None:
+        kernel = ValueMask.conv2d_blur
+
+    kernel = coerce_enum(kernel, ValueMask)
 
     kernel_values = _conform_kernel_to_tensor(kernel, tensor, shape)
 
