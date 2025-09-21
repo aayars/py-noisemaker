@@ -5731,17 +5731,14 @@ async function _pixelSort(tensor, shape, angle, darkest) {
       );
     }
     sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
-    if (darkest) {
-      sortedTensor = await withTensorData(sortedTensor, (sortedData) => {
-        const out = new Float32Array(sortedData.length);
-        for (let i = 0; i < sortedData.length; i++) {
-          out[i] = 1 - sortedData[i];
-        }
-        return Tensor.fromArray(sortedTensor.ctx, out, sortedTensor.shape);
-      });
+    const sortedData = await sortedTensor.read();
+    const out = new Float32Array(sortedData.length);
+    for (let i = 0; i < sortedData.length; i++) {
+      const baseVal = baseData[i];
+      const maxVal = Math.max(baseVal, sortedData[i]);
+      out[i] = darkest ? 1 - maxVal : maxVal;
     }
-    const maskTensor = await toValueMap(sortedTensor);
-    return await blend(baseTensor, sortedTensor, maskTensor);
+    return Tensor.fromArray(ctx, out, shape);
   }
   const sorted = new Float32Array(want * want * c);
   const rowBuffers = [];
