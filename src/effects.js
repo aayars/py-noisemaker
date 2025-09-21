@@ -1198,18 +1198,14 @@ export async function normalMap(tensor, shape, time, speed) {
     valueShape,
     time,
     speed,
-    ValueMask.conv2d_sobel_x,
-    false,
-    1,
+    ValueMask.conv2d_sobel_x
   );
   const sobelY = await convolve(
     reference,
     valueShape,
     time,
     speed,
-    ValueMask.conv2d_sobel_y,
-    false,
-    1,
+    ValueMask.conv2d_sobel_y
   );
   const oneMinusX = await withTensorData(sobelX, (data) => {
     const out = new Float32Array(data.length);
