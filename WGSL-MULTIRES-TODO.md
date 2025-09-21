@@ -7,6 +7,8 @@ pre-multiplied mix while we bootstrap mask aware layers. The shader is still not
 wired into the runtime. Follow-up work should address the remaining gaps before
 enabling the stage:
 
+The shader now lives at `src/webgpu/shaders/multires.wgsl` and is loaded on demand via `src/webgpu/shaders.js` so we can keep runtime bundles lean. Future updates should modify that WGSL module directly.
+
 1. **Uniform layout integration** – update the WebGPU pipeline to populate the
    new `StageUniforms` fields (`options0/options1`, `sin_amount`, channel count,
    etc.) and document the packing strategy alongside the CPU structs.

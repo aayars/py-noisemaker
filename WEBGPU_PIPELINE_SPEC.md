@@ -86,6 +86,8 @@ function calls.
 * Each operation is backed by a WGSL template kept under `src/webgpu/shaders`.
   Templates expose entry points for generator and effect variants and import
   shared utility functions (noise evaluation, hashing, interpolation).
+* The multires generator implementation resides in `src/webgpu/shaders/multires.wgsl` and is
+  loaded via `src/webgpu/shaders.js` so browsers fetch raw WGSL rather than a giant JS string.
 * Preset compilation performs lightweight string templating to inject constants
   (e.g., octave counts) and to inline effect-specific code paths, mirroring CPU
   “unrolling”.
