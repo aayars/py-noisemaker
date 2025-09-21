@@ -658,7 +658,7 @@ export async function shadow(
       rgbData[base3] = srcData[base];
       rgbData[base3 + 1] = srcData[base + 1];
       rgbData[base3 + 2] = srcData[base + 2];
-      alphaChannel[i] = srcData[base + 3];
+      alphaChannel[i] = srcData[base];
     }
     rgbTensor = Tensor.fromArray(ctx, rgbData, [h, w, 3]);
   } else {
@@ -7673,15 +7673,18 @@ async function scratchesWebGPU(tensor, shape, time, speed) {
 
 export async function scratches(tensor, shape, time, speed) {
   const ctx = tensor.ctx;
+  let base;
   if (ctx && ctx.device && shape[2] >= 3) {
     try {
-      return await scratchesWebGPU(tensor, shape, time, speed);
+      base = await scratchesWebGPU(tensor, shape, time, speed);
     } catch (e) {
       console.warn('WebGPU scratches fallback to CPU', e);
-      return scratchesCPU(tensor, shape, time, speed);
+      base = await scratchesCPU(tensor, shape, time, speed);
     }
+  } else {
+    base = await scratchesCPU(tensor, shape, time, speed);
   }
-  return scratchesCPU(tensor, shape, time, speed);
+  return strayHair(base, shape, time, speed);
 }
 register("scratches", scratches, {});
 
