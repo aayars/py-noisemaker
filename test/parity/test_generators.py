@@ -79,6 +79,32 @@ def test_basic_oklab(seed):
 
 
 @pytest.mark.parametrize("seed", SEEDS)
+def test_basic_constant_ridges(seed):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    rng.reset_call_count()
+    tensor = generators.basic(
+        2,
+        [128, 128, 3],
+        ridges=True,
+        spline_order=InterpolationType.constant,
+        color_space=ColorSpace.rgb,
+        distrib=ValueDistribution.simplex,
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "basic",
+        seed,
+        ridges=True,
+        splineOrder=InterpolationType.constant.value,
+        color_space=ColorSpace.rgb.value,
+        distrib=ValueDistribution.simplex.value,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_basic_center_brightness_mask_constant(seed):
     rng.set_seed(seed)
     value.set_seed(seed)

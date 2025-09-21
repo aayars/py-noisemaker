@@ -88,6 +88,14 @@ export async function basic(freq, shape, opts = {}) {
     speed,
   };
 
+  // Python's ``InterpolationType`` is an enum whose members remain truthy even
+  // when the underlying value is ``0`` (``InterpolationType.constant``).
+  // The reference implementation therefore applies ridges whenever the flag is
+  // enabled, regardless of the numeric spline order. Mirror that behaviour so
+  // ``ridges=True`` paired with ``spline_order=InterpolationType.constant``
+  // produces matching output instead of silently skipping the ridge transform.
+  const applyRidges = ridges && (splineOrder || splineOrder === InterpolationType.constant);
+
   // Python treats a seed value of ``0`` as falsy and therefore skips reseeding
   // the RNG modules. Mirror that behaviour here so that ``seed=0`` preserves
   // the existing generator state instead of forcing a fresh sequence.
@@ -254,7 +262,7 @@ export async function basic(freq, shape, opts = {}) {
       let sVal = satNoise ? f32(satNoise[i]) : satSource;
       sVal = f32(sVal * saturationF);
       let vVal = brightNoise ? f32(brightNoise[i]) : valSource;
-      if (ridges && splineOrder) {
+      if (applyRidges) {
         const doubled = f32(vVal * 2);
         const diff = f32(Math.abs(doubled - 1));
         vVal = f32(1 - diff);
@@ -280,7 +288,7 @@ export async function basic(freq, shape, opts = {}) {
     tensor = Tensor.fromArray(ctx, out, [h, w, 3]);
     tensor = hsvToRgb(tensor);
   } else if (cSpace === ColorSpace.grayscale) {
-    if (ridges && splineOrder) {
+    if (applyRidges) {
       tensor = ridge(tensor);
     }
     if (sin) {
