@@ -15,6 +15,31 @@ const shape = requestedShape && requestedShape.length === 3
   : [128, 128, 3];
 const generatorOptions = { ...options };
 delete generatorOptions.shape;
+const rawFreq = generatorOptions.freq;
+delete generatorOptions.freq;
+const coerceNumber = (value) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+let freq = rawFreq;
+if (Array.isArray(rawFreq)) {
+  const normalized = rawFreq.map(coerceNumber);
+  if (normalized.every((v) => Number.isFinite(v))) {
+    freq = normalized;
+  } else {
+    freq = undefined;
+  }
+} else {
+  const normalized = coerceNumber(rawFreq);
+  freq = normalized !== undefined ? normalized : undefined;
+}
+const freqValue = freq !== undefined ? freq : 2;
 const skipSeedInit = Boolean(
   generatorOptions.skipSeedInit ?? generatorOptions.skip_seed_init,
 );
@@ -41,7 +66,7 @@ if (skipSeedInit) {
 resetCallCount();
 let tensor;
 if (name === 'basic') {
-  tensor = await basic(2, shape, generatorOptions);
+  tensor = await basic(freqValue, shape, generatorOptions);
 } else if (name === 'multires') {
   const merged = {
     octaves: 2,
@@ -58,7 +83,7 @@ if (name === 'basic') {
   ) {
     merged.hueRotation = 0;
   }
-  tensor = await multires(2, shape, merged);
+  tensor = await multires(freqValue, shape, merged);
 } else {
   throw new Error(`Unknown generator ${name}`);
 }
