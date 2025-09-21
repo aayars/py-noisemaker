@@ -2873,9 +2873,11 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
   if (!p) throw new Error(`Unknown palette ${name}`);
 
   let alphaChan = null;
-  let rgbTensor = tensor;
+  let baseTensor = tensor;
   if (c === 4) {
-    const src = await tensor.read();
+    const srcMaybe = tensor.read();
+    const src =
+      srcMaybe && typeof srcMaybe.then === "function" ? await srcMaybe : srcMaybe;
     const rgbData = new Float32Array(h * w * 3);
     alphaChan = new Float32Array(h * w);
     for (let i = 0; i < h * w; i++) {
@@ -2885,12 +2887,14 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
       rgbData[i * 3 + 2] = src[base + 2];
       alphaChan[i] = src[base + 3];
     }
-    rgbTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
+    baseTensor = Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]);
   }
 
-  const norm = await clamp01(rgbTensor);
-  const labTensor = await rgbToOklab(norm);
-  const lab = await labTensor.read();
+  const clamped = await clamp01(baseTensor);
+  const labTensor = await rgbToOklab(clamped);
+  const labMaybe = labTensor.read();
+  const lab =
+    labMaybe && typeof labMaybe.then === "function" ? await labMaybe : labMaybe;
   const out = new Float32Array(h * w * 3);
   for (let i = 0; i < h * w; i++) {
     const t = lab[i * 3];
@@ -2905,21 +2909,31 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
       p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2] + time));
   }
   const colored = Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+
   let tBlend;
   if (typeof alpha === "number") {
     tBlend = (1 - Math.cos(alpha * Math.PI)) / 2;
   } else {
-    const aData = await alpha.read();
+    const aDataMaybe = alpha.read();
+    const aData =
+      aDataMaybe && typeof aDataMaybe.then === "function"
+        ? await aDataMaybe
+        : aDataMaybe;
     const tData = new Float32Array(aData.length);
     for (let i = 0; i < aData.length; i++) {
       tData[i] = (1 - Math.cos(aData[i] * Math.PI)) / 2;
     }
     tBlend = Tensor.fromArray(alpha.ctx, tData, alpha.shape);
   }
-  let blended = await blend(norm, colored, tBlend);
+
+  let blended = await blend(baseTensor, colored, tBlend);
 
   if (alphaChan) {
-    const blendedData = await blended.read();
+    const blendedDataMaybe = blended.read();
+    const blendedData =
+      blendedDataMaybe && typeof blendedDataMaybe.then === "function"
+        ? await blendedDataMaybe
+        : blendedDataMaybe;
     const final = new Float32Array(h * w * 4);
     for (let i = 0; i < h * w; i++) {
       final[i * 4] = blendedData[i * 3];
@@ -7733,12 +7747,16 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
   ];
   const mask = masks[randomInt(0, masks.length - 1)];
   const gShape = maskShape(mask);
-  let width = Math.floor(w / 24);
-  width = gShape[1] * Math.floor(width / gShape[1]);
-  const height = gShape[0] * Math.floor(width / gShape[1]);
-  width *= glyphCount;
+  let baseWidth = Math.floor(w / 24);
+  baseWidth = gShape[1] * Math.floor(baseWidth / gShape[1]);
+  if (baseWidth <= 0) {
+    return tensor;
+  }
+  const tileCount = baseWidth / gShape[1];
+  const rowHeight = gShape[0] * tileCount;
+  const totalWidth = baseWidth * glyphCount;
   const freq = [gShape[0], gShape[1] * glyphCount];
-  const rowMask = values(freq, [height, width, c], {
+  let rowMask = await values(freq, [rowHeight, totalWidth, c], {
     ctx: tensor.ctx,
     corners: true,
     mask,
@@ -7747,28 +7765,45 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
     time,
     speed,
   });
+  const rowDataMaybe = rowMask.read();
+  const rowData =
+    rowDataMaybe && typeof rowDataMaybe.then === "function"
+      ? await rowDataMaybe
+      : rowDataMaybe;
   const pad = new Float32Array(h * w * c);
-  const rData = rowMask.read();
   const yOff = 25;
-  const xOff = w - width - 25;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const yy = yOff + y;
+  const xOff = w - totalWidth - 25;
+  for (let y = 0; y < rowHeight; y++) {
+    const yy = yOff + y;
+    if (yy < 0 || yy >= h) continue;
+    for (let x = 0; x < totalWidth; x++) {
       const xx = xOff + x;
-      if (yy >= h || xx >= w) continue;
+      if (xx < 0 || xx >= w) continue;
+      const srcBase = (y * totalWidth + x) * c;
+      const dstBase = (yy * w + xx) * c;
       for (let k = 0; k < c; k++) {
-        pad[(yy * w + xx) * c + k] = rData[(y * width + x) * c + k];
+        pad[dstBase + k] = rowData[srcBase + k];
       }
     }
   }
   const rendered = Tensor.fromArray(tensor.ctx, pad, shape);
   const alpha = 0.5 + random() * 0.25;
-  const maxData = rendered.read();
-  const tData = await tensor.read();
-  for (let i = 0; i < maxData.length; i++) {
-    maxData[i] = Math.max(maxData[i], tData[i]);
+  const [renderedDataMaybe, tensorDataMaybe] = await Promise.all([
+    rendered.read(),
+    tensor.read(),
+  ]);
+  const renderedData =
+    renderedDataMaybe && typeof renderedDataMaybe.then === "function"
+      ? await renderedDataMaybe
+      : renderedDataMaybe;
+  const tensorData =
+    tensorDataMaybe && typeof tensorDataMaybe.then === "function"
+      ? await tensorDataMaybe
+      : tensorDataMaybe;
+  for (let i = 0; i < renderedData.length; i++) {
+    renderedData[i] = Math.max(renderedData[i], tensorData[i]);
   }
-  const maxTensor = Tensor.fromArray(tensor.ctx, maxData, shape);
+  const maxTensor = Tensor.fromArray(tensor.ctx, renderedData, shape);
   return blend(tensor, maxTensor, alpha);
 }
 register("on_screen_display", onScreenDisplay, {});
