@@ -265,6 +265,124 @@ async function expandChannelsShader(tensor, channels) {
 }
 
 
+async function prepareWarpMap(
+  warpMap,
+  shape,
+  ctx,
+  splineOrder = InterpolationType.bicubic,
+) {
+  if (warpMap === null || warpMap === undefined) {
+    return null;
+  }
+  const [h, w] = shape;
+  let mapTensor = warpMap;
+  if (mapTensor && typeof mapTensor.then === "function") {
+    mapTensor = await mapTensor;
+  }
+  if (!(mapTensor instanceof Tensor)) {
+    let arr;
+    if (ArrayBuffer.isView(mapTensor)) {
+      const view = mapTensor;
+      let scale = 1;
+      if (view instanceof Uint8Array || view instanceof Uint8ClampedArray) {
+        scale = 1 / 255;
+      } else if (view instanceof Uint16Array) {
+        scale = 1 / 65535;
+      }
+      arr = new Float32Array(view.length);
+      for (let i = 0; i < view.length; i++) {
+        arr[i] = Math.fround(view[i] * scale);
+      }
+    } else if (Array.isArray(mapTensor)) {
+      arr = new Float32Array(mapTensor.length);
+      for (let i = 0; i < mapTensor.length; i++) {
+        arr[i] = Math.fround(mapTensor[i] ?? 0);
+      }
+    } else {
+      throw new Error("warp: warpMap must be a Tensor or array-like object");
+    }
+    const base = h * w;
+    if (!base || arr.length % base !== 0) {
+      throw new Error(
+        "warp: warpMap array size must be a multiple of the image dimensions",
+      );
+    }
+    const channels = arr.length / base;
+    mapTensor = Tensor.fromArray(ctx, arr, [h, w, channels]);
+  }
+  if (mapTensor.shape[0] !== h || mapTensor.shape[1] !== w) {
+    const channels = mapTensor.shape[2] || 1;
+    mapTensor = await resample(
+      mapTensor,
+      [h, w, channels],
+      splineOrder,
+    );
+  }
+  return mapTensor;
+}
+
+async function warpCPU(
+  tensor,
+  shape,
+  time,
+  speed,
+  freq = 2,
+  octaves = 5,
+  displacement = 1,
+  splineOrder = InterpolationType.bicubic,
+  warpMap = null,
+  signedRange = true,
+) {
+  const [h, w] = shape;
+  const ctx = tensor.ctx;
+  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
+  const warpTensor = await prepareWarpMap(warpMap, [h, w], ctx, splineOrder);
+  let out = tensor;
+  for (let octave = 1; octave <= octaves; octave++) {
+    const mult = 2 ** octave;
+    const f = [
+      Math.floor(baseFreq[0] * 0.5 * mult),
+      Math.floor(baseFreq[1] * 0.5 * mult),
+    ];
+    if (f[0] >= h || f[1] >= w) break;
+    if (warpTensor) {
+      out = await refractEffect(
+        out,
+        shape,
+        time,
+        speed,
+        displacement / mult,
+        warpTensor,
+        null,
+        null,
+        splineOrder,
+        false,
+        signedRange,
+      );
+    } else {
+      const opts = { ctx, time, speed, splineOrder };
+      const [flowX, flowY] = await Promise.all([
+        values(f, [h, w, 1], opts),
+        values(f, [h, w, 1], opts),
+      ]);
+      out = await refractEffect(
+        out,
+        shape,
+        time,
+        speed,
+        displacement / mult,
+        flowX,
+        flowY,
+        null,
+        splineOrder,
+        false,
+        signedRange,
+      );
+    }
+  }
+  return out;
+}
+
 export async function warpWebGPU(
   tensor,
   shape,
@@ -274,8 +392,23 @@ export async function warpWebGPU(
   octaves = 5,
   displacement = 1,
   splineOrder = InterpolationType.bicubic,
+  warpMap = null,
   signedRange = true,
 ) {
+  if (warpMap) {
+    return warpCPU(
+      tensor,
+      shape,
+      time,
+      speed,
+      freq,
+      octaves,
+      displacement,
+      splineOrder,
+      warpMap,
+      signedRange,
+    );
+  }
   const ctx = tensor.ctx;
   const ensureGPU = async (t) => {
     if (!t.handle || typeof t.handle.createView !== "function") {
@@ -355,9 +488,10 @@ export async function warp(
   octaves = 5,
   displacement = 1,
   splineOrder = InterpolationType.bicubic,
+  warpMap = null,
   signedRange = true,
 ) {
-  if (tensor.ctx && tensor.ctx.device) {
+  if (tensor.ctx && tensor.ctx.device && !warpMap) {
     return warpWebGPU(
       tensor,
       shape,
@@ -367,37 +501,29 @@ export async function warp(
       octaves,
       displacement,
       splineOrder,
+      warpMap,
       signedRange,
     );
   }
-  let out = tensor;
-  const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
-  for (let octave = 1; octave <= octaves; octave++) {
-    const mult = 2 ** octave;
-    const f = [
-      Math.floor(baseFreq[0] * 0.5 * mult),
-      Math.floor(baseFreq[1] * 0.5 * mult),
-    ];
-    if (f[0] >= shape[0] || f[1] >= shape[1]) break;
-    const opts = { ctx: tensor.ctx, time, speed, splineOrder };
-    const flowX = await values(f, [shape[0], shape[1], 1], opts);
-    const flowY = await values(f, [shape[0], shape[1], 1], opts);
-    out = await refractOp(
-      out,
-      flowX,
-      flowY,
-      displacement / mult,
-      InterpolationType.linear,
-      signedRange,
-    );
-  }
-  return out;
+  return warpCPU(
+    tensor,
+    shape,
+    time,
+    speed,
+    freq,
+    octaves,
+    displacement,
+    splineOrder,
+    warpMap,
+    signedRange,
+  );
 }
 register("warp", warp, {
   freq: 2,
   octaves: 5,
   displacement: 1,
   splineOrder: InterpolationType.bicubic,
+  warpMap: null,
   signedRange: true,
 });
 
