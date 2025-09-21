@@ -18,7 +18,15 @@ from noisemaker.palettes import PALETTES as _PALETTES
 
 class _SettingsSurface:
     def __getattr__(self, name):
-        return lambda settings: settings[name]
+        def _getter(settings):
+            if settings is None:
+                return None
+            try:
+                return settings[name]
+            except KeyError:
+                return None
+
+        return _getter
 
 
 surfaces = {"settings": _SettingsSurface()}

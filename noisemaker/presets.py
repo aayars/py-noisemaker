@@ -1,7 +1,14 @@
 from pathlib import Path
 import noisemaker.rng as random
 
-from noisemaker.composer import Effect, Preset as ComposerPreset, coin_flip, enum_range, random_member, stash
+from noisemaker.composer import (
+    Effect,
+    Preset as ComposerPreset,
+    coin_flip,
+    enum_range,
+    random_member,
+    stash,
+)
 from noisemaker.constants import (
     ColorSpace as color,
     DistanceMetric as distance,

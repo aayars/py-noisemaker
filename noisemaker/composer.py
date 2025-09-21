@@ -1,6 +1,6 @@
 """Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
-from collections import UserDict
+from collections import UserDict, defaultdict
 from enum import Enum, EnumMeta
 from functools import partial
 import inspect
@@ -43,8 +43,10 @@ class Preset:
         """
         """
 
-        self.layers = presets[preset_name].get("layers", [])
         self.name = preset_name
+
+        layer_cache = {}
+        self.layers = list(_resolve_preset_layers(self.name, presets, layer_cache))
 
         prototype = presets.get(preset_name)
 
@@ -62,7 +64,7 @@ class Preset:
 
         # Build a flat list of parent preset names, in topological order.
         self.flattened_layers = []
-        _flatten_ancestors(self.name, presets, {}, self.flattened_layers)
+        _flatten_ancestors(self.name, presets, {}, self.flattened_layers, layer_cache)
 
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
         # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
@@ -171,8 +173,31 @@ def Effect(effect_name, **kwargs):
     return effect
 
 
-def _flatten_ancestors(preset_name, presets, unique, ancestors):
-    for ancestor_name in presets[preset_name].get("layers", []):
+def _flatten_layer_entries(value):
+    if isinstance(value, (list, tuple)):
+        flattened = []
+        for item in value:
+            flattened.extend(_flatten_layer_entries(item))
+        return flattened
+    if value is None:
+        return []
+    return [value]
+
+
+def _resolve_preset_layers(preset_name, presets, cache):
+    if preset_name in cache:
+        return cache[preset_name]
+
+    prototype = presets.get(preset_name, {})
+    raw_layers = prototype.get("layers", [])
+    dummy_settings = defaultdict(lambda: None)
+    resolved = _resolve_metadata_value(raw_layers, dummy_settings)
+    cache[preset_name] = tuple(_flatten_layer_entries(resolved))
+    return cache[preset_name]
+
+
+def _flatten_ancestors(preset_name, presets, unique, ancestors, layer_cache):
+    for ancestor_name in _resolve_preset_layers(preset_name, presets, layer_cache):
         if ancestor_name not in presets:
             raise ValueError(f"\"{ancestor_name}\" was not found among the available presets.")
 
@@ -183,7 +208,7 @@ def _flatten_ancestors(preset_name, presets, unique, ancestors):
         if presets[ancestor_name].get("unique"):
             unique[ancestor_name] = True
 
-        _flatten_ancestors(ancestor_name, presets, unique, ancestors)
+        _flatten_ancestors(ancestor_name, presets, unique, ancestors, layer_cache)
 
     ancestors.append(preset_name)
 
