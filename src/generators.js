@@ -92,7 +92,13 @@ export async function basic(freq, shape, opts = {}) {
     setValueSeed(seed);
   }
 
-  let tensor = await values(f, shape, { distrib, seed, ...common });
+  // Python seeds the global RNG and value modules externally before invoking
+  // ``generators.basic``.  Passing an explicit seed down to ``values`` would
+  // bypass the internal seed counters (notably ``simplex.getSeed``) and yield a
+  // different sequence of lattice permutations.  To mirror Python's behaviour we
+  // rely solely on the global seed state configured above and avoid forwarding a
+  // per-call seed here.
+  let tensor = await values(f, shape, { distrib, ...common });
 
   if (latticeDrift) {
     tensor = await refract(tensor, null, null, latticeDrift / Math.min(f[0], f[1]));
