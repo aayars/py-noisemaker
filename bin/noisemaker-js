@@ -5,6 +5,7 @@ import { PRESETS } from '../src/presets.js';
 import { Context } from '../src/context.js';
 import { setSeed as setUtilSeed } from '../src/util.js';
 import { setSeed as setValueSeed } from '../src/value.js';
+import { random } from '../src/rng.js';
 import { PNG } from 'pngjs';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
@@ -178,6 +179,14 @@ async function main(argv) {
       .join(', ');
     throw new Error(`Preset "${presetName}" not found. Available presets: ${available}`);
   }
+
+  // Python's ``Preset`` helper rebuilds the preset table when constructing an
+  // instance, which consumes three RNG samples. Mirror that behaviour so that
+  // our RNG state matches when instantiating the preset after preloading the
+  // table above.
+  random();
+  random();
+  random();
 
   const ctx = new Context(null, options.debug);
   const preset = new Preset(presetName, presets, undefined, options.seed, {

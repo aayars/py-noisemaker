@@ -9,6 +9,7 @@ import {
 } from '../presets.js';
 import { Preset as _Preset } from '../composer.js';
 import { random as _random, randomInt as _random_int } from '../util.js';
+import { random as _rngRandom } from '../rng.js';
 import { maskShape as _maskShape, squareMasks as _squareMasks } from '../masks.js';
 
 export * from '../constants.js';
@@ -108,7 +109,15 @@ export function preset(...args) {
     for (const [k, v] of Object.entries(settings)) {
       resolved[k] = typeof v === 'function' ? v(parentSettings) : v;
     }
-    return new _Preset(name, _PRESETS(), resolved);
+    const presets = _PRESETS();
+    // Python's DSL ``preset()`` helper routes through ``noisemaker.presets.Preset``,
+    // which rebuilds the preset table when instantiating nested presets. Consume
+    // the same three RNG samples here to mirror that extra ``PRESETS()`` call
+    // without re-evaluating the table in JavaScript.
+    _rngRandom();
+    _rngRandom();
+    _rngRandom();
+    return new _Preset(name, presets, resolved);
   };
 }
 

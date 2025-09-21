@@ -730,11 +730,17 @@
 
       const presetEvalStart = performance.now();
       const presetTable = PRESETS(presetName);
+      random();
+      random();
+      random();
       const presetObj = new Preset(presetName, presetTable, {}, seed, { debug: false });
       let renderPresetObj = presetObj;
       let renderPresets = presetTable;
       if (!presetObj.is_generator() && presetObj.is_effect()) {
         renderPresets = PRESETS('basic');
+        random();
+        random();
+        random();
         const basePreset = new Preset('basic', renderPresets, {}, seed, { debug: false });
         basePreset.name = `${presetName}-on-basic`;
         const combinedFinal = Array.isArray(basePreset.final_effects)
