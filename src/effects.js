@@ -4386,6 +4386,13 @@ function offsetIndexInternal(yArr, height, xArr, width) {
   return { y: oy, x: ox };
 }
 
+function wrapFloat(value, size) {
+  if (!size) return 0;
+  const mod = value % size;
+  if (mod === 0) return 0;
+  return mod < 0 ? mod + size : mod;
+}
+
 function offsetTensor(tensor, xOff, yOff) {
   const [h, w, c] = tensor.shape;
   if (xOff === 0 && yOff === 0) return tensor;
@@ -4913,8 +4920,8 @@ async function wormsCPU(
     const exposure =
       iterations > 1 ? 1 - Math.abs(1 - (iter / (iterations - 1)) * 2) : 1;
     for (let i = 0; i < count; i++) {
-      const yi = Math.floor(wormsY[i]) % h;
-      const xi = Math.floor(wormsX[i]) % w;
+      const yi = Math.floor(wrapFloat(wormsY[i], h));
+      const xi = Math.floor(wrapFloat(wormsX[i], w));
       const idx = yi * w + xi;
       const base = idx * c;
       for (let k = 0; k < c; k++) {
@@ -4922,8 +4929,14 @@ async function wormsCPU(
       }
       let next = indexArr[idx] + wormsRot[i];
       if (quantize) next = Math.round(next);
-      wormsY[i] = (wormsY[i] + Math.cos(next) * wormsStride[i]) % h;
-      wormsX[i] = (wormsX[i] + Math.sin(next) * wormsStride[i]) % w;
+      wormsY[i] = wrapFloat(
+        wormsY[i] + Math.cos(next) * wormsStride[i],
+        h,
+      );
+      wormsX[i] = wrapFloat(
+        wormsX[i] + Math.sin(next) * wormsStride[i],
+        w,
+      );
     }
   }
   let outTensor = Tensor.fromArray(tensor.ctx, out, shape);
