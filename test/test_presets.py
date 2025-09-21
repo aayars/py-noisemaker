@@ -3,18 +3,14 @@ from noisemaker.presets import PRESETS
 import pytest
 
 
-@pytest.mark.parametrize(
-    "use_dsl",
-    [False, True],
-)
-def test_presets(use_dsl):
+def test_presets():
     problems = []
 
-    presets = PRESETS(use_dsl=use_dsl)
+    presets = PRESETS()
 
     for preset_name in presets:
         try:
-            preset = Preset(preset_name, presets, use_dsl=use_dsl)
+            preset = Preset(preset_name, presets)
         except Exception as e:
             problems.append(f"{preset_name} has an error: {e}")
 
