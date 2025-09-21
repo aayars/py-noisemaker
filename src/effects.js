@@ -1087,7 +1087,7 @@ register("glowing_edges", glowingEdges, {
   alpha: 1,
 });
 
-export function normalMap(tensor, shape, time, speed) {
+export async function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   if (
@@ -1096,101 +1096,89 @@ export function normalMap(tensor, shape, time, speed) {
     typeof GPUTexture !== "undefined" &&
     tensor.handle instanceof GPUTexture
   ) {
-    return (async () => {
-      try {
-        const outSize = h * w * 3;
-        const outBuf = ctx.device.createBuffer({
-          size: outSize * 4,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-        });
-        const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
-        const paramsBuf = ctx.createGPUBuffer(
-          paramsArr,
-          GPUBufferUsage.UNIFORM,
-        );
-        await ctx.runCompute(
-          NORMAL_MAP_WGSL,
-          [
-            { binding: 0, resource: tensor.handle.createView() },
-            { binding: 1, resource: { buffer: outBuf } },
-            { binding: 2, resource: { buffer: paramsBuf } },
-          ],
-          Math.ceil(w / 8),
-          Math.ceil(h / 8),
-        );
-        const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
-        return Tensor.fromArray(ctx, out, [h, w, 3]);
-      } catch (e) {
-        console.warn("WebGPU normalMap fallback to CPU", e);
-        const data = await tensor.read();
-        return normalMap(
-          Tensor.fromArray(null, data, [h, w, c]),
-          shape,
-          time,
-          speed,
-        );
-      }
-    })();
+    try {
+      const outSize = h * w * 3;
+      const outBuf = ctx.device.createBuffer({
+        size: outSize * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      });
+      const paramsArr = new Float32Array([w, h, c, 0, 0, 0, 0, 0]);
+      const paramsBuf = ctx.createGPUBuffer(
+        paramsArr,
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        NORMAL_MAP_WGSL,
+        [
+          { binding: 0, resource: tensor.handle.createView() },
+          { binding: 1, resource: { buffer: outBuf } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      const out = await ctx.readGPUBuffer(outBuf, outSize * 4);
+      return Tensor.fromArray(ctx, out, [h, w, 3]);
+    } catch (e) {
+      console.warn("WebGPU normalMap fallback to CPU", e);
+      const data = await tensor.read();
+      return normalMap(
+        Tensor.fromArray(null, data, [h, w, c]),
+        shape,
+        time,
+        speed,
+      );
+    }
   }
 
-  return withTensorData(tensor, (src) => {
-    const gray = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      if (c === 1) {
-        gray[i] = src[i];
-      } else {
-        const base = i * c;
-        const r = src[base];
-        const g = src[base + 1] || 0;
-        const b = src[base + 2] || 0;
-        gray[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      }
+  const valueShape = [h, w, 1];
+  const reference = await toValueMap(tensor);
+  const sobelX = await convolve(
+    reference,
+    valueShape,
+    time,
+    speed,
+    ValueMask.conv2d_sobel_x,
+    true,
+    1,
+  );
+  const sobelY = await convolve(
+    reference,
+    valueShape,
+    time,
+    speed,
+    ValueMask.conv2d_sobel_y,
+    true,
+    1,
+  );
+  const oneMinusX = await withTensorData(sobelX, (data) => {
+    const out = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      out[i] = 1 - data[i];
     }
-    const gxKernel = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-    const gyKernel = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-    const gx = new Float32Array(h * w);
-    const gy = new Float32Array(h * w);
-    function get(x, y) {
-      x = Math.max(0, Math.min(w - 1, x));
-      y = Math.max(0, Math.min(h - 1, y));
-      return gray[y * w + x];
-    }
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        let sx = 0,
-          sy = 0,
-          idx = 0;
-        for (let yy = -1; yy <= 1; yy++) {
-          for (let xx = -1; xx <= 1; xx++) {
-            const v = get(x + xx, y + yy);
-            sx += gxKernel[idx] * v;
-            sy += gyKernel[idx] * v;
-            idx++;
-          }
-        }
-        const i = y * w + x;
-        gx[i] = 1 - sx;
-        gy[i] = sy;
-      }
-    }
-    let xTensor = normalize(Tensor.fromArray(tensor.ctx, gx, [h, w, 1]));
-    let yTensor = normalize(Tensor.fromArray(tensor.ctx, gy, [h, w, 1]));
-    const xData = xTensor.read();
-    const yData = yTensor.read();
-    const mag = new Float32Array(h * w);
-    for (let i = 0; i < h * w; i++) {
-      mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
-    }
-    const zNorm = normalize(Tensor.fromArray(tensor.ctx, mag, [h, w, 1])).read();
-    const out = new Float32Array(h * w * 3);
-    for (let i = 0; i < h * w; i++) {
-      const z = 1 - Math.abs(zNorm[i] * 2 - 1) * 0.5 + 0.5;
-      out[i * 3] = xData[i];
-      out[i * 3 + 1] = yData[i];
-      out[i * 3 + 2] = z;
-    }
-    return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
+    return Tensor.fromArray(sobelX.ctx, out, sobelX.shape);
   });
+  const [xTensor, yTensor] = await Promise.all([
+    normalize(oneMinusX),
+    normalize(sobelY),
+  ]);
+  const [xData, yData] = await Promise.all([xTensor.read(), yTensor.read()]);
+  const mag = new Float32Array(h * w);
+  for (let i = 0; i < h * w; i++) {
+    mag[i] = Math.sqrt(xData[i] * xData[i] + yData[i] * yData[i]);
+  }
+  const zTensor = await normalize(
+    Tensor.fromArray(tensor.ctx, mag, [h, w, 1]),
+  );
+  const zData = await zTensor.read();
+  const out = new Float32Array(h * w * 3);
+  for (let i = 0; i < h * w; i++) {
+    const z = 1 - Math.abs(zData[i] * 2 - 1) * 0.5 + 0.5;
+    out[i * 3] = xData[i];
+    out[i * 3 + 1] = yData[i];
+    out[i * 3 + 2] = z;
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, 3]);
 }
 register("normal_map", normalMap, {});
 
@@ -5692,7 +5680,14 @@ async function _pixelSort(tensor, shape, angle, darkest) {
   const ctx = tensor.ctx;
   const [h, w, c] = shape;
   const srcData = await tensor.read();
-  let working = Tensor.fromArray(ctx, srcData, shape);
+  const baseData = srcData.slice();
+  if (darkest) {
+    for (let i = 0; i < baseData.length; i++) {
+      baseData[i] = 1 - baseData[i];
+    }
+  }
+  const baseTensor = Tensor.fromArray(ctx, baseData, shape);
+  let working = baseTensor;
   const want = Math.max(h, w) * 2;
   working = await resizeWithCropOrPad(working, shape, want);
   if (angle !== false) {
@@ -5736,14 +5731,17 @@ async function _pixelSort(tensor, shape, angle, darkest) {
       );
     }
     sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
-    const sortedData = await sortedTensor.read();
-    const out = new Float32Array(sortedData.length);
-    for (let i = 0; i < sortedData.length; i++) {
-      const orig = srcData[i];
-      const v = Math.max(darkest ? 1 - orig : orig, sortedData[i]);
-      out[i] = darkest ? 1 - v : v;
+    if (darkest) {
+      sortedTensor = await withTensorData(sortedTensor, (sortedData) => {
+        const out = new Float32Array(sortedData.length);
+        for (let i = 0; i < sortedData.length; i++) {
+          out[i] = 1 - sortedData[i];
+        }
+        return Tensor.fromArray(sortedTensor.ctx, out, sortedTensor.shape);
+      });
     }
-    return Tensor.fromArray(ctx, out, shape);
+    const maskTensor = await toValueMap(sortedTensor);
+    return await blend(baseTensor, sortedTensor, maskTensor);
   }
   const sorted = new Float32Array(want * want * c);
   const rowBuffers = [];
@@ -6771,81 +6769,66 @@ export async function nebula(tensor, shape, time, speed) {
   const valueShape = [h, w, 1];
 
   async function simpleMultires(freq, octaves, distrib = ValueDistribution.simplex) {
-    const out = new Float32Array(h * w);
+    const freqArr = Array.isArray(freq)
+      ? freq
+      : freqForShape(freq, [h, w]);
+    const accum = new Float32Array(h * w);
     for (let octave = 1; octave <= octaves; octave++) {
-      const mult = 2 ** octave;
-      const baseFreq = Math.floor(freq * 0.5 * mult);
-      if (baseFreq > h && baseFreq > w) break;
+      const multiplier = 2 ** octave;
+      const baseFreq = freqArr.map((f) => Math.floor(f * 0.5 * multiplier));
+      if (baseFreq[0] > h && baseFreq[1] > w) {
+        break;
+      }
       let layer = await values(baseFreq, valueShape, {
         ctx,
         time,
         speed,
         distrib,
-        seed: octave,
       });
       layer = await ridge(layer);
-      const lData = await layer.read();
-      for (let i = 0; i < out.length; i++) out[i] += lData[i] / mult;
+      const layerData = await layer.read();
+      for (let i = 0; i < accum.length; i++) {
+        accum[i] += layerData[i] / multiplier;
+      }
     }
-    let min = Infinity;
-    let max = -Infinity;
-    for (const v of out) {
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    const range = max - min || 1;
-    for (let i = 0; i < out.length; i++) out[i] = (out[i] - min) / range;
-    return Tensor.fromArray(ctx, out, valueShape);
+    const tensorOut = Tensor.fromArray(ctx, accum, valueShape);
+    return await normalize(tensorOut);
   }
 
-  let overlay = await simpleMultires(randomInt(3, 4), 6, ValueDistribution.exp);
-  const subtractor = await simpleMultires(randomInt(2, 4), 4);
-  let oData = await overlay.read();
-  const sData = await subtractor.read();
-  for (let i = 0; i < oData.length; i++)
-    oData[i] = (oData[i] - sData[i]) * 0.125;
-  overlay = Tensor.fromArray(ctx, oData, valueShape);
+  const overlayFreq = [randomInt(3, 4), 1];
+  const subtractFreq = [randomInt(2, 4), 1];
+  let overlay = await simpleMultires(overlayFreq, 6, ValueDistribution.exp);
+  const subtractor = await simpleMultires(subtractFreq, 4);
+  const overlayData = await overlay.read();
+  const subtractData = await subtractor.read();
+  const diff = new Float32Array(h * w);
+  for (let i = 0; i < diff.length; i++) {
+    diff[i] = (overlayData[i] - subtractData[i]) * 0.125;
+  }
+  overlay = Tensor.fromArray(ctx, diff, valueShape);
 
   overlay = await rotate(overlay, valueShape, time, speed, randomInt(-15, 15));
+  const rotatedData = await overlay.read();
   const baseData = await tensor.read();
-  const ovData = overlay.read();
   for (let i = 0; i < h * w; i++) {
-    const v = ovData[i];
-    const mult = 1 - v;
-    for (let k = 0; k < c; k++) baseData[i * c + k] *= mult;
-  }
-
-  if (c >= 3) {
-    const color = values(3, shape, {
-      ctx,
-      time,
-      speed,
-      corners: true,
-      seed: randomInt(0, 65536),
-    }).read();
-    const hsv = new Float32Array(h * w * 3);
-    const off1 = random();
-    const off2 = random();
-    for (let i = 0; i < h * w; i++) {
-      const v = Math.max(ovData[i], 0);
-      hsv[i * 3] = (ovData[i] * 0.333 + off1 * 0.333 + off2) % 1;
-      hsv[i * 3 + 1] = color[i * 3 + 1];
-      hsv[i * 3 + 2] = v;
-    }
-    const rgb = hsvToRgb(Tensor.fromArray(ctx, hsv, [h, w, 3])).read();
-    for (let i = 0; i < h * w; i++) {
-      for (let k = 0; k < 3; k++) baseData[i * c + k] += rgb[i * 3 + k];
-    }
-  } else {
-    for (let i = 0; i < h * w; i++) {
-      const v = Math.max(ovData[i], 0);
-      for (let k = 0; k < c; k++) baseData[i * c + k] += v;
+    const mult = 1 - rotatedData[i];
+    for (let k = 0; k < c; k++) {
+      baseData[i * c + k] *= mult;
     }
   }
 
+  const expanded = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const v = Math.max(rotatedData[i], 0);
+    for (let k = 0; k < c; k++) {
+      expanded[i * c + k] = v;
+    }
+  }
+  const overlayTensor = Tensor.fromArray(ctx, expanded, shape);
+  const tinted = await tint(overlayTensor, shape, time, 1.0, 1.0);
+  const tintedData = await tinted.read();
   for (let i = 0; i < baseData.length; i++) {
-    if (baseData[i] < 0) baseData[i] = 0;
-    if (baseData[i] > 1) baseData[i] = 1;
+    baseData[i] += tintedData[i];
   }
 
   return Tensor.fromArray(ctx, baseData, shape);

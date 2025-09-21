@@ -2531,23 +2531,20 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
   const data = new Float32Array(h * w * c);
   const fn = Masks[mask];
 
-  let uvNoise = null;
-  let uvShape = null;
-  if (typeof fn === 'function') {
-    uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1];
-    if (uvNoiseOverride) {
-      uvNoise = uvNoiseOverride;
-    } else {
-      const noiseTensor = simplex([...uvShape, 1], {
-        time,
-        seed: randomInt(1, 65536),
-        speed,
-      });
-      const noiseData = Array.from(noiseTensor.read());
-      uvNoise = [];
-      for (let yy = 0; yy < uvShape[0]; yy++) {
-        uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
-      }
+  const uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1];
+  let uvNoise;
+  if (uvNoiseOverride) {
+    uvNoise = uvNoiseOverride;
+  } else {
+    const noiseTensor = simplex([...uvShape, 1], {
+      time,
+      seed: randomInt(1, 65536),
+      speed,
+    });
+    const noiseData = Array.from(noiseTensor.read());
+    uvNoise = [];
+    for (let yy = 0; yy < uvShape[0]; yy++) {
+      uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
     }
   }
 

@@ -729,14 +729,14 @@ verifyFinder(0, 0);
 verifyFinder(26, 0);
 verifyFinder(0, 26);
 
-// Dropout mask drops ~25% of pixels
+// Dropout mask drops ~75% of pixels (matches Python reference RNG sequence)
 const dropShape = [40, 40, 1];
 setSeed(333);
 [t1] = maskValues(ValueMask.dropout, dropShape);
 const dropData = Array.from(t1.read());
 const zeroCount = dropData.filter((v) => v === 0).length;
 const dropRatio = zeroCount / dropData.length;
-assert(dropRatio > 0.2 && dropRatio < 0.3);
+assert(dropRatio > 0.7 && dropRatio < 0.8);
 
 // Procedural atlas masks respect shapes
 const atlasMasks = [
