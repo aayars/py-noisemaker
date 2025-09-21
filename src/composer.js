@@ -340,13 +340,17 @@ export class Preset {
       stabilityModel = null,
       styleFilename = null,
       tensor: initialTensor = null,
-      debug = this.debug,
+      debug: debugOpt = this.debug,
+      collectDebug: collectDebugOpt = false,
       powerPreference = 'high-performance',
       frameIndex: frameIndexOpt = 0,
       frame: frameOpt,
       presentationTarget = undefined,
       readback: readbackOpt = false,
     } = opts;
+    const debug = Boolean(debugOpt);
+    const collectDebug = Boolean(collectDebugOpt);
+    const gatherDebug = debug || collectDebug;
     const ctx = ctxOpt || new Context(null, debug, powerPreference);
 
     const numericFrameIndex = Number(frameIndexOpt);
@@ -366,6 +370,8 @@ export class Preset {
         speed,
         withAlpha,
       });
+    }
+    if (gatherDebug) {
       resetCallCount();
     }
 
@@ -550,15 +556,20 @@ export class Preset {
         ...merged,
       });
     }
-    if (debug) {
-      debugLog(true, `render complete${usedGPU ? ' (webgpu)' : ''}`);
+    if (gatherDebug) {
+      if (debug) {
+        debugLog(true, `render complete${usedGPU ? ' (webgpu)' : ''}`);
+      }
       const effectNames = [
         ...this.octave_effects,
         ...this.post_effects,
         ...this.final_effects,
       ].map((e) => e.__effectName || e.name || '');
       const calls = getCallCount();
-      debugLog(true, 'effect order', effectNames, 'rng calls', calls);
+      if (debug) {
+        debugLog(true, 'effect order', effectNames, 'rng calls', calls);
+      }
+      return { effects: effectNames, rngCalls: calls };
     }
 
     // Present to canvas if available

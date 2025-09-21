@@ -30,6 +30,9 @@ export function enum_range(a, b) {
   for (let i = a; i <= b; i++) {
     out.push(i);
   }
+  if (!Object.prototype.hasOwnProperty.call(out, '__literal')) {
+    Object.defineProperty(out, '__literal', { value: true });
+  }
   return out;
 }
 
@@ -38,8 +41,14 @@ export function random_member(...collections) {
   for (const c of collections) {
     if (Array.isArray(c)) {
       const arr = c.slice();
-      let enumName = c.__enum;
-      if (!enumName) {
+      if (c.__enum && !Object.prototype.hasOwnProperty.call(arr, '__enum')) {
+        Object.defineProperty(arr, '__enum', { value: c.__enum });
+      }
+      if (c.__literal && !Object.prototype.hasOwnProperty.call(arr, '__literal')) {
+        Object.defineProperty(arr, '__literal', { value: c.__literal });
+      }
+      let enumName = arr.__enum || null;
+      if (!enumName && !arr.__literal) {
         for (const lookup of ENUM_LOOKUPS) {
           if (arr.every((item) => lookup.values.has(item))) {
             enumName = lookup.name;
@@ -47,25 +56,55 @@ export function random_member(...collections) {
           }
         }
       }
-      if (enumName) {
+      if (enumName && !Object.prototype.hasOwnProperty.call(arr, '__enum')) {
         Object.defineProperty(arr, '__enum', { value: enumName });
       }
       sortArray(arr);
       out.push(...arr);
     } else if (c && typeof c === 'object' && !(c instanceof Map)) {
-      const keys = Object.keys(c).sort();
-      const values = keys.map((k) => c[k]);
+      const entries = Object.entries(c);
+      const values = entries.map(([, v]) => v);
       const primitives = values.every(
-        (v) => v === null || ['number', 'string', 'boolean'].includes(typeof v)
+        (v) => v === null || ['number', 'string', 'boolean'].includes(typeof v),
       );
       if (primitives) {
-        out.push(...values);
+        const enumLookup = ENUM_LOOKUPS.find((lookup) =>
+          values.every((item) => lookup.values.has(item)),
+        );
+        if (enumLookup) {
+          for (const [, value] of entries) {
+            out.push(value);
+          }
+        } else {
+          const keys = entries.map(([k]) => k).sort();
+          for (const key of keys) {
+            out.push(c[key]);
+          }
+        }
       } else {
+        const keys = entries.map(([k]) => k).sort();
         out.push(...keys);
       }
     } else if (c && typeof c[Symbol.iterator] === 'function') {
       const arr = Array.from(c);
-      if (c.__enum) Object.defineProperty(arr, '__enum', { value: c.__enum });
+      if (c.__enum && !Object.prototype.hasOwnProperty.call(arr, '__enum')) {
+        Object.defineProperty(arr, '__enum', { value: c.__enum });
+      }
+      if (c.__literal && !Object.prototype.hasOwnProperty.call(arr, '__literal')) {
+        Object.defineProperty(arr, '__literal', { value: c.__literal });
+      }
+      let enumName = arr.__enum || null;
+      if (!enumName && !arr.__literal) {
+        for (const lookup of ENUM_LOOKUPS) {
+          if (arr.every((item) => lookup.values.has(item))) {
+            enumName = lookup.name;
+            break;
+          }
+        }
+      }
+      if (enumName && !Object.prototype.hasOwnProperty.call(arr, '__enum')) {
+        Object.defineProperty(arr, '__enum', { value: enumName });
+      }
       sortArray(arr);
       out.push(...arr);
     } else {

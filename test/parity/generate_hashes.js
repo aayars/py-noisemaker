@@ -143,7 +143,13 @@ async function composerParity() {
     for (const name of presetNames) {
         setSeed(1);
         const presets = PRESETS();
-        const result = await render(name, 1, { presets, width: 128, height: 128, debug: false });
+        const result = await render(name, 1, {
+            presets,
+            width: 128,
+            height: 128,
+            debug: false,
+            collectDebug: true,
+        });
         out[name] = { effects: result.effects, rng_calls: result.rngCalls };
     }
     return out;

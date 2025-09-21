@@ -29,8 +29,16 @@ function evalNode(node, ctx) {
       const objVal = evalNode(node.object, ctx);
       return objVal?.[prop];
     }
-    case 'ArrayExpr':
-      return node.elements.map((el) => evalNode(el, ctx));
+    case 'ArrayExpr': {
+      const arr = node.elements.map((el) => evalNode(el, ctx));
+      const literalElements = node.elements.every((el) =>
+        ['NumberLiteral', 'StringLiteral', 'BooleanLiteral', 'NullLiteral'].includes(el.type),
+      );
+      if (literalElements && !Object.prototype.hasOwnProperty.call(arr, '__literal')) {
+        Object.defineProperty(arr, '__literal', { value: true });
+      }
+      return arr;
+    }
     case 'ObjectExpr': {
       const out = {};
       for (const { key, value } of node.properties) {
@@ -173,7 +181,16 @@ function hasFunction(v) {
 
 function resolveValue(v, settings) {
   if (typeof v === 'function') return v(settings);
-  if (Array.isArray(v)) return v.map((x) => resolveValue(x, settings));
+  if (Array.isArray(v)) {
+    const out = v.map((x) => resolveValue(x, settings));
+    if (v.__enum && !Object.prototype.hasOwnProperty.call(out, '__enum')) {
+      Object.defineProperty(out, '__enum', { value: v.__enum });
+    }
+    if (v.__literal && !Object.prototype.hasOwnProperty.call(out, '__literal')) {
+      Object.defineProperty(out, '__literal', { value: v.__literal });
+    }
+    return out;
+  }
   if (v && typeof v === 'object') {
     const out = {};
     for (const [k, val] of Object.entries(v)) {
