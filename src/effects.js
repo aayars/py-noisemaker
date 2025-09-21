@@ -5632,8 +5632,19 @@ register("rotate", rotate, { angle: 0 });
 async function _pixelSort(tensor, shape, angle, darkest) {
   const ctx = tensor.ctx;
   const [h, w, c] = shape;
-  const srcData = await tensor.read();
-  const baseData = srcData.slice();
+  const srcMaybe = tensor.read();
+  const srcData =
+    srcMaybe && typeof srcMaybe.then === "function"
+      ? await srcMaybe
+      : srcMaybe;
+  let baseData;
+  if (srcData instanceof Float32Array) {
+    baseData = srcData.slice();
+  } else if (srcData) {
+    baseData = Float32Array.from(srcData);
+  } else {
+    baseData = new Float32Array(h * w * c);
+  }
   if (darkest) {
     for (let i = 0; i < baseData.length; i++) {
       baseData[i] = 1 - baseData[i];
@@ -5647,6 +5658,29 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     working = await rotate2D(working, [want, want, c], (angle * Math.PI) / 180);
   }
   const data = await working.read();
+  const finalizeOutput = async (tensorOut) => {
+    const sortedMaybe = tensorOut.read();
+    const sortedData =
+      sortedMaybe && typeof sortedMaybe.then === "function"
+        ? await sortedMaybe
+        : sortedMaybe;
+    let sortedArr;
+    if (sortedData instanceof Float32Array) {
+      sortedArr = sortedData;
+    } else if (sortedData) {
+      sortedArr = Float32Array.from(sortedData);
+    } else {
+      sortedArr = new Float32Array(h * w * c);
+    }
+    const out = new Float32Array(h * w * c);
+    for (let i = 0; i < out.length; i++) {
+      const baseVal = baseData[i] ?? 0;
+      const sortedVal = sortedArr[i] ?? 0;
+      const maxVal = Math.max(baseVal, sortedVal);
+      out[i] = darkest ? 1 - maxVal : maxVal;
+    }
+    return Tensor.fromArray(ctx, out, shape);
+  };
   if (!ctx || !ctx.device) {
     const valueTensor = await toValueMap(working);
     const valuesData = await valueTensor.read();
@@ -5684,14 +5718,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
       );
     }
     sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
-    const sortedData = await sortedTensor.read();
-    const out = new Float32Array(sortedData.length);
-    for (let i = 0; i < sortedData.length; i++) {
-      const baseVal = baseData[i];
-      const maxVal = Math.max(baseVal, sortedData[i]);
-      out[i] = darkest ? 1 - maxVal : maxVal;
-    }
-    return Tensor.fromArray(ctx, out, shape);
+    return finalizeOutput(sortedTensor);
   }
   const sorted = new Float32Array(want * want * c);
   const rowBuffers = [];
@@ -5736,14 +5763,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     );
   }
   sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
-  const sortedData = await sortedTensor.read();
-  const out = new Float32Array(sortedData.length);
-  for (let i = 0; i < sortedData.length; i++) {
-    const orig = srcData[i];
-    const v = Math.max(darkest ? 1 - orig : orig, sortedData[i]);
-    out[i] = darkest ? 1 - v : v;
-  }
-  return Tensor.fromArray(ctx, out, shape);
+  return finalizeOutput(sortedTensor);
 }
 
 export async function pixelSort(
