@@ -855,7 +855,7 @@ register("sobel", sobel, {
   alpha: 1,
 });
 
-export function outline(
+export async function outline(
   tensor,
   shape,
   time,
@@ -863,121 +863,47 @@ export function outline(
   sobelMetric = DistanceMetric.euclidean,
   invert = false,
 ) {
-  const [h, w] = shape;
-  const [, , c = 1] = tensor.shape;
-  const tensorShape = [h, w, c];
-  const applyEdges = (src, edges) => {
-    if (invert) {
-      for (let i = 0; i < edges.length; i++) edges[i] = 1 - edges[i];
+  const [h, w, c] = shape;
+  const valueShape = [h, w, 1];
+  let values = await toValueMap(tensor);
+  if (
+    values.shape[0] !== h ||
+    values.shape[1] !== w ||
+    values.shape[2] !== 1
+  ) {
+    values = await resample(values, valueShape);
+    if (values.shape[2] !== 1) {
+      values = await toValueMap(values);
     }
-    const out = new Float32Array(h * w * c);
-    for (let i = 0; i < h * w; i++) {
-      const e = edges[i];
-      for (let k = 0; k < c; k++) {
-        out[i * c + k] = src[i * c + k] * e;
-      }
+  }
+  values = await normalize(values);
+  const edgesTensor = await sobelOperator(
+    values,
+    valueShape,
+    time,
+    speed,
+    sobelMetric,
+  );
+  const [edgeDataMaybe, srcDataMaybe] = await Promise.all([
+    edgesTensor.read(),
+    tensor.read(),
+  ]);
+  const edgeData =
+    edgeDataMaybe instanceof Float32Array
+      ? edgeDataMaybe
+      : Float32Array.from(edgeDataMaybe || []);
+  const srcData =
+    srcDataMaybe instanceof Float32Array
+      ? srcDataMaybe
+      : Float32Array.from(srcDataMaybe || []);
+  const out = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const eVal = invert ? 1 - edgeData[i] : edgeData[i];
+    for (let k = 0; k < c; k++) {
+      out[i * c + k] = srcData[i * c + k] * eVal;
     }
-    return Tensor.fromArray(tensor.ctx, out, tensorShape);
-  };
-
-  const handleValues = (src, valuesTensor) => {
-    const edgesTensor = sobelOperator(
-      valuesTensor,
-      [h, w, 1],
-      time,
-      speed,
-      sobelMetric,
-    );
-    const processEdges = (et) => {
-      const edges = et.read();
-      if (edges && typeof edges.then === "function") {
-        return edges.then((e) => applyEdges(src, e));
-      }
-      return applyEdges(src, edges);
-    };
-    if (edgesTensor && typeof edgesTensor.then === "function") {
-      return edgesTensor.then(processEdges);
-    }
-    return processEdges(edgesTensor);
-  };
-
-  return withTensorData(tensor, (src) => {
-    if (c === 1) {
-      const norm = normalize(tensor);
-      if (norm && typeof norm.then === "function") {
-        return norm.then((v) => handleValues(src, v));
-      }
-      return handleValues(src, norm);
-    }
-    if (c === 2) {
-      const data = new Float32Array(h * w);
-      for (let i = 0; i < h * w; i++) {
-        data[i] = src[i * 2];
-      }
-      const norm = normalize(Tensor.fromArray(tensor.ctx, data, [h, w, 1]));
-      if (norm && typeof norm.then === "function") {
-        return norm.then((v) => handleValues(src, v));
-      }
-      return handleValues(src, norm);
-    }
-
-    const handleRgb = (rgbTensor) => {
-      const proceed = (rgbT) => {
-        const oklabTensor = rgbToOklab(rgbT);
-        const handleOklab = (ol) => {
-          const oklab = ol.read();
-          const handleOklabData = (ok) => {
-            const l = new Float32Array(h * w);
-            for (let i = 0; i < h * w; i++) {
-              l[i] = ok[i * 3];
-            }
-            const norm = normalize(
-              Tensor.fromArray(tensor.ctx, l, [h, w, 1]),
-            );
-            if (norm && typeof norm.then === "function") {
-              return norm.then((v) => handleValues(src, v));
-            }
-            return handleValues(src, norm);
-          };
-          if (oklab && typeof oklab.then === "function") {
-            return oklab.then(handleOklabData);
-          }
-          return handleOklabData(oklab);
-        };
-        if (oklabTensor && typeof oklabTensor.then === "function") {
-          return oklabTensor.then(handleOklab);
-        }
-        return handleOklab(oklabTensor);
-      };
-
-      if (c !== 3) {
-        const clamped = rgbTensor.read();
-        const handleClamped = (clampedData) => {
-          const rgbData = new Float32Array(h * w * 3);
-          for (let i = 0; i < h * w; i++) {
-            const base = i * c;
-            rgbData[i * 3] = clampedData[base];
-            rgbData[i * 3 + 1] = clampedData[base + 1];
-            rgbData[i * 3 + 2] = clampedData[base + 2];
-          }
-          return proceed(
-            Tensor.fromArray(tensor.ctx, rgbData, [h, w, 3]),
-          );
-        };
-        if (clamped && typeof clamped.then === "function") {
-          return clamped.then(handleClamped);
-        }
-        return handleClamped(clamped);
-      }
-      return proceed(rgbTensor);
-    };
-
-    const rgbTensor = clamp01(tensor);
-    if (rgbTensor && typeof rgbTensor.then === "function") {
-      return rgbTensor.then(handleRgb);
-    }
-    return handleRgb(rgbTensor);
-  });
+  }
+  return Tensor.fromArray(tensor.ctx, out, [h, w, c]);
 }
 register("outline", outline, {
   sobelMetric: DistanceMetric.euclidean,
@@ -2688,16 +2614,20 @@ export function expandTile(
 }
 
 export function offsetIndex(yIndex, height, xIndex, width) {
-  const yData = yIndex.read();
-  const xData = xIndex.read();
-  const out = new Float32Array(height * width * 2);
-  const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
-  const xOff = Math.floor(random() * width * 0.5);
-  for (let i = 0; i < height * width; i++) {
-    out[i * 2] = ((yData[i] + yOff) % height + height) % height;
-    out[i * 2 + 1] = ((xData[i] + xOff) % width + width) % width;
-  }
-  return Tensor.fromArray(yIndex.ctx, out, [height, width, 2]);
+  return withTensorDatas([yIndex, xIndex], (yData, xData) => {
+    const total = height * width;
+    const out = new Float32Array(total * 2);
+    const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
+    const xOff = Math.floor(random() * width * 0.5);
+    for (let i = 0; i < total; i++) {
+      const yVal = yData[i];
+      const xVal = xData[i];
+      out[i * 2] = ((yVal + yOff) % height + height) % height;
+      out[i * 2 + 1] = ((xVal + xOff) % width + width) % width;
+    }
+    const ctx = (yIndex && yIndex.ctx) || (xIndex && xIndex.ctx) || null;
+    return Tensor.fromArray(ctx, out, [height, width, 2]);
+  });
 }
 
 export async function posterize(tensor, shape, time, speed, levels = 9) {
