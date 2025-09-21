@@ -89,9 +89,6 @@
     <label id="seedLabel" for="seedInput">Seed:</label>
     <input id="seedInput" type="number" step="1" value="42" />
     <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
-    <label><input type="checkbox" id="timestampToggle" /> GPU timing</label>
-    <label><input type="checkbox" id="dynamicToggle" /> Dynamic res</label>
-    <label><input type="checkbox" id="parityToggle" /> Parity readback</label>
     </span>
     <canvas id="noise" width="512" height="512"></canvas>
   </div>
@@ -149,25 +146,15 @@
     let canvas = document.getElementById('noise');
     let activeCanvasBackend = 'cpu';
     const webgpuToggle = document.getElementById('webgpuToggle');
-    const timestampToggle = document.getElementById('timestampToggle');
-    const dynamicToggle = document.getElementById('dynamicToggle');
-    const parityToggle = document.getElementById('parityToggle');
     const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu;
+    const defaultProfilingOptions = {
+      timestampQueries: false,
+      dynamicResolution: false,
+      parityReadback: false,
+    };
     if (!hasWebGPU) {
       webgpuToggle.checked = false;
       webgpuToggle.disabled = true;
-      if (timestampToggle) {
-        timestampToggle.checked = false;
-        timestampToggle.disabled = true;
-      }
-      if (dynamicToggle) {
-        dynamicToggle.checked = false;
-        dynamicToggle.disabled = true;
-      }
-      if (parityToggle) {
-        parityToggle.checked = false;
-        parityToggle.disabled = true;
-      }
     }
     let ctx;
     let renderQueue = Promise.resolve();
@@ -230,14 +217,12 @@
         lastCompileMs: 0,
         dynamicScale: 1,
         timestampQueryEnabled: false,
-        parityReadback: Boolean(parityToggle?.checked),
+        parityReadback: false,
       };
       if (typeof cpuCtx.setProfilingOptions === 'function') {
-        cpuCtx.setProfilingOptions({
-          timestampQueries: false,
-          dynamicResolution: Boolean(dynamicToggle?.checked),
-          parityReadback: Boolean(parityToggle?.checked),
-        });
+        cpuCtx.setProfilingOptions({ ...defaultProfilingOptions });
+      } else {
+        cpuCtx.profilingOptions = { ...defaultProfilingOptions };
       }
       return cpuCtx;
     }
@@ -290,23 +275,15 @@
       }
     }
 
-    function currentProfilingOptions() {
-      return {
-        timestampQueries: Boolean(timestampToggle?.checked),
-        dynamicResolution: Boolean(dynamicToggle?.checked),
-        parityReadback: Boolean(parityToggle?.checked),
-      };
-    }
-
     function applyProfilingOptions(targetCtx = ctx) {
       if (!targetCtx) {
         return;
       }
-      const options = currentProfilingOptions();
+      const options = { ...defaultProfilingOptions };
       if (typeof targetCtx.setProfilingOptions === 'function') {
         targetCtx.setProfilingOptions(options);
       } else {
-        targetCtx.profilingOptions = { ...options };
+        targetCtx.profilingOptions = options;
       }
       if (!targetCtx.profile) {
         targetCtx.profile = {
@@ -315,11 +292,12 @@
           lastDispatchMs: 0,
           lastCompileMs: 0,
           dynamicScale: 1,
-          timestampQueryEnabled: Boolean(options.timestampQueries),
-          parityReadback: Boolean(options.parityReadback),
+          timestampQueryEnabled: false,
+          parityReadback: false,
         };
       } else {
-        targetCtx.profile.parityReadback = Boolean(options.parityReadback);
+        targetCtx.profile.timestampQueryEnabled = false;
+        targetCtx.profile.parityReadback = false;
         if (!Number.isFinite(targetCtx.profile.dynamicScale)) {
           targetCtx.profile.dynamicScale = 1;
         }
@@ -437,7 +415,7 @@
           lastCompileMs: 0,
           dynamicScale: 1,
           timestampQueryEnabled: false,
-          parityReadback: Boolean(parityToggle?.checked),
+          parityReadback: false,
         };
       } else {
         ctx.profile.webgpu = 0;
@@ -447,7 +425,7 @@
         if (!Number.isFinite(ctx.profile.dynamicScale)) {
           ctx.profile.dynamicScale = 1;
         }
-        ctx.profile.parityReadback = Boolean(parityToggle?.checked);
+        ctx.profile.parityReadback = false;
       }
       gpuFrameIndex = 0;
       return !ctx.isCPU;
@@ -708,8 +686,8 @@
           lastDispatchMs: 0,
           lastCompileMs: 0,
           dynamicScale: 1,
-          timestampQueryEnabled: Boolean(timestampToggle?.checked),
-          parityReadback: Boolean(parityToggle?.checked),
+          timestampQueryEnabled: false,
+          parityReadback: false,
         };
       } else {
         activeCtx.profile.webgpu = 0;
@@ -719,7 +697,8 @@
         if (!Number.isFinite(activeCtx.profile.dynamicScale)) {
           activeCtx.profile.dynamicScale = 1;
         }
-        activeCtx.profile.parityReadback = Boolean(parityToggle?.checked);
+        activeCtx.profile.timestampQueryEnabled = false;
+        activeCtx.profile.parityReadback = false;
       }
       applyProfilingOptions(activeCtx);
       const width = canvas.width;
@@ -793,7 +772,7 @@
                   frameIndex: gpuFrameIndex,
                   seed,
                   present: true,
-                  readback: Boolean(parityToggle?.checked),
+                  readback: false,
                 });
                 usedGPU = true;
               } catch (err) {
@@ -918,8 +897,6 @@ Bindings: ${bindingSummary}`,
         `cpu: ${cpuMs.toFixed(2)} ms`,
         `total: ${renderMs.toFixed(2)} ms`,
         scaleInfo,
-        `gpu queries: ${timestampToggle?.checked && usedGPU ? 'on' : 'off'}`,
-        `parity: ${parityToggle?.checked ? 'on' : 'off'}`,
         `seed: ${seed}`,
       ]
         .filter(Boolean)
@@ -975,15 +952,6 @@ Bindings: ${bindingSummary}`,
       const seed = Math.floor(random() * 1e9);
       renderWithCatch(seed, currentPreset);
     });
-
-    function handleProfilingToggle() {
-      applyProfilingOptions();
-      renderWithCatch(currentSeed, currentPreset);
-    }
-
-    [timestampToggle, dynamicToggle, parityToggle]
-      .filter(Boolean)
-      .forEach((toggle) => toggle.addEventListener('change', handleProfilingToggle));
 
     webgpuToggle.addEventListener('change', async () => {
       try {
