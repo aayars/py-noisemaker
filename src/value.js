@@ -1278,6 +1278,12 @@ export function normalize(tensor) {
       if (v < min) min = v;
       if (v > max) max = v;
     }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      throw new Error(`normalize input contains ${!Number.isFinite(min) ? min : max}`);
+    }
+    if (min === max) {
+      return Tensor.fromArray(tensor.ctx, src.slice(), [h, w, c]);
+    }
     min = Math.fround(min);
     max = Math.fround(max);
     const range = Math.fround(max - min) || Math.fround(1);
@@ -1312,15 +1318,15 @@ export function normalize(tensor) {
         );
         // Pass 1: compute min/max
         let result;
+        paramsArr[3] = 0;
+        ctx.queue.writeBuffer(
+          paramsBuf,
+          0,
+          paramsArr.buffer,
+          paramsArr.byteOffset,
+          paramsArr.byteLength,
+        );
         await ctx.withEncoder(async () => {
-          paramsArr[3] = 0;
-          ctx.queue.writeBuffer(
-            paramsBuf,
-            0,
-            paramsArr.buffer,
-            paramsArr.byteOffset,
-            paramsArr.byteLength,
-          );
           await ctx.runCompute(
             NORMALIZE_WGSL,
             [
@@ -1332,15 +1338,27 @@ export function normalize(tensor) {
             1,
             1,
           );
-          // Pass 2: scale
-          paramsArr[3] = 1;
-          ctx.queue.writeBuffer(
-            paramsBuf,
-            0,
-            paramsArr.buffer,
-            paramsArr.byteOffset,
-            paramsArr.byteLength,
-          );
+        });
+        await ctx.flush();
+        const stats = await ctx.readGPUBuffer(reduceBuf, 8);
+        const min = stats[0];
+        const max = stats[1];
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+          throw new Error(`normalize input contains ${!Number.isFinite(min) ? min : max}`);
+        }
+        if (min === max) {
+          const src = await tensor.read();
+          return Tensor.fromArray(ctx, src, [h, w, c]);
+        }
+        paramsArr[3] = 1;
+        ctx.queue.writeBuffer(
+          paramsBuf,
+          0,
+          paramsArr.buffer,
+          paramsArr.byteOffset,
+          paramsArr.byteLength,
+        );
+        await ctx.withEncoder(async () => {
           await ctx.runCompute(
             NORMALIZE_WGSL,
             [

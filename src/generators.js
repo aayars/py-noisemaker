@@ -62,7 +62,7 @@ export async function basic(freq, shape, opts = {}) {
     latticeDrift = 0,
     color_space = ColorSpace.hsv,
     hueRange = 0.125,
-    hueRotation = null,
+    hueRotation = opts.hue_rotation ?? null,
     saturation = 1.0,
     hueDistrib = null,
     brightnessDistrib = null,
@@ -278,11 +278,14 @@ export async function basic(freq, shape, opts = {}) {
     }
     if (sin) {
       const vMinF = f32(vMin);
-      const range = f32(vMax - vMin) || 1;
-      for (let i = 0; i < h * w; i++) {
-        const idx = i * 3 + 2;
-        const adjusted = f32(out[idx] - vMinF);
-        out[idx] = f32(adjusted / range);
+      const vMaxF = f32(vMax);
+      if (vMaxF > vMinF) {
+        const range = f32(vMaxF - vMinF) || 1;
+        for (let i = 0; i < h * w; i++) {
+          const idx = i * 3 + 2;
+          const adjusted = f32(out[idx] - vMinF);
+          out[idx] = f32(adjusted / range);
+        }
       }
     }
     tensor = Tensor.fromArray(ctx, out, [h, w, 3]);
@@ -335,7 +338,7 @@ export async function multires(freq, shape, opts = {}) {
     latticeDrift = 0,
     color_space = ColorSpace.hsv,
     hueRange = 0.125,
-    hueRotation = null,
+    hueRotation = opts.hue_rotation ?? null,
     saturation = 1.0,
     hueDistrib = null,
     saturationDistrib = null,
