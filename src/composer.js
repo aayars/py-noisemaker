@@ -775,7 +775,9 @@ export function Effect(effectName, params = {}) {
 }
 
 export async function render(presetOrName, seed = 0, opts = {}) {
-  setValueSeed(seed);
+  if (Number.isFinite(seed) && seed !== 0) {
+    setValueSeed(seed);
+  }
   const { presets = {}, settings } = opts;
   if (presetOrName instanceof Preset) {
     return presetOrName.render(seed, opts);

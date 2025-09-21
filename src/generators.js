@@ -88,9 +88,13 @@ export async function basic(freq, shape, opts = {}) {
     speed,
   };
 
-  if (seed !== undefined) {
-    setRngSeed(seed);
-    setValueSeed(seed);
+  // Python treats a seed value of ``0`` as falsy and therefore skips reseeding
+  // the RNG modules. Mirror that behaviour here so that ``seed=0`` preserves
+  // the existing generator state instead of forcing a fresh sequence.
+  const numericSeed = Number.isFinite(seed) ? seed : null;
+  if (numericSeed) {
+    setRngSeed(numericSeed);
+    setValueSeed(numericSeed);
   }
 
   // Python seeds the global RNG and value modules externally before invoking
@@ -349,9 +353,12 @@ export async function multires(freq, shape, opts = {}) {
   const styleFilename = opts.styleFilename ?? opts.style_filename ?? null;
   const inputTensor = opts.tensor ?? null;
 
-  if (seed !== undefined) {
-    setRngSeed(seed);
-    setValueSeed(seed);
+  // Preserve Python's behaviour where ``seed=0`` leaves the previous global
+  // RNG state untouched instead of reseeding with zero.
+  const numericSeed = Number.isFinite(seed) ? seed : null;
+  if (numericSeed) {
+    setRngSeed(numericSeed);
+    setValueSeed(numericSeed);
   }
 
   if (withAi && withSupersample) {

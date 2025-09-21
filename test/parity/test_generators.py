@@ -185,3 +185,29 @@ def test_multires_rectangular_shape(seed):
     assert js.shape == (64, 128, 3)
     assert np.allclose(tensor.numpy(), js, atol=1e-6)
     assert rng.get_call_count() == js_calls
+
+
+def test_multires_seed_zero_preserves_rng_state():
+    base_seed = SEEDS[0]
+    rng.set_seed(base_seed)
+    value.set_seed(base_seed)
+    rng.reset_call_count()
+    tensor = generators.multires(
+        None,
+        0,
+        freq=2,
+        shape=[128, 128, 3],
+        octaves=1,
+        post_effects=[],
+        final_effects=[],
+    )
+    assert tensor.shape == (128, 128, 3)
+    js, js_calls = js_generator(
+        "multires",
+        0,
+        octaves=1,
+        skipSeedInit=True,
+        initialSeed=base_seed,
+    )
+    assert np.allclose(tensor.numpy(), js, atol=1e-6)
+    assert rng.get_call_count() == js_calls

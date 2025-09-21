@@ -15,8 +15,29 @@ const shape = requestedShape && requestedShape.length === 3
   : [128, 128, 3];
 const generatorOptions = { ...options };
 delete generatorOptions.shape;
-setSeed(seed);
-setValueSeed(seed);
+const skipSeedInit = Boolean(
+  generatorOptions.skipSeedInit ?? generatorOptions.skip_seed_init,
+);
+delete generatorOptions.skipSeedInit;
+delete generatorOptions.skip_seed_init;
+const initialSeedOption =
+  generatorOptions.initialSeed ?? generatorOptions.initial_seed;
+delete generatorOptions.initialSeed;
+delete generatorOptions.initial_seed;
+const normalizedInitialSeed =
+  Number.isFinite(initialSeedOption) ? Number(initialSeedOption) : undefined;
+const normalizedSeed = Number.isFinite(seed) ? seed : undefined;
+const baselineSeed =
+  normalizedInitialSeed !== undefined ? normalizedInitialSeed : normalizedSeed;
+if (skipSeedInit) {
+  if (baselineSeed !== undefined) {
+    setSeed(baselineSeed);
+    setValueSeed(baselineSeed);
+  }
+} else if (normalizedSeed !== undefined) {
+  setSeed(normalizedSeed);
+  setValueSeed(normalizedSeed);
+}
 resetCallCount();
 let tensor;
 if (name === 'basic') {
