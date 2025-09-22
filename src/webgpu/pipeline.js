@@ -1362,8 +1362,6 @@ function analyseMultiresGeneratorStage(params) {
     if (hasMask) flagUnsupported('mask');
     if (params.maskInverse) flagUnsupported('maskInverse');
     if (params.maskStatic) flagUnsupported('maskStatic');
-    if (params.corners) flagUnsupported('corners');
-    if (params.latticeDrift && params.latticeDrift !== 0) flagUnsupported('latticeDrift');
     const hueDistribValue = normalizeOverrideDistribution(
       resolveParam(params, ['hueDistrib', 'hue_distrib']),
     );
@@ -1435,12 +1433,8 @@ function analyseMultiresGeneratorStage(params) {
       components: 4,
       defaultValue: [0, ValueDistribution.simplex >>> 0, ColorSpace.hsv >>> 0, 0],
     },
-    {
-      name: 'options2',
-      scalarType: 'u32',
-      components: 4,
-      defaultValue: [0, 0, 0, 0],
-    },
+    { name: 'options2', scalarType: 'u32', components: 4, defaultValue: [0, 0, 0, 0] },
+    { name: 'options3', scalarType: 'u32', components: 4, defaultValue: [0, 0, 0, 0] },
   ];
   const layout = buildStd140Layout(fields, issues);
   const defaults = {
@@ -1452,6 +1446,7 @@ function analyseMultiresGeneratorStage(params) {
     options0: fields[5].defaultValue.slice(),
     options1: fields[6].defaultValue.slice(),
     options2: fields[7].defaultValue.slice(),
+    options3: fields[8].defaultValue.slice(),
   };
 
   return { layout, defaults, resources: [], issues, requiresUniforms: true, unsupported };
@@ -1609,6 +1604,8 @@ function buildMultiresUniformMetadata(stage) {
   );
   const withAlpha = toBoolean(resolveParam(params, ['withAlpha', 'with_alpha']));
   const channelCount = computeChannelCount(colorSpace, withAlpha, octaveBlending);
+  const latticeDrift = toNumber(resolveParam(params, ['latticeDrift', 'lattice_drift']), 0);
+  const cornersFlag = toBoolean(resolveParam(params, ['corners']));
 
   const hueDistribValue = normalizeOverrideDistribution(
     resolveParam(params, ['hueDistrib', 'hue_distrib']),
@@ -1666,10 +1663,11 @@ function buildMultiresUniformMetadata(stage) {
     speed,
     sin: sinAmount,
     colorParams0: [hueRange, hueRotation, saturation, 0],
-    colorParams1: [0, 0, 0, 0],
+    colorParams1: [0, 0, latticeDrift, 0],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
-    options1: [seedOffset, distrib, colorSpace, 0],
+    options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
     options2: [safeHueDistrib, safeSaturationDistrib, safeBrightnessDistrib, brightnessFreqFlag >>> 0],
+    options3: [cornersFlag ? 1 : 0, 0, 0, 0],
   };
 
   const fields = [
@@ -1681,6 +1679,7 @@ function buildMultiresUniformMetadata(stage) {
     { name: 'options0', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options0 },
     { name: 'options1', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options1 },
     { name: 'options2', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options2 },
+    { name: 'options3', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options3 },
   ];
   const issues = [];
   const layout = buildStd140Layout(fields, issues);
@@ -1813,6 +1812,8 @@ function resolveMultiresUniformParams(params, descriptor) {
   );
   const distrib = coerceValueDistribution(merged.distrib);
   const seedOffset = coerceInt(merged.seedOffset ?? merged.seed_offset, 0);
+  const latticeDrift = coerceNumber(merged.latticeDrift ?? merged.lattice_drift, 0);
+  const cornersFlag = coerceBool(merged.corners);
 
   const channelCount = computeMultiresChannelCount(
     colorSpace,
@@ -1876,10 +1877,11 @@ function resolveMultiresUniformParams(params, descriptor) {
     speed,
     sin: sinValue,
     colorParams0: [hueRange, hueRotation, saturation, 0],
-    colorParams1: [brightnessFreqVec[0], brightnessFreqVec[1], 0, 0],
+    colorParams1: [brightnessFreqVec[0], brightnessFreqVec[1], latticeDrift, 0],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
     options2: [hueDistrib, saturationDistrib, brightnessDistrib, brightnessFreqFlag >>> 0],
+    options3: [cornersFlag ? 1 : 0, 0, 0, 0],
   };
 }
 

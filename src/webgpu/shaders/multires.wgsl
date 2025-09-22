@@ -26,6 +26,7 @@ struct StageUniforms {
   options0 : vec4<u32>,
   options1 : vec4<u32>,
   options2 : vec4<u32>,
+  options3 : vec4<u32>,
 };
 
 const PERMUTATION_SIZE : u32 = 256u;
@@ -214,6 +215,30 @@ fn compute_octave_frequency(base_freq : vec2<f32>, octave_index : u32) -> vec2<f
     freq.y = 1.0;
   }
   return freq;
+}
+
+fn compute_pin_offset(
+  freq : vec2<f32>,
+  corners_enabled : bool,
+  resolution : vec2<f32>,
+) -> vec2<f32> {
+  let fy : f32 = max(freq.y, 1.0);
+  let fx : f32 = max(freq.x, 1.0);
+  let fy_int : u32 = u32(floor(fy));
+  var apply_offset : bool = false;
+  if (!corners_enabled) {
+    apply_offset = (fy_int & 1u) == 0u;
+  } else {
+    apply_offset = (fy_int & 1u) == 1u;
+  }
+  if (!apply_offset) {
+    return vec2<f32>(0.0, 0.0);
+  }
+  let cell_width : f32 = resolution.x / fx;
+  let cell_height : f32 = resolution.y / fy;
+  let offset_x : f32 = floor(cell_width * 0.5);
+  let offset_y : f32 = floor(cell_height * 0.5);
+  return vec2<f32>(offset_x / resolution.x, offset_y / resolution.y);
 }
 
 fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
@@ -751,7 +776,8 @@ fn sample_distribution_value(
 }
 
 fn evaluate_simplex_layer_rgba(
-  coord : vec2<f32>,
+  sample_coord : vec2<f32>,
+  override_coord : vec2<f32>,
   brightness_coord : vec2<f32>,
   z : f32,
   base_seed : u32,
@@ -784,7 +810,7 @@ fn evaluate_simplex_layer_rgba(
     if (idx >= effective_channels) {
       break;
     }
-    var sample : f32 = sample_simplex_channel(coord, z, base_seed, idx);
+    var sample : f32 = sample_simplex_channel(sample_coord, z, base_seed, idx);
     var effective_distrib : u32 = distrib;
     if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
       effective_distrib = DISTRIB_SIMPLEX;
@@ -842,7 +868,7 @@ fn evaluate_simplex_layer_rgba(
 
     var hue_value : f32;
     if (has_hue_override) {
-      hue_value = clamp(sample_distribution_value(coord, z, hue_seed, hue_distrib), 0.0, 1.0);
+      hue_value = clamp(sample_distribution_value(override_coord, z, hue_seed, hue_distrib), 0.0, 1.0);
     } else {
       hue_value = color_vec.x * hue_range + hue_rotation;
       hue_value = fract(hue_value);
@@ -854,7 +880,7 @@ fn evaluate_simplex_layer_rgba(
     var saturation_value : f32;
     if (has_saturation_override) {
       saturation_value = clamp(
-        sample_distribution_value(coord, z, saturation_seed, saturation_distrib),
+        sample_distribution_value(override_coord, z, saturation_seed, saturation_distrib),
         0.0,
         1.0,
       );
@@ -908,6 +934,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let seed_offset : u32 = stage_uniforms.options1.x;
   let distrib : u32 = stage_uniforms.options1.y;
   let color_space : u32 = stage_uniforms.options1.z;
+  let with_alpha_output : bool = bool_from_u32(stage_uniforms.options1.w);
 
   let hue_range : f32 = stage_uniforms.colorParams0.x;
   let hue_rotation : f32 = stage_uniforms.colorParams0.y;
@@ -922,6 +949,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     stage_uniforms.colorParams1.x,
     stage_uniforms.colorParams1.y,
   );
+  let lattice_drift_amount : f32 = stage_uniforms.colorParams1.z;
   let has_hue_override : bool = hue_distrib != 0u;
   let has_saturation_override : bool = saturation_distrib != 0u;
   let has_brightness_freq_override : bool = bool_from_u32(brightness_freq_flag);
@@ -929,6 +957,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   if (has_brightness_override && brightness_distrib == 0u) {
     brightness_distrib = DISTRIB_SIMPLEX;
   }
+  let corners_enabled : bool = bool_from_u32(stage_uniforms.options3.x);
 
   var calls_per_octave : u32 = 1u;
   if (has_hue_override) {
@@ -939,6 +968,10 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   }
   if (has_brightness_override) {
     calls_per_octave = calls_per_octave + 1u;
+  }
+  let has_lattice_drift : bool = lattice_drift_amount != 0.0;
+  if (has_lattice_drift) {
+    calls_per_octave = calls_per_octave + 2u;
   }
 
   let angle : f32 = frame_uniforms.time * TAU;
@@ -961,7 +994,10 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       break;
     }
 
-    let coord : vec2<f32> = uv * octave_freq;
+    let pin_offset_uv : vec2<f32> = compute_pin_offset(octave_freq, corners_enabled, resolution);
+    let base_uv : vec2<f32> = fract(uv + pin_offset_uv);
+    let base_coord : vec2<f32> = base_uv * octave_freq;
+
     var brightness_freq_vec : vec2<f32> = octave_freq;
     if (has_brightness_override && has_brightness_freq_override) {
       brightness_freq_vec = vec2<f32>(
@@ -969,7 +1005,13 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
         max(brightness_freq_params.y, 1.0),
       );
     }
-    let brightness_coord : vec2<f32> = uv * brightness_freq_vec;
+    let brightness_pin_offset : vec2<f32> = compute_pin_offset(
+      brightness_freq_vec,
+      corners_enabled,
+      resolution,
+    );
+    let brightness_uv : vec2<f32> = fract(uv + brightness_pin_offset);
+    let brightness_coord : vec2<f32> = brightness_uv * brightness_freq_vec;
     let octave_offset : u32 = (octave_index - 1u) * calls_per_octave;
     let base_seed : u32 = frame_uniforms.seed + seed_offset + octave_offset;
 
@@ -995,10 +1037,32 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       seed_cursor = seed_cursor + 1u;
     }
 
+    var refx_seed : u32 = 0u;
+    var refy_seed : u32 = 0u;
+    if (has_lattice_drift) {
+      refx_seed = seed_cursor;
+      seed_cursor = seed_cursor + 1u;
+      refy_seed = seed_cursor;
+      seed_cursor = seed_cursor + 1u;
+    }
+
     let effective_brightness_distrib : u32 = has_brightness_override ? brightness_distrib : DISTRIB_NONE;
 
+    var sample_coord : vec2<f32> = base_coord;
+    let override_coord : vec2<f32> = base_coord;
+    if (has_lattice_drift) {
+      let min_freq_component : f32 = max(min(octave_freq.x, octave_freq.y), 1.0);
+      let displacement : f32 = lattice_drift_amount / min_freq_component;
+      let refx_value : f32 = sample_simplex_channel(base_coord, z, refx_seed, 0u);
+      let refy_value : f32 = sample_simplex_channel(base_coord, z, refy_seed, 0u);
+      let lattice_offset_uv : vec2<f32> = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
+      let warped_uv : vec2<f32> = fract(base_uv + lattice_offset_uv);
+      sample_coord = warped_uv * octave_freq;
+    }
+
     let layer_rgba : vec4<f32> = evaluate_simplex_layer_rgba(
-      coord,
+      sample_coord,
+      override_coord,
       brightness_coord,
       z,
       layer_seed,
@@ -1030,8 +1094,14 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     octave_index = octave_index + 1u;
   }
 
+  var resolved_color : vec4<f32> = accum;
+  if (!with_alpha_output && octave_blending == OCTAVE_BLENDING_ALPHA) {
+    let alpha_component : f32 = resolved_color.w;
+    resolved_color = vec4<f32>(resolved_color.xyz * alpha_component, 1.0);
+  }
+
   let final_color : vec4<f32> = clamp(
-    accum,
+    resolved_color,
     vec4<f32>(0.0, 0.0, 0.0, 0.0),
     vec4<f32>(1.0, 1.0, 1.0, 1.0)
   );

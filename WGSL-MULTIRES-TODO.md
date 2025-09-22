@@ -18,10 +18,10 @@ Follow-up work before enabling this stage in production:
    per-pixel result back to 0–1 (`map_to_unit`). Revisit this so the GPU path
    mirrors the global remap (probably a reduction pass or a follow-up
    normalisation stage).
-2. **Masking and lattice drift** – presets that rely on masks, supersample
-   masks, or lattice refract are still routed to the CPU. Once the uniform and
-   auxiliary bindings land, add the mask sampling and lattice drift flows so the
-   GPU path can participate.
+2. **Masking support** – presets that rely on masks, supersample masks, or
+   lattice refract are still routed to the CPU. The shader now mirrors lattice
+   drift so only the mask sampling and related auxiliary bindings remain before
+   these presets can execute on the GPU path.
 3. **Performance** – permutation tables are rebuilt for every pixel and channel,
    matching the CPU algorithm but wasting work on the GPU. Introduce shared
    caching (per workgroup or via uniforms) once correctness is locked in.
