@@ -268,6 +268,26 @@ fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
   (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
 }
 
+fn load_mask_sample(octave_index : u32, pixel_index : u32, stride : u32) -> vec4<f32> {
+  if (octave_index == 0u) {
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+  }
+  let total : u32 = arrayLength(&mask_data);
+  if (total == 0u || stride == 0u) {
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+  }
+  let base_index : u32 = (octave_index - 1u) * stride + pixel_index * 4u;
+  if (base_index + 3u >= total) {
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+  }
+  return vec4<f32>(
+    mask_data[base_index],
+    mask_data[base_index + 1u],
+    mask_data[base_index + 2u],
+    mask_data[base_index + 3u],
+  );
+}
+
 struct LayerResult {
   color : vec4<f32>,
   hsv : vec4<f32>,
@@ -288,6 +308,19 @@ fn ordered_int_to_float(value : i32) -> f32 {
 struct PermutationTables {
   perm : array<u32, PERMUTATION_SIZE>,
   perm_grad_index3d : array<u32, PERMUTATION_SIZE>,
+};
+
+const PERMUTATION_CACHE_SIZE : u32 = 16u;
+
+struct PermutationCacheEntry {
+  seed : u32,
+  tables : PermutationTables,
+};
+
+struct PermutationCache {
+  entries : array<PermutationCacheEntry, PERMUTATION_CACHE_SIZE>,
+  count : u32,
+  next : u32,
 };
 
 struct RandomState {
@@ -353,6 +386,40 @@ fn build_permutation_tables(seed : u32) -> PermutationTables {
     idx = idx - 1;
   }
   return tables;
+}
+
+fn init_permutation_cache(cache : ptr<function, PermutationCache>) {
+  (*cache).count = 0u;
+  (*cache).next = 0u;
+}
+
+fn fetch_permutation_tables(
+  cache : ptr<function, PermutationCache>,
+  seed : u32,
+) -> ptr<function, PermutationTables> {
+  var index : u32 = 0u;
+  loop {
+    if (index >= (*cache).count) {
+      break;
+    }
+    let entry_seed : u32 = (*cache).entries[index].seed;
+    if (entry_seed == seed) {
+      return &(*cache).entries[index].tables;
+    }
+    index = index + 1u;
+  }
+
+  var insert_index : u32;
+  if ((*cache).count < PERMUTATION_CACHE_SIZE) {
+    insert_index = (*cache).count;
+    (*cache).count = (*cache).count + 1u;
+  } else {
+    insert_index = (*cache).next;
+    (*cache).next = ((*cache).next + 1u) % PERMUTATION_CACHE_SIZE;
+  }
+  (*cache).entries[insert_index].seed = seed;
+  (*cache).entries[insert_index].tables = build_permutation_tables(seed);
+  return &(*cache).entries[insert_index].tables;
 }
 
 fn extrapolate2d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32, dx : f32, dy : f32) -> f32 {
@@ -915,17 +982,20 @@ fn apply_primary_distribution(
 }
 
 fn sample_simplex_channel(
+  cache : ptr<function, PermutationCache>,
   coord : vec2<f32>,
   z : f32,
   base_seed : u32,
   channel_index : u32,
 ) -> f32 {
-  var tables : PermutationTables = build_permutation_tables(base_seed + channel_index * 65535u);
-  let raw_value : f32 = open_simplex_3d(&tables, coord.x, coord.y, z);
+  let seed : u32 = base_seed + channel_index * 65535u;
+  let tables : ptr<function, PermutationTables> = fetch_permutation_tables(cache, seed);
+  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   return map_to_unit(raw_value);
 }
 
 fn sample_distribution_value(
+  cache : ptr<function, PermutationCache>,
   coord : vec2<f32>,
   z : f32,
   seed : u32,
@@ -943,13 +1013,14 @@ fn sample_distribution_value(
   if (distrib == DISTRIB_ZEROS) {
     return 0.0;
   }
-  var tables : PermutationTables = build_permutation_tables(seed);
-  let raw_value : f32 = open_simplex_3d(&tables, coord.x, coord.y, z);
+  let tables : ptr<function, PermutationTables> = fetch_permutation_tables(cache, seed);
+  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   let mapped : f32 = map_to_unit(raw_value);
   return apply_basic_distribution(mapped, distrib);
 }
 
 fn evaluate_simplex_layer_rgba(
+  cache : ptr<function, PermutationCache>,
   sample_coord : vec2<f32>,
   override_coord : vec2<f32>,
   brightness_coord : vec2<f32>,
@@ -989,7 +1060,7 @@ fn evaluate_simplex_layer_rgba(
     if (idx >= effective_channels) {
       break;
     }
-    var sample : f32 = sample_simplex_channel(sample_coord, z, base_seed, idx);
+    var sample : f32 = sample_simplex_channel(cache, sample_coord, z, base_seed, idx);
     var effective_distrib : u32 = distrib;
     if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
       effective_distrib = DISTRIB_SIMPLEX;
@@ -1060,7 +1131,7 @@ fn evaluate_simplex_layer_rgba(
 
     var hue_value : f32;
     if (has_hue_override) {
-      hue_value = clamp(sample_distribution_value(override_coord, z, hue_seed, hue_distrib), 0.0, 1.0);
+      hue_value = clamp(sample_distribution_value(cache, override_coord, z, hue_seed, hue_distrib), 0.0, 1.0);
     } else {
       hue_value = color_vec.x * hue_range + hue_rotation;
       hue_value = fract(hue_value);
@@ -1072,7 +1143,7 @@ fn evaluate_simplex_layer_rgba(
     var saturation_value : f32;
     if (has_saturation_override) {
       saturation_value = clamp(
-        sample_distribution_value(override_coord, z, saturation_seed, saturation_distrib),
+        sample_distribution_value(cache, override_coord, z, saturation_seed, saturation_distrib),
         0.0,
         1.0,
       );
@@ -1084,7 +1155,7 @@ fn evaluate_simplex_layer_rgba(
     var brightness_value : f32;
     if (has_brightness_override) {
       brightness_value = clamp(
-        sample_distribution_value(brightness_coord, z, brightness_seed, brightness_distrib),
+        sample_distribution_value(cache, brightness_coord, z, brightness_seed, brightness_distrib),
         0.0,
         1.0,
       );
@@ -1119,6 +1190,7 @@ fn evaluate_simplex_layer_rgba(
 @group(0) @binding(1) var<uniform> frame_uniforms : FrameUniforms;
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
 @group(0) @binding(4) var<storage, read_write> sin_state : SinNormalizationState;
+@group(0) @binding(5) var<storage, read> mask_data : array<f32>;
 
 @compute @workgroup_size(8, 8, 1)
 fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
@@ -1138,6 +1210,9 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let distrib : u32 = stage_uniforms.options1.y;
   let color_space : u32 = stage_uniforms.options1.z;
   let with_alpha_output : bool = bool_from_u32(stage_uniforms.options1.w);
+  let mask_enabled : bool = bool_from_u32(stage_uniforms.options3.y);
+  let mask_alpha_mode : bool = bool_from_u32(stage_uniforms.options3.z);
+  let mask_octave_count : u32 = stage_uniforms.options3.w;
 
   let hue_range : f32 = stage_uniforms.colorParams0.x;
   let hue_rotation : f32 = stage_uniforms.colorParams0.y;
@@ -1182,6 +1257,11 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let resolution : vec2<f32> = frame_uniforms.resolution;
   let pixel : vec2<f32> = vec2<f32>(f32(global_id.x), f32(global_id.y));
   let uv : vec2<f32> = (pixel + vec2<f32>(0.5, 0.5)) / resolution;
+  let pixel_index : u32 = global_id.y * width + global_id.x;
+  let mask_stride : u32 = total_invocations * 4u;
+
+  var permutation_cache : PermutationCache;
+  init_permutation_cache(&permutation_cache);
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
   var weight : f32 = 0.5;
@@ -1260,14 +1340,15 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     if (has_lattice_drift) {
       let min_freq_component : f32 = max(min(octave_freq.x, octave_freq.y), 1.0);
       let displacement : f32 = lattice_drift_amount / min_freq_component;
-      let refx_value : f32 = sample_simplex_channel(base_coord, z, refx_seed, 0u);
-      let refy_value : f32 = sample_simplex_channel(base_coord, z, refy_seed, 0u);
+      let refx_value : f32 = sample_simplex_channel(&permutation_cache, base_coord, z, refx_seed, 0u);
+      let refy_value : f32 = sample_simplex_channel(&permutation_cache, base_coord, z, refy_seed, 0u);
       let lattice_offset_uv : vec2<f32> = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
       let warped_uv : vec2<f32> = fract(base_uv + lattice_offset_uv);
       sample_coord = warped_uv * octave_freq;
     }
 
     let layer_result : LayerResult = evaluate_simplex_layer_rgba(
+      &permutation_cache,
       sample_coord,
       override_coord,
       brightness_coord,
@@ -1335,6 +1416,18 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       let color_vec : vec3<f32> = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, normalized_brightness));
       let clamped_color : vec3<f32> = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
       layer_rgba = vec4<f32>(clamped_color, alpha_value);
+    }
+
+    if (mask_enabled) {
+      var mask_sample : vec4<f32> = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+      if (mask_stride != 0u && octave_index <= mask_octave_count) {
+        mask_sample = load_mask_sample(octave_index, pixel_index, mask_stride);
+      }
+      if (mask_alpha_mode) {
+        layer_rgba = vec4<f32>(layer_rgba.xyz, mask_sample.x);
+      } else {
+        layer_rgba = vec4<f32>(layer_rgba.xyz * mask_sample.xyz, layer_rgba.w);
+      }
     }
 
     if (octave_blending == OCTAVE_BLENDING_REDUCE_MAX) {

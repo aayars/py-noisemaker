@@ -15,13 +15,12 @@ generation stays on the GPU for those presets.
 
 Follow-up work before enabling this stage in production:
 
-1. **Masking support** – presets that rely on masks, supersample masks, or
-   lattice refract are still routed to the CPU. The shader now mirrors lattice
-   drift so only the mask sampling and related auxiliary bindings remain before
-   these presets can execute on the GPU path.
-2. **Performance** – permutation tables are rebuilt for every pixel and channel,
-   matching the CPU algorithm but wasting work on the GPU. Introduce shared
-   caching (per workgroup or via uniforms) once correctness is locked in.
+1. **Procedural masks** – the GPU path now samples static masks by uploading a
+   per-octave mask atlas, but procedural masks (those backed by functions in
+   `masks.js`) still fall back to the CPU. Port the procedural generators so the
+   WebGPU path can animate dropout/truchet/etc. without CPU assistance. Static
+   mask uploads are now cached per descriptor/resolution so procedural support
+   should integrate with the new cache rather than recomputing every frame.
 
 Leave this file in place until the shader reaches feature parity and is enabled
 in the WebGPU renderer.

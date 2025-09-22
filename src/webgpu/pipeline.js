@@ -1,4 +1,14 @@
-import { ColorSpace, OctaveBlending, ValueDistribution } from '../constants.js';
+import {
+  ColorSpace,
+  InterpolationType,
+  OctaveBlending,
+  ValueDistribution,
+  ValueMask,
+  isNativeSize,
+  isValueMaskProcedural,
+} from '../constants.js';
+import { maskValues } from '../masks.js';
+import { resample } from '../value.js';
 import * as SHADERS from './shaders.js';
 
 const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
@@ -7,6 +17,7 @@ const COMPUTE_STAGE_VISIBILITY =
 const STORAGE_TEXTURE_FORMAT = 'rgba32float';
 const PRESENT_PARAMS_FLOATS = 16;
 const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
+const MASK_STORAGE_PAD = 16;
 
 export class StageValidationError extends Error {
   constructor(descriptor, cause, bindings, context = {}) {
@@ -230,6 +241,41 @@ export class PresetProgram {
     return state;
   }
 
+  _ensureMaskBuffer(descriptor, ctx) {
+    if (!descriptor) return null;
+    const holder = ensureMaskDataHolder(descriptor);
+    const array = holder?.array instanceof Float32Array ? holder.array : new Float32Array([1, 1, 1, 1]);
+    const byteLength = array.byteLength || MASK_STORAGE_PAD;
+    if (!ctx || !ctx.device) {
+      descriptor._maskGPUBuffer = null;
+      return { buffer: null, array };
+    }
+    const usage = (typeof GPUBufferUsage !== 'undefined'
+      ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+      : (1 << 5) | (1 << 3));
+    let buffer = descriptor._maskGPUBuffer;
+    if (!buffer || buffer.size < byteLength) {
+      if (buffer && typeof buffer.destroy === 'function') {
+        try {
+          buffer.destroy();
+        } catch (err) {
+          void err;
+        }
+      }
+      buffer = ctx.device.createBuffer({
+        size: Math.max(byteLength, MASK_STORAGE_PAD),
+        usage,
+      });
+      descriptor._maskGPUBuffer = buffer;
+      descriptor._maskDataDirty = true;
+    }
+    if (descriptor._maskDataDirty && ctx.queue) {
+      ctx.queue.writeBuffer(buffer, 0, array, 0, array.length * 4);
+      descriptor._maskDataDirty = false;
+    }
+    return { buffer };
+  }
+
   /**
    * Number of GPU stages described by the program.
    * @returns {number}
@@ -422,6 +468,16 @@ export class PresetProgram {
             }
             if (sinState?.buffer) {
               entry = { resource: { buffer: sinState.buffer } };
+            }
+          }
+          if (
+            !entry &&
+            resourceSpec?.resourceType === 'storage-buffer' &&
+            resourceSpec?.name === 'maskData'
+          ) {
+            const maskState = this._ensureMaskBuffer(descriptor, context);
+            if (maskState?.buffer) {
+              entry = { resource: { buffer: maskState.buffer } };
             }
           }
           if (this.sharedResources) {
@@ -978,9 +1034,18 @@ export class PresetProgram {
             void err;
           }
         }
+        if (descriptor._maskGPUBuffer && typeof descriptor._maskGPUBuffer.destroy === 'function') {
+          try {
+            descriptor._maskGPUBuffer.destroy();
+          } catch (err) {
+            void err;
+          }
+        }
         descriptor.pipeline = null;
         descriptor.bindGroupLayout = null;
         descriptor.pipelineLayout = null;
+        descriptor._maskGPUBuffer = null;
+        descriptor._maskData = null;
       }
     }
   }
@@ -1406,10 +1471,18 @@ function analyseMultiresGeneratorStage(params) {
     });
   };
   if (params && typeof params === 'object') {
-    const hasMask = params.mask !== undefined && params.mask !== null && params.mask !== 0;
-    if (hasMask) flagUnsupported('mask');
-    if (params.maskInverse) flagUnsupported('maskInverse');
-    if (params.maskStatic) flagUnsupported('maskStatic');
+    const maskParam = resolveParam(params, ['mask']);
+    const maskValue = normalizeMaskValue(maskParam);
+    if (maskParam !== undefined && maskParam !== null && maskValue === null) {
+      flagUnsupported('mask');
+    }
+    if (maskValue && isValueMaskProcedural(maskValue)) {
+      unsupported = true;
+      issues.push({
+        level: 'error',
+        message: 'Procedural masks are not yet supported on the GPU path for the multires generator.',
+      });
+    }
     const hueDistribValue = normalizeOverrideDistribution(
       resolveParam(params, ['hueDistrib', 'hue_distrib']),
     );
@@ -1628,7 +1701,20 @@ function specializeMultiresDescriptor(descriptor, stage) {
     resourceType: sinStateResource.resourceType,
     optional: false,
   });
+  const maskResource = {
+    name: 'maskData',
+    resourceType: 'storage-buffer',
+    size: 0,
+  };
+  descriptor.resourceParams.push(maskResource);
+  descriptor.bindings.auxiliary.push({
+    name: maskResource.name,
+    resourceType: maskResource.resourceType,
+    optional: false,
+  });
   descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
+  descriptor.multiresMaskConfig = extractMultiresMaskConfig(stage?.params || {});
+  ensureMaskDataHolder(descriptor);
   descriptor.resolveUniformParams = (params) =>
     resolveMultiresUniformParams(params, descriptor);
   descriptor.specialization = descriptor.specialization || {
@@ -1642,6 +1728,7 @@ function specializeMultiresDescriptor(descriptor, stage) {
 }
 
 function buildMultiresUniformMetadata(stage) {
+  const issues = [];
   const params = (stage && stage.params) || {};
   const freq = normalizeVec2(resolveParam(params, ['freq', 'frequency']), [1, 1]);
   const speed = toNumber(resolveParam(params, ['speed']), 1);
@@ -1740,7 +1827,6 @@ function buildMultiresUniformMetadata(stage) {
     { name: 'options2', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options2 },
     { name: 'options3', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options3 },
   ];
-  const issues = [];
   const layout = buildStd140Layout(fields, issues);
   return { layout, defaults, issues };
 }
@@ -1861,6 +1947,10 @@ function resolveMultiresUniformParams(params, descriptor) {
   const hueRotationRaw = merged.hueRotation ?? merged.hue_rotation;
   const hueRotation = coerceNumber(hueRotationRaw, 0);
   const saturation = coerceNumber(merged.saturation, 1);
+  const splineOrder = coerceInt(
+    merged.splineOrder ?? merged.spline_order,
+    InterpolationType.bicubic,
+  );
 
   const colorSpace = coerceColorSpace(merged.colorSpace ?? merged.color_space);
   const withAlpha = coerceBool(merged.withAlpha ?? merged.with_alpha);
@@ -1931,6 +2021,23 @@ function resolveMultiresUniformParams(params, descriptor) {
     brightnessFreqFlag = 0;
   }
 
+  const maskConfig = extractMultiresMaskConfig(merged);
+  const maskInfo = computeMultiresMaskData({
+    descriptor,
+    maskConfig,
+    freq,
+    width,
+    height,
+    octaves,
+    channelCount,
+    distrib,
+    cornersFlag,
+    splineOrder,
+  });
+  if (descriptor) {
+    descriptor.multiresMaskConfig = maskConfig;
+  }
+
   return {
     freq,
     speed,
@@ -1940,7 +2047,12 @@ function resolveMultiresUniformParams(params, descriptor) {
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
     options2: [hueDistrib, saturationDistrib, brightnessDistrib, brightnessFreqFlag >>> 0],
-    options3: [cornersFlag ? 1 : 0, 0, 0, 0],
+    options3: [
+      cornersFlag ? 1 : 0,
+      maskInfo.enabled ? 1 : 0,
+      maskInfo.alpha ? 1 : 0,
+      maskInfo.octaveCount,
+    ],
   };
 }
 
@@ -2180,6 +2292,275 @@ function normalizeOverrideDistribution(value) {
     return null;
   }
   return null;
+}
+
+function normalizeMaskValue(value) {
+  if (value === undefined || value === null) {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, Math.trunc(value)) >>> 0;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+    const lowered = trimmed.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(ValueMask, lowered)) {
+      return ValueMask[lowered];
+    }
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return normalizeMaskValue(numeric);
+    }
+    return null;
+  }
+  return null;
+}
+
+function extractMultiresMaskConfig(params) {
+  const maskValue = normalizeMaskValue(resolveParam(params, ['mask']));
+  const enabled = Boolean(maskValue);
+  if (!enabled) {
+    return {
+      enabled: false,
+      value: 0,
+      inverse: false,
+      static: true,
+    };
+  }
+  const inverse = toBoolean(resolveParam(params, ['maskInverse', 'mask_inverse'])) || false;
+  const maskStatic = toBoolean(resolveParam(params, ['maskStatic', 'mask_static'])) || false;
+  return {
+    enabled,
+    value: maskValue >>> 0,
+    inverse,
+    static: maskStatic,
+  };
+}
+
+function computeMultiresOctaveFrequency(baseFreq, octaveIndex) {
+  const multiplier = Math.pow(2, octaveIndex);
+  let fx = Math.floor(baseFreq[0] * 0.5 * multiplier);
+  let fy = Math.floor(baseFreq[1] * 0.5 * multiplier);
+  if (!Number.isFinite(fx)) fx = 1;
+  if (!Number.isFinite(fy)) fy = 1;
+  fx = Math.max(1, fx);
+  fy = Math.max(1, fy);
+  return [fx, fy];
+}
+
+function pinCornersArray(data, width, height, channels, freqY, freqX, corners) {
+  const fy = Math.max(1, Math.floor(freqY));
+  const shouldOffset = (!corners && fy % 2 === 0) || (corners && fy % 2 === 1);
+  if (!shouldOffset) {
+    return data;
+  }
+  const fx = Math.max(1, Math.floor(freqX));
+  const xOff = Math.floor((width / fx) * 0.5);
+  const yOff = Math.floor((height / fy) * 0.5);
+  const out = new Float32Array(width * height * channels);
+  for (let y = 0; y < height; y += 1) {
+    const sy = (y + yOff + height) % height;
+    for (let x = 0; x < width; x += 1) {
+      const sx = (x + xOff + width) % width;
+      const dst = (y * width + x) * channels;
+      const src = (sy * width + sx) * channels;
+      for (let c = 0; c < channels; c += 1) {
+        out[dst + c] = data[src + c];
+      }
+    }
+  }
+  return out;
+}
+
+function ensureMaskDataHolder(descriptor) {
+  if (!descriptor) return null;
+  if (!descriptor._maskData) {
+    descriptor._maskData = {
+      array: new Float32Array([1, 1, 1, 1]),
+      width: 1,
+      height: 1,
+      octaveCount: 1,
+      alpha: false,
+      enabled: false,
+    };
+    descriptor._maskDataDirty = true;
+  }
+  return descriptor._maskData;
+}
+
+function buildMaskCacheKey(options) {
+  const {
+    maskConfig,
+    freq,
+    width,
+    height,
+    octaves,
+    channelCount,
+    distrib,
+    cornersFlag,
+    splineOrder,
+  } = options;
+  if (!maskConfig?.enabled) {
+    return 'mask:disabled';
+  }
+  const freqX = Number.isFinite(freq?.[0]) ? Number(freq[0]) : 0;
+  const freqY = Number.isFinite(freq?.[1]) ? Number(freq[1]) : 0;
+  const widthInt = Math.max(0, Math.floor(Number(width) || 0));
+  const heightInt = Math.max(0, Math.floor(Number(height) || 0));
+  const octaveCount = Math.max(0, Math.floor(Number(octaves) || 0));
+  const key = {
+    value: maskConfig.value >>> 0,
+    inverse: maskConfig.inverse ? 1 : 0,
+    static: maskConfig.static ? 1 : 0,
+    freqX,
+    freqY,
+    width: widthInt,
+    height: heightInt,
+    octaves: octaveCount,
+    channels: channelCount >>> 0,
+    distrib: distrib >>> 0,
+    corners: cornersFlag ? 1 : 0,
+    spline: Number.isFinite(splineOrder) ? Math.trunc(splineOrder) : 0,
+  };
+  return JSON.stringify(key);
+}
+
+function computeMultiresMaskData(options) {
+  const {
+    descriptor,
+    maskConfig,
+    freq,
+    width,
+    height,
+    octaves,
+    channelCount,
+    distrib,
+    cornersFlag,
+    splineOrder,
+  } = options;
+  const holder = ensureMaskDataHolder(descriptor);
+  const cacheKey = descriptor ? buildMaskCacheKey(options) : 'mask:none';
+  if (
+    descriptor &&
+    descriptor._maskCacheKey === cacheKey &&
+    descriptor._maskCacheInfo &&
+    holder
+  ) {
+    const info = descriptor._maskCacheInfo;
+    holder.enabled = info.enabled;
+    holder.alpha = info.alpha;
+    holder.octaveCount = info.octaveCount;
+    return { enabled: info.enabled, alpha: info.alpha, octaveCount: info.octaveCount };
+  }
+
+  if (!maskConfig?.enabled) {
+    holder.array = holder.array && holder.array.length ? holder.array : new Float32Array([1, 1, 1, 1]);
+    holder.width = 1;
+    holder.height = 1;
+    holder.octaveCount = 0;
+    holder.alpha = false;
+    holder.enabled = false;
+    descriptor._maskDataDirty = true;
+    if (descriptor) {
+      descriptor._maskCacheKey = cacheKey;
+      descriptor._maskCacheInfo = { enabled: false, alpha: false, octaveCount: 0 };
+    }
+    return { enabled: false, alpha: false, octaveCount: 0 };
+  }
+
+  const baseFreq = [
+    Math.max(1, Math.floor(freq[0] || 1)),
+    Math.max(1, Math.floor(freq[1] || freq[0] || 1)),
+  ];
+  const pixelCount = Math.max(1, Math.floor(width) * Math.max(1, Math.floor(height)));
+  const targetChannels = channelCount === 2 || channelCount === 4 ? 1 : Math.min(channelCount, 3);
+  const alphaMode = channelCount === 2 || channelCount === 4;
+  const arrays = [];
+  let octaveCount = 0;
+  for (let octave = 1; octave <= octaves; octave += 1) {
+    const [fx, fy] = computeMultiresOctaveFrequency(baseFreq, octave);
+    if (fx > width && fy > height) {
+      break;
+    }
+    const glyphShape = [fy, fx, targetChannels];
+    const maskResult = maskValues(maskConfig.value, glyphShape, {
+      inverse: maskConfig.inverse,
+      time: 0,
+      speed: 1,
+    });
+    let maskTensor = maskResult && Array.isArray(maskResult) ? maskResult[0] : null;
+    if (!maskTensor) {
+      continue;
+    }
+    const targetHeight = Math.max(1, Math.floor(height));
+    const targetWidth = Math.max(1, Math.floor(width));
+    const needsResample =
+      !isNativeSize(distrib) ||
+      maskTensor.shape[0] !== targetHeight ||
+      maskTensor.shape[1] !== targetWidth;
+    if (needsResample) {
+      maskTensor = resample(maskTensor, [targetHeight, targetWidth, targetChannels], splineOrder);
+    }
+    const data = maskTensor.read();
+    const adjusted = pinCornersArray(
+      data,
+      targetWidth || maskTensor.shape[1],
+      targetHeight || maskTensor.shape[0],
+      targetChannels,
+      fy,
+      fx,
+      cornersFlag,
+    );
+    arrays.push(adjusted);
+    octaveCount += 1;
+  }
+
+  if (!octaveCount) {
+    holder.array = new Float32Array([1, 1, 1, 1]);
+    holder.width = 1;
+    holder.height = 1;
+    holder.octaveCount = 0;
+    holder.alpha = alphaMode;
+    holder.enabled = false;
+    descriptor._maskDataDirty = true;
+    return { enabled: false, alpha: alphaMode, octaveCount: 0 };
+  }
+
+  const stride = 4;
+  const out = new Float32Array(Math.max(1, pixelCount) * stride * octaveCount);
+  const widthInt = Math.max(1, Math.floor(width));
+  const heightInt = Math.max(1, Math.floor(height));
+  const pixels = widthInt * heightInt;
+  for (let octave = 0; octave < octaveCount; octave += 1) {
+    const src = arrays[octave];
+    const base = octave * pixels * stride;
+    for (let i = 0; i < pixels; i += 1) {
+      const dst = base + i * stride;
+      const srcBase = i * targetChannels;
+      const v0 = src[srcBase] ?? 1;
+      const v1 = targetChannels > 1 ? src[srcBase + 1] : v0;
+      const v2 = targetChannels > 2 ? src[srcBase + 2] : v0;
+      out[dst] = alphaMode ? v0 : v0;
+      out[dst + 1] = alphaMode ? v0 : v1;
+      out[dst + 2] = alphaMode ? v0 : v2;
+      out[dst + 3] = alphaMode ? v0 : 1;
+    }
+  }
+
+  holder.array = out;
+  holder.width = widthInt;
+  holder.height = heightInt;
+  holder.octaveCount = octaveCount;
+  holder.alpha = alphaMode;
+  holder.enabled = true;
+  descriptor._maskDataDirty = true;
+  if (descriptor) {
+    descriptor._maskCacheKey = cacheKey;
+    descriptor._maskCacheInfo = { enabled: true, alpha: alphaMode, octaveCount };
+  }
+  return { enabled: true, alpha: alphaMode, octaveCount };
 }
 
 function coerceFrequencyInput(value) {
