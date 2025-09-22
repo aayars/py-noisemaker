@@ -228,7 +228,17 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
     if (!uniformView || !uniformView.view) {
       continue;
     }
-    writeUniformLayout(uniformView.view, descriptor.uniformLayout, snapshot?.params || {}, descriptor.uniformDefaults || {});
+    const rawParams = snapshot?.params || {};
+    const resolvedParams =
+      typeof descriptor.resolveUniformParams === 'function'
+        ? descriptor.resolveUniformParams(rawParams, descriptor)
+        : rawParams;
+    writeUniformLayout(
+      uniformView.view,
+      descriptor.uniformLayout,
+      resolvedParams,
+      descriptor.uniformDefaults || {},
+    );
   }
 }
 

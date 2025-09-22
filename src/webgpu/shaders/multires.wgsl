@@ -21,9 +21,9 @@ struct StageUniforms {
   freq : vec2<f32>,
   brightness_freq : vec2<f32>,
   speed : f32,
-  sin_amount : f32,
-  color_params0 : vec4<f32>,
-  color_params1 : vec4<f32>,
+  sin : f32,
+  colorParams0 : vec4<f32>,
+  colorParams1 : vec4<f32>,
   options0 : vec4<u32>,
   options1 : vec4<u32>,
   options2 : vec4<u32>,
@@ -889,10 +889,10 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let saturation_seed_offset : u32 = stage_uniforms.options3.y;
   let brightness_seed_offset : u32 = stage_uniforms.options3.z;
 
-  let hue_range : f32 = stage_uniforms.color_params0.x;
-  let hue_rotation : f32 = stage_uniforms.color_params0.y;
-  let saturation_scale : f32 = stage_uniforms.color_params0.z;
-  let sin_amount : f32 = stage_uniforms.sin_amount;
+  let hue_range : f32 = stage_uniforms.colorParams0.x;
+  let hue_rotation : f32 = stage_uniforms.colorParams0.y;
+  let saturation_scale : f32 = stage_uniforms.colorParams0.z;
+  let sin_amount : f32 = stage_uniforms.sin;
 
   let angle : f32 = frame_uniforms.time * TAU;
   let z : f32 = cos(angle) * stage_uniforms.speed;

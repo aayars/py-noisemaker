@@ -1,3 +1,4 @@
+import { ColorSpace, OctaveBlending, ValueDistribution } from '../constants.js';
 import * as SHADERS from './shaders.js';
 
 const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
@@ -1196,7 +1197,19 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     issues: [],
   };
 
-  const paramAnalysis = analyseStageParams(stage.params || {});
+  const usesMultiresShader = descriptor.shaderId === 'MULTIRES_WGSL';
+  let paramAnalysis;
+  if (usesMultiresShader) {
+    paramAnalysis = {
+      layout: null,
+      defaults: {},
+      resources: [],
+      issues: [],
+      requiresUniforms: true,
+    };
+  } else {
+    paramAnalysis = analyseStageParams(stage.params || {});
+  }
   descriptor.uniformLayout = paramAnalysis.layout;
   descriptor.uniformDefaults = paramAnalysis.defaults;
   descriptor.resourceParams = paramAnalysis.resources;
@@ -1228,6 +1241,10 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     });
   }
 
+  if (usesMultiresShader) {
+    applyMultiresUniformLayout(descriptor, stage);
+  }
+
   descriptor.shaderSource = resolveShaderSource(descriptor, sharedResources);
   descriptor.pipeline = acquirePipeline(descriptor, ctx, sharedResources);
 
@@ -1256,7 +1273,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
 function resolveShaderId(stage) {
   if (!stage || stage.unsupported) return null;
   if (stage.stageType === 'generator') {
-    return 'VALUE_WGSL';
+    return 'MULTIRES_WGSL';
   }
   const name = stage.name || 'anonymous';
   const base = name
@@ -1435,6 +1452,291 @@ function buildStd140Layout(fields, issues) {
   }
   const finalSize = alignTo(offset, 16);
   return { size: finalSize, fields: layoutFields };
+}
+
+function applyMultiresUniformLayout(descriptor, stage) {
+  if (!descriptor) return;
+  const issues = descriptor.issues || [];
+  const fields = [
+    { name: 'freq', scalarType: 'f32', components: 2, defaultValue: [1, 1] },
+    { name: 'speed', scalarType: 'f32', components: 1, defaultValue: [1] },
+    { name: 'sin', scalarType: 'f32', components: 1, defaultValue: [0] },
+    { name: 'colorParams0', scalarType: 'f32', components: 4, defaultValue: [0.125, 0, 1, 0] },
+    { name: 'colorParams1', scalarType: 'f32', components: 4, defaultValue: [0, 0, 0, 0] },
+    {
+      name: 'options0',
+      scalarType: 'u32',
+      components: 4,
+      defaultValue: [1, OctaveBlending.falloff, 4, 0],
+    },
+    {
+      name: 'options1',
+      scalarType: 'u32',
+      components: 4,
+      defaultValue: [0, ValueDistribution.simplex, ColorSpace.hsv, 0],
+    },
+  ];
+  const layout = buildStd140Layout(fields, issues);
+  descriptor.uniformLayout = layout;
+  descriptor.bindings.hasUniform = Boolean(layout);
+  descriptor.bindings.auxiliary = [];
+  descriptor.resourceParams = [];
+  descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
+  descriptor.resolveUniformParams = (params) =>
+    resolveMultiresUniformParams(params, descriptor);
+  const defaults = resolveMultiresUniformParams(null, descriptor);
+  if (defaults) {
+    descriptor.uniformDefaults = defaults;
+  } else {
+    descriptor.uniformDefaults = {
+      freq: fields[0].defaultValue.slice(),
+      speed: fields[1].defaultValue[0],
+      sin: fields[2].defaultValue[0],
+      colorParams0: fields[3].defaultValue.slice(),
+      colorParams1: fields[4].defaultValue.slice(),
+      options0: fields[5].defaultValue.slice(),
+      options1: fields[6].defaultValue.slice(),
+    };
+  }
+}
+
+function resolveMultiresUniformParams(params, descriptor) {
+  const merged = mergeStageParams(descriptor?.multiresBaseParams, params);
+  const width = coerceNumber(
+    merged.width ?? (Array.isArray(merged.shape) ? merged.shape[1] : undefined),
+    0,
+  );
+  const height = coerceNumber(
+    merged.height ?? (Array.isArray(merged.shape) ? merged.shape[0] : undefined),
+    0,
+  );
+  const freqValue = merged.freq ?? merged.frequency;
+  const freq = computeMultiresFrequency(freqValue, width, height, merged.shape);
+
+  const speed = coerceNumber(merged.speed, 1);
+  const sinValue = coerceNumber(merged.sin ?? merged.sinAmount, 0);
+  const hueRange = coerceNumber(merged.hueRange ?? merged.hue_range, 0.125);
+  const hueRotationRaw = merged.hueRotation ?? merged.hue_rotation;
+  const hueRotation = coerceNumber(hueRotationRaw, 0);
+  const saturation = coerceNumber(merged.saturation, 1);
+
+  const colorSpace = coerceColorSpace(merged.colorSpace ?? merged.color_space);
+  const withAlpha = coerceBool(merged.withAlpha ?? merged.with_alpha);
+  const ridges = coerceBool(merged.ridges);
+  const octaves = Math.max(1, coerceInt(merged.octaves, 1));
+  const octaveBlending = coerceOctaveBlending(
+    merged.octaveBlending ?? merged.octave_blending,
+  );
+  const distrib = coerceValueDistribution(merged.distrib);
+  const seedOffset = coerceInt(merged.seedOffset ?? merged.seed_offset, 0);
+
+  const channelCount = computeMultiresChannelCount(
+    colorSpace,
+    withAlpha,
+    octaveBlending,
+  );
+
+  return {
+    freq,
+    speed,
+    sin: sinValue,
+    colorParams0: [hueRange, hueRotation, saturation, 0],
+    colorParams1: [0, 0, 0, 0],
+    options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
+    options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
+  };
+}
+
+function mergeStageParams(base, overrides) {
+  const out = {};
+  if (base && typeof base === 'object') {
+    for (const [key, value] of Object.entries(base)) {
+      if (value !== undefined) {
+        out[key] = value;
+      }
+    }
+  }
+  if (overrides && typeof overrides === 'object') {
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value !== undefined) {
+        out[key] = value;
+      }
+    }
+  }
+  return out;
+}
+
+function coerceNumber(value, fallback = 0) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  if (Array.isArray(value) && value.length) {
+    return coerceNumber(value[0], fallback);
+  }
+  if (ArrayBuffer.isView(value) && value.length) {
+    return coerceNumber(value[0], fallback);
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function coerceInt(value, fallback = 0) {
+  const num = coerceNumber(value, fallback);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.trunc(num);
+}
+
+function coerceBool(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'false' || normalized === '0' || normalized === 'off') {
+      return false;
+    }
+    if (normalized === 'true' || normalized === '1' || normalized === 'on') {
+      return true;
+    }
+  }
+  if (value === null || value === undefined) return false;
+  const num = coerceNumber(value, NaN);
+  if (Number.isFinite(num)) {
+    return num !== 0;
+  }
+  return Boolean(value);
+}
+
+function coerceOctaveBlending(value) {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'reduce_max' || normalized === 'reduce-max') {
+      return OctaveBlending.reduce_max;
+    }
+    if (normalized === 'alpha') {
+      return OctaveBlending.alpha;
+    }
+    if (normalized === 'falloff') {
+      return OctaveBlending.falloff;
+    }
+  }
+  const numeric = coerceInt(value, OctaveBlending.falloff);
+  if (
+    numeric === OctaveBlending.falloff ||
+    numeric === OctaveBlending.reduce_max ||
+    numeric === OctaveBlending.alpha
+  ) {
+    return numeric;
+  }
+  return OctaveBlending.falloff;
+}
+
+function coerceValueDistribution(value) {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'exp' || normalized === 'exponential') {
+      return ValueDistribution.exp;
+    }
+    if (normalized === 'simplex') {
+      return ValueDistribution.simplex;
+    }
+  }
+  const numeric = coerceInt(value, ValueDistribution.simplex);
+  if (numeric === ValueDistribution.exp) {
+    return ValueDistribution.exp;
+  }
+  return ValueDistribution.simplex;
+}
+
+function coerceColorSpace(value) {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'grayscale' || normalized === 'gray' || normalized === 'greyscale') {
+      return ColorSpace.grayscale;
+    }
+    if (normalized === 'rgb') {
+      return ColorSpace.rgb;
+    }
+    if (normalized === 'oklab') {
+      return ColorSpace.oklab;
+    }
+    if (normalized === 'hsv') {
+      return ColorSpace.hsv;
+    }
+  }
+  const numeric = coerceInt(value, ColorSpace.hsv);
+  if (
+    numeric === ColorSpace.grayscale ||
+    numeric === ColorSpace.rgb ||
+    numeric === ColorSpace.hsv ||
+    numeric === ColorSpace.oklab
+  ) {
+    return numeric;
+  }
+  return ColorSpace.hsv;
+}
+
+function computeMultiresFrequency(freqValue, width, height, shape) {
+  if (Array.isArray(freqValue) || ArrayBuffer.isView(freqValue)) {
+    const arr = Array.from(freqValue).map((v) => coerceNumber(v, 0));
+    if (arr.length === 1) {
+      const coerced = Math.max(1, Math.floor(arr[0] || 1));
+      return [coerced, coerced];
+    }
+    if (arr.length >= 2) {
+      const freqY = Math.max(1, Math.floor(arr[0] || 1));
+      const freqX = Math.max(1, Math.floor(arr[1] || arr[0] || 1));
+      return [freqX, freqY];
+    }
+  }
+
+  const fallbackFreq = coerceNumber(freqValue, 1) || 1;
+  let effectiveWidth = width;
+  let effectiveHeight = height;
+  if ((!effectiveWidth || !effectiveHeight) && Array.isArray(shape) && shape.length >= 2) {
+    const shapeHeight = coerceNumber(shape[0], 0);
+    const shapeWidth = coerceNumber(shape[1], 0);
+    if (!effectiveHeight && shapeHeight) effectiveHeight = shapeHeight;
+    if (!effectiveWidth && shapeWidth) effectiveWidth = shapeWidth;
+  }
+  const dims = freqForDimensions(fallbackFreq, effectiveWidth, effectiveHeight);
+  const freqX = Math.max(1, Math.floor(dims[1] || 1));
+  const freqY = Math.max(1, Math.floor(dims[0] || 1));
+  return [freqX, freqY];
+}
+
+function freqForDimensions(freq, width, height) {
+  const safeFreq = Math.max(1, Math.floor(coerceNumber(freq, 1) || 1));
+  const safeWidth = Math.max(1, Math.floor(coerceNumber(width, 1) || 1));
+  const safeHeight = Math.max(1, Math.floor(coerceNumber(height, 1) || 1));
+  if (safeHeight === safeWidth) {
+    return [safeFreq, safeFreq];
+  }
+  if (safeHeight < safeWidth) {
+    const freqX = Math.max(1, Math.floor((safeFreq * safeWidth) / safeHeight));
+    return [safeFreq, freqX];
+  }
+  const freqY = Math.max(1, Math.floor((safeFreq * safeHeight) / safeWidth));
+  return [freqY, safeFreq];
+}
+
+function computeMultiresChannelCount(colorSpace, withAlpha, octaveBlending) {
+  let baseChannels = colorSpace === ColorSpace.grayscale ? 1 : 3;
+  if (withAlpha) {
+    baseChannels += 1;
+  }
+  if (
+    octaveBlending === OctaveBlending.alpha &&
+    (baseChannels === 1 || baseChannels === 3)
+  ) {
+    baseChannels += 1;
+  }
+  return Math.max(1, Math.min(4, baseChannels));
 }
 
 function std140AlignSize(components) {
