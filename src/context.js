@@ -557,13 +557,141 @@ export class Context {
     this.queue = null;
     this.presentationFormat = null;
     this.isCPU = true;
+    this._timestampSupport = null;
+    this._destroyTimestampQueryResources();
     if (!this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
       return false;
     }
-    if (typeof console !== 'undefined' && console.warn) {
-      console.warn('WebGPU pipeline has been removed. Falling back to CPU rendering.');
+
+    let adapter = null;
+    try {
+      adapter = await navigator.gpu.requestAdapter({ powerPreference: this.powerPreference || 'high-performance' });
+    } catch (err) {
+      if (this.debug && typeof console !== 'undefined' && console.error) {
+        console.error('Failed to request WebGPU adapter', err);
+      }
+      return false;
     }
-    return false;
+    if (!adapter) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('No suitable WebGPU adapter found.');
+      }
+      return false;
+    }
+
+    const requestedFeatures = [];
+    const adapterFeatures = adapter.features;
+    if (adapterFeatures && typeof adapterFeatures.has === 'function') {
+      if (adapterFeatures.has('timestamp-query')) {
+        requestedFeatures.push('timestamp-query');
+      }
+      if (adapterFeatures.has('float32-filterable')) {
+        requestedFeatures.push('float32-filterable');
+      }
+    }
+
+    const deviceDescriptor = {};
+    if (requestedFeatures.length) {
+      deviceDescriptor.requiredFeatures = requestedFeatures;
+    }
+
+    let device = null;
+    try {
+      device = await adapter.requestDevice(deviceDescriptor);
+    } catch (err) {
+      if (this.debug && typeof console !== 'undefined' && console.error) {
+        console.error('Failed to request WebGPU device', err);
+      }
+      return false;
+    }
+    if (!device) {
+      return false;
+    }
+
+    this.device = device;
+    this.queue = device.queue || null;
+    this.isCPU = false;
+    this._pendingDispatch = false;
+    this._encoder = null;
+
+    if (typeof device.lost?.then === 'function') {
+      device.lost
+        .then((info) => {
+          if (info?.reason !== 'destroyed' && typeof console !== 'undefined' && console.warn) {
+            console.warn('WebGPU device lost', info);
+          }
+          this._destroyTimestampQueryResources();
+          this.device = null;
+          this.queue = null;
+          this.presentationFormat = null;
+          this.isCPU = true;
+        })
+        .catch(() => {});
+    }
+
+    let presentationFormat = null;
+    try {
+      if (navigator.gpu && typeof navigator.gpu.getPreferredCanvasFormat === 'function') {
+        presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+      } else if (this.gpu && typeof this.gpu.getPreferredFormat === 'function') {
+        presentationFormat = this.gpu.getPreferredFormat(adapter);
+      }
+    } catch (err) {
+      if (this.debug && typeof console !== 'undefined' && console.warn) {
+        console.warn('Failed to determine preferred canvas format', err);
+      }
+    }
+    if (!presentationFormat) {
+      presentationFormat = 'bgra8unorm';
+    }
+    this.presentationFormat = presentationFormat;
+
+    if (this.gpu) {
+      const configureDescriptor = { device: this.device, format: this.presentationFormat };
+      if (typeof GPUTextureUsage !== 'undefined') {
+        configureDescriptor.usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC;
+      }
+      configureDescriptor.alphaMode = 'premultiplied';
+      try {
+        this.gpu.configure(configureDescriptor);
+      } catch (err) {
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('Failed to configure WebGPU canvas', err);
+        }
+        if (typeof this.gpu.unconfigure === 'function') {
+          try {
+            this.gpu.unconfigure();
+          } catch (_) {
+            /* ignore */
+          }
+        }
+        if (typeof device.destroy === 'function') {
+          try {
+            device.destroy();
+          } catch (_) {
+            /* ignore */
+          }
+        }
+        this.device = null;
+        this.queue = null;
+        this.presentationFormat = null;
+        this.isCPU = true;
+        return false;
+      }
+    }
+
+    if (this.profile) {
+      this.profile.webgpu = 0;
+      this.profile.lastGPUTime = 0;
+      this.profile.lastDispatchMs = 0;
+      this.profile.timestampQueryEnabled = false;
+      this.profile.parityReadback = false;
+      if (!Number.isFinite(this.profile.dynamicScale)) {
+        this.profile.dynamicScale = 1;
+      }
+    }
+
+    return true;
   }
 
   createShaderModule(code) {

@@ -211,6 +211,28 @@ export class PresetProgram {
     this.sharedResources = sharedResources;
     this.topologySignature = stages.map((stage) => stage.signature).join('|');
     this.uniformBuffers = stages.map((stage) => buildUniformBufferPair(stage, ctx));
+    let gpuStageCount = 0;
+    let hasUnsupportedStages = false;
+    let generatorStageIndex = -1;
+    for (let i = 0; i < stages.length; i += 1) {
+      const descriptor = stages[i];
+      if (!descriptor) continue;
+      const gpuSupported = descriptor.gpuSupported !== false;
+      if (descriptor.stageType === 'generator' && generatorStageIndex === -1) {
+        generatorStageIndex = i;
+      }
+      if (gpuSupported) {
+        gpuStageCount += 1;
+      } else {
+        hasUnsupportedStages = true;
+      }
+    }
+    this._gpuStageCount = gpuStageCount;
+    this._hasUnsupportedStages = hasUnsupportedStages;
+    this._generatorStageIndex = generatorStageIndex;
+    this._generatorStageSupported =
+      generatorStageIndex >= 0 && stages[generatorStageIndex]?.gpuSupported !== false;
+    this._allStagesSupported = !hasUnsupportedStages && gpuStageCount > 0;
   }
 
   _ensureSinNormalizationState(descriptor, ctx, size = 16) {
@@ -285,6 +307,38 @@ export class PresetProgram {
   }
 
   /**
+   * Number of GPU-capable stages contained in the program.
+   * @returns {number}
+   */
+  get gpuStageCount() {
+    return this._gpuStageCount;
+  }
+
+  /**
+   * True when any stage falls back to CPU.
+   * @returns {boolean}
+   */
+  get hasUnsupportedStages() {
+    return this._hasUnsupportedStages;
+  }
+
+  /**
+   * True when the generator stage is GPU-capable.
+   * @returns {boolean}
+   */
+  get generatorStageSupported() {
+    return this._generatorStageSupported;
+  }
+
+  /**
+   * True when every stage has a GPU implementation.
+   * @returns {boolean}
+   */
+  get allStagesSupported() {
+    return this._allStagesSupported;
+  }
+
+  /**
    * Retrieve the descriptor for the given stage index.
    * @param {number} index
    * @returns {StageDescriptor}
@@ -332,6 +386,9 @@ export class PresetProgram {
     }
     if (!Array.isArray(this.stages) || !this.stages.length) {
       throw new Error('PresetProgram.execute requires at least one GPU stage.');
+    }
+    if (!this._gpuStageCount) {
+      throw new Error('PresetProgram.execute requires at least one GPU-capable stage.');
     }
 
     const {

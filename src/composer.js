@@ -430,6 +430,7 @@ export class Preset {
 
     let tensor = null;
     let usedGPU = false;
+    let pipelineInitialTensor = initialTensor;
 
     const canUseWebGPU = Boolean(ctx && ctx.device && ctx.queue && !ctx.isCPU);
     if (canUseWebGPU) {
@@ -478,38 +479,30 @@ export class Preset {
             entry = null;
           }
           if (!entry) {
-            entry = { program: null, unsupported: false };
+            entry = { program: null, unsupported: false, partial: false };
             try {
+              const perfReady = typeof performance !== 'undefined' && performance && typeof performance.now === 'function';
+              const compileStart = perfReady ? performance.now() : 0;
               const compiled = compilePreset(this, ctx);
-              if (compiled && compiled.stageCount > 0) {
-                let unsupportedStage = false;
-                if (Array.isArray(compiled.stages)) {
-                  unsupportedStage = compiled.stages.some(
-                    (stage) => stage && stage.gpuSupported === false,
-                  );
-                } else {
-                  for (let i = 0; i < compiled.stageCount; i += 1) {
-                    const descriptor = compiled.getStageDescriptor(i);
-                    if (descriptor && descriptor.gpuSupported === false) {
-                      unsupportedStage = true;
-                      break;
-                    }
-                  }
-                }
-                if (unsupportedStage) {
-                  entry.unsupported = true;
-                  if (typeof compiled.dispose === 'function') {
-                    try {
-                      compiled.dispose();
-                    } catch (_) {
-                      /* ignore dispose failures */
-                    }
-                  }
-                } else {
-                  entry.program = compiled;
-                }
+              if (entry) {
+                entry.compileMs = perfReady ? performance.now() - compileStart : 0;
+              }
+              const hasProgram = compiled && compiled.stageCount > 0;
+              const gpuStageCount = hasProgram && typeof compiled.gpuStageCount === 'number'
+                ? compiled.gpuStageCount
+                : 0;
+              const generatorSupported = hasProgram && typeof compiled.generatorStageSupported === 'boolean'
+                ? compiled.generatorStageSupported
+                : hasProgram
+                  ? compiled.getStageDescriptor(0)?.gpuSupported !== false
+                  : false;
+              const hasUnsupported = Boolean(compiled?.hasUnsupportedStages);
+              if (hasProgram && gpuStageCount > 0 && generatorSupported) {
+                entry.program = compiled;
+                entry.partial = hasUnsupported;
               } else {
                 entry.unsupported = true;
+                entry.partial = false;
                 if (compiled && typeof compiled.dispose === 'function') {
                   try {
                     compiled.dispose();
@@ -528,11 +521,13 @@ export class Preset {
           }
           if (entry && entry.program) {
             program = entry.program;
+            entry.partial = Boolean(entry.program?.hasUnsupportedStages);
           }
         }
         if (program) {
           try {
             writeProgramUniforms(program, stageSnapshots, frameIndex);
+            const programPartial = Boolean(program?.hasUnsupportedStages);
             const result = await program.execute(ctx, {
               width,
               height,
@@ -554,12 +549,30 @@ export class Preset {
                 }
               }
               markPresentationNormalized(gpuTensor, true);
-              tensor = gpuTensor;
+              if (programPartial) {
+                try {
+                  const data = await gpuTensor.read();
+                  pipelineInitialTensor = Tensor.fromArray(ctx, data, shape);
+                  markPresentationNormalized(pipelineInitialTensor, true);
+                } catch (err) {
+                  if (debug) {
+                    debugLog(true, 'Failed to read GPU generator output', err);
+                  }
+                  pipelineInitialTensor = initialTensor;
+                }
+              } else {
+                tensor = gpuTensor;
+              }
               usedGPU = true;
             } else if (result?.readback) {
               const readShape = [height, width, shape[2] ?? 4];
-              tensor = Tensor.fromArray(ctx, result.readback, readShape);
-              markPresentationNormalized(tensor, true);
+              const readTensor = Tensor.fromArray(ctx, result.readback, readShape);
+              markPresentationNormalized(readTensor, true);
+              if (programPartial) {
+                pipelineInitialTensor = readTensor;
+              } else {
+                tensor = readTensor;
+              }
               usedGPU = true;
             }
           } catch (err) {
@@ -584,7 +597,7 @@ export class Preset {
         withUpscale,
         stabilityModel,
         styleFilename,
-        tensor: initialTensor,
+        tensor: pipelineInitialTensor,
         color_space: colorSpace,
         ctx,
         seed,

@@ -113,6 +113,7 @@
     import { ColorSpace } from './src/constants.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
+    import { Tensor } from './src/tensor.js';
 
     const benchmark = window.location.hash.includes('benchmark');
 
@@ -304,17 +305,53 @@
       }
     }
 
-    function programHasUnsupportedStages(program) {
+    function getProgramSupportInfo(program) {
+      const base = {
+        gpuStageCount: 0,
+        generatorSupported: false,
+        hasUnsupported: false,
+      };
       if (!program || typeof program.stageCount !== 'number') {
-        return true;
+        return { ...base, usable: false };
       }
-      for (let i = 0; i < program.stageCount; i += 1) {
-        const descriptor = program.getStageDescriptor(i);
-        if (!descriptor || descriptor.gpuSupported === false) {
-          return true;
+      const info = { ...base };
+      if (typeof program.gpuStageCount === 'number') {
+        info.gpuStageCount = Math.max(0, Math.floor(program.gpuStageCount));
+      } else {
+        for (let i = 0; i < program.stageCount; i += 1) {
+          const descriptor = program.getStageDescriptor(i);
+          if (!descriptor) continue;
+          if (descriptor.gpuSupported !== false) {
+            info.gpuStageCount += 1;
+          } else {
+            info.hasUnsupported = true;
+          }
         }
       }
-      return false;
+      if (typeof program.generatorStageSupported === 'boolean') {
+        info.generatorSupported = program.generatorStageSupported;
+      } else {
+        for (let i = 0; i < program.stageCount; i += 1) {
+          const descriptor = program.getStageDescriptor(i);
+          if (descriptor?.stageType === 'generator') {
+            info.generatorSupported = descriptor.gpuSupported !== false;
+            break;
+          }
+        }
+      }
+      if (typeof program.hasUnsupportedStages === 'boolean') {
+        info.hasUnsupported = program.hasUnsupportedStages;
+      } else if (!info.hasUnsupported) {
+        for (let i = 0; i < program.stageCount; i += 1) {
+          const descriptor = program.getStageDescriptor(i);
+          if (!descriptor) continue;
+          if (descriptor.gpuSupported === false) {
+            info.hasUnsupported = true;
+            break;
+          }
+        }
+      }
+      return { ...info, usable: info.generatorSupported && info.gpuStageCount > 0 };
     }
 
     function ensureProgramForPreset(context, presetObj, width, height) {
@@ -334,7 +371,7 @@
         entry = null;
       }
       if (!entry) {
-        entry = { program: null, unsupported: false, notified: false };
+        entry = { program: null, unsupported: false, notified: false, partial: false, support: null };
         cache.set(key, entry);
       }
       if (!entry.program && !entry.unsupported) {
@@ -345,10 +382,15 @@
           if (entry) {
             entry.compileMs = perfReady ? performance.now() - compileStart : 0;
           }
-          if (compiled && compiled.stageCount > 0 && !programHasUnsupportedStages(compiled)) {
+          const support = getProgramSupportInfo(compiled);
+          if (compiled && support.usable) {
             entry.program = compiled;
+            entry.partial = Boolean(support.hasUnsupported);
+            entry.support = support;
           } else {
             entry.unsupported = true;
+            entry.partial = false;
+            entry.support = support;
             compiled?.destroy?.();
           }
         } catch (err) {
@@ -356,6 +398,10 @@
           destroyProgramEntry(entry);
           throw err;
         }
+      }
+      if (entry?.program) {
+        entry.support = getProgramSupportInfo(entry.program);
+        entry.partial = Boolean(entry.support?.hasUnsupported);
       }
       return entry;
     }
@@ -736,6 +782,7 @@
       let webgpuMs = 0;
       let cpuMs = 0;
       let usedGPU = false;
+      let hybridMode = false;
       let gpuError = null;
       let effectiveWidth = width;
       let effectiveHeight = height;
@@ -759,6 +806,8 @@
                 entry.notified = true;
               }
             } else if (entry.program) {
+              const support = entry.support || getProgramSupportInfo(entry.program);
+              const programPartial = Boolean(support?.hasUnsupported);
               if (stageSnapshots.length) {
                 writeProgramUniforms(entry.program, stageSnapshots, gpuFrameIndex);
               }
@@ -771,8 +820,8 @@
                   time: 0,
                   frameIndex: gpuFrameIndex,
                   seed,
-                  present: true,
-                  readback: false,
+                  present: !programPartial,
+                  readback: Boolean(programPartial),
                 });
                 usedGPU = true;
               } catch (err) {
@@ -785,35 +834,78 @@
                 if (benchmark && activeCtx.queue?.onSubmittedWorkDone) {
                   await activeCtx.queue.onSubmittedWorkDone();
                 }
-                gpuFrameIndex += 1;
                 const totalElapsed = execResult?.totalTimeMs ?? performance.now() - renderStart;
-                renderMs = totalElapsed;
                 const dispatchMs = execResult?.dispatchWallMs ?? activeCtx.profile?.lastDispatchMs ?? 0;
                 activeCtx.profile.lastDispatchMs = dispatchMs;
                 const compileMs = entry.compileMs ?? activeCtx.profile?.lastCompileMs ?? 0;
                 activeCtx.profile.lastCompileMs = compileMs;
                 webgpuMs = execResult?.gpuTimeMs ?? activeCtx.profile?.lastGPUTime ?? 0;
                 if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
-                cpuMs = Math.max(0, renderMs - webgpuMs);
-                if (execResult?.readback) {
-                  activeCtx.profile.lastReadback = execResult.readback;
-                }
-                if (execResult?.readbackLayout) {
-                  activeCtx.profile.lastReadbackLayout = execResult.readbackLayout;
-                }
-                if (dynamicEnabled) {
-                  const targetMs = 16;
-                  let scale = activeCtx.profile.dynamicScale ?? 1;
-                  if (Number.isFinite(webgpuMs)) {
-                    if (webgpuMs > targetMs * 1.2) {
-                      scale = Math.max(0.3, scale * 0.9);
-                    } else if (webgpuMs < targetMs * 0.6) {
-                      scale = Math.min(1, scale * 1.05);
+                let cpuFinishMs = 0;
+                if (programPartial) {
+                  try {
+                    const cpuStart = performance.now();
+                    let generatorData = execResult?.readback || null;
+                    if (!generatorData && execResult?.texture) {
+                      const generatorTensor = new Tensor(activeCtx, execResult.texture, [effectiveHeight, effectiveWidth, 4], null);
+                      generatorData = await generatorTensor.read();
                     }
+                    if (!generatorData) {
+                      throw new Error('WebGPU generator output unavailable for CPU finishing.');
+                    }
+                    const cpuCtx = createCPUContext(null);
+                    const generatorTensor = Tensor.fromArray(
+                      cpuCtx,
+                      generatorData,
+                      [effectiveHeight, effectiveWidth, 4],
+                    );
+                    const finalTensor = await render(renderPresetObj, seed, {
+                      width: effectiveWidth,
+                      height: effectiveHeight,
+                      ctx: cpuCtx,
+                      presets,
+                      debug: false,
+                      tensor: generatorTensor,
+                    });
+                    const finalData = await finalTensor.read();
+                    const uploadTex = activeCtx.createTexture(effectiveWidth, effectiveHeight, finalData);
+                    await activeCtx.renderTexture(uploadTex, () => activeCtx.gpu.getCurrentTexture());
+                    cpuFinishMs = performance.now() - cpuStart;
+                    hybridMode = true;
+                  } catch (err) {
+                    gpuError = err;
+                    usedGPU = false;
                   }
-                  activeCtx.profile.dynamicScale = Math.min(1, Math.max(0.25, scale));
-                } else {
-                  activeCtx.profile.dynamicScale = 1;
+                }
+                if (usedGPU) {
+                  gpuFrameIndex += 1;
+                  if (execResult?.readback) {
+                    activeCtx.profile.lastReadback = execResult.readback;
+                  }
+                  if (execResult?.readbackLayout) {
+                    activeCtx.profile.lastReadbackLayout = execResult.readbackLayout;
+                  }
+                  if (programPartial) {
+                    renderMs = totalElapsed + cpuFinishMs;
+                    cpuMs = cpuFinishMs;
+                  } else {
+                    renderMs = totalElapsed;
+                    cpuMs = Math.max(0, renderMs - webgpuMs);
+                  }
+                  if (dynamicEnabled) {
+                    const targetMs = 16;
+                    let scale = activeCtx.profile.dynamicScale ?? 1;
+                    if (Number.isFinite(webgpuMs)) {
+                      if (webgpuMs > targetMs * 1.2) {
+                        scale = Math.max(0.3, scale * 0.9);
+                      } else if (webgpuMs < targetMs * 0.6) {
+                        scale = Math.min(1, scale * 1.05);
+                      }
+                    }
+                    activeCtx.profile.dynamicScale = Math.min(1, Math.max(0.25, scale));
+                  } else {
+                    activeCtx.profile.dynamicScale = 1;
+                  }
                 }
               } else if (gpuError) {
                 usedGPU = false;
@@ -888,8 +980,9 @@ Bindings: ${bindingSummary}`,
       const scaleInfo = dynamicEnabled && usedGPU
         ? `scale: ${(activeCtx.profile?.dynamicScale ?? 1).toFixed(2)}x (${effectiveWidth}×${effectiveHeight})`
         : null;
+      const modeLabel = usedGPU ? (hybridMode ? 'webgpu+cpu' : 'webgpu') : 'cpu';
       statusEl.innerHTML = [
-        `mode: ${usedGPU ? 'webgpu' : 'cpu'}`,
+        `mode: ${modeLabel}`,
         `eval: ${presetEvalMs.toFixed(2)} ms`,
         `compile: ${compileMs.toFixed(2)} ms`,
         `dispatch: ${dispatchMs.toFixed(2)} ms`,

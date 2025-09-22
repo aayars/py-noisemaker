@@ -104,6 +104,14 @@ fn bool_from_u32(value : u32) -> bool {
   return value != 0u;
 }
 
+fn bool_to_i32(value : bool) -> i32 {
+  return select(0, 1, value);
+}
+
+fn bool_to_f32(value : bool) -> f32 {
+  return select(0.0, 1.0, value);
+}
+
 fn saturate(value : f32) -> f32 {
   return clamp(value, 0.0, 1.0);
 }
@@ -358,7 +366,7 @@ fn random_int_inclusive(state : ptr<function, RandomState>, min_val : i32, max_v
   }
   let span : f32 = f32(hi - lo + 1);
   let sample : f32 = random_float(state) * span;
-  let idx : i32 = i32(floor(sample));
+  var idx : i32 = i32(floor(sample));
   if (idx > hi - lo) {
     idx = hi - lo;
   }
@@ -393,10 +401,10 @@ fn init_permutation_cache(cache : ptr<function, PermutationCache>) {
   (*cache).next = 0u;
 }
 
-fn fetch_permutation_tables(
+fn fetch_permutation_table_index(
   cache : ptr<function, PermutationCache>,
   seed : u32,
-) -> ptr<function, PermutationTables> {
+) -> u32 {
   var index : u32 = 0u;
   loop {
     if (index >= (*cache).count) {
@@ -404,7 +412,7 @@ fn fetch_permutation_tables(
     }
     let entry_seed : u32 = (*cache).entries[index].seed;
     if (entry_seed == seed) {
-      return &(*cache).entries[index].tables;
+      return index;
     }
     index = index + 1u;
   }
@@ -419,7 +427,7 @@ fn fetch_permutation_tables(
   }
   (*cache).entries[insert_index].seed = seed;
   (*cache).entries[insert_index].tables = build_permutation_tables(seed);
-  return &(*cache).entries[insert_index].tables;
+  return insert_index;
 }
 
 fn extrapolate2d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32, dx : f32, dy : f32) -> f32 {
@@ -571,7 +579,7 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
   var zsv_ext1 : i32 = 0;
 
   if (in_sum <= 1.0) {
-    let a_score : f32 = xins;
+    var a_score : f32 = xins;
     var a_point : u32 = 0x01u;
     var a_is_further_side : bool = false;
     if (yins > a_score) {
@@ -583,7 +591,7 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
       a_point = 0x04u;
     }
 
-    let b_score : f32 = 1.0 - xins;
+    var b_score : f32 = 1.0 - xins;
     var b_point : u32 = 0x01u;
     var b_is_further_side : bool = true;
     if (1.0 - yins > b_score) {
@@ -595,8 +603,16 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
       b_point = 0x04u;
     }
 
-    let p1 : vec3<i32> = vec3<i32>(a_point & 0x01u != 0u ? 1 : 0, a_point & 0x02u != 0u ? 1 : 0, a_point & 0x04u != 0u ? 1 : 0);
-    let p2 : vec3<i32> = vec3<i32>(b_point & 0x01u != 0u ? 1 : 0, b_point & 0x02u != 0u ? 1 : 0, b_point & 0x04u != 0u ? 1 : 0);
+    let p1 : vec3<i32> = vec3<i32>(
+      bool_to_i32((a_point & 0x01u) != 0u),
+      bool_to_i32((a_point & 0x02u) != 0u),
+      bool_to_i32((a_point & 0x04u) != 0u)
+    );
+    let p2 : vec3<i32> = vec3<i32>(
+      bool_to_i32((b_point & 0x01u) != 0u),
+      bool_to_i32((b_point & 0x02u) != 0u),
+      bool_to_i32((b_point & 0x04u) != 0u)
+    );
 
     if (a_is_further_side == b_is_further_side) {
       if (a_is_further_side) {
@@ -629,37 +645,37 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
         dz_ext1 = dz0 - SQUISH_CONSTANT_3D;
       }
     } else {
-      var c1 : u32 = a_is_further_side ? a_point : b_point;
-      var c2 : u32 = a_is_further_side ? b_point : a_point;
+      var c1 : u32 = select(b_point, a_point, a_is_further_side);
+      var c2 : u32 = select(a_point, b_point, a_is_further_side);
 
       if (a_is_further_side) {
-        xsv_ext0 = xsb + i32((c1 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext0 = ysb + i32((c1 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext0 = zsb + i32((c1 & 0x04u) != 0u ? 1 : 0);
-        dx_ext0 = dx0 - f32((c1 & 0x01u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 - f32((c1 & 0x02u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 - f32((c1 & 0x04u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
+        xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
+        ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
+        zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
+        dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
+        dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
+        dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
 
-        xsv_ext1 = xsb - 1 + i32((c2 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext1 = ysb - 1 + i32((c2 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext1 = zsb - 1 + i32((c2 & 0x04u) != 0u ? 1 : 0);
-        dx_ext1 = dx0 + 1.0 - f32((c2 & 0x01u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 + 1.0 - f32((c2 & 0x02u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 + 1.0 - f32((c2 & 0x04u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
+        xsv_ext1 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
+        ysv_ext1 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
+        zsv_ext1 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
+        dx_ext1 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
+        dy_ext1 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
+        dz_ext1 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
       } else {
-        xsv_ext0 = xsb - 1 + i32((c2 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext0 = ysb - 1 + i32((c2 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext0 = zsb - 1 + i32((c2 & 0x04u) != 0u ? 1 : 0);
-        dx_ext0 = dx0 + 1.0 - f32((c2 & 0x01u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 + 1.0 - f32((c2 & 0x02u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 + 1.0 - f32((c2 & 0x04u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
+        xsv_ext0 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
+        ysv_ext0 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
+        zsv_ext0 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
+        dx_ext0 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
+        dy_ext0 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
+        dz_ext0 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
 
-        xsv_ext1 = xsb + i32((c1 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext1 = ysb + i32((c1 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext1 = zsb + i32((c1 & 0x04u) != 0u ? 1 : 0);
-        dx_ext1 = dx0 - f32((c1 & 0x01u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - f32((c1 & 0x02u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - f32((c1 & 0x04u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
+        xsv_ext1 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
+        ysv_ext1 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
+        zsv_ext1 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
+        dx_ext1 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
+        dy_ext1 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
+        dz_ext1 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
       }
     }
 
@@ -696,7 +712,7 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
       value = value + attn3 * attn3 * extrapolate3d(tables, xsb, ysb, zsb + 1, dx3, dy3, dz3);
     }
   } else {
-    let a_score : f32 = xins;
+    var a_score : f32 = xins;
     var a_point : u32 = 0x01u;
     var a_is_further_side : bool = true;
     if (yins > a_score) {
@@ -708,7 +724,7 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
       a_point = 0x04u;
     }
 
-    let b_score : f32 = 3.0 - in_sum;
+    var b_score : f32 = 3.0 - in_sum;
     var b_point : u32 = 0x01u;
     var b_is_further_side : bool = true;
     if (2.0 - yins + xins + zins > b_score) {
@@ -726,33 +742,33 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
     var c2 : u32 = b_point;
     if (a_is_further_side == b_is_further_side) {
       if (a_is_further_side) {
-        xsv_ext0 = xsb + i32((c1 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext0 = ysb + i32((c1 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext0 = zsb + i32((c1 & 0x04u) != 0u ? 1 : 0);
-        dx_ext0 = dx0 - f32((c1 & 0x01u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 - f32((c1 & 0x02u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 - f32((c1 & 0x04u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
+        xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
+        ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
+        zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
+        dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
+        dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
+        dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
 
-        xsv_ext1 = xsb + i32((c2 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext1 = ysb + i32((c2 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext1 = zsb + i32((c2 & 0x04u) != 0u ? 1 : 0);
-        dx_ext1 = dx0 - f32((c2 & 0x01u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - f32((c2 & 0x02u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - f32((c2 & 0x04u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
+        xsv_ext1 = xsb + bool_to_i32((c2 & 0x01u) != 0u);
+        ysv_ext1 = ysb + bool_to_i32((c2 & 0x02u) != 0u);
+        zsv_ext1 = zsb + bool_to_i32((c2 & 0x04u) != 0u);
+        dx_ext1 = dx0 - bool_to_f32((c2 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
+        dy_ext1 = dy0 - bool_to_f32((c2 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
+        dz_ext1 = dz0 - bool_to_f32((c2 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
       } else {
-        xsv_ext0 = xsb - 1 + i32((c1 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext0 = ysb - 1 + i32((c1 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext0 = zsb - 1 + i32((c1 & 0x04u) != 0u ? 1 : 0);
-        dx_ext0 = dx0 + 1.0 - f32((c1 & 0x01u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 + 1.0 - f32((c1 & 0x02u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 + 1.0 - f32((c1 & 0x04u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
+        xsv_ext0 = xsb - 1 + bool_to_i32((c1 & 0x01u) != 0u);
+        ysv_ext0 = ysb - 1 + bool_to_i32((c1 & 0x02u) != 0u);
+        zsv_ext0 = zsb - 1 + bool_to_i32((c1 & 0x04u) != 0u);
+        dx_ext0 = dx0 + 1.0 - bool_to_f32((c1 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
+        dy_ext0 = dy0 + 1.0 - bool_to_f32((c1 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
+        dz_ext0 = dz0 + 1.0 - bool_to_f32((c1 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
 
-        xsv_ext1 = xsb - 1 + i32((c2 & 0x01u) != 0u ? 1 : 0);
-        ysv_ext1 = ysb - 1 + i32((c2 & 0x02u) != 0u ? 1 : 0);
-        zsv_ext1 = zsb - 1 + i32((c2 & 0x04u) != 0u ? 1 : 0);
-        dx_ext1 = dx0 + 1.0 - f32((c2 & 0x01u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 + 1.0 - f32((c2 & 0x02u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 + 1.0 - f32((c2 & 0x04u) != 0u ? 1 : 0) - SQUISH_CONSTANT_3D;
+        xsv_ext1 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
+        ysv_ext1 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
+        zsv_ext1 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
+        dx_ext1 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
+        dy_ext1 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
+        dz_ext1 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
       }
     } else {
       if (a_is_further_side) {
@@ -763,12 +779,12 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
         c2 = a_point;
       }
 
-      xsv_ext0 = xsb + i32((c1 & 0x01u) != 0u ? 1 : 0);
-      ysv_ext0 = ysb + i32((c1 & 0x02u) != 0u ? 1 : 0);
-      zsv_ext0 = zsb + i32((c1 & 0x04u) != 0u ? 1 : 0);
-      dx_ext0 = dx0 - f32((c1 & 0x01u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-      dy_ext0 = dy0 - f32((c1 & 0x02u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
-      dz_ext0 = dz0 - f32((c1 & 0x04u) != 0u ? 1 : 0) + SQUISH_CONSTANT_3D;
+      xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
+      ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
+      zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
+      dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
+      dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
+      dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
 
       xsv_ext1 = xsb + 1;
       ysv_ext1 = ysb + 1;
@@ -989,7 +1005,8 @@ fn sample_simplex_channel(
   channel_index : u32,
 ) -> f32 {
   let seed : u32 = base_seed + channel_index * 65535u;
-  let tables : ptr<function, PermutationTables> = fetch_permutation_tables(cache, seed);
+  let table_index : u32 = fetch_permutation_table_index(cache, seed);
+  let tables : ptr<function, PermutationTables> = &(*cache).entries[table_index].tables;
   let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   return map_to_unit(raw_value);
 }
@@ -1013,7 +1030,8 @@ fn sample_distribution_value(
   if (distrib == DISTRIB_ZEROS) {
     return 0.0;
   }
-  let tables : ptr<function, PermutationTables> = fetch_permutation_tables(cache, seed);
+  let table_index : u32 = fetch_permutation_table_index(cache, seed);
+  let tables : ptr<function, PermutationTables> = &(*cache).entries[table_index].tables;
   let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   let mapped : f32 = map_to_unit(raw_value);
   return apply_basic_distribution(mapped, distrib);
@@ -1193,7 +1211,7 @@ fn evaluate_simplex_layer_rgba(
 @group(0) @binding(5) var<storage, read> mask_data : array<f32>;
 
 @compute @workgroup_size(8, 8, 1)
-fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
+fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let width : u32 = u32(frame_uniforms.resolution.x);
   let height : u32 = u32(frame_uniforms.resolution.y);
   if (global_id.x >= width || global_id.y >= height) {
@@ -1333,7 +1351,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       seed_cursor = seed_cursor + 1u;
     }
 
-    let effective_brightness_distrib : u32 = has_brightness_override ? brightness_distrib : DISTRIB_NONE;
+    let effective_brightness_distrib : u32 = select(DISTRIB_NONE, brightness_distrib, has_brightness_override);
 
     var sample_coord : vec2<f32> = base_coord;
     let override_coord : vec2<f32> = base_coord;
@@ -1382,7 +1400,6 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
         atomicStore(&sin_state.count, 0u);
         atomicStore(&sin_state.min_value, float_to_ordered_int(F32_MAX));
         atomicStore(&sin_state.max_value, float_to_ordered_int(-F32_MAX));
-        storageBarrier();
         atomicStore(&sin_state.phase, iteration_id);
       }
       loop {
@@ -1403,7 +1420,6 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
           break;
         }
       }
-      storageBarrier();
       let encoded_min : i32 = atomicLoad(&sin_state.min_value);
       let encoded_max : i32 = atomicLoad(&sin_state.max_value);
       let min_value : f32 = ordered_int_to_float(encoded_min);
