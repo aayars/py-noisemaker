@@ -318,7 +318,6 @@ fn build_sample_context(
 }
 
 fn sample_simplex_resampled(
-  cache : ptr<private, PermutationCache>,
   context : SampleContext,
   z : f32,
   base_seed : u32,
@@ -327,7 +326,7 @@ fn sample_simplex_resampled(
   let coarse_width : i32 = max(context.coarse_dims.x, 1);
   let coarse_height : i32 = max(context.coarse_dims.y, 1);
   if (coarse_width == 1 && coarse_height == 1) {
-    return sample_simplex_channel(cache, vec2<f32>(0.0, 0.0), z, base_seed, channel_index);
+    return sample_simplex_channel(vec2<f32>(0.0, 0.0), z, base_seed, channel_index);
   }
 
   let gx : f32 = context.position.x;
@@ -342,7 +341,6 @@ fn sample_simplex_resampled(
     for (var m : i32 = -1; m < 3; m = m + 1) {
       let sy : i32 = wrap_i32(y0 + m, coarse_height);
       column[m + 1] = sample_simplex_channel(
-        cache,
         vec2<f32>(0.0, f32(sy)),
         z,
         base_seed,
@@ -357,7 +355,6 @@ fn sample_simplex_resampled(
     for (var n : i32 = -1; n < 3; n = n + 1) {
       let sx : i32 = wrap_i32(x0 + n, coarse_width);
       row[n + 1] = sample_simplex_channel(
-        cache,
         vec2<f32>(f32(sx), 0.0),
         z,
         base_seed,
@@ -371,28 +368,24 @@ fn sample_simplex_resampled(
   for (var m : i32 = -1; m < 3; m = m + 1) {
     let sy : i32 = wrap_i32(y0 + m, coarse_height);
     let s0 : f32 = sample_simplex_channel(
-      cache,
       vec2<f32>(f32(wrap_i32(x0 - 1, coarse_width)), f32(sy)),
       z,
       base_seed,
       channel_index,
     );
     let s1 : f32 = sample_simplex_channel(
-      cache,
       vec2<f32>(f32(wrap_i32(x0, coarse_width)), f32(sy)),
       z,
       base_seed,
       channel_index,
     );
     let s2 : f32 = sample_simplex_channel(
-      cache,
       vec2<f32>(f32(wrap_i32(x0 + 1, coarse_width)), f32(sy)),
       z,
       base_seed,
       channel_index,
     );
     let s3 : f32 = sample_simplex_channel(
-      cache,
       vec2<f32>(f32(wrap_i32(x0 + 2, coarse_width)), f32(sy)),
       z,
       base_seed,
@@ -404,7 +397,6 @@ fn sample_simplex_resampled(
 }
 
 fn sample_distribution_value_resampled(
-  cache : ptr<private, PermutationCache>,
   context : SampleContext,
   z : f32,
   seed : u32,
@@ -427,7 +419,7 @@ fn sample_distribution_value_resampled(
   if (distrib == DISTRIB_ZEROS) {
     return 0.0;
   }
-  let sample : f32 = sample_simplex_resampled(cache, context, z, seed, 0u);
+  let sample : f32 = sample_simplex_resampled(context, z, seed, 0u);
   return apply_primary_distribution(
     sample,
     distrib,
@@ -488,25 +480,20 @@ struct PermutationTables {
   perm_grad_index3d : array<u32, PERMUTATION_SIZE>,
 };
 
-// NOTE: Keep the cache small to avoid exhausting the Metal compute stack when
-// the shader is compiled. Each entry stores two 256 element tables which adds
-// up quickly. A handful of entries is enough to cover the seeds touched per
-// invocation while keeping the private stack usage under the platform limits.
-const PERMUTATION_CACHE_SIZE : u32 = 4u;
-
-struct PermutationCacheEntry {
+struct PermutationTableStorageEntry {
   seed : u32,
+  pad0 : u32,
+  pad1 : u32,
+  pad2 : u32,
   tables : PermutationTables,
 };
 
-struct PermutationCache {
-  entries : array<PermutationCacheEntry, PERMUTATION_CACHE_SIZE>,
+struct PermutationTableStorage {
   count : u32,
-  next : u32,
-};
-
-struct RandomState {
-  state : u32,
+  pad0 : u32,
+  pad1 : u32,
+  pad2 : u32,
+  entries : array<PermutationTableStorageEntry>,
 };
 
 struct SinNormalizationState {
@@ -516,97 +503,31 @@ struct SinNormalizationState {
   phase : atomic<u32>,
 };
 
-var<private> permutation_cache : PermutationCache;
-
-fn mulberry32_step(state : ptr<function, RandomState>) -> u32 {
-  var t : u32 = (*state).state + 0x6D2B79F5u;
-  t = (t ^ (t >> 15u)) * (t | 1u);
-  let mix : u32 = (t ^ (t >> 7u)) * (t | 61u);
-  t = t ^ (t + mix);
-  (*state).state = t;
-  return t ^ (t >> 14u);
-}
-
-fn random_float(state : ptr<function, RandomState>) -> f32 {
-  let bits : u32 = mulberry32_step(state);
-  return f32(bits) / 4294967296.0;
-}
-
-fn random_int_inclusive(state : ptr<function, RandomState>, min_val : i32, max_val : i32) -> i32 {
-  var lo : i32 = min_val;
-  var hi : i32 = max_val;
-  if (hi < lo) {
-    let tmp = lo;
-    lo = hi;
-    hi = tmp;
+fn fetch_permutation_table_index(seed : u32) -> u32 {
+  let total : u32 = permutation_table_storage.count;
+  if (total == 0u) {
+    return 0u;
   }
-  let span : f32 = f32(hi - lo + 1);
-  let sample : f32 = random_float(state) * span;
-  var idx : i32 = i32(floor(sample));
-  if (idx > hi - lo) {
-    idx = hi - lo;
-  }
-  return lo + idx;
-}
-
-fn build_permutation_tables(dest : ptr<private, PermutationTables>, seed : u32) {
-  var rng : RandomState = RandomState(seed);
-  for (var i : u32 = 0u; i < PERMUTATION_SIZE; i = i + 1u) {
-    (*dest).perm[i] = i;
-  }
-  var idx : i32 = i32(PERMUTATION_SIZE) - 1;
-  loop {
-    if (idx < 0) {
-      break;
-    }
-    let dest_index : u32 = u32(idx);
-    let swap_index : u32 = u32(random_int_inclusive(&rng, 0, idx));
-    let temp : u32 = (*dest).perm[dest_index];
-    (*dest).perm[dest_index] = (*dest).perm[swap_index];
-    (*dest).perm[swap_index] = temp;
-    idx = idx - 1;
-  }
-  for (var j : u32 = 0u; j < PERMUTATION_SIZE; j = j + 1u) {
-    let value : u32 = (*dest).perm[j];
-    (*dest).perm_grad_index3d[j] = (value % GRADIENTS_3D_COUNT) * 3u;
-  }
-}
-
-fn init_permutation_cache(cache : ptr<private, PermutationCache>) {
-  (*cache).count = 0u;
-  (*cache).next = 0u;
-}
-
-fn fetch_permutation_table_index(
-  cache : ptr<private, PermutationCache>,
-  seed : u32,
-) -> u32 {
   var index : u32 = 0u;
   loop {
-    if (index >= (*cache).count) {
+    if (index >= total) {
       break;
     }
-    let entry_seed : u32 = (*cache).entries[index].seed;
-    if (entry_seed == seed) {
+    if (permutation_table_storage.entries[index].seed == seed) {
       return index;
     }
     index = index + 1u;
   }
-
-  var insert_index : u32;
-  if ((*cache).count < PERMUTATION_CACHE_SIZE) {
-    insert_index = (*cache).count;
-    (*cache).count = (*cache).count + 1u;
-  } else {
-    insert_index = (*cache).next;
-    (*cache).next = ((*cache).next + 1u) % PERMUTATION_CACHE_SIZE;
-  }
-  (*cache).entries[insert_index].seed = seed;
-  build_permutation_tables(&(*cache).entries[insert_index].tables, seed);
-  return insert_index;
+  return 0u;
 }
 
-fn extrapolate2d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32, dx : f32, dy : f32) -> f32 {
+fn extrapolate2d(
+  tables : ptr<storage, PermutationTables>,
+  xsb : i32,
+  ysb : i32,
+  dx : f32,
+  dy : f32,
+) -> f32 {
   let px : u32 = (*tables).perm[u32(xsb & 255)];
   let index : u32 = ((*tables).perm[(px + u32(ysb & 255)) & 255u] & 0x0eu);
   let g1 : f32 = f32(GRADIENTS_2D[index]);
@@ -614,7 +535,15 @@ fn extrapolate2d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32,
   return g1 * dx + g2 * dy;
 }
 
-fn extrapolate3d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32, zsb : i32, dx : f32, dy : f32, dz : f32) -> f32 {
+fn extrapolate3d(
+  tables : ptr<storage, PermutationTables>,
+  xsb : i32,
+  ysb : i32,
+  zsb : i32,
+  dx : f32,
+  dy : f32,
+  dz : f32,
+) -> f32 {
   let px : u32 = (*tables).perm[u32(xsb & 255)];
   let py : u32 = (*tables).perm[(px + u32(ysb & 255)) & 255u];
   let index : u32 = (*tables).perm_grad_index3d[(py + u32(zsb & 255)) & 255u];
@@ -624,7 +553,7 @@ fn extrapolate3d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32,
   return g1 * dx + g2 * dy + g3 * dz;
 }
 
-fn open_simplex_2d(tables : ptr<private, PermutationTables>, x : f32, y : f32) -> f32 {
+fn open_simplex_2d(tables : ptr<storage, PermutationTables>, x : f32, y : f32) -> f32 {
   let stretch_offset : f32 = (x + y) * STRETCH_CONSTANT_2D;
   let xs : f32 = x + stretch_offset;
   let ys : f32 = y + stretch_offset;
@@ -722,7 +651,7 @@ fn open_simplex_2d(tables : ptr<private, PermutationTables>, x : f32, y : f32) -
   return value / NORM_CONSTANT_2D;
 }
 
-fn open_simplex_3d(tables : ptr<private, PermutationTables>, x : f32, y : f32, z : f32) -> f32 {
+fn open_simplex_3d(tables : ptr<storage, PermutationTables>, x : f32, y : f32, z : f32) -> f32 {
   let stretch_offset : f32 = (x + y + z) * STRETCH_CONSTANT_3D;
   let xs : f32 = x + stretch_offset;
   let ys : f32 = y + stretch_offset;
@@ -1174,21 +1103,19 @@ fn apply_primary_distribution(
 }
 
 fn sample_simplex_channel(
-  cache : ptr<private, PermutationCache>,
   coord : vec2<f32>,
   z : f32,
   base_seed : u32,
   channel_index : u32,
 ) -> f32 {
   let seed : u32 = base_seed + channel_index * 65535u;
-  let table_index : u32 = fetch_permutation_table_index(cache, seed);
-  let tables : ptr<private, PermutationTables> = &(*cache).entries[table_index].tables;
+  let table_index : u32 = fetch_permutation_table_index(seed);
+  let tables : ptr<storage, PermutationTables> = &permutation_table_storage.entries[table_index].tables;
   let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   return map_to_unit(raw_value);
 }
 
 fn evaluate_simplex_layer_rgba(
-  cache : ptr<private, PermutationCache>,
   base_context : SampleContext,
   override_context : SampleContext,
   brightness_context : SampleContext,
@@ -1228,7 +1155,7 @@ fn evaluate_simplex_layer_rgba(
     if (idx >= effective_channels) {
       break;
     }
-    var sample : f32 = sample_simplex_resampled(cache, base_context, z, base_seed, idx);
+    var sample : f32 = sample_simplex_resampled(base_context, z, base_seed, idx);
     var effective_distrib : u32 = distrib;
     if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
       effective_distrib = DISTRIB_SIMPLEX;
@@ -1301,7 +1228,6 @@ fn evaluate_simplex_layer_rgba(
     if (has_hue_override) {
       hue_value = clamp(
         sample_distribution_value_resampled(
-          cache,
           override_context,
           z,
           hue_seed,
@@ -1327,7 +1253,6 @@ fn evaluate_simplex_layer_rgba(
     if (has_saturation_override) {
       saturation_value = clamp(
         sample_distribution_value_resampled(
-          cache,
           override_context,
           z,
           saturation_seed,
@@ -1350,7 +1275,6 @@ fn evaluate_simplex_layer_rgba(
     if (has_brightness_override) {
       brightness_value = clamp(
         sample_distribution_value_resampled(
-          cache,
           brightness_context,
           z,
           brightness_seed,
@@ -1396,6 +1320,7 @@ fn evaluate_simplex_layer_rgba(
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
 @group(0) @binding(4) var<storage, read_write> sin_state : SinNormalizationState;
 @group(0) @binding(5) var<storage, read> mask_data : array<f32>;
+@group(0) @binding(6) var<storage, read> permutation_table_storage : PermutationTableStorage;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
@@ -1464,8 +1389,6 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let pixel_i : vec2<i32> = vec2<i32>(i32(global_id.x), i32(global_id.y));
   let pixel_index : u32 = global_id.y * width + global_id.x;
   let mask_stride : u32 = total_invocations * 4u;
-
-  init_permutation_cache(&permutation_cache);
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
   var weight : f32 = 0.5;
@@ -1568,8 +1491,8 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       );
       let min_freq_component : f32 = max(min(octave_freq.x, octave_freq.y), 1.0);
       let displacement : f32 = lattice_drift_amount / min_freq_component;
-      let refx_value : f32 = sample_simplex_resampled(&permutation_cache, base_context, z, refx_seed, 0u);
-      let refy_value : f32 = sample_simplex_resampled(&permutation_cache, base_context, z, refy_seed, 0u);
+      let refx_value : f32 = sample_simplex_resampled(base_context, z, refx_seed, 0u);
+      let refy_value : f32 = sample_simplex_resampled(base_context, z, refy_seed, 0u);
       lattice_offset_uv = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
       var norm_base_uv : vec2<f32> = vec2<f32>(
         base_context.position.x / max(coarse_dims_f.x, 1.0),
@@ -1599,7 +1522,6 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     }
 
     let layer_result : LayerResult = evaluate_simplex_layer_rgba(
-      &permutation_cache,
       base_context,
       override_context,
       brightness_context,

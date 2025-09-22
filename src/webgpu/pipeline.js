@@ -10,6 +10,7 @@ import {
 import { maskValues } from '../masks.js';
 import { resample } from '../value.js';
 import * as SHADERS from './shaders.js';
+import { OpenSimplex } from '../simplex.js';
 
 const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
 const COMPUTE_STAGE_VISIBILITY =
@@ -18,6 +19,13 @@ const STORAGE_TEXTURE_FORMAT = 'rgba32float';
 const PRESENT_PARAMS_FLOATS = 16;
 const PRESENT_PARAMS_SIZE = PRESENT_PARAMS_FLOATS * 4;
 const MASK_STORAGE_PAD = 16;
+const UINT32_BYTES = 4;
+const PERMUTATION_TABLE_SIZE = 256;
+const PERMUTATION_ENTRY_UINTS = 4 + PERMUTATION_TABLE_SIZE * 2;
+const PERMUTATION_HEADER_UINTS = 4;
+const CHANNEL_SEED_DELTA = 65535;
+
+const PERMUTATION_TABLE_CACHE = new Map();
 
 export class StageValidationError extends Error {
   constructor(descriptor, cause, bindings, context = {}) {
@@ -314,6 +322,104 @@ export class PresetProgram {
     return { buffer };
   }
 
+  _ensurePermutationTableBuffer(descriptor, ctx, options = {}) {
+    if (!descriptor) return null;
+    const plan = descriptor._multiresPermutationPlan;
+    if (!plan) {
+      descriptor._permutationGPUBuffer = null;
+      descriptor._permutationGPUBufferSize = 0;
+      return { buffer: null };
+    }
+    const width = Math.max(1, Math.floor(Number(options.width) || 1));
+    const height = Math.max(1, Math.floor(Number(options.height) || 1));
+    const seedValue = Number(options.seed) || 0;
+    const frameSeed = Number.isFinite(seedValue) ? Math.trunc(seedValue) >>> 0 : 0;
+    const seeds = computePermutationSeeds(plan, width, height, frameSeed);
+    if (!seeds.length) {
+      seeds.push(0);
+    }
+    const previousSeeds = descriptor._permutationSeedList || [];
+    let seedsChanged = seeds.length !== previousSeeds.length;
+    if (!seedsChanged) {
+      for (let i = 0; i < seeds.length; i += 1) {
+        if (seeds[i] !== previousSeeds[i]) {
+          seedsChanged = true;
+          break;
+        }
+      }
+    }
+    if (seedsChanged) {
+      descriptor._permutationSeedList = seeds.slice();
+      descriptor._permutationDataDirty = true;
+    }
+
+    const entryCount = seeds.length;
+    const totalU32 = PERMUTATION_HEADER_UINTS + entryCount * PERMUTATION_ENTRY_UINTS;
+    let array = descriptor._permutationArray;
+    if (!array || array.length !== totalU32) {
+      array = new Uint32Array(totalU32);
+      descriptor._permutationArray = array;
+      descriptor._permutationDataDirty = true;
+    }
+    if (descriptor._permutationDataDirty && array) {
+      array.fill(0);
+      array[0] = entryCount >>> 0;
+      for (let i = 0; i < entryCount; i += 1) {
+        const seed = seeds[i] >>> 0;
+        const entryBase = PERMUTATION_HEADER_UINTS + i * PERMUTATION_ENTRY_UINTS;
+        array[entryBase] = seed;
+        const tables = getPermutationTables(seed);
+        array.set(tables.perm, entryBase + 4);
+        array.set(tables.grad, entryBase + 4 + PERMUTATION_TABLE_SIZE);
+      }
+    }
+
+    if (!ctx || !ctx.device) {
+      return { buffer: null };
+    }
+
+    const usage =
+      typeof GPUBufferUsage !== 'undefined'
+        ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        : (1 << 5) | (1 << 3);
+    const byteLength = array ? array.length * UINT32_BYTES : PERMUTATION_HEADER_UINTS * UINT32_BYTES;
+    const requiredSize = Math.max(byteLength, MASK_STORAGE_PAD);
+    let buffer = descriptor._permutationGPUBuffer;
+    const currentSize = descriptor._permutationGPUBufferSize ?? buffer?.size ?? buffer?._size ?? 0;
+    if (!buffer || currentSize < requiredSize) {
+      if (buffer && typeof buffer.destroy === 'function') {
+        try {
+          buffer.destroy();
+        } catch (err) {
+          void err;
+        }
+      }
+      buffer = ctx.device.createBuffer({
+        size: requiredSize,
+        usage,
+      });
+      buffer._size = requiredSize;
+      descriptor._permutationGPUBuffer = buffer;
+      descriptor._permutationGPUBufferSize = requiredSize;
+      descriptor._permutationDataDirty = true;
+    }
+
+    if (
+      buffer &&
+      (!Number.isFinite(descriptor._permutationGPUBufferSize) || descriptor._permutationGPUBufferSize <= 0)
+    ) {
+      const knownSize = buffer.size ?? buffer._size ?? requiredSize;
+      descriptor._permutationGPUBufferSize = Number.isFinite(knownSize) && knownSize > 0 ? knownSize : requiredSize;
+    }
+
+    if (descriptor._permutationDataDirty && array && ctx.queue) {
+      ctx.queue.writeBuffer(buffer, 0, array);
+      descriptor._permutationDataDirty = false;
+    }
+
+    return { buffer };
+  }
+
   /**
    * Number of GPU stages described by the program.
    * @returns {number}
@@ -566,6 +672,20 @@ export class PresetProgram {
             const maskState = this._ensureMaskBuffer(descriptor, context);
             if (maskState?.buffer) {
               entry = { resource: { buffer: maskState.buffer } };
+            }
+          }
+          if (
+            !entry &&
+            resourceSpec?.resourceType === 'storage-buffer' &&
+            resourceSpec?.name === 'permutationTables'
+          ) {
+            const permutationState = this._ensurePermutationTableBuffer(descriptor, context, {
+              seed,
+              width,
+              height,
+            });
+            if (permutationState?.buffer) {
+              entry = { resource: { buffer: permutationState.buffer } };
             }
           }
           if (this.sharedResources) {
@@ -1045,9 +1165,11 @@ export class PresetProgram {
         }
       }
 
+      const wantsGpuTiming = Boolean(context?.profilingOptions?.timestampQueries);
       if (
         autoSubmitted &&
         !result.queueFlushed &&
+        wantsGpuTiming &&
         (!state.profileInfo || !state.profileInfo.usedTimestampQuery) &&
         context.queue?.onSubmittedWorkDone
       ) {
@@ -1830,6 +1952,19 @@ function specializeMultiresDescriptor(descriptor, stage) {
     optional: false,
     access: maskResource.access,
   });
+  const permutationResource = {
+    name: 'permutationTables',
+    resourceType: 'storage-buffer',
+    size: 0,
+    access: 'read-only',
+  };
+  descriptor.resourceParams.push(permutationResource);
+  descriptor.bindings.auxiliary.push({
+    name: permutationResource.name,
+    resourceType: permutationResource.resourceType,
+    optional: false,
+    access: permutationResource.access,
+  });
   descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
   descriptor.multiresMaskConfig = extractMultiresMaskConfig(stage?.params || {});
   ensureMaskDataHolder(descriptor);
@@ -2157,6 +2292,19 @@ function resolveMultiresUniformParams(params, descriptor) {
   });
   if (descriptor) {
     descriptor.multiresMaskConfig = maskConfig;
+  }
+
+  if (descriptor) {
+    descriptor._multiresPermutationPlan = {
+      baseFreq: Array.isArray(freq) ? freq.slice(0, 2) : [freq, freq],
+      octaves,
+      channelCount,
+      hasHueOverride: Boolean(hueDistrib),
+      hasSaturationOverride: Boolean(saturationDistrib),
+      hasBrightnessOverride,
+      hasLatticeDrift: latticeDrift !== 0,
+      seedOffset: seedOffset >>> 0,
+    };
   }
 
   return {
@@ -2718,6 +2866,108 @@ function computeMultiresMaskData(options) {
       : null;
   }
   return { enabled: true, alpha: alphaMode, octaveCount };
+}
+
+function computePermutationSeeds(plan, width, height, frameSeed) {
+  if (!plan) {
+    return [];
+  }
+  const baseFreqRaw = Array.isArray(plan.baseFreq) ? plan.baseFreq : [plan.baseFreq, plan.baseFreq];
+  const baseFreq = [
+    Math.max(1, Math.floor(Number(baseFreqRaw[0]) || 1)),
+    Math.max(1, Math.floor(Number(baseFreqRaw[1] ?? baseFreqRaw[0]) || 1)),
+  ];
+  const octaves = Math.max(1, Math.floor(Number(plan.octaves) || 1));
+  const channelCount = Math.max(1, Math.min(4, Math.floor(Number(plan.channelCount) || 1)));
+  const hasHue = Boolean(plan.hasHueOverride);
+  const hasSaturation = Boolean(plan.hasSaturationOverride);
+  const hasBrightness = Boolean(plan.hasBrightnessOverride);
+  const hasLattice = Boolean(plan.hasLatticeDrift);
+  const seedOffset = Math.trunc(Number(plan.seedOffset) || 0) >>> 0;
+  const callsPerOctave =
+    1 + (hasHue ? 1 : 0) + (hasSaturation ? 1 : 0) + (hasBrightness ? 1 : 0) + (hasLattice ? 2 : 0);
+  const frameSeedU32 = frameSeed >>> 0;
+
+  const seeds = [];
+  const seen = new Set();
+
+  for (let octave = 1; octave <= octaves; octave += 1) {
+    const [freqX, freqY] = computeMultiresOctaveFrequency(baseFreq, octave);
+    if (freqX > width && freqY > height) {
+      break;
+    }
+    const octaveOffset = (octave - 1) * callsPerOctave;
+    let baseSeed = addUint32(frameSeedU32, seedOffset);
+    baseSeed = addUint32(baseSeed, octaveOffset >>> 0);
+    if (frameSeedU32 !== 0) {
+      baseSeed = addUint32(baseSeed, 1);
+    }
+    const layerSeed = baseSeed;
+    for (let channel = 0; channel < channelCount; channel += 1) {
+      const channelSeed = addUint32(layerSeed, (channel * CHANNEL_SEED_DELTA) >>> 0);
+      if (!seen.has(channelSeed)) {
+        seen.add(channelSeed);
+        seeds.push(channelSeed);
+      }
+    }
+    let seedCursor = addUint32(baseSeed, 1);
+    if (hasHue) {
+      if (!seen.has(seedCursor)) {
+        seen.add(seedCursor);
+        seeds.push(seedCursor);
+      }
+      seedCursor = addUint32(seedCursor, 1);
+    }
+    if (hasSaturation) {
+      if (!seen.has(seedCursor)) {
+        seen.add(seedCursor);
+        seeds.push(seedCursor);
+      }
+      seedCursor = addUint32(seedCursor, 1);
+    }
+    if (hasBrightness) {
+      if (!seen.has(seedCursor)) {
+        seen.add(seedCursor);
+        seeds.push(seedCursor);
+      }
+      seedCursor = addUint32(seedCursor, 1);
+    }
+    if (hasLattice) {
+      if (!seen.has(seedCursor)) {
+        seen.add(seedCursor);
+        seeds.push(seedCursor);
+      }
+      seedCursor = addUint32(seedCursor, 1);
+      if (!seen.has(seedCursor)) {
+        seen.add(seedCursor);
+        seeds.push(seedCursor);
+      }
+      seedCursor = addUint32(seedCursor, 1);
+    }
+  }
+
+  return seeds;
+}
+
+function addUint32(a, b) {
+  return (Math.trunc(a) + Math.trunc(b)) >>> 0;
+}
+
+function getPermutationTables(seed) {
+  const key = seed >>> 0;
+  if (PERMUTATION_TABLE_CACHE.has(key)) {
+    return PERMUTATION_TABLE_CACHE.get(key);
+  }
+  const simplex = new OpenSimplex(key);
+  const perm = new Uint32Array(PERMUTATION_TABLE_SIZE);
+  const grad = new Uint32Array(PERMUTATION_TABLE_SIZE);
+  for (let i = 0; i < PERMUTATION_TABLE_SIZE; i += 1) {
+    perm[i] = simplex.perm[i] >>> 0;
+    grad[i] = simplex.permGradIndex3D[i] >>> 0;
+  }
+  const record = { perm, grad };
+  PERMUTATION_TABLE_CACHE.set(key, record);
+  return record;
 }
 
 function coerceFrequencyInput(value) {
