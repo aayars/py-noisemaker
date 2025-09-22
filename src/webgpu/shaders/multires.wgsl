@@ -246,11 +246,11 @@ fn compute_octave_frequency(base_freq : vec2<f32>, octave_index : u32) -> vec2<f
   return freq;
 }
 
-fn compute_pin_offset(
+fn compute_pin_offset_pixels(
   freq : vec2<f32>,
   corners_enabled : bool,
   resolution : vec2<f32>,
-) -> vec2<f32> {
+) -> vec2<i32> {
   let fy : f32 = max(freq.y, 1.0);
   let fx : f32 = max(freq.x, 1.0);
   let fy_int : u32 = u32(floor(fy));
@@ -261,13 +261,183 @@ fn compute_pin_offset(
     apply_offset = (fy_int & 1u) == 1u;
   }
   if (!apply_offset) {
-    return vec2<f32>(0.0, 0.0);
+    return vec2<i32>(0, 0);
   }
-  let cell_width : f32 = resolution.x / fx;
-  let cell_height : f32 = resolution.y / fy;
-  let offset_x : f32 = floor(cell_width * 0.5);
-  let offset_y : f32 = floor(cell_height * 0.5);
-  return vec2<f32>(offset_x / resolution.x, offset_y / resolution.y);
+  let cell_width : f32 = resolution.x / max(fx, 1.0);
+  let cell_height : f32 = resolution.y / max(fy, 1.0);
+  let offset_x : i32 = i32(floor(cell_width * 0.5));
+  let offset_y : i32 = i32(floor(cell_height * 0.5));
+  return vec2<i32>(offset_x, offset_y);
+}
+
+fn wrap_i32(value : i32, limit : i32) -> i32 {
+  if (limit == 0) {
+    return 0;
+  }
+  var result : i32 = value % limit;
+  if (result < 0) {
+    result = result + limit;
+  }
+  return result;
+}
+
+fn blend_cubic(a : f32, b : f32, c1 : f32, d : f32, g : f32) -> f32 {
+  let gg : f32 = g;
+  let g2 : f32 = gg * gg;
+  let a0 : f32 = (d - c1 - a) + b;
+  let a1 : f32 = (a - b) - a0;
+  let a2 : f32 = c1 - a;
+  let a3 : f32 = b;
+  let term1 : f32 = (a0 * gg) * g2;
+  let term2 : f32 = a1 * g2;
+  let term3 : f32 = a2 * gg + a3;
+  return term1 + term2 + term3;
+}
+
+struct SampleContext {
+  coarse_dims : vec2<i32>,
+  position : vec2<f32>,
+};
+
+fn build_sample_context(
+  freq : vec2<f32>,
+  pixel : vec2<i32>,
+  resolution : vec2<i32>,
+  pin_offset : vec2<i32>,
+) -> SampleContext {
+  let coarse_width : i32 = max(i32(floor(freq.x)), 1);
+  let coarse_height : i32 = max(i32(floor(freq.y)), 1);
+  let width : i32 = max(resolution.x, 1);
+  let height : i32 = max(resolution.y, 1);
+  let shifted_x : i32 = wrap_i32(pixel.x + pin_offset.x, width);
+  let shifted_y : i32 = wrap_i32(pixel.y + pin_offset.y, height);
+  let scale_x : f32 = f32(coarse_width) / f32(width);
+  let scale_y : f32 = f32(coarse_height) / f32(height);
+  let pos : vec2<f32> = vec2<f32>(f32(shifted_x) * scale_x, f32(shifted_y) * scale_y);
+  return SampleContext(vec2<i32>(coarse_width, coarse_height), pos);
+}
+
+fn sample_simplex_resampled(
+  cache : ptr<private, PermutationCache>,
+  context : SampleContext,
+  z : f32,
+  base_seed : u32,
+  channel_index : u32,
+) -> f32 {
+  let coarse_width : i32 = max(context.coarse_dims.x, 1);
+  let coarse_height : i32 = max(context.coarse_dims.y, 1);
+  if (coarse_width == 1 && coarse_height == 1) {
+    return sample_simplex_channel(cache, vec2<f32>(0.0, 0.0), z, base_seed, channel_index);
+  }
+
+  let gx : f32 = context.position.x;
+  let gy : f32 = context.position.y;
+  let x0 : i32 = i32(floor(gx));
+  let y0 : i32 = i32(floor(gy));
+  let tx : f32 = fract(gx);
+  let ty : f32 = fract(gy);
+
+  if (coarse_width == 1) {
+    var column : array<f32, 4>;
+    for (var m : i32 = -1; m < 3; m = m + 1) {
+      let sy : i32 = wrap_i32(y0 + m, coarse_height);
+      column[m + 1] = sample_simplex_channel(
+        cache,
+        vec2<f32>(0.0, f32(sy)),
+        z,
+        base_seed,
+        channel_index,
+      );
+    }
+    return blend_cubic(column[0], column[1], column[2], column[3], ty);
+  }
+
+  if (coarse_height == 1) {
+    var row : array<f32, 4>;
+    for (var n : i32 = -1; n < 3; n = n + 1) {
+      let sx : i32 = wrap_i32(x0 + n, coarse_width);
+      row[n + 1] = sample_simplex_channel(
+        cache,
+        vec2<f32>(f32(sx), 0.0),
+        z,
+        base_seed,
+        channel_index,
+      );
+    }
+    return blend_cubic(row[0], row[1], row[2], row[3], tx);
+  }
+
+  var rows : array<f32, 4>;
+  for (var m : i32 = -1; m < 3; m = m + 1) {
+    let sy : i32 = wrap_i32(y0 + m, coarse_height);
+    let s0 : f32 = sample_simplex_channel(
+      cache,
+      vec2<f32>(f32(wrap_i32(x0 - 1, coarse_width)), f32(sy)),
+      z,
+      base_seed,
+      channel_index,
+    );
+    let s1 : f32 = sample_simplex_channel(
+      cache,
+      vec2<f32>(f32(wrap_i32(x0, coarse_width)), f32(sy)),
+      z,
+      base_seed,
+      channel_index,
+    );
+    let s2 : f32 = sample_simplex_channel(
+      cache,
+      vec2<f32>(f32(wrap_i32(x0 + 1, coarse_width)), f32(sy)),
+      z,
+      base_seed,
+      channel_index,
+    );
+    let s3 : f32 = sample_simplex_channel(
+      cache,
+      vec2<f32>(f32(wrap_i32(x0 + 2, coarse_width)), f32(sy)),
+      z,
+      base_seed,
+      channel_index,
+    );
+    rows[m + 1] = blend_cubic(s0, s1, s2, s3, tx);
+  }
+  return blend_cubic(rows[0], rows[1], rows[2], rows[3], ty);
+}
+
+fn sample_distribution_value_resampled(
+  cache : ptr<private, PermutationCache>,
+  context : SampleContext,
+  z : f32,
+  seed : u32,
+  distrib : u32,
+  octave_freq : vec2<f32>,
+  pixel_coord : vec2<f32>,
+  resolution : vec2<f32>,
+  time_value : f32,
+  speed_value : f32,
+) -> f32 {
+  if (distrib == DISTRIB_NONE || distrib == 0u) {
+    return 0.0;
+  }
+  if (distrib == DISTRIB_ONES) {
+    return 1.0;
+  }
+  if (distrib == DISTRIB_MIDS) {
+    return 0.5;
+  }
+  if (distrib == DISTRIB_ZEROS) {
+    return 0.0;
+  }
+  let sample : f32 = sample_simplex_resampled(cache, context, z, seed, 0u);
+  return apply_primary_distribution(
+    sample,
+    distrib,
+    context.position,
+    octave_freq,
+    pixel_coord,
+    resolution,
+    time_value,
+    speed_value,
+  );
 }
 
 fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
@@ -346,6 +516,8 @@ struct SinNormalizationState {
   phase : atomic<u32>,
 };
 
+var<private> permutation_cache : PermutationCache;
+
 fn mulberry32_step(state : ptr<function, RandomState>) -> u32 {
   var t : u32 = (*state).state + 0x6D2B79F5u;
   t = (t ^ (t >> 15u)) * (t | 1u);
@@ -377,36 +549,36 @@ fn random_int_inclusive(state : ptr<function, RandomState>, min_val : i32, max_v
   return lo + idx;
 }
 
-fn build_permutation_tables(seed : u32) -> PermutationTables {
-  var tables : PermutationTables;
-  var source : array<u32, PERMUTATION_SIZE>;
+fn build_permutation_tables(dest : ptr<private, PermutationTables>, seed : u32) {
   var rng : RandomState = RandomState(seed);
   for (var i : u32 = 0u; i < PERMUTATION_SIZE; i = i + 1u) {
-    source[i] = i;
+    (*dest).perm[i] = i;
   }
   var idx : i32 = i32(PERMUTATION_SIZE) - 1;
   loop {
     if (idx < 0) {
       break;
     }
-    let choice : u32 = u32(random_int_inclusive(&rng, 0, idx));
-    let dest : u32 = u32(idx);
-    let value : u32 = source[choice];
-    tables.perm[dest] = value;
-    tables.perm_grad_index3d[dest] = (value % GRADIENTS_3D_COUNT) * 3u;
-    source[choice] = source[dest];
+    let dest_index : u32 = u32(idx);
+    let swap_index : u32 = u32(random_int_inclusive(&rng, 0, idx));
+    let temp : u32 = (*dest).perm[dest_index];
+    (*dest).perm[dest_index] = (*dest).perm[swap_index];
+    (*dest).perm[swap_index] = temp;
     idx = idx - 1;
   }
-  return tables;
+  for (var j : u32 = 0u; j < PERMUTATION_SIZE; j = j + 1u) {
+    let value : u32 = (*dest).perm[j];
+    (*dest).perm_grad_index3d[j] = (value % GRADIENTS_3D_COUNT) * 3u;
+  }
 }
 
-fn init_permutation_cache(cache : ptr<function, PermutationCache>) {
+fn init_permutation_cache(cache : ptr<private, PermutationCache>) {
   (*cache).count = 0u;
   (*cache).next = 0u;
 }
 
 fn fetch_permutation_table_index(
-  cache : ptr<function, PermutationCache>,
+  cache : ptr<private, PermutationCache>,
   seed : u32,
 ) -> u32 {
   var index : u32 = 0u;
@@ -430,11 +602,11 @@ fn fetch_permutation_table_index(
     (*cache).next = ((*cache).next + 1u) % PERMUTATION_CACHE_SIZE;
   }
   (*cache).entries[insert_index].seed = seed;
-  (*cache).entries[insert_index].tables = build_permutation_tables(seed);
+  build_permutation_tables(&(*cache).entries[insert_index].tables, seed);
   return insert_index;
 }
 
-fn extrapolate2d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32, dx : f32, dy : f32) -> f32 {
+fn extrapolate2d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32, dx : f32, dy : f32) -> f32 {
   let px : u32 = (*tables).perm[u32(xsb & 255)];
   let index : u32 = ((*tables).perm[(px + u32(ysb & 255)) & 255u] & 0x0eu);
   let g1 : f32 = f32(GRADIENTS_2D[index]);
@@ -442,7 +614,7 @@ fn extrapolate2d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32
   return g1 * dx + g2 * dy;
 }
 
-fn extrapolate3d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32, zsb : i32, dx : f32, dy : f32, dz : f32) -> f32 {
+fn extrapolate3d(tables : ptr<private, PermutationTables>, xsb : i32, ysb : i32, zsb : i32, dx : f32, dy : f32, dz : f32) -> f32 {
   let px : u32 = (*tables).perm[u32(xsb & 255)];
   let py : u32 = (*tables).perm[(px + u32(ysb & 255)) & 255u];
   let index : u32 = (*tables).perm_grad_index3d[(py + u32(zsb & 255)) & 255u];
@@ -452,7 +624,7 @@ fn extrapolate3d(tables : ptr<function, PermutationTables>, xsb : i32, ysb : i32
   return g1 * dx + g2 * dy + g3 * dz;
 }
 
-fn open_simplex_2d(tables : ptr<function, PermutationTables>, x : f32, y : f32) -> f32 {
+fn open_simplex_2d(tables : ptr<private, PermutationTables>, x : f32, y : f32) -> f32 {
   let stretch_offset : f32 = (x + y) * STRETCH_CONSTANT_2D;
   let xs : f32 = x + stretch_offset;
   let ys : f32 = y + stretch_offset;
@@ -550,7 +722,7 @@ fn open_simplex_2d(tables : ptr<function, PermutationTables>, x : f32, y : f32) 
   return value / NORM_CONSTANT_2D;
 }
 
-fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, z : f32) -> f32 {
+fn open_simplex_3d(tables : ptr<private, PermutationTables>, x : f32, y : f32, z : f32) -> f32 {
   let stretch_offset : f32 = (x + y + z) * STRETCH_CONSTANT_3D;
   let xs : f32 = x + stretch_offset;
   let ys : f32 = y + stretch_offset;
@@ -1002,7 +1174,7 @@ fn apply_primary_distribution(
 }
 
 fn sample_simplex_channel(
-  cache : ptr<function, PermutationCache>,
+  cache : ptr<private, PermutationCache>,
   coord : vec2<f32>,
   z : f32,
   base_seed : u32,
@@ -1010,42 +1182,16 @@ fn sample_simplex_channel(
 ) -> f32 {
   let seed : u32 = base_seed + channel_index * 65535u;
   let table_index : u32 = fetch_permutation_table_index(cache, seed);
-  let tables : ptr<function, PermutationTables> = &(*cache).entries[table_index].tables;
+  let tables : ptr<private, PermutationTables> = &(*cache).entries[table_index].tables;
   let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
   return map_to_unit(raw_value);
 }
 
-fn sample_distribution_value(
-  cache : ptr<function, PermutationCache>,
-  coord : vec2<f32>,
-  z : f32,
-  seed : u32,
-  distrib : u32,
-) -> f32 {
-  if (distrib == DISTRIB_NONE || distrib == 0u) {
-    return 0.0;
-  }
-  if (distrib == DISTRIB_ONES) {
-    return 1.0;
-  }
-  if (distrib == DISTRIB_MIDS) {
-    return 0.5;
-  }
-  if (distrib == DISTRIB_ZEROS) {
-    return 0.0;
-  }
-  let table_index : u32 = fetch_permutation_table_index(cache, seed);
-  let tables : ptr<function, PermutationTables> = &(*cache).entries[table_index].tables;
-  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
-  let mapped : f32 = map_to_unit(raw_value);
-  return apply_basic_distribution(mapped, distrib);
-}
-
 fn evaluate_simplex_layer_rgba(
-  cache : ptr<function, PermutationCache>,
-  sample_coord : vec2<f32>,
-  override_coord : vec2<f32>,
-  brightness_coord : vec2<f32>,
+  cache : ptr<private, PermutationCache>,
+  base_context : SampleContext,
+  override_context : SampleContext,
+  brightness_context : SampleContext,
   z : f32,
   base_seed : u32,
   hue_seed : u32,
@@ -1082,7 +1228,7 @@ fn evaluate_simplex_layer_rgba(
     if (idx >= effective_channels) {
       break;
     }
-    var sample : f32 = sample_simplex_channel(cache, sample_coord, z, base_seed, idx);
+    var sample : f32 = sample_simplex_resampled(cache, base_context, z, base_seed, idx);
     var effective_distrib : u32 = distrib;
     if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
       effective_distrib = DISTRIB_SIMPLEX;
@@ -1090,7 +1236,7 @@ fn evaluate_simplex_layer_rgba(
     sample = apply_primary_distribution(
       sample,
       effective_distrib,
-      sample_coord,
+      base_context.position,
       octave_freq,
       pixel_coord,
       resolution,
@@ -1153,7 +1299,22 @@ fn evaluate_simplex_layer_rgba(
 
     var hue_value : f32;
     if (has_hue_override) {
-      hue_value = clamp(sample_distribution_value(cache, override_coord, z, hue_seed, hue_distrib), 0.0, 1.0);
+      hue_value = clamp(
+        sample_distribution_value_resampled(
+          cache,
+          override_context,
+          z,
+          hue_seed,
+          hue_distrib,
+          octave_freq,
+          pixel_coord,
+          resolution,
+          time_value,
+          speed_value,
+        ),
+        0.0,
+        1.0,
+      );
     } else {
       hue_value = color_vec.x * hue_range + hue_rotation;
       hue_value = fract(hue_value);
@@ -1165,7 +1326,18 @@ fn evaluate_simplex_layer_rgba(
     var saturation_value : f32;
     if (has_saturation_override) {
       saturation_value = clamp(
-        sample_distribution_value(cache, override_coord, z, saturation_seed, saturation_distrib),
+        sample_distribution_value_resampled(
+          cache,
+          override_context,
+          z,
+          saturation_seed,
+          saturation_distrib,
+          octave_freq,
+          pixel_coord,
+          resolution,
+          time_value,
+          speed_value,
+        ),
         0.0,
         1.0,
       );
@@ -1177,7 +1349,18 @@ fn evaluate_simplex_layer_rgba(
     var brightness_value : f32;
     if (has_brightness_override) {
       brightness_value = clamp(
-        sample_distribution_value(cache, brightness_coord, z, brightness_seed, brightness_distrib),
+        sample_distribution_value_resampled(
+          cache,
+          brightness_context,
+          z,
+          brightness_seed,
+          brightness_distrib,
+          octave_freq,
+          pixel_coord,
+          resolution,
+          time_value,
+          speed_value,
+        ),
         0.0,
         1.0,
       );
@@ -1277,12 +1460,11 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let angle : f32 = frame_uniforms.time * TAU;
   let z : f32 = cos(angle) * speed;
   let resolution : vec2<f32> = frame_uniforms.resolution;
-  let pixel : vec2<f32> = vec2<f32>(f32(global_id.x), f32(global_id.y));
-  let uv : vec2<f32> = (pixel + vec2<f32>(0.5, 0.5)) / resolution;
+  let resolution_px : vec2<i32> = vec2<i32>(i32(width), i32(height));
+  let pixel_i : vec2<i32> = vec2<i32>(i32(global_id.x), i32(global_id.y));
   let pixel_index : u32 = global_id.y * width + global_id.x;
   let mask_stride : u32 = total_invocations * 4u;
 
-  var permutation_cache : PermutationCache;
   init_permutation_cache(&permutation_cache);
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -1299,9 +1481,23 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       break;
     }
 
-    let pin_offset_uv : vec2<f32> = compute_pin_offset(octave_freq, corners_enabled, resolution);
-    let base_uv : vec2<f32> = fract(uv + pin_offset_uv);
-    let base_coord : vec2<f32> = base_uv * octave_freq;
+    let pin_offset_px : vec2<i32> = compute_pin_offset_pixels(octave_freq, corners_enabled, resolution);
+    let wrapped_pixel_i : vec2<i32> = vec2<i32>(
+      wrap_i32(pixel_i.x + pin_offset_px.x, resolution_px.x),
+      wrap_i32(pixel_i.y + pin_offset_px.y, resolution_px.y),
+    );
+    let wrapped_pixel : vec2<f32> = vec2<f32>(
+      f32(wrapped_pixel_i.x),
+      f32(wrapped_pixel_i.y),
+    );
+
+    var base_context : SampleContext = build_sample_context(
+      octave_freq,
+      pixel_i,
+      resolution_px,
+      pin_offset_px,
+    );
+    var override_context : SampleContext = base_context;
 
     var brightness_freq_vec : vec2<f32> = octave_freq;
     if (has_brightness_override && has_brightness_freq_override) {
@@ -1310,13 +1506,20 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
         max(brightness_freq_params.y, 1.0),
       );
     }
-    let brightness_pin_offset : vec2<f32> = compute_pin_offset(
+    let brightness_pin_offset_px : vec2<i32> = compute_pin_offset_pixels(
       brightness_freq_vec,
       corners_enabled,
       resolution,
     );
-    let brightness_uv : vec2<f32> = fract(uv + brightness_pin_offset);
-    let brightness_coord : vec2<f32> = brightness_uv * brightness_freq_vec;
+    var brightness_context : SampleContext = build_sample_context(
+      brightness_freq_vec,
+      pixel_i,
+      resolution_px,
+      brightness_pin_offset_px,
+    );
+    if (!has_brightness_override || !has_brightness_freq_override) {
+      brightness_context = base_context;
+    }
     let octave_offset : u32 = (octave_index - 1u) * calls_per_octave;
     let reseeded : bool = frame_uniforms.seed != 0u;
     var base_seed : u32 = frame_uniforms.seed + seed_offset + octave_offset;
@@ -1357,23 +1560,49 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
 
     let effective_brightness_distrib : u32 = select(DISTRIB_NONE, brightness_distrib, has_brightness_override);
 
-    var sample_coord : vec2<f32> = base_coord;
-    let override_coord : vec2<f32> = base_coord;
+    var lattice_offset_uv : vec2<f32> = vec2<f32>(0.0, 0.0);
     if (has_lattice_drift) {
+      let coarse_dims_f : vec2<f32> = vec2<f32>(
+        f32(max(base_context.coarse_dims.x, 1)),
+        f32(max(base_context.coarse_dims.y, 1)),
+      );
       let min_freq_component : f32 = max(min(octave_freq.x, octave_freq.y), 1.0);
       let displacement : f32 = lattice_drift_amount / min_freq_component;
-      let refx_value : f32 = sample_simplex_channel(&permutation_cache, base_coord, z, refx_seed, 0u);
-      let refy_value : f32 = sample_simplex_channel(&permutation_cache, base_coord, z, refy_seed, 0u);
-      let lattice_offset_uv : vec2<f32> = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
-      let warped_uv : vec2<f32> = fract(base_uv + lattice_offset_uv);
-      sample_coord = warped_uv * octave_freq;
+      let refx_value : f32 = sample_simplex_resampled(&permutation_cache, base_context, z, refx_seed, 0u);
+      let refy_value : f32 = sample_simplex_resampled(&permutation_cache, base_context, z, refy_seed, 0u);
+      lattice_offset_uv = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
+      var norm_base_uv : vec2<f32> = vec2<f32>(
+        base_context.position.x / max(coarse_dims_f.x, 1.0),
+        base_context.position.y / max(coarse_dims_f.y, 1.0),
+      );
+      norm_base_uv = fract(norm_base_uv + lattice_offset_uv);
+      base_context.position = vec2<f32>(norm_base_uv.x * coarse_dims_f.x, norm_base_uv.y * coarse_dims_f.y);
+      override_context.position = base_context.position;
+      if (has_brightness_override && has_brightness_freq_override) {
+        let brightness_dims_f : vec2<f32> = vec2<f32>(
+          f32(max(brightness_context.coarse_dims.x, 1)),
+          f32(max(brightness_context.coarse_dims.y, 1)),
+        );
+        var norm_brightness_uv : vec2<f32> = vec2<f32>(
+          brightness_context.position.x / max(brightness_dims_f.x, 1.0),
+          brightness_context.position.y / max(brightness_dims_f.y, 1.0),
+        );
+        norm_brightness_uv = fract(norm_brightness_uv + lattice_offset_uv);
+        brightness_context.position = vec2<f32>(
+          norm_brightness_uv.x * brightness_dims_f.x,
+          norm_brightness_uv.y * brightness_dims_f.y,
+        );
+      }
+    }
+    if (!has_brightness_override || !has_brightness_freq_override) {
+      brightness_context = base_context;
     }
 
     let layer_result : LayerResult = evaluate_simplex_layer_rgba(
       &permutation_cache,
-      sample_coord,
-      override_coord,
-      brightness_coord,
+      base_context,
+      override_context,
+      brightness_context,
       z,
       layer_seed,
       hue_seed,
@@ -1391,7 +1620,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       saturation_distrib,
       effective_brightness_distrib,
       octave_freq,
-      pixel,
+      wrapped_pixel,
       resolution,
       frame_uniforms.time,
       speed,
