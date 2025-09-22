@@ -25,6 +25,7 @@ directly.
 <<<<<<< ours
 <<<<<<< ours
 1. **Uniform layout integration** – update the WebGPU pipeline to populate the
+<<<<<<< ours
    expanded `StageUniforms` fields (`brightness_freq`, `options2`, `options3`,
    etc.) and document the packing strategy alongside the CPU structs. The
    shader now expects precomputed seeds for hue/saturation/brightness override
@@ -44,6 +45,23 @@ directly.
    paths against the CPU implementation (including brightness frequency scaling
    per octave), hook `color_params1` up to any remaining colour controls, and
    support non-simplex distributions for the auxiliary noises.
+=======
+   expanded `StageUniforms` fields (`color_params0/color_params1`,
+   `options0/options1/options2/options3`, `sin_amount`, channel count, etc.)
+   and document the packing strategy alongside the CPU structs. The shader now
+   expects brightness frequency data in `color_params1.xy` and per-override seed
+   offsets in `options3`.
+2. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
+   layers and the broader `ValueDistribution` set. We currently approximate the
+   seed sequence (`seed + octave_index - 1`) and still rebuild permutation
+   tables inside each invocation; future work should adopt the exact
+   preset-provided seeds (one per override noise) and reuse cached permutations.
+3. **Color workflow** – verify the new hue/saturation/brightness override paths
+   against the Python implementation once uniforms are wired up. Follow-up work
+   should add support for the remaining distributions used by overrides
+   (center-distance families, row/column indices, etc.) and confirm that the
+   pipeline supplies deterministic seeds matching `value.values`.
+>>>>>>> theirs
 4. **Masking, lattice drift, and normalization** – implement mask sampling,
 =======
 1. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
