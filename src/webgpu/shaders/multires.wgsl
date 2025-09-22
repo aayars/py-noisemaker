@@ -61,6 +61,10 @@ const DISTRIB_ZEROS : u32 = 7u;
 
 const EPSILON : f32 = 0.000001;
 
+const F32_MAX : f32 = 3.402823466e38;
+
+const LAYER_FLAG_HAS_SIN_HSV : u32 = 1u;
+
 const GRADIENTS_2D : array<i32, 16> = array<i32, 16>(
   5, 2, 2, 5,
   -5, 2, -2, 5,
@@ -247,6 +251,23 @@ fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
   (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
 }
 
+struct LayerResult {
+  color : vec4<f32>,
+  hsv : vec4<f32>,
+  flags : u32,
+};
+
+fn float_to_ordered_int(value : f32) -> i32 {
+  let bits : i32 = bitcast<i32>(value);
+  let mask : i32 = bits >> 31;
+  return bits ^ mask;
+}
+
+fn ordered_int_to_float(value : i32) -> f32 {
+  let mask : i32 = value >> 31;
+  return bitcast<f32>(value ^ mask);
+}
+
 struct PermutationTables {
   perm : array<u32, PERMUTATION_SIZE>,
   perm_grad_index3d : array<u32, PERMUTATION_SIZE>,
@@ -254,6 +275,13 @@ struct PermutationTables {
 
 struct RandomState {
   state : u32,
+};
+
+struct SinNormalizationState {
+  min_value : atomic<i32>,
+  max_value : atomic<i32>,
+  count : atomic<u32>,
+  phase : atomic<u32>,
 };
 
 fn mulberry32_step(state : ptr<function, RandomState>) -> u32 {
@@ -795,7 +823,7 @@ fn evaluate_simplex_layer_rgba(
   hue_distrib : u32,
   saturation_distrib : u32,
   brightness_distrib : u32,
-) -> vec4<f32> {
+) -> LayerResult {
   var effective_channels : u32 = channel_count;
   if (effective_channels == 0u) {
     effective_channels = 1u;
@@ -836,7 +864,11 @@ fn evaluate_simplex_layer_rgba(
       luminance = map_to_unit(sin(sin_amount * luminance));
     }
     let clamped_luminance : f32 = saturate(luminance);
-    return vec4<f32>(clamped_luminance, clamped_luminance, clamped_luminance, alpha_value);
+    return LayerResult(
+      vec4<f32>(clamped_luminance, clamped_luminance, clamped_luminance, alpha_value),
+      vec4<f32>(0.0, 0.0, 0.0, alpha_value),
+      0u,
+    );
   }
 
   var working_space : u32 = color_space;
@@ -903,7 +935,12 @@ fn evaluate_simplex_layer_rgba(
       brightness_value = ridge_transform(brightness_value);
     }
     if (sin_amount != 0.0) {
-      brightness_value = map_to_unit(sin(sin_amount * brightness_value));
+      let sin_value : f32 = sin(sin_amount * brightness_value);
+      return LayerResult(
+        vec4<f32>(0.0, 0.0, 0.0, 0.0),
+        vec4<f32>(hue_value, saturation_value, sin_value, alpha_value),
+        LAYER_FLAG_HAS_SIN_HSV,
+      );
     }
     brightness_value = clamp(brightness_value, 0.0, 1.0);
 
@@ -911,12 +948,17 @@ fn evaluate_simplex_layer_rgba(
   }
 
   color_vec = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
-  return vec4<f32>(color_vec, alpha_value);
+  return LayerResult(
+    vec4<f32>(color_vec, alpha_value),
+    vec4<f32>(0.0, 0.0, 0.0, alpha_value),
+    0u,
+  );
 }
 
 @group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
 @group(0) @binding(1) var<uniform> frame_uniforms : FrameUniforms;
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
+@group(0) @binding(4) var<storage, read_write> sin_state : SinNormalizationState;
 
 @compute @workgroup_size(8, 8, 1)
 fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
@@ -925,6 +967,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   if (global_id.x >= width || global_id.y >= height) {
     return;
   }
+  let total_invocations : u32 = max(width * height, 1u);
 
   let base_freq : vec2<f32> = stage_uniforms.freq;
   let octaves : u32 = stage_uniforms.options0.x;
@@ -1060,7 +1103,7 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       sample_coord = warped_uv * octave_freq;
     }
 
-    let layer_rgba : vec4<f32> = evaluate_simplex_layer_rgba(
+    let layer_result : LayerResult = evaluate_simplex_layer_rgba(
       sample_coord,
       override_coord,
       brightness_coord,
@@ -1081,6 +1124,49 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       saturation_distrib,
       effective_brightness_distrib,
     );
+
+    var layer_rgba : vec4<f32> = layer_result.color;
+    if ((layer_result.flags & LAYER_FLAG_HAS_SIN_HSV) != 0u) {
+      let iteration_id : u32 = octave_index;
+      if (global_id.x == 0u && global_id.y == 0u) {
+        atomicStore(&sin_state.count, 0u);
+        atomicStore(&sin_state.min_value, float_to_ordered_int(F32_MAX));
+        atomicStore(&sin_state.max_value, float_to_ordered_int(-F32_MAX));
+        storageBarrier();
+        atomicStore(&sin_state.phase, iteration_id);
+      }
+      loop {
+        let current_phase : u32 = atomicLoad(&sin_state.phase);
+        if (current_phase == iteration_id) {
+          break;
+        }
+      }
+
+      let brightness_sample : f32 = layer_result.hsv.z;
+      let encoded_sample : i32 = float_to_ordered_int(brightness_sample);
+      atomicMin(&sin_state.min_value, encoded_sample);
+      atomicMax(&sin_state.max_value, encoded_sample);
+      atomicAdd(&sin_state.count, 1u);
+      loop {
+        let current_count : u32 = atomicLoad(&sin_state.count);
+        if (current_count >= total_invocations) {
+          break;
+        }
+      }
+      storageBarrier();
+      let encoded_min : i32 = atomicLoad(&sin_state.min_value);
+      let encoded_max : i32 = atomicLoad(&sin_state.max_value);
+      let min_value : f32 = ordered_int_to_float(encoded_min);
+      let max_value : f32 = ordered_int_to_float(encoded_max);
+      let range : f32 = max(max_value - min_value, EPSILON);
+      let normalized_brightness : f32 = clamp((brightness_sample - min_value) / range, 0.0, 1.0);
+      let hue_value : f32 = layer_result.hsv.x;
+      let saturation_value : f32 = clamp(layer_result.hsv.y, 0.0, 1.0);
+      let alpha_value : f32 = layer_result.hsv.w;
+      let color_vec : vec3<f32> = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, normalized_brightness));
+      let clamped_color : vec3<f32> = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
+      layer_rgba = vec4<f32>(clamped_color, alpha_value);
+    }
 
     if (octave_blending == OCTAVE_BLENDING_REDUCE_MAX) {
       accum = max(accum, layer_rgba);

@@ -202,6 +202,34 @@ export class PresetProgram {
     this.uniformBuffers = stages.map((stage) => buildUniformBufferPair(stage, ctx));
   }
 
+  _ensureSinNormalizationState(descriptor, ctx, size = 16) {
+    if (!descriptor || !ctx || !ctx.device) {
+      return null;
+    }
+    const byteSize = Math.max(16, Math.floor(Number(size) || 0));
+    let state = descriptor._sinNormalizationState;
+    if (!state || state.size !== byteSize) {
+      const usage =
+        typeof GPUBufferUsage !== 'undefined'
+          ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+          : (1 << 7) | (1 << 3);
+      const zeroArray = new Uint32Array(byteSize / 4);
+      const buffer = ctx.createGPUBuffer(zeroArray, usage);
+      const arrayBuffer = new ArrayBuffer(byteSize);
+      state = {
+        buffer,
+        arrayBuffer,
+        uint32: new Uint32Array(arrayBuffer),
+        size: byteSize,
+      };
+      descriptor._sinNormalizationState = state;
+    }
+    if (state && state.uint32) {
+      state.uint32.fill(0);
+    }
+    return state;
+  }
+
   /**
    * Number of GPU stages described by the program.
    * @returns {number}
@@ -379,6 +407,23 @@ export class PresetProgram {
             height,
             frameIndex,
           };
+          if (
+            !entry &&
+            resourceSpec?.resourceType === 'storage-buffer' &&
+            resourceSpec?.name === 'sinNormalizationState'
+          ) {
+            const sinState = this._ensureSinNormalizationState(
+              descriptor,
+              context,
+              resourceSpec.size,
+            );
+            if (sinState?.buffer && queue && typeof queue.writeBuffer === 'function') {
+              queue.writeBuffer(sinState.buffer, 0, sinState.arrayBuffer);
+            }
+            if (sinState?.buffer) {
+              entry = { resource: { buffer: sinState.buffer } };
+            }
+          }
           if (this.sharedResources) {
             const helpers = this.sharedResources;
             if (!entry && typeof helpers.resolveResourceBinding === 'function') {
@@ -1088,6 +1133,9 @@ function buildAuxiliaryLayoutEntry(aux, binding, visibility) {
   switch (type) {
     case 'sampler':
       return { binding, visibility, sampler: {} };
+    case 'storage-buffer':
+    case 'storageBuffer':
+      return { binding, visibility, buffer: { type: 'storage' } };
     case 'buffer':
     case 'arraybuffer':
     case 'typedarray':
@@ -1569,6 +1617,17 @@ function specializeMultiresDescriptor(descriptor, stage) {
   descriptor.resourceParams = [];
   descriptor.bindings.hasUniform = true;
   descriptor.bindings.auxiliary = [];
+  const sinStateResource = {
+    name: 'sinNormalizationState',
+    resourceType: 'storage-buffer',
+    size: 16,
+  };
+  descriptor.resourceParams.push(sinStateResource);
+  descriptor.bindings.auxiliary.push({
+    name: sinStateResource.name,
+    resourceType: sinStateResource.resourceType,
+    optional: false,
+  });
   descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
   descriptor.resolveUniformParams = (params) =>
     resolveMultiresUniformParams(params, descriptor);
