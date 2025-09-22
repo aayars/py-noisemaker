@@ -9,7 +9,9 @@ seed progression (`seed + seed_offset + octave_index - 1`) and converts HSV back
 to RGB before storing the results so ping-pong stages see the expected colour
 space. Alpha values are preserved for two- and four-channel configurations, and
 final writes clamp to the 0–1 range just like the CPU path’s normalization
-passes.
+passes. Value distributions now mirror the CPU implementation for simplex,
+exponential, constant, column/row index, and centre-distance families so octave
+generation stays on the GPU for those presets.
 
 Follow-up work before enabling this stage in production:
 
@@ -20,9 +22,6 @@ Follow-up work before enabling this stage in production:
 2. **Performance** – permutation tables are rebuilt for every pixel and channel,
    matching the CPU algorithm but wasting work on the GPU. Introduce shared
    caching (per workgroup or via uniforms) once correctness is locked in.
-3. **Extended distributions** – when pipeline support arrives, add the remaining
-   `ValueDistribution` families used by overrides (center-distance, row/column
-   indices, etc.) so presets do not fall back to the CPU unexpectedly.
 
 Leave this file in place until the shader reaches feature parity and is enabled
 in the WebGPU renderer.

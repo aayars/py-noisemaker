@@ -42,6 +42,7 @@ const NORM_CONSTANT_2D : f32 = 47.0;
 const NORM_CONSTANT_3D : f32 = 103.0;
 
 const TAU : f32 = 6.283185307179586;
+const PI : f32 = 3.141592653589793;
 
 const OCTAVE_BLENDING_FALLOFF : u32 = 0u;
 const OCTAVE_BLENDING_REDUCE_MAX : u32 = 10u;
@@ -58,6 +59,22 @@ const DISTRIB_EXP : u32 = 2u;
 const DISTRIB_ONES : u32 = 5u;
 const DISTRIB_MIDS : u32 = 6u;
 const DISTRIB_ZEROS : u32 = 7u;
+const DISTRIB_COLUMN_INDEX : u32 = 10u;
+const DISTRIB_ROW_INDEX : u32 = 11u;
+const DISTRIB_CENTER_CIRCLE : u32 = 20u;
+const DISTRIB_CENTER_DIAMOND : u32 = 21u;
+const DISTRIB_CENTER_TRIANGLE : u32 = 23u;
+const DISTRIB_CENTER_SQUARE : u32 = 24u;
+const DISTRIB_CENTER_PENTAGON : u32 = 25u;
+const DISTRIB_CENTER_HEXAGON : u32 = 26u;
+const DISTRIB_CENTER_HEPTAGON : u32 = 27u;
+const DISTRIB_CENTER_OCTAGON : u32 = 28u;
+const DISTRIB_CENTER_NONAGON : u32 = 29u;
+const DISTRIB_CENTER_DECAGON : u32 = 30u;
+const DISTRIB_CENTER_HENDECAGON : u32 = 31u;
+const DISTRIB_CENTER_DODECAGON : u32 = 32u;
+
+const INV_SQRT2 : f32 = 0.7071067811865476;
 
 const EPSILON : f32 = 0.000001;
 
@@ -752,7 +769,7 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
   return value / NORM_CONSTANT_3D;
 }
 
-fn apply_distribution(value : f32, distrib : u32) -> f32 {
+fn apply_basic_distribution(value : f32, distrib : u32) -> f32 {
   if (distrib == DISTRIB_EXP) {
     return pow(clamp(value, 0.0, 1.0), 4.0);
   }
@@ -766,6 +783,135 @@ fn apply_distribution(value : f32, distrib : u32) -> f32 {
     return 0.0;
   }
   return clamp(value, 0.0, 1.0);
+}
+
+fn compute_sdf_distance(dx : f32, dy : f32, sides : f32) -> f32 {
+  let arctan_value : f32 = atan2(dx, -dy) + PI;
+  let step : f32 = TAU / sides;
+  let offset : f32 = floor(0.5 + arctan_value / step) * step - arctan_value;
+  return cos(offset) * sqrt(dx * dx + dy * dy);
+}
+
+fn compute_center_distance(dx : f32, dy : f32, distrib : u32) -> f32 {
+  let abs_dx : f32 = abs(dx);
+  let abs_dy : f32 = abs(dy);
+  if (distrib == DISTRIB_CENTER_DIAMOND) {
+    return abs_dx + abs_dy;
+  }
+  if (distrib == DISTRIB_CENTER_SQUARE) {
+    return max(abs_dx, abs_dy);
+  }
+  if (distrib == DISTRIB_CENTER_TRIANGLE) {
+    return max(abs_dx - dy * 0.5, dy);
+  }
+  if (distrib == DISTRIB_CENTER_HEXAGON) {
+    let term1 : f32 = max(abs_dx - dy * 0.5, dy);
+    let term2 : f32 = max(abs_dx + dy * 0.5, -dy);
+    return max(term1, term2);
+  }
+  if (distrib == DISTRIB_CENTER_OCTAGON) {
+    let manhattan_term : f32 = (abs_dx + abs_dy) * INV_SQRT2;
+    let chebyshev_term : f32 = max(abs_dx, abs_dy);
+    return max(manhattan_term, chebyshev_term);
+  }
+  if (distrib == DISTRIB_CENTER_CIRCLE) {
+    return sqrt(dx * dx + dy * dy);
+  }
+  if (distrib == DISTRIB_CENTER_PENTAGON) {
+    return compute_sdf_distance(dx, dy, 5.0);
+  }
+  if (distrib == DISTRIB_CENTER_HEPTAGON) {
+    return compute_sdf_distance(dx, dy, 7.0);
+  }
+  if (distrib == DISTRIB_CENTER_NONAGON) {
+    return compute_sdf_distance(dx, dy, 9.0);
+  }
+  if (distrib == DISTRIB_CENTER_DECAGON) {
+    return compute_sdf_distance(dx, dy, 10.0);
+  }
+  if (distrib == DISTRIB_CENTER_HENDECAGON) {
+    return compute_sdf_distance(dx, dy, 11.0);
+  }
+  if (distrib == DISTRIB_CENTER_DODECAGON) {
+    return compute_sdf_distance(dx, dy, 12.0);
+  }
+  return sqrt(dx * dx + dy * dy);
+}
+
+fn compute_center_max_distance(distrib : u32) -> f32 {
+  let d1 : f32 = compute_center_distance(-0.5, -0.5, distrib);
+  let d2 : f32 = compute_center_distance(-0.5, 0.5, distrib);
+  let d3 : f32 = compute_center_distance(0.5, -0.5, distrib);
+  let d4 : f32 = compute_center_distance(0.5, 0.5, distrib);
+  let d5 : f32 = compute_center_distance(-0.5, 0.0, distrib);
+  let d6 : f32 = compute_center_distance(0.5, 0.0, distrib);
+  let d7 : f32 = compute_center_distance(0.0, -0.5, distrib);
+  let d8 : f32 = compute_center_distance(0.0, 0.5, distrib);
+  let first_max : f32 = max(max(d1, d2), max(d3, d4));
+  let second_max : f32 = max(max(d5, d6), max(d7, d8));
+  return max(first_max, second_max);
+}
+
+fn compute_center_distribution_value(
+  pixel : vec2<f32>,
+  resolution : vec2<f32>,
+  distrib : u32,
+  octave_freq : vec2<f32>,
+  time_value : f32,
+  speed_value : f32,
+) -> f32 {
+  let width : f32 = max(resolution.x, 1.0);
+  let height : f32 = max(resolution.y, 1.0);
+  let dx : f32 = (pixel.x / width) - 0.5;
+  let dy : f32 = (pixel.y / height) - 0.5;
+  let distance_value : f32 = compute_center_distance(dx, dy, distrib);
+  let max_distance : f32 = max(compute_center_max_distance(distrib), EPSILON);
+  let normalized_distance : f32 = clamp(distance_value / max_distance, 0.0, 1.0);
+  let eased_distance : f32 = sqrt(normalized_distance);
+  let freq_scale : f32 = max(max(octave_freq.x, octave_freq.y), 1.0);
+  var rounded_speed : f32;
+  if (speed_value > 0.0) {
+    rounded_speed = floor(1.0 + speed_value);
+  } else {
+    rounded_speed = ceil(-1.0 + speed_value);
+  }
+  let phase : f32 = eased_distance * freq_scale * TAU - TAU * time_value * rounded_speed;
+  let sine_value : f32 = sin(phase);
+  return clamp((sine_value + 1.0) * 0.5, 0.0, 1.0);
+}
+
+fn apply_primary_distribution(
+  value : f32,
+  distrib : u32,
+  sample_coord : vec2<f32>,
+  octave_freq : vec2<f32>,
+  pixel : vec2<f32>,
+  resolution : vec2<f32>,
+  time_value : f32,
+  speed_value : f32,
+) -> f32 {
+  if (distrib == DISTRIB_COLUMN_INDEX) {
+    let freq_y : f32 = max(octave_freq.y, 1.0);
+    if (freq_y <= 1.0) {
+      return 0.0;
+    }
+    let capped : f32 = min(sample_coord.y, freq_y - 1.0);
+    let denom : f32 = max(freq_y - 1.0, 1.0);
+    return clamp(capped / denom, 0.0, 1.0);
+  }
+  if (distrib == DISTRIB_ROW_INDEX) {
+    let freq_x : f32 = max(octave_freq.x, 1.0);
+    if (freq_x <= 1.0) {
+      return 0.0;
+    }
+    let capped : f32 = min(sample_coord.x, freq_x - 1.0);
+    let denom : f32 = max(freq_x - 1.0, 1.0);
+    return clamp(capped / denom, 0.0, 1.0);
+  }
+  if (distrib >= DISTRIB_CENTER_CIRCLE && distrib <= DISTRIB_CENTER_DODECAGON) {
+    return compute_center_distribution_value(pixel, resolution, distrib, octave_freq, time_value, speed_value);
+  }
+  return apply_basic_distribution(value, distrib);
 }
 
 fn sample_simplex_channel(
@@ -800,7 +946,7 @@ fn sample_distribution_value(
   var tables : PermutationTables = build_permutation_tables(seed);
   let raw_value : f32 = open_simplex_3d(&tables, coord.x, coord.y, z);
   let mapped : f32 = map_to_unit(raw_value);
-  return apply_distribution(mapped, distrib);
+  return apply_basic_distribution(mapped, distrib);
 }
 
 fn evaluate_simplex_layer_rgba(
@@ -823,6 +969,11 @@ fn evaluate_simplex_layer_rgba(
   hue_distrib : u32,
   saturation_distrib : u32,
   brightness_distrib : u32,
+  octave_freq : vec2<f32>,
+  pixel_coord : vec2<f32>,
+  resolution : vec2<f32>,
+  time_value : f32,
+  speed_value : f32,
 ) -> LayerResult {
   var effective_channels : u32 = channel_count;
   if (effective_channels == 0u) {
@@ -843,7 +994,16 @@ fn evaluate_simplex_layer_rgba(
     if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
       effective_distrib = DISTRIB_SIMPLEX;
     }
-    sample = apply_distribution(sample, effective_distrib);
+    sample = apply_primary_distribution(
+      sample,
+      effective_distrib,
+      sample_coord,
+      octave_freq,
+      pixel_coord,
+      resolution,
+      time_value,
+      speed_value,
+    );
     raw[idx] = sample;
     idx = idx + 1u;
   }
@@ -1127,6 +1287,11 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       hue_distrib,
       saturation_distrib,
       effective_brightness_distrib,
+      octave_freq,
+      pixel,
+      resolution,
+      frame_uniforms.time,
+      speed,
     );
 
     var layer_rgba : vec4<f32> = layer_result.color;
