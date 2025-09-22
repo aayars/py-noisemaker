@@ -1056,7 +1056,11 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let brightness_uv : vec2<f32> = fract(uv + brightness_pin_offset);
     let brightness_coord : vec2<f32> = brightness_uv * brightness_freq_vec;
     let octave_offset : u32 = (octave_index - 1u) * calls_per_octave;
-    let base_seed : u32 = frame_uniforms.seed + seed_offset + octave_offset;
+    let reseeded : bool = frame_uniforms.seed != 0u;
+    var base_seed : u32 = frame_uniforms.seed + seed_offset + octave_offset;
+    if (reseeded) {
+      base_seed = base_seed + 1u;
+    }
 
     var seed_cursor : u32 = base_seed;
     let layer_seed : u32 = seed_cursor;
