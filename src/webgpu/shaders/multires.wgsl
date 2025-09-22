@@ -21,6 +21,8 @@ struct StageUniforms {
   freq : vec2<f32>,
   speed : f32,
   sin_amount : f32,
+  color_params0 : vec4<f32>,
+  color_params1 : vec4<f32>,
   options0 : vec4<u32>,
   options1 : vec4<u32>,
 };
@@ -42,6 +44,16 @@ const TAU : f32 = 6.283185307179586;
 const OCTAVE_BLENDING_FALLOFF : u32 = 0u;
 const OCTAVE_BLENDING_REDUCE_MAX : u32 = 10u;
 const OCTAVE_BLENDING_ALPHA : u32 = 20u;
+
+const COLOR_SPACE_GRAYSCALE : u32 = 1u;
+const COLOR_SPACE_RGB : u32 = 11u;
+const COLOR_SPACE_HSV : u32 = 21u;
+const COLOR_SPACE_OKLAB : u32 = 31u;
+
+const DISTRIB_SIMPLEX : u32 = 1u;
+const DISTRIB_EXP : u32 = 2u;
+
+const EPSILON : f32 = 0.000001;
 
 const GRADIENTS_2D : array<i32, 16> = array<i32, 16>(
   5, 2, 2, 5,
@@ -81,6 +93,112 @@ fn ridge_transform(value : f32) -> f32 {
   return 1.0 - abs(value * 2.0 - 1.0);
 }
 
+fn linear_to_srgb_component(value : f32) -> f32 {
+  let threshold : f32 = 0.0031308;
+  if (value <= threshold) {
+    return value * 12.92;
+  }
+  let clamped_value : f32 = max(value, 0.0);
+  return 1.055 * pow(clamped_value, 1.0 / 2.4) - 0.055;
+}
+
+fn linear_to_srgb(linear : vec3<f32>) -> vec3<f32> {
+  return vec3<f32>(
+    linear_to_srgb_component(linear.x),
+    linear_to_srgb_component(linear.y),
+    linear_to_srgb_component(linear.z)
+  );
+}
+
+fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
+  let cmax : f32 = max(max(rgb.x, rgb.y), rgb.z);
+  let cmin : f32 = min(min(rgb.x, rgb.y), rgb.z);
+  let delta : f32 = cmax - cmin;
+
+  var hue : f32 = 0.0;
+  if (delta > EPSILON) {
+    if (cmax == rgb.x) {
+      hue = (rgb.y - rgb.z) / delta;
+      if (hue < 0.0) {
+        hue = hue + 6.0;
+      }
+    } else if (cmax == rgb.y) {
+      hue = ((rgb.z - rgb.x) / delta) + 2.0;
+    } else {
+      hue = ((rgb.x - rgb.y) / delta) + 4.0;
+    }
+    hue = hue / 6.0;
+    if (hue < 0.0) {
+      hue = hue + 1.0;
+    }
+  }
+
+  var saturation : f32 = 0.0;
+  if (cmax > EPSILON) {
+    saturation = delta / cmax;
+  }
+
+  return vec3<f32>(hue, saturation, cmax);
+}
+
+fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
+  let hue : f32 = fract(hsv.x);
+  let saturation : f32 = clamp(hsv.y, 0.0, 1.0);
+  let value : f32 = clamp(hsv.z, 0.0, 1.0);
+
+  let chroma : f32 = value * saturation;
+  let h_prime : f32 = hue * 6.0;
+  let x : f32 = chroma * (1.0 - abs(fract(h_prime) * 2.0 - 1.0));
+  let m : f32 = value - chroma;
+
+  let sector : u32 = u32(floor(h_prime)) % 6u;
+  var rgb : vec3<f32>;
+  switch (sector) {
+    case 0u: {
+      rgb = vec3<f32>(chroma, x, 0.0);
+    }
+    case 1u: {
+      rgb = vec3<f32>(x, chroma, 0.0);
+    }
+    case 2u: {
+      rgb = vec3<f32>(0.0, chroma, x);
+    }
+    case 3u: {
+      rgb = vec3<f32>(0.0, x, chroma);
+    }
+    case 4u: {
+      rgb = vec3<f32>(x, 0.0, chroma);
+    }
+    default: {
+      rgb = vec3<f32>(chroma, 0.0, x);
+    }
+  }
+
+  return rgb + vec3<f32>(m, m, m);
+}
+
+fn oklab_to_rgb(lab : vec3<f32>) -> vec3<f32> {
+  let L : f32 = lab.x;
+  let a : f32 = lab.y;
+  let b : f32 = lab.z;
+
+  let l_ : f32 = L + 0.3963377774 * a + 0.2158037573 * b;
+  let m_ : f32 = L - 0.1055613458 * a - 0.0638541728 * b;
+  let s_ : f32 = L - 0.0894841775 * a - 1.2914855480 * b;
+
+  let l : f32 = l_ * l_ * l_;
+  let m : f32 = m_ * m_ * m_;
+  let s : f32 = s_ * s_ * s_;
+
+  let linear : vec3<f32> = vec3<f32>(
+    4.0767245293 * l - 3.3072168827 * m + 0.2307590544 * s,
+    -1.2681437731 * l + 2.6093323231 * m - 0.3411344290 * s,
+    -0.0041119885 * l - 0.7034763098 * m + 1.7068625689 * s
+  );
+
+  return linear_to_srgb(linear);
+}
+
 fn compute_octave_frequency(base_freq : vec2<f32>, octave_index : u32) -> vec2<f32> {
   let multiplier : f32 = pow(2.0, f32(octave_index));
   var freq : vec2<f32> = floor(base_freq * 0.5 * multiplier);
@@ -97,23 +215,6 @@ fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
   let alpha_value : f32 = saturate(layer.w);
   let alpha_vec : vec4<f32> = replicate4(alpha_value);
   (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
-}
-
-fn finalize_color(color : vec4<f32>, channel_count : u32) -> vec4<f32> {
-  let luminance : f32 = saturate(color.x);
-  var alpha : f32 = saturate(color.w);
-  if (channel_count <= 1u || channel_count == 3u) {
-    alpha = 1.0;
-  } else if (channel_count >= 4u) {
-    if (alpha <= 0.0) {
-      alpha = 1.0;
-    }
-  } else {
-    if (alpha <= 0.0) {
-      alpha = 1.0;
-    }
-  }
-  return vec4<f32>(luminance, luminance, luminance, alpha);
 }
 
 struct PermutationTables {
@@ -593,14 +694,113 @@ fn open_simplex_3d(tables : ptr<function, PermutationTables>, x : f32, y : f32, 
   return value / NORM_CONSTANT_3D;
 }
 
-fn evaluate_simplex_layer(tables : ptr<function, PermutationTables>, coord : vec2<f32>, z : f32, ridges : bool) -> vec4<f32> {
-  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
-  var normalized : f32 = map_to_unit(raw_value);
-  if (ridges) {
-    normalized = ridge_transform(normalized);
+fn sample_simplex_channel(coord : vec2<f32>, z : f32, base_seed : u32, channel_index : u32) -> f32 {
+  var tables : PermutationTables = build_permutation_tables(base_seed + channel_index * 65535u);
+  let raw_value : f32 = open_simplex_3d(&tables, coord.x, coord.y, z);
+  return map_to_unit(raw_value);
+}
+
+fn apply_distribution(value : f32, distrib : u32) -> f32 {
+  if (distrib == DISTRIB_EXP) {
+    return pow(clamp(value, 0.0, 1.0), 4.0);
   }
-  normalized = saturate(normalized);
-  return vec4<f32>(normalized, normalized, normalized, normalized);
+  return value;
+}
+
+fn evaluate_simplex_layer_rgba(
+  coord : vec2<f32>,
+  z : f32,
+  base_seed : u32,
+  channel_count : u32,
+  color_space : u32,
+  ridges : bool,
+  sin_amount : f32,
+  distrib : u32,
+  hue_range : f32,
+  hue_rotation : f32,
+  saturation_scale : f32,
+) -> vec4<f32> {
+  var effective_channels : u32 = channel_count;
+  if (effective_channels == 0u) {
+    effective_channels = 1u;
+  }
+  if (effective_channels > 4u) {
+    effective_channels = 4u;
+  }
+
+  var raw : array<f32, 4> = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+  for (var idx : u32 = 0u; idx < effective_channels; idx = idx + 1u) {
+    let sample_value : f32 = sample_simplex_channel(coord, z, base_seed, idx);
+    raw[idx] = apply_distribution(sample_value, distrib);
+  }
+
+  var alpha_value : f32 = 1.0;
+  if (channel_count >= 4u) {
+    alpha_value = saturate(raw[3]);
+  } else if (channel_count == 2u) {
+    alpha_value = saturate(raw[1]);
+  }
+
+  if (color_space == COLOR_SPACE_GRAYSCALE || channel_count <= 2u) {
+    var luminance : f32 = raw[0];
+    if (ridges) {
+      luminance = ridge_transform(luminance);
+    }
+    if (sin_amount != 0.0) {
+      luminance = map_to_unit(sin(sin_amount * luminance));
+    }
+    let clamped_luminance : f32 = saturate(luminance);
+    return vec4<f32>(clamped_luminance, clamped_luminance, clamped_luminance, alpha_value);
+  }
+
+  let original_color_space : u32 = color_space;
+  var working_space : u32 = color_space;
+  var color_vec : vec3<f32> = vec3<f32>(raw[0], raw[1], raw[2]);
+
+  if (working_space == COLOR_SPACE_OKLAB) {
+    let lab : vec3<f32> = vec3<f32>(
+      color_vec.x,
+      color_vec.y * -0.509 + 0.276,
+      color_vec.z * -0.509 + 0.198
+    );
+    color_vec = clamp(oklab_to_rgb(lab), vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
+    working_space = COLOR_SPACE_RGB;
+  }
+
+  if (working_space == COLOR_SPACE_RGB) {
+    color_vec = rgb_to_hsv(color_vec);
+    working_space = COLOR_SPACE_HSV;
+  }
+
+  if (working_space == COLOR_SPACE_HSV) {
+    var adjusted_hue_range : f32 = hue_range;
+    var adjusted_hue_rotation : f32 = hue_rotation;
+    if (original_color_space != COLOR_SPACE_HSV) {
+      adjusted_hue_range = 1.0;
+      adjusted_hue_rotation = 0.0;
+    }
+
+    var hue_value : f32 = color_vec.x * adjusted_hue_range + adjusted_hue_rotation;
+    hue_value = fract(hue_value);
+    if (hue_value < 0.0) {
+      hue_value = hue_value + 1.0;
+    }
+
+    var saturation_value : f32 = clamp(color_vec.y * saturation_scale, 0.0, 1.0);
+    var brightness_value : f32 = color_vec.z;
+    if (ridges) {
+      brightness_value = ridge_transform(brightness_value);
+    }
+    if (sin_amount != 0.0) {
+      brightness_value = map_to_unit(sin(sin_amount * brightness_value));
+    }
+    brightness_value = clamp(brightness_value, 0.0, 1.0);
+
+    color_vec = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, brightness_value));
+  }
+
+  color_vec = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
+  return vec4<f32>(color_vec, alpha_value);
 }
 
 @group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
@@ -621,6 +821,13 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let channel_count : u32 = stage_uniforms.options0.z;
   let ridges_enabled : bool = bool_from_u32(stage_uniforms.options0.w);
   let seed_offset : u32 = stage_uniforms.options1.x;
+  let distrib : u32 = stage_uniforms.options1.y;
+  let color_space : u32 = stage_uniforms.options1.z;
+
+  let hue_range : f32 = stage_uniforms.color_params0.x;
+  let hue_rotation : f32 = stage_uniforms.color_params0.y;
+  let saturation_scale : f32 = stage_uniforms.color_params0.z;
+  let sin_amount : f32 = stage_uniforms.sin_amount;
 
   let angle : f32 = frame_uniforms.time * TAU;
   let z : f32 = cos(angle) * stage_uniforms.speed;
@@ -629,7 +836,6 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let uv : vec2<f32> = (pixel + vec2<f32>(0.5, 0.5)) / resolution;
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-  var weight_sum : f32 = 0.0;
   var weight : f32 = 0.5;
   var octave_index : u32 = 1u;
 
@@ -644,30 +850,37 @@ fn multires_main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     }
 
     let coord : vec2<f32> = uv * octave_freq;
-    var octave_tables : PermutationTables = build_permutation_tables(frame_uniforms.seed + seed_offset + octave_index);
-    let layer : vec4<f32> = evaluate_simplex_layer(&octave_tables, coord, z, ridges_enabled);
+    let base_seed : u32 = frame_uniforms.seed + seed_offset + (octave_index - 1u);
+    let layer_rgba : vec4<f32> = evaluate_simplex_layer_rgba(
+      coord,
+      z,
+      base_seed,
+      channel_count,
+      color_space,
+      ridges_enabled,
+      sin_amount,
+      distrib,
+      hue_range,
+      hue_rotation,
+      saturation_scale
+    );
 
     if (octave_blending == OCTAVE_BLENDING_REDUCE_MAX) {
-      accum = max(accum, layer);
+      accum = max(accum, layer_rgba);
     } else if (octave_blending == OCTAVE_BLENDING_ALPHA) {
-      combine_alpha(&accum, layer);
+      combine_alpha(&accum, layer_rgba);
     } else {
-      accum = accum + layer * weight;
-      weight_sum = weight_sum + weight;
+      accum = accum + layer_rgba * weight;
     }
 
     weight = weight * 0.5;
     octave_index = octave_index + 1u;
   }
 
-  var final_color : vec4<f32> = accum;
-  if (octave_blending == OCTAVE_BLENDING_FALLOFF) {
-    if (weight_sum > 0.0) {
-      final_color = final_color / weight_sum;
-    }
-  }
-
-  final_color = clamp(final_color, vec4<f32>(0.0, 0.0, 0.0, 0.0), vec4<f32>(1.0, 1.0, 1.0, 1.0));
-  let output_color : vec4<f32> = finalize_color(final_color, channel_count);
-  textureStore(output_texture, vec2<i32>(i32(global_id.x), i32(global_id.y)), output_color);
+  let final_color : vec4<f32> = clamp(
+    accum,
+    vec4<f32>(0.0, 0.0, 0.0, 0.0),
+    vec4<f32>(1.0, 1.0, 1.0, 1.0)
+  );
+  textureStore(output_texture, vec2<i32>(i32(global_id.x), i32(global_id.y)), final_color);
 }
