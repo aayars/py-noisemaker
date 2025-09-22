@@ -1165,8 +1165,7 @@ function buildEffectStage(effect, category) {
 }
 
 function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
-  const isMultiresGenerator =
-    stage?.stageType === 'generator' && getStageName(stage) === 'multires';
+  const isMultiresGenerator = isMultiresGeneratorStage(stage);
   const descriptor = {
     index,
     stageType: stage.stageType,
@@ -1199,32 +1198,9 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     issues: [],
   };
 
-<<<<<<< ours
-<<<<<<< ours
-  const usesMultiresShader = descriptor.shaderId === 'MULTIRES_WGSL';
-  let paramAnalysis;
-  if (usesMultiresShader) {
-    paramAnalysis = {
-      layout: null,
-      defaults: {},
-      resources: [],
-      issues: [],
-      requiresUniforms: true,
-    };
-  } else {
-    paramAnalysis = analyseStageParams(stage.params || {});
-  }
-=======
-  const multiresGenerator = isMultiresGeneratorStage(stage);
-  const paramAnalysis = multiresGenerator
+  const paramAnalysis = isMultiresGenerator
     ? analyseMultiresGeneratorStage(stage.params || {})
     : analyseStageParams(stage.params || {});
->>>>>>> theirs
-=======
-  const paramAnalysis = isMultiresGenerator
-    ? { layout: null, defaults: {}, resources: [], issues: [], requiresUniforms: true }
-    : analyseStageParams(stage.params || {});
->>>>>>> theirs
   descriptor.uniformLayout = paramAnalysis.layout;
   descriptor.uniformDefaults = paramAnalysis.defaults;
   descriptor.resourceParams = paramAnalysis.resources;
@@ -1263,10 +1239,6 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     });
   }
 
-  if (usesMultiresShader) {
-    applyMultiresUniformLayout(descriptor, stage);
-  }
-
   descriptor.shaderSource = resolveShaderSource(descriptor, sharedResources);
   descriptor.pipeline = acquirePipeline(descriptor, ctx, sharedResources);
 
@@ -1295,22 +1267,10 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
 function resolveShaderId(stage) {
   if (!stage || stage.unsupported) return null;
   if (stage.stageType === 'generator') {
-<<<<<<< ours
-<<<<<<< ours
-    return 'MULTIRES_WGSL';
-=======
     if (isMultiresGeneratorStage(stage)) {
       return 'MULTIRES_WGSL';
     }
     return null;
->>>>>>> theirs
-=======
-    const name = getStageName(stage);
-    if (name === 'multires') {
-      return 'MULTIRES_WGSL';
-    }
-    return null;
->>>>>>> theirs
   }
   const name = stage.name || 'anonymous';
   const base = name
@@ -1570,6 +1530,9 @@ function specializeMultiresDescriptor(descriptor, stage) {
   descriptor.resourceParams = [];
   descriptor.bindings.hasUniform = true;
   descriptor.bindings.auxiliary = [];
+  descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
+  descriptor.resolveUniformParams = (params) =>
+    resolveMultiresUniformParams(params, descriptor);
   descriptor.specialization = descriptor.specialization || {
     workgroupSize: [...DEFAULT_WORKGROUP_SIZE],
     constants: {},
@@ -1722,52 +1685,6 @@ function buildStd140Layout(fields, issues) {
   }
   const finalSize = alignTo(offset, 16);
   return { size: finalSize, fields: layoutFields };
-}
-
-function applyMultiresUniformLayout(descriptor, stage) {
-  if (!descriptor) return;
-  const issues = descriptor.issues || [];
-  const fields = [
-    { name: 'freq', scalarType: 'f32', components: 2, defaultValue: [1, 1] },
-    { name: 'speed', scalarType: 'f32', components: 1, defaultValue: [1] },
-    { name: 'sin', scalarType: 'f32', components: 1, defaultValue: [0] },
-    { name: 'colorParams0', scalarType: 'f32', components: 4, defaultValue: [0.125, 0, 1, 0] },
-    { name: 'colorParams1', scalarType: 'f32', components: 4, defaultValue: [0, 0, 0, 0] },
-    {
-      name: 'options0',
-      scalarType: 'u32',
-      components: 4,
-      defaultValue: [1, OctaveBlending.falloff, 4, 0],
-    },
-    {
-      name: 'options1',
-      scalarType: 'u32',
-      components: 4,
-      defaultValue: [0, ValueDistribution.simplex, ColorSpace.hsv, 0],
-    },
-  ];
-  const layout = buildStd140Layout(fields, issues);
-  descriptor.uniformLayout = layout;
-  descriptor.bindings.hasUniform = Boolean(layout);
-  descriptor.bindings.auxiliary = [];
-  descriptor.resourceParams = [];
-  descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
-  descriptor.resolveUniformParams = (params) =>
-    resolveMultiresUniformParams(params, descriptor);
-  const defaults = resolveMultiresUniformParams(null, descriptor);
-  if (defaults) {
-    descriptor.uniformDefaults = defaults;
-  } else {
-    descriptor.uniformDefaults = {
-      freq: fields[0].defaultValue.slice(),
-      speed: fields[1].defaultValue[0],
-      sin: fields[2].defaultValue[0],
-      colorParams0: fields[3].defaultValue.slice(),
-      colorParams1: fields[4].defaultValue.slice(),
-      options0: fields[5].defaultValue.slice(),
-      options1: fields[6].defaultValue.slice(),
-    };
-  }
 }
 
 function resolveMultiresUniformParams(params, descriptor) {

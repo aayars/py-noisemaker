@@ -1,7 +1,7 @@
 import { Context } from './context.js';
-import { FULLSCREEN_VS, freqForShape } from './value.js';
+import { FULLSCREEN_VS } from './value.js';
 import { multires } from './generators.js';
-import { ColorSpace, OctaveBlending, ValueDistribution } from './constants.js';
+import { ColorSpace } from './constants.js';
 import { shapeFromParams, withTensorData } from './util.js';
 import { Tensor, markPresentationNormalized } from './tensor.js';
 import { compilePreset, buildTopologySignatureFromPreset } from './webgpu/pipeline.js';
@@ -217,147 +217,6 @@ function coerceUnsigned(value, fallback = 0, min = 0) {
   return Math.max(min, num);
 }
 
-function coerceBooleanFlag(value) {
-  if (typeof value === 'string') {
-    const lowered = value.trim().toLowerCase();
-    if (lowered === 'true' || lowered === '1') return true;
-    if (lowered === 'false' || lowered === '0' || lowered === '') return false;
-  }
-  return Boolean(value);
-}
-
-function normalizeColorSpaceValue(value, fallback = ColorSpace.hsv) {
-  if (Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const lowered = value.trim().toLowerCase();
-    if (lowered === 'grayscale' || lowered === 'grey' || lowered === 'gray') {
-      return ColorSpace.grayscale;
-    }
-    if (lowered === 'rgb') {
-      return ColorSpace.rgb;
-    }
-    if (lowered === 'hsv') {
-      return ColorSpace.hsv;
-    }
-    if (lowered === 'oklab') {
-      return ColorSpace.oklab;
-    }
-  }
-  return Number.isFinite(fallback) ? fallback : ColorSpace.hsv;
-}
-
-function prepareMultiresUniformParams(params = {}, defaults = {}) {
-  const out = { ...params };
-  const defaultOptions1 = valueToArray(defaults.options1);
-  const defaultColorSpace = defaultOptions1.length >= 3 ? defaultOptions1[2] : ColorSpace.hsv;
-  const colorSpaceValue = normalizeColorSpaceValue(
-    params.color_space ?? params.colorSpace,
-    normalizeColorSpaceValue(defaultColorSpace, ColorSpace.hsv),
-  );
-  out.color_space = colorSpaceValue;
-  out.colorSpace = colorSpaceValue;
-
-  const withAlpha = coerceBooleanFlag(params.withAlpha ?? params.with_alpha ?? false);
-  const width = coerceNumber(params.width, 0);
-  const height = coerceNumber(params.height, 0);
-  const shape = shapeFromParams(
-    width,
-    height,
-    colorSpaceValue === ColorSpace.grayscale ? 'grayscale' : 'rgb',
-    withAlpha,
-  );
-
-  const freqShape = [shape[0], shape[1]];
-  let rawFreq = null;
-  if (Array.isArray(params.freq) || ArrayBuffer.isView(params.freq)) {
-    rawFreq = Array.from(params.freq);
-  } else if (params.freq !== undefined) {
-    const freqNumber = Number(params.freq);
-    if (Number.isFinite(freqNumber)) {
-      rawFreq = freqForShape(freqNumber, freqShape);
-    }
-  }
-  if (!rawFreq || rawFreq.length === 0) {
-    const defaultFreq = valueToArray(defaults.freq);
-    if (defaultFreq.length >= 2) {
-      rawFreq = defaultFreq.slice(0, 2);
-    } else if (defaultFreq.length === 1) {
-      rawFreq = [defaultFreq[0], defaultFreq[0]];
-    } else {
-      rawFreq = [1, 1];
-    }
-  }
-  const freq0 = coerceNumber(rawFreq[0], 1);
-  const freq1Source = rawFreq.length > 1 ? rawFreq[1] : rawFreq[0];
-  const freq1 = coerceNumber(freq1Source, freq0);
-  out.freq = [freq0, freq1];
-
-  const speedDefault = defaults.speed !== undefined ? defaults.speed : 1;
-  const speedValue = coerceNumber(params.speed ?? out.speed, speedDefault);
-  out.speed = speedValue;
-
-  const sinDefault = defaults.sin_amount !== undefined ? defaults.sin_amount : 0;
-  const sinValue = coerceNumber(params.sin_amount ?? params.sin, sinDefault);
-  out.sin_amount = sinValue;
-
-  const defaultColorParams0 = valueToArray(defaults.color_params0);
-  const hueRangeDefault = defaultColorParams0.length > 0 ? defaultColorParams0[0] : 0.125;
-  const hueRotationDefault = defaultColorParams0.length > 1 ? defaultColorParams0[1] : 0;
-  const saturationDefault = defaultColorParams0.length > 2 ? defaultColorParams0[2] : 1;
-  const extraDefault = defaultColorParams0.length > 3 ? defaultColorParams0[3] : 0;
-  const hueRange = coerceNumber(params.hueRange ?? params.hue_range, hueRangeDefault);
-  const hueRotation = coerceNumber(params.hueRotation ?? params.hue_rotation, hueRotationDefault);
-  const saturation = coerceNumber(params.saturation, saturationDefault);
-  out.color_params0 = [hueRange, hueRotation, saturation, extraDefault];
-
-  const defaultColorParams1 = valueToArray(defaults.color_params1);
-  const colorParams1Source =
-    Array.isArray(params.color_params1) || ArrayBuffer.isView(params.color_params1)
-      ? Array.from(params.color_params1)
-      : Array.isArray(params.colorParams1) || ArrayBuffer.isView(params.colorParams1)
-      ? Array.from(params.colorParams1)
-      : defaultColorParams1;
-  out.color_params1 = [
-    coerceNumber(colorParams1Source[0], defaultColorParams1[0] ?? 0),
-    coerceNumber(colorParams1Source[1], defaultColorParams1[1] ?? 0),
-    coerceNumber(colorParams1Source[2], defaultColorParams1[2] ?? 0),
-    coerceNumber(colorParams1Source[3], defaultColorParams1[3] ?? 0),
-  ];
-
-  const defaultOptions0 = valueToArray(defaults.options0);
-  const octavesDefault = defaultOptions0.length > 0 ? defaultOptions0[0] : 1;
-  const blendingDefault = defaultOptions0.length > 1 ? defaultOptions0[1] : OctaveBlending.falloff;
-  const ridgesDefault = defaultOptions0.length > 3 ? defaultOptions0[3] : 0;
-  const octaves = Math.max(1, coerceUnsigned(params.octaves, octavesDefault, 1));
-  const octaveBlending = coerceUnsigned(
-    params.octaveBlending ?? params.octave_blending,
-    blendingDefault,
-  );
-  const ridges = coerceBooleanFlag(params.ridges ?? ridgesDefault);
-  let channelCount = colorSpaceValue === ColorSpace.grayscale ? 1 : 3;
-  if (withAlpha) {
-    channelCount += 1;
-  }
-  if (octaveBlending === OctaveBlending.alpha && (channelCount === 1 || channelCount === 3)) {
-    channelCount += 1;
-  }
-  channelCount = coerceUnsigned(params.channelCount, channelCount, 1);
-  out.options0 = [octaves >>> 0, octaveBlending >>> 0, channelCount >>> 0, ridges ? 1 : 0];
-
-  const seedOffsetDefault = defaultOptions1.length > 0 ? defaultOptions1[0] : 0;
-  const distribDefault = defaultOptions1.length > 1 ? defaultOptions1[1] : ValueDistribution.simplex;
-  const seedOffset = coerceUnsigned(
-    params.seedOffset ?? params.seed_offset,
-    seedOffsetDefault,
-  );
-  const distrib = coerceUnsigned(params.distrib, distribDefault);
-  out.options1 = [seedOffset >>> 0, distrib >>> 0, colorSpaceValue >>> 0, 0];
-
-  return out;
-}
-
 function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
   if (!program || typeof program.stageCount !== 'number') {
     return;
@@ -382,8 +241,6 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
     if (!uniformView || !uniformView.view) {
       continue;
     }
-<<<<<<< ours
-<<<<<<< ours
     const rawParams = snapshot?.params || {};
     const resolvedParams =
       typeof descriptor.resolveUniformParams === 'function'
@@ -393,228 +250,22 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
       uniformView.view,
       descriptor.uniformLayout,
       resolvedParams,
-=======
-    let uniformParams = snapshot?.params || {};
-    if (descriptor.shaderId === 'MULTIRES_WGSL') {
-      uniformParams = prepareMultiresUniformParams(uniformParams, descriptor.uniformDefaults || {});
-    }
-    writeUniformLayout(
-      uniformView.view,
-      descriptor.uniformLayout,
-      uniformParams,
->>>>>>> theirs
       descriptor.uniformDefaults || {},
     );
-=======
-    if (descriptor.shaderId === 'MULTIRES_WGSL') {
-      const result = writeMultiresUniforms(
-        uniformView.view,
-        descriptor.uniformLayout,
-        snapshot?.params || {},
-        descriptor.uniformDefaults || {},
-      );
+    if (
+      descriptor.shaderId === 'MULTIRES_WGSL' &&
+      Array.isArray(resolvedParams?.options0)
+    ) {
+      const channelCount = resolvedParams.options0[2];
       if (
-        result &&
-        Number.isFinite(result.channelCount) &&
+        Number.isFinite(channelCount) &&
         descriptor.specialization &&
         descriptor.specialization.constants
       ) {
-        descriptor.specialization.constants.channelCount = result.channelCount;
-      }
-    } else {
-      writeUniformLayout(
-        uniformView.view,
-        descriptor.uniformLayout,
-        snapshot?.params || {},
-        descriptor.uniformDefaults || {},
-      );
-    }
-  }
-}
-
-function writeMultiresUniforms(view, layout, params = {}, defaults = {}) {
-  if (!view || !layout || !Array.isArray(layout.fields)) {
-    return {};
-  }
-  const fieldMap = new Map(layout.fields.map((field) => [field.name, field]));
-  const setField = (name, values, scalarType) => {
-    const field = fieldMap.get(name);
-    if (!field) return;
-    const count = Math.max(1, Math.floor(field.size / 4));
-    const type = scalarType || field.scalarType || 'f32';
-    for (let i = 0; i < count; i += 1) {
-      const offset = field.offset + i * 4;
-      const value = values[i] !== undefined ? values[i] : 0;
-      if (type === 'u32' || field.bool) {
-        const uintVal = Math.max(0, Math.trunc(Number(value) || 0)) >>> 0;
-        view.setUint32(offset, uintVal, true);
-      } else if (type === 'i32') {
-        const intVal = Math.trunc(Number(value) || 0);
-        view.setInt32(offset, intVal, true);
-      } else {
-        const floatVal = Number.isFinite(value) ? value : Number(value) || 0;
-        view.setFloat32(offset, floatVal, true);
+        descriptor.specialization.constants.channelCount = channelCount;
       }
     }
-  };
-
-  const freqDefault = defaults.freq || [1, 1];
-  const freqPrimary = firstDefined(params.freq, params.frequency);
-  const freq = normalizeUniformComponents(freqPrimary, freqDefault, freqDefault, 2, false);
-  setField('freq', freq, 'f32');
-
-  const speed = normalizeUniformComponents(
-    firstDefined(params.speed),
-    defaults.speed,
-    [1],
-    1,
-    false,
-  );
-  setField('speed', speed, 'f32');
-
-  const sinAmount = normalizeUniformComponents(
-    firstDefined(params.sin, params.sinAmount),
-    defaults.sin,
-    [0],
-    1,
-    false,
-  );
-  setField('sin', sinAmount, 'f32');
-
-  const hueRange = toNumber(
-    firstDefined(params.hueRange, params.hue_range),
-    defaults.colorParams0?.[0] ?? defaults.hueRange ?? 0.125,
-  );
-  const hueRotation = toNumber(
-    firstDefined(params.hueRotation, params.hue_rotation),
-    defaults.colorParams0?.[1] ?? defaults.hueRotation ?? 0,
-  );
-  const saturation = toNumber(
-    firstDefined(params.saturation),
-    defaults.colorParams0?.[2] ?? defaults.saturation ?? 1,
-  );
-  const colorParams0 = [hueRange, hueRotation, saturation, defaults.colorParams0?.[3] ?? 0];
-  setField('colorParams0', colorParams0, 'f32');
-
-  const colorParams1 = (defaults.colorParams1 && defaults.colorParams1.slice()) || [0, 0, 0, 0];
-  setField('colorParams1', colorParams1, 'f32');
-
-  const options0Default = (defaults.options0 && defaults.options0.slice()) || [
-    1,
-    OctaveBlending.falloff,
-    3,
-    0,
-  ];
-  const octaves = toUint(firstDefined(params.octaves), options0Default[0]);
-  const octaveBlending = toUint(
-    firstDefined(params.octaveBlending, params.octave_blending),
-    options0Default[1],
-  );
-  const ridges = toBoolean(firstDefined(params.ridges, params.ridged), Boolean(options0Default[3]));
-  const channelCount = computeChannelCountFromParams(
-    params,
-    defaults,
-    octaveBlending,
-    options0Default[2],
-  );
-  const options0 = [octaves, octaveBlending, channelCount, ridges ? 1 : 0];
-  setField('options0', options0, 'u32');
-
-  const options1Default = (defaults.options1 && defaults.options1.slice()) || [
-    0,
-    ValueDistribution.simplex,
-    ColorSpace.hsv,
-    0,
-  ];
-  const seedOffset = toUint(
-    firstDefined(params.seedOffset, params.seed_offset, params.seed),
-    options1Default[0],
-  );
-  const distrib = toUint(firstDefined(params.distrib, params.distribution), options1Default[1]);
-  const colorSpace = resolveColorSpaceValue(
-    firstDefined(params.color_space, params.colorSpace),
-    options1Default[2],
-  );
-  const options1 = [seedOffset, distrib, colorSpace, options1Default[3] ?? 0];
-  setField('options1', options1, 'u32');
-
-  return { channelCount };
-}
-
-function firstDefined(...values) {
-  for (const value of values) {
-    if (value !== undefined && value !== null) {
-      return value;
-    }
   }
-  return undefined;
-}
-
-function toNumber(value, fallback) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : Number(fallback) || 0;
-}
-
-function toUint(value, fallback) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) {
-    const fb = Number(fallback) || 0;
-    return Math.max(0, Math.trunc(fb)) >>> 0;
-  }
-  return Math.max(0, Math.trunc(num)) >>> 0;
-}
-
-function toBoolean(value, fallback = false) {
-  if (value === undefined || value === null) return Boolean(fallback);
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
-  if (typeof value === 'string') {
-    const lowered = value.toLowerCase();
-    if (['true', 'yes', 'on', '1'].includes(lowered)) return true;
-    if (['false', 'no', 'off', '0'].includes(lowered)) return false;
-  }
-  return Boolean(value);
-}
-
-function resolveColorSpaceValue(value, fallback) {
-  if (typeof value === 'string') {
-    const key = value.toLowerCase();
-    if (Object.prototype.hasOwnProperty.call(ColorSpace, key)) {
-      return ColorSpace[key];
-    }
-  }
-  const num = Number(value);
-  if (Number.isFinite(num) && num > 0) {
-    return num;
-  }
-  return Number(fallback) || ColorSpace.hsv;
-}
-
-function computeChannelCountFromParams(params, defaults, octaveBlending, fallbackChannels) {
-  const defaultColorSpace = defaults.options1?.[2] ?? defaults.colorSpace ?? ColorSpace.hsv;
-  const colorSpace = resolveColorSpaceValue(
-    firstDefined(params.color_space, params.colorSpace),
-    defaultColorSpace,
-  );
-  const withAlpha = toBoolean(
-    firstDefined(params.withAlpha, params.with_alpha),
-    defaults.withAlpha ?? defaults.with_alpha ?? false,
-  );
-  let channels = colorSpace === ColorSpace.grayscale ? 1 : 3;
-  if (withAlpha) {
-    channels += 1;
-  }
-  const blendValue = Number.isFinite(octaveBlending)
-    ? octaveBlending
-    : defaults.options0?.[1] ?? OctaveBlending.falloff;
-  if (blendValue === OctaveBlending.alpha && (channels === 1 || channels === 3)) {
-    channels += 1;
-  }
-  if (!Number.isFinite(channels)) {
-    channels = Number(fallbackChannels) || 4;
->>>>>>> theirs
-  }
-  return channels;
 }
 
 function makeProgramCacheKey(name, topology, width, height, colorSpace, withAlpha) {
