@@ -383,6 +383,7 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
       continue;
     }
 <<<<<<< ours
+<<<<<<< ours
     const rawParams = snapshot?.params || {};
     const resolvedParams =
       typeof descriptor.resolveUniformParams === 'function'
@@ -404,7 +405,216 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
 >>>>>>> theirs
       descriptor.uniformDefaults || {},
     );
+=======
+    if (descriptor.shaderId === 'MULTIRES_WGSL') {
+      const result = writeMultiresUniforms(
+        uniformView.view,
+        descriptor.uniformLayout,
+        snapshot?.params || {},
+        descriptor.uniformDefaults || {},
+      );
+      if (
+        result &&
+        Number.isFinite(result.channelCount) &&
+        descriptor.specialization &&
+        descriptor.specialization.constants
+      ) {
+        descriptor.specialization.constants.channelCount = result.channelCount;
+      }
+    } else {
+      writeUniformLayout(
+        uniformView.view,
+        descriptor.uniformLayout,
+        snapshot?.params || {},
+        descriptor.uniformDefaults || {},
+      );
+    }
   }
+}
+
+function writeMultiresUniforms(view, layout, params = {}, defaults = {}) {
+  if (!view || !layout || !Array.isArray(layout.fields)) {
+    return {};
+  }
+  const fieldMap = new Map(layout.fields.map((field) => [field.name, field]));
+  const setField = (name, values, scalarType) => {
+    const field = fieldMap.get(name);
+    if (!field) return;
+    const count = Math.max(1, Math.floor(field.size / 4));
+    const type = scalarType || field.scalarType || 'f32';
+    for (let i = 0; i < count; i += 1) {
+      const offset = field.offset + i * 4;
+      const value = values[i] !== undefined ? values[i] : 0;
+      if (type === 'u32' || field.bool) {
+        const uintVal = Math.max(0, Math.trunc(Number(value) || 0)) >>> 0;
+        view.setUint32(offset, uintVal, true);
+      } else if (type === 'i32') {
+        const intVal = Math.trunc(Number(value) || 0);
+        view.setInt32(offset, intVal, true);
+      } else {
+        const floatVal = Number.isFinite(value) ? value : Number(value) || 0;
+        view.setFloat32(offset, floatVal, true);
+      }
+    }
+  };
+
+  const freqDefault = defaults.freq || [1, 1];
+  const freqPrimary = firstDefined(params.freq, params.frequency);
+  const freq = normalizeUniformComponents(freqPrimary, freqDefault, freqDefault, 2, false);
+  setField('freq', freq, 'f32');
+
+  const speed = normalizeUniformComponents(
+    firstDefined(params.speed),
+    defaults.speed,
+    [1],
+    1,
+    false,
+  );
+  setField('speed', speed, 'f32');
+
+  const sinAmount = normalizeUniformComponents(
+    firstDefined(params.sin, params.sinAmount),
+    defaults.sin,
+    [0],
+    1,
+    false,
+  );
+  setField('sin', sinAmount, 'f32');
+
+  const hueRange = toNumber(
+    firstDefined(params.hueRange, params.hue_range),
+    defaults.colorParams0?.[0] ?? defaults.hueRange ?? 0.125,
+  );
+  const hueRotation = toNumber(
+    firstDefined(params.hueRotation, params.hue_rotation),
+    defaults.colorParams0?.[1] ?? defaults.hueRotation ?? 0,
+  );
+  const saturation = toNumber(
+    firstDefined(params.saturation),
+    defaults.colorParams0?.[2] ?? defaults.saturation ?? 1,
+  );
+  const colorParams0 = [hueRange, hueRotation, saturation, defaults.colorParams0?.[3] ?? 0];
+  setField('colorParams0', colorParams0, 'f32');
+
+  const colorParams1 = (defaults.colorParams1 && defaults.colorParams1.slice()) || [0, 0, 0, 0];
+  setField('colorParams1', colorParams1, 'f32');
+
+  const options0Default = (defaults.options0 && defaults.options0.slice()) || [
+    1,
+    OctaveBlending.falloff,
+    3,
+    0,
+  ];
+  const octaves = toUint(firstDefined(params.octaves), options0Default[0]);
+  const octaveBlending = toUint(
+    firstDefined(params.octaveBlending, params.octave_blending),
+    options0Default[1],
+  );
+  const ridges = toBoolean(firstDefined(params.ridges, params.ridged), Boolean(options0Default[3]));
+  const channelCount = computeChannelCountFromParams(
+    params,
+    defaults,
+    octaveBlending,
+    options0Default[2],
+  );
+  const options0 = [octaves, octaveBlending, channelCount, ridges ? 1 : 0];
+  setField('options0', options0, 'u32');
+
+  const options1Default = (defaults.options1 && defaults.options1.slice()) || [
+    0,
+    ValueDistribution.simplex,
+    ColorSpace.hsv,
+    0,
+  ];
+  const seedOffset = toUint(
+    firstDefined(params.seedOffset, params.seed_offset, params.seed),
+    options1Default[0],
+  );
+  const distrib = toUint(firstDefined(params.distrib, params.distribution), options1Default[1]);
+  const colorSpace = resolveColorSpaceValue(
+    firstDefined(params.color_space, params.colorSpace),
+    options1Default[2],
+  );
+  const options1 = [seedOffset, distrib, colorSpace, options1Default[3] ?? 0];
+  setField('options1', options1, 'u32');
+
+  return { channelCount };
+}
+
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function toNumber(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : Number(fallback) || 0;
+}
+
+function toUint(value, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    const fb = Number(fallback) || 0;
+    return Math.max(0, Math.trunc(fb)) >>> 0;
+  }
+  return Math.max(0, Math.trunc(num)) >>> 0;
+}
+
+function toBoolean(value, fallback = false) {
+  if (value === undefined || value === null) return Boolean(fallback);
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const lowered = value.toLowerCase();
+    if (['true', 'yes', 'on', '1'].includes(lowered)) return true;
+    if (['false', 'no', 'off', '0'].includes(lowered)) return false;
+  }
+  return Boolean(value);
+}
+
+function resolveColorSpaceValue(value, fallback) {
+  if (typeof value === 'string') {
+    const key = value.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(ColorSpace, key)) {
+      return ColorSpace[key];
+    }
+  }
+  const num = Number(value);
+  if (Number.isFinite(num) && num > 0) {
+    return num;
+  }
+  return Number(fallback) || ColorSpace.hsv;
+}
+
+function computeChannelCountFromParams(params, defaults, octaveBlending, fallbackChannels) {
+  const defaultColorSpace = defaults.options1?.[2] ?? defaults.colorSpace ?? ColorSpace.hsv;
+  const colorSpace = resolveColorSpaceValue(
+    firstDefined(params.color_space, params.colorSpace),
+    defaultColorSpace,
+  );
+  const withAlpha = toBoolean(
+    firstDefined(params.withAlpha, params.with_alpha),
+    defaults.withAlpha ?? defaults.with_alpha ?? false,
+  );
+  let channels = colorSpace === ColorSpace.grayscale ? 1 : 3;
+  if (withAlpha) {
+    channels += 1;
+  }
+  const blendValue = Number.isFinite(octaveBlending)
+    ? octaveBlending
+    : defaults.options0?.[1] ?? OctaveBlending.falloff;
+  if (blendValue === OctaveBlending.alpha && (channels === 1 || channels === 3)) {
+    channels += 1;
+  }
+  if (!Number.isFinite(channels)) {
+    channels = Number(fallbackChannels) || 4;
+>>>>>>> theirs
+  }
+  return channels;
 }
 
 function makeProgramCacheKey(name, topology, width, height, colorSpace, withAlpha) {

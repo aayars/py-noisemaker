@@ -12,16 +12,23 @@ wired into the runtime. Follow-up work should address the remaining gaps before
 enabling the stage:
 =======
 evaluates per-channel simplex seeds, performs HSV/OKLab conversion, and applies
+<<<<<<< ours
 basic hue/saturation/sine adjustments. The stage is wired into the WebGPU
 pipeline and uniforms are populated through the custom resolver in
 `pipeline.js`, but a number of fidelity gaps remain before we can call the
 generator production ready:
+>>>>>>> theirs
+=======
+basic hue/saturation/sine adjustments. The WebGPU pipeline now feeds the shader
+directly, but several fidelity gaps remain before we can rely on this stage for
+parity-sensitive presets:
 >>>>>>> theirs
 
 The shader lives at `src/webgpu/shaders/multires.wgsl` and is loaded on demand
 via `src/webgpu/shaders.js`, so future updates should modify that WGSL module
 directly.
 
+<<<<<<< ours
 <<<<<<< ours
 <<<<<<< ours
 1. **Uniform layout integration** – update the WebGPU pipeline to populate the
@@ -37,10 +44,14 @@ directly.
    remaining scalar aliases (`color_params1`, seed offsets, etc.).
 >>>>>>> theirs
 2. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
+=======
+1. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
+>>>>>>> theirs
    layers and additional value distributions. We currently approximate the seed
    sequence (`seed + octave_index - 1`) and still rebuild permutation tables
    inside each invocation; future work should adopt the exact preset-provided
    seeds and reuse cached permutations.
+<<<<<<< ours
 3. **Color workflow polish** – verify the hue/saturation/brightness override
    paths against the CPU implementation (including brightness frequency scaling
    per octave), hook `color_params1` up to any remaining colour controls, and
@@ -62,6 +73,15 @@ directly.
    (center-distance families, row/column indices, etc.) and confirm that the
    pipeline supplies deterministic seeds matching `value.values`.
 >>>>>>> theirs
+=======
+2. **Color workflow** – hook up hue/saturation/brightness override noises and
+   the alternate brightness frequency so HSV modulation matches
+   `generators.basic`. We still treat `color_params1` as unused.
+3. **Hue rotation parity** – when presets leave `hue_rotation` unset the CPU
+   path samples a deterministic random value. Mirror that behaviour so GPU
+   renders consume the same RNG sequence as the CPU reference instead of
+   defaulting to zero.
+>>>>>>> theirs
 4. **Masking, lattice drift, and normalization** – implement mask sampling,
 =======
 1. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
@@ -81,6 +101,7 @@ directly.
    passes (especially the HSV `sin` path, which currently uses a simple
    `map_to_unit`). Preserve staged alpha channels when masks are present.
 <<<<<<< ours
+<<<<<<< ours
 4. **Performance tuning** – avoid rebuilding permutation tables per invocation,
    and consider workgroup/shared caching once correctness is locked in.
 =======
@@ -89,6 +110,9 @@ directly.
    normalization, alternate distributions) before enabling by default in the
    renderer.
 6. **Performance tuning** – avoid rebuilding permutation tables per invocation,
+=======
+5. **Performance tuning** – avoid rebuilding permutation tables per invocation,
+>>>>>>> theirs
    and consider workgroup/shared caching once correctness is locked in.
 
 Leave this file in place until the shader reaches feature parity and is enabled

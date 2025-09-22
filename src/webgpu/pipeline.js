@@ -1165,6 +1165,8 @@ function buildEffectStage(effect, category) {
 }
 
 function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
+  const isMultiresGenerator =
+    stage?.stageType === 'generator' && getStageName(stage) === 'multires';
   const descriptor = {
     index,
     stageType: stage.stageType,
@@ -1198,6 +1200,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
   };
 
 <<<<<<< ours
+<<<<<<< ours
   const usesMultiresShader = descriptor.shaderId === 'MULTIRES_WGSL';
   let paramAnalysis;
   if (usesMultiresShader) {
@@ -1217,6 +1220,11 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     ? analyseMultiresGeneratorStage(stage.params || {})
     : analyseStageParams(stage.params || {});
 >>>>>>> theirs
+=======
+  const paramAnalysis = isMultiresGenerator
+    ? { layout: null, defaults: {}, resources: [], issues: [], requiresUniforms: true }
+    : analyseStageParams(stage.params || {});
+>>>>>>> theirs
   descriptor.uniformLayout = paramAnalysis.layout;
   descriptor.uniformDefaults = paramAnalysis.defaults;
   descriptor.resourceParams = paramAnalysis.resources;
@@ -1229,6 +1237,10 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
   descriptor.issues.push(...paramAnalysis.issues);
   if (paramAnalysis.unsupported) {
     descriptor.gpuSupported = false;
+  }
+
+  if (isMultiresGenerator) {
+    specializeMultiresDescriptor(descriptor, stage);
   }
 
   if (!descriptor.shaderId) {
@@ -1284,9 +1296,17 @@ function resolveShaderId(stage) {
   if (!stage || stage.unsupported) return null;
   if (stage.stageType === 'generator') {
 <<<<<<< ours
+<<<<<<< ours
     return 'MULTIRES_WGSL';
 =======
     if (isMultiresGeneratorStage(stage)) {
+      return 'MULTIRES_WGSL';
+    }
+    return null;
+>>>>>>> theirs
+=======
+    const name = getStageName(stage);
+    if (name === 'multires') {
       return 'MULTIRES_WGSL';
     }
     return null;
@@ -1464,6 +1484,12 @@ function analyseStageParams(params) {
   return { layout, defaults, resources, issues, requiresUniforms };
 }
 
+function getStageName(stage) {
+  if (!stage) return '';
+  const raw = stage.name || stage.params?.generator || '';
+  return typeof raw === 'string' ? raw.toLowerCase() : '';
+}
+
 function classifyParam(value) {
   if (value === null || value === undefined) {
     return { type: 'resource', resourceType: 'null' };
@@ -1526,6 +1552,150 @@ function classifyParam(value) {
     };
   }
   return { type: 'resource', resourceType: typeof value };
+}
+
+function specializeMultiresDescriptor(descriptor, stage) {
+  descriptor.shaderId = 'MULTIRES_WGSL';
+  const metadata = buildMultiresUniformMetadata(stage);
+  if (!metadata?.layout) {
+    descriptor.gpuSupported = false;
+    descriptor.issues.push({
+      level: 'error',
+      message: 'Failed to build multires uniform layout.',
+    });
+    return;
+  }
+  descriptor.uniformLayout = metadata.layout;
+  descriptor.uniformDefaults = metadata.defaults;
+  descriptor.resourceParams = [];
+  descriptor.bindings.hasUniform = true;
+  descriptor.bindings.auxiliary = [];
+  descriptor.specialization = descriptor.specialization || {
+    workgroupSize: [...DEFAULT_WORKGROUP_SIZE],
+    constants: {},
+  };
+  descriptor.specialization.constants.channelCount = metadata.defaults?.options0?.[2] ?? 4;
+  if (Array.isArray(metadata.issues) && metadata.issues.length) {
+    descriptor.issues.push(...metadata.issues);
+  }
+}
+
+function buildMultiresUniformMetadata(stage) {
+  const params = (stage && stage.params) || {};
+  const freq = normalizeVec2(resolveParam(params, ['freq', 'frequency']), [1, 1]);
+  const speed = toNumber(resolveParam(params, ['speed']), 1);
+  const sinAmount = toNumber(resolveParam(params, ['sin', 'sinAmount']), 0);
+  const hueRange = toNumber(resolveParam(params, ['hueRange', 'hue_range']), 0.125);
+  const hueRotation = toNumber(resolveParam(params, ['hueRotation', 'hue_rotation']), 0);
+  const saturation = toNumber(resolveParam(params, ['saturation']), 1);
+  const octaves = toUint(resolveParam(params, ['octaves']), 1);
+  const octaveBlending = toUint(
+    resolveParam(params, ['octaveBlending', 'octave_blending']),
+    OctaveBlending.falloff,
+  );
+  const ridges = toBoolean(resolveParam(params, ['ridges', 'ridged']));
+  const distrib = toUint(resolveParam(params, ['distrib', 'distribution']), ValueDistribution.simplex);
+  const seedOffset = toUint(resolveParam(params, ['seedOffset', 'seed_offset', 'seed']), 0);
+  const colorSpace = resolveColorSpaceValue(
+    resolveParam(params, ['color_space', 'colorSpace']),
+    ColorSpace.hsv,
+  );
+  const withAlpha = toBoolean(resolveParam(params, ['withAlpha', 'with_alpha']));
+  const channelCount = computeChannelCount(colorSpace, withAlpha, octaveBlending);
+
+  const defaults = {
+    freq,
+    speed,
+    sin: sinAmount,
+    colorParams0: [hueRange, hueRotation, saturation, 0],
+    colorParams1: [0, 0, 0, 0],
+    options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
+    options1: [seedOffset, distrib, colorSpace, 0],
+  };
+
+  const fields = [
+    { name: 'freq', scalarType: 'f32', components: 2, bool: false, defaultValue: defaults.freq },
+    { name: 'speed', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.speed },
+    { name: 'sin', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.sin },
+    { name: 'colorParams0', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.colorParams0 },
+    { name: 'colorParams1', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.colorParams1 },
+    { name: 'options0', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options0 },
+    { name: 'options1', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options1 },
+  ];
+  const issues = [];
+  const layout = buildStd140Layout(fields, issues);
+  return { layout, defaults, issues };
+}
+
+function resolveParam(params, names) {
+  if (!params) return undefined;
+  const list = Array.isArray(names) ? names : [names];
+  for (const name of list) {
+    if (Object.prototype.hasOwnProperty.call(params, name) && params[name] !== undefined) {
+      return params[name];
+    }
+  }
+  return undefined;
+}
+
+function normalizeVec2(value, fallback) {
+  const out = Array.isArray(value)
+    ? value.map((v) => Number(v))
+    : Number.isFinite(value)
+    ? [Number(value), Number(value)]
+    : [];
+  const a = Number.isFinite(out[0]) ? out[0] : fallback[0];
+  const b = Number.isFinite(out[1]) ? out[1] : fallback[1] ?? a;
+  return [Number.isFinite(a) ? a : 1, Number.isFinite(b) ? b : Number.isFinite(a) ? a : 1];
+}
+
+function toNumber(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function toUint(value, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback >>> 0;
+  return Math.max(0, Math.trunc(num)) >>> 0;
+}
+
+function toBoolean(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const lowered = value.toLowerCase();
+    return lowered === 'true' || lowered === 'yes' || lowered === 'on' || lowered === '1';
+  }
+  return Boolean(value);
+}
+
+function resolveColorSpaceValue(value, fallback) {
+  if (typeof value === 'string') {
+    const key = value.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(ColorSpace, key)) {
+      return ColorSpace[key];
+    }
+  }
+  const num = Number(value);
+  if (Number.isFinite(num) && num > 0) {
+    return num;
+  }
+  return fallback;
+}
+
+function computeChannelCount(colorSpace, withAlpha, octaveBlending) {
+  const space = Number.isFinite(colorSpace) ? colorSpace : ColorSpace.hsv;
+  let channels = space === ColorSpace.grayscale ? 1 : 3;
+  if (withAlpha) {
+    channels += 1;
+  }
+  const blending = Number.isFinite(octaveBlending) ? octaveBlending : OctaveBlending.falloff;
+  if (blending === OctaveBlending.alpha && (channels === 1 || channels === 3)) {
+    channels += 1;
+  }
+  return channels;
 }
 
 function buildStd140Layout(fields, issues) {
