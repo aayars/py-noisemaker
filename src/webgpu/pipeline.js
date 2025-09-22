@@ -1364,10 +1364,47 @@ function analyseMultiresGeneratorStage(params) {
     if (params.maskStatic) flagUnsupported('maskStatic');
     if (params.corners) flagUnsupported('corners');
     if (params.latticeDrift && params.latticeDrift !== 0) flagUnsupported('latticeDrift');
-    if (params.hueDistrib) flagUnsupported('hueDistrib');
-    if (params.saturationDistrib) flagUnsupported('saturationDistrib');
-    if (params.brightnessDistrib) flagUnsupported('brightnessDistrib');
-    if (params.brightnessFreq) flagUnsupported('brightnessFreq');
+    const hueDistribValue = normalizeOverrideDistribution(
+      resolveParam(params, ['hueDistrib', 'hue_distrib']),
+    );
+    if (hueDistribValue === null) {
+      unsupported = true;
+      issues.push({
+        level: 'error',
+        message: 'multires generator parameter "hueDistrib" is not supported on the GPU path',
+      });
+    }
+
+    const saturationDistribValue = normalizeOverrideDistribution(
+      resolveParam(params, ['saturationDistrib', 'saturation_distrib']),
+    );
+    if (saturationDistribValue === null) {
+      unsupported = true;
+      issues.push({
+        level: 'error',
+        message: 'multires generator parameter "saturationDistrib" is not supported on the GPU path',
+      });
+    }
+
+    const brightnessDistribValue = normalizeOverrideDistribution(
+      resolveParam(params, ['brightnessDistrib', 'brightness_distrib']),
+    );
+    if (brightnessDistribValue === null) {
+      unsupported = true;
+      issues.push({
+        level: 'error',
+        message: 'multires generator parameter "brightnessDistrib" is not supported on the GPU path',
+      });
+    }
+
+    const brightnessFreqValue = resolveParam(params, ['brightnessFreq', 'brightness_freq']);
+    if (!isBrightnessFrequencyParamSupported(brightnessFreqValue)) {
+      unsupported = true;
+      issues.push({
+        level: 'error',
+        message: 'multires generator parameter "brightnessFreq" is not supported on the GPU path',
+      });
+    }
     if (params.withSupersample) flagUnsupported('withSupersample');
     if (params.withFxaa) flagUnsupported('withFxaa');
     if (params.withAi) flagUnsupported('withAi');
@@ -1398,6 +1435,12 @@ function analyseMultiresGeneratorStage(params) {
       components: 4,
       defaultValue: [0, ValueDistribution.simplex >>> 0, ColorSpace.hsv >>> 0, 0],
     },
+    {
+      name: 'options2',
+      scalarType: 'u32',
+      components: 4,
+      defaultValue: [0, 0, 0, 0],
+    },
   ];
   const layout = buildStd140Layout(fields, issues);
   const defaults = {
@@ -1408,6 +1451,7 @@ function analyseMultiresGeneratorStage(params) {
     color_params1: fields[4].defaultValue.slice(),
     options0: fields[5].defaultValue.slice(),
     options1: fields[6].defaultValue.slice(),
+    options2: fields[7].defaultValue.slice(),
   };
 
   return { layout, defaults, resources: [], issues, requiresUniforms: true, unsupported };
@@ -1566,6 +1610,57 @@ function buildMultiresUniformMetadata(stage) {
   const withAlpha = toBoolean(resolveParam(params, ['withAlpha', 'with_alpha']));
   const channelCount = computeChannelCount(colorSpace, withAlpha, octaveBlending);
 
+  const hueDistribValue = normalizeOverrideDistribution(
+    resolveParam(params, ['hueDistrib', 'hue_distrib']),
+  );
+  if (hueDistribValue === null) {
+    issues.push({
+      level: 'error',
+      message: 'Unsupported hueDistrib override for multires generator.',
+    });
+  }
+  const safeHueDistrib = hueDistribValue === null ? 0 : hueDistribValue >>> 0;
+
+  const saturationDistribValue = normalizeOverrideDistribution(
+    resolveParam(params, ['saturationDistrib', 'saturation_distrib']),
+  );
+  if (saturationDistribValue === null) {
+    issues.push({
+      level: 'error',
+      message: 'Unsupported saturationDistrib override for multires generator.',
+    });
+  }
+  const safeSaturationDistrib =
+    saturationDistribValue === null ? 0 : saturationDistribValue >>> 0;
+
+  const brightnessDistribValue = normalizeOverrideDistribution(
+    resolveParam(params, ['brightnessDistrib', 'brightness_distrib']),
+  );
+  if (brightnessDistribValue === null) {
+    issues.push({
+      level: 'error',
+      message: 'Unsupported brightnessDistrib override for multires generator.',
+    });
+  }
+  let safeBrightnessDistrib =
+    brightnessDistribValue === null ? 0 : brightnessDistribValue >>> 0;
+
+  const brightnessFreqRaw = resolveParam(params, ['brightnessFreq', 'brightness_freq']);
+  let brightnessFreqFlag = 0;
+  if (brightnessFreqRaw !== undefined && brightnessFreqRaw !== null) {
+    if (isBrightnessFrequencyParamSupported(brightnessFreqRaw)) {
+      brightnessFreqFlag = 1;
+    } else {
+      issues.push({
+        level: 'error',
+        message: 'Unsupported brightnessFreq override for multires generator.',
+      });
+    }
+  }
+  if (brightnessFreqFlag && safeBrightnessDistrib === 0) {
+    safeBrightnessDistrib = ValueDistribution.simplex >>> 0;
+  }
+
   const defaults = {
     freq,
     speed,
@@ -1574,6 +1669,7 @@ function buildMultiresUniformMetadata(stage) {
     colorParams1: [0, 0, 0, 0],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, 0],
+    options2: [safeHueDistrib, safeSaturationDistrib, safeBrightnessDistrib, brightnessFreqFlag >>> 0],
   };
 
   const fields = [
@@ -1584,6 +1680,7 @@ function buildMultiresUniformMetadata(stage) {
     { name: 'colorParams1', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.colorParams1 },
     { name: 'options0', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options0 },
     { name: 'options1', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options1 },
+    { name: 'options2', scalarType: 'u32', components: 4, bool: false, defaultValue: defaults.options2 },
   ];
   const issues = [];
   const layout = buildStd140Layout(fields, issues);
@@ -1723,14 +1820,66 @@ function resolveMultiresUniformParams(params, descriptor) {
     octaveBlending,
   );
 
+  const hueDistribValue = normalizeOverrideDistribution(
+    merged.hueDistrib ?? merged.hue_distrib,
+  );
+  const hueDistrib = hueDistribValue === null ? 0 : hueDistribValue >>> 0;
+
+  const saturationDistribValue = normalizeOverrideDistribution(
+    merged.saturationDistrib ?? merged.saturation_distrib,
+  );
+  const saturationDistrib =
+    saturationDistribValue === null ? 0 : saturationDistribValue >>> 0;
+
+  let brightnessDistribValue = normalizeOverrideDistribution(
+    merged.brightnessDistrib ?? merged.brightness_distrib,
+  );
+  if (brightnessDistribValue === null) {
+    brightnessDistribValue = 0;
+  }
+
+  const brightnessFreqRaw = merged.brightnessFreq ?? merged.brightness_freq;
+  let brightnessFreqFlag = 0;
+  let brightnessFreqVec = [0, 0];
+  if (brightnessFreqRaw !== undefined && brightnessFreqRaw !== null) {
+    if (isBrightnessFrequencyParamSupported(brightnessFreqRaw)) {
+      const freqVec = computeMultiresFrequency(
+        brightnessFreqRaw,
+        width,
+        height,
+        merged.shape,
+      );
+      if (Array.isArray(freqVec) && freqVec.length >= 2) {
+        brightnessFreqVec = [freqVec[0], freqVec[1]];
+        brightnessFreqFlag = 1;
+      }
+    }
+  }
+
+  let brightnessDistrib = brightnessDistribValue >>> 0;
+  if (brightnessFreqFlag && brightnessDistrib === 0) {
+    brightnessDistrib = ValueDistribution.simplex >>> 0;
+  }
+  if (!brightnessFreqFlag && brightnessDistrib === 0) {
+    brightnessFreqVec = [0, 0];
+  }
+
+  const hasBrightnessOverride =
+    brightnessDistrib !== 0 || brightnessFreqFlag !== 0;
+  if (!hasBrightnessOverride) {
+    brightnessFreqVec = [0, 0];
+    brightnessFreqFlag = 0;
+  }
+
   return {
     freq,
     speed,
     sin: sinValue,
     colorParams0: [hueRange, hueRotation, saturation, 0],
-    colorParams1: [0, 0, 0, 0],
+    colorParams1: [brightnessFreqVec[0], brightnessFreqVec[1], 0, 0],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
+    options2: [hueDistrib, saturationDistrib, brightnessDistrib, brightnessFreqFlag >>> 0],
   };
 }
 
@@ -1924,6 +2073,76 @@ function computeMultiresChannelCount(colorSpace, withAlpha, octaveBlending) {
     baseChannels += 1;
   }
   return Math.max(1, Math.min(4, baseChannels));
+}
+
+const OVERRIDE_DISTRIBUTION_NAME_MAP = new Map([
+  ['simplex', ValueDistribution.simplex >>> 0],
+  ['exp', ValueDistribution.exp >>> 0],
+  ['exponential', ValueDistribution.exp >>> 0],
+  ['ones', ValueDistribution.ones >>> 0],
+  ['one', ValueDistribution.ones >>> 0],
+  ['mids', ValueDistribution.mids >>> 0],
+  ['mid', ValueDistribution.mids >>> 0],
+  ['zeros', ValueDistribution.zeros >>> 0],
+  ['zero', ValueDistribution.zeros >>> 0],
+  ['none', 0],
+  ['off', 0],
+]);
+
+const ALLOWED_OVERRIDE_DISTRIBUTIONS = new Set([
+  0,
+  ValueDistribution.simplex >>> 0,
+  ValueDistribution.exp >>> 0,
+  ValueDistribution.ones >>> 0,
+  ValueDistribution.mids >>> 0,
+  ValueDistribution.zeros >>> 0,
+]);
+
+function normalizeOverrideDistribution(value) {
+  if (value === undefined || value === null) {
+    return 0;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    const normalized = value >>> 0;
+    return ALLOWED_OVERRIDE_DISTRIBUTIONS.has(normalized) ? normalized : null;
+  }
+  if (typeof value === 'string') {
+    const key = value.trim().toLowerCase();
+    if (OVERRIDE_DISTRIBUTION_NAME_MAP.has(key)) {
+      return OVERRIDE_DISTRIBUTION_NAME_MAP.get(key);
+    }
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return normalizeOverrideDistribution(numeric);
+    }
+    return null;
+  }
+  return null;
+}
+
+function coerceFrequencyInput(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? [value] : null;
+  }
+  if (Array.isArray(value) || ArrayBuffer.isView(value)) {
+    const arr = Array.from(value);
+    if (!arr.every((entry) => Number.isFinite(Number(entry)))) {
+      return null;
+    }
+    return arr.map((entry) => Number(entry));
+  }
+  return null;
+}
+
+function isBrightnessFrequencyParamSupported(value) {
+  if (value === undefined || value === null) {
+    return true;
+  }
+  return coerceFrequencyInput(value) !== null;
 }
 
 function std140AlignSize(components) {

@@ -13,26 +13,19 @@ passes.
 
 Follow-up work before enabling this stage in production:
 
-1. **Colour overrides and extra uniforms** – the CPU generator supports
-   `hue_distrib`, `saturation_distrib`, `brightness_distrib`, and alternate
-   brightness frequencies. The pipeline currently rejects presets that rely on
-   those controls, but the shader should be extended to honour them once the
-   uniforms are exposed (likely via `colorParams1`, `options2`, and `options3`).
-   This includes implementing deterministic override seeds and matching the CPU
-   value distributions beyond the simplex/exp subset handled today.
-2. **`sin` parity** – the CPU normalises HSV brightness after the `sin`
+1. **`sin` parity** – the CPU normalises HSV brightness after the `sin`
    transform using the image-wide min/max range. The shader currently maps the
    per-pixel result back to 0–1 (`map_to_unit`). Revisit this so the GPU path
    mirrors the global remap (probably a reduction pass or a follow-up
    normalisation stage).
-3. **Masking and lattice drift** – presets that rely on masks, supersample
+2. **Masking and lattice drift** – presets that rely on masks, supersample
    masks, or lattice refract are still routed to the CPU. Once the uniform and
    auxiliary bindings land, add the mask sampling and lattice drift flows so the
    GPU path can participate.
-4. **Performance** – permutation tables are rebuilt for every pixel and channel,
+3. **Performance** – permutation tables are rebuilt for every pixel and channel,
    matching the CPU algorithm but wasting work on the GPU. Introduce shared
    caching (per workgroup or via uniforms) once correctness is locked in.
-5. **Extended distributions** – when pipeline support arrives, add the remaining
+4. **Extended distributions** – when pipeline support arrives, add the remaining
    `ValueDistribution` families used by overrides (center-distance, row/column
    indices, etc.) so presets do not fall back to the CPU unexpectedly.
 
