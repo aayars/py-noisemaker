@@ -1476,13 +1476,6 @@ function analyseMultiresGeneratorStage(params) {
     if (maskParam !== undefined && maskParam !== null && maskValue === null) {
       flagUnsupported('mask');
     }
-    if (maskValue && isValueMaskProcedural(maskValue)) {
-      unsupported = true;
-      issues.push({
-        level: 'error',
-        message: 'Procedural masks are not yet supported on the GPU path for the multires generator.',
-      });
-    }
     const hueDistribValue = normalizeOverrideDistribution(
       resolveParam(params, ['hueDistrib', 'hue_distrib']),
     );
@@ -2033,6 +2026,9 @@ function resolveMultiresUniformParams(params, descriptor) {
     distrib,
     cornersFlag,
     splineOrder,
+    time: merged.time ?? 0,
+    speed,
+    frameIndex: merged.frameIndex ?? 0,
   });
   if (descriptor) {
     descriptor.multiresMaskConfig = maskConfig;
@@ -2439,21 +2435,18 @@ function computeMultiresMaskData(options) {
     distrib,
     cornersFlag,
     splineOrder,
+    time = 0,
+    speed = 1,
+    frameIndex = 0,
   } = options;
   const holder = ensureMaskDataHolder(descriptor);
   const cacheKey = descriptor ? buildMaskCacheKey(options) : 'mask:none';
-  if (
-    descriptor &&
-    descriptor._maskCacheKey === cacheKey &&
-    descriptor._maskCacheInfo &&
-    holder
-  ) {
-    const info = descriptor._maskCacheInfo;
-    holder.enabled = info.enabled;
-    holder.alpha = info.alpha;
-    holder.octaveCount = info.octaveCount;
-    return { enabled: info.enabled, alpha: info.alpha, octaveCount: info.octaveCount };
-  }
+  const dynamicMask = Boolean(maskConfig?.enabled && !maskConfig.static);
+  const effectiveTime = dynamicMask ? Number(time) || 0 : 0;
+  const effectiveSpeed = Number.isFinite(Number(speed)) ? Number(speed) : 1;
+  const frameId = Number.isFinite(Number(frameIndex))
+    ? Math.max(0, Math.trunc(Number(frameIndex)))
+    : 0;
 
   if (!maskConfig?.enabled) {
     holder.array = holder.array && holder.array.length ? holder.array : new Float32Array([1, 1, 1, 1]);
@@ -2462,12 +2455,41 @@ function computeMultiresMaskData(options) {
     holder.octaveCount = 0;
     holder.alpha = false;
     holder.enabled = false;
-    descriptor._maskDataDirty = true;
     if (descriptor) {
       descriptor._maskCacheKey = cacheKey;
       descriptor._maskCacheInfo = { enabled: false, alpha: false, octaveCount: 0 };
+      descriptor._maskDynamicState = null;
     }
+    descriptor._maskDataDirty = true;
     return { enabled: false, alpha: false, octaveCount: 0 };
+  }
+
+  if (descriptor && holder) {
+    if (dynamicMask) {
+      const last = descriptor._maskDynamicState;
+      if (
+        last &&
+        last.frameIndex === frameId &&
+        last.time === effectiveTime &&
+        last.speed === effectiveSpeed &&
+        descriptor._maskCacheInfo
+      ) {
+        const info = descriptor._maskCacheInfo;
+        holder.enabled = info.enabled;
+        holder.alpha = info.alpha;
+        holder.octaveCount = info.octaveCount;
+        return { enabled: info.enabled, alpha: info.alpha, octaveCount: info.octaveCount };
+      }
+    } else if (
+      descriptor._maskCacheKey === cacheKey &&
+      descriptor._maskCacheInfo
+    ) {
+      const info = descriptor._maskCacheInfo;
+      holder.enabled = info.enabled;
+      holder.alpha = info.alpha;
+      holder.octaveCount = info.octaveCount;
+      return { enabled: info.enabled, alpha: info.alpha, octaveCount: info.octaveCount };
+    }
   }
 
   const baseFreq = [
@@ -2487,8 +2509,8 @@ function computeMultiresMaskData(options) {
     const glyphShape = [fy, fx, targetChannels];
     const maskResult = maskValues(maskConfig.value, glyphShape, {
       inverse: maskConfig.inverse,
-      time: 0,
-      speed: 1,
+      time: effectiveTime,
+      speed: effectiveSpeed,
     });
     let maskTensor = maskResult && Array.isArray(maskResult) ? maskResult[0] : null;
     if (!maskTensor) {
@@ -2525,6 +2547,13 @@ function computeMultiresMaskData(options) {
     holder.alpha = alphaMode;
     holder.enabled = false;
     descriptor._maskDataDirty = true;
+    if (descriptor) {
+      descriptor._maskDynamicState = dynamicMask
+        ? { frameIndex: frameId, time: effectiveTime, speed: effectiveSpeed }
+        : null;
+      descriptor._maskCacheKey = dynamicMask ? null : cacheKey;
+      descriptor._maskCacheInfo = { enabled: false, alpha: alphaMode, octaveCount: 0 };
+    }
     return { enabled: false, alpha: alphaMode, octaveCount: 0 };
   }
 
@@ -2557,8 +2586,11 @@ function computeMultiresMaskData(options) {
   holder.enabled = true;
   descriptor._maskDataDirty = true;
   if (descriptor) {
-    descriptor._maskCacheKey = cacheKey;
+    descriptor._maskCacheKey = dynamicMask ? null : cacheKey;
     descriptor._maskCacheInfo = { enabled: true, alpha: alphaMode, octaveCount };
+    descriptor._maskDynamicState = dynamicMask
+      ? { frameIndex: frameId, time: effectiveTime, speed: effectiveSpeed }
+      : null;
   }
   return { enabled: true, alpha: alphaMode, octaveCount };
 }

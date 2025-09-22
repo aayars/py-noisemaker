@@ -15,12 +15,13 @@ generation stays on the GPU for those presets.
 
 Follow-up work before enabling this stage in production:
 
-1. **Procedural masks** – the GPU path now samples static masks by uploading a
-   per-octave mask atlas, but procedural masks (those backed by functions in
-   `masks.js`) still fall back to the CPU. Port the procedural generators so the
-   WebGPU path can animate dropout/truchet/etc. without CPU assistance. Static
-   mask uploads are now cached per descriptor/resolution so procedural support
-   should integrate with the new cache rather than recomputing every frame.
+1. **Procedural masks** – the GPU path now reuses the CPU `maskValues`
+   generators each frame so procedural masks upload their per-octave atlases to
+   the shader, but the values are still computed on the CPU. Port the
+   procedural generators so the WebGPU path can animate dropout/truchet/etc.
+   without CPU assistance. Static mask uploads remain cached per
+   descriptor/resolution so the WGSL port should integrate with the cache
+   rather than recomputing every frame.
 
 Leave this file in place until the shader reaches feature parity and is enabled
 in the WebGPU renderer.
