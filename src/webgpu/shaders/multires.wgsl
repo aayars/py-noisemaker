@@ -318,7 +318,11 @@ struct PermutationTables {
   perm_grad_index3d : array<u32, PERMUTATION_SIZE>,
 };
 
-const PERMUTATION_CACHE_SIZE : u32 = 16u;
+// NOTE: Keep the cache small to avoid exhausting the Metal compute stack when
+// the shader is compiled. Each entry stores two 256 element tables which adds
+// up quickly. A handful of entries is enough to cover the seeds touched per
+// invocation while keeping the private stack usage under the platform limits.
+const PERMUTATION_CACHE_SIZE : u32 = 4u;
 
 struct PermutationCacheEntry {
   seed : u32,

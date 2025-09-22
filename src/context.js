@@ -699,8 +699,29 @@ export class Context {
     return this.device.createShaderModule({ code });
   }
 
-  async createComputePipeline(code) {
+  async createComputePipeline(codeOrDescriptor, maybeOptions = null) {
     if (!this.device) throw new Error('WebGPU device not initialized');
+
+    let code = codeOrDescriptor;
+    let layout = null;
+    let label = null;
+
+    if (codeOrDescriptor && typeof codeOrDescriptor === 'object') {
+      const descriptor = codeOrDescriptor;
+      code = descriptor.code ?? descriptor.shaderSource ?? descriptor.wgsl ?? null;
+      layout = descriptor.layout ?? descriptor.pipelineLayout ?? descriptor.bindGroupLayout ?? null;
+      label = descriptor.label ?? descriptor.debugLabel ?? null;
+    } else if (maybeOptions && typeof maybeOptions === 'object') {
+      layout = maybeOptions.layout ?? maybeOptions.pipelineLayout ?? null;
+      label = maybeOptions.label ?? null;
+    } else if (maybeOptions) {
+      layout = maybeOptions;
+    }
+
+    if (!code) {
+      throw new Error('createComputePipeline requires WGSL code');
+    }
+
     const module = this.createShaderModule(code);
     if (module.getCompilationInfo) {
       const info = await module.getCompilationInfo();
@@ -712,10 +733,14 @@ export class Context {
         throw new Error(`Shader compilation failed:\n${details}`);
       }
     }
-    return this.device.createComputePipelineAsync({
-      layout: 'auto',
+    const pipelineDescriptor = {
+      layout: layout || 'auto',
       compute: { module, entryPoint: 'main' },
-    });
+    };
+    if (label) {
+      pipelineDescriptor.label = label;
+    }
+    return this.device.createComputePipelineAsync(pipelineDescriptor);
   }
 
   createRenderPipeline(vsCode, fsCode, targets = [{ format: this.presentationFormat }]) {

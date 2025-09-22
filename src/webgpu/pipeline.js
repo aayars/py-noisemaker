@@ -267,16 +267,20 @@ export class PresetProgram {
     if (!descriptor) return null;
     const holder = ensureMaskDataHolder(descriptor);
     const array = holder?.array instanceof Float32Array ? holder.array : new Float32Array([1, 1, 1, 1]);
-    const byteLength = array.byteLength || MASK_STORAGE_PAD;
+    const arrayByteLength = array.byteLength || MASK_STORAGE_PAD;
     if (!ctx || !ctx.device) {
       descriptor._maskGPUBuffer = null;
+      descriptor._maskGPUBufferSize = 0;
       return { buffer: null, array };
     }
     const usage = (typeof GPUBufferUsage !== 'undefined'
       ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
       : (1 << 5) | (1 << 3));
+    const requiredSize = Math.max(arrayByteLength, MASK_STORAGE_PAD);
     let buffer = descriptor._maskGPUBuffer;
-    if (!buffer || buffer.size < byteLength) {
+    const currentSize =
+      descriptor._maskGPUBufferSize ?? buffer?.size ?? buffer?._size ?? 0;
+    if (!buffer || currentSize < requiredSize) {
       if (buffer && typeof buffer.destroy === 'function') {
         try {
           buffer.destroy();
@@ -285,14 +289,26 @@ export class PresetProgram {
         }
       }
       buffer = ctx.device.createBuffer({
-        size: Math.max(byteLength, MASK_STORAGE_PAD),
+        size: requiredSize,
         usage,
       });
+      // Some implementations (notably Safari's Metal backend) omit the ``size``
+      // property on returned GPUBuffer objects. Track the allocation manually so
+      // future writes know the true capacity and can grow the buffer if needed.
+      buffer._size = requiredSize;
       descriptor._maskGPUBuffer = buffer;
+      descriptor._maskGPUBufferSize = requiredSize;
       descriptor._maskDataDirty = true;
     }
+    if (
+      buffer &&
+      (!Number.isFinite(descriptor._maskGPUBufferSize) || descriptor._maskGPUBufferSize <= 0)
+    ) {
+      const knownSize = buffer.size ?? buffer._size ?? requiredSize;
+      descriptor._maskGPUBufferSize = Number.isFinite(knownSize) && knownSize > 0 ? knownSize : requiredSize;
+    }
     if (descriptor._maskDataDirty && ctx.queue) {
-      ctx.queue.writeBuffer(buffer, 0, array, 0, array.length * 4);
+      ctx.queue.writeBuffer(buffer, 0, array);
       descriptor._maskDataDirty = false;
     }
     return { buffer };
@@ -463,8 +479,23 @@ export class PresetProgram {
         }
         if (!pipeline && descriptor.shaderSource && typeof context.createComputePipeline === 'function') {
           try {
-            pipeline = await context.createComputePipeline(descriptor.shaderSource);
+            const pipelineRequest = {
+              code: descriptor.shaderSource,
+              pipelineLayout: descriptor.pipelineLayout || null,
+              label: descriptor.label ? `stage:${descriptor.label}` : undefined,
+            };
+            pipeline = await context.createComputePipeline(pipelineRequest);
             descriptor.pipeline = pipeline;
+            if (pipeline?.getBindGroupLayout) {
+              try {
+                const stageLayout = pipeline.getBindGroupLayout(0);
+                if (stageLayout) {
+                  descriptor.bindGroupLayout = stageLayout;
+                }
+              } catch (layoutErr) {
+                console.warn('Failed to query bind group layout for stage', descriptor?.label, layoutErr);
+              }
+            }
           } catch (err) {
             console.warn('Failed to create pipeline for stage', descriptor?.label, err);
             pipeline = null;
@@ -580,8 +611,21 @@ export class PresetProgram {
 
         let pass = null;
         try {
-          const layout =
-            descriptor.bindGroupLayout || (pipeline.getBindGroupLayout ? pipeline.getBindGroupLayout(0) : null);
+          let layout = null;
+          if (pipeline?.getBindGroupLayout) {
+            try {
+              layout = pipeline.getBindGroupLayout(0);
+              if (layout) {
+                descriptor.bindGroupLayout = layout;
+              }
+            } catch (layoutErr) {
+              console.warn('Failed to fetch pipeline bind group layout for stage', descriptor?.label, layoutErr);
+              layout = null;
+            }
+          }
+          if (!layout) {
+            layout = descriptor.bindGroupLayout || null;
+          }
           if (!layout) {
             if (scopeActive) {
               const validationErr = await safePopErrorScope(device);
@@ -1102,6 +1146,7 @@ export class PresetProgram {
         descriptor.bindGroupLayout = null;
         descriptor.pipelineLayout = null;
         descriptor._maskGPUBuffer = null;
+        descriptor._maskGPUBufferSize = 0;
         descriptor._maskData = null;
       }
     }
@@ -1185,6 +1230,18 @@ function buildUniformBufferPair(stage, ctx) {
   return { entry, views, release };
 }
 
+function normalizeResourceType(resourceType) {
+  if (typeof resourceType !== 'string') {
+    return 'unknown';
+  }
+  const trimmed = resourceType.trim();
+  if (!trimmed) {
+    return 'unknown';
+  }
+  const camelToKebab = trimmed.replace(/([a-z0-9])([A-Z])/g, '$1-$2');
+  return camelToKebab.replace(/[\s_]+/g, '-').toLowerCase();
+}
+
 function buildBindingSignature(descriptor) {
   const parts = [];
   const bindings = descriptor.bindings || {};
@@ -1194,9 +1251,12 @@ function buildBindingSignature(descriptor) {
   if (bindings.writesTexture) parts.push('write-storage');
   if (Array.isArray(bindings.auxiliary)) {
     for (const aux of bindings.auxiliary) {
-      const type = aux?.resourceType || 'unknown';
+      const type = normalizeResourceType(aux?.resourceType || 'unknown');
       const opt = aux?.optional ? 'opt' : 'req';
-      parts.push(`aux:${type}:${opt}`);
+      const accessRaw = typeof aux?.access === 'string' ? aux.access.trim().toLowerCase() : '';
+      const access = accessRaw || (type === 'storage-buffer' ? 'read-write' : '');
+      const suffix = access && type === 'storage-buffer' && access !== 'read-write' ? `:${access}` : '';
+      parts.push(`aux:${type}:${opt}${suffix}`);
     }
   }
   return parts.length ? parts.join('|') : 'none';
@@ -1251,13 +1311,16 @@ function buildBindGroupLayoutEntries(descriptor) {
 
 function buildAuxiliaryLayoutEntry(aux, binding, visibility) {
   if (!aux) return null;
-  const type = aux.resourceType || 'texture';
-  switch (type) {
+  const normalizedType = normalizeResourceType(aux.resourceType || 'texture');
+  const collapsedType = normalizedType.replace(/-/g, '');
+  switch (collapsedType) {
     case 'sampler':
       return { binding, visibility, sampler: {} };
-    case 'storage-buffer':
-    case 'storageBuffer':
-      return { binding, visibility, buffer: { type: 'storage' } };
+    case 'storagebuffer': {
+      const accessRaw = typeof aux.access === 'string' ? aux.access.trim().toLowerCase() : '';
+      const bufferType = accessRaw === 'read-only' ? 'read-only-storage' : 'storage';
+      return { binding, visibility, buffer: { type: bufferType } };
+    }
     case 'buffer':
     case 'arraybuffer':
     case 'typedarray':
@@ -1379,6 +1442,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     name: r.name,
     resourceType: r.resourceType,
     optional: r.value === null || r.value === undefined,
+    access: r.access,
   }));
   descriptor.issues.push(...paramAnalysis.issues);
   if (paramAnalysis.unsupported) {
@@ -1744,23 +1808,27 @@ function specializeMultiresDescriptor(descriptor, stage) {
     name: 'sinNormalizationState',
     resourceType: 'storage-buffer',
     size: 16,
+    access: 'read-write',
   };
   descriptor.resourceParams.push(sinStateResource);
   descriptor.bindings.auxiliary.push({
     name: sinStateResource.name,
     resourceType: sinStateResource.resourceType,
     optional: false,
+    access: sinStateResource.access,
   });
   const maskResource = {
     name: 'maskData',
     resourceType: 'storage-buffer',
     size: 0,
+    access: 'read-only',
   };
   descriptor.resourceParams.push(maskResource);
   descriptor.bindings.auxiliary.push({
     name: maskResource.name,
     resourceType: maskResource.resourceType,
     optional: false,
+    access: maskResource.access,
   });
   descriptor.multiresBaseParams = cloneStageParams(stage?.params || {});
   descriptor.multiresMaskConfig = extractMultiresMaskConfig(stage?.params || {});
