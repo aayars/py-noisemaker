@@ -23,11 +23,18 @@ via `src/webgpu/shaders.js`, so future updates should modify that WGSL module
 directly.
 
 <<<<<<< ours
+<<<<<<< ours
 1. **Uniform layout integration** – update the WebGPU pipeline to populate the
    expanded `StageUniforms` fields (`brightness_freq`, `options2`, `options3`,
    etc.) and document the packing strategy alongside the CPU structs. The
    shader now expects precomputed seeds for hue/saturation/brightness override
    noises in addition to the octave seed offsets.
+=======
+1. **Uniform layout integration** – the WebGPU pipeline now writes the expanded
+   `StageUniforms` via `prepareMultiresUniformParams`, but we still need to
+   document the packing strategy alongside the CPU structs and audit the
+   remaining scalar aliases (`color_params1`, seed offsets, etc.).
+>>>>>>> theirs
 2. **Octave fidelity** – finish mirroring CPU semantics for alpha-preserving
    layers and additional value distributions. We currently approximate the seed
    sequence (`seed + octave_index - 1`) and still rebuild permutation tables
@@ -55,5 +62,25 @@ directly.
    lattice refract support, and parity for the per-layer/global normalization
    passes (especially the HSV `sin` path, which currently uses a simple
    `map_to_unit`). Preserve staged alpha channels when masks are present.
+<<<<<<< ours
 4. **Performance tuning** – avoid rebuilding permutation tables per invocation,
    and consider workgroup/shared caching once correctness is locked in.
+=======
+5. **Pipeline hook-up** – `resolveShaderId` now routes `multires` generators to
+   `MULTIRES_WGSL`. Keep this gated behind the remaining TODO items (masks,
+   normalization, alternate distributions) before enabling by default in the
+   renderer.
+6. **Performance tuning** – avoid rebuilding permutation tables per invocation,
+   and consider workgroup/shared caching once correctness is locked in.
+
+Leave this file in place until the shader reaches feature parity and is enabled
+in the renderer.
+
+Recent progress:
+
+* Stage uniforms are populated on the JS side (`prepareMultiresUniformParams`)
+  and the shader is compiled for presets without masks/supersample/AI options.
+  Follow up by wiring the remaining colour overrides and validating the
+  freq/channel packing against the CPU reference for edge cases (non-square
+  shapes, grayscale+alpha, octave alpha combine).
+>>>>>>> theirs

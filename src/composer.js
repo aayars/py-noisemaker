@@ -1,7 +1,7 @@
 import { Context } from './context.js';
-import { FULLSCREEN_VS } from './value.js';
+import { FULLSCREEN_VS, freqForShape } from './value.js';
 import { multires } from './generators.js';
-import { ColorSpace } from './constants.js';
+import { ColorSpace, OctaveBlending, ValueDistribution } from './constants.js';
 import { shapeFromParams, withTensorData } from './util.js';
 import { Tensor, markPresentationNormalized } from './tensor.js';
 import { compilePreset, buildTopologySignatureFromPreset } from './webgpu/pipeline.js';
@@ -204,6 +204,160 @@ function writeUniformLayout(view, layout, params, defaults) {
   }
 }
 
+function coerceNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function coerceUnsigned(value, fallback = 0, min = 0) {
+  const num = Math.floor(Number(value));
+  if (!Number.isFinite(num)) {
+    return Math.max(min, Math.floor(Number(fallback)) || min);
+  }
+  return Math.max(min, num);
+}
+
+function coerceBooleanFlag(value) {
+  if (typeof value === 'string') {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === 'true' || lowered === '1') return true;
+    if (lowered === 'false' || lowered === '0' || lowered === '') return false;
+  }
+  return Boolean(value);
+}
+
+function normalizeColorSpaceValue(value, fallback = ColorSpace.hsv) {
+  if (Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === 'grayscale' || lowered === 'grey' || lowered === 'gray') {
+      return ColorSpace.grayscale;
+    }
+    if (lowered === 'rgb') {
+      return ColorSpace.rgb;
+    }
+    if (lowered === 'hsv') {
+      return ColorSpace.hsv;
+    }
+    if (lowered === 'oklab') {
+      return ColorSpace.oklab;
+    }
+  }
+  return Number.isFinite(fallback) ? fallback : ColorSpace.hsv;
+}
+
+function prepareMultiresUniformParams(params = {}, defaults = {}) {
+  const out = { ...params };
+  const defaultOptions1 = valueToArray(defaults.options1);
+  const defaultColorSpace = defaultOptions1.length >= 3 ? defaultOptions1[2] : ColorSpace.hsv;
+  const colorSpaceValue = normalizeColorSpaceValue(
+    params.color_space ?? params.colorSpace,
+    normalizeColorSpaceValue(defaultColorSpace, ColorSpace.hsv),
+  );
+  out.color_space = colorSpaceValue;
+  out.colorSpace = colorSpaceValue;
+
+  const withAlpha = coerceBooleanFlag(params.withAlpha ?? params.with_alpha ?? false);
+  const width = coerceNumber(params.width, 0);
+  const height = coerceNumber(params.height, 0);
+  const shape = shapeFromParams(
+    width,
+    height,
+    colorSpaceValue === ColorSpace.grayscale ? 'grayscale' : 'rgb',
+    withAlpha,
+  );
+
+  const freqShape = [shape[0], shape[1]];
+  let rawFreq = null;
+  if (Array.isArray(params.freq) || ArrayBuffer.isView(params.freq)) {
+    rawFreq = Array.from(params.freq);
+  } else if (params.freq !== undefined) {
+    const freqNumber = Number(params.freq);
+    if (Number.isFinite(freqNumber)) {
+      rawFreq = freqForShape(freqNumber, freqShape);
+    }
+  }
+  if (!rawFreq || rawFreq.length === 0) {
+    const defaultFreq = valueToArray(defaults.freq);
+    if (defaultFreq.length >= 2) {
+      rawFreq = defaultFreq.slice(0, 2);
+    } else if (defaultFreq.length === 1) {
+      rawFreq = [defaultFreq[0], defaultFreq[0]];
+    } else {
+      rawFreq = [1, 1];
+    }
+  }
+  const freq0 = coerceNumber(rawFreq[0], 1);
+  const freq1Source = rawFreq.length > 1 ? rawFreq[1] : rawFreq[0];
+  const freq1 = coerceNumber(freq1Source, freq0);
+  out.freq = [freq0, freq1];
+
+  const speedDefault = defaults.speed !== undefined ? defaults.speed : 1;
+  const speedValue = coerceNumber(params.speed ?? out.speed, speedDefault);
+  out.speed = speedValue;
+
+  const sinDefault = defaults.sin_amount !== undefined ? defaults.sin_amount : 0;
+  const sinValue = coerceNumber(params.sin_amount ?? params.sin, sinDefault);
+  out.sin_amount = sinValue;
+
+  const defaultColorParams0 = valueToArray(defaults.color_params0);
+  const hueRangeDefault = defaultColorParams0.length > 0 ? defaultColorParams0[0] : 0.125;
+  const hueRotationDefault = defaultColorParams0.length > 1 ? defaultColorParams0[1] : 0;
+  const saturationDefault = defaultColorParams0.length > 2 ? defaultColorParams0[2] : 1;
+  const extraDefault = defaultColorParams0.length > 3 ? defaultColorParams0[3] : 0;
+  const hueRange = coerceNumber(params.hueRange ?? params.hue_range, hueRangeDefault);
+  const hueRotation = coerceNumber(params.hueRotation ?? params.hue_rotation, hueRotationDefault);
+  const saturation = coerceNumber(params.saturation, saturationDefault);
+  out.color_params0 = [hueRange, hueRotation, saturation, extraDefault];
+
+  const defaultColorParams1 = valueToArray(defaults.color_params1);
+  const colorParams1Source =
+    Array.isArray(params.color_params1) || ArrayBuffer.isView(params.color_params1)
+      ? Array.from(params.color_params1)
+      : Array.isArray(params.colorParams1) || ArrayBuffer.isView(params.colorParams1)
+      ? Array.from(params.colorParams1)
+      : defaultColorParams1;
+  out.color_params1 = [
+    coerceNumber(colorParams1Source[0], defaultColorParams1[0] ?? 0),
+    coerceNumber(colorParams1Source[1], defaultColorParams1[1] ?? 0),
+    coerceNumber(colorParams1Source[2], defaultColorParams1[2] ?? 0),
+    coerceNumber(colorParams1Source[3], defaultColorParams1[3] ?? 0),
+  ];
+
+  const defaultOptions0 = valueToArray(defaults.options0);
+  const octavesDefault = defaultOptions0.length > 0 ? defaultOptions0[0] : 1;
+  const blendingDefault = defaultOptions0.length > 1 ? defaultOptions0[1] : OctaveBlending.falloff;
+  const ridgesDefault = defaultOptions0.length > 3 ? defaultOptions0[3] : 0;
+  const octaves = Math.max(1, coerceUnsigned(params.octaves, octavesDefault, 1));
+  const octaveBlending = coerceUnsigned(
+    params.octaveBlending ?? params.octave_blending,
+    blendingDefault,
+  );
+  const ridges = coerceBooleanFlag(params.ridges ?? ridgesDefault);
+  let channelCount = colorSpaceValue === ColorSpace.grayscale ? 1 : 3;
+  if (withAlpha) {
+    channelCount += 1;
+  }
+  if (octaveBlending === OctaveBlending.alpha && (channelCount === 1 || channelCount === 3)) {
+    channelCount += 1;
+  }
+  channelCount = coerceUnsigned(params.channelCount, channelCount, 1);
+  out.options0 = [octaves >>> 0, octaveBlending >>> 0, channelCount >>> 0, ridges ? 1 : 0];
+
+  const seedOffsetDefault = defaultOptions1.length > 0 ? defaultOptions1[0] : 0;
+  const distribDefault = defaultOptions1.length > 1 ? defaultOptions1[1] : ValueDistribution.simplex;
+  const seedOffset = coerceUnsigned(
+    params.seedOffset ?? params.seed_offset,
+    seedOffsetDefault,
+  );
+  const distrib = coerceUnsigned(params.distrib, distribDefault);
+  out.options1 = [seedOffset >>> 0, distrib >>> 0, colorSpaceValue >>> 0, 0];
+
+  return out;
+}
+
 function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
   if (!program || typeof program.stageCount !== 'number') {
     return;
@@ -228,6 +382,7 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
     if (!uniformView || !uniformView.view) {
       continue;
     }
+<<<<<<< ours
     const rawParams = snapshot?.params || {};
     const resolvedParams =
       typeof descriptor.resolveUniformParams === 'function'
@@ -237,6 +392,16 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
       uniformView.view,
       descriptor.uniformLayout,
       resolvedParams,
+=======
+    let uniformParams = snapshot?.params || {};
+    if (descriptor.shaderId === 'MULTIRES_WGSL') {
+      uniformParams = prepareMultiresUniformParams(uniformParams, descriptor.uniformDefaults || {});
+    }
+    writeUniformLayout(
+      uniformView.view,
+      descriptor.uniformLayout,
+      uniformParams,
+>>>>>>> theirs
       descriptor.uniformDefaults || {},
     );
   }
@@ -417,6 +582,10 @@ export class Preset {
         if (generatorParams.withAlpha === undefined) generatorParams.withAlpha = withAlpha ? 1 : 0;
         if (generatorParams.width === undefined) generatorParams.width = width;
         if (generatorParams.height === undefined) generatorParams.height = height;
+        if (generatorParams.withSupersample === undefined) generatorParams.withSupersample = withSupersample ? 1 : 0;
+        if (generatorParams.withFxaa === undefined) generatorParams.withFxaa = withFxaa ? 1 : 0;
+        if (generatorParams.withAi === undefined) generatorParams.withAi = withAi ? 1 : 0;
+        if (generatorParams.withUpscale === undefined) generatorParams.withUpscale = withUpscale ? 1 : 0;
       }
       const dynamicParams = { time, speed, seed, frameIndex };
       for (const stage of stageSnapshots) {

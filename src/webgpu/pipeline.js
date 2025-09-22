@@ -1197,6 +1197,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     issues: [],
   };
 
+<<<<<<< ours
   const usesMultiresShader = descriptor.shaderId === 'MULTIRES_WGSL';
   let paramAnalysis;
   if (usesMultiresShader) {
@@ -1210,6 +1211,12 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
   } else {
     paramAnalysis = analyseStageParams(stage.params || {});
   }
+=======
+  const multiresGenerator = isMultiresGeneratorStage(stage);
+  const paramAnalysis = multiresGenerator
+    ? analyseMultiresGeneratorStage(stage.params || {})
+    : analyseStageParams(stage.params || {});
+>>>>>>> theirs
   descriptor.uniformLayout = paramAnalysis.layout;
   descriptor.uniformDefaults = paramAnalysis.defaults;
   descriptor.resourceParams = paramAnalysis.resources;
@@ -1220,6 +1227,9 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     optional: r.value === null || r.value === undefined,
   }));
   descriptor.issues.push(...paramAnalysis.issues);
+  if (paramAnalysis.unsupported) {
+    descriptor.gpuSupported = false;
+  }
 
   if (!descriptor.shaderId) {
     descriptor.gpuSupported = false;
@@ -1273,7 +1283,14 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
 function resolveShaderId(stage) {
   if (!stage || stage.unsupported) return null;
   if (stage.stageType === 'generator') {
+<<<<<<< ours
     return 'MULTIRES_WGSL';
+=======
+    if (isMultiresGeneratorStage(stage)) {
+      return 'MULTIRES_WGSL';
+    }
+    return null;
+>>>>>>> theirs
   }
   const name = stage.name || 'anonymous';
   const base = name
@@ -1331,6 +1348,89 @@ function cloneStageParams(params) {
     }
   }
   return out;
+}
+
+function getStageGeneratorName(stage) {
+  if (!stage) return null;
+  const candidate =
+    (typeof stage.name === 'string' && stage.name) ||
+    (stage.params && typeof stage.params.generator === 'string' && stage.params.generator);
+  if (!candidate) return null;
+  return candidate.toLowerCase();
+}
+
+function isMultiresGeneratorStage(stage) {
+  if (!stage || stage.stageType !== 'generator') {
+    return false;
+  }
+  const name = getStageGeneratorName(stage);
+  return !name || name === 'multires';
+}
+
+function analyseMultiresGeneratorStage(params) {
+  const issues = [];
+  let unsupported = false;
+  const flagUnsupported = (name) => {
+    unsupported = true;
+    issues.push({
+      level: 'error',
+      message: `multires generator parameter "${name}" is not yet supported on the GPU path`,
+    });
+  };
+  if (params && typeof params === 'object') {
+    const hasMask = params.mask !== undefined && params.mask !== null && params.mask !== 0;
+    if (hasMask) flagUnsupported('mask');
+    if (params.maskInverse) flagUnsupported('maskInverse');
+    if (params.maskStatic) flagUnsupported('maskStatic');
+    if (params.corners) flagUnsupported('corners');
+    if (params.latticeDrift && params.latticeDrift !== 0) flagUnsupported('latticeDrift');
+    if (params.hueDistrib) flagUnsupported('hueDistrib');
+    if (params.saturationDistrib) flagUnsupported('saturationDistrib');
+    if (params.brightnessDistrib) flagUnsupported('brightnessDistrib');
+    if (params.brightnessFreq) flagUnsupported('brightnessFreq');
+    if (params.withSupersample) flagUnsupported('withSupersample');
+    if (params.withFxaa) flagUnsupported('withFxaa');
+    if (params.withAi) flagUnsupported('withAi');
+    if (params.withUpscale) flagUnsupported('withUpscale');
+    const octaveEffects = Array.isArray(params.octaveEffects) ? params.octaveEffects : [];
+    if (octaveEffects.length) flagUnsupported('octaveEffects');
+    const postEffects = Array.isArray(params.postEffects) ? params.postEffects : [];
+    if (postEffects.length) flagUnsupported('postEffects');
+    const finalEffects = Array.isArray(params.finalEffects) ? params.finalEffects : [];
+    if (finalEffects.length) flagUnsupported('finalEffects');
+  }
+
+  const fields = [
+    { name: 'freq', scalarType: 'f32', components: 2, defaultValue: [1, 1] },
+    { name: 'speed', scalarType: 'f32', components: 1, defaultValue: 1 },
+    { name: 'sin_amount', scalarType: 'f32', components: 1, defaultValue: 0 },
+    { name: 'color_params0', scalarType: 'f32', components: 4, defaultValue: [0.125, 0, 1, 0] },
+    { name: 'color_params1', scalarType: 'f32', components: 4, defaultValue: [0, 0, 0, 0] },
+    {
+      name: 'options0',
+      scalarType: 'u32',
+      components: 4,
+      defaultValue: [1, OctaveBlending.falloff >>> 0, 3, 0],
+    },
+    {
+      name: 'options1',
+      scalarType: 'u32',
+      components: 4,
+      defaultValue: [0, ValueDistribution.simplex >>> 0, ColorSpace.hsv >>> 0, 0],
+    },
+  ];
+  const layout = buildStd140Layout(fields, issues);
+  const defaults = {
+    freq: fields[0].defaultValue.slice(),
+    speed: fields[1].defaultValue,
+    sin_amount: fields[2].defaultValue,
+    color_params0: fields[3].defaultValue.slice(),
+    color_params1: fields[4].defaultValue.slice(),
+    options0: fields[5].defaultValue.slice(),
+    options1: fields[6].defaultValue.slice(),
+  };
+
+  return { layout, defaults, resources: [], issues, requiresUniforms: true, unsupported };
 }
 
 function analyseStageParams(params) {
