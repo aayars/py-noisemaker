@@ -1,12 +1,11 @@
-// Multi-resolution generator compute shader (work in progress).
+// Simplified multi-resolution generator compute shader.
 //
-// This module ports the CPU "multires" generator to WebGPU. The implementation
-// is intentionally verbose so that it mirrors the reference JavaScript and
-// Python code paths line-for-line. Large helper blocks (e.g. permutation table
-// construction and OpenSimplex evaluation) are included here even though the
-// entry point has not yet been fully wired into the pipeline. Future passes
-// will flesh out the remaining pieces and hook the shader up to the runtime
-// program builder.
+// This version keeps the same uniform layout and binding model as the original
+// work-in-progress port so it can drop into the existing WebGPU pipeline, but
+// the implementation focuses on the core octave stacking behaviour.  Procedural
+// masks, lattice drift, permutation table indirection, and other advanced
+// features are intentionally left out so the shader is easier to reason about
+// and cheaper to execute while we continue iterating on the GPU path.
 
 struct FrameUniforms {
   resolution : vec2<f32>,
@@ -29,17 +28,28 @@ struct StageUniforms {
   options3 : vec4<u32>,
 };
 
-const PERMUTATION_SIZE : u32 = 256u;
-const GRADIENTS_2D_LENGTH : u32 = 16u;
-const GRADIENTS_3D_LENGTH : u32 = 72u;
-const GRADIENTS_3D_COUNT : u32 = GRADIENTS_3D_LENGTH / 3u;
+struct NormalizationState {
+  min_value : atomic<u32>,
+  max_value : atomic<u32>,
+  count : atomic<u32>,
+  phase : atomic<u32>,
+};
 
-const STRETCH_CONSTANT_2D : f32 = -0.211324865405187;
-const SQUISH_CONSTANT_2D : f32 = 0.366025403784439;
-const STRETCH_CONSTANT_3D : f32 = -0.16666666666666666;
-const SQUISH_CONSTANT_3D : f32 = 0.3333333333333333;
-const NORM_CONSTANT_2D : f32 = 47.0;
-const NORM_CONSTANT_3D : f32 = 103.0;
+struct SinNormalizationState {
+  min_value : atomic<u32>,
+  max_value : atomic<u32>,
+  count : atomic<u32>,
+  phase : atomic<u32>,
+};
+
+// Dummy structures for bindings that are still part of the pipeline layout.
+struct MaskData {
+  values : array<f32>,
+};
+
+struct PermutationTableStorage {
+  values : array<u32>,
+};
 
 const TAU : f32 = 6.283185307179586;
 const PI : f32 = 3.141592653589793;
@@ -74,74 +84,193 @@ const DISTRIB_CENTER_DECAGON : u32 = 30u;
 const DISTRIB_CENTER_HENDECAGON : u32 = 31u;
 const DISTRIB_CENTER_DODECAGON : u32 = 32u;
 
-const INV_SQRT2 : f32 = 0.7071067811865476;
-
-const EPSILON : f32 = 0.000001;
-
+const FLOAT_SIGN_BIT : u32 = 0x80000000u;
 const F32_MAX : f32 = 3.402823466e38;
-
-const LAYER_FLAG_HAS_SIN_HSV : u32 = 1u;
-
-const GRADIENTS_2D : array<i32, 16> = array<i32, 16>(
-  5, 2, 2, 5,
-  -5, 2, -2, 5,
-  5, -2, 2, -5,
-  -5, -2, -2, -5,
-);
-
-const GRADIENTS_3D : array<i32, 72> = array<i32, 72>(
-  -11, 4, 4, -4, 11, 4, -4, 4, 11,
-  11, 4, 4, 4, 11, 4, 4, 4, 11,
-  -11, -4, 4, -4, -11, 4, -4, -4, 11,
-  11, -4, 4, 4, -11, 4, 4, -4, 11,
-  -11, 4, -4, -4, 11, -4, -4, 4, -11,
-  11, 4, -4, 4, 11, -4, 4, 4, -11,
-  -11, -4, -4, -4, -11, -4, -4, -4, -11,
-  11, -4, -4, 4, -11, -4, 4, -4, -11,
-);
 
 fn bool_from_u32(value : u32) -> bool {
   return value != 0u;
 }
 
-fn bool_to_i32(value : bool) -> i32 {
-  return select(0, 1, value);
-}
-
-fn bool_to_f32(value : bool) -> f32 {
-  return select(0.0, 1.0, value);
+fn consume_u32(_value : u32) {
 }
 
 fn saturate(value : f32) -> f32 {
   return clamp(value, 0.0, 1.0);
 }
 
-fn replicate4(value : f32) -> vec4<f32> {
-  return vec4<f32>(value, value, value, value);
+fn float_is_valid(value : f32) -> bool {
+  return value == value && abs(value) <= F32_MAX;
 }
 
-fn map_to_unit(value : f32) -> f32 {
-  return value * 0.5 + 0.5;
+fn float_to_ordered_uint(value : f32) -> u32 {
+  let bits : u32 = bitcast<u32>(value);
+  if ((bits & FLOAT_SIGN_BIT) != 0u) {
+    return ~bits;
+  }
+  return bits | FLOAT_SIGN_BIT;
 }
 
 fn ridge_transform(value : f32) -> f32 {
   return 1.0 - abs(value * 2.0 - 1.0);
 }
 
+fn pcg3d(v_in : vec3<u32>) -> vec3<u32> {
+  var v : vec3<u32> = v_in * 1664525u + 1013904223u;
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v = v ^ (v >> vec3<u32>(16u));
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  return v;
+}
+
+fn random_from_cell(cell : vec2<i32>, seed : u32) -> f32 {
+  let packed : vec3<u32> = vec3<u32>(
+    bitcast<u32>(cell.x),
+    bitcast<u32>(cell.y),
+    seed,
+  );
+  let noise : vec3<u32> = pcg3d(packed);
+  return f32(noise.x) / f32(0xffffffffu);
+}
+
+fn sample_value_noise(
+  uv : vec2<f32>,
+  freq : vec2<f32>,
+  seed : u32,
+  channel : u32,
+  octave : u32,
+  time_value : f32,
+  speed : f32,
+) -> f32 {
+  let scaled_freq : vec2<f32> = max(freq, vec2<f32>(1.0, 1.0));
+  let animated : vec2<f32> = (uv + vec2<f32>(time_value * speed, time_value * speed * 0.5)) * scaled_freq;
+  let cell_f : vec2<f32> = floor(animated);
+  let cell : vec2<i32> = vec2<i32>(i32(cell_f.x), i32(cell_f.y));
+  let frac : vec2<f32> = fract(animated);
+  let salt : u32 = (channel * 0x9e3779b9u) ^ (octave * 0x85ebca6bu);
+  let base_seed : u32 = seed ^ salt;
+
+  let v00 : f32 = random_from_cell(cell, base_seed);
+  let v10 : f32 = random_from_cell(cell + vec2<i32>(1, 0), base_seed);
+  let v01 : f32 = random_from_cell(cell + vec2<i32>(0, 1), base_seed);
+  let v11 : f32 = random_from_cell(cell + vec2<i32>(1, 1), base_seed);
+
+  let x0 : f32 = mix(v00, v10, frac.x);
+  let x1 : f32 = mix(v01, v11, frac.x);
+  return mix(x0, x1, frac.y);
+}
+
+fn regular_polygon_weight(centered : vec2<f32>, sides : f32) -> f32 {
+  if (sides <= 0.0) {
+    return 0.0;
+  }
+  let angle : f32 = atan2(centered.y, centered.x);
+  let radius : f32 = length(centered);
+  if (radius == 0.0) {
+    return 1.0;
+  }
+  let sector : f32 = TAU / sides;
+  let snapped : f32 = floor(0.5 + angle / sector) * sector;
+  let distance : f32 = cos(snapped - angle) * radius;
+  return saturate(1.0 - distance * 2.0);
+}
+
+fn center_distribution(distrib : u32, uv : vec2<f32>, aspect_ratio : f32) -> f32 {
+  let center : vec2<f32> = vec2<f32>(0.5 * aspect_ratio, 0.5);
+  let scaled : vec2<f32> = vec2<f32>(uv.x * aspect_ratio, uv.y) - center;
+  let circle : f32 = saturate(1.0 - length(scaled) * 2.0);
+
+  if (distrib == DISTRIB_CENTER_CIRCLE) {
+    return circle;
+  }
+  if (distrib == DISTRIB_CENTER_DIAMOND) {
+    let diamond : f32 = saturate(1.0 - (abs(scaled.x) + abs(scaled.y)) * 1.5);
+    return diamond;
+  }
+  if (distrib == DISTRIB_CENTER_SQUARE) {
+    let square : f32 = saturate(1.0 - max(abs(scaled.x), abs(scaled.y)) * 2.0);
+    return square;
+  }
+
+  var sides : u32 = 0u;
+  if (distrib >= DISTRIB_CENTER_TRIANGLE && distrib <= DISTRIB_CENTER_DODECAGON) {
+    sides = 3u + (distrib - DISTRIB_CENTER_TRIANGLE);
+  }
+  if (sides >= 3u) {
+    return regular_polygon_weight(scaled, f32(sides));
+  }
+  return circle;
+}
+
+fn apply_distribution(
+  base_value : f32,
+  distrib : u32,
+  uv : vec2<f32>,
+  aspect_ratio : f32,
+) -> f32 {
+  if (distrib == DISTRIB_NONE || distrib == 0u) {
+    return base_value;
+  }
+  switch (distrib) {
+    case DISTRIB_SIMPLEX: {
+      return base_value;
+    }
+    case DISTRIB_EXP: {
+      return pow(base_value, 3.0);
+    }
+    case DISTRIB_ONES: {
+      return 1.0;
+    }
+    case DISTRIB_MIDS: {
+      return 0.5;
+    }
+    case DISTRIB_ZEROS: {
+      return 0.0;
+    }
+    case DISTRIB_COLUMN_INDEX: {
+      return saturate(uv.x);
+    }
+    case DISTRIB_ROW_INDEX: {
+      return saturate(uv.y);
+    }
+    default: {
+      if (distrib >= DISTRIB_CENTER_CIRCLE) {
+        return center_distribution(distrib, uv, aspect_ratio);
+      }
+      return base_value;
+    }
+  }
+}
+
+fn sample_distribution_value(
+  uv : vec2<f32>,
+  freq : vec2<f32>,
+  seed : u32,
+  distrib : u32,
+  octave : u32,
+  time_value : f32,
+  speed : f32,
+  aspect_ratio : f32,
+) -> f32 {
+  let noise_value : f32 = sample_value_noise(uv, freq, seed, 0u, octave, time_value, speed);
+  return apply_distribution(noise_value, distrib, uv, aspect_ratio);
+}
+
 fn linear_to_srgb_component(value : f32) -> f32 {
-  let threshold : f32 = 0.0031308;
-  if (value <= threshold) {
+  if (value <= 0.0031308) {
     return value * 12.92;
   }
-  let clamped_value : f32 = max(value, 0.0);
-  return 1.055 * pow(clamped_value, 1.0 / 2.4) - 0.055;
+  return 1.055 * pow(max(value, 0.0), 1.0 / 2.4) - 0.055;
 }
 
 fn linear_to_srgb(linear : vec3<f32>) -> vec3<f32> {
   return vec3<f32>(
     linear_to_srgb_component(linear.x),
     linear_to_srgb_component(linear.y),
-    linear_to_srgb_component(linear.z)
+    linear_to_srgb_component(linear.z),
   );
 }
 
@@ -151,7 +280,7 @@ fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
   let delta : f32 = cmax - cmin;
 
   var hue : f32 = 0.0;
-  if (delta > EPSILON) {
+  if (delta > 0.0) {
     if (cmax == rgb.x) {
       hue = (rgb.y - rgb.z) / delta;
       if (hue < 0.0) {
@@ -163,13 +292,10 @@ fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
       hue = ((rgb.x - rgb.y) / delta) + 4.0;
     }
     hue = hue / 6.0;
-    if (hue < 0.0) {
-      hue = hue + 1.0;
-    }
   }
 
   var saturation : f32 = 0.0;
-  if (cmax > EPSILON) {
+  if (cmax > 0.0) {
     saturation = delta / cmax;
   }
 
@@ -178,8 +304,8 @@ fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
 
 fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
   let hue : f32 = fract(hsv.x);
-  let saturation : f32 = hsv.y;
-  let value : f32 = hsv.z;
+  let saturation : f32 = clamp(hsv.y, 0.0, 1.0);
+  let value : f32 = clamp(hsv.z, 0.0, 1.0);
 
   let chroma : f32 = value * saturation;
   let h_prime : f32 = hue * 6.0;
@@ -212,1130 +338,63 @@ fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
   return rgb + vec3<f32>(m, m, m);
 }
 
-fn oklab_to_rgb(lab : vec3<f32>) -> vec3<f32> {
-  let L : f32 = lab.x;
-  let a : f32 = lab.y;
-  let b : f32 = lab.z;
+const OKLAB_FWD_A : mat3x3<f32> = mat3x3<f32>(
+  vec3<f32>(1.0, 1.0, 1.0),
+  vec3<f32>(0.3963377774, -0.1055613458, -0.0894841775),
+  vec3<f32>(0.2158037573, -0.0638541728, -1.2914855480),
+);
 
-  let l_ : f32 = L + 0.3963377774 * a + 0.2158037573 * b;
-  let m_ : f32 = L - 0.1055613458 * a - 0.0638541728 * b;
-  let s_ : f32 = L - 0.0894841775 * a - 1.2914855480 * b;
+const OKLAB_FWD_B : mat3x3<f32> = mat3x3<f32>(
+  vec3<f32>(4.0767245293, -1.2681437731, -0.0041119885),
+  vec3<f32>(-3.3072168827, 2.6093323231, -0.7034763098),
+  vec3<f32>(0.2307590544, -0.3411344290, 1.7068625689),
+);
 
-  let l : f32 = l_ * l_ * l_;
-  let m : f32 = m_ * m_ * m_;
-  let s : f32 = s_ * s_ * s_;
-
-  let linear : vec3<f32> = vec3<f32>(
-    4.0767245293 * l - 3.3072168827 * m + 0.2307590544 * s,
-    -1.2681437731 * l + 2.6093323231 * m - 0.3411344290 * s,
-    -0.0041119885 * l - 0.7034763098 * m + 1.7068625689 * s
-  );
-
-  return linear_to_srgb(linear);
+fn oklab_to_srgb(lab : vec3<f32>) -> vec3<f32> {
+  let lms : vec3<f32> = OKLAB_FWD_A * lab;
+  let cubic : vec3<f32> = vec3<f32>(lms.x * lms.x * lms.x, lms.y * lms.y * lms.y, lms.z * lms.z * lms.z);
+  return linear_to_srgb(OKLAB_FWD_B * cubic);
 }
 
 fn compute_octave_frequency(base_freq : vec2<f32>, octave_index : u32) -> vec2<f32> {
   let multiplier : f32 = pow(2.0, f32(octave_index));
-  var freq : vec2<f32> = floor(base_freq * 0.5 * multiplier);
-  if (freq.x < 1.0) {
-    freq.x = 1.0;
-  }
-  if (freq.y < 1.0) {
-    freq.y = 1.0;
-  }
-  return freq;
+  return base_freq * multiplier;
 }
 
-fn compute_pin_offset_pixels(
-  freq : vec2<f32>,
-  corners_enabled : bool,
-  resolution : vec2<f32>,
-) -> vec2<i32> {
-  let fy : f32 = max(freq.y, 1.0);
-  let fx : f32 = max(freq.x, 1.0);
-  let fy_int : u32 = u32(floor(fy));
-  var apply_offset : bool = false;
-  if (!corners_enabled) {
-    apply_offset = (fy_int & 1u) == 0u;
-  } else {
-    apply_offset = (fy_int & 1u) == 1u;
-  }
-  if (!apply_offset) {
-    return vec2<i32>(0, 0);
-  }
-  let cell_width : f32 = resolution.x / max(fx, 1.0);
-  let cell_height : f32 = resolution.y / max(fy, 1.0);
-  let offset_x : i32 = i32(floor(cell_width * 0.5));
-  let offset_y : i32 = i32(floor(cell_height * 0.5));
-  return vec2<i32>(offset_x, offset_y);
+fn combine_alpha(base_color : vec4<f32>, layer : vec4<f32>) -> vec4<f32> {
+  let alpha_vec : vec4<f32> = vec4<f32>(layer.w, layer.w, layer.w, layer.w);
+  return base_color * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
 }
 
-fn wrap_i32(value : i32, limit : i32) -> i32 {
-  if (limit == 0) {
-    return 0;
-  }
-  var result : i32 = value % limit;
-  if (result < 0) {
-    result = result + limit;
-  }
-  return result;
-}
+fn update_normalization(sample : vec4<f32>, with_alpha : bool, state : ptr<storage, NormalizationState, read_write>) {
+  var min_value : f32 = 0.0;
+  var max_value : f32 = 0.0;
+  var has_valid_sample : bool = false;
 
-fn blend_cubic(a : f32, b : f32, c1 : f32, d : f32, g : f32) -> f32 {
-  let gg : f32 = g;
-  let g2 : f32 = gg * gg;
-  let a0 : f32 = (d - c1 - a) + b;
-  let a1 : f32 = (a - b) - a0;
-  let a2 : f32 = c1 - a;
-  let a3 : f32 = b;
-  let term1 : f32 = (a0 * gg) * g2;
-  let term2 : f32 = a1 * g2;
-  let term3 : f32 = a2 * gg + a3;
-  return term1 + term2 + term3;
-}
+  let components : array<f32, 4> = array<f32, 4>(sample.x, sample.y, sample.z, sample.w);
+  let limit : u32 = select(3u, 4u, with_alpha);
 
-struct SampleContext {
-  coarse_dims : vec2<i32>,
-  position : vec2<f32>,
-};
-
-fn build_sample_context(
-  freq : vec2<f32>,
-  pixel : vec2<i32>,
-  resolution : vec2<i32>,
-  pin_offset : vec2<i32>,
-) -> SampleContext {
-  let coarse_width : i32 = max(i32(floor(freq.x)), 1);
-  let coarse_height : i32 = max(i32(floor(freq.y)), 1);
-  let width : i32 = max(resolution.x, 1);
-  let height : i32 = max(resolution.y, 1);
-  let shifted_x : i32 = wrap_i32(pixel.x + pin_offset.x, width);
-  let shifted_y : i32 = wrap_i32(pixel.y + pin_offset.y, height);
-  let scale_x : f32 = f32(coarse_width) / f32(width);
-  let scale_y : f32 = f32(coarse_height) / f32(height);
-  let pos : vec2<f32> = vec2<f32>(f32(shifted_x) * scale_x, f32(shifted_y) * scale_y);
-  return SampleContext(vec2<i32>(coarse_width, coarse_height), pos);
-}
-
-fn sample_simplex_resampled(
-  context : SampleContext,
-  z : f32,
-  base_seed : u32,
-  channel_index : u32,
-) -> f32 {
-  let coarse_width : i32 = max(context.coarse_dims.x, 1);
-  let coarse_height : i32 = max(context.coarse_dims.y, 1);
-  if (coarse_width == 1 && coarse_height == 1) {
-    return sample_simplex_channel(vec2<f32>(0.0, 0.0), z, base_seed, channel_index);
-  }
-
-  let gx : f32 = context.position.x;
-  let gy : f32 = context.position.y;
-  let x0 : i32 = i32(floor(gx));
-  let y0 : i32 = i32(floor(gy));
-  let tx : f32 = fract(gx);
-  let ty : f32 = fract(gy);
-
-  if (coarse_width == 1) {
-    var column : array<f32, 4>;
-    for (var m : i32 = -1; m < 3; m = m + 1) {
-      let sy : i32 = wrap_i32(y0 + m, coarse_height);
-      column[m + 1] = sample_simplex_channel(
-        vec2<f32>(0.0, f32(sy)),
-        z,
-        base_seed,
-        channel_index,
-      );
+  for (var i : u32 = 0u; i < limit; i = i + 1u) {
+    let value : f32 = components[i];
+    if (!float_is_valid(value)) {
+      continue;
     }
-    return blend_cubic(column[0], column[1], column[2], column[3], ty);
-  }
-
-  if (coarse_height == 1) {
-    var row : array<f32, 4>;
-    for (var n : i32 = -1; n < 3; n = n + 1) {
-      let sx : i32 = wrap_i32(x0 + n, coarse_width);
-      row[n + 1] = sample_simplex_channel(
-        vec2<f32>(f32(sx), 0.0),
-        z,
-        base_seed,
-        channel_index,
-      );
+    if (!has_valid_sample) {
+      min_value = value;
+      max_value = value;
+      has_valid_sample = true;
+    } else {
+      min_value = min(min_value, value);
+      max_value = max(max_value, value);
     }
-    return blend_cubic(row[0], row[1], row[2], row[3], tx);
   }
 
-  var rows : array<f32, 4>;
-  for (var m : i32 = -1; m < 3; m = m + 1) {
-    let sy : i32 = wrap_i32(y0 + m, coarse_height);
-    let s0 : f32 = sample_simplex_channel(
-      vec2<f32>(f32(wrap_i32(x0 - 1, coarse_width)), f32(sy)),
-      z,
-      base_seed,
-      channel_index,
-    );
-    let s1 : f32 = sample_simplex_channel(
-      vec2<f32>(f32(wrap_i32(x0, coarse_width)), f32(sy)),
-      z,
-      base_seed,
-      channel_index,
-    );
-    let s2 : f32 = sample_simplex_channel(
-      vec2<f32>(f32(wrap_i32(x0 + 1, coarse_width)), f32(sy)),
-      z,
-      base_seed,
-      channel_index,
-    );
-    let s3 : f32 = sample_simplex_channel(
-      vec2<f32>(f32(wrap_i32(x0 + 2, coarse_width)), f32(sy)),
-      z,
-      base_seed,
-      channel_index,
-    );
-    rows[m + 1] = blend_cubic(s0, s1, s2, s3, tx);
-  }
-  return blend_cubic(rows[0], rows[1], rows[2], rows[3], ty);
-}
-
-fn sample_distribution_value_resampled(
-  context : SampleContext,
-  z : f32,
-  seed : u32,
-  distrib : u32,
-  octave_freq : vec2<f32>,
-  pixel_coord : vec2<f32>,
-  resolution : vec2<f32>,
-  time_value : f32,
-  speed_value : f32,
-) -> f32 {
-  if (distrib == DISTRIB_NONE || distrib == 0u) {
-    return 0.0;
-  }
-  if (distrib == DISTRIB_ONES) {
-    return 1.0;
-  }
-  if (distrib == DISTRIB_MIDS) {
-    return 0.5;
-  }
-  if (distrib == DISTRIB_ZEROS) {
-    return 0.0;
-  }
-  let sample : f32 = sample_simplex_resampled(context, z, seed, 0u);
-  return apply_primary_distribution(
-    sample,
-    distrib,
-    context.position,
-    octave_freq,
-    pixel_coord,
-    resolution,
-    time_value,
-    speed_value,
-  );
-}
-
-fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
-  let alpha_value : f32 = layer.w;
-  let alpha_vec : vec4<f32> = replicate4(alpha_value);
-  (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
-}
-
-fn load_mask_sample(octave_index : u32, pixel_index : u32, stride : u32) -> vec4<f32> {
-  if (octave_index == 0u) {
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-  }
-  let total : u32 = arrayLength(&mask_data);
-  if (total == 0u || stride == 0u) {
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-  }
-  let base_index : u32 = (octave_index - 1u) * stride + pixel_index * 4u;
-  if (base_index + 3u >= total) {
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-  }
-  return vec4<f32>(
-    mask_data[base_index],
-    mask_data[base_index + 1u],
-    mask_data[base_index + 2u],
-    mask_data[base_index + 3u],
-  );
-}
-
-struct LayerResult {
-  color : vec4<f32>,
-  hsv : vec4<f32>,
-  flags : u32,
-};
-
-const FLOAT_SIGN_BIT : u32 = 0x80000000u;
-
-fn float_to_ordered_uint(value : f32) -> u32 {
-  let bits : u32 = bitcast<u32>(value);
-  if ((bits & FLOAT_SIGN_BIT) != 0u) {
-    return ~bits;
-  }
-  return bits ^ FLOAT_SIGN_BIT;
-}
-
-fn ordered_uint_to_float(value : u32) -> f32 {
-  var bits : u32;
-  if ((value & FLOAT_SIGN_BIT) != 0u) {
-    bits = value ^ FLOAT_SIGN_BIT;
-  } else {
-    bits = ~value;
-  }
-  return bitcast<f32>(bits);
-}
-
-fn float_is_valid(value : f32) -> bool {
-  return value == value && abs(value) < F32_MAX;
-}
-
-fn update_min_max(
-  component : f32,
-  min_value : ptr<function, f32>,
-  max_value : ptr<function, f32>,
-  has_valid : ptr<function, bool>,
-) {
-  if (!float_is_valid(component)) {
+  if (!has_valid_sample) {
     return;
   }
-  if (!(*has_valid)) {
-    (*min_value) = component;
-    (*max_value) = component;
-    (*has_valid) = true;
-    return;
-  }
-  (*min_value) = min((*min_value), component);
-  (*max_value) = max((*max_value), component);
-}
 
-struct PermutationTables {
-  perm : array<u32, PERMUTATION_SIZE>,
-  perm_grad_index3d : array<u32, PERMUTATION_SIZE>,
-};
-
-struct PermutationTableStorageEntry {
-  seed : u32,
-  pad0 : u32,
-  pad1 : u32,
-  pad2 : u32,
-  tables : PermutationTables,
-};
-
-struct PermutationTableStorage {
-  count : u32,
-  pad0 : u32,
-  pad1 : u32,
-  pad2 : u32,
-  entries : array<PermutationTableStorageEntry>,
-};
-
-struct NormalizationState {
-  min_value : atomic<u32>,
-  max_value : atomic<u32>,
-  count : atomic<u32>,
-  phase : atomic<u32>,
-};
-
-struct SinNormalizationState {
-  min_value : atomic<u32>,
-  max_value : atomic<u32>,
-  count : atomic<u32>,
-  phase : atomic<u32>,
-};
-
-fn fetch_permutation_table_index(seed : u32) -> u32 {
-  let total : u32 = permutation_table_storage.count;
-  if (total == 0u) {
-    return 0u;
-  }
-  var index : u32 = 0u;
-  loop {
-    if (index >= total) {
-      break;
-    }
-    if (permutation_table_storage.entries[index].seed == seed) {
-      return index;
-    }
-    index = index + 1u;
-  }
-  return 0u;
-}
-
-fn extrapolate2d(
-  tables : ptr<storage, PermutationTables>,
-  xsb : i32,
-  ysb : i32,
-  dx : f32,
-  dy : f32,
-) -> f32 {
-  let px : u32 = (*tables).perm[u32(xsb & 255)];
-  let index : u32 = ((*tables).perm[(px + u32(ysb & 255)) & 255u] & 0x0eu);
-  let g1 : f32 = f32(GRADIENTS_2D[index]);
-  let g2 : f32 = f32(GRADIENTS_2D[index + 1u]);
-  return g1 * dx + g2 * dy;
-}
-
-fn extrapolate3d(
-  tables : ptr<storage, PermutationTables>,
-  xsb : i32,
-  ysb : i32,
-  zsb : i32,
-  dx : f32,
-  dy : f32,
-  dz : f32,
-) -> f32 {
-  let px : u32 = (*tables).perm[u32(xsb & 255)];
-  let py : u32 = (*tables).perm[(px + u32(ysb & 255)) & 255u];
-  let index : u32 = (*tables).perm_grad_index3d[(py + u32(zsb & 255)) & 255u];
-  let g1 : f32 = f32(GRADIENTS_3D[index]);
-  let g2 : f32 = f32(GRADIENTS_3D[index + 1u]);
-  let g3 : f32 = f32(GRADIENTS_3D[index + 2u]);
-  return g1 * dx + g2 * dy + g3 * dz;
-}
-
-fn open_simplex_2d(tables : ptr<storage, PermutationTables>, x : f32, y : f32) -> f32 {
-  let stretch_offset : f32 = (x + y) * STRETCH_CONSTANT_2D;
-  let xs : f32 = x + stretch_offset;
-  let ys : f32 = y + stretch_offset;
-  var xsb : i32 = i32(floor(xs));
-  var ysb : i32 = i32(floor(ys));
-  let squish_offset : f32 = f32(xsb + ysb) * SQUISH_CONSTANT_2D;
-  let xb : f32 = f32(xsb) + squish_offset;
-  let yb : f32 = f32(ysb) + squish_offset;
-  let xins : f32 = xs - f32(xsb);
-  let yins : f32 = ys - f32(ysb);
-  let in_sum : f32 = xins + yins;
-  var dx0 : f32 = x - xb;
-  var dy0 : f32 = y - yb;
-  var value : f32 = 0.0;
-
-  var dx1 : f32 = dx0 - 1.0 - SQUISH_CONSTANT_2D;
-  var dy1 : f32 = dy0 - SQUISH_CONSTANT_2D;
-  var attn1 : f32 = 2.0 - dx1 * dx1 - dy1 * dy1;
-  if (attn1 > 0.0) {
-    attn1 = attn1 * attn1;
-    value = value + attn1 * attn1 * extrapolate2d(tables, xsb + 1, ysb, dx1, dy1);
-  }
-
-  var dx2 : f32 = dx0 - SQUISH_CONSTANT_2D;
-  var dy2 : f32 = dy0 - 1.0 - SQUISH_CONSTANT_2D;
-  var attn2 : f32 = 2.0 - dx2 * dx2 - dy2 * dy2;
-  if (attn2 > 0.0) {
-    attn2 = attn2 * attn2;
-    value = value + attn2 * attn2 * extrapolate2d(tables, xsb, ysb + 1, dx2, dy2);
-  }
-
-  var xsv_ext : i32;
-  var ysv_ext : i32;
-  var dx_ext : f32;
-  var dy_ext : f32;
-
-  if (in_sum <= 1.0) {
-    let zins : f32 = 1.0 - in_sum;
-    if (zins > xins || zins > yins) {
-      if (xins > yins) {
-        xsv_ext = xsb + 1;
-        ysv_ext = ysb - 1;
-        dx_ext = dx0 - 1.0;
-        dy_ext = dy0 + 1.0;
-      } else {
-        xsv_ext = xsb - 1;
-        ysv_ext = ysb + 1;
-        dx_ext = dx0 + 1.0;
-        dy_ext = dy0 - 1.0;
-      }
-    } else {
-      xsv_ext = xsb + 1;
-      ysv_ext = ysb + 1;
-      dx_ext = dx0 - 1.0 - 2.0 * SQUISH_CONSTANT_2D;
-      dy_ext = dy0 - 1.0 - 2.0 * SQUISH_CONSTANT_2D;
-    }
-  } else {
-    let zins : f32 = 2.0 - in_sum;
-    if (zins < xins || zins < yins) {
-      if (xins > yins) {
-        xsv_ext = xsb + 2;
-        ysv_ext = ysb;
-        dx_ext = dx0 - 2.0 - 2.0 * SQUISH_CONSTANT_2D;
-        dy_ext = dy0 - 2.0 * SQUISH_CONSTANT_2D;
-      } else {
-        xsv_ext = xsb;
-        ysv_ext = ysb + 2;
-        dx_ext = dx0 - 2.0 * SQUISH_CONSTANT_2D;
-        dy_ext = dy0 - 2.0 - 2.0 * SQUISH_CONSTANT_2D;
-      }
-    } else {
-      xsv_ext = xsb;
-      ysv_ext = ysb;
-      dx_ext = dx0;
-      dy_ext = dy0;
-    }
-    xsb = xsb + 1;
-    ysb = ysb + 1;
-    dx0 = dx0 - 1.0 - 2.0 * SQUISH_CONSTANT_2D;
-    dy0 = dy0 - 1.0 - 2.0 * SQUISH_CONSTANT_2D;
-  }
-
-  var attn0 : f32 = 2.0 - dx0 * dx0 - dy0 * dy0;
-  if (attn0 > 0.0) {
-    attn0 = attn0 * attn0;
-    value = value + attn0 * attn0 * extrapolate2d(tables, xsb, ysb, dx0, dy0);
-  }
-
-  var attn_ext : f32 = 2.0 - dx_ext * dx_ext - dy_ext * dy_ext;
-  if (attn_ext > 0.0) {
-    attn_ext = attn_ext * attn_ext;
-    value = value + attn_ext * attn_ext * extrapolate2d(tables, xsv_ext, ysv_ext, dx_ext, dy_ext);
-  }
-
-  return value / NORM_CONSTANT_2D;
-}
-
-fn open_simplex_3d(tables : ptr<storage, PermutationTables>, x : f32, y : f32, z : f32) -> f32 {
-  let stretch_offset : f32 = (x + y + z) * STRETCH_CONSTANT_3D;
-  let xs : f32 = x + stretch_offset;
-  let ys : f32 = y + stretch_offset;
-  let zs : f32 = z + stretch_offset;
-  var xsb : i32 = i32(floor(xs));
-  var ysb : i32 = i32(floor(ys));
-  var zsb : i32 = i32(floor(zs));
-  let squish_offset : f32 = f32(xsb + ysb + zsb) * SQUISH_CONSTANT_3D;
-  var dx0 : f32 = x - (f32(xsb) + squish_offset);
-  var dy0 : f32 = y - (f32(ysb) + squish_offset);
-  var dz0 : f32 = z - (f32(zsb) + squish_offset);
-  let xins : f32 = xs - f32(xsb);
-  let yins : f32 = ys - f32(ysb);
-  let zins : f32 = zs - f32(zsb);
-  let in_sum : f32 = xins + yins + zins;
-
-  var value : f32 = 0.0;
-
-  var dx_ext0 : f32 = 0.0;
-  var dy_ext0 : f32 = 0.0;
-  var dz_ext0 : f32 = 0.0;
-  var dx_ext1 : f32 = 0.0;
-  var dy_ext1 : f32 = 0.0;
-  var dz_ext1 : f32 = 0.0;
-  var xsv_ext0 : i32 = 0;
-  var ysv_ext0 : i32 = 0;
-  var zsv_ext0 : i32 = 0;
-  var xsv_ext1 : i32 = 0;
-  var ysv_ext1 : i32 = 0;
-  var zsv_ext1 : i32 = 0;
-
-  if (in_sum <= 1.0) {
-    var a_score : f32 = xins;
-    var a_point : u32 = 0x01u;
-    var a_is_further_side : bool = false;
-    if (yins > a_score) {
-      a_score = yins;
-      a_point = 0x02u;
-    }
-    if (zins > a_score) {
-      a_score = zins;
-      a_point = 0x04u;
-    }
-
-    var b_score : f32 = 1.0 - xins;
-    var b_point : u32 = 0x01u;
-    var b_is_further_side : bool = true;
-    if (1.0 - yins > b_score) {
-      b_score = 1.0 - yins;
-      b_point = 0x02u;
-    }
-    if (1.0 - zins > b_score) {
-      b_score = 1.0 - zins;
-      b_point = 0x04u;
-    }
-
-    let p1 : vec3<i32> = vec3<i32>(
-      bool_to_i32((a_point & 0x01u) != 0u),
-      bool_to_i32((a_point & 0x02u) != 0u),
-      bool_to_i32((a_point & 0x04u) != 0u)
-    );
-    let p2 : vec3<i32> = vec3<i32>(
-      bool_to_i32((b_point & 0x01u) != 0u),
-      bool_to_i32((b_point & 0x02u) != 0u),
-      bool_to_i32((b_point & 0x04u) != 0u)
-    );
-
-    if (a_is_further_side == b_is_further_side) {
-      if (a_is_further_side) {
-        xsv_ext0 = xsb + i32(p1.x);
-        ysv_ext0 = ysb + i32(p1.y);
-        zsv_ext0 = zsb + i32(p1.z);
-        dx_ext0 = dx0 - f32(p1.x) + SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 - f32(p1.y) + SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 - f32(p1.z) + SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb + i32(p2.x);
-        ysv_ext1 = ysb + i32(p2.y);
-        zsv_ext1 = zsb + i32(p2.z);
-        dx_ext1 = dx0 - f32(p2.x) + SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - f32(p2.y) + SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - f32(p2.z) + SQUISH_CONSTANT_3D;
-      } else {
-        xsv_ext0 = xsb - 1;
-        ysv_ext0 = ysb - 1;
-        zsv_ext0 = zsb - 1;
-        dx_ext0 = dx0 + 1.0 - SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 + 1.0 - SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 + 1.0 - SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb;
-        ysv_ext1 = ysb;
-        zsv_ext1 = zsb;
-        dx_ext1 = dx0 - SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - SQUISH_CONSTANT_3D;
-      }
-    } else {
-      var c1 : u32 = select(b_point, a_point, a_is_further_side);
-      var c2 : u32 = select(a_point, b_point, a_is_further_side);
-
-      if (a_is_further_side) {
-        xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
-        ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
-        zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
-        dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
-        ysv_ext1 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
-        zsv_ext1 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
-        dx_ext1 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
-      } else {
-        xsv_ext0 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
-        ysv_ext0 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
-        zsv_ext0 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
-        dx_ext0 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
-        ysv_ext1 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
-        zsv_ext1 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
-        dx_ext1 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
-      }
-    }
-
-    let attn0 : f32 = 2.0 - dx0 * dx0 - dy0 * dy0 - dz0 * dz0;
-    if (attn0 > 0.0) {
-      var attn : f32 = attn0 * attn0;
-      value = value + attn * attn * extrapolate3d(tables, xsb, ysb, zsb, dx0, dy0, dz0);
-    }
-
-    let dx1 : f32 = dx0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dy1 : f32 = dy0 - SQUISH_CONSTANT_3D;
-    let dz1 : f32 = dz0 - SQUISH_CONSTANT_3D;
-    var attn1 : f32 = 2.0 - dx1 * dx1 - dy1 * dy1 - dz1 * dz1;
-    if (attn1 > 0.0) {
-      attn1 = attn1 * attn1;
-      value = value + attn1 * attn1 * extrapolate3d(tables, xsb + 1, ysb, zsb, dx1, dy1, dz1);
-    }
-
-    let dx2 : f32 = dx0 - SQUISH_CONSTANT_3D;
-    let dy2 : f32 = dy0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dz2 : f32 = dz1;
-    var attn2 : f32 = 2.0 - dx2 * dx2 - dy2 * dy2 - dz2 * dz2;
-    if (attn2 > 0.0) {
-      attn2 = attn2 * attn2;
-      value = value + attn2 * attn2 * extrapolate3d(tables, xsb, ysb + 1, zsb, dx2, dy2, dz2);
-    }
-
-    let dx3 : f32 = dx2;
-    let dy3 : f32 = dy1;
-    let dz3 : f32 = dz0 - 1.0 - SQUISH_CONSTANT_3D;
-    var attn3 : f32 = 2.0 - dx3 * dx3 - dy3 * dy3 - dz3 * dz3;
-    if (attn3 > 0.0) {
-      attn3 = attn3 * attn3;
-      value = value + attn3 * attn3 * extrapolate3d(tables, xsb, ysb, zsb + 1, dx3, dy3, dz3);
-    }
-  } else {
-    var a_score : f32 = xins;
-    var a_point : u32 = 0x01u;
-    var a_is_further_side : bool = true;
-    if (yins > a_score) {
-      a_score = yins;
-      a_point = 0x02u;
-    }
-    if (zins > a_score) {
-      a_score = zins;
-      a_point = 0x04u;
-    }
-
-    var b_score : f32 = 3.0 - in_sum;
-    var b_point : u32 = 0x01u;
-    var b_is_further_side : bool = true;
-    if (2.0 - yins + xins + zins > b_score) {
-      b_score = 2.0 - yins + xins + zins;
-      b_point = 0x02u | 0x01u;
-      b_is_further_side = false;
-    }
-    if (2.0 - zins + xins + yins > b_score) {
-      b_score = 2.0 - zins + xins + yins;
-      b_point = 0x04u | 0x01u;
-      b_is_further_side = false;
-    }
-
-    var c1 : u32 = a_point;
-    var c2 : u32 = b_point;
-    if (a_is_further_side == b_is_further_side) {
-      if (a_is_further_side) {
-        xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
-        ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
-        zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
-        dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb + bool_to_i32((c2 & 0x01u) != 0u);
-        ysv_ext1 = ysb + bool_to_i32((c2 & 0x02u) != 0u);
-        zsv_ext1 = zsb + bool_to_i32((c2 & 0x04u) != 0u);
-        dx_ext1 = dx0 - bool_to_f32((c2 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 - bool_to_f32((c2 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 - bool_to_f32((c2 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
-      } else {
-        xsv_ext0 = xsb - 1 + bool_to_i32((c1 & 0x01u) != 0u);
-        ysv_ext0 = ysb - 1 + bool_to_i32((c1 & 0x02u) != 0u);
-        zsv_ext0 = zsb - 1 + bool_to_i32((c1 & 0x04u) != 0u);
-        dx_ext0 = dx0 + 1.0 - bool_to_f32((c1 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
-        dy_ext0 = dy0 + 1.0 - bool_to_f32((c1 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
-        dz_ext0 = dz0 + 1.0 - bool_to_f32((c1 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
-
-        xsv_ext1 = xsb - 1 + bool_to_i32((c2 & 0x01u) != 0u);
-        ysv_ext1 = ysb - 1 + bool_to_i32((c2 & 0x02u) != 0u);
-        zsv_ext1 = zsb - 1 + bool_to_i32((c2 & 0x04u) != 0u);
-        dx_ext1 = dx0 + 1.0 - bool_to_f32((c2 & 0x01u) != 0u) - SQUISH_CONSTANT_3D;
-        dy_ext1 = dy0 + 1.0 - bool_to_f32((c2 & 0x02u) != 0u) - SQUISH_CONSTANT_3D;
-        dz_ext1 = dz0 + 1.0 - bool_to_f32((c2 & 0x04u) != 0u) - SQUISH_CONSTANT_3D;
-      }
-    } else {
-      if (a_is_further_side) {
-        c1 = a_point;
-        c2 = b_point;
-      } else {
-        c1 = b_point;
-        c2 = a_point;
-      }
-
-      xsv_ext0 = xsb + bool_to_i32((c1 & 0x01u) != 0u);
-      ysv_ext0 = ysb + bool_to_i32((c1 & 0x02u) != 0u);
-      zsv_ext0 = zsb + bool_to_i32((c1 & 0x04u) != 0u);
-      dx_ext0 = dx0 - bool_to_f32((c1 & 0x01u) != 0u) + SQUISH_CONSTANT_3D;
-      dy_ext0 = dy0 - bool_to_f32((c1 & 0x02u) != 0u) + SQUISH_CONSTANT_3D;
-      dz_ext0 = dz0 - bool_to_f32((c1 & 0x04u) != 0u) + SQUISH_CONSTANT_3D;
-
-      xsv_ext1 = xsb + 1;
-      ysv_ext1 = ysb + 1;
-      zsv_ext1 = zsb + 1;
-      dx_ext1 = dx0 - 1.0 - 2.0 * SQUISH_CONSTANT_3D;
-      dy_ext1 = dy0 - 1.0 - 2.0 * SQUISH_CONSTANT_3D;
-      dz_ext1 = dz0 - 1.0 - 2.0 * SQUISH_CONSTANT_3D;
-    }
-
-    let attn0 : f32 = 2.0 - dx0 * dx0 - dy0 * dy0 - dz0 * dz0;
-    if (attn0 > 0.0) {
-      var attn : f32 = attn0 * attn0;
-      value = value + attn * attn * extrapolate3d(tables, xsb, ysb, zsb, dx0, dy0, dz0);
-    }
-
-    let dx1 : f32 = dx0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dy1 : f32 = dy0 - SQUISH_CONSTANT_3D;
-    let dz1 : f32 = dz0 - SQUISH_CONSTANT_3D;
-    var attn1 : f32 = 2.0 - dx1 * dx1 - dy1 * dy1 - dz1 * dz1;
-    if (attn1 > 0.0) {
-      attn1 = attn1 * attn1;
-      value = value + attn1 * attn1 * extrapolate3d(tables, xsb + 1, ysb, zsb, dx1, dy1, dz1);
-    }
-
-    let dx2 : f32 = dx0 - SQUISH_CONSTANT_3D;
-    let dy2 : f32 = dy0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dz2 : f32 = dz0 - SQUISH_CONSTANT_3D;
-    var attn2 : f32 = 2.0 - dx2 * dx2 - dy2 * dy2 - dz2 * dz2;
-    if (attn2 > 0.0) {
-      attn2 = attn2 * attn2;
-      value = value + attn2 * attn2 * extrapolate3d(tables, xsb, ysb + 1, zsb, dx2, dy2, dz2);
-    }
-
-    let dx3 : f32 = dx0 - SQUISH_CONSTANT_3D;
-    let dy3 : f32 = dy0 - SQUISH_CONSTANT_3D;
-    let dz3 : f32 = dz0 - 1.0 - SQUISH_CONSTANT_3D;
-    var attn3 : f32 = 2.0 - dx3 * dx3 - dy3 * dy3 - dz3 * dz3;
-    if (attn3 > 0.0) {
-      attn3 = attn3 * attn3;
-      value = value + attn3 * attn3 * extrapolate3d(tables, xsb, ysb, zsb + 1, dx3, dy3, dz3);
-    }
-
-    let dx4 : f32 = dx0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dy4 : f32 = dy0 - 1.0 - SQUISH_CONSTANT_3D;
-    let dz4 : f32 = dz0 - 1.0 - SQUISH_CONSTANT_3D;
-    var attn4 : f32 = 2.0 - dx4 * dx4 - dy4 * dy4 - dz4 * dz4;
-    if (attn4 > 0.0) {
-      attn4 = attn4 * attn4;
-      value = value + attn4 * attn4 * extrapolate3d(tables, xsb + 1, ysb + 1, zsb + 1, dx4, dy4, dz4);
-    }
-  }
-
-  let attn_ext0 : f32 = 2.0 - dx_ext0 * dx_ext0 - dy_ext0 * dy_ext0 - dz_ext0 * dz_ext0;
-  if (attn_ext0 > 0.0) {
-    var attn : f32 = attn_ext0 * attn_ext0;
-    value = value + attn * attn * extrapolate3d(tables, xsv_ext0, ysv_ext0, zsv_ext0, dx_ext0, dy_ext0, dz_ext0);
-  }
-
-  let attn_ext1 : f32 = 2.0 - dx_ext1 * dx_ext1 - dy_ext1 * dy_ext1 - dz_ext1 * dz_ext1;
-  if (attn_ext1 > 0.0) {
-    var attn : f32 = attn_ext1 * attn_ext1;
-    value = value + attn * attn * extrapolate3d(tables, xsv_ext1, ysv_ext1, zsv_ext1, dx_ext1, dy_ext1, dz_ext1);
-  }
-
-  return value / NORM_CONSTANT_3D;
-}
-
-fn apply_basic_distribution(value : f32, distrib : u32) -> f32 {
-  if (distrib == DISTRIB_EXP) {
-    return pow(clamp(value, 0.0, 1.0), 4.0);
-  }
-  if (distrib == DISTRIB_ONES) {
-    return 1.0;
-  }
-  if (distrib == DISTRIB_MIDS) {
-    return 0.5;
-  }
-  if (distrib == DISTRIB_ZEROS) {
-    return 0.0;
-  }
-  return clamp(value, 0.0, 1.0);
-}
-
-fn compute_sdf_distance(dx : f32, dy : f32, sides : f32) -> f32 {
-  let arctan_value : f32 = atan2(dx, -dy) + PI;
-  let step : f32 = TAU / sides;
-  let offset : f32 = floor(0.5 + arctan_value / step) * step - arctan_value;
-  return cos(offset) * sqrt(dx * dx + dy * dy);
-}
-
-fn compute_center_distance(dx : f32, dy : f32, distrib : u32) -> f32 {
-  let abs_dx : f32 = abs(dx);
-  let abs_dy : f32 = abs(dy);
-  if (distrib == DISTRIB_CENTER_DIAMOND) {
-    return abs_dx + abs_dy;
-  }
-  if (distrib == DISTRIB_CENTER_SQUARE) {
-    return max(abs_dx, abs_dy);
-  }
-  if (distrib == DISTRIB_CENTER_TRIANGLE) {
-    return max(abs_dx - dy * 0.5, dy);
-  }
-  if (distrib == DISTRIB_CENTER_HEXAGON) {
-    let term1 : f32 = max(abs_dx - dy * 0.5, dy);
-    let term2 : f32 = max(abs_dx + dy * 0.5, -dy);
-    return max(term1, term2);
-  }
-  if (distrib == DISTRIB_CENTER_OCTAGON) {
-    let manhattan_term : f32 = (abs_dx + abs_dy) * INV_SQRT2;
-    let chebyshev_term : f32 = max(abs_dx, abs_dy);
-    return max(manhattan_term, chebyshev_term);
-  }
-  if (distrib == DISTRIB_CENTER_CIRCLE) {
-    return sqrt(dx * dx + dy * dy);
-  }
-  if (distrib == DISTRIB_CENTER_PENTAGON) {
-    return compute_sdf_distance(dx, dy, 5.0);
-  }
-  if (distrib == DISTRIB_CENTER_HEPTAGON) {
-    return compute_sdf_distance(dx, dy, 7.0);
-  }
-  if (distrib == DISTRIB_CENTER_NONAGON) {
-    return compute_sdf_distance(dx, dy, 9.0);
-  }
-  if (distrib == DISTRIB_CENTER_DECAGON) {
-    return compute_sdf_distance(dx, dy, 10.0);
-  }
-  if (distrib == DISTRIB_CENTER_HENDECAGON) {
-    return compute_sdf_distance(dx, dy, 11.0);
-  }
-  if (distrib == DISTRIB_CENTER_DODECAGON) {
-    return compute_sdf_distance(dx, dy, 12.0);
-  }
-  return sqrt(dx * dx + dy * dy);
-}
-
-fn compute_center_max_distance(distrib : u32) -> f32 {
-  let d1 : f32 = compute_center_distance(-0.5, -0.5, distrib);
-  let d2 : f32 = compute_center_distance(-0.5, 0.5, distrib);
-  let d3 : f32 = compute_center_distance(0.5, -0.5, distrib);
-  let d4 : f32 = compute_center_distance(0.5, 0.5, distrib);
-  let d5 : f32 = compute_center_distance(-0.5, 0.0, distrib);
-  let d6 : f32 = compute_center_distance(0.5, 0.0, distrib);
-  let d7 : f32 = compute_center_distance(0.0, -0.5, distrib);
-  let d8 : f32 = compute_center_distance(0.0, 0.5, distrib);
-  let first_max : f32 = max(max(d1, d2), max(d3, d4));
-  let second_max : f32 = max(max(d5, d6), max(d7, d8));
-  return max(first_max, second_max);
-}
-
-fn compute_center_distribution_value(
-  pixel : vec2<f32>,
-  resolution : vec2<f32>,
-  distrib : u32,
-  octave_freq : vec2<f32>,
-  time_value : f32,
-  speed_value : f32,
-) -> f32 {
-  let width : f32 = max(resolution.x, 1.0);
-  let height : f32 = max(resolution.y, 1.0);
-  let dx : f32 = (pixel.x / width) - 0.5;
-  let dy : f32 = (pixel.y / height) - 0.5;
-  let distance_value : f32 = compute_center_distance(dx, dy, distrib);
-  let max_distance : f32 = max(compute_center_max_distance(distrib), EPSILON);
-  let normalized_distance : f32 = clamp(distance_value / max_distance, 0.0, 1.0);
-  let eased_distance : f32 = sqrt(normalized_distance);
-  let freq_scale : f32 = max(max(octave_freq.x, octave_freq.y), 1.0);
-  var rounded_speed : f32;
-  if (speed_value > 0.0) {
-    rounded_speed = floor(1.0 + speed_value);
-  } else {
-    rounded_speed = ceil(-1.0 + speed_value);
-  }
-  let phase : f32 = eased_distance * freq_scale * TAU - TAU * time_value * rounded_speed;
-  let sine_value : f32 = sin(phase);
-  return clamp((sine_value + 1.0) * 0.5, 0.0, 1.0);
-}
-
-fn apply_primary_distribution(
-  value : f32,
-  distrib : u32,
-  sample_coord : vec2<f32>,
-  octave_freq : vec2<f32>,
-  pixel : vec2<f32>,
-  resolution : vec2<f32>,
-  time_value : f32,
-  speed_value : f32,
-) -> f32 {
-  if (distrib == DISTRIB_COLUMN_INDEX) {
-    let freq_y : f32 = max(octave_freq.y, 1.0);
-    if (freq_y <= 1.0) {
-      return 0.0;
-    }
-    let capped : f32 = min(sample_coord.y, freq_y - 1.0);
-    let denom : f32 = max(freq_y - 1.0, 1.0);
-    return clamp(capped / denom, 0.0, 1.0);
-  }
-  if (distrib == DISTRIB_ROW_INDEX) {
-    let freq_x : f32 = max(octave_freq.x, 1.0);
-    if (freq_x <= 1.0) {
-      return 0.0;
-    }
-    let capped : f32 = min(sample_coord.x, freq_x - 1.0);
-    let denom : f32 = max(freq_x - 1.0, 1.0);
-    return clamp(capped / denom, 0.0, 1.0);
-  }
-  if (distrib >= DISTRIB_CENTER_CIRCLE && distrib <= DISTRIB_CENTER_DODECAGON) {
-    return compute_center_distribution_value(pixel, resolution, distrib, octave_freq, time_value, speed_value);
-  }
-  return apply_basic_distribution(value, distrib);
-}
-
-fn sample_simplex_channel(
-  coord : vec2<f32>,
-  z : f32,
-  base_seed : u32,
-  channel_index : u32,
-) -> f32 {
-  let seed : u32 = base_seed + channel_index * 65535u;
-  let table_index : u32 = fetch_permutation_table_index(seed);
-  let tables : ptr<storage, PermutationTables> = &permutation_table_storage.entries[table_index].tables;
-  let raw_value : f32 = open_simplex_3d(tables, coord.x, coord.y, z);
-  return map_to_unit(raw_value);
-}
-
-fn evaluate_simplex_layer_rgba(
-  base_context : SampleContext,
-  override_context : SampleContext,
-  brightness_context : SampleContext,
-  z : f32,
-  base_seed : u32,
-  hue_seed : u32,
-  saturation_seed : u32,
-  brightness_seed : u32,
-  channel_count : u32,
-  color_space : u32,
-  ridges : bool,
-  sin_amount : f32,
-  distrib : u32,
-  hue_range : f32,
-  hue_rotation : f32,
-  saturation_scale : f32,
-  hue_distrib : u32,
-  saturation_distrib : u32,
-  brightness_distrib : u32,
-  octave_freq : vec2<f32>,
-  pixel_coord : vec2<f32>,
-  resolution : vec2<f32>,
-  time_value : f32,
-  speed_value : f32,
-) -> LayerResult {
-  var effective_channels : u32 = channel_count;
-  if (effective_channels == 0u) {
-    effective_channels = 1u;
-  }
-  if (effective_channels > 4u) {
-    effective_channels = 4u;
-  }
-
-  var raw : array<f32, 4> = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
-  var idx : u32 = 0u;
-  loop {
-    if (idx >= effective_channels) {
-      break;
-    }
-    var sample : f32 = sample_simplex_resampled(base_context, z, base_seed, idx);
-    var effective_distrib : u32 = distrib;
-    if (effective_distrib == DISTRIB_NONE || effective_distrib == 0u) {
-      effective_distrib = DISTRIB_SIMPLEX;
-    }
-    sample = apply_primary_distribution(
-      sample,
-      effective_distrib,
-      base_context.position,
-      octave_freq,
-      pixel_coord,
-      resolution,
-      time_value,
-      speed_value,
-    );
-    raw[idx] = sample;
-    idx = idx + 1u;
-  }
-
-  var alpha_value : f32 = 1.0;
-  if (channel_count >= 4u) {
-    alpha_value = raw[3];
-  } else if (channel_count == 2u) {
-    alpha_value = raw[1];
-  }
-
-  if (color_space == COLOR_SPACE_GRAYSCALE || channel_count <= 2u) {
-    var luminance : f32 = raw[0];
-    if (ridges) {
-      luminance = ridge_transform(luminance);
-    }
-    if (sin_amount != 0.0) {
-      luminance = sin(sin_amount * luminance);
-    }
-    return LayerResult(
-      vec4<f32>(luminance, luminance, luminance, alpha_value),
-      vec4<f32>(0.0, 0.0, 0.0, alpha_value),
-      0u,
-    );
-  }
-
-  var working_space : u32 = color_space;
-  var color_vec : vec3<f32> = vec3<f32>(raw[0], raw[1], raw[2]);
-
-  if (working_space == COLOR_SPACE_OKLAB) {
-    let lab : vec3<f32> = vec3<f32>(
-      color_vec.x,
-      color_vec.y * -0.509 + 0.276,
-      color_vec.z * -0.509 + 0.198
-    );
-    color_vec = clamp(
-      oklab_to_rgb(lab),
-      vec3<f32>(0.0, 0.0, 0.0),
-      vec3<f32>(1.0, 1.0, 1.0)
-    );
-    working_space = COLOR_SPACE_RGB;
-  }
-
-  if (working_space == COLOR_SPACE_RGB) {
-    color_vec = rgb_to_hsv(color_vec);
-    working_space = COLOR_SPACE_HSV;
-  }
-
-  if (working_space == COLOR_SPACE_HSV) {
-    let has_hue_override : bool = hue_distrib != DISTRIB_NONE && hue_distrib != 0u;
-    let has_saturation_override : bool = saturation_distrib != DISTRIB_NONE && saturation_distrib != 0u;
-    let has_brightness_override : bool = brightness_distrib != DISTRIB_NONE && brightness_distrib != 0u;
-
-    var hue_value : f32;
-    if (has_hue_override) {
-      hue_value = sample_distribution_value_resampled(
-        override_context,
-        z,
-        hue_seed,
-        hue_distrib,
-        octave_freq,
-        pixel_coord,
-        resolution,
-        time_value,
-        speed_value,
-      );
-    } else {
-      hue_value = color_vec.x * hue_range + hue_rotation;
-      hue_value = fract(hue_value);
-      if (hue_value < 0.0) {
-        hue_value = hue_value + 1.0;
-      }
-    }
-
-    var saturation_value : f32;
-    if (has_saturation_override) {
-      saturation_value = sample_distribution_value_resampled(
-        override_context,
-        z,
-        saturation_seed,
-        saturation_distrib,
-        octave_freq,
-        pixel_coord,
-        resolution,
-        time_value,
-        speed_value,
-      );
-    } else {
-      saturation_value = color_vec.y;
-    }
-    saturation_value = saturation_value * saturation_scale;
-
-    var brightness_value : f32;
-    if (has_brightness_override) {
-      brightness_value = sample_distribution_value_resampled(
-        brightness_context,
-        z,
-        brightness_seed,
-        brightness_distrib,
-        octave_freq,
-        pixel_coord,
-        resolution,
-        time_value,
-        speed_value,
-      );
-    } else {
-      brightness_value = color_vec.z;
-    }
-    if (ridges) {
-      brightness_value = ridge_transform(brightness_value);
-    }
-    if (sin_amount != 0.0) {
-      let sin_value : f32 = sin(sin_amount * brightness_value);
-      return LayerResult(
-        vec4<f32>(0.0, 0.0, 0.0, 0.0),
-        vec4<f32>(hue_value, saturation_value, sin_value, alpha_value),
-        LAYER_FLAG_HAS_SIN_HSV,
-      );
-    }
-    color_vec = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, brightness_value));
-  }
-
-  return LayerResult(
-    vec4<f32>(color_vec, alpha_value),
-    vec4<f32>(0.0, 0.0, 0.0, alpha_value),
-    0u,
-  );
+  atomicMin(&(*state).min_value, float_to_ordered_uint(min_value));
+  atomicMax(&(*state).max_value, float_to_ordered_uint(max_value));
 }
 
 @group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
@@ -1343,7 +402,7 @@ fn evaluate_simplex_layer_rgba(
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
 @group(0) @binding(4) var<storage, read_write> normalization_state : NormalizationState;
 @group(0) @binding(5) var<storage, read_write> sin_state : SinNormalizationState;
-@group(0) @binding(6) var<storage, read> mask_data : array<f32>;
+@group(0) @binding(6) var<storage, read> mask_data : MaskData;
 @group(0) @binding(7) var<storage, read> permutation_table_storage : PermutationTableStorage;
 
 @compute @workgroup_size(8, 8, 1)
@@ -1353,326 +412,129 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   if (global_id.x >= width || global_id.y >= height) {
     return;
   }
-  let total_invocations : u32 = max(width * height, 1u);
 
-  let base_freq : vec2<f32> = stage_uniforms.freq;
-  let octaves : u32 = stage_uniforms.options0.x;
+  // Touch optional bindings so the compiler keeps them alive when the stage
+  // descriptor still provides the associated buffers.
+  consume_u32(atomicLoad(&sin_state.phase));
+  consume_u32(arrayLength(&mask_data.values));
+  consume_u32(arrayLength(&permutation_table_storage.values));
+
+  let resolution_vec : vec2<f32> = vec2<f32>(frame_uniforms.resolution.x, frame_uniforms.resolution.y);
+  let aspect_ratio : f32 = select(1.0, resolution_vec.x / max(resolution_vec.y, 1.0), resolution_vec.y != 0.0);
+  let pixel : vec2<f32> = vec2<f32>(f32(global_id.x) + 0.5, f32(global_id.y) + 0.5);
+  let uv : vec2<f32> = pixel / resolution_vec;
+
+  let base_freq : vec2<f32> = max(stage_uniforms.freq, vec2<f32>(1.0, 1.0));
+  let octaves : u32 = max(stage_uniforms.options0.x, 1u);
   let octave_blending : u32 = stage_uniforms.options0.y;
-  let channel_count : u32 = stage_uniforms.options0.z;
   let ridges_enabled : bool = bool_from_u32(stage_uniforms.options0.w);
   let seed_offset : u32 = stage_uniforms.options1.x;
   let distrib : u32 = stage_uniforms.options1.y;
   let color_space : u32 = stage_uniforms.options1.z;
   let with_alpha_output : bool = bool_from_u32(stage_uniforms.options1.w);
-  let mask_enabled : bool = bool_from_u32(stage_uniforms.options3.y);
-  let mask_alpha_mode : bool = bool_from_u32(stage_uniforms.options3.z);
-  let mask_octave_count : u32 = stage_uniforms.options3.w;
-
-  let hue_range : f32 = stage_uniforms.colorParams0.x;
-  let hue_rotation : f32 = stage_uniforms.colorParams0.y;
-  let saturation_scale : f32 = stage_uniforms.colorParams0.z;
-  let sin_amount : f32 = stage_uniforms.sin;
-  let speed : f32 = stage_uniforms.speed;
   let hue_distrib : u32 = stage_uniforms.options2.x;
   let saturation_distrib : u32 = stage_uniforms.options2.y;
-  var brightness_distrib : u32 = stage_uniforms.options2.z;
-  let brightness_freq_flag : u32 = stage_uniforms.options2.w;
-  let brightness_freq_params : vec2<f32> = vec2<f32>(
-    stage_uniforms.colorParams1.x,
-    stage_uniforms.colorParams1.y,
-  );
-  let lattice_drift_amount : f32 = stage_uniforms.colorParams1.z;
-  let has_hue_override : bool = hue_distrib != 0u;
-  let has_saturation_override : bool = saturation_distrib != 0u;
-  let has_brightness_freq_override : bool = bool_from_u32(brightness_freq_flag);
-  var has_brightness_override : bool = brightness_distrib != 0u || has_brightness_freq_override;
-  if (has_brightness_override && brightness_distrib == 0u) {
-    brightness_distrib = DISTRIB_SIMPLEX;
-  }
-  let corners_enabled : bool = bool_from_u32(stage_uniforms.options3.x);
+  let brightness_distrib : u32 = stage_uniforms.options2.z;
+  let sin_amount : f32 = stage_uniforms.sin;
 
-  var calls_per_octave : u32 = 1u;
-  if (has_hue_override) {
-    calls_per_octave = calls_per_octave + 1u;
-  }
-  if (has_saturation_override) {
-    calls_per_octave = calls_per_octave + 1u;
-  }
-  if (has_brightness_override) {
-    calls_per_octave = calls_per_octave + 1u;
-  }
-  let has_lattice_drift : bool = lattice_drift_amount != 0.0;
-  if (has_lattice_drift) {
-    calls_per_octave = calls_per_octave + 2u;
-  }
+  let hue_range : f32 = stage_uniforms.colorParams0.x;
+  let hue_rotation_degrees : f32 = stage_uniforms.colorParams0.y;
+  let saturation_scale : f32 = stage_uniforms.colorParams0.z;
 
-  let angle : f32 = frame_uniforms.time * TAU;
-  let z : f32 = cos(angle) * speed;
-  let resolution : vec2<f32> = frame_uniforms.resolution;
-  let resolution_px : vec2<i32> = vec2<i32>(i32(width), i32(height));
-  let pixel_i : vec2<i32> = vec2<i32>(i32(global_id.x), i32(global_id.y));
-  let pixel_index : u32 = global_id.y * width + global_id.x;
-  let mask_stride : u32 = total_invocations * 4u;
+  let time_value : f32 = frame_uniforms.time;
+  let speed : f32 = stage_uniforms.speed;
+  let base_seed : u32 = frame_uniforms.seed + seed_offset;
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-  var weight : f32 = 0.5;
-  var octave_index : u32 = 1u;
+  var weight_sum : f32 = 0.0;
 
-  loop {
-    if (octave_index > octaves) {
-      break;
-    }
-
+  for (var octave_index : u32 = 0u; octave_index < octaves; octave_index = octave_index + 1u) {
     let octave_freq : vec2<f32> = compute_octave_frequency(base_freq, octave_index);
-    if (octave_freq.x > resolution.x && octave_freq.y > resolution.y) {
-      break;
+    let octave_seed : u32 = base_seed ^ (octave_index * 0x9e3779b9u + 0x7f4a7c15u);
+
+    let c0 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 0u, octave_index, time_value, speed);
+    let c1 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 1u, octave_index, time_value, speed);
+    let c2 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 2u, octave_index, time_value, speed);
+    var layer_color : vec3<f32> = vec3<f32>(c0, c1, c2);
+
+    let override_seed : u32 = octave_seed ^ 0x94d049b4u;
+    var hue_value : f32 = fract(layer_color.x * hue_range + hue_rotation_degrees / 360.0);
+    var saturation_value : f32 = clamp(layer_color.y * saturation_scale, 0.0, 1.0);
+    var brightness_value : f32 = apply_distribution(layer_color.z, distrib, uv, aspect_ratio);
+
+    if (hue_distrib != 0u) {
+      hue_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x1u, hue_distrib, octave_index, time_value, speed, aspect_ratio);
+      hue_value = fract(hue_value + hue_rotation_degrees / 360.0);
+    }
+    if (saturation_distrib != 0u) {
+      saturation_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x2u, saturation_distrib, octave_index, time_value, speed, aspect_ratio);
+    }
+    if (brightness_distrib != 0u) {
+      brightness_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x3u, brightness_distrib, octave_index, time_value, speed, aspect_ratio);
     }
 
-    let pin_offset_px : vec2<i32> = compute_pin_offset_pixels(octave_freq, corners_enabled, resolution);
-    let wrapped_pixel_i : vec2<i32> = vec2<i32>(
-      wrap_i32(pixel_i.x + pin_offset_px.x, resolution_px.x),
-      wrap_i32(pixel_i.y + pin_offset_px.y, resolution_px.y),
-    );
-    let wrapped_pixel : vec2<f32> = vec2<f32>(
-      f32(wrapped_pixel_i.x),
-      f32(wrapped_pixel_i.y),
-    );
-
-    var base_context : SampleContext = build_sample_context(
-      octave_freq,
-      pixel_i,
-      resolution_px,
-      pin_offset_px,
-    );
-    var override_context : SampleContext = base_context;
-
-    var brightness_freq_vec : vec2<f32> = octave_freq;
-    if (has_brightness_override && has_brightness_freq_override) {
-      brightness_freq_vec = vec2<f32>(
-        max(brightness_freq_params.x, 1.0),
-        max(brightness_freq_params.y, 1.0),
-      );
-    }
-    let brightness_pin_offset_px : vec2<i32> = compute_pin_offset_pixels(
-      brightness_freq_vec,
-      corners_enabled,
-      resolution,
-    );
-    var brightness_context : SampleContext = build_sample_context(
-      brightness_freq_vec,
-      pixel_i,
-      resolution_px,
-      brightness_pin_offset_px,
-    );
-    if (!has_brightness_override || !has_brightness_freq_override) {
-      brightness_context = base_context;
-    }
-    let octave_offset : u32 = (octave_index - 1u) * calls_per_octave;
-    let reseeded : bool = frame_uniforms.seed != 0u;
-    var base_seed : u32 = frame_uniforms.seed + seed_offset + octave_offset;
-    if (reseeded) {
-      base_seed = base_seed + 1u;
+    if (ridges_enabled) {
+      brightness_value = ridge_transform(brightness_value);
     }
 
-    var seed_cursor : u32 = base_seed;
-    let layer_seed : u32 = seed_cursor;
-    seed_cursor = seed_cursor + 1u;
-
-    var hue_seed : u32 = 0u;
-    if (has_hue_override) {
-      hue_seed = seed_cursor;
-      seed_cursor = seed_cursor + 1u;
+    var rgb_color : vec3<f32>;
+    if (color_space == COLOR_SPACE_GRAYSCALE) {
+      rgb_color = vec3<f32>(brightness_value, brightness_value, brightness_value);
+    } else if (color_space == COLOR_SPACE_RGB) {
+      rgb_color = clamp(layer_color, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
+    } else if (color_space == COLOR_SPACE_OKLAB) {
+      rgb_color = oklab_to_srgb(layer_color * 2.0 - vec3<f32>(1.0, 1.0, 1.0));
+    } else {
+      rgb_color = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, brightness_value));
     }
 
-    var saturation_seed : u32 = 0u;
-    if (has_saturation_override) {
-      saturation_seed = seed_cursor;
-      seed_cursor = seed_cursor + 1u;
+    var layer_alpha : f32 = brightness_value;
+    if (!with_alpha_output) {
+      layer_alpha = 1.0;
     }
 
-    var brightness_seed : u32 = 0u;
-    if (has_brightness_override) {
-      brightness_seed = seed_cursor;
-      seed_cursor = seed_cursor + 1u;
-    }
-
-    var refx_seed : u32 = 0u;
-    var refy_seed : u32 = 0u;
-    if (has_lattice_drift) {
-      refx_seed = seed_cursor;
-      seed_cursor = seed_cursor + 1u;
-      refy_seed = seed_cursor;
-      seed_cursor = seed_cursor + 1u;
-    }
-
-    let effective_brightness_distrib : u32 = select(DISTRIB_NONE, brightness_distrib, has_brightness_override);
-
-    var lattice_offset_uv : vec2<f32> = vec2<f32>(0.0, 0.0);
-    if (has_lattice_drift) {
-      let coarse_dims_f : vec2<f32> = vec2<f32>(
-        f32(max(base_context.coarse_dims.x, 1)),
-        f32(max(base_context.coarse_dims.y, 1)),
-      );
-      let min_freq_component : f32 = max(min(octave_freq.x, octave_freq.y), 1.0);
-      let displacement : f32 = lattice_drift_amount / min_freq_component;
-      let refx_value : f32 = sample_simplex_resampled(base_context, z, refx_seed, 0u);
-      let refy_value : f32 = sample_simplex_resampled(base_context, z, refy_seed, 0u);
-      lattice_offset_uv = vec2<f32>(refx_value, refy_value) * displacement * 2.0;
-      var norm_base_uv : vec2<f32> = vec2<f32>(
-        base_context.position.x / max(coarse_dims_f.x, 1.0),
-        base_context.position.y / max(coarse_dims_f.y, 1.0),
-      );
-      norm_base_uv = fract(norm_base_uv + lattice_offset_uv);
-      base_context.position = vec2<f32>(norm_base_uv.x * coarse_dims_f.x, norm_base_uv.y * coarse_dims_f.y);
-      override_context.position = base_context.position;
-      if (has_brightness_override && has_brightness_freq_override) {
-        let brightness_dims_f : vec2<f32> = vec2<f32>(
-          f32(max(brightness_context.coarse_dims.x, 1)),
-          f32(max(brightness_context.coarse_dims.y, 1)),
-        );
-        var norm_brightness_uv : vec2<f32> = vec2<f32>(
-          brightness_context.position.x / max(brightness_dims_f.x, 1.0),
-          brightness_context.position.y / max(brightness_dims_f.y, 1.0),
-        );
-        norm_brightness_uv = fract(norm_brightness_uv + lattice_offset_uv);
-        brightness_context.position = vec2<f32>(
-          norm_brightness_uv.x * brightness_dims_f.x,
-          norm_brightness_uv.y * brightness_dims_f.y,
-        );
-      }
-    }
-    if (!has_brightness_override || !has_brightness_freq_override) {
-      brightness_context = base_context;
-    }
-
-    let layer_result : LayerResult = evaluate_simplex_layer_rgba(
-      base_context,
-      override_context,
-      brightness_context,
-      z,
-      layer_seed,
-      hue_seed,
-      saturation_seed,
-      brightness_seed,
-      channel_count,
-      color_space,
-      ridges_enabled,
-      sin_amount,
-      distrib,
-      hue_range,
-      hue_rotation,
-      saturation_scale,
-      hue_distrib,
-      saturation_distrib,
-      effective_brightness_distrib,
-      octave_freq,
-      wrapped_pixel,
-      resolution,
-      frame_uniforms.time,
-      speed,
-    );
-
-    var layer_rgba : vec4<f32> = layer_result.color;
-    if ((layer_result.flags & LAYER_FLAG_HAS_SIN_HSV) != 0u) {
-      let iteration_id : u32 = octave_index;
-      if (global_id.x == 0u && global_id.y == 0u) {
-        atomicStore(&sin_state.count, 0u);
-        atomicStore(&sin_state.min_value, float_to_ordered_uint(F32_MAX));
-        atomicStore(&sin_state.max_value, float_to_ordered_uint(-F32_MAX));
-        atomicStore(&sin_state.phase, iteration_id);
-      }
-      loop {
-        let current_phase : u32 = atomicLoad(&sin_state.phase);
-        if (current_phase == iteration_id) {
-          break;
-        }
-      }
-
-      let brightness_sample : f32 = layer_result.hsv.z;
-      let brightness_valid : bool = float_is_valid(brightness_sample);
-      let sanitized_brightness : f32 = select(0.0, brightness_sample, brightness_valid);
-      if (brightness_valid) {
-        let encoded_sample : u32 = float_to_ordered_uint(sanitized_brightness);
-        atomicMin(&sin_state.min_value, encoded_sample);
-        atomicMax(&sin_state.max_value, encoded_sample);
-      }
-      atomicAdd(&sin_state.count, 1u);
-      loop {
-        let current_count : u32 = atomicLoad(&sin_state.count);
-        if (current_count >= total_invocations) {
-          break;
-        }
-      }
-      let encoded_min : u32 = atomicLoad(&sin_state.min_value);
-      let encoded_max : u32 = atomicLoad(&sin_state.max_value);
-      var min_value : f32 = ordered_uint_to_float(encoded_min);
-      var max_value : f32 = ordered_uint_to_float(encoded_max);
-      let extrema_valid : bool =
-        float_is_valid(min_value) && float_is_valid(max_value);
-      var normalized_brightness : f32 = sanitized_brightness;
-      if (extrema_valid) {
-        let delta : f32 = max_value - min_value;
-        if (delta != 0.0) {
-          normalized_brightness = (sanitized_brightness - min_value) / delta;
-        }
-      }
-      let hue_value : f32 = layer_result.hsv.x;
-      let saturation_value : f32 = layer_result.hsv.y;
-      let alpha_value : f32 = layer_result.hsv.w;
-      let color_vec : vec3<f32> = hsv_to_rgb(
-        vec3<f32>(hue_value, saturation_value, normalized_brightness)
-      );
-      layer_rgba = vec4<f32>(color_vec, alpha_value);
-    }
-
-    if (mask_enabled) {
-      var mask_sample : vec4<f32> = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-      if (mask_stride != 0u && octave_index <= mask_octave_count) {
-        mask_sample = load_mask_sample(octave_index, pixel_index, mask_stride);
-      }
-      if (mask_alpha_mode) {
-        layer_rgba = vec4<f32>(layer_rgba.xyz, mask_sample.x);
-      } else {
-        layer_rgba = vec4<f32>(layer_rgba.xyz * mask_sample.xyz, layer_rgba.w);
-      }
-    }
+    var layer_rgba : vec4<f32> = vec4<f32>(rgb_color, layer_alpha);
 
     if (octave_blending == OCTAVE_BLENDING_REDUCE_MAX) {
       accum = max(accum, layer_rgba);
     } else if (octave_blending == OCTAVE_BLENDING_ALPHA) {
-      combine_alpha(&accum, layer_rgba);
+      accum = combine_alpha(accum, layer_rgba);
     } else {
+      let weight : f32 = pow(0.5, f32(octave_index));
       accum = accum + layer_rgba * weight;
+      weight_sum = weight_sum + weight;
     }
-
-    weight = weight * 0.5;
-    octave_index = octave_index + 1u;
   }
 
-  var resolved_color : vec4<f32> = accum;
-  if (!with_alpha_output && octave_blending == OCTAVE_BLENDING_ALPHA) {
-    let alpha_component : f32 = resolved_color.w;
-    resolved_color = vec4<f32>(resolved_color.xyz * alpha_component, 1.0);
+  if (octave_blending == OCTAVE_BLENDING_FALLOFF && weight_sum > 0.0) {
+    accum = accum / weight_sum;
   }
 
-  var sample_min : f32 = 0.0;
-  var sample_max : f32 = 0.0;
-  var has_valid_sample : bool = false;
-  update_min_max(resolved_color.x, &sample_min, &sample_max, &has_valid_sample);
-  update_min_max(resolved_color.y, &sample_min, &sample_max, &has_valid_sample);
-  update_min_max(resolved_color.z, &sample_min, &sample_max, &has_valid_sample);
-  if (with_alpha_output) {
-    update_min_max(resolved_color.w, &sample_min, &sample_max, &has_valid_sample);
+  var final_color : vec4<f32> = accum;
+  if (!with_alpha_output) {
+    final_color.w = 1.0;
   }
 
-  if (has_valid_sample) {
-    atomicMin(&normalization_state.min_value, float_to_ordered_uint(sample_min));
-    atomicMax(&normalization_state.max_value, float_to_ordered_uint(sample_max));
+  var hsv_final : vec3<f32> = rgb_to_hsv(final_color.xyz);
+  hsv_final.x = fract(hsv_final.x + hue_rotation_degrees / 360.0);
+  hsv_final.y = clamp(hsv_final.y * saturation_scale, 0.0, 1.0);
+  if (ridges_enabled) {
+    hsv_final.z = ridge_transform(hsv_final.z);
   }
+  if (sin_amount != 0.0) {
+    hsv_final.z = sin(hsv_final.z * TAU * sin_amount) * 0.5 + 0.5;
+  }
+  let rgb_final : vec3<f32> = hsv_to_rgb(hsv_final);
+  final_color = vec4<f32>(rgb_final, final_color.w);
+
+  final_color = clamp(final_color, vec4<f32>(0.0, 0.0, 0.0, 0.0), vec4<f32>(1.0, 1.0, 1.0, 1.0));
+
+  update_normalization(final_color, with_alpha_output, &normalization_state);
 
   textureStore(
     output_texture,
     vec2<i32>(i32(global_id.x), i32(global_id.y)),
-    resolved_color,
+    final_color,
   );
 }
+
