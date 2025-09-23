@@ -36,6 +36,7 @@ import {
   withTensorData,
   withTensorDatas,
 } from "./util.js";
+import { rng as globalRNG, getSeed as getRNGState } from "./rng.js";
 import { pointCloud } from "./points.js";
 import { rgbToOklab } from "./oklab.js";
 import { getBufferPool } from "./bufferPool.js";
@@ -56,6 +57,7 @@ import {
   REINDEX_WGSL,
   RIPPLE_WGSL,
   COLOR_MAP_WGSL,
+  CLOUDS_WGSL,
   VIGNETTE_WGSL,
   DITHER_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
@@ -7507,7 +7509,7 @@ export async function spatter(tensor, shape, time, speed, color = true) {
 }
 register("spatter", spatter, { color: true });
 
-export async function clouds(tensor, shape, time, speed) {
+async function cloudsCPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const preH = Math.max(1, Math.floor(h * 0.25));
@@ -7581,6 +7583,105 @@ export async function clouds(tensor, shape, time, speed) {
   let out = await blend(tensor, zerosTensor, shaded);
   out = await blend(out, onesTensor, combined);
   return await shadow(out, shape, time, speed, 0.5);
+}
+
+export async function clouds(tensor, shape, time, speed) {
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      const rngState = getRNGState();
+      try {
+        const [h, w, c] = shape;
+        const preH = Math.max(1, Math.floor(h * 0.25));
+        const preW = Math.max(1, Math.floor(w * 0.25));
+        const baseFreq = freqForShape(randomInt(2, 4), [preH, preW]);
+        let octaveCount = 0;
+        for (let octave = 1; octave <= 8; octave++) {
+          const mult = 2 ** octave;
+          const freqY = Math.floor(baseFreq[0] * 0.5 * mult);
+          const freqX = Math.floor(baseFreq[1] * 0.5 * mult);
+          if (freqY > preH && freqX > preW) {
+            break;
+          }
+          octaveCount += 1;
+        }
+        if (octaveCount === 0) {
+          octaveCount = 1;
+        }
+        const warpFreq = freqForShape(3, [preH, preW]);
+        const shadeOffsetX = randomInt(-15, 15);
+        const shadeOffsetY = randomInt(-15, 15);
+        const baseSeed = randomInt(0, 0xffffffff) >>> 0;
+        const shadeSeed = randomInt(0, 0xffffffff) >>> 0;
+        const warpSeedX = randomInt(0, 0xffffffff) >>> 0;
+        const warpSeedY = randomInt(0, 0xffffffff) >>> 0;
+        const timeVal = Number.isFinite(time) ? time : 0;
+        const speedVal = Number.isFinite(speed) ? speed : 1;
+        const timePhase = Math.fround(timeVal * speedVal * 0.05);
+
+        const paramsBuffer = new ArrayBuffer(96);
+        const view = new DataView(paramsBuffer);
+        view.setFloat32(0, w, true);
+        view.setFloat32(4, h, true);
+        view.setFloat32(8, c, true);
+        view.setFloat32(12, octaveCount, true);
+        view.setFloat32(16, preW, true);
+        view.setFloat32(20, preH, true);
+        view.setFloat32(24, preW / w, true);
+        view.setFloat32(28, preH / h, true);
+        view.setFloat32(32, baseFreq[0], true);
+        view.setFloat32(36, baseFreq[1], true);
+        view.setFloat32(40, timeVal, true);
+        view.setFloat32(44, speedVal, true);
+        view.setFloat32(48, shadeOffsetX, true);
+        view.setFloat32(52, shadeOffsetY, true);
+        view.setFloat32(56, warpFreq[0], true);
+        view.setFloat32(60, warpFreq[1], true);
+        view.setUint32(64, baseSeed, true);
+        view.setUint32(68, shadeSeed, true);
+        view.setUint32(72, warpSeedX, true);
+        view.setUint32(76, warpSeedY, true);
+        view.setFloat32(80, 2.5, true);
+        view.setFloat32(84, 0.75, true);
+        view.setFloat32(88, 0.125, true);
+        view.setFloat32(92, timePhase, true);
+
+        const paramsBuf = ctx.createGPUBuffer(
+          new Uint8Array(paramsBuffer),
+          GPUBufferUsage.UNIFORM,
+        );
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+
+        await ctx.runCompute(
+          CLOUDS_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+
+        const result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+        return await shadow(result, shape, time, speed, 0.5);
+      } catch (e) {
+        console.warn("WebGPU clouds fallback to CPU", e);
+        if (globalRNG && typeof globalRNG.state === "number") {
+          globalRNG.state = rngState >>> 0;
+        }
+      }
+    }
+  }
+  return cloudsCPU(tensor, shape, time, speed);
 }
 register("clouds", clouds, {});
 

@@ -8,7 +8,6 @@ blend_layers
 bloom
 blur
 center_mask
-clouds
 color_map
 conv_feedback
 convolve
