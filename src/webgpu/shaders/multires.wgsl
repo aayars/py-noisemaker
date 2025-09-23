@@ -178,8 +178,8 @@ fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
 
 fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
   let hue : f32 = fract(hsv.x);
-  let saturation : f32 = clamp(hsv.y, 0.0, 1.0);
-  let value : f32 = clamp(hsv.z, 0.0, 1.0);
+  let saturation : f32 = hsv.y;
+  let value : f32 = hsv.z;
 
   let chroma : f32 = value * saturation;
   let h_prime : f32 = hue * 6.0;
@@ -433,7 +433,7 @@ fn sample_distribution_value_resampled(
 }
 
 fn combine_alpha(accum : ptr<function, vec4<f32>>, layer : vec4<f32>) {
-  let alpha_value : f32 = saturate(layer.w);
+  let alpha_value : f32 = layer.w;
   let alpha_vec : vec4<f32> = replicate4(alpha_value);
   (*accum) = (*accum) * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
 }
@@ -464,15 +464,47 @@ struct LayerResult {
   flags : u32,
 };
 
-fn float_to_ordered_int(value : f32) -> i32 {
-  let bits : i32 = bitcast<i32>(value);
-  let mask : i32 = bits >> 31;
-  return bits ^ mask;
+const FLOAT_SIGN_BIT : u32 = 0x80000000u;
+
+fn float_to_ordered_uint(value : f32) -> u32 {
+  let bits : u32 = bitcast<u32>(value);
+  if ((bits & FLOAT_SIGN_BIT) != 0u) {
+    return ~bits;
+  }
+  return bits ^ FLOAT_SIGN_BIT;
 }
 
-fn ordered_int_to_float(value : i32) -> f32 {
-  let mask : i32 = value >> 31;
-  return bitcast<f32>(value ^ mask);
+fn ordered_uint_to_float(value : u32) -> f32 {
+  var bits : u32;
+  if ((value & FLOAT_SIGN_BIT) != 0u) {
+    bits = value ^ FLOAT_SIGN_BIT;
+  } else {
+    bits = ~value;
+  }
+  return bitcast<f32>(bits);
+}
+
+fn float_is_valid(value : f32) -> bool {
+  return value == value && abs(value) < F32_MAX;
+}
+
+fn update_min_max(
+  component : f32,
+  min_value : ptr<function, f32>,
+  max_value : ptr<function, f32>,
+  has_valid : ptr<function, bool>,
+) {
+  if (!float_is_valid(component)) {
+    return;
+  }
+  if (!(*has_valid)) {
+    (*min_value) = component;
+    (*max_value) = component;
+    (*has_valid) = true;
+    return;
+  }
+  (*min_value) = min((*min_value), component);
+  (*max_value) = max((*max_value), component);
 }
 
 struct PermutationTables {
@@ -496,9 +528,16 @@ struct PermutationTableStorage {
   entries : array<PermutationTableStorageEntry>,
 };
 
+struct NormalizationState {
+  min_value : atomic<u32>,
+  max_value : atomic<u32>,
+  count : atomic<u32>,
+  phase : atomic<u32>,
+};
+
 struct SinNormalizationState {
-  min_value : atomic<i32>,
-  max_value : atomic<i32>,
+  min_value : atomic<u32>,
+  max_value : atomic<u32>,
   count : atomic<u32>,
   phase : atomic<u32>,
 };
@@ -1176,9 +1215,9 @@ fn evaluate_simplex_layer_rgba(
 
   var alpha_value : f32 = 1.0;
   if (channel_count >= 4u) {
-    alpha_value = saturate(raw[3]);
+    alpha_value = raw[3];
   } else if (channel_count == 2u) {
-    alpha_value = saturate(raw[1]);
+    alpha_value = raw[1];
   }
 
   if (color_space == COLOR_SPACE_GRAYSCALE || channel_count <= 2u) {
@@ -1187,11 +1226,10 @@ fn evaluate_simplex_layer_rgba(
       luminance = ridge_transform(luminance);
     }
     if (sin_amount != 0.0) {
-      luminance = map_to_unit(sin(sin_amount * luminance));
+      luminance = sin(sin_amount * luminance);
     }
-    let clamped_luminance : f32 = saturate(luminance);
     return LayerResult(
-      vec4<f32>(clamped_luminance, clamped_luminance, clamped_luminance, alpha_value),
+      vec4<f32>(luminance, luminance, luminance, alpha_value),
       vec4<f32>(0.0, 0.0, 0.0, alpha_value),
       0u,
     );
@@ -1226,20 +1264,16 @@ fn evaluate_simplex_layer_rgba(
 
     var hue_value : f32;
     if (has_hue_override) {
-      hue_value = clamp(
-        sample_distribution_value_resampled(
-          override_context,
-          z,
-          hue_seed,
-          hue_distrib,
-          octave_freq,
-          pixel_coord,
-          resolution,
-          time_value,
-          speed_value,
-        ),
-        0.0,
-        1.0,
+      hue_value = sample_distribution_value_resampled(
+        override_context,
+        z,
+        hue_seed,
+        hue_distrib,
+        octave_freq,
+        pixel_coord,
+        resolution,
+        time_value,
+        speed_value,
       );
     } else {
       hue_value = color_vec.x * hue_range + hue_rotation;
@@ -1251,45 +1285,37 @@ fn evaluate_simplex_layer_rgba(
 
     var saturation_value : f32;
     if (has_saturation_override) {
-      saturation_value = clamp(
-        sample_distribution_value_resampled(
-          override_context,
-          z,
-          saturation_seed,
-          saturation_distrib,
-          octave_freq,
-          pixel_coord,
-          resolution,
-          time_value,
-          speed_value,
-        ),
-        0.0,
-        1.0,
+      saturation_value = sample_distribution_value_resampled(
+        override_context,
+        z,
+        saturation_seed,
+        saturation_distrib,
+        octave_freq,
+        pixel_coord,
+        resolution,
+        time_value,
+        speed_value,
       );
     } else {
-      saturation_value = clamp(color_vec.y, 0.0, 1.0);
+      saturation_value = color_vec.y;
     }
-    saturation_value = clamp(saturation_value * saturation_scale, 0.0, 1.0);
+    saturation_value = saturation_value * saturation_scale;
 
     var brightness_value : f32;
     if (has_brightness_override) {
-      brightness_value = clamp(
-        sample_distribution_value_resampled(
-          brightness_context,
-          z,
-          brightness_seed,
-          brightness_distrib,
-          octave_freq,
-          pixel_coord,
-          resolution,
-          time_value,
-          speed_value,
-        ),
-        0.0,
-        1.0,
+      brightness_value = sample_distribution_value_resampled(
+        brightness_context,
+        z,
+        brightness_seed,
+        brightness_distrib,
+        octave_freq,
+        pixel_coord,
+        resolution,
+        time_value,
+        speed_value,
       );
     } else {
-      brightness_value = clamp(color_vec.z, 0.0, 1.0);
+      brightness_value = color_vec.z;
     }
     if (ridges) {
       brightness_value = ridge_transform(brightness_value);
@@ -1302,12 +1328,9 @@ fn evaluate_simplex_layer_rgba(
         LAYER_FLAG_HAS_SIN_HSV,
       );
     }
-    brightness_value = clamp(brightness_value, 0.0, 1.0);
-
     color_vec = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, brightness_value));
   }
 
-  color_vec = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
   return LayerResult(
     vec4<f32>(color_vec, alpha_value),
     vec4<f32>(0.0, 0.0, 0.0, alpha_value),
@@ -1318,9 +1341,10 @@ fn evaluate_simplex_layer_rgba(
 @group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
 @group(0) @binding(1) var<uniform> frame_uniforms : FrameUniforms;
 @group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
-@group(0) @binding(4) var<storage, read_write> sin_state : SinNormalizationState;
-@group(0) @binding(5) var<storage, read> mask_data : array<f32>;
-@group(0) @binding(6) var<storage, read> permutation_table_storage : PermutationTableStorage;
+@group(0) @binding(4) var<storage, read_write> normalization_state : NormalizationState;
+@group(0) @binding(5) var<storage, read_write> sin_state : SinNormalizationState;
+@group(0) @binding(6) var<storage, read> mask_data : array<f32>;
+@group(0) @binding(7) var<storage, read> permutation_table_storage : PermutationTableStorage;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
@@ -1553,8 +1577,8 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       let iteration_id : u32 = octave_index;
       if (global_id.x == 0u && global_id.y == 0u) {
         atomicStore(&sin_state.count, 0u);
-        atomicStore(&sin_state.min_value, float_to_ordered_int(F32_MAX));
-        atomicStore(&sin_state.max_value, float_to_ordered_int(-F32_MAX));
+        atomicStore(&sin_state.min_value, float_to_ordered_uint(F32_MAX));
+        atomicStore(&sin_state.max_value, float_to_ordered_uint(-F32_MAX));
         atomicStore(&sin_state.phase, iteration_id);
       }
       loop {
@@ -1565,9 +1589,13 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       }
 
       let brightness_sample : f32 = layer_result.hsv.z;
-      let encoded_sample : i32 = float_to_ordered_int(brightness_sample);
-      atomicMin(&sin_state.min_value, encoded_sample);
-      atomicMax(&sin_state.max_value, encoded_sample);
+      let brightness_valid : bool = float_is_valid(brightness_sample);
+      let sanitized_brightness : f32 = select(0.0, brightness_sample, brightness_valid);
+      if (brightness_valid) {
+        let encoded_sample : u32 = float_to_ordered_uint(sanitized_brightness);
+        atomicMin(&sin_state.min_value, encoded_sample);
+        atomicMax(&sin_state.max_value, encoded_sample);
+      }
       atomicAdd(&sin_state.count, 1u);
       loop {
         let current_count : u32 = atomicLoad(&sin_state.count);
@@ -1575,18 +1603,26 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
           break;
         }
       }
-      let encoded_min : i32 = atomicLoad(&sin_state.min_value);
-      let encoded_max : i32 = atomicLoad(&sin_state.max_value);
-      let min_value : f32 = ordered_int_to_float(encoded_min);
-      let max_value : f32 = ordered_int_to_float(encoded_max);
-      let range : f32 = max(max_value - min_value, EPSILON);
-      let normalized_brightness : f32 = clamp((brightness_sample - min_value) / range, 0.0, 1.0);
+      let encoded_min : u32 = atomicLoad(&sin_state.min_value);
+      let encoded_max : u32 = atomicLoad(&sin_state.max_value);
+      var min_value : f32 = ordered_uint_to_float(encoded_min);
+      var max_value : f32 = ordered_uint_to_float(encoded_max);
+      let extrema_valid : bool =
+        float_is_valid(min_value) && float_is_valid(max_value);
+      var normalized_brightness : f32 = sanitized_brightness;
+      if (extrema_valid) {
+        let delta : f32 = max_value - min_value;
+        if (delta != 0.0) {
+          normalized_brightness = (sanitized_brightness - min_value) / delta;
+        }
+      }
       let hue_value : f32 = layer_result.hsv.x;
-      let saturation_value : f32 = clamp(layer_result.hsv.y, 0.0, 1.0);
+      let saturation_value : f32 = layer_result.hsv.y;
       let alpha_value : f32 = layer_result.hsv.w;
-      let color_vec : vec3<f32> = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, normalized_brightness));
-      let clamped_color : vec3<f32> = clamp(color_vec, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
-      layer_rgba = vec4<f32>(clamped_color, alpha_value);
+      let color_vec : vec3<f32> = hsv_to_rgb(
+        vec3<f32>(hue_value, saturation_value, normalized_brightness)
+      );
+      layer_rgba = vec4<f32>(color_vec, alpha_value);
     }
 
     if (mask_enabled) {
@@ -1619,10 +1655,24 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     resolved_color = vec4<f32>(resolved_color.xyz * alpha_component, 1.0);
   }
 
-  let final_color : vec4<f32> = clamp(
+  var sample_min : f32 = 0.0;
+  var sample_max : f32 = 0.0;
+  var has_valid_sample : bool = false;
+  update_min_max(resolved_color.x, &sample_min, &sample_max, &has_valid_sample);
+  update_min_max(resolved_color.y, &sample_min, &sample_max, &has_valid_sample);
+  update_min_max(resolved_color.z, &sample_min, &sample_max, &has_valid_sample);
+  if (with_alpha_output) {
+    update_min_max(resolved_color.w, &sample_min, &sample_max, &has_valid_sample);
+  }
+
+  if (has_valid_sample) {
+    atomicMin(&normalization_state.min_value, float_to_ordered_uint(sample_min));
+    atomicMax(&normalization_state.max_value, float_to_ordered_uint(sample_max));
+  }
+
+  textureStore(
+    output_texture,
+    vec2<i32>(i32(global_id.x), i32(global_id.y)),
     resolved_color,
-    vec4<f32>(0.0, 0.0, 0.0, 0.0),
-    vec4<f32>(1.0, 1.0, 1.0, 1.0)
   );
-  textureStore(output_texture, vec2<i32>(i32(global_id.x), i32(global_id.y)), final_color);
 }

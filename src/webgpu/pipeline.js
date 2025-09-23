@@ -24,6 +24,30 @@ const PERMUTATION_TABLE_SIZE = 256;
 const PERMUTATION_ENTRY_UINTS = 4 + PERMUTATION_TABLE_SIZE * 2;
 const PERMUTATION_HEADER_UINTS = 4;
 const CHANNEL_SEED_DELTA = 65535;
+const F32_MAX = 3.402823466e38;
+
+const FLOAT_ORDER_TMP = new ArrayBuffer(4);
+const FLOAT_ORDER_VIEW = new DataView(FLOAT_ORDER_TMP);
+const FLOAT_SIGN_BIT = 0x80000000;
+
+function floatToOrderedUintBits(value) {
+  let val = Number(value);
+  if (!Number.isFinite(val)) {
+    if (val > 0) {
+      val = F32_MAX;
+    } else if (val < 0) {
+      val = -F32_MAX;
+    } else {
+      val = 0;
+    }
+  }
+  FLOAT_ORDER_VIEW.setFloat32(0, val, true);
+  let bits = FLOAT_ORDER_VIEW.getUint32(0, true);
+  if ((bits & FLOAT_SIGN_BIT) !== 0) {
+    return (~bits) >>> 0;
+  }
+  return (bits ^ FLOAT_SIGN_BIT) >>> 0;
+}
 
 const PERMUTATION_TABLE_CACHE = new Map();
 
@@ -243,6 +267,38 @@ export class PresetProgram {
     this._allStagesSupported = !hasUnsupportedStages && gpuStageCount > 0;
   }
 
+  _ensureNormalizationState(descriptor, ctx, size = 16) {
+    if (!descriptor || !ctx || !ctx.device) {
+      return null;
+    }
+    const byteSize = Math.max(16, Math.floor(Number(size) || 0));
+    let state = descriptor._normalizationState;
+    if (!state || state.size !== byteSize) {
+      const usage =
+        typeof GPUBufferUsage !== 'undefined'
+          ? GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+          : (1 << 7) | (1 << 3);
+      const zeroArray = new Uint32Array(byteSize / 4);
+      const buffer = ctx.createGPUBuffer(zeroArray, usage);
+      const arrayBuffer = new ArrayBuffer(byteSize);
+      state = {
+        buffer,
+        arrayBuffer,
+        uint32: new Uint32Array(arrayBuffer),
+        size: byteSize,
+      };
+      descriptor._normalizationState = state;
+    }
+    if (state && state.uint32) {
+      state.uint32.fill(0);
+      if (state.uint32.length >= 2) {
+        state.uint32[0] = floatToOrderedUintBits(F32_MAX);
+        state.uint32[1] = floatToOrderedUintBits(-F32_MAX);
+      }
+    }
+    return state;
+  }
+
   _ensureSinNormalizationState(descriptor, ctx, size = 16) {
     if (!descriptor || !ctx || !ctx.device) {
       return null;
@@ -269,6 +325,217 @@ export class PresetProgram {
       state.uint32.fill(0);
     }
     return state;
+  }
+
+  async _dispatchMultiresNormalizationPass({
+    descriptor,
+    context,
+    pingPong,
+    uniformView,
+    frameUniformInfo,
+    normalizationState,
+    width,
+    height,
+    frameIndex,
+    stageIndex,
+    encoder,
+  }) {
+    if (!descriptor || !context || context.isCPU) {
+      return false;
+    }
+    const device = context.device;
+    if (!device || !pingPong?.writeFbo || !pingPong?.readFbo || !encoder) {
+      return false;
+    }
+    if (!uniformView?.gpuBuffer || !frameUniformInfo?.buffer) {
+      return false;
+    }
+    if (!normalizationState?.buffer) {
+      return false;
+    }
+
+    let pipeline = descriptor._normalizationPipeline;
+    if (pipeline && typeof pipeline.then === 'function') {
+      try {
+        pipeline = await pipeline;
+      } catch (err) {
+        console.warn('Failed to resolve multires normalization pipeline', err);
+        descriptor._normalizationPipeline = null;
+        pipeline = null;
+      }
+    }
+    if (!pipeline) {
+      const shaderSource =
+        descriptor.normalizationShaderSource || SHADERS.MULTIRES_NORMALIZE_WGSL;
+      if (!shaderSource) {
+        return false;
+      }
+      const pipelineRequest = {
+        code: shaderSource,
+        pipelineLayout: descriptor.normalizationPipelineLayout || null,
+        label: descriptor.label ? `stage:${descriptor.label}:normalize` : undefined,
+      };
+      try {
+        pipeline = await context.createComputePipeline(pipelineRequest);
+        descriptor._normalizationPipeline = pipeline;
+      } catch (err) {
+        console.warn('Failed to create multires normalization pipeline', err);
+        throw err;
+      }
+    }
+    if (!pipeline) {
+      return false;
+    }
+
+    let layout = null;
+    if (pipeline?.getBindGroupLayout) {
+      try {
+        layout = pipeline.getBindGroupLayout(0);
+        if (layout) {
+          descriptor.normalizationBindGroupLayout = layout;
+        }
+      } catch (err) {
+        console.warn('Failed to query normalization bind group layout', err);
+        layout = null;
+      }
+    }
+    if (!layout) {
+      layout = descriptor.normalizationBindGroupLayout || null;
+    }
+    if (!layout) {
+      return false;
+    }
+
+    const entries = [
+      { binding: 0, resource: { buffer: uniformView.gpuBuffer } },
+      { binding: 1, resource: { buffer: frameUniformInfo.buffer } },
+      { binding: 2, resource: pingPong.writeFbo },
+      { binding: 3, resource: pingPong.readFbo },
+      { binding: 4, resource: { buffer: normalizationState.buffer } },
+    ];
+    const normalizationBindingSummary = summarizeBindings(entries);
+
+    let bindGroup = null;
+    try {
+      bindGroup = device.createBindGroup({ layout, entries });
+    } catch (err) {
+      logStageValidationError(descriptor, err, normalizationBindingSummary, {
+        width,
+        height,
+        frameIndex,
+        stageIndex,
+        normalizationPass: true,
+      });
+      throw err;
+    }
+
+    const baseWorkgroup = Array.isArray(descriptor.normalizationWorkgroupSize)
+      ? descriptor.normalizationWorkgroupSize
+      : Array.isArray(descriptor.specialization?.workgroupSize)
+      ? descriptor.specialization.workgroupSize
+      : DEFAULT_WORKGROUP_SIZE;
+    const wgX = Math.max(1, Math.floor(baseWorkgroup[0] || DEFAULT_WORKGROUP_SIZE[0]));
+    const wgY = Math.max(1, Math.floor(baseWorkgroup[1] || DEFAULT_WORKGROUP_SIZE[1]));
+    const dispatchX = Math.max(1, Math.ceil(width / wgX));
+    const dispatchY = Math.max(1, Math.ceil(height / wgY));
+
+    let scopeActive = false;
+    if (device?.pushErrorScope && device?.popErrorScope) {
+      try {
+        device.pushErrorScope('validation');
+        scopeActive = true;
+      } catch (_) {
+        scopeActive = false;
+      }
+    }
+
+    let pass = null;
+    try {
+      pass = context.beginComputePass(encoder);
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(dispatchX, dispatchY, 1);
+    } catch (err) {
+      if (pass) {
+        try {
+          pass.end();
+        } catch (_) {
+          /* ignore */
+        }
+        pass = null;
+      }
+      let validationErr = null;
+      if (scopeActive) {
+        validationErr = await safePopErrorScope(device);
+        scopeActive = false;
+      }
+      if (validationErr) {
+        logStageValidationError(descriptor, validationErr, normalizationBindingSummary, {
+          width,
+          height,
+          frameIndex,
+          stageIndex,
+          normalizationPass: true,
+          cause: err,
+        });
+        throw new StageValidationError(descriptor, validationErr, normalizationBindingSummary, {
+          width,
+          height,
+          frameIndex,
+          stageIndex,
+          normalizationPass: true,
+          cause: err,
+        });
+      }
+      if (err instanceof StageValidationError) {
+        throw err;
+      }
+      logStageValidationError(descriptor, err, normalizationBindingSummary, {
+        width,
+        height,
+        frameIndex,
+        stageIndex,
+        normalizationPass: true,
+      });
+      throw new StageValidationError(descriptor, err, normalizationBindingSummary, {
+        width,
+        height,
+        frameIndex,
+        stageIndex,
+        normalizationPass: true,
+      });
+    } finally {
+      if (pass) {
+        try {
+          pass.end();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    }
+
+    if (scopeActive) {
+      const validationErr = await safePopErrorScope(device);
+      scopeActive = false;
+      if (validationErr) {
+        logStageValidationError(descriptor, validationErr, normalizationBindingSummary, {
+          width,
+          height,
+          frameIndex,
+          stageIndex,
+          normalizationPass: true,
+        });
+        throw new StageValidationError(descriptor, validationErr, normalizationBindingSummary, {
+          width,
+          height,
+          frameIndex,
+          stageIndex,
+          normalizationPass: true,
+        });
+      }
+    }
+
+    return true;
   }
 
   _ensureMaskBuffer(descriptor, ctx) {
@@ -630,6 +897,7 @@ export class PresetProgram {
           entries.push({ binding: 3, resource: pingPong.writeFbo });
         }
 
+        let normalizationState = null;
         const resources = Array.isArray(descriptor.resourceParams) ? descriptor.resourceParams : [];
         for (let auxIndex = 0; auxIndex < resources.length; auxIndex += 1) {
           const binding = 4 + auxIndex;
@@ -647,6 +915,23 @@ export class PresetProgram {
             height,
             frameIndex,
           };
+          if (
+            !entry &&
+            resourceSpec?.resourceType === 'storage-buffer' &&
+            resourceSpec?.name === 'normalizationState'
+          ) {
+            normalizationState = this._ensureNormalizationState(
+              descriptor,
+              context,
+              resourceSpec.size,
+            );
+            if (normalizationState?.buffer && queue && typeof queue.writeBuffer === 'function') {
+              queue.writeBuffer(normalizationState.buffer, 0, normalizationState.arrayBuffer);
+            }
+            if (normalizationState?.buffer) {
+              entry = { resource: { buffer: normalizationState.buffer } };
+            }
+          }
           if (
             !entry &&
             resourceSpec?.resourceType === 'storage-buffer' &&
@@ -834,10 +1119,6 @@ export class PresetProgram {
           }
         }
 
-        pingPong.swap();
-        state.finalTexture = pingPong.readTex;
-        state.finalView = pingPong.readFbo;
-
         if (scopeActive) {
           const validationErr = await safePopErrorScope(device);
           scopeActive = false;
@@ -855,6 +1136,36 @@ export class PresetProgram {
               stageIndex: index,
             });
           }
+        }
+
+        let normalizationHandled = false;
+        if (
+          descriptor.requiresNormalizationResolve &&
+          normalizationState?.buffer &&
+          !context.isCPU
+        ) {
+          normalizationHandled = await this._dispatchMultiresNormalizationPass({
+            descriptor,
+            context,
+            pingPong,
+            uniformView,
+            frameUniformInfo,
+            normalizationState,
+            width,
+            height,
+            frameIndex,
+            stageIndex: index,
+            encoder,
+          });
+        }
+
+        if (normalizationHandled) {
+          state.finalTexture = pingPong.readTex;
+          state.finalView = pingPong.readFbo;
+        } else {
+          pingPong.swap();
+          state.finalTexture = pingPong.readTex;
+          state.finalView = pingPong.readFbo;
         }
       }
 
@@ -1926,6 +2237,25 @@ function specializeMultiresDescriptor(descriptor, stage) {
   descriptor.resourceParams = [];
   descriptor.bindings.hasUniform = true;
   descriptor.bindings.auxiliary = [];
+  const normalizationResource = {
+    name: 'normalizationState',
+    resourceType: 'storage-buffer',
+    size: 16,
+    access: 'read-write',
+  };
+  descriptor.resourceParams.push(normalizationResource);
+  descriptor.bindings.auxiliary.push({
+    name: normalizationResource.name,
+    resourceType: normalizationResource.resourceType,
+    optional: false,
+    access: normalizationResource.access,
+  });
+  descriptor.requiresNormalizationResolve = true;
+  descriptor.normalizationShaderSource = SHADERS.MULTIRES_NORMALIZE_WGSL;
+  const workgroupSize = Array.isArray(descriptor.specialization?.workgroupSize)
+    ? descriptor.specialization.workgroupSize.slice()
+    : [...DEFAULT_WORKGROUP_SIZE];
+  descriptor.normalizationWorkgroupSize = workgroupSize;
   const sinStateResource = {
     name: 'sinNormalizationState',
     resourceType: 'storage-buffer',

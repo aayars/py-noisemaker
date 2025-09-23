@@ -22,6 +22,7 @@ async function loadShaderSource(relativePath) {
 }
 
 export const MULTIRES_WGSL = await loadShaderSource('./shaders/multires.wgsl');
+export const MULTIRES_NORMALIZE_WGSL = await loadShaderSource('./shaders/multires_normalize.wgsl');
 
 export const VALUE_WGSL = SHADER_PLACEHOLDER;
 export const RESAMPLE_WGSL = SHADER_PLACEHOLDER;
