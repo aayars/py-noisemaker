@@ -29,7 +29,6 @@ grain
 grime
 inner_tile
 jpeg_decimate
-kaleido
 lens_distortion
 lens_warp
 light_leak
