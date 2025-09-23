@@ -30,23 +30,46 @@
       max-width: 512px;
     }
     button {
-      margin-left: 10px;
-      margin-top: 10px;
       padding: 4px 8px;
-      width: 128px;
-    }
-    #seedLabel {
-      margin-left: 10px;
     }
     #seedInput {
       width: 128px;
-      margin-left: 10px;
-      margin-top: 10px;
       padding: 4px 8px;
       box-sizing: border-box;
     }
     select {
       width: 256px;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    #controls .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    #controls .control-group--toggles {
+      gap: 12px;
+    }
+    #controls label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+    }
+    #controls button,
+    #controls input,
+    #controls select {
+      margin: 0;
+    }
+    #controls button {
+      width: auto;
     }
     #info {
       margin-top: 20px;
@@ -81,15 +104,24 @@
 <body>
   <div id="left">
     <h1>Noisemaker JS Demo</h1>
-    <span>
-    <label for="preset">Preset:</label>
-    <select id="preset"></select>
-    <button id="randomPreset">Random Preset</button>
-    <button id="reroll">Re-roll</button>
-    <label id="seedLabel" for="seedInput">Seed:</label>
-    <input id="seedInput" type="number" step="1" value="42" />
-    <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
-    </span>
+    <div id="controls">
+      <div class="control-group control-group--preset">
+        <label for="preset">Preset:</label>
+        <select id="preset"></select>
+      </div>
+      <div class="control-group control-group--buttons">
+        <button id="randomPreset">Random Preset</button>
+        <button id="reroll">Re-roll</button>
+      </div>
+      <div class="control-group control-group--seed">
+        <label for="seedInput">Seed:</label>
+        <input id="seedInput" type="number" step="1" value="42" />
+      </div>
+      <div class="control-group control-group--toggles">
+        <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
+        <label><input type="checkbox" id="animateToggle" /> Animate</label>
+      </div>
+    </div>
     <canvas id="noise" width="512" height="512"></canvas>
   </div>
   <div id="right">
@@ -147,18 +179,31 @@
     let canvas = document.getElementById('noise');
     let activeCanvasBackend = 'cpu';
     const webgpuToggle = document.getElementById('webgpuToggle');
+    const animateToggle = document.getElementById('animateToggle');
     const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu;
     const defaultProfilingOptions = {
       timestampQueries: false,
       dynamicResolution: false,
       parityReadback: false,
     };
+    const requestFrame =
+      (typeof window !== 'undefined' && window.requestAnimationFrame?.bind(window)) ||
+      ((cb) => window.setTimeout(() => cb((performance?.now?.() ?? Date.now())), 16));
+    const cancelFrame =
+      (typeof window !== 'undefined' && window.cancelAnimationFrame?.bind(window)) ||
+      ((handle) => window.clearTimeout(handle));
+    const FRAME_INTERVAL_MS = 1000 / 30;
     if (!hasWebGPU) {
       webgpuToggle.checked = false;
       webgpuToggle.disabled = true;
     }
     let ctx;
     let renderQueue = Promise.resolve();
+    let animationRunning = false;
+    let animationFrameHandle = null;
+    let animationStartTime = 0;
+    let animationLastFrameTime = 0;
+    let animationPendingCount = 0;
     const programCachesByContext = new Map();
     let gpuFrameIndex = 0;
     let lastCanvasSizeKey = `${canvas.width}x${canvas.height}`;
@@ -722,8 +767,12 @@
       return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
     }
 
-    async function draw(seed, presetName) {
+    async function draw(seed, presetName, timeSeconds = null) {
       let activeCtx = ctx;
+      const rawTimeSeconds = Number(timeSeconds);
+      const effectiveTime =
+        Number.isFinite(rawTimeSeconds) ? ((rawTimeSeconds % 1) + 1) % 1 : 0;
+      const frameIndexForThisFrame = gpuFrameIndex;
       setSeed(seed);
       if (!activeCtx.profile) {
         activeCtx.profile = {
@@ -778,6 +827,20 @@
       presets = renderPresets;
       const presetEvalMs = performance.now() - presetEvalStart;
       const stageSnapshots = gatherStageSnapshots(renderPresetObj);
+      const dynamicStageParams = {
+        time: effectiveTime,
+        speed: 1,
+        seed,
+        frameIndex: frameIndexForThisFrame,
+      };
+      for (const stage of stageSnapshots) {
+        if (!stage || !stage.params) continue;
+        for (const [key, value] of Object.entries(dynamicStageParams)) {
+          if (stage.params[key] === undefined) {
+            stage.params[key] = value;
+          }
+        }
+      }
       let renderMs = 0;
       let webgpuMs = 0;
       let cpuMs = 0;
@@ -809,7 +872,7 @@
               const support = entry.support || getProgramSupportInfo(entry.program);
               const programPartial = Boolean(support?.hasUnsupported);
               if (stageSnapshots.length) {
-                writeProgramUniforms(entry.program, stageSnapshots, gpuFrameIndex);
+                writeProgramUniforms(entry.program, stageSnapshots, frameIndexForThisFrame);
               }
               const renderStart = performance.now();
               let execResult = null;
@@ -817,8 +880,8 @@
                 execResult = await entry.program.execute(activeCtx, {
                   width: effectiveWidth,
                   height: effectiveHeight,
-                  time: 0,
-                  frameIndex: gpuFrameIndex,
+                  time: effectiveTime,
+                  frameIndex: frameIndexForThisFrame,
                   seed,
                   present: !programPartial,
                   readback: Boolean(programPartial),
@@ -866,6 +929,8 @@
                       presets,
                       debug: false,
                       tensor: generatorTensor,
+                      time: effectiveTime,
+                      frameIndex: frameIndexForThisFrame,
                     });
                     const finalData = await finalTensor.read();
                     const uploadTex = activeCtx.createTexture(effectiveWidth, effectiveHeight, finalData);
@@ -950,6 +1015,8 @@ Bindings: ${bindingSummary}`,
             ctx: activeCtx,
             presets,
             debug: false,
+            time: effectiveTime,
+            frameIndex: frameIndexForThisFrame,
           });
           if (activeCtx.flush) {
             await activeCtx.flush();
@@ -972,6 +1039,7 @@ Bindings: ${bindingSummary}`,
           activeCtx.profile.lastDispatchMs = 0;
           activeCtx.profile.lastCompileMs = activeCtx.profile.lastCompileMs || 0;
         }
+        gpuFrameIndex += 1;
       }
 
       const compileMs = activeCtx.profile?.lastCompileMs ?? 0;
@@ -1000,21 +1068,90 @@ Bindings: ${bindingSummary}`,
       presetEvalEl.textContent = formatPreset(evaluatedWithoutSettings);
     }
 
-    function renderPreset(seed = currentSeed, presetName = currentPreset) {
+    function renderPreset(seed = currentSeed, presetName = currentPreset, options = {}) {
+      const opts = options || {};
       const nextSeed = parseSeed(seed);
       currentSeed = nextSeed;
       seedInput.value = nextSeed;
-      const renderPromise = renderQueue.then(() => draw(nextSeed, presetName));
-      renderQueue = renderPromise.catch(() => {});
+      const usesAnimationTiming = Object.prototype.hasOwnProperty.call(opts, 'timeSeconds');
+      if (usesAnimationTiming) {
+        animationPendingCount += 1;
+      }
+      const renderPromise = renderQueue.then(() => draw(nextSeed, presetName, opts.timeSeconds ?? null));
+      renderQueue = renderPromise
+        .catch(() => {})
+        .finally(() => {
+          if (usesAnimationTiming) {
+            animationPendingCount = Math.max(0, animationPendingCount - 1);
+          }
+        });
       return renderPromise;
     }
 
-    function renderWithCatch(seed, presetName) {
-      const promise = renderPreset(seed, presetName);
+    function renderWithCatch(seed, presetName, options) {
+      const promise = renderPreset(seed, presetName, options);
       promise.catch((e) => {
         console.error(e);
       });
       return promise;
+    }
+
+    function resetAnimationClock() {
+      animationStartTime = 0;
+      animationLastFrameTime = 0;
+    }
+
+    function stopAnimation() {
+      animationRunning = false;
+      if (animationFrameHandle !== null) {
+        cancelFrame(animationFrameHandle);
+        animationFrameHandle = null;
+      }
+    }
+
+    function scheduleAnimationFrame() {
+      if (!animationRunning) {
+        return;
+      }
+      animationFrameHandle = requestFrame(handleAnimationFrame);
+    }
+
+    function handleAnimationFrame(now) {
+      if (!animationRunning) {
+        return;
+      }
+      if (!animationStartTime) {
+        animationStartTime = now;
+        animationLastFrameTime = 0;
+      }
+      const elapsedMs = now - animationStartTime;
+      const enoughTimeElapsed =
+        !animationLastFrameTime || now - animationLastFrameTime >= FRAME_INTERVAL_MS;
+      if (animationPendingCount === 0 && enoughTimeElapsed) {
+        animationLastFrameTime = now;
+        const seconds = elapsedMs / 1000;
+        renderWithCatch(currentSeed, currentPreset, { timeSeconds: seconds });
+      }
+      scheduleAnimationFrame();
+    }
+
+    function startAnimation() {
+      if (animationRunning) {
+        resetAnimationClock();
+        return;
+      }
+      animationRunning = true;
+      resetAnimationClock();
+      renderWithCatch(currentSeed, currentPreset, { timeSeconds: 0 });
+      scheduleAnimationFrame();
+    }
+
+    function getManualAnimationOptions() {
+      if (!animateToggle || !animateToggle.checked) {
+        return undefined;
+      }
+      resetAnimationClock();
+      return { timeSeconds: 0 };
     }
 
     try {
@@ -1024,7 +1161,8 @@ Bindings: ${bindingSummary}`,
     }
 
     function applySeedFromInput() {
-      renderWithCatch(seedInput.value, currentPreset);
+      const options = getManualAnimationOptions();
+      renderWithCatch(seedInput.value, currentPreset, options);
     }
 
     seedInput.addEventListener('change', applySeedFromInput);
@@ -1037,16 +1175,19 @@ Bindings: ${bindingSummary}`,
 
     document.getElementById('reroll').addEventListener('click', () => {
       const seed = Math.floor(random() * 1e9);
-      renderWithCatch(seed, currentPreset);
+      const options = getManualAnimationOptions();
+      renderWithCatch(seed, currentPreset, options);
     });
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
       const seed = Math.floor(random() * 1e9);
-      renderWithCatch(seed, currentPreset);
+      const options = getManualAnimationOptions();
+      renderWithCatch(seed, currentPreset, options);
     });
 
     webgpuToggle.addEventListener('change', async () => {
+      const manualOptions = getManualAnimationOptions();
       try {
         await initCtx();
       } catch (e) {
@@ -1054,11 +1195,21 @@ Bindings: ${bindingSummary}`,
         return;
       }
       try {
-        await renderPreset(currentSeed, currentPreset);
+        await renderPreset(currentSeed, currentPreset, manualOptions);
       } catch (e) {
         console.error(e);
       }
     });
+
+    if (animateToggle) {
+      animateToggle.addEventListener('change', () => {
+        if (animateToggle.checked) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      });
+    }
 
     document
       .getElementById('randomPreset')
@@ -1068,7 +1219,8 @@ Bindings: ${bindingSummary}`,
         presetSelect.value = randomPreset;
         currentPreset = randomPreset;
         const seed = Math.floor(random() * 1e9);
-        renderWithCatch(seed, currentPreset);
+        const options = getManualAnimationOptions();
+        renderWithCatch(seed, currentPreset, options);
       });
 
     function handleCanvasResize() {
@@ -1094,7 +1246,8 @@ Bindings: ${bindingSummary}`,
           void err;
         }
       }
-      renderWithCatch(currentSeed, currentPreset);
+      const options = getManualAnimationOptions();
+      renderWithCatch(currentSeed, currentPreset, options);
     }
 
     showTab('formula');
