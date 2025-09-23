@@ -303,39 +303,25 @@ fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
 }
 
 fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
-  let hue : f32 = fract(hsv.x);
-  let saturation : f32 = clamp(hsv.y, 0.0, 1.0);
-  let value : f32 = clamp(hsv.z, 0.0, 1.0);
+  let hue : f32 = hsv.x;
+  let saturation : f32 = hsv.y;
+  let value : f32 = hsv.z;
 
-  let chroma : f32 = value * saturation;
-  let h_prime : f32 = hue * 6.0;
-  let x : f32 = chroma * (1.0 - abs(fract(h_prime) * 2.0 - 1.0));
-  let m : f32 = value - chroma;
+  let dh : f32 = hue * 6.0;
+  let dr : f32 = clamp(abs(dh - 3.0) - 1.0, 0.0, 1.0);
+  let dg : f32 = clamp(-abs(dh - 2.0) + 2.0, 0.0, 1.0);
+  let db : f32 = clamp(-abs(dh - 4.0) + 2.0, 0.0, 1.0);
 
-  let sector : u32 = u32(floor(h_prime)) % 6u;
-  var rgb : vec3<f32>;
-  switch (sector) {
-    case 0u: {
-      rgb = vec3<f32>(chroma, x, 0.0);
-    }
-    case 1u: {
-      rgb = vec3<f32>(x, chroma, 0.0);
-    }
-    case 2u: {
-      rgb = vec3<f32>(0.0, chroma, x);
-    }
-    case 3u: {
-      rgb = vec3<f32>(0.0, x, chroma);
-    }
-    case 4u: {
-      rgb = vec3<f32>(x, 0.0, chroma);
-    }
-    default: {
-      rgb = vec3<f32>(chroma, 0.0, x);
-    }
-  }
+  let one_minus_s : f32 = 1.0 - saturation;
+  let sr : f32 = saturation * dr;
+  let sg : f32 = saturation * dg;
+  let sb : f32 = saturation * db;
 
-  return rgb + vec3<f32>(m, m, m);
+  let r : f32 = (one_minus_s + sr) * value;
+  let g : f32 = (one_minus_s + sg) * value;
+  let b : f32 = (one_minus_s + sb) * value;
+
+  return vec3<f32>(r, g, b);
 }
 
 const OKLAB_FWD_A : mat3x3<f32> = mat3x3<f32>(
@@ -446,7 +432,6 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let base_seed : u32 = frame_uniforms.seed + seed_offset;
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-  var weight_sum : f32 = 0.0;
 
   for (var octave_index : u32 = 0u; octave_index < octaves; octave_index = octave_index + 1u) {
     let octave_freq : vec2<f32> = compute_octave_frequency(base_freq, octave_index);
@@ -459,7 +444,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
 
     let override_seed : u32 = octave_seed ^ 0x94d049b4u;
     var hue_value : f32 = fract(layer_color.x * hue_range + hue_rotation_degrees / 360.0);
-    var saturation_value : f32 = clamp(layer_color.y * saturation_scale, 0.0, 1.0);
+    var saturation_value : f32 = layer_color.y * saturation_scale;
     var brightness_value : f32 = apply_distribution(layer_color.z, distrib, uv, aspect_ratio);
 
     if (hue_distrib != 0u) {
@@ -500,14 +485,9 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     } else if (octave_blending == OCTAVE_BLENDING_ALPHA) {
       accum = combine_alpha(accum, layer_rgba);
     } else {
-      let weight : f32 = pow(0.5, f32(octave_index));
+      let weight : f32 = pow(0.5, f32(octave_index + 1u));
       accum = accum + layer_rgba * weight;
-      weight_sum = weight_sum + weight;
     }
-  }
-
-  if (octave_blending == OCTAVE_BLENDING_FALLOFF && weight_sum > 0.0) {
-    accum = accum / weight_sum;
   }
 
   var final_color : vec4<f32> = accum;
@@ -517,7 +497,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
 
   var hsv_final : vec3<f32> = rgb_to_hsv(final_color.xyz);
   hsv_final.x = fract(hsv_final.x + hue_rotation_degrees / 360.0);
-  hsv_final.y = clamp(hsv_final.y * saturation_scale, 0.0, 1.0);
+  hsv_final.y = hsv_final.y * saturation_scale;
   if (ridges_enabled) {
     hsv_final.z = ridge_transform(hsv_final.z);
   }
@@ -525,16 +505,14 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     hsv_final.z = sin(hsv_final.z * TAU * sin_amount) * 0.5 + 0.5;
   }
   let rgb_final : vec3<f32> = hsv_to_rgb(hsv_final);
-  final_color = vec4<f32>(rgb_final, final_color.w);
+  let raw_final_color : vec4<f32> = vec4<f32>(rgb_final, final_color.w);
 
-  final_color = clamp(final_color, vec4<f32>(0.0, 0.0, 0.0, 0.0), vec4<f32>(1.0, 1.0, 1.0, 1.0));
-
-  update_normalization(final_color, with_alpha_output, &normalization_state);
+  update_normalization(raw_final_color, with_alpha_output, &normalization_state);
 
   textureStore(
     output_texture,
     vec2<i32>(i32(global_id.x), i32(global_id.y)),
-    final_color,
+    raw_final_color,
   );
 }
 
