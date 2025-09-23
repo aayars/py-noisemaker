@@ -83,6 +83,7 @@ import {
   LENS_DISTORTION_WGSL,
   DEGAUSS_WGSL,
   TINT_WGSL,
+  TEXTURE_WGSL,
   VHS_WGSL,
   UNARY_OP_WGSL,
   BINARY_OP_WGSL,
@@ -2561,6 +2562,93 @@ export async function texture(tensor, shape, time, speed) {
       : noiseMaybe;
 
   const shadeTensor = await shadow(noise, valueShape, time, speed, 1);
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    tensor.handle instanceof GPUTexture &&
+    shadeTensor
+  ) {
+    let shadeTex = shadeTensor;
+    if (shadeTex.ctx !== ctx) {
+      if (shadeTex.read) {
+        const shadeDataMaybe = shadeTex.read();
+        const shadeData =
+          shadeDataMaybe && typeof shadeDataMaybe.then === "function"
+            ? await shadeDataMaybe
+            : shadeDataMaybe;
+        shadeTex = Tensor.fromArray(ctx, shadeData, shadeTex.shape);
+      } else {
+        shadeTex = null;
+      }
+    } else if (
+      typeof GPUBuffer !== "undefined" &&
+      shadeTex.handle instanceof GPUBuffer
+    ) {
+      shadeTex = Tensor.fromGPUBuffer(ctx, shadeTex.handle, shadeTex.shape, shadeTex);
+    } else if (!(shadeTex.handle instanceof GPUTexture) && shadeTex.read) {
+      const shadeDataMaybe = shadeTex.read();
+      const shadeData =
+        shadeDataMaybe && typeof shadeDataMaybe.then === "function"
+          ? await shadeDataMaybe
+          : shadeDataMaybe;
+      shadeTex = Tensor.fromArray(ctx, shadeData, shadeTex.shape);
+    }
+    if (
+      shadeTex &&
+      shadeTex.ctx === ctx &&
+      typeof GPUTexture !== "undefined" &&
+      shadeTex.handle instanceof GPUTexture
+    ) {
+      try {
+        const storageChannels = Tensor.storageChannels(c);
+        const format =
+          storageChannels === 1
+            ? "r32float"
+            : storageChannels === 2
+            ? "rg32float"
+            : "rgba32float";
+        const outTex = ctx.device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format,
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
+        });
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([
+            w,
+            h,
+            c,
+            shadeTex.shape[2] || 1,
+            0.9,
+            0.1,
+            0,
+            0,
+          ]),
+          GPUBufferUsage.UNIFORM,
+        );
+        const shader = TEXTURE_WGSL.replace("rgba32float", format);
+        await ctx.runCompute(
+          shader,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: shadeTex.handle.createView() },
+            { binding: 2, resource: outTex.createView() },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outTex, shape);
+      } catch (e) {
+        console.warn("WebGPU texture fallback to CPU", e);
+      }
+    }
+  }
+
   const shadeMaybe = shadeTensor.read();
   const shade =
     shadeMaybe && typeof shadeMaybe.then === "function"

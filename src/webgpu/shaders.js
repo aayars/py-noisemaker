@@ -71,6 +71,7 @@ export const VASELINE_MASK_WGSL = SHADER_PLACEHOLDER;
 export const LENS_DISTORTION_WGSL = SHADER_PLACEHOLDER;
 export const DEGAUSS_WGSL = SHADER_PLACEHOLDER;
 export const TINT_WGSL = SHADER_PLACEHOLDER;
+export const TEXTURE_WGSL = await loadShaderSource('./shaders/texture.wgsl');
 export const VHS_WGSL = SHADER_PLACEHOLDER;
 export const UNARY_OP_WGSL = SHADER_PLACEHOLDER;
 export const BINARY_OP_WGSL = SHADER_PLACEHOLDER;

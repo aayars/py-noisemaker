@@ -65,7 +65,6 @@ spatter
 spooky_ticker
 square_crop_and_resize
 stray_hair
-texture
 tint
 value_refract
 vaseline
