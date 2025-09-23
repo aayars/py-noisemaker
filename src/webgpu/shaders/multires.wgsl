@@ -605,7 +605,16 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     } else if (color_space == COLOR_SPACE_RGB) {
       rgb_color = clamp(layer_color, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
     } else if (color_space == COLOR_SPACE_OKLAB) {
-      rgb_color = oklab_to_srgb(layer_color * 2.0 - vec3<f32>(1.0, 1.0, 1.0));
+      let oklab_color : vec3<f32> = vec3<f32>(
+        layer_color.x,
+        layer_color.y * -0.509 + 0.276,
+        layer_color.z * -0.509 + 0.198,
+      );
+      rgb_color = clamp(
+        oklab_to_srgb(oklab_color),
+        vec3<f32>(0.0, 0.0, 0.0),
+        vec3<f32>(1.0, 1.0, 1.0),
+      );
     } else {
       rgb_color = hsv_to_rgb(vec3<f32>(hue_value, saturation_value, brightness_value));
     }
