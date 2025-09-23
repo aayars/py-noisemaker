@@ -23,6 +23,7 @@ async function loadShaderSource(relativePath) {
 
 export const MULTIRES_WGSL = await loadShaderSource('./shaders/multires.wgsl');
 export const MULTIRES_NORMALIZE_WGSL = await loadShaderSource('./shaders/multires_normalize.wgsl');
+export const DERIVATIVE_WGSL = await loadShaderSource('./shaders/derivative.wgsl');
 
 export const VALUE_WGSL = SHADER_PLACEHOLDER;
 export const RESAMPLE_WGSL = SHADER_PLACEHOLDER;
@@ -56,7 +57,6 @@ export const SCRATCHES_MASK_WGSL = SHADER_PLACEHOLDER;
 export const SCRATCHES_BLEND_WGSL = SHADER_PLACEHOLDER;
 export const GRIME_MASK_WGSL = SHADER_PLACEHOLDER;
 export const GRIME_BLEND_WGSL = SHADER_PLACEHOLDER;
-export const DERIVATIVE_WGSL = SHADER_PLACEHOLDER;
 export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
 export const KALEIDO_WGSL = SHADER_PLACEHOLDER;
 export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
