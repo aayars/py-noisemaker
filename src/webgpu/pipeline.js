@@ -2319,6 +2319,10 @@ function buildMultiresUniformMetadata(stage) {
   const hueRange = toNumber(resolveParam(params, ['hueRange', 'hue_range']), 0.125);
   const hueRotation = toNumber(resolveParam(params, ['hueRotation', 'hue_rotation']), 0);
   const saturation = toNumber(resolveParam(params, ['saturation']), 1);
+  const splineOrder = toUint(
+    resolveParam(params, ['splineOrder', 'spline_order']),
+    InterpolationType.bicubic,
+  );
   const octaves = toUint(resolveParam(params, ['octaves']), 1);
   const octaveBlending = toUint(
     resolveParam(params, ['octaveBlending', 'octave_blending']),
@@ -2392,7 +2396,7 @@ function buildMultiresUniformMetadata(stage) {
     speed,
     sin: sinAmount,
     colorParams0: [hueRange, hueRotation, saturation, 0],
-    colorParams1: [0, 0, latticeDrift, 0],
+    colorParams1: [0, 0, latticeDrift, splineOrder],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
     options2: [safeHueDistrib, safeSaturationDistrib, safeBrightnessDistrib, brightnessFreqFlag >>> 0],
@@ -2642,7 +2646,7 @@ function resolveMultiresUniformParams(params, descriptor) {
     speed,
     sin: sinValue,
     colorParams0: [hueRange, hueRotation, saturation, 0],
-    colorParams1: [brightnessFreqVec[0], brightnessFreqVec[1], latticeDrift, 0],
+    colorParams1: [brightnessFreqVec[0], brightnessFreqVec[1], latticeDrift, splineOrder],
     options0: [octaves, octaveBlending, channelCount, ridges ? 1 : 0],
     options1: [seedOffset, distrib, colorSpace, withAlpha ? 1 : 0],
     options2: [hueDistrib, saturationDistrib, brightnessDistrib, brightnessFreqFlag >>> 0],

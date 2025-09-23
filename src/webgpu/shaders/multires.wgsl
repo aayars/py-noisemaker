@@ -84,6 +84,11 @@ const DISTRIB_CENTER_DECAGON : u32 = 30u;
 const DISTRIB_CENTER_HENDECAGON : u32 = 31u;
 const DISTRIB_CENTER_DODECAGON : u32 = 32u;
 
+const INTERPOLATION_CONSTANT : u32 = 0u;
+const INTERPOLATION_LINEAR : u32 = 1u;
+const INTERPOLATION_COSINE : u32 = 2u;
+const INTERPOLATION_BICUBIC : u32 = 3u;
+
 const FLOAT_SIGN_BIT : u32 = 0x80000000u;
 const F32_MAX : f32 = 3.402823466e38;
 
@@ -136,6 +141,29 @@ fn random_from_cell(cell : vec2<i32>, seed : u32) -> f32 {
   return f32(noise.x) / f32(0xffffffffu);
 }
 
+fn interpolation_weight(value : f32, spline_order : u32) -> f32 {
+  if (spline_order == INTERPOLATION_COSINE) {
+    let clamped : f32 = clamp(value, 0.0, 1.0);
+    let angle : f32 = clamped * PI;
+    let cos_value : f32 = cos(angle);
+    return (1.0 - cos_value) * 0.5;
+  }
+  return value;
+}
+
+fn blend_cubic(a : f32, b : f32, c : f32, d : f32, g : f32) -> f32 {
+  let t : f32 = clamp(g, 0.0, 1.0);
+  let t2 : f32 = t * t;
+  let a0 : f32 = ((d - c) - a) + b;
+  let a1 : f32 = (a - b) - a0;
+  let a2 : f32 = c - a;
+  let a3 : f32 = b;
+  let term1 : f32 = (a0 * t) * t2;
+  let term2 : f32 = a1 * t2;
+  let term3 : f32 = (a2 * t) + a3;
+  return (term1 + term2) + term3;
+}
+
 fn sample_value_noise(
   uv : vec2<f32>,
   freq : vec2<f32>,
@@ -144,6 +172,7 @@ fn sample_value_noise(
   octave : u32,
   time_value : f32,
   speed : f32,
+  spline_order : u32,
 ) -> f32 {
   let scaled_freq : vec2<f32> = max(freq, vec2<f32>(1.0, 1.0));
   let animated : vec2<f32> = (uv + vec2<f32>(time_value * speed, time_value * speed * 0.5)) * scaled_freq;
@@ -153,14 +182,52 @@ fn sample_value_noise(
   let salt : u32 = (channel * 0x9e3779b9u) ^ (octave * 0x85ebca6bu);
   let base_seed : u32 = seed ^ salt;
 
+  if (spline_order == INTERPOLATION_CONSTANT) {
+    return random_from_cell(cell, base_seed);
+  }
+
   let v00 : f32 = random_from_cell(cell, base_seed);
   let v10 : f32 = random_from_cell(cell + vec2<i32>(1, 0), base_seed);
   let v01 : f32 = random_from_cell(cell + vec2<i32>(0, 1), base_seed);
   let v11 : f32 = random_from_cell(cell + vec2<i32>(1, 1), base_seed);
 
-  let x0 : f32 = mix(v00, v10, frac.x);
-  let x1 : f32 = mix(v01, v11, frac.x);
-  return mix(x0, x1, frac.y);
+  if (spline_order == INTERPOLATION_LINEAR || spline_order == INTERPOLATION_COSINE) {
+    let weight_x : f32 = interpolation_weight(frac.x, spline_order);
+    let weight_y : f32 = interpolation_weight(frac.y, spline_order);
+    let x0 : f32 = mix(v00, v10, weight_x);
+    let x1 : f32 = mix(v01, v11, weight_x);
+    return mix(x0, x1, weight_y);
+  }
+
+  let row0 : f32 = blend_cubic(
+    random_from_cell(cell + vec2<i32>(-1, -1), base_seed),
+    random_from_cell(cell + vec2<i32>(0, -1), base_seed),
+    random_from_cell(cell + vec2<i32>(1, -1), base_seed),
+    random_from_cell(cell + vec2<i32>(2, -1), base_seed),
+    frac.x,
+  );
+  let row1 : f32 = blend_cubic(
+    random_from_cell(cell + vec2<i32>(-1, 0), base_seed),
+    v00,
+    v10,
+    random_from_cell(cell + vec2<i32>(2, 0), base_seed),
+    frac.x,
+  );
+  let row2 : f32 = blend_cubic(
+    random_from_cell(cell + vec2<i32>(-1, 1), base_seed),
+    v01,
+    v11,
+    random_from_cell(cell + vec2<i32>(2, 1), base_seed),
+    frac.x,
+  );
+  let row3 : f32 = blend_cubic(
+    random_from_cell(cell + vec2<i32>(-1, 2), base_seed),
+    random_from_cell(cell + vec2<i32>(0, 2), base_seed),
+    random_from_cell(cell + vec2<i32>(1, 2), base_seed),
+    random_from_cell(cell + vec2<i32>(2, 2), base_seed),
+    frac.x,
+  );
+  return blend_cubic(row0, row1, row2, row3, frac.y);
 }
 
 fn regular_polygon_weight(centered : vec2<f32>, sides : f32) -> f32 {
@@ -253,9 +320,19 @@ fn sample_distribution_value(
   octave : u32,
   time_value : f32,
   speed : f32,
+  spline_order : u32,
   aspect_ratio : f32,
 ) -> f32 {
-  let noise_value : f32 = sample_value_noise(uv, freq, seed, 0u, octave, time_value, speed);
+  let noise_value : f32 = sample_value_noise(
+    uv,
+    freq,
+    seed,
+    0u,
+    octave,
+    time_value,
+    speed,
+    spline_order,
+  );
   return apply_distribution(noise_value, distrib, uv, aspect_ratio);
 }
 
@@ -426,6 +503,9 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let hue_range : f32 = stage_uniforms.colorParams0.x;
   let hue_rotation_degrees : f32 = stage_uniforms.colorParams0.y;
   let saturation_scale : f32 = stage_uniforms.colorParams0.z;
+  let spline_order : u32 = u32(
+    clamp(stage_uniforms.colorParams1.w, 0.0, f32(INTERPOLATION_BICUBIC)),
+  );
 
   let time_value : f32 = frame_uniforms.time;
   let speed : f32 = stage_uniforms.speed;
@@ -437,9 +517,36 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let octave_freq : vec2<f32> = compute_octave_frequency(base_freq, octave_index);
     let octave_seed : u32 = base_seed ^ (octave_index * 0x9e3779b9u + 0x7f4a7c15u);
 
-    let c0 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 0u, octave_index, time_value, speed);
-    let c1 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 1u, octave_index, time_value, speed);
-    let c2 : f32 = sample_value_noise(uv, octave_freq, octave_seed, 2u, octave_index, time_value, speed);
+    let c0 : f32 = sample_value_noise(
+      uv,
+      octave_freq,
+      octave_seed,
+      0u,
+      octave_index,
+      time_value,
+      speed,
+      spline_order,
+    );
+    let c1 : f32 = sample_value_noise(
+      uv,
+      octave_freq,
+      octave_seed,
+      1u,
+      octave_index,
+      time_value,
+      speed,
+      spline_order,
+    );
+    let c2 : f32 = sample_value_noise(
+      uv,
+      octave_freq,
+      octave_seed,
+      2u,
+      octave_index,
+      time_value,
+      speed,
+      spline_order,
+    );
     var layer_color : vec3<f32> = vec3<f32>(c0, c1, c2);
 
     let override_seed : u32 = octave_seed ^ 0x94d049b4u;
@@ -448,14 +555,44 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     var brightness_value : f32 = apply_distribution(layer_color.z, distrib, uv, aspect_ratio);
 
     if (hue_distrib != 0u) {
-      hue_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x1u, hue_distrib, octave_index, time_value, speed, aspect_ratio);
+      hue_value = sample_distribution_value(
+        uv,
+        octave_freq,
+        override_seed ^ 0x1u,
+        hue_distrib,
+        octave_index,
+        time_value,
+        speed,
+        spline_order,
+        aspect_ratio,
+      );
       hue_value = fract(hue_value + hue_rotation_degrees / 360.0);
     }
     if (saturation_distrib != 0u) {
-      saturation_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x2u, saturation_distrib, octave_index, time_value, speed, aspect_ratio);
+      saturation_value = sample_distribution_value(
+        uv,
+        octave_freq,
+        override_seed ^ 0x2u,
+        saturation_distrib,
+        octave_index,
+        time_value,
+        speed,
+        spline_order,
+        aspect_ratio,
+      );
     }
     if (brightness_distrib != 0u) {
-      brightness_value = sample_distribution_value(uv, octave_freq, override_seed ^ 0x3u, brightness_distrib, octave_index, time_value, speed, aspect_ratio);
+      brightness_value = sample_distribution_value(
+        uv,
+        octave_freq,
+        override_seed ^ 0x3u,
+        brightness_distrib,
+        octave_index,
+        time_value,
+        speed,
+        spline_order,
+        aspect_ratio,
+      );
     }
 
     if (ridges_enabled) {
