@@ -1,7 +1,6 @@
 The remaining effects in this list need shader implementations:
 
 aberration
-adjust_brightness
 adjust_contrast
 adjust_hue
 adjust_saturation
