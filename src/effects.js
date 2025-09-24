@@ -5793,7 +5793,7 @@ export async function adjustContrast(tensor, shape, time, speed, amount = 1.25) 
         mean[0],
         mean[1] || mean[0],
         mean[2] || mean[0],
-        0,
+        mean[3] || mean[0],
       ]),
       GPUBufferUsage.UNIFORM,
     );

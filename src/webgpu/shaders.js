@@ -64,7 +64,9 @@ export const GRAIN_WGSL = await loadShaderSource('./shaders/grain.wgsl');
 export const ADJUST_BRIGHTNESS_WGSL = await loadShaderSource(
   './shaders/adjust_brightness.wgsl',
 );
-export const ADJUST_CONTRAST_WGSL = SHADER_PLACEHOLDER;
+export const ADJUST_CONTRAST_WGSL = await loadShaderSource(
+  './shaders/adjust_contrast.wgsl',
+);
 export const ROTATE_WGSL = SHADER_PLACEHOLDER;
 export const GLYPH_MAP_WGSL = SHADER_PLACEHOLDER;
 export const WARP_WGSL = SHADER_PLACEHOLDER;
