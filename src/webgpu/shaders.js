@@ -112,3 +112,4 @@ export const PROPORTIONAL_DOWNSAMPLE_WGSL = await loadShaderSource(
   './shaders/proportional_downsample.wgsl',
 );
 export const SCALE_TENSOR_WGSL = await loadShaderSource('./shaders/scale_tensor.wgsl');
+export const SHADOW_WGSL = await loadShaderSource('./shaders/shadow.wgsl');

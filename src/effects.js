@@ -102,6 +102,7 @@ import {
   BINARY_OP_WGSL,
   GRAYSCALE_WGSL,
   EXPAND_CHANNELS_WGSL,
+  SHADOW_WGSL,
   SOBEL_OPERATOR_FINALIZE_WGSL,
   SCALE_TENSOR_WGSL,
 } from "./webgpu/shaders.js";
@@ -593,7 +594,112 @@ export async function shadow(
 ) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
-  let ref = reference || tensor;
+  let refCandidate = reference ?? tensor;
+  if (refCandidate && typeof refCandidate.then === "function") {
+    refCandidate = await refCandidate;
+  }
+  if (ctx && ctx.device) {
+    const alphaScalar =
+      typeof alpha === "number" && Number.isFinite(alpha)
+        ? Math.min(1, Math.max(0, alpha))
+        : null;
+    if (alphaScalar !== null) {
+      const tex = ensureTextureTensor(tensor);
+      let refTensor = refCandidate instanceof Tensor ? refCandidate : tensor;
+      if (refTensor && typeof refTensor.then === "function") {
+        refTensor = await refTensor;
+      }
+      if (refTensor instanceof Tensor && refTensor.ctx === ctx) {
+        const refTex = ensureTextureTensor(refTensor);
+        const texValid =
+          tex && tex.ctx === ctx && tex.handle instanceof GPUTexture;
+        const refValid =
+          refTex &&
+          refTex.ctx === ctx &&
+          refTex.handle instanceof GPUTexture &&
+          refTex.shape?.[0] === h &&
+          refTex.shape?.[1] === w;
+        if (texValid && refValid) {
+          const channelCountRaw = shape?.[2] ?? tex.shape?.[2] ?? 1;
+          const channelCount = Number.isFinite(channelCountRaw)
+            ? Math.max(1, Math.floor(channelCountRaw))
+            : 1;
+          const refChannelsRaw = refTex.shape?.[2];
+          const refChannels = Number.isFinite(refChannelsRaw)
+            ? Math.max(1, Math.floor(refChannelsRaw))
+            : 1;
+          const pool = getBufferPool(ctx);
+          const pixelCount = h * w;
+          const usage =
+            GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST;
+          const gradientBuf = pool.acquire(pixelCount * 2 * 4, usage);
+          const shadeBuf = pool.acquire(pixelCount * 4, usage);
+          const outBuf = pool.acquire(pixelCount * channelCount * 4, usage);
+          const reduceBuf = pool.acquire(4 * 4, usage);
+          const paramsArr = new Float32Array([
+            w,
+            h,
+            channelCount,
+            alphaScalar,
+            0,
+            refChannels,
+            0.5,
+            0,
+          ]);
+          const paramsBuf = ctx.createGPUBuffer(
+            paramsArr,
+            GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          );
+          const runStage = async (stage, dx, dy) => {
+            paramsArr[4] = stage;
+            ctx.queue.writeBuffer(
+              paramsBuf,
+              0,
+              paramsArr.buffer,
+              paramsArr.byteOffset,
+              paramsArr.byteLength,
+            );
+            await ctx.runCompute(
+              SHADOW_WGSL,
+              [
+                { binding: 0, resource: tex.handle.createView() },
+                { binding: 1, resource: refTex.handle.createView() },
+                { binding: 2, resource: { buffer: gradientBuf } },
+                { binding: 3, resource: { buffer: shadeBuf } },
+                { binding: 4, resource: { buffer: outBuf } },
+                { binding: 5, resource: { buffer: reduceBuf } },
+                { binding: 6, resource: { buffer: paramsBuf } },
+              ],
+              dx,
+              dy,
+            );
+          };
+          try {
+            await ctx.withEncoder(async () => {
+              await runStage(0, 1, 1);
+              await runStage(
+                1,
+                Math.ceil(w / 8),
+                Math.ceil(h / 8),
+              );
+            });
+            return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, channelCount]);
+          } catch (err) {
+            console.warn("WebGPU shadow fallback to CPU", err);
+          } finally {
+            pool.release(gradientBuf);
+            pool.release(shadeBuf);
+            pool.release(outBuf);
+            pool.release(reduceBuf);
+            paramsBuf.destroy?.();
+          }
+        }
+      }
+    }
+  }
+  let ref = refCandidate || tensor;
   ref = await toValueMap(ref);
   const valueShape = [h, w, 1];
   if (ref.shape[0] !== h || ref.shape[1] !== w) {

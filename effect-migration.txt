@@ -33,7 +33,6 @@ reverb
 ridge
 scanline_error
 scratches
-shadow
 simple_frame
 sine
 sketch
