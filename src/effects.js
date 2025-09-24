@@ -72,6 +72,10 @@ import {
   GRIME_MASK_WGSL,
   GRIME_BLEND_WGSL,
   DERIVATIVE_WGSL,
+  GLOWING_EDGES_STAGE1_WGSL,
+  GLOWING_EDGES_STAGE2_WGSL,
+  GLOWING_EDGES_STAGE3_WGSL,
+  GLOWING_EDGES_STAGE4_WGSL,
   PIXEL_SORT_WGSL,
   KALEIDO_WGSL,
   NORMAL_MAP_WGSL,
@@ -1053,6 +1057,100 @@ export async function glowingEdges(
 ) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
+  const metric = sobelMetric ?? DistanceMetric.manhattan;
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    const pool = getBufferPool(ctx);
+    const usage =
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+    const levels = randomInt(3, 5);
+    const posterBytes = h * w * 4;
+    const colorBytes = h * w * c * 4;
+    const posterBuf = pool.acquire(posterBytes, usage);
+    const edgeBuf = pool.acquire(colorBytes, usage);
+    const glowBuf = pool.acquire(colorBytes, usage);
+    const outBuf = pool.acquire(colorBytes, usage);
+    const stage1Params = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, levels]),
+      GPUBufferUsage.UNIFORM,
+    );
+    const stage2Params = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, metric]),
+      GPUBufferUsage.UNIFORM,
+    );
+    const stage3Params = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    const stage4Params = ctx.createGPUBuffer(
+      new Float32Array([w, h, c, 0]),
+      GPUBufferUsage.UNIFORM,
+    );
+    const textureView = tensor.handle.createView();
+    try {
+      await ctx.withEncoder(async () => {
+        await ctx.runCompute(
+          GLOWING_EDGES_STAGE1_WGSL,
+          [
+            { binding: 0, resource: textureView },
+            { binding: 1, resource: { buffer: posterBuf } },
+            { binding: 2, resource: { buffer: stage1Params } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        await ctx.runCompute(
+          GLOWING_EDGES_STAGE2_WGSL,
+          [
+            { binding: 0, resource: { buffer: posterBuf } },
+            { binding: 1, resource: textureView },
+            { binding: 2, resource: { buffer: edgeBuf } },
+            { binding: 3, resource: { buffer: stage2Params } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        await ctx.runCompute(
+          GLOWING_EDGES_STAGE3_WGSL,
+          [
+            { binding: 0, resource: { buffer: edgeBuf } },
+            { binding: 1, resource: { buffer: glowBuf } },
+            { binding: 2, resource: { buffer: stage3Params } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        await ctx.runCompute(
+          GLOWING_EDGES_STAGE4_WGSL,
+          [
+            { binding: 0, resource: { buffer: glowBuf } },
+            { binding: 1, resource: textureView },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: stage4Params } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+      });
+      let result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+      if (alpha !== 1) {
+        result = await blend(tensor, result, alpha);
+      }
+      return result;
+    } catch (err) {
+      console.warn("WebGPU glowing_edges fallback to CPU", err);
+    } finally {
+      pool.release(posterBuf);
+      pool.release(edgeBuf);
+      pool.release(glowBuf);
+      pool.release(outBuf);
+      stage1Params.destroy?.();
+      stage2Params.destroy?.();
+      stage3Params.destroy?.();
+      stage4Params.destroy?.();
+    }
+  }
+
   const valueShape = [h, w, 1];
   const srcMaybe = tensor.read();
   const src =
@@ -1067,7 +1165,7 @@ export async function glowingEdges(
   edges = await normalize(edges);
   const levels = randomInt(3, 5);
   edges = await posterize(edges, valueShape, time, speed, levels);
-  edges = await sobelOperator(edges, valueShape, time, speed, sobelMetric);
+  edges = await sobelOperator(edges, valueShape, time, speed, metric);
   const sobelDataMaybe = edges.read();
   const sobelData =
     sobelDataMaybe && typeof sobelDataMaybe.then === "function"

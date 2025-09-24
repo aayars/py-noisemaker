@@ -22,7 +22,6 @@ fibers
 frame
 fxaa
 glitch
-glowing_edges
 glyph_map
 grime
 inner_tile

@@ -25,6 +25,18 @@ export const MULTIRES_WGSL = await loadShaderSource('./shaders/multires.wgsl');
 export const MULTIRES_NORMALIZE_WGSL = await loadShaderSource('./shaders/multires_normalize.wgsl');
 export const DERIVATIVE_WGSL = await loadShaderSource('./shaders/derivative.wgsl');
 export const CLOUDS_WGSL = await loadShaderSource('./shaders/clouds.wgsl');
+export const GLOWING_EDGES_STAGE1_WGSL = await loadShaderSource(
+  './shaders/glowing_edges_stage1.wgsl',
+);
+export const GLOWING_EDGES_STAGE2_WGSL = await loadShaderSource(
+  './shaders/glowing_edges_stage2.wgsl',
+);
+export const GLOWING_EDGES_STAGE3_WGSL = await loadShaderSource(
+  './shaders/glowing_edges_stage3.wgsl',
+);
+export const GLOWING_EDGES_STAGE4_WGSL = await loadShaderSource(
+  './shaders/glowing_edges_stage4.wgsl',
+);
 
 export const VALUE_WGSL = SHADER_PLACEHOLDER;
 export const RESAMPLE_WGSL = SHADER_PLACEHOLDER;
