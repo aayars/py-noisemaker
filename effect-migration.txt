@@ -56,4 +56,3 @@ warp
 watermark
 wormhole
 worms
-worms_params

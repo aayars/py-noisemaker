@@ -462,35 +462,6 @@ def sobel_operator(tensor, shape, dist_metric=DistanceMetric.euclidean, time=0.0
     return out
 
 
-def worms_params(shape, density=4.0, stride=1.0, stride_deviation=.05):
-    """Return parameter tensors used by :func:`worms`.
-
-    RNG: For each worm, calls ``rng.random`` four times (y, x, u1, u2)
-    followed by one final call for ``rot``.
-    """
-
-    height, width, _ = shape
-    count = int(max(width, height) * density)
-
-    y = []
-    x = []
-    stride_vals = []
-    for _ in range(count):
-        y.append(rng.random() * (height - 1))  # RNG[y]
-        x.append(rng.random() * (width - 1))   # RNG[x]
-
-        u1 = rng.random() or 1e-9             # RNG[u1]
-        u2 = rng.random()                      # RNG[u2]
-        mag = math.sqrt(-2 * math.log(u1))
-        z0 = mag * math.cos(math.tau * u2)
-        stride_vals.append((z0 * stride_deviation + stride) * (max(width, height)/1024.0))
-
-    rot_base = rng.random() * math.tau         # RNG[rot]
-    rot = [rot_base] * count
-
-    return {'x': x, 'y': y, 'stride': stride_vals, 'rot': rot}
-
-
 @effect()
 def normal_map(tensor, shape, time=0.0, speed=1.0):
     """
