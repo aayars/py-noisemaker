@@ -24,7 +24,6 @@ light_leak
 lowpoly
 nebula
 normal_map
-normalize
 offset_index
 on_screen_display
 outline
