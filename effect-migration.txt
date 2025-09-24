@@ -29,7 +29,6 @@ pixel_sort
 refract
 reindex
 reverb
-ridge
 scanline_error
 scratches
 simple_frame

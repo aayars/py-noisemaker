@@ -68,6 +68,7 @@ import {
   ADJUST_CONTRAST_WGSL,
   SMOOTHSTEP_WGSL,
   ROTATE_WGSL,
+  RIDGE_WGSL,
   GLYPH_MAP_WGSL,
   WARP_WGSL,
   SPATTER_MASK_WGSL,
@@ -6356,7 +6357,38 @@ register("adjust_hue", adjustHueEffect, { amount: 0.25 });
 
 export const adjust_hue = adjustHueEffect;
 
-export function ridgeEffect(tensor, shape, time, speed) {
+export async function ridgeEffect(tensor, shape, time, speed) {
+  const ctx = tensor?.ctx;
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (
+      tex &&
+      tex.ctx === ctx &&
+      typeof GPUTexture !== "undefined" &&
+      tex.handle instanceof GPUTexture
+    ) {
+      const [h, w, c] = shape;
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        RIDGE_WGSL,
+        [
+          { binding: 0, resource: tex.handle.createView() },
+          { binding: 1, resource: { buffer: outBuf } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      return new Tensor(ctx, outBuf, shape);
+    }
+  }
   return ridge(tensor);
 }
 register("ridge", ridgeEffect, {});
