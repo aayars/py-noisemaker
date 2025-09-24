@@ -124,6 +124,7 @@ import {
   INNER_TILE_WGSL,
   EXPAND_TILE_WGSL,
   STRAY_HAIR_WGSL,
+  FIBERS_WGSL,
   FRAME_WGSL,
   NEBULA_WGSL,
 } from "./webgpu/shaders.js";
@@ -9778,9 +9779,10 @@ export async function fibers(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
+  const maskScale = 0.5;
   let out = tensor;
   for (let i = 0; i < 4; i++) {
-    let mask = values(4, valueShape, { ctx, time, speed });
+    let mask = await values(4, valueShape, { ctx, time, speed });
     const density = 0.05 + random() * 0.00125;
     const kink = randomInt(5, 10);
     mask = await worms(
@@ -9796,11 +9798,100 @@ export async function fibers(tensor, shape, time, speed) {
       1,
       kink,
     );
-    const brightness = values(128, shape, { ctx, time, speed });
-    let maskData = await mask.read();
-    for (let j = 0; j < maskData.length; j++) maskData[j] *= 0.5;
-    mask = Tensor.fromArray(ctx, maskData, valueShape);
-    out = await blend(out, brightness, mask);
+    let brightness = await values(128, shape, { ctx, time, speed });
+
+    if (ctx && ctx.device) {
+      const hasGPUTexture = typeof GPUTexture !== "undefined";
+      out = ensureTextureTensor(out);
+      mask = ensureTextureTensor(mask);
+      brightness = ensureTextureTensor(brightness);
+      const baseValid =
+        hasGPUTexture &&
+        out &&
+        out.ctx === ctx &&
+        out.handle instanceof GPUTexture &&
+        out.shape?.[0] === h &&
+        out.shape?.[1] === w;
+      const maskValid =
+        hasGPUTexture &&
+        mask &&
+        mask.ctx === ctx &&
+        mask.handle instanceof GPUTexture &&
+        mask.shape?.[0] === h &&
+        mask.shape?.[1] === w;
+      const brightnessValid =
+        hasGPUTexture &&
+        brightness &&
+        brightness.ctx === ctx &&
+        brightness.handle instanceof GPUTexture &&
+        brightness.shape?.[0] === h &&
+        brightness.shape?.[1] === w;
+      if (baseValid && maskValid && brightnessValid) {
+        const baseChannelsRaw = out.shape?.[2] ?? c ?? 1;
+        const baseChannels = Math.max(1, Math.floor(baseChannelsRaw));
+        const brightnessChannels = Math.max(
+          1,
+          Math.floor(brightness.shape?.[2] ?? baseChannels),
+        );
+        const maskChannels = Math.max(1, Math.floor(mask.shape?.[2] ?? 1));
+        const storageChannels = Tensor.storageChannels(baseChannels);
+        const format =
+          storageChannels === 1
+            ? "r32float"
+            : storageChannels === 2
+            ? "rg32float"
+            : "rgba32float";
+        const shader = FIBERS_WGSL.replace("rgba32float", format);
+        const outTex = ctx.device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format,
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
+        });
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([
+            w,
+            h,
+            baseChannels,
+            brightnessChannels,
+            maskChannels,
+            maskScale,
+            0,
+            0,
+          ]),
+          GPUBufferUsage.UNIFORM,
+        );
+        try {
+          await ctx.runCompute(
+            shader,
+            [
+              { binding: 0, resource: out.handle.createView() },
+              { binding: 1, resource: brightness.handle.createView() },
+              { binding: 2, resource: mask.handle.createView() },
+              { binding: 3, resource: outTex.createView() },
+              { binding: 4, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          out = new Tensor(ctx, outTex, [h, w, baseChannels]);
+          continue;
+        } catch (e) {
+          console.warn("WebGPU fibers fallback to CPU", e);
+        }
+      }
+    }
+
+    const maskData = await mask.read();
+    const scaledMask = new Float32Array(maskData.length);
+    for (let j = 0; j < maskData.length; j++) {
+      scaledMask[j] = maskData[j] * maskScale;
+    }
+    const scaledMaskTensor = Tensor.fromArray(ctx, scaledMask, valueShape);
+    out = await blend(out, brightness, scaledMaskTensor);
   }
   return out;
 }
