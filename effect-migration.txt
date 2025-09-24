@@ -12,7 +12,6 @@ fibers
 frame
 glyph_map
 inner_tile
-jpeg_decimate
 lowpoly
 nebula
 normal_map

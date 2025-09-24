@@ -104,6 +104,7 @@ export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
 export const POSTERIZE_WGSL = await loadShaderSource('./shaders/posterize.wgsl');
 export const KALEIDO_WGSL = await loadShaderSource('./shaders/kaleido.wgsl');
 export const GLITCH_WGSL = await loadShaderSource('./shaders/glitch.wgsl');
+export const JPEG_DECIMATE_WGSL = await loadShaderSource('./shaders/jpeg_decimate.wgsl');
 export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
 export const CRT_WGSL = SHADER_PLACEHOLDER;
 export const WOBBLE_WGSL = await loadShaderSource('./shaders/wobble.wgsl');
