@@ -1,7 +1,6 @@
 The remaining effects in this list need shader implementations:
 
 convolve
-crt
 degauss
 expand_tile
 fibers

@@ -122,7 +122,7 @@ export const SCANLINE_ERROR_WGSL = await loadShaderSource(
 );
 export const JPEG_DECIMATE_WGSL = await loadShaderSource('./shaders/jpeg_decimate.wgsl');
 export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
-export const CRT_WGSL = SHADER_PLACEHOLDER;
+export const CRT_WGSL = await loadShaderSource('./shaders/crt.wgsl');
 export const WOBBLE_WGSL = await loadShaderSource('./shaders/wobble.wgsl');
 export const VORTEX_WGSL = await loadShaderSource('./shaders/vortex.wgsl');
 export const WORMHOLE_WGSL = SHADER_PLACEHOLDER;
