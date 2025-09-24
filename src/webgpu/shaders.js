@@ -62,6 +62,9 @@ export const VIGNETTE_WGSL = await loadShaderSource('./shaders/vignette.wgsl');
 export const DITHER_WGSL = SHADER_PLACEHOLDER;
 export const GRAIN_WGSL = await loadShaderSource('./shaders/grain.wgsl');
 export const BLOOM_WGSL = await loadShaderSource('./shaders/bloom.wgsl');
+export const ABERRATION_WGSL = await loadShaderSource(
+  './shaders/aberration.wgsl',
+);
 export const ADJUST_BRIGHTNESS_WGSL = await loadShaderSource(
   './shaders/adjust_brightness.wgsl',
 );

@@ -63,6 +63,7 @@ import {
   DITHER_WGSL,
   GRAIN_WGSL,
   BLOOM_WGSL,
+  ABERRATION_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
   SMOOTHSTEP_WGSL,
@@ -3706,6 +3707,57 @@ export async function aberration(
     maskData[i] = Math.pow(maskData[i], 3);
   }
 
+  const tinted = await adjustHue(tensor, hueShift);
+  const ctx = tensor.ctx;
+  const tintedTex =
+    ctx && ctx.device ? ensureTextureTensor(tinted) : tinted;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    tintedTex.handle instanceof GPUTexture
+  ) {
+    try {
+      const maskArray =
+        maskData instanceof Float32Array
+          ? maskData
+          : new Float32Array(maskData);
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const maskBuf = ctx.createGPUBuffer(maskArray, GPUBufferUsage.STORAGE);
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([
+          w,
+          h,
+          c,
+          displacementPixels,
+          w > 1 ? w - 1 : 0,
+          0,
+          0,
+          0,
+        ]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        ABERRATION_WGSL,
+        [
+          { binding: 0, resource: tintedTex.handle.createView() },
+          { binding: 1, resource: { buffer: maskBuf } },
+          { binding: 2, resource: { buffer: outBuf } },
+          { binding: 3, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      const displaced = new Tensor(ctx, outBuf, shape);
+      return adjustHue(displaced, -hueShift);
+    } catch (e) {
+      console.warn("WebGPU aberration fallback to CPU", e);
+    }
+  }
+
   const xIndex = new Float32Array(h * w);
   const yIndex = new Int32Array(h * w);
   const gradient = new Float32Array(h * w);
@@ -3718,8 +3770,7 @@ export async function aberration(
     }
   }
 
-  const tinted = await adjustHue(tensor, hueShift);
-  const src = await tinted.read();
+  const src = await tintedTex.read();
   const blendLinear = (a, b, t) => a * (1 - t) + b * t;
   const blendCosine = (a, b, g) => {
     const clamped = Math.max(0, Math.min(1, g));
