@@ -43,7 +43,7 @@ export const RESAMPLE_WGSL = SHADER_PLACEHOLDER;
 export const DOWNSAMPLE_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_CONST_WGSL = SHADER_PLACEHOLDER;
-export const SOBEL_WGSL = SHADER_PLACEHOLDER;
+export const SOBEL_WGSL = await loadShaderSource('./shaders/sobel.wgsl');
 export const REFRACT_WGSL = SHADER_PLACEHOLDER;
 export const CONVOLUTION_WGSL = SHADER_PLACEHOLDER;
 export const FXAA_WGSL = await loadShaderSource('./shaders/fxaa.wgsl');
@@ -100,3 +100,6 @@ export const UNARY_OP_WGSL = SHADER_PLACEHOLDER;
 export const BINARY_OP_WGSL = SHADER_PLACEHOLDER;
 export const GRAYSCALE_WGSL = SHADER_PLACEHOLDER;
 export const EXPAND_CHANNELS_WGSL = SHADER_PLACEHOLDER;
+export const SOBEL_OPERATOR_FINALIZE_WGSL = await loadShaderSource(
+  './shaders/sobel_operator_finalize.wgsl',
+);

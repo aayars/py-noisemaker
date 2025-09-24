@@ -100,6 +100,7 @@ import {
   BINARY_OP_WGSL,
   GRAYSCALE_WGSL,
   EXPAND_CHANNELS_WGSL,
+  SOBEL_OPERATOR_FINALIZE_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -937,7 +938,7 @@ register("derivative", derivative, {
   alpha: 1,
 });
 
-export function sobelOperator(
+export async function sobelOperator(
   tensor,
   shape,
   time,
@@ -962,11 +963,142 @@ export function sobelOperator(
     [0, 0, 0],
     [-1, -2, -1],
   ].map((row) => row.map((v) => Math.fround(v / 2)));
-  const convolveAndProcess = (blurred) => {
-    const gx = convolution(blurred, sobelXKernel, { normalize: false });
-    const gy = convolution(blurred, sobelYKernel, { normalize: false });
+  const ctx = tensor?.ctx;
 
-    const gradient = withTensorDatas([gx, gy], (gxData, gyData) => {
+  const tryWebGPU = async () => {
+    if (
+      !ctx ||
+      !ctx.device ||
+      typeof GPUTexture === "undefined" ||
+      (!(
+        tensor.handle instanceof GPUTexture ||
+        (typeof GPUBuffer !== "undefined" && tensor.handle instanceof GPUBuffer)
+      ))
+    ) {
+      return null;
+    }
+    try {
+      let source = tensor;
+      if (typeof GPUBuffer !== "undefined" && source.handle instanceof GPUBuffer) {
+        source = Tensor.fromGPUBuffer(ctx, source.handle, source.shape, source);
+      }
+      if (!(source.handle instanceof GPUTexture)) {
+        return null;
+      }
+
+      let blurred = await convolution(source, blurKernel);
+      blurred = ensureTextureTensor(blurred);
+      if (
+        !blurred ||
+        blurred.ctx !== ctx ||
+        !(blurred.handle instanceof GPUTexture)
+      ) {
+        return null;
+      }
+
+      const [sobelXTensorRaw, sobelYTensorRaw] = await Promise.all([
+        convolution(blurred, sobelXKernel, { normalize: false }),
+        convolution(blurred, sobelYKernel, { normalize: false }),
+      ]);
+      const sobelXTensor = ensureTextureTensor(sobelXTensorRaw);
+      const sobelYTensor = ensureTextureTensor(sobelYTensorRaw);
+      if (
+        !sobelXTensor ||
+        !sobelYTensor ||
+        sobelXTensor.ctx !== ctx ||
+        sobelYTensor.ctx !== ctx ||
+        !(sobelXTensor.handle instanceof GPUTexture) ||
+        !(sobelYTensor.handle instanceof GPUTexture)
+      ) {
+        return null;
+      }
+
+      const outSize = h * w * c;
+      const usage =
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+      const pool = getBufferPool(ctx);
+      let derivativeBuf = pool.acquire(outSize * 4, usage);
+      let derivativeParams = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, distMetric, 0, 0, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      let finalizeBuf = null;
+      let finalizeParams = null;
+      try {
+        await ctx.runCompute(
+          DERIVATIVE_WGSL,
+          [
+            { binding: 0, resource: sobelXTensor.handle.createView() },
+            { binding: 1, resource: sobelYTensor.handle.createView() },
+            { binding: 2, resource: { buffer: derivativeBuf } },
+            { binding: 3, resource: { buffer: derivativeParams } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        let gradient = Tensor.fromGPUBuffer(ctx, derivativeBuf, [h, w, c]);
+        pool.release(derivativeBuf);
+        derivativeBuf = null;
+        derivativeParams.destroy?.();
+        derivativeParams = null;
+
+        let normalized = normalize(gradient);
+        normalized =
+          normalized && typeof normalized.then === "function"
+            ? await normalized
+            : normalized;
+        normalized = ensureTextureTensor(normalized);
+        if (
+          !normalized ||
+          normalized.ctx !== ctx ||
+          !(normalized.handle instanceof GPUTexture)
+        ) {
+          return null;
+        }
+
+        finalizeBuf = pool.acquire(outSize * 4, usage);
+        finalizeParams = ctx.createGPUBuffer(
+          new Float32Array([w, h, c, -1, -1, 0, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          SOBEL_OPERATOR_FINALIZE_WGSL,
+          [
+            { binding: 0, resource: normalized.handle.createView() },
+            { binding: 1, resource: { buffer: finalizeBuf } },
+            { binding: 2, resource: { buffer: finalizeParams } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const result = Tensor.fromGPUBuffer(ctx, finalizeBuf, [h, w, c]);
+        pool.release(finalizeBuf);
+        finalizeBuf = null;
+        finalizeParams.destroy?.();
+        finalizeParams = null;
+        return result;
+      } finally {
+        if (derivativeBuf) pool.release(derivativeBuf);
+        if (finalizeBuf) pool.release(finalizeBuf);
+        derivativeParams?.destroy?.();
+        finalizeParams?.destroy?.();
+      }
+    } catch (err) {
+      console.warn("WebGPU sobel_operator fallback to CPU", err);
+      return null;
+    }
+  };
+
+  const gpuResult = await tryWebGPU();
+  if (gpuResult) {
+    return gpuResult;
+  }
+
+  const convolveAndProcess = async (blurred) => {
+    const gx = await convolution(blurred, sobelXKernel, { normalize: false });
+    const gy = await convolution(blurred, sobelYKernel, { normalize: false });
+
+    const gradient = await withTensorDatas([gx, gy], (gxData, gyData) => {
       const grad = new Float32Array(gxData.length);
       for (let i = 0; i < grad.length; i++) {
         grad[i] = Math.fround(distance(gxData[i], gyData[i], distMetric));
@@ -974,42 +1106,22 @@ export function sobelOperator(
       return Tensor.fromArray(tensor.ctx, grad, shape);
     });
 
-    const handleGradient = (gradTensor) => {
-      const normalized = normalize(gradTensor);
-      const process = (normTensor) =>
-        withTensorData(normTensor, (data) => {
-          const out = new Float32Array(data.length);
-          for (let i = 0; i < data.length; i++) {
-            const doubled = Math.fround(data[i] * 2);
-            const centered = Math.fround(doubled - 1);
-            out[i] = Math.fround(Math.abs(centered));
-          }
-          const ctx = (normTensor && normTensor.ctx) || tensor.ctx;
-          return Tensor.fromArray(ctx, out, shape);
-        });
-
-      if (normalized && typeof normalized.then === "function") {
-        return normalized.then(process);
+    const normalized = await normalize(gradient);
+    const processed = await withTensorData(normalized, (data) => {
+      const out = new Float32Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        const doubled = Math.fround(data[i] * 2);
+        const centered = Math.fround(doubled - 1);
+        out[i] = Math.fround(Math.abs(centered));
       }
-      return process(normalized);
-    };
+      const ctxOut = (normalized && normalized.ctx) || tensor.ctx;
+      return Tensor.fromArray(ctxOut, out, shape);
+    });
 
-    const processed =
-      gradient && typeof gradient.then === "function"
-        ? gradient.then(handleGradient)
-        : handleGradient(gradient);
-
-    const shift = (result) => offsetTensor(result, -1, -1);
-
-    if (processed && typeof processed.then === "function") {
-      return processed.then(shift);
-    }
-    return shift(processed);
+    return offsetTensor(processed, -1, -1);
   };
-  const blurred = convolution(tensor, blurKernel);
-  if (blurred && typeof blurred.then === "function") {
-    return blurred.then(convolveAndProcess);
-  }
+
+  const blurred = await convolution(tensor, blurKernel);
   return convolveAndProcess(blurred);
 }
 register("sobel_operator", sobelOperator, {

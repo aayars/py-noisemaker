@@ -47,7 +47,6 @@ simple_frame
 sine
 sketch
 snow
-sobel
 sobel_operator
 spatter
 spooky_ticker
