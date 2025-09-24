@@ -122,6 +122,7 @@ import {
   SQUARE_CROP_WGSL,
   SIMPLE_FRAME_WGSL,
   INNER_TILE_WGSL,
+  EXPAND_TILE_WGSL,
   STRAY_HAIR_WGSL,
   FRAME_WGSL,
   NEBULA_WGSL,
@@ -3738,27 +3739,108 @@ export function expandTile(
   outputShape,
   withOffset = true,
 ) {
-  const [inH, inW, c] = inputShape;
-  const [outH, outW] = outputShape;
+  const [rawInH, rawInW, rawChannels] = inputShape ?? [];
+  const [rawOutH, rawOutW] = outputShape ?? [];
+  const inH = Math.max(0, Math.trunc(rawInH ?? 0));
+  const inW = Math.max(0, Math.trunc(rawInW ?? 0));
+  const outH = Math.max(0, Math.trunc(rawOutH ?? 0));
+  const outW = Math.max(0, Math.trunc(rawOutW ?? 0));
+  const channelCount = Math.max(
+    1,
+    Math.trunc(rawChannels ?? tensor?.shape?.[2] ?? 1),
+  );
   const xOff = withOffset ? Math.floor(inW / 2) : 0;
   const yOff = withOffset ? Math.floor(inH / 2) : 0;
-  return withTensorData(tensor, (src) => {
-    const out = new Float32Array(outH * outW * c);
-    const wrap = (n, mod) => {
-      const r = n % mod;
-      return r < 0 ? r + mod : r;
-    };
-    for (let y = 0; y < outH; y++) {
-      const sy = wrap(y + yOff, inH);
-      for (let x = 0; x < outW; x++) {
-        const sx = wrap(x + xOff, inW);
-        for (let k = 0; k < c; k++) {
-          out[(y * outW + x) * c + k] = src[(sy * inW + sx) * c + k];
+
+  const runCPU = () =>
+    withTensorData(tensor, (src) => {
+      const out = new Float32Array(outH * outW * channelCount);
+      const wrap = (n, mod) => {
+        if (mod <= 0) return 0;
+        const r = n % mod;
+        return r < 0 ? r + mod : r;
+      };
+      for (let y = 0; y < outH; y++) {
+        const sy = wrap(y + yOff, inH);
+        for (let x = 0; x < outW; x++) {
+          const sx = wrap(x + xOff, inW);
+          for (let k = 0; k < channelCount; k++) {
+            out[(y * outW + x) * channelCount + k] =
+              src[(sy * inW + sx) * channelCount + k];
+          }
         }
       }
+      return Tensor.fromArray(tensor.ctx, out, [outH, outW, channelCount]);
+    });
+
+  if (
+    inH <= 0 ||
+    inW <= 0 ||
+    outH <= 0 ||
+    outW <= 0 ||
+    channelCount <= 0 ||
+    channelCount > 4
+  ) {
+    return runCPU();
+  }
+
+  const ctx = tensor?.ctx ?? null;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex?.ctx === ctx && tex.handle instanceof GPUTexture) {
+      return (async () => {
+        let paramsBuf = null;
+        let outBuf = null;
+        try {
+          outBuf = ctx.createGPUBuffer(
+            new Float32Array(outH * outW * channelCount),
+            GPUBufferUsage.STORAGE |
+              GPUBufferUsage.COPY_SRC |
+              GPUBufferUsage.COPY_DST,
+          );
+          paramsBuf = ctx.createGPUBuffer(
+            new Int32Array([inW, inH, outW, outH, channelCount, xOff, yOff, 0]),
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            EXPAND_TILE_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(outW / 8),
+            Math.ceil(outH / 8),
+          );
+          return new Tensor(ctx, outBuf, [outH, outW, channelCount]);
+        } catch (err) {
+          console.warn("WebGPU expand_tile fallback to CPU", err);
+          if (outBuf && outBuf.destroy) {
+            try {
+              outBuf.destroy();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        } finally {
+          if (paramsBuf && paramsBuf.destroy) {
+            try {
+              paramsBuf.destroy();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        }
+        return runCPU();
+      })();
     }
-    return Tensor.fromArray(tensor.ctx, out, [outH, outW, c]);
-  });
+  }
+
+  return runCPU();
 }
 
 export function offsetIndex(yIndex, height, xIndex, width) {
@@ -7548,7 +7630,24 @@ register("reverb", reverb, { octaves: 2, iterations: 1, ridges: true });
 async function expandTileInternal(tensor, inputShape, outputShape) {
   const [ih, iw, c] = inputShape;
   const [oh, ow] = outputShape;
-  const t = tensor && typeof tensor.then === 'function' ? await tensor : tensor;
+  const t = tensor && typeof tensor.then === "function" ? await tensor : tensor;
+
+  const ctx = t?.ctx ?? null;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(t);
+    if (tex?.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        return await expandTile(tex, inputShape, outputShape, true);
+      } catch (err) {
+        console.warn("WebGPU expand_tile_internal fallback to CPU", err);
+      }
+    }
+  }
+
   const src = await t.read();
   const out = new Float32Array(oh * ow * c);
   const wrap = (n, mod) => {

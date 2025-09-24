@@ -165,3 +165,4 @@ export const FRAME_WGSL = await loadShaderSource('./shaders/frame.wgsl');
 export const INNER_TILE_WGSL = await loadShaderSource('./shaders/inner_tile.wgsl');
 export const STRAY_HAIR_WGSL = await loadShaderSource('./shaders/stray_hair.wgsl');
 export const NEBULA_WGSL = await loadShaderSource('./shaders/nebula.wgsl');
+export const EXPAND_TILE_WGSL = await loadShaderSource('./shaders/expand_tile.wgsl');

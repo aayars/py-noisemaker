@@ -2,7 +2,6 @@ The remaining effects in this list need shader implementations:
 
 convolve
 degauss
-expand_tile
 fibers
 glyph_map
 lowpoly
