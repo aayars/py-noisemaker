@@ -62,6 +62,7 @@ import {
   VIGNETTE_WGSL,
   DITHER_WGSL,
   GRAIN_WGSL,
+  SNOW_WGSL,
   BLOOM_WGSL,
   ABERRATION_WGSL,
   LIGHT_LEAK_SCREEN_WGSL,
@@ -6439,6 +6440,7 @@ register("grain", grain, { alpha: 0.25 });
 
 export async function snow(tensor, shape, time, speed, alpha = 0.25) {
   const [h, w] = shape;
+  const c = shape[2] ?? tensor.shape?.[2] ?? 1;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
 
@@ -6446,6 +6448,33 @@ export async function snow(tensor, shape, time, speed, alpha = 0.25) {
     maybeTensor && typeof maybeTensor.then === "function"
       ? await maybeTensor
       : maybeTensor;
+
+  const toTexture = async (src, expectedShape) => {
+    if (!src) return null;
+    if (src.ctx === ctx) {
+      const tex = ensureTextureTensor(src);
+      if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+        return tex;
+      }
+      if (
+        tex &&
+        tex.ctx === ctx &&
+        typeof GPUBuffer !== "undefined" &&
+        tex.handle instanceof GPUBuffer
+      ) {
+        return Tensor.fromGPUBuffer(ctx, tex.handle, tex.shape, tex);
+      }
+    }
+    const shapeArr = src.shape ?? expectedShape;
+    if (!shapeArr) return null;
+    const data = src.data
+      ? src.data
+      : src.read
+      ? await resolveTensor(src.read())
+      : null;
+    if (!data) return null;
+    return Tensor.fromArray(ctx, data, shapeArr);
+  };
 
   let staticNoise = values([h, w], valueShape, {
     ctx,
@@ -6463,6 +6492,125 @@ export async function snow(tensor, shape, time, speed, alpha = 0.25) {
 
   staticNoise = await resolveTensor(staticNoise);
   limiter = await resolveTensor(limiter);
+
+  const tryWebGPU = async () => {
+    if (!ctx || !ctx.device) return null;
+
+    const baseTex = ensureTextureTensor(tensor);
+    if (
+      !baseTex ||
+      baseTex.ctx !== ctx ||
+      !(baseTex.handle instanceof GPUTexture) ||
+      baseTex.shape[0] !== h ||
+      baseTex.shape[1] !== w
+    ) {
+      return null;
+    }
+
+    const staticTex = await toTexture(staticNoise, valueShape);
+    const limiterTex = await toTexture(limiter, valueShape);
+    if (
+      !staticTex ||
+      !limiterTex ||
+      staticTex.ctx !== ctx ||
+      limiterTex.ctx !== ctx ||
+      !(staticTex.handle instanceof GPUTexture) ||
+      !(limiterTex.handle instanceof GPUTexture)
+    ) {
+      return null;
+    }
+
+    let alphaTensor = alpha;
+    if (alphaTensor && typeof alphaTensor.then === "function") {
+      alphaTensor = await alphaTensor;
+    }
+
+    let alphaTex = limiterTex;
+    let alphaShape = limiterTex.shape;
+    let alphaIsTexture = false;
+    let alphaValue = 0;
+
+    if (typeof alphaTensor === "number") {
+      alphaValue = alphaTensor;
+    } else if (alphaTensor && alphaTensor.shape) {
+      const converted = await toTexture(alphaTensor, alphaTensor.shape);
+      if (
+        !converted ||
+        converted.ctx !== ctx ||
+        !(converted.handle instanceof GPUTexture)
+      ) {
+        return null;
+      }
+      alphaTex = converted;
+      alphaShape = converted.shape;
+      alphaIsTexture = true;
+    } else if (alphaTensor !== undefined && alphaTensor !== null) {
+      return null;
+    }
+
+    const outSize = h * w * c;
+    const pool = getBufferPool(ctx);
+    let outBuf = pool.acquire(
+      outSize * 4,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    let paramsBuf = pool.acquire(
+      16 * 4,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    );
+    const paramsArr = new Float32Array([
+      w,
+      h,
+      c,
+      staticTex.shape?.[1] ?? w,
+      staticTex.shape?.[0] ?? h,
+      staticTex.shape?.[2] ?? 1,
+      limiterTex.shape?.[1] ?? w,
+      limiterTex.shape?.[0] ?? h,
+      limiterTex.shape?.[2] ?? 1,
+      alphaShape?.[1] ?? w,
+      alphaShape?.[0] ?? h,
+      alphaShape?.[2] ?? 1,
+      alphaValue,
+      alphaIsTexture ? 1 : 0,
+      0,
+      0,
+    ]);
+    ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+
+    try {
+      await ctx.runCompute(
+        SNOW_WGSL,
+        [
+          { binding: 0, resource: baseTex.handle.createView() },
+          { binding: 1, resource: staticTex.handle.createView() },
+          { binding: 2, resource: limiterTex.handle.createView() },
+          { binding: 3, resource: alphaTex.handle.createView() },
+          { binding: 4, resource: { buffer: outBuf } },
+          { binding: 5, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      const result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+      pool.release(outBuf);
+      outBuf = null;
+      pool.release(paramsBuf);
+      paramsBuf = null;
+      return result;
+    } catch (err) {
+      console.warn("WebGPU snow fallback to CPU", err);
+      return null;
+    } finally {
+      if (outBuf) pool.release(outBuf);
+      if (paramsBuf) pool.release(paramsBuf);
+    }
+  };
+
+  const gpuResult = await tryWebGPU();
+  if (gpuResult) {
+    return gpuResult;
+  }
 
   const limiterDataMaybe = limiter.read();
   const limiterData =
