@@ -104,6 +104,7 @@ import {
   LENS_DISTORTION_WGSL,
   DEGAUSS_WGSL,
   TINT_WGSL,
+  PALETTE_WGSL,
   TEXTURE_WGSL,
   VHS_WGSL,
   UNARY_OP_WGSL,
@@ -3897,6 +3898,77 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
 
   const p = PALETTES[name];
   if (!p) throw new Error(`Unknown palette ${name}`);
+
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof alpha === "number"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const outSize = h * w * c;
+        const usage =
+          GPUBufferUsage.STORAGE |
+          GPUBufferUsage.COPY_SRC |
+          GPUBufferUsage.COPY_DST;
+        const outBuf = ctx.createGPUBuffer(new Float32Array(outSize), usage);
+        const alphaAngle = Math.fround(alpha * Math.PI);
+        const alphaCos = Math.fround(Math.cos(alphaAngle));
+        const blendAmount = Math.fround((1 - alphaCos) * 0.5);
+        const paramsArr = new Float32Array([
+          Math.fround(w),
+          Math.fround(h),
+          Math.fround(c),
+          blendAmount,
+          0,
+          0,
+          0,
+          0,
+          Math.fround(p.amp[0] ?? 0),
+          Math.fround(p.amp[1] ?? 0),
+          Math.fround(p.amp[2] ?? 0),
+          0,
+          Math.fround(p.freq[0] ?? 0),
+          Math.fround(p.freq[1] ?? 0),
+          Math.fround(p.freq[2] ?? 0),
+          0,
+          Math.fround(p.offset[0] ?? 0),
+          Math.fround(p.offset[1] ?? 0),
+          Math.fround(p.offset[2] ?? 0),
+          0,
+          Math.fround((p.phase[0] ?? 0) + time),
+          Math.fround((p.phase[1] ?? 0) + time),
+          Math.fround((p.phase[2] ?? 0) + time),
+          0,
+        ]);
+        let paramsBuf = null;
+        try {
+          paramsBuf = ctx.createGPUBuffer(
+            paramsArr,
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            PALETTE_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+        } finally {
+          paramsBuf?.destroy?.();
+        }
+        const gpuResult = new Tensor(ctx, outBuf, shape);
+        return markPresentationNormalized(gpuResult);
+      } catch (err) {
+        console.warn("WebGPU palette fallback to CPU", err);
+      }
+    }
+  }
 
   let alphaChan = null;
   let baseTensor = tensor;

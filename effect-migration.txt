@@ -17,7 +17,6 @@ nebula
 normal_map
 offset_index
 on_screen_display
-palette
 pixel_sort
 refract
 reindex

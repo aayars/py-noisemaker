@@ -124,6 +124,7 @@ export const LENS_DISTORTION_WGSL = await loadShaderSource(
 );
 export const DEGAUSS_WGSL = SHADER_PLACEHOLDER;
 export const TINT_WGSL = await loadShaderSource('./shaders/tint.wgsl');
+export const PALETTE_WGSL = await loadShaderSource('./shaders/palette.wgsl');
 export const TEXTURE_WGSL = await loadShaderSource('./shaders/texture.wgsl');
 export const VHS_WGSL = SHADER_PLACEHOLDER;
 export const UNARY_OP_WGSL = SHADER_PLACEHOLDER;
