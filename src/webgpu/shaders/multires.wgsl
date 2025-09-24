@@ -268,6 +268,22 @@ fn sample_value_noise(
   return blend_cubic(slice0, slice1, slice2, slice3, time_frac);
 }
 
+fn apply_corner_offset(
+  uv : vec2<f32>,
+  freq : vec2<f32>,
+  corners_enabled : bool,
+) -> vec2<f32> {
+  let safe_freq : vec2<f32> = max(freq, vec2<f32>(1.0, 1.0));
+  let freq_y_int : u32 = max(u32(round(safe_freq.y)), 1u);
+  let freq_even : bool = (freq_y_int & 1u) == 0u;
+  let should_shift : bool = corners_enabled != freq_even;
+  if (!should_shift) {
+    return uv;
+  }
+  let offset : vec2<f32> = vec2<f32>(0.5 / safe_freq.x, 0.5 / safe_freq.y);
+  return fract(uv + offset);
+}
+
 fn regular_polygon_weight(centered : vec2<f32>, sides : f32) -> f32 {
   if (sides <= 0.0) {
     return 0.0;
@@ -314,11 +330,16 @@ fn apply_distribution(
   base_value : f32,
   distrib : u32,
   uv : vec2<f32>,
+  shifted_uv : vec2<f32>,
   aspect_ratio : f32,
 ) -> f32 {
   if (distrib == DISTRIB_NONE || distrib == 0u) {
     return base_value;
   }
+  if (distrib >= DISTRIB_CENTER_CIRCLE) {
+    return center_distribution(distrib, uv, aspect_ratio);
+  }
+  let effective_uv : vec2<f32> = shifted_uv;
   switch (distrib) {
     case DISTRIB_SIMPLEX: {
       return base_value;
@@ -336,15 +357,12 @@ fn apply_distribution(
       return 0.0;
     }
     case DISTRIB_COLUMN_INDEX: {
-      return saturate(uv.x);
+      return saturate(effective_uv.x);
     }
     case DISTRIB_ROW_INDEX: {
-      return saturate(uv.y);
+      return saturate(effective_uv.y);
     }
     default: {
-      if (distrib >= DISTRIB_CENTER_CIRCLE) {
-        return center_distribution(distrib, uv, aspect_ratio);
-      }
       return base_value;
     }
   }
@@ -352,6 +370,7 @@ fn apply_distribution(
 
 fn sample_distribution_value(
   uv : vec2<f32>,
+  shifted_uv : vec2<f32>,
   freq : vec2<f32>,
   seed : u32,
   distrib : u32,
@@ -362,7 +381,7 @@ fn sample_distribution_value(
   aspect_ratio : f32,
 ) -> f32 {
   let noise_value : f32 = sample_value_noise(
-    uv,
+    shifted_uv,
     freq,
     seed,
     0u,
@@ -371,7 +390,7 @@ fn sample_distribution_value(
     speed,
     spline_order,
   );
-  return apply_distribution(noise_value, distrib, uv, aspect_ratio);
+  return apply_distribution(noise_value, distrib, uv, shifted_uv, aspect_ratio);
 }
 
 fn linear_to_srgb_component(value : f32) -> f32 {
@@ -467,6 +486,44 @@ fn combine_alpha(base_color : vec4<f32>, layer : vec4<f32>) -> vec4<f32> {
   return base_color * (vec4<f32>(1.0, 1.0, 1.0, 1.0) - alpha_vec) + layer * alpha_vec;
 }
 
+fn default_mask_value() -> vec4<f32> {
+  return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+}
+
+fn sample_mask_value(
+  octave_index : u32,
+  pixel_index : u32,
+  width : u32,
+  height : u32,
+  available_octaves : u32,
+  value_count : u32,
+) -> vec4<f32> {
+  if (available_octaves == 0u) {
+    return default_mask_value();
+  }
+  if (width == 0u || height == 0u) {
+    return default_mask_value();
+  }
+  let pixel_count : u32 = width * height;
+  if (pixel_count == 0u) {
+    return default_mask_value();
+  }
+  if (octave_index >= available_octaves) {
+    return default_mask_value();
+  }
+  let stride : u32 = 4u;
+  let base_index : u32 = ((octave_index * pixel_count) + pixel_index) * stride;
+  if (base_index + 3u >= value_count) {
+    return default_mask_value();
+  }
+  return vec4<f32>(
+    mask_data.values[base_index + 0u],
+    mask_data.values[base_index + 1u],
+    mask_data.values[base_index + 2u],
+    mask_data.values[base_index + 3u],
+  );
+}
+
 fn update_normalization(sample : vec4<f32>, with_alpha : bool, state : ptr<storage, NormalizationState, read_write>) {
   var min_value : f32 = 0.0;
   var max_value : f32 = 0.0;
@@ -517,7 +574,8 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   // Touch optional bindings so the compiler keeps them alive when the stage
   // descriptor still provides the associated buffers.
   consume_u32(atomicLoad(&sin_state.phase));
-  consume_u32(arrayLength(&mask_data.values));
+  let mask_value_count : u32 = arrayLength(&mask_data.values);
+  consume_u32(mask_value_count);
   consume_u32(arrayLength(&permutation_table_storage.values));
 
   let resolution_vec : vec2<f32> = vec2<f32>(frame_uniforms.resolution.x, frame_uniforms.resolution.y);
@@ -537,6 +595,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let saturation_distrib : u32 = stage_uniforms.options2.y;
   let brightness_distrib : u32 = stage_uniforms.options2.z;
   let sin_amount : f32 = stage_uniforms.sin;
+  let corners_enabled : bool = bool_from_u32(stage_uniforms.options3.x);
 
   let hue_range : f32 = stage_uniforms.colorParams0.x;
   let hue_rotation_degrees : f32 = stage_uniforms.colorParams0.y;
@@ -548,15 +607,20 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
   let time_value : f32 = frame_uniforms.time;
   let speed : f32 = stage_uniforms.speed;
   let base_seed : u32 = frame_uniforms.seed + seed_offset;
+  let mask_enabled : bool = bool_from_u32(stage_uniforms.options3.y);
+  let mask_affects_alpha : bool = bool_from_u32(stage_uniforms.options3.z);
+  let mask_octave_count : u32 = stage_uniforms.options3.w;
+  let pixel_index : u32 = global_id.y * width + global_id.x;
 
   var accum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
   for (var octave_index : u32 = 0u; octave_index < octaves; octave_index = octave_index + 1u) {
     let octave_freq : vec2<f32> = compute_octave_frequency(base_freq, octave_index);
     let octave_seed : u32 = base_seed ^ (octave_index * 0x9e3779b9u + 0x7f4a7c15u);
+    let octave_uv : vec2<f32> = apply_corner_offset(uv, octave_freq, corners_enabled);
 
     let c0 : f32 = sample_value_noise(
-      uv,
+      octave_uv,
       octave_freq,
       octave_seed,
       0u,
@@ -566,7 +630,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       spline_order,
     );
     let c1 : f32 = sample_value_noise(
-      uv,
+      octave_uv,
       octave_freq,
       octave_seed,
       1u,
@@ -576,7 +640,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       spline_order,
     );
     let c2 : f32 = sample_value_noise(
-      uv,
+      octave_uv,
       octave_freq,
       octave_seed,
       2u,
@@ -587,14 +651,30 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     );
     var layer_color : vec3<f32> = vec3<f32>(c0, c1, c2);
 
+    var mask_value : vec4<f32> = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    if (mask_enabled) {
+      mask_value = sample_mask_value(
+        octave_index,
+        pixel_index,
+        width,
+        height,
+        mask_octave_count,
+        mask_value_count,
+      );
+      if (!mask_affects_alpha) {
+        layer_color = layer_color * mask_value.xyz;
+      }
+    }
+
     let override_seed : u32 = octave_seed ^ 0x94d049b4u;
     var hue_value : f32 = fract(layer_color.x * hue_range + hue_rotation_degrees / 360.0);
     var saturation_value : f32 = layer_color.y * saturation_scale;
-    var brightness_value : f32 = apply_distribution(layer_color.z, distrib, uv, aspect_ratio);
+    var brightness_value : f32 = apply_distribution(layer_color.z, distrib, uv, octave_uv, aspect_ratio);
 
     if (hue_distrib != 0u) {
       hue_value = sample_distribution_value(
         uv,
+        octave_uv,
         octave_freq,
         override_seed ^ 0x1u,
         hue_distrib,
@@ -609,6 +689,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     if (saturation_distrib != 0u) {
       saturation_value = sample_distribution_value(
         uv,
+        octave_uv,
         octave_freq,
         override_seed ^ 0x2u,
         saturation_distrib,
@@ -622,6 +703,7 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     if (brightness_distrib != 0u) {
       brightness_value = sample_distribution_value(
         uv,
+        octave_uv,
         octave_freq,
         override_seed ^ 0x3u,
         brightness_distrib,
@@ -658,6 +740,13 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     }
 
     var layer_alpha : f32 = brightness_value;
+    if (mask_enabled) {
+      if (mask_affects_alpha) {
+        layer_alpha = mask_value.w;
+      } else {
+        layer_alpha = layer_alpha * mask_value.w;
+      }
+    }
     if (!with_alpha_output) {
       layer_alpha = 1.0;
     }
