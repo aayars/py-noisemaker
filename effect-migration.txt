@@ -10,7 +10,6 @@ lowpoly
 normal_map
 on_screen_display
 pixel_sort
-reindex
 reverb
 sketch
 vhs
