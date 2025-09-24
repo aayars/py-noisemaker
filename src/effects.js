@@ -92,6 +92,7 @@ import {
   POSTERIZE_WGSL,
   KALEIDO_WGSL,
   GLITCH_WGSL,
+  SCANLINE_ERROR_WGSL,
   NORMAL_MAP_WGSL,
   CRT_WGSL,
   WOBBLE_WGSL,
@@ -4937,6 +4938,41 @@ export async function scanlineError(tensor, shape, time, speed) {
   let errorTensor = Tensor.fromArray(ctx, errorSum, valueShape);
   errorTensor = await normalize(errorTensor);
   const errorData = await errorTensor.read();
+
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const lineBuf = ctx.createGPUBuffer(lineData, GPUBufferUsage.STORAGE);
+        const whiteBuf = ctx.createGPUBuffer(whiteData, GPUBufferUsage.STORAGE);
+        const errorBuf = ctx.createGPUBuffer(errorData, GPUBufferUsage.STORAGE);
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, c, w * 0.025, 4, 0, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          SCANLINE_ERROR_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: lineBuf } },
+            { binding: 2, resource: { buffer: whiteBuf } },
+            { binding: 3, resource: { buffer: errorBuf } },
+            { binding: 4, resource: { buffer: outBuf } },
+            { binding: 5, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outBuf, shape);
+      } catch (e) {
+        console.warn("WebGPU scanline_error fallback to CPU", e);
+      }
+    }
+  }
 
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);

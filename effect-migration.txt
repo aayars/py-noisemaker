@@ -16,7 +16,6 @@ pixel_sort
 refract
 reindex
 reverb
-scanline_error
 scratches
 sketch
 sobel_operator
