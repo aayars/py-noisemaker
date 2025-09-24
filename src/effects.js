@@ -118,6 +118,7 @@ import {
   OUTLINE_WGSL,
   SQUARE_CROP_WGSL,
   SIMPLE_FRAME_WGSL,
+  INNER_TILE_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -3558,29 +3559,107 @@ export function innerTile(tensor, shape, freq) {
   const baseFreq = Array.isArray(freq) ? freq : freqForShape(freq, shape);
   const freqY = Math.max(1, Math.trunc(baseFreq[0] ?? 1));
   const freqX = Math.max(1, Math.trunc(baseFreq[1] ?? 1));
-  const [h, w, c] = shape;
+  const [h, w, cRaw] = shape;
   const innerH = Math.max(1, Math.trunc(h / freqY));
   const innerW = Math.max(1, Math.trunc(w / freqX));
   const tileH = Math.max(1, innerH * freqY);
   const tileW = Math.max(1, innerW * freqY);
-  return withTensorData(tensor, (src) => {
-    const tiled = new Float32Array(tileH * tileW * c);
-    for (let y = 0; y < tileH; y++) {
-      const srcY = (y % innerH) * freqY;
-      const srcRow = srcY * w * c;
-      const rowBase = y * tileW * c;
-      for (let x = 0; x < tileW; x++) {
-        const srcX = (x % innerW) * freqX;
-        const srcIndex = srcRow + srcX * c;
-        const dstIndex = rowBase + x * c;
-        for (let k = 0; k < c; k++) {
-          tiled[dstIndex + k] = src[srcIndex + k] ?? 0;
+  const channelGuess = Number.isFinite(cRaw)
+    ? Math.floor(cRaw)
+    : Math.floor(tensor?.shape?.[2] ?? 1);
+  const channelCount = Math.max(1, Math.min(channelGuess || 1, 4));
+
+  const runCPU = () =>
+    withTensorData(tensor, (src) => {
+      const tiled = new Float32Array(tileH * tileW * cRaw);
+      for (let y = 0; y < tileH; y++) {
+        const srcY = (y % innerH) * freqY;
+        const srcRow = srcY * w * cRaw;
+        const rowBase = y * tileW * cRaw;
+        for (let x = 0; x < tileW; x++) {
+          const srcX = (x % innerW) * freqX;
+          const srcIndex = srcRow + srcX * cRaw;
+          const dstIndex = rowBase + x * cRaw;
+          for (let k = 0; k < cRaw; k++) {
+            tiled[dstIndex + k] = src[srcIndex + k] ?? 0;
+          }
         }
       }
+      const tiledTensor = Tensor.fromArray(tensor.ctx, tiled, [tileH, tileW, cRaw]);
+      return resample(tiledTensor, shape, InterpolationType.linear);
+    });
+
+  const ctx = tensor?.ctx ?? null;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex?.ctx === ctx && tex.handle instanceof GPUTexture) {
+      return (async () => {
+        let paramsBuf = null;
+        try {
+          const outBuf = ctx.createGPUBuffer(
+            new Float32Array(tileH * tileW * channelCount),
+            GPUBufferUsage.STORAGE |
+              GPUBufferUsage.COPY_SRC |
+              GPUBufferUsage.COPY_DST,
+          );
+          paramsBuf = ctx.createGPUBuffer(
+            new Uint32Array([
+              w,
+              h,
+              channelCount,
+              freqX,
+              freqY,
+              innerW,
+              innerH,
+              tileW,
+              tileH,
+              0,
+              0,
+              0,
+            ]),
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            INNER_TILE_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(tileW / 8),
+            Math.ceil(tileH / 8),
+          );
+          const tiledTensor = Tensor.fromGPUBuffer(
+            ctx,
+            outBuf,
+            [tileH, tileW, channelCount],
+          );
+          return await resample(
+            tiledTensor,
+            shape,
+            InterpolationType.linear,
+          );
+        } catch (err) {
+          console.warn("WebGPU innerTile fallback to CPU", err);
+        } finally {
+          if (paramsBuf && paramsBuf.destroy) {
+            try {
+              paramsBuf.destroy();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        }
+        return runCPU();
+      })();
     }
-    const tiledTensor = Tensor.fromArray(tensor.ctx, tiled, [tileH, tileW, c]);
-    return resample(tiledTensor, shape, InterpolationType.linear);
-  });
+  }
+
+  return runCPU();
 }
 
 export function expandTile(

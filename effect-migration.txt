@@ -9,7 +9,6 @@ expand_tile
 fibers
 frame
 glyph_map
-inner_tile
 lowpoly
 nebula
 normal_map
