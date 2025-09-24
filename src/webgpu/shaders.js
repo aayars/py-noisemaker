@@ -108,8 +108,12 @@ export const VORTEX_WGSL = SHADER_PLACEHOLDER;
 export const WORMHOLE_WGSL = SHADER_PLACEHOLDER;
 export const DLA_WGSL = await loadShaderSource('./shaders/dla.wgsl');
 export const REVERB_WGSL = SHADER_PLACEHOLDER;
-export const VASELINE_BLUR_WGSL = SHADER_PLACEHOLDER;
-export const VASELINE_MASK_WGSL = SHADER_PLACEHOLDER;
+export const VASELINE_BLUR_WGSL = await loadShaderSource(
+  './shaders/vaseline_blur.wgsl',
+);
+export const VASELINE_MASK_WGSL = await loadShaderSource(
+  './shaders/vaseline_mask.wgsl',
+);
 export const LENS_WARP_WGSL = await loadShaderSource('./shaders/lens_warp.wgsl');
 export const LENS_DISTORTION_WGSL = await loadShaderSource(
   './shaders/lens_distortion.wgsl',
