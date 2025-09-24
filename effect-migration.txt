@@ -65,7 +65,6 @@ tint
 value_refract
 vaseline
 vhs
-vignette
 voronoi
 vortex
 warp
