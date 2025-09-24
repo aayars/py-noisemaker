@@ -71,6 +71,7 @@ export const ADJUST_BRIGHTNESS_WGSL = await loadShaderSource(
 export const ADJUST_CONTRAST_WGSL = await loadShaderSource(
   './shaders/adjust_contrast.wgsl',
 );
+export const ADJUST_HUE_WGSL = await loadShaderSource('./shaders/adjust_hue.wgsl');
 export const SMOOTHSTEP_WGSL = await loadShaderSource('./shaders/smoothstep.wgsl');
 export const ROTATE_WGSL = await loadShaderSource('./shaders/rotate.wgsl');
 export const GLYPH_MAP_WGSL = SHADER_PLACEHOLDER;

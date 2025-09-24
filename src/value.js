@@ -29,6 +29,7 @@ import {
   HSV_TO_RGB_WGSL,
   OCTAVE_COMBINE_WGSL,
   PROPORTIONAL_DOWNSAMPLE_WGSL,
+  ADJUST_HUE_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -1723,25 +1724,76 @@ export function rgbToHsv(tensor) {
 }
 
 export function adjustHue(tensor, amount) {
-  const hsvMaybe = rgbToHsv(tensor);
-  const process = (hsv) => {
-    const dataMaybe = hsv.read();
-    const shift = (data) => {
-      for (let i = 0; i < data.length; i += 3) {
-        data[i] = (data[i] + amount) % 1;
-        if (data[i] < 0) data[i] += 1;
-      }
-      return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape));
-    };
-    if (dataMaybe && typeof dataMaybe.then === 'function') {
-      return dataMaybe.then(shift);
-    }
-    return shift(dataMaybe);
-  };
-  if (hsvMaybe && typeof hsvMaybe.then === 'function') {
-    return hsvMaybe.then(process);
+  const shape = tensor.shape || [0, 0, 0];
+  const [h, w, c] = shape;
+  if (c < 3) {
+    return tensor;
   }
-  return process(hsvMaybe);
+  const ctx = tensor.ctx;
+  const cpuAdjust = (inputTensor) => {
+    const hsvMaybe = rgbToHsv(inputTensor);
+    const process = (hsv) => {
+      const dataMaybe = hsv.read();
+      const shift = (data) => {
+        for (let i = 0; i < data.length; i += 3) {
+          let hue = data[i] + amount;
+          hue = hue - Math.floor(hue);
+          if (hue < 0) hue += 1;
+          data[i] = hue;
+        }
+        return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape));
+      };
+      if (dataMaybe && typeof dataMaybe.then === 'function') {
+        return dataMaybe.then(shift);
+      }
+      return shift(dataMaybe);
+    };
+    if (hsvMaybe && typeof hsvMaybe.then === 'function') {
+      return hsvMaybe.then(process);
+    }
+    return process(hsvMaybe);
+  };
+
+  if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
+    return (async () => {
+      try {
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, c, amount]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          ADJUST_HUE_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return Tensor.fromGPUBuffer(ctx, outBuf, shape);
+      } catch (e) {
+        console.warn('WebGPU adjustHue fallback to CPU', e);
+        const data = await tensor.read();
+        const cpuTensor = Tensor.fromArray(null, data, shape);
+        const cpuResult = await cpuAdjust(cpuTensor);
+        if (!cpuResult || typeof cpuResult.read !== 'function') {
+          return cpuResult;
+        }
+        const cpuDataMaybe = cpuResult.read();
+        const cpuData =
+          cpuDataMaybe && typeof cpuDataMaybe.then === 'function'
+            ? await cpuDataMaybe
+            : cpuDataMaybe;
+        return Tensor.fromArray(ctx, cpuData, cpuResult.shape);
+      }
+    })();
+  }
+  return cpuAdjust(tensor);
 }
 
 export function randomHue(tensor, range = 0.05) {
