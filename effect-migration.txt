@@ -4,7 +4,6 @@ adjust_saturation
 blend_layers
 center_mask
 color_map
-conv_feedback
 convolve
 crt
 degauss

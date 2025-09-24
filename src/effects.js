@@ -75,6 +75,7 @@ import {
   SCRATCHES_BLEND_WGSL,
   GRIME_MASK_WGSL,
   GRIME_BLEND_WGSL,
+  CONV_FEEDBACK_WGSL,
   DERIVATIVE_WGSL,
   GLOWING_EDGES_STAGE1_WGSL,
   GLOWING_EDGES_STAGE2_WGSL,
@@ -3201,18 +3202,53 @@ export async function convFeedback(
     convolved = await convolution(convolved, sharpenKernel);
   }
   convolved = await normalize(convolved);
-  const data = await convolved.read();
-  const combined = new Float32Array(data.length);
-  for (let i = 0; i < data.length; i++) {
-    const up = Math.max((data[i] - 0.5) * 2, 0);
-    const down = Math.min(data[i] * 2, 1);
-    combined[i] = up + (1 - down);
+  const ctx = convolved.ctx;
+  let combinedTensor = null;
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(convolved);
+    if (
+      tex &&
+      typeof GPUTexture !== "undefined" &&
+      tex.handle instanceof GPUTexture
+    ) {
+      try {
+        const [hh, hw, hc] = convolved.shape;
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(hh * hw * hc),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([hw, hh, hc, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          CONV_FEEDBACK_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(hw / 8),
+          Math.ceil(hh / 8),
+        );
+        combinedTensor = Tensor.fromGPUBuffer(ctx, outBuf, convolved.shape);
+      } catch (e) {
+        console.warn('WebGPU conv_feedback combine fallback to CPU', e);
+      }
+    }
   }
-  const combinedTensor = Tensor.fromArray(
-    convolved.ctx,
-    combined,
-    convolved.shape,
-  );
+  if (!combinedTensor) {
+    const data = await convolved.read();
+    const combined = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      const up = Math.max((data[i] - 0.5) * 2, 0);
+      const down = Math.min(data[i] * 2, 1);
+      combined[i] = up + (1 - down);
+    }
+    combinedTensor = Tensor.fromArray(ctx, combined, convolved.shape);
+  }
   const resampled = await resample(combinedTensor, shape);
   return blend(tensor, resampled, alpha);
 }

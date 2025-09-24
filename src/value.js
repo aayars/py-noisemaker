@@ -1901,6 +1901,28 @@ export function convolution(tensor, kernel, opts = {}) {
   const handle = (t) => {
     const [h, w, c] = t.shape;
     const ctx = t.ctx;
+    const finish = (tensorOut) => {
+      if (!tensorOut) return tensorOut;
+      const applyAlpha = (normalized) => {
+        if (alpha === 1) return normalized;
+        const blended = blend(t, normalized, alpha);
+        if (blended && typeof blended.then === 'function') {
+          return blended;
+        }
+        return blended;
+      };
+      if (!doNormalize) {
+        if (tensorOut && typeof tensorOut.then === 'function') {
+          return tensorOut.then(applyAlpha);
+        }
+        return applyAlpha(tensorOut);
+      }
+      const normalized = normalize(tensorOut);
+      if (normalized && typeof normalized.then === 'function') {
+        return normalized.then(applyAlpha);
+      }
+      return applyAlpha(normalized);
+    };
     if (
       ctx &&
       ctx.device &&
@@ -1949,7 +1971,7 @@ export function convolution(tensor, kernel, opts = {}) {
       const outH = tileH - kh + 1;
       const outW = tileW - kw + 1;
       if (outH <= 0 || outW <= 0) {
-        return doNormalize ? normalize(t) : t;
+        return finish(t);
       }
       const conv = new Float32Array(outH * outW * c);
       for (let y = 0; y < outH; y++) {
@@ -1991,30 +2013,8 @@ export function convolution(tensor, kernel, opts = {}) {
         }
       }
 
-      let result = Tensor.fromArray(t.ctx, out, [h, w, c]);
-      if (doNormalize) {
-        const norm = normalize(result);
-        if (norm && typeof norm.then === 'function') {
-          return norm.then((r) => {
-            if (alpha !== 1) {
-              const blended = blend(t, r, alpha);
-              return blended && typeof blended.then === 'function'
-                ? blended
-                : blended;
-            }
-            return r;
-          });
-        }
-        result = norm;
-      }
-      if (alpha !== 1) {
-        const blended = blend(t, result, alpha);
-        if (blended && typeof blended.then === 'function') {
-          return blended;
-        }
-        return blended;
-      }
-      return result;
+      const result = Tensor.fromArray(t.ctx, out, [h, w, c]);
+      return finish(result);
     };
 
     if (
@@ -2070,7 +2070,8 @@ export function convolution(tensor, kernel, opts = {}) {
             Math.ceil(w / 8),
             Math.ceil(h / 8),
           );
-          return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+          const gpuResult = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+          return finish(gpuResult);
         } catch (e) {
           console.warn('WebGPU convolution fallback to CPU', e);
           const src = await t.read();

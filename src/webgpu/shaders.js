@@ -45,7 +45,9 @@ export const BLEND_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_CONST_WGSL = SHADER_PLACEHOLDER;
 export const SOBEL_WGSL = await loadShaderSource('./shaders/sobel.wgsl');
 export const REFRACT_WGSL = SHADER_PLACEHOLDER;
-export const CONVOLUTION_WGSL = SHADER_PLACEHOLDER;
+export const CONVOLUTION_WGSL = await loadShaderSource(
+  './shaders/convolution.wgsl',
+);
 export const FXAA_WGSL = await loadShaderSource('./shaders/fxaa.wgsl');
 export const NORMALIZE_WGSL = await loadShaderSource('./shaders/normalize.wgsl');
 export const RGB_TO_HSV_WGSL = SHADER_PLACEHOLDER;
@@ -81,6 +83,9 @@ export const SCRATCHES_MASK_WGSL = SHADER_PLACEHOLDER;
 export const SCRATCHES_BLEND_WGSL = SHADER_PLACEHOLDER;
 export const GRIME_MASK_WGSL = await loadShaderSource('./shaders/grime_mask.wgsl');
 export const GRIME_BLEND_WGSL = await loadShaderSource('./shaders/grime_blend.wgsl');
+export const CONV_FEEDBACK_WGSL = await loadShaderSource(
+  './shaders/conv_feedback.wgsl',
+);
 export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
 export const POSTERIZE_WGSL = await loadShaderSource('./shaders/posterize.wgsl');
 export const KALEIDO_WGSL = await loadShaderSource('./shaders/kaleido.wgsl');
