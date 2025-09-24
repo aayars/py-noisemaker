@@ -581,7 +581,7 @@ export async function warpWebGPU(
           c,
           disp,
           signedRange ? 1 : 0,
-          0,
+          splineOrder,
           0,
           0,
         ]);

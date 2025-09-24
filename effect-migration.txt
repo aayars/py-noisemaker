@@ -19,7 +19,6 @@ sobel_operator
 spooky_ticker
 vhs
 voronoi
-warp
 watermark
 wormhole
 worms
