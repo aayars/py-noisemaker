@@ -130,7 +130,7 @@ export const WOBBLE_WGSL = await loadShaderSource('./shaders/wobble.wgsl');
 export const VORTEX_WGSL = await loadShaderSource('./shaders/vortex.wgsl');
 export const WORMHOLE_WGSL = await loadShaderSource('./shaders/wormhole.wgsl');
 export const DLA_WGSL = await loadShaderSource('./shaders/dla.wgsl');
-export const REVERB_WGSL = SHADER_PLACEHOLDER;
+export const REVERB_WGSL = await loadShaderSource('./shaders/reverb.wgsl');
 export const VASELINE_BLUR_WGSL = await loadShaderSource(
   './shaders/vaseline_blur.wgsl',
 );
