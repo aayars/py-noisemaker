@@ -5072,27 +5072,47 @@ export async function colorMap(
       new Float32Array(h * w * cc),
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     );
+    const statsBuf = ctx.createGPUBuffer(
+      new Float32Array(2),
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    );
+    const paramsArr = new Float32Array([
+      w,
+      h,
+      c,
+      displacement,
+      horizontal ? 1 : 0,
+      clut.shape[1],
+      clut.shape[0],
+      cc,
+      0,
+      0,
+      0,
+      0,
+    ]);
     const paramsBuf = ctx.createGPUBuffer(
-      new Float32Array([
-        w,
-        h,
-        c,
-        displacement,
-        horizontal ? 1 : 0,
-        clut.shape[1],
-        clut.shape[0],
-        cc,
-      ]),
-      GPUBufferUsage.UNIFORM,
+      paramsArr,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    );
+    const bindings = [
+      { binding: 0, resource: tensor.handle.createView() },
+      { binding: 1, resource: clut.handle.createView() },
+      { binding: 2, resource: { buffer: outBuf } },
+      { binding: 3, resource: { buffer: paramsBuf } },
+      { binding: 4, resource: { buffer: statsBuf } },
+    ];
+    await ctx.runCompute(COLOR_MAP_WGSL, bindings, 1, 1);
+    paramsArr[8] = 1;
+    ctx.queue.writeBuffer(
+      paramsBuf,
+      0,
+      paramsArr.buffer,
+      paramsArr.byteOffset,
+      paramsArr.byteLength,
     );
     await ctx.runCompute(
       COLOR_MAP_WGSL,
-      [
-        { binding: 0, resource: tensor.handle.createView() },
-        { binding: 1, resource: clut.handle.createView() },
-        { binding: 2, resource: { buffer: outBuf } },
-        { binding: 3, resource: { buffer: paramsBuf } },
-      ],
+      bindings,
       Math.ceil(w / 8),
       Math.ceil(h / 8),
     );

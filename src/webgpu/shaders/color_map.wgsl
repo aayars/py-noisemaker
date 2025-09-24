@@ -7,12 +7,25 @@ struct ColorMapParams {
   clutWidth : f32;
   clutHeight : f32;
   clutChannels : f32;
+  stage : f32;
+  _pad0 : f32;
+  _pad1 : f32;
+  _pad2 : f32;
 };
 
 @group(0) @binding(0) var inputTexture : texture_2d<f32>;
 @group(0) @binding(1) var clutTexture : texture_2d<f32>;
 @group(0) @binding(2) var<storage, read_write> outputBuffer : array<f32>;
 @group(0) @binding(3) var<uniform> params : ColorMapParams;
+@group(0) @binding(4) var<storage, read_write> statsBuffer : array<f32>;
+
+fn write_stats(min_val : f32, max_val : f32) {
+  if (arrayLength(&statsBuffer) < 2u) {
+    return;
+  }
+  statsBuffer[0] = min_val;
+  statsBuffer[1] = max_val;
+}
 
 fn as_u32(value : f32) -> u32 {
   return u32(max(value, 0.0));
@@ -108,6 +121,43 @@ fn write_channels(base_index : u32, channel_count : u32, color : vec4<f32>) {
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
+  let stage : u32 = as_u32(params.stage + 0.5);
+
+  if (stage == 0u) {
+    if (gid.x != 0u || gid.y != 0u || gid.z != 0u) {
+      return;
+    }
+
+    let width0 : u32 = as_u32(params.width + 0.5);
+    let height0 : u32 = as_u32(params.height + 0.5);
+    let channel_count0 : u32 = max(as_u32(params.channels + 0.5), 1u);
+
+    if (width0 == 0u || height0 == 0u) {
+      write_stats(0.0, 0.0);
+      return;
+    }
+
+    var min_val : f32 = 3.40282347e38;
+    var max_val : f32 = -3.40282347e38;
+
+    for (var y : u32 = 0u; y < height0; y = y + 1u) {
+      for (var x : u32 = 0u; x < width0; x = x + 1u) {
+        let coord0 : vec2<i32> = vec2<i32>(i32(x), i32(y));
+        let texel0 : vec4<f32> = textureLoad(inputTexture, coord0, 0);
+        let reference0 : f32 = compute_reference(texel0, channel_count0);
+        min_val = min(min_val, reference0);
+        max_val = max(max_val, reference0);
+      }
+    }
+
+    write_stats(min_val, max_val);
+    return;
+  }
+
+  if (stage != 1u) {
+    return;
+  }
+
   let width : u32 = as_u32(params.width + 0.5);
   let height : u32 = as_u32(params.height + 0.5);
   if (gid.x >= width || gid.y >= height) {
@@ -121,9 +171,24 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
   let clut_height : i32 = max(as_i32(params.clutHeight + 0.5), 1);
   let clut_channels : u32 = max(as_u32(params.clutChannels + 0.5), 1u);
 
+  var min_val_stage1 : f32 = 0.0;
+  var max_val_stage1 : f32 = 0.0;
+  if (arrayLength(&statsBuffer) >= 2u) {
+    min_val_stage1 = statsBuffer[0];
+    max_val_stage1 = statsBuffer[1];
+  }
+
   let coord : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
   let texel : vec4<f32> = textureLoad(inputTexture, coord, 0);
-  let reference : f32 = clamp01(compute_reference(texel, channel_count)) * displacement;
+  let reference_raw : f32 = compute_reference(texel, channel_count);
+  var normalized : f32 = reference_raw;
+  let range : f32 = max_val_stage1 - min_val_stage1;
+  if (range != 0.0) {
+    normalized = clamp01((reference_raw - min_val_stage1) / range);
+  } else {
+    normalized = clamp01(normalized);
+  }
+  let reference : f32 = normalized * displacement;
 
   let width_i : i32 = max(i32(width), 1);
   let height_i : i32 = max(i32(height), 1);
