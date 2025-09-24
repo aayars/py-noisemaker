@@ -95,7 +95,7 @@ export const SMOOTHSTEP_WGSL = await loadShaderSource('./shaders/smoothstep.wgsl
 export const ROTATE_WGSL = await loadShaderSource('./shaders/rotate.wgsl');
 export const RIDGE_WGSL = await loadShaderSource('./shaders/ridge.wgsl');
 export const SINE_WGSL = await loadShaderSource('./shaders/sine.wgsl');
-export const GLYPH_MAP_WGSL = SHADER_PLACEHOLDER;
+export const GLYPH_MAP_WGSL = await loadShaderSource('./shaders/glyph_map.wgsl');
 export const WARP_WGSL = await loadShaderSource('./shaders/warp.wgsl');
 export const SPATTER_MASK_WGSL = await loadShaderSource(
   './shaders/spatter_mask.wgsl',
