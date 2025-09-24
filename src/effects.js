@@ -123,6 +123,7 @@ import {
   SIMPLE_FRAME_WGSL,
   INNER_TILE_WGSL,
   STRAY_HAIR_WGSL,
+  FRAME_WGSL,
   NEBULA_WGSL,
 } from "./webgpu/shaders.js";
 
@@ -8681,6 +8682,64 @@ async function simpleMultiresTensor(
 export async function frame(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
+  const effectiveShape = [h, w, c];
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      let outBuf = null;
+      let paramsBuf = null;
+      try {
+        outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const baseSeed = getBaseSeed();
+        const uniformData = new Float32Array([
+          w,
+          h,
+          c,
+          Number.isFinite(time) ? time : 0,
+          Number.isFinite(speed) ? speed : 1,
+          Number.isFinite(baseSeed) ? baseSeed : 0,
+          0.18,
+          0.85,
+        ]);
+        paramsBuf = ctx.createGPUBuffer(uniformData, GPUBufferUsage.UNIFORM);
+        await ctx.runCompute(
+          FRAME_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return Tensor.fromGPUBuffer(ctx, outBuf, effectiveShape);
+      } catch (err) {
+        console.warn("WebGPU frame fallback to CPU", err);
+        try {
+          outBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+      } finally {
+        try {
+          paramsBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    }
+  }
+
   const halfH = Math.max(1, Math.floor(h * 0.5));
   const halfW = Math.max(1, Math.floor(w * 0.5));
   const halfShape = [halfH, halfW, c];

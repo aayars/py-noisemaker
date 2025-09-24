@@ -161,6 +161,7 @@ export const SQUARE_CROP_WGSL = await loadShaderSource('./shaders/square_crop.wg
 export const SHADOW_WGSL = await loadShaderSource('./shaders/shadow.wgsl');
 export const OUTLINE_WGSL = await loadShaderSource('./shaders/outline.wgsl');
 export const SIMPLE_FRAME_WGSL = await loadShaderSource('./shaders/simple_frame.wgsl');
+export const FRAME_WGSL = await loadShaderSource('./shaders/frame.wgsl');
 export const INNER_TILE_WGSL = await loadShaderSource('./shaders/inner_tile.wgsl');
 export const STRAY_HAIR_WGSL = await loadShaderSource('./shaders/stray_hair.wgsl');
 export const NEBULA_WGSL = await loadShaderSource('./shaders/nebula.wgsl');

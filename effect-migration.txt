@@ -4,7 +4,6 @@ convolve
 degauss
 expand_tile
 fibers
-frame
 glyph_map
 lowpoly
 normal_map
