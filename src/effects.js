@@ -80,6 +80,7 @@ import {
   GRIME_MASK_WGSL,
   GRIME_BLEND_WGSL,
   CONV_FEEDBACK_WGSL,
+  CENTER_MASK_WGSL,
   DERIVATIVE_WGSL,
   GLOWING_EDGES_STAGE1_WGSL,
   GLOWING_EDGES_STAGE2_WGSL,
@@ -3347,30 +3348,118 @@ export function centerMask(
   distMetric = DistanceMetric.chebyshev,
   power = 2,
 ) {
-  const [h, w, c] = shape;
-  const cx = (w - 1) / 2;
-  const cy = (h - 1) / 2;
-  const dists = new Float32Array(h * w);
-  let max = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const dx = Math.abs(x - cx);
+  const runCPU = () => {
+    const [h, w, c] = shape;
+    const cx = (w - 1) / 2;
+    const cy = (h - 1) / 2;
+    const dists = new Float32Array(h * w);
+    let max = 0;
+    for (let y = 0; y < h; y++) {
       const dy = Math.abs(y - cy);
-      const d = distance(dx, dy, distMetric);
-      dists[y * w + x] = d;
-      if (d > max) max = d;
+      for (let x = 0; x < w; x++) {
+        const dx = Math.abs(x - cx);
+        const d = distance(dx, dy, distMetric);
+        dists[y * w + x] = d;
+        if (d > max) max = d;
+      }
+    }
+    const denom = max || 1;
+    const mask = new Float32Array(h * w * c);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let ratio = dists[y * w + x] / denom;
+        ratio = Math.pow(ratio, power);
+        const base = (y * w + x) * c;
+        for (let k = 0; k < c; k++) {
+          mask[base + k] = ratio;
+        }
+      }
+    }
+    const outCtx = center?.ctx || edges?.ctx || null;
+    const maskTensor = Tensor.fromArray(outCtx, mask, shape);
+    return blend(center, edges, maskTensor);
+  };
+
+  const ctx = center?.ctx || edges?.ctx || null;
+  const [h, w] = shape;
+  const rawChannels = Number.isFinite(shape?.[2])
+    ? shape[2]
+    : center?.shape?.[2] ?? edges?.shape?.[2] ?? 1;
+  const channelCount = Math.max(1, Math.min(Math.floor(rawChannels || 1), 4));
+
+  if (
+    ctx &&
+    ctx.device &&
+    center?.ctx === ctx &&
+    edges?.ctx === ctx &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const centerTex = ensureTextureTensor(center);
+    const edgeTex = ensureTextureTensor(edges);
+    if (
+      centerTex?.handle instanceof GPUTexture &&
+      edgeTex?.handle instanceof GPUTexture &&
+      centerTex.shape[0] === h &&
+      centerTex.shape[1] === w &&
+      edgeTex.shape[0] === h &&
+      edgeTex.shape[1] === w
+    ) {
+      return (async () => {
+        try {
+          let maxDist = 0;
+          const cx = (w - 1) / 2;
+          const cy = (h - 1) / 2;
+          for (let y = 0; y < h; y++) {
+            const dy = Math.abs(y - cy);
+            for (let x = 0; x < w; x++) {
+              const dx = Math.abs(x - cx);
+              const d = distance(dx, dy, distMetric);
+              if (d > maxDist) maxDist = d;
+            }
+          }
+          if (!Number.isFinite(maxDist) || maxDist <= 0) {
+            maxDist = 1;
+          }
+          const paramsBuf = ctx.createGPUBuffer(
+            new Float32Array([
+              w,
+              h,
+              channelCount,
+              distMetric,
+              power,
+              maxDist,
+              5,
+              0,
+            ]),
+            GPUBufferUsage.UNIFORM,
+          );
+          const outBuf = ctx.createGPUBuffer(
+            new Float32Array(h * w * channelCount),
+            GPUBufferUsage.STORAGE |
+              GPUBufferUsage.COPY_SRC |
+              GPUBufferUsage.COPY_DST,
+          );
+          await ctx.runCompute(
+            CENTER_MASK_WGSL,
+            [
+              { binding: 0, resource: centerTex.handle.createView() },
+              { binding: 1, resource: edgeTex.handle.createView() },
+              { binding: 2, resource: { buffer: outBuf } },
+              { binding: 3, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          return new Tensor(ctx, outBuf, [h, w, channelCount]);
+        } catch (err) {
+          console.warn("WebGPU center_mask fallback to CPU", err);
+        }
+        return runCPU();
+      })();
     }
   }
-  const mask = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const d = dists[y * w + x] / (max || 1);
-      const m = Math.pow(d, power);
-      for (let k = 0; k < c; k++) mask[(y * w + x) * c + k] = m;
-    }
-  }
-  const maskTensor = Tensor.fromArray(center.ctx, mask, shape);
-  return blend(center, edges, maskTensor);
+
+  return runCPU();
 }
 
 export function innerTile(tensor, shape, freq) {

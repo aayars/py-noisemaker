@@ -1,7 +1,6 @@
 The remaining effects in this list need shader implementations:
 
 blend_layers
-center_mask
 color_map
 convolve
 crt

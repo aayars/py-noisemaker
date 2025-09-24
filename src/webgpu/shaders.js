@@ -94,6 +94,9 @@ export const GRIME_BLEND_WGSL = await loadShaderSource('./shaders/grime_blend.wg
 export const CONV_FEEDBACK_WGSL = await loadShaderSource(
   './shaders/conv_feedback.wgsl',
 );
+export const CENTER_MASK_WGSL = await loadShaderSource(
+  './shaders/center_mask.wgsl',
+);
 export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
 export const POSTERIZE_WGSL = await loadShaderSource('./shaders/posterize.wgsl');
 export const KALEIDO_WGSL = await loadShaderSource('./shaders/kaleido.wgsl');
