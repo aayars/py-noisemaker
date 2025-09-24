@@ -58,7 +58,7 @@ export const RGB_TO_HSV_WGSL = SHADER_PLACEHOLDER;
 export const HSV_TO_RGB_WGSL = SHADER_PLACEHOLDER;
 export const OCTAVE_COMBINE_WGSL = SHADER_PLACEHOLDER;
 export const UPSAMPLE_WGSL = SHADER_PLACEHOLDER;
-export const VORONOI_WGSL = SHADER_PLACEHOLDER;
+export const VORONOI_WGSL = await loadShaderSource('./shaders/voronoi.wgsl');
 export const EROSION_WORMS_WGSL = await loadShaderSource(
   './shaders/erosion_worms.wgsl',
 );

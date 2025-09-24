@@ -3,5 +3,4 @@ The remaining effects in this list need shader implementations:
 glyph_map
 lowpoly
 on_screen_display
-voronoi
 watermark
