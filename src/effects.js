@@ -112,6 +112,7 @@ import {
   SHADOW_WGSL,
   SOBEL_OPERATOR_FINALIZE_WGSL,
   SCALE_TENSOR_WGSL,
+  OUTLINE_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -1372,6 +1373,92 @@ export async function outline(
   invert = false,
 ) {
   const [h, w, c] = shape;
+  const ctx = tensor?.ctx;
+  const baseTex =
+    ctx && ctx.device ? ensureTextureTensor(tensor) : tensor;
+  if (
+    ctx &&
+    ctx.device &&
+    baseTex &&
+    baseTex.ctx === ctx &&
+    typeof GPUTexture !== "undefined" &&
+    baseTex.handle instanceof GPUTexture
+  ) {
+    try {
+      const srcChannels = tensor?.shape?.[2] ?? baseTex.shape?.[2] ?? c;
+      let valueTensor = baseTex;
+      if ((valueTensor.shape?.[2] ?? 1) !== 1) {
+        valueTensor = await runGrayscaleShader(valueTensor, srcChannels);
+        valueTensor = ensureTextureTensor(valueTensor);
+      }
+      if (
+        !valueTensor ||
+        valueTensor.ctx !== ctx ||
+        !(valueTensor.handle instanceof GPUTexture)
+      ) {
+        throw new Error("Grayscale shader unavailable");
+      }
+
+      valueTensor = await normalize(valueTensor);
+      valueTensor = ensureTextureTensor(valueTensor);
+      if (
+        !valueTensor ||
+        valueTensor.ctx !== ctx ||
+        !(valueTensor.handle instanceof GPUTexture)
+      ) {
+        throw new Error("Normalize shader unavailable");
+      }
+
+      const valueChannels = valueTensor.shape?.[2] ?? 1;
+      const valueShape = [h, w, valueChannels];
+      let edgesTensor = await sobelOperator(
+        valueTensor,
+        valueShape,
+        time,
+        speed,
+        sobelMetric,
+      );
+      edgesTensor = ensureTextureTensor(edgesTensor);
+      if (
+        !edgesTensor ||
+        edgesTensor.ctx !== ctx ||
+        !(edgesTensor.handle instanceof GPUTexture)
+      ) {
+        throw new Error("Sobel shader unavailable");
+      }
+
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE |
+          GPUBufferUsage.COPY_SRC |
+          GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, invert ? 1 : 0, 0, 0, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      try {
+        await ctx.runCompute(
+          OUTLINE_WGSL,
+          [
+            { binding: 0, resource: baseTex.handle.createView() },
+            { binding: 1, resource: edgesTensor.handle.createView() },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+      } finally {
+        paramsBuf.destroy?.();
+      }
+
+      return Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+    } catch (err) {
+      console.warn("WebGPU outline fallback to CPU", err);
+    }
+  }
+
   const valueShape = [h, w, 1];
   let values = await toValueMap(tensor);
   if (

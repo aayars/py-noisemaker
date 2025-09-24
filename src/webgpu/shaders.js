@@ -126,7 +126,7 @@ export const TEXTURE_WGSL = await loadShaderSource('./shaders/texture.wgsl');
 export const VHS_WGSL = SHADER_PLACEHOLDER;
 export const UNARY_OP_WGSL = SHADER_PLACEHOLDER;
 export const BINARY_OP_WGSL = SHADER_PLACEHOLDER;
-export const GRAYSCALE_WGSL = SHADER_PLACEHOLDER;
+export const GRAYSCALE_WGSL = await loadShaderSource('./shaders/grayscale.wgsl');
 export const EXPAND_CHANNELS_WGSL = SHADER_PLACEHOLDER;
 export const SOBEL_OPERATOR_FINALIZE_WGSL = await loadShaderSource(
   './shaders/sobel_operator_finalize.wgsl',
@@ -136,3 +136,4 @@ export const PROPORTIONAL_DOWNSAMPLE_WGSL = await loadShaderSource(
 );
 export const SCALE_TENSOR_WGSL = await loadShaderSource('./shaders/scale_tensor.wgsl');
 export const SHADOW_WGSL = await loadShaderSource('./shaders/shadow.wgsl');
+export const OUTLINE_WGSL = await loadShaderSource('./shaders/outline.wgsl');
