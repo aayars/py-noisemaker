@@ -1,6 +1,5 @@
 The remaining effects in this list need shader implementations:
 
-blend_layers
 convolve
 crt
 degauss
