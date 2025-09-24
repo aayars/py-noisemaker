@@ -123,6 +123,7 @@ import {
   SIMPLE_FRAME_WGSL,
   INNER_TILE_WGSL,
   STRAY_HAIR_WGSL,
+  NEBULA_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -8951,42 +8952,68 @@ export async function sketch(tensor, shape, time, speed) {
 }
 register("sketch", sketch, {});
 
-export async function nebula(tensor, shape, time, speed) {
-  const [h, w, c] = shape;
-  const ctx = tensor.ctx;
-  const valueShape = [h, w, 1];
-
-  async function simpleMultires(freq, octaves, distrib = ValueDistribution.simplex) {
-    const freqArr = Array.isArray(freq)
-      ? freq
-      : freqForShape(freq, [h, w]);
-    const accum = new Float32Array(h * w);
-    for (let octave = 1; octave <= octaves; octave++) {
-      const multiplier = 2 ** octave;
-      const baseFreq = freqArr.map((f) => Math.floor(f * 0.5 * multiplier));
-      if (baseFreq[0] > h && baseFreq[1] > w) {
-        break;
-      }
-      let layer = await values(baseFreq, valueShape, {
-        ctx,
-        time,
-        speed,
-        distrib,
-      });
-      layer = await ridge(layer);
-      const layerData = await layer.read();
-      for (let i = 0; i < accum.length; i++) {
-        accum[i] += layerData[i] / multiplier;
-      }
+async function nebulaSimpleMultires(
+  ctx,
+  valueShape,
+  freq,
+  octaves,
+  time,
+  speed,
+  distrib = ValueDistribution.simplex,
+) {
+  const [h, w] = valueShape;
+  const freqArr = Array.isArray(freq) ? freq : freqForShape(freq, [h, w]);
+  const accum = new Float32Array(h * w);
+  for (let octave = 1; octave <= octaves; octave++) {
+    const multiplier = 2 ** octave;
+    const baseFreq = freqArr.map((f) => Math.floor(f * 0.5 * multiplier));
+    if (baseFreq[0] > h && baseFreq[1] > w) {
+      break;
     }
-    const tensorOut = Tensor.fromArray(ctx, accum, valueShape);
-    return await normalize(tensorOut);
+    let layer = await values(baseFreq, valueShape, {
+      ctx,
+      time,
+      speed,
+      distrib,
+    });
+    layer = await ridge(layer);
+    const layerData = await layer.read();
+    const layerArr =
+      layerData instanceof Float32Array
+        ? layerData
+        : Float32Array.from(layerData ?? []);
+    for (let i = 0; i < accum.length; i++) {
+      accum[i] = Math.fround(accum[i] + layerArr[i] / multiplier);
+    }
   }
+  const tensorOut = Tensor.fromArray(ctx, accum, valueShape);
+  return await normalize(tensorOut);
+}
 
+async function computeNebulaMask(ctx, shape, time, speed) {
+  const [h, w] = shape;
+  const valueShape = [h, w, 1];
   const overlayFreq = [randomInt(3, 4), 1];
   const subtractFreq = [randomInt(2, 4), 1];
-  let overlay = await simpleMultires(overlayFreq, 6, ValueDistribution.exp);
-  const subtractor = await simpleMultires(subtractFreq, 4);
+
+  let overlay = await nebulaSimpleMultires(
+    ctx,
+    valueShape,
+    overlayFreq,
+    6,
+    time,
+    speed,
+    ValueDistribution.exp,
+  );
+  const subtractor = await nebulaSimpleMultires(
+    ctx,
+    valueShape,
+    subtractFreq,
+    4,
+    time,
+    speed,
+  );
+
   const overlayData = await overlay.read();
   const subtractData = await subtractor.read();
   const overlayArr =
@@ -8997,25 +9024,46 @@ export async function nebula(tensor, shape, time, speed) {
     subtractData instanceof Float32Array
       ? subtractData
       : Float32Array.from(subtractData ?? []);
+
   const diff = new Float32Array(h * w);
   for (let i = 0; i < diff.length; i++) {
     const ov = Math.fround(overlayArr[i] ?? 0);
     const sub = Math.fround(subtractArr[i] ?? 0);
     diff[i] = Math.fround((ov - sub) * 0.125);
   }
-  overlay = Tensor.fromArray(ctx, diff, valueShape);
 
-  overlay = await rotate(overlay, valueShape, time, speed, randomInt(-15, 15));
-  const rotatedData = await overlay.read();
-  const rotatedArr =
-    rotatedData instanceof Float32Array
-      ? rotatedData
-      : Float32Array.from(rotatedData ?? []);
-  const baseData = await tensor.read();
+  let diffTensor = Tensor.fromArray(ctx, diff, valueShape);
+  diffTensor = await rotate(
+    diffTensor,
+    valueShape,
+    time,
+    speed,
+    randomInt(-15, 15),
+  );
+  const rotatedDataMaybe = diffTensor.read();
+  const rotatedData =
+    rotatedDataMaybe && typeof rotatedDataMaybe.then === "function"
+      ? await rotatedDataMaybe
+      : rotatedDataMaybe;
+  return rotatedData instanceof Float32Array
+    ? rotatedData
+    : Float32Array.from(rotatedData ?? []);
+}
+
+async function nebulaCPU(tensor, shape, time, speed) {
+  const [h, w, c] = shape;
+  const ctx = tensor.ctx;
+  const rotatedArr = await computeNebulaMask(ctx, [h, w], time, speed);
+  const baseDataMaybe = tensor.read();
+  const baseData =
+    baseDataMaybe && typeof baseDataMaybe.then === "function"
+      ? await baseDataMaybe
+      : baseDataMaybe;
   const baseArr =
     baseData instanceof Float32Array
       ? baseData
       : Float32Array.from(baseData ?? []);
+
   for (let i = 0; i < h * w; i++) {
     const mult = Math.fround(1 - (rotatedArr[i] ?? 0));
     for (let k = 0; k < c; k++) {
@@ -9031,19 +9079,109 @@ export async function nebula(tensor, shape, time, speed) {
       expanded[i * c + k] = v;
     }
   }
+
   const overlayTensor = Tensor.fromArray(ctx, expanded, shape);
   const tinted = await tint(overlayTensor, shape, time, 1.0, 1.0);
-  const tintedData = await tinted.read();
+  const tintedDataMaybe = tinted.read();
+  const tintedData =
+    tintedDataMaybe && typeof tintedDataMaybe.then === "function"
+      ? await tintedDataMaybe
+      : tintedDataMaybe;
   const tintedArr =
     tintedData instanceof Float32Array
       ? tintedData
       : Float32Array.from(tintedData ?? []);
+
   for (let i = 0; i < baseArr.length; i++) {
     const tVal = Math.fround(tintedArr[i] ?? 0);
     baseArr[i] = Math.fround((baseArr[i] ?? 0) + tVal);
   }
 
   return Tensor.fromArray(ctx, baseArr, shape);
+}
+
+async function nebulaWebGPU(tensor, shape, time, speed) {
+  const ctx = tensor?.ctx;
+  if (!ctx || !ctx.device) {
+    return null;
+  }
+  const [h, w, c] = shape;
+
+  const rotatedArr = await computeNebulaMask(ctx, [h, w], time, speed);
+  const maskTensor = Tensor.fromArray(ctx, rotatedArr, [h, w, 1]);
+
+  const expanded = new Float32Array(h * w * c);
+  for (let i = 0; i < h * w; i++) {
+    const v = Math.fround(Math.max(rotatedArr[i] ?? 0, 0));
+    for (let k = 0; k < c; k++) {
+      expanded[i * c + k] = v;
+    }
+  }
+
+  const overlayTensor = Tensor.fromArray(ctx, expanded, shape);
+  let tinted = await tint(overlayTensor, shape, time, 1.0, 1.0);
+  if (overlayTensor?.handle?.destroy) {
+    overlayTensor.handle.destroy();
+  }
+  const tintedTex = ensureTextureTensor(tinted);
+  if (tinted !== tintedTex && tinted?.handle?.destroy) {
+    tinted.handle.destroy();
+  }
+
+  const baseTex = ensureTextureTensor(tensor);
+  const maskTex = ensureTextureTensor(maskTensor);
+
+  const pool = getBufferPool(ctx);
+  let outBuf = pool.acquire(
+    h * w * c * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Float32Array([w, h, c, 0]);
+  let paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+
+  try {
+    await ctx.runCompute(
+      NEBULA_WGSL,
+      [
+        { binding: 0, resource: baseTex.handle.createView() },
+        { binding: 1, resource: tintedTex.handle.createView() },
+        { binding: 2, resource: maskTex.handle.createView() },
+        { binding: 3, resource: { buffer: outBuf } },
+        { binding: 4, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+  } catch (err) {
+    console.warn("WebGPU nebula fallback to CPU", err);
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+    return null;
+  }
+
+  const result = Tensor.fromGPUBuffer(ctx, outBuf, shape);
+  pool.release(outBuf);
+  pool.release(paramsBuf);
+  return result;
+}
+
+export async function nebula(tensor, shape, time, speed) {
+  const ctx = tensor?.ctx;
+  if (ctx && ctx.device) {
+    try {
+      const gpuResult = await nebulaWebGPU(tensor, shape, time, speed);
+      if (gpuResult) {
+        return gpuResult;
+      }
+    } catch (err) {
+      console.warn("WebGPU nebula fallback to CPU", err);
+    }
+  }
+  return await nebulaCPU(tensor, shape, time, speed);
 }
 register("nebula", nebula, {});
 

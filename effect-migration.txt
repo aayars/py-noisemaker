@@ -7,7 +7,6 @@ fibers
 frame
 glyph_map
 lowpoly
-nebula
 normal_map
 on_screen_display
 pixel_sort
