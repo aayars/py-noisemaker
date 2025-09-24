@@ -1,6 +1,5 @@
 The remaining effects in this list need shader implementations:
 
-adjust_saturation
 blend_layers
 center_mask
 color_map

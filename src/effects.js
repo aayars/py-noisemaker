@@ -66,6 +66,7 @@ import {
   ABERRATION_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
+  ADJUST_SATURATION_WGSL,
   SMOOTHSTEP_WGSL,
   ROTATE_WGSL,
   RIDGE_WGSL,
@@ -6294,12 +6295,26 @@ export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (ctx && ctx.device && tensor.handle instanceof GPUTexture) {
     return (async () => {
       try {
-        const hsv = await rgbToHsv(tensor);
-        const data = await hsv.read();
-        for (let i = 0; i < shape[0] * shape[1]; i++) {
-          data[i * 3 + 1] = data[i * 3 + 1] * amount;
-        }
-        return await hsvToRgb(Tensor.fromArray(ctx, data, hsv.shape));
+        const [h, w, c] = shape;
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, c, amount]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          ADJUST_SATURATION_WGSL,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return Tensor.fromGPUBuffer(ctx, outBuf, shape);
       } catch (e) {
         console.warn('WebGPU saturation fallback to CPU', e);
         const data = await tensor.read();
