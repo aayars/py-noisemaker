@@ -6,7 +6,6 @@ convolve
 crt
 degauss
 density_map
-erosion_worms
 expand_tile
 fibers
 frame
