@@ -119,7 +119,7 @@
       </div>
       <div class="control-group control-group--toggles">
         <label><input type="checkbox" id="webgpuToggle" /> WebGPU</label>
-        <label><input type="checkbox" id="animateToggle" /> Animate</label>
+        <label><input type="checkbox" id="animateToggle" disabled /> Animate</label>
       </div>
     </div>
     <canvas id="noise" width="512" height="512"></canvas>
@@ -1109,6 +1109,20 @@ Bindings: ${bindingSummary}`,
       }
     }
 
+    function updateAnimateToggleAvailability() {
+      if (!animateToggle) {
+        return;
+      }
+      const canAnimate = !!webgpuToggle?.checked && !webgpuToggle?.disabled;
+      if (!canAnimate && animateToggle.checked) {
+        animateToggle.checked = false;
+        stopAnimation();
+      }
+      animateToggle.disabled = !canAnimate;
+    }
+
+    updateAnimateToggleAvailability();
+
     function scheduleAnimationFrame() {
       if (!animationRunning) {
         return;
@@ -1187,6 +1201,7 @@ Bindings: ${bindingSummary}`,
     });
 
     webgpuToggle.addEventListener('change', async () => {
+      updateAnimateToggleAvailability();
       const manualOptions = getManualAnimationOptions();
       try {
         await initCtx();
