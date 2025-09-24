@@ -48,6 +48,7 @@ export const RIPPLE_WGSL = SHADER_PLACEHOLDER;
 export const COLOR_MAP_WGSL = SHADER_PLACEHOLDER;
 export const VIGNETTE_WGSL = SHADER_PLACEHOLDER;
 export const DITHER_WGSL = SHADER_PLACEHOLDER;
+export const GRAIN_WGSL = await loadShaderSource('./shaders/grain.wgsl');
 export const ADJUST_BRIGHTNESS_WGSL = await loadShaderSource(
   './shaders/adjust_brightness.wgsl',
 );

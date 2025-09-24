@@ -60,6 +60,7 @@ import {
   CLOUDS_WGSL,
   VIGNETTE_WGSL,
   DITHER_WGSL,
+  GRAIN_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
   ROTATE_WGSL,
@@ -5434,13 +5435,68 @@ export async function dither(tensor, shape, time, speed, levels = 2) {
 register("dither", dither, { levels: 2 });
 
 export function grain(tensor, shape, time, speed, alpha = 0.25) {
-  const [h, w] = shape;
-  const noise = values([h, w], [h, w, 1], {
-    ctx: tensor.ctx,
-    time,
-    speed: speed * 100,
-  });
-  return blend(tensor, noise, alpha);
+  const [h, w, c = tensor.shape[2] ?? 1] = shape;
+  const ctx = tensor.ctx;
+  const alphaVal = Number.isFinite(alpha) ? alpha : 0.25;
+  if (alphaVal <= 0) {
+    return tensor;
+  }
+  const timeVal = Number.isFinite(time) ? time : 0;
+  const speedVal = Number.isFinite(speed) ? speed : 1;
+  const noiseSpeed = speedVal * 100;
+  const buildNoise = () =>
+    values([h, w], [h, w, 1], {
+      ctx: tensor.ctx,
+      time: timeVal,
+      speed: noiseSpeed,
+    });
+
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      return (async () => {
+        try {
+          const outBuf = ctx.createGPUBuffer(
+            new Float32Array(h * w * c),
+            GPUBufferUsage.STORAGE |
+              GPUBufferUsage.COPY_SRC |
+              GPUBufferUsage.COPY_DST,
+          );
+          const paramsBuf = ctx.createGPUBuffer(
+            new Float32Array([
+              w,
+              h,
+              c,
+              alphaVal,
+              timeVal,
+              noiseSpeed,
+              getRNGState(),
+              0,
+            ]),
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            GRAIN_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+          return new Tensor(ctx, outBuf, [h, w, c]);
+        } catch (e) {
+          console.warn("WebGPU grain fallback to CPU", e);
+          const noise = buildNoise();
+          return blend(tex, noise, alphaVal);
+        }
+      })();
+    }
+  }
+
+  const noise = buildNoise();
+  return blend(tensor, noise, alphaVal);
 }
 register("grain", grain, { alpha: 0.25 });
 

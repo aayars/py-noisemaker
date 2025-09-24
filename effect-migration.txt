@@ -24,7 +24,6 @@ fxaa
 glitch
 glowing_edges
 glyph_map
-grain
 grime
 inner_tile
 jpeg_decimate
