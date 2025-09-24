@@ -29,7 +29,6 @@ simple_frame
 sketch
 sobel_operator
 spooky_ticker
-square_crop_and_resize
 stray_hair
 value_refract
 vhs

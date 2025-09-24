@@ -114,6 +114,7 @@ import {
   SOBEL_OPERATOR_FINALIZE_WGSL,
   SCALE_TENSOR_WGSL,
   OUTLINE_WGSL,
+  SQUARE_CROP_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -7238,14 +7239,83 @@ async function resizeBilinear(tensor, size) {
 }
 
 export async function squareCropAndResize(tensor, shape, length = 1024) {
-  const [h, w, c] = shape;
+  const [h, w, rawChannels] = shape;
+  const channels = Math.max(1, rawChannels ?? tensor.shape?.[2] ?? 1);
   const have = Math.min(h, w);
+  if (h === w && have === length) {
+    return tensor;
+  }
+  if (have <= 0 || channels <= 0) {
+    return tensor;
+  }
+  const ctx = tensor?.ctx;
+  const xOff = Math.floor((w - have) * 0.5);
+  const yOff = Math.floor((h - have) * 0.5);
+  if (ctx && ctx.device) {
+    try {
+      let working = ensureTextureTensor(tensor);
+      if (
+        h !== w &&
+        working &&
+        typeof GPUTexture !== "undefined" &&
+        working.handle instanceof GPUTexture
+      ) {
+        const outSize = have * have * channels;
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(outSize),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, channels, xOff, yOff, have, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        let succeeded = false;
+        try {
+          await ctx.runCompute(
+            SQUARE_CROP_WGSL,
+            [
+              { binding: 0, resource: working.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(have / 8),
+            Math.ceil(have / 8),
+          );
+          working = new Tensor(ctx, outBuf, [have, have, channels]);
+          succeeded = true;
+        } finally {
+          if (paramsBuf?.destroy) {
+            try {
+              paramsBuf.destroy();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+          if (!succeeded && outBuf?.destroy) {
+            try {
+              outBuf.destroy();
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        }
+      } else if (h !== w) {
+        working = await cropTensor(working, [h, w, channels], [have, have]);
+      }
+      if (have !== length) {
+        working = await resample(working, [length, length, channels]);
+      }
+      return working;
+    } catch (err) {
+      console.warn("squareCropAndResize GPU fallback to CPU", err);
+    }
+  }
   let out = tensor;
   if (h !== w) {
-    out = await cropTensor(out, shape, [have, have]);
+    out = await cropTensor(out, [h, w, channels], [have, have]);
   }
   if (have !== length) {
-    out = await resample(out, [length, length, c]);
+    out = await resample(out, [length, length, channels]);
   }
   return out;
 }
