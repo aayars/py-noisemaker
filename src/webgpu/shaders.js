@@ -146,10 +146,12 @@ export const TINT_WGSL = await loadShaderSource('./shaders/tint.wgsl');
 export const PALETTE_WGSL = await loadShaderSource('./shaders/palette.wgsl');
 export const TEXTURE_WGSL = await loadShaderSource('./shaders/texture.wgsl');
 export const VHS_WGSL = SHADER_PLACEHOLDER;
-export const UNARY_OP_WGSL = SHADER_PLACEHOLDER;
-export const BINARY_OP_WGSL = SHADER_PLACEHOLDER;
+export const UNARY_OP_WGSL = await loadShaderSource('./shaders/unary_op.wgsl');
+export const BINARY_OP_WGSL = await loadShaderSource('./shaders/binary_op.wgsl');
 export const GRAYSCALE_WGSL = await loadShaderSource('./shaders/grayscale.wgsl');
-export const EXPAND_CHANNELS_WGSL = SHADER_PLACEHOLDER;
+export const EXPAND_CHANNELS_WGSL = await loadShaderSource(
+  './shaders/expand_channels.wgsl',
+);
 export const SOBEL_OPERATOR_FINALIZE_WGSL = await loadShaderSource(
   './shaders/sobel_operator_finalize.wgsl',
 );
