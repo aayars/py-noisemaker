@@ -61,7 +61,7 @@ export const VORONOI_WGSL = SHADER_PLACEHOLDER;
 export const EROSION_WORMS_WGSL = await loadShaderSource(
   './shaders/erosion_worms.wgsl',
 );
-export const WORMS_WGSL = SHADER_PLACEHOLDER;
+export const WORMS_WGSL = await loadShaderSource('./shaders/worms.wgsl');
 export const REINDEX_WGSL = await loadShaderSource('./shaders/reindex.wgsl');
 export const OFFSET_INDEX_WGSL = await loadShaderSource('./shaders/offset_index.wgsl');
 export const RIPPLE_WGSL = await loadShaderSource('./shaders/ripple.wgsl');

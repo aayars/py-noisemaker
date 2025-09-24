@@ -11,4 +11,3 @@ sketch
 vhs
 voronoi
 watermark
-worms
