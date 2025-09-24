@@ -29,7 +29,6 @@ reverb
 scanline_error
 scratches
 simple_frame
-sine
 sketch
 snow
 sobel_operator

@@ -70,6 +70,7 @@ import {
   SMOOTHSTEP_WGSL,
   ROTATE_WGSL,
   RIDGE_WGSL,
+  SINE_WGSL,
   GLYPH_MAP_WGSL,
   WARP_WGSL,
   SPATTER_MASK_WGSL,
@@ -6492,6 +6493,49 @@ export async function sine(
   octaves = 1,
 ) {
   const [h, w, c] = shape;
+  const ctx = tensor?.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      const pool = getBufferPool(ctx);
+      const usage =
+        GPUBufferUsage.STORAGE |
+        GPUBufferUsage.COPY_SRC |
+        GPUBufferUsage.COPY_DST;
+      const outSize = h * w * c;
+      const outBuf = pool.acquire(outSize * 4, usage);
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, amount, rgb ? 1 : 0, 0, 0, 0]),
+        GPUBufferUsage.UNIFORM,
+      );
+      let result = null;
+      try {
+        await ctx.runCompute(
+          SINE_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+      } catch (err) {
+        console.warn("WebGPU sine fallback to CPU", err);
+      } finally {
+        pool.release(outBuf);
+        paramsBuf.destroy?.();
+      }
+      if (result) {
+        return result;
+      }
+    }
+  }
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   const ns = (v) => (Math.sin(v) + 1) * 0.5;
