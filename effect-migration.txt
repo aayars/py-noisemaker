@@ -4,7 +4,6 @@ aberration
 adjust_hue
 adjust_saturation
 blend_layers
-bloom
 blur
 center_mask
 color_map

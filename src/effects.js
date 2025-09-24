@@ -62,6 +62,7 @@ import {
   VIGNETTE_WGSL,
   DITHER_WGSL,
   GRAIN_WGSL,
+  BLOOM_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
   SMOOTHSTEP_WGSL,
@@ -752,7 +753,58 @@ export async function shadow(
 register("shadow", shadow, { alpha: 1, reference: null });
 
 export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
-  const [h, w, c] = shape;
+  const [h, w] = shape;
+  const resolveChannels = (value) =>
+    Number.isFinite(value) && value > 0 ? Math.floor(value) : null;
+  const channelCount =
+    resolveChannels(shape?.[2]) ?? resolveChannels(tensor.shape?.[2]) ?? 1;
+  const fullShape = [h, w, channelCount];
+  const alphaVal = Number.isFinite(alpha) ? alpha : 0.5;
+  const alphaClamped = Math.min(1, Math.max(0, alphaVal));
+  const xOffset = Math.trunc(w * -0.05);
+  const yOffset = Math.trunc(h * -0.05);
+  const ctx = tensor.ctx;
+
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * channelCount),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([
+            w,
+            h,
+            channelCount,
+            alphaClamped,
+            xOffset,
+            yOffset,
+            0.25,
+            1.5,
+          ]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          BLOOM_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outBuf, fullShape);
+      } catch (e) {
+        console.warn("WebGPU bloom fallback to CPU", e);
+      }
+    }
+  }
+
   const src = await tensor.read();
   const bright = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
@@ -762,36 +814,34 @@ export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
     bright[i] = v;
   }
 
-  let blurred = Tensor.fromArray(tensor.ctx, bright, shape);
+  let blurred = Tensor.fromArray(tensor.ctx, bright, fullShape);
   const targetShape = [
     Math.max(1, Math.floor(h / 100)),
     Math.max(1, Math.floor(w / 100)),
-    c,
+    channelCount,
   ];
-  blurred = await proportionalDownsample(blurred, shape, targetShape);
+  blurred = await proportionalDownsample(blurred, fullShape, targetShape);
   const blurredData = await blurred.read();
   for (let i = 0; i < blurredData.length; i++) {
     blurredData[i] *= 4;
   }
   blurred = Tensor.fromArray(tensor.ctx, blurredData, targetShape);
-  blurred = await resample(blurred, shape);
-  const xOffset = Math.trunc(w * -0.05);
-  const yOffset = Math.trunc(h * -0.05);
+  blurred = await resample(blurred, fullShape);
   blurred = await offsetTensor(blurred, xOffset, yOffset);
-  blurred = await adjustBrightness(blurred, shape, time, speed, 0.25);
-  blurred = await adjustContrast(blurred, shape, time, speed, 1.5);
+  blurred = await adjustBrightness(blurred, fullShape, time, speed, 0.25);
+  blurred = await adjustContrast(blurred, fullShape, time, speed, 1.5);
 
   const blurredFull = await blurred.read();
   const mixData = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
     mixData[i] = (src[i] + blurredFull[i]) * 0.5;
   }
-  const mixedTensor = Tensor.fromArray(tensor.ctx, mixData, shape);
+  const mixedTensor = Tensor.fromArray(tensor.ctx, mixData, fullShape);
   const [baseClamped, mixedClamped] = await Promise.all([
     clamp01(tensor),
     clamp01(mixedTensor),
   ]);
-  return blend(baseClamped, mixedClamped, alpha);
+  return blend(baseClamped, mixedClamped, alphaVal);
 }
 register("bloom", bloom, { alpha: 0.5 });
 
