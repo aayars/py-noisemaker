@@ -22,7 +22,6 @@ frame
 fxaa
 glitch
 glyph_map
-grime
 inner_tile
 jpeg_decimate
 lens_warp

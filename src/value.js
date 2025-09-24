@@ -39,6 +39,10 @@ export function setSeed(s) {
   setSimplexSeed(s);
 }
 
+export function getSeedValue() {
+  return _seed >>> 0;
+}
+
 export const FULLSCREEN_VS = `#version 300 es
 precision highp float;
 in vec2 position;

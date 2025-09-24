@@ -20,10 +20,11 @@ import {
   toValueMap,
   convolution,
   fxaa,
+  getSeedValue,
 } from "./value.js";
 import { PALETTES } from "./palettes.js";
 import { register } from "./effectsRegistry.js";
-import { random as simplexRandom } from "./simplex.js";
+import { random as simplexRandom, fromSeed as simplexFromSeed } from "./simplex.js";
 import { getAtlas, maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
 import {
@@ -8261,7 +8262,35 @@ async function grimeWebGPU(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
-  const maskTex = ctx.device.createTexture({
+  const [freqY, freqX] = freqForShape(5, [h, w]);
+  const baseSeed = getSeedValue();
+  const { data: { perm, perm_grad: permGrad } } = simplexFromSeed(baseSeed);
+  const maskParams = ctx.createGPUBuffer(
+    new Float32Array([
+      w,
+      h,
+      freqX,
+      freqY,
+      time,
+      speed,
+      0.5,
+      2.0,
+      8,
+      Math.floor(w * 0.5),
+      Math.floor(h * 0.5),
+      0,
+    ]),
+    GPUBufferUsage.UNIFORM,
+  );
+  const permBuf = ctx.createGPUBuffer(
+    new Uint32Array(perm),
+    GPUBufferUsage.STORAGE,
+  );
+  const permGradBuf = ctx.createGPUBuffer(
+    new Uint32Array(permGrad),
+    GPUBufferUsage.STORAGE,
+  );
+  const baseTex = ctx.device.createTexture({
     size: { width: w, height: h, depthOrArrayLayers: 1 },
     format: 'r32float',
     usage:
@@ -8270,21 +8299,69 @@ async function grimeWebGPU(tensor, shape, time, speed) {
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.COPY_DST,
   });
-  const maskParams = ctx.createGPUBuffer(
-    new Float32Array([w, h, time, speed]),
-    GPUBufferUsage.UNIFORM,
-  );
+  const offsetTex = ctx.device.createTexture({
+    size: { width: w, height: h, depthOrArrayLayers: 1 },
+    format: 'r32float',
+    usage:
+      GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.COPY_DST,
+  });
   await ctx.runCompute(
     GRIME_MASK_WGSL,
     [
-      { binding: 0, resource: maskTex.createView() },
-      { binding: 1, resource: { buffer: maskParams } },
+      { binding: 0, resource: baseTex.createView() },
+      { binding: 1, resource: offsetTex.createView() },
+      { binding: 2, resource: { buffer: maskParams } },
+      { binding: 3, resource: { buffer: permBuf } },
+      { binding: 4, resource: { buffer: permGradBuf } },
     ],
     Math.ceil(w / 8),
     Math.ceil(h / 8),
   );
-  let mask = new Tensor(ctx, maskTex, valueShape);
-  mask = await refractOp(mask);
+  const baseRaw = new Tensor(ctx, baseTex, valueShape);
+  const offsetRaw = new Tensor(ctx, offsetTex, valueShape);
+  const [baseDataMaybe, offsetDataMaybe] = await Promise.all([
+    baseRaw.read(),
+    offsetRaw.read(),
+  ]);
+  const baseData =
+    baseDataMaybe instanceof Float32Array
+      ? baseDataMaybe
+      : new Float32Array(baseDataMaybe ?? []);
+  const offsetData =
+    offsetDataMaybe instanceof Float32Array
+      ? offsetDataMaybe
+      : new Float32Array(offsetDataMaybe ?? []);
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < baseData.length; i++) {
+    const v = baseData[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    min = 0;
+    max = 1;
+  }
+  const range = max - min || 1;
+  const baseNorm = new Float32Array(baseData.length);
+  const offsetNorm = new Float32Array(offsetData.length);
+  for (let i = 0; i < baseData.length; i++) {
+    baseNorm[i] = Math.fround((baseData[i] - min) / range);
+    offsetNorm[i] = Math.fround((offsetData[i] - min) / range);
+  }
+  const baseTensor = Tensor.fromArray(ctx, baseNorm, valueShape);
+  const offsetTensor = Tensor.fromArray(ctx, offsetNorm, valueShape);
+  let mask = await refractOp(
+    baseTensor,
+    baseTensor,
+    offsetTensor,
+    1.0,
+    InterpolationType.bicubic,
+    true,
+  );
   mask = await derivative(
     mask,
     valueShape,
