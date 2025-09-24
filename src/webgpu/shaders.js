@@ -86,7 +86,9 @@ export const DLA_WGSL = SHADER_PLACEHOLDER;
 export const REVERB_WGSL = SHADER_PLACEHOLDER;
 export const VASELINE_BLUR_WGSL = SHADER_PLACEHOLDER;
 export const VASELINE_MASK_WGSL = SHADER_PLACEHOLDER;
-export const LENS_DISTORTION_WGSL = SHADER_PLACEHOLDER;
+export const LENS_DISTORTION_WGSL = await loadShaderSource(
+  './shaders/lens_distortion.wgsl',
+);
 export const DEGAUSS_WGSL = SHADER_PLACEHOLDER;
 export const TINT_WGSL = await loadShaderSource('./shaders/tint.wgsl');
 export const TEXTURE_WGSL = await loadShaderSource('./shaders/texture.wgsl');

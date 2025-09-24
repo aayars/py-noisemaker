@@ -25,7 +25,6 @@ glyph_map
 grime
 inner_tile
 jpeg_decimate
-lens_distortion
 lens_warp
 light_leak
 lowpoly
