@@ -389,6 +389,26 @@ export class Preset {
     const gatherDebug = debug || collectDebug;
     const ctx = ctxOpt || new Context(null, debug, powerPreference);
 
+    const requireWebGPU = Boolean(ctx?.requireWebGPU);
+    const allowWebGPU = !ctx?.forceCPU;
+    if (allowWebGPU && ctx && (!ctx.device || !ctx.queue) && typeof ctx.initWebGPU === 'function') {
+      try {
+        const ok = await ctx.initWebGPU();
+        if (requireWebGPU && !ok) {
+          throw new Error('WebGPU required but initialization failed.');
+        }
+      } catch (err) {
+        if (requireWebGPU) {
+          throw err instanceof Error ? err : new Error(String(err));
+        }
+        if (debug) {
+          debugLog(true, 'WebGPU initialization failed', err);
+        }
+      }
+    } else if (requireWebGPU && (!ctx || !ctx.device || !ctx.queue || ctx.isCPU)) {
+      throw new Error('WebGPU required but context is CPU-only.');
+    }
+
     const numericFrameIndex = Number(frameIndexOpt);
     const numericFrameAlt = Number(frameOpt);
     const frameIndex = Number.isFinite(numericFrameIndex) && numericFrameIndex >= 0
@@ -431,6 +451,8 @@ export class Preset {
     let tensor = null;
     let usedGPU = false;
     let pipelineInitialTensor = initialTensor;
+    let gpuError = null;
+    let gpuPartial = false;
 
     const canUseWebGPU = Boolean(ctx && ctx.device && ctx.queue && !ctx.isCPU);
     if (canUseWebGPU) {
@@ -449,7 +471,17 @@ export class Preset {
         if (generatorParams.withAi === undefined) generatorParams.withAi = withAi ? 1 : 0;
         if (generatorParams.withUpscale === undefined) generatorParams.withUpscale = withUpscale ? 1 : 0;
       }
-      const dynamicParams = { time, speed, seed, frameIndex };
+      const channelCount = Number.isFinite(shape?.[2]) ? shape[2] : 4;
+      const dynamicParams = {
+        time,
+        speed,
+        seed,
+        frameIndex,
+        width,
+        height,
+        channels: channelCount,
+        channelCount,
+      };
       for (const stage of stageSnapshots) {
         if (!stage || !stage.params) continue;
         for (const [key, value] of Object.entries(dynamicParams)) {
@@ -516,18 +548,27 @@ export class Preset {
               if (debug) {
                 debugLog(true, 'WebGPU preset compilation failed', err);
               }
+              if (requireWebGPU) {
+                throw err instanceof Error ? err : new Error(String(err));
+              }
             }
             cache.set(cacheKey, entry);
           }
           if (entry && entry.program) {
             program = entry.program;
             entry.partial = Boolean(entry.program?.hasUnsupportedStages);
+          } else if (entry?.unsupported && requireWebGPU) {
+            throw new Error('WebGPU preset is not supported by the GPU pipeline.');
           }
         }
         if (program) {
           try {
             writeProgramUniforms(program, stageSnapshots, frameIndex);
             const programPartial = Boolean(program?.hasUnsupportedStages);
+            gpuPartial = programPartial;
+            if (programPartial && requireWebGPU) {
+              throw new Error('WebGPU preset requires unsupported CPU stages.');
+            }
             const result = await program.execute(ctx, {
               width,
               height,
@@ -538,7 +579,14 @@ export class Preset {
               readback,
               presentationTarget,
             });
-            if (result?.texture) {
+            const producedTexture = Boolean(result?.texture);
+            const producedReadback = Boolean(result?.readback);
+            if (!producedTexture && !producedReadback) {
+              gpuError = gpuError || new Error('WebGPU execution produced no GPU output.');
+              if (requireWebGPU) {
+                throw gpuError;
+              }
+            } else if (producedTexture) {
               const gpuTensor = new Tensor(ctx, result.texture, shape, null);
               if (result.texture && typeof result.texture === 'object') {
                 try {
@@ -564,7 +612,7 @@ export class Preset {
                 tensor = gpuTensor;
               }
               usedGPU = true;
-            } else if (result?.readback) {
+            } else {
               const readShape = [height, width, shape[2] ?? 4];
               const readTensor = Tensor.fromArray(ctx, result.readback, readShape);
               markPresentationNormalized(readTensor, true);
@@ -576,15 +624,37 @@ export class Preset {
               usedGPU = true;
             }
           } catch (err) {
+            gpuError = err instanceof Error ? err : new Error(String(err));
+            if (requireWebGPU) {
+              throw gpuError;
+            }
             if (debug) {
               debugLog(true, 'WebGPU execution failed', err);
             }
           }
+        } else if (requireWebGPU) {
+          throw new Error('WebGPU preset failed to produce a GPU program.');
         }
       } catch (err) {
+        if (requireWebGPU) {
+          throw err instanceof Error ? err : new Error(String(err));
+        }
         if (debug) {
           debugLog(true, 'WebGPU pipeline unavailable', err);
         }
+      }
+    }
+
+    if (requireWebGPU) {
+      if (!canUseWebGPU) {
+        throw new Error('WebGPU required but context failed to provide a GPU device.');
+      }
+      if (!usedGPU) {
+        const err = gpuError || new Error('WebGPU execution produced no GPU output.');
+        throw err;
+      }
+      if (gpuPartial) {
+        throw new Error('WebGPU execution completed with unsupported CPU fallbacks.');
       }
     }
 

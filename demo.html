@@ -145,7 +145,6 @@
     import { ColorSpace } from './src/constants.js';
     import PRESETS from './src/presets.js';
     import { random, setSeed } from './src/util.js';
-    import { Tensor } from './src/tensor.js';
 
     const benchmark = window.location.hash.includes('benchmark');
 
@@ -256,6 +255,8 @@
       cpuCtx.queue = null;
       cpuCtx.presentationFormat = null;
       cpuCtx.isCPU = true;
+      cpuCtx.forceCPU = true;
+      cpuCtx.requireWebGPU = false;
       cpuCtx.profile = {
         webgpu: 0,
         lastGPUTime: 0,
@@ -400,7 +401,16 @@
     }
 
     function ensureProgramForPreset(context, presetObj, width, height) {
-      if (!context || context.isCPU) {
+      const toggleRequestsWebGPU = Boolean(webgpuToggle?.checked);
+      const contextRequiresWebGPU = Boolean(context?.requireWebGPU);
+      const contextForcesCPU = Boolean(context?.forceCPU);
+      if (!hasWebGPU || (!toggleRequestsWebGPU && !contextRequiresWebGPU)) {
+        return null;
+      }
+      if (!context || context.isCPU || contextForcesCPU) {
+        if (contextRequiresWebGPU) {
+          throw new Error('WebGPU rendering was requested but the active context is CPU-only.');
+        }
         return null;
       }
       let cache = programCachesByContext.get(context);
@@ -416,7 +426,14 @@
         entry = null;
       }
       if (!entry) {
-        entry = { program: null, unsupported: false, notified: false, partial: false, support: null };
+        entry = {
+          program: null,
+          unsupported: false,
+          notified: false,
+          partial: false,
+          support: null,
+          partialNotified: false,
+        };
         cache.set(key, entry);
       }
       if (!entry.program && !entry.unsupported) {
@@ -432,6 +449,9 @@
             entry.program = compiled;
             entry.partial = Boolean(support.hasUnsupported);
             entry.support = support;
+            if (!entry.partial) {
+              entry.partialNotified = false;
+            }
           } else {
             entry.unsupported = true;
             entry.partial = false;
@@ -447,6 +467,9 @@
       if (entry?.program) {
         entry.support = getProgramSupportInfo(entry.program);
         entry.partial = Boolean(entry.support?.hasUnsupported);
+        if (!entry.partial) {
+          entry.partialNotified = false;
+        }
       }
       return entry;
     }
@@ -455,47 +478,57 @@
 
     async function initCtx() {
       await renderQueue;
-      if (ctx) {
-        clearProgramCacheForContext(ctx);
-        if (typeof ctx.destroy === 'function') {
-          try {
-            ctx.destroy({ keepLookupTextures: false });
-          } catch (err) {
-            void err;
-          }
-        } else if (typeof ctx.dispose === 'function') {
-          try {
-            ctx.dispose({ keepLookupTextures: false });
-          } catch (err) {
-            void err;
-          }
-        }
-        disposeCtx(ctx);
-      }
+      const previousCtx = ctx;
+      const previousBackend = previousCtx && !previousCtx.isCPU ? 'gpu' : 'cpu';
       const useWebGPU = hasWebGPU && webgpuToggle.checked;
-      const targetCanvas = ensureCanvasForBackend(useWebGPU ? 'gpu' : 'cpu');
+      const targetBackend = useWebGPU ? 'gpu' : 'cpu';
+      const targetCanvas = ensureCanvasForBackend(targetBackend);
+
+      let nextCtx = null;
       if (useWebGPU) {
-        const nextCtx = new Context(targetCanvas);
+        const gpuCtx = new Context(targetCanvas);
         try {
-          const ok = await nextCtx.initWebGPU();
-          if (ok) {
-            ctx = nextCtx;
-          } else {
-            webgpuToggle.checked = false;
-            showError('WebGPU unavailable or failed to initialize; falling back to CPU.');
-            const fallbackCanvas = ensureCanvasForBackend('cpu');
-            ctx = createCPUContext(fallbackCanvas);
-            disposeCtx(nextCtx);
+          const ok = await gpuCtx.initWebGPU();
+          if (!ok) {
+            throw new Error('WebGPU unavailable or failed to initialize.');
           }
+          gpuCtx.requireWebGPU = true;
+          gpuCtx.forceCPU = false;
+          nextCtx = gpuCtx;
         } catch (e) {
-          disposeCtx(nextCtx);
-          webgpuToggle.checked = false;
-          showError(e.message || String(e));
-          const fallbackCanvas = ensureCanvasForBackend('cpu');
-          ctx = createCPUContext(fallbackCanvas);
+          disposeCtx(gpuCtx);
+          if (targetBackend !== previousBackend) {
+            ensureCanvasForBackend(previousBackend);
+          }
+          const err = e instanceof Error ? e : new Error(String(e));
+          showError(err.message || 'WebGPU initialization failed.');
+          throw err;
         }
       } else {
-        ctx = createCPUContext(targetCanvas);
+        nextCtx = createCPUContext(targetCanvas);
+      }
+
+      if (previousCtx && previousCtx !== nextCtx) {
+        clearProgramCacheForContext(previousCtx);
+      }
+
+      ctx = nextCtx;
+
+      if (previousCtx && previousCtx !== ctx) {
+        if (typeof previousCtx.destroy === 'function') {
+          try {
+            previousCtx.destroy({ keepLookupTextures: false });
+          } catch (err) {
+            void err;
+          }
+        } else if (typeof previousCtx.dispose === 'function') {
+          try {
+            previousCtx.dispose({ keepLookupTextures: false });
+          } catch (err) {
+            void err;
+          }
+        }
+        disposeCtx(previousCtx);
       }
       applyProfilingOptions(ctx);
       if (!ctx.profile) {
@@ -769,6 +802,26 @@
 
     async function draw(seed, presetName, timeSeconds = null) {
       let activeCtx = ctx;
+      const wantsWebGPUFromToggle = hasWebGPU && Boolean(webgpuToggle?.checked);
+      const contextRequiresWebGPU = Boolean(activeCtx?.requireWebGPU);
+      const contextInitiallyForceCPU = Boolean(activeCtx?.forceCPU);
+      const wantsWebGPU = contextRequiresWebGPU || wantsWebGPUFromToggle;
+      if (activeCtx) {
+        if (wantsWebGPU) {
+          activeCtx.requireWebGPU = true;
+          activeCtx.forceCPU = false;
+        } else {
+          activeCtx.requireWebGPU = false;
+          activeCtx.forceCPU = true;
+        }
+      }
+      if (wantsWebGPU) {
+        if (!activeCtx || activeCtx.isCPU || contextInitiallyForceCPU || !activeCtx.device || !activeCtx.queue) {
+          const err = new Error('WebGPU mode requested but no GPU context is available.');
+          showError(err.message || String(err));
+          throw err;
+        }
+      }
       const rawTimeSeconds = Number(timeSeconds);
       const effectiveTime =
         Number.isFinite(rawTimeSeconds) ? ((rawTimeSeconds % 1) + 1) % 1 : 0;
@@ -845,12 +898,18 @@
       let webgpuMs = 0;
       let cpuMs = 0;
       let usedGPU = false;
-      let hybridMode = false;
       let gpuError = null;
+      let gpuErrorDisplayed = false;
       let effectiveWidth = width;
       let effectiveHeight = height;
 
-      if (activeCtx && !activeCtx.isCPU && activeCtx.device && activeCtx.queue) {
+      if (
+        wantsWebGPU &&
+        activeCtx &&
+        !activeCtx.isCPU &&
+        activeCtx.device &&
+        activeCtx.queue
+      ) {
         try {
           const dynamicEnabled = Boolean(activeCtx?.profilingOptions?.dynamicResolution);
           if (dynamicEnabled) {
@@ -864,13 +923,31 @@
           const entry = ensureProgramForPreset(activeCtx, renderPresetObj, effectiveWidth, effectiveHeight);
           if (entry) {
             if (entry.unsupported) {
+              const err = new Error('Preset is not supported by WebGPU.');
+              gpuError = err;
               if (!entry.notified) {
-                showError('Preset is not supported by WebGPU; falling back to CPU.');
+                showError(err.message);
+                gpuErrorDisplayed = true;
                 entry.notified = true;
               }
+              throw err;
             } else if (entry.program) {
               const support = entry.support || getProgramSupportInfo(entry.program);
               const programPartial = Boolean(support?.hasUnsupported);
+              entry.partial = programPartial;
+              if (programPartial) {
+                const partialError = new Error(
+                  'WebGPU preset requires unsupported CPU stages. Disable WebGPU or update the preset to run on the GPU.',
+                );
+                gpuError = partialError;
+                if (!entry.partialNotified) {
+                  showError(partialError.message);
+                  gpuErrorDisplayed = true;
+                  entry.partialNotified = true;
+                }
+                throw partialError;
+              }
+              entry.partialNotified = false;
               if (stageSnapshots.length) {
                 writeProgramUniforms(entry.program, stageSnapshots, frameIndexForThisFrame);
               }
@@ -886,9 +963,15 @@
                   present: !programPartial,
                   readback: Boolean(programPartial),
                 });
+                const producedOutput = Boolean(execResult?.texture || execResult?.readback);
+                if (!producedOutput) {
+                  const err = new Error('WebGPU execution returned no GPU output.');
+                  gpuError = err;
+                  throw err;
+                }
                 usedGPU = true;
               } catch (err) {
-                gpuError = err;
+                gpuError = err instanceof Error ? err : new Error(String(err));
               }
               if (usedGPU) {
                 if (execResult?.queueFlushed !== true && activeCtx.flush) {
@@ -904,73 +987,28 @@
                 activeCtx.profile.lastCompileMs = compileMs;
                 webgpuMs = execResult?.gpuTimeMs ?? activeCtx.profile?.lastGPUTime ?? 0;
                 if (!Number.isFinite(webgpuMs)) webgpuMs = 0;
-                let cpuFinishMs = 0;
-                if (programPartial) {
-                  try {
-                    const cpuStart = performance.now();
-                    let generatorData = execResult?.readback || null;
-                    if (!generatorData && execResult?.texture) {
-                      const generatorTensor = new Tensor(activeCtx, execResult.texture, [effectiveHeight, effectiveWidth, 4], null);
-                      generatorData = await generatorTensor.read();
-                    }
-                    if (!generatorData) {
-                      throw new Error('WebGPU generator output unavailable for CPU finishing.');
-                    }
-                    const cpuCtx = createCPUContext(null);
-                    const generatorTensor = Tensor.fromArray(
-                      cpuCtx,
-                      generatorData,
-                      [effectiveHeight, effectiveWidth, 4],
-                    );
-                    const finalTensor = await render(renderPresetObj, seed, {
-                      width: effectiveWidth,
-                      height: effectiveHeight,
-                      ctx: cpuCtx,
-                      presets,
-                      debug: false,
-                      tensor: generatorTensor,
-                      time: effectiveTime,
-                      frameIndex: frameIndexForThisFrame,
-                    });
-                    const finalData = await finalTensor.read();
-                    const uploadTex = activeCtx.createTexture(effectiveWidth, effectiveHeight, finalData);
-                    await activeCtx.renderTexture(uploadTex, () => activeCtx.gpu.getCurrentTexture());
-                    cpuFinishMs = performance.now() - cpuStart;
-                    hybridMode = true;
-                  } catch (err) {
-                    gpuError = err;
-                    usedGPU = false;
-                  }
+                gpuFrameIndex += 1;
+                if (execResult?.readback) {
+                  activeCtx.profile.lastReadback = execResult.readback;
                 }
-                if (usedGPU) {
-                  gpuFrameIndex += 1;
-                  if (execResult?.readback) {
-                    activeCtx.profile.lastReadback = execResult.readback;
-                  }
-                  if (execResult?.readbackLayout) {
-                    activeCtx.profile.lastReadbackLayout = execResult.readbackLayout;
-                  }
-                  if (programPartial) {
-                    renderMs = totalElapsed + cpuFinishMs;
-                    cpuMs = cpuFinishMs;
-                  } else {
-                    renderMs = totalElapsed;
-                    cpuMs = Math.max(0, renderMs - webgpuMs);
-                  }
-                  if (dynamicEnabled) {
-                    const targetMs = 16;
-                    let scale = activeCtx.profile.dynamicScale ?? 1;
-                    if (Number.isFinite(webgpuMs)) {
-                      if (webgpuMs > targetMs * 1.2) {
-                        scale = Math.max(0.3, scale * 0.9);
-                      } else if (webgpuMs < targetMs * 0.6) {
-                        scale = Math.min(1, scale * 1.05);
-                      }
+                if (execResult?.readbackLayout) {
+                  activeCtx.profile.lastReadbackLayout = execResult.readbackLayout;
+                }
+                renderMs = totalElapsed;
+                cpuMs = Math.max(0, renderMs - webgpuMs);
+                if (dynamicEnabled) {
+                  const targetMs = 16;
+                  let scale = activeCtx.profile.dynamicScale ?? 1;
+                  if (Number.isFinite(webgpuMs)) {
+                    if (webgpuMs > targetMs * 1.2) {
+                      scale = Math.max(0.3, scale * 0.9);
+                    } else if (webgpuMs < targetMs * 0.6) {
+                      scale = Math.min(1, scale * 1.05);
                     }
-                    activeCtx.profile.dynamicScale = Math.min(1, Math.max(0.25, scale));
-                  } else {
-                    activeCtx.profile.dynamicScale = 1;
                   }
+                  activeCtx.profile.dynamicScale = Math.min(1, Math.max(0.25, scale));
+                } else {
+                  activeCtx.profile.dynamicScale = 1;
                 }
               } else if (gpuError) {
                 usedGPU = false;
@@ -984,28 +1022,46 @@
                     `WebGPU validation error in ${stageLabel}: ${causeMsg}
 Bindings: ${bindingSummary}`,
                   );
+                  gpuErrorDisplayed = true;
                 } else {
                   showError(gpuError.message || String(gpuError));
+                  gpuErrorDisplayed = true;
                 }
               }
             }
           }
         } catch (err) {
-          showError(err.message || String(err));
+          const error = err instanceof Error ? err : new Error(String(err));
+          gpuError = gpuError || error;
+          if (!gpuErrorDisplayed) {
+            showError(error.message || String(error));
+            gpuErrorDisplayed = true;
+          }
         }
       }
 
       if (!usedGPU) {
+        if (wantsWebGPU) {
+          const err = gpuError || new Error('WebGPU execution produced no GPU output.');
+          if (!gpuErrorDisplayed) {
+            showError(err.message || String(err));
+            gpuErrorDisplayed = true;
+          }
+          throw err;
+        }
         const previousCtx = activeCtx;
         if (previousCtx && !previousCtx.isCPU) {
           clearProgramCacheForContext(previousCtx);
           const fallbackCanvas = ensureCanvasForBackend('cpu');
           const fallbackCtx = createCPUContext(fallbackCanvas);
-          webgpuToggle.checked = false;
           disposeCtx(previousCtx);
           ctx = fallbackCtx;
           activeCtx = fallbackCtx;
           gpuFrameIndex = 0;
+        }
+        if (activeCtx) {
+          activeCtx.forceCPU = true;
+          activeCtx.requireWebGPU = false;
         }
         const cpuStart = performance.now();
         try {
@@ -1048,7 +1104,7 @@ Bindings: ${bindingSummary}`,
       const scaleInfo = dynamicEnabled && usedGPU
         ? `scale: ${(activeCtx.profile?.dynamicScale ?? 1).toFixed(2)}x (${effectiveWidth}×${effectiveHeight})`
         : null;
-      const modeLabel = usedGPU ? (hybridMode ? 'webgpu+cpu' : 'webgpu') : 'cpu';
+      const modeLabel = usedGPU ? 'webgpu' : 'cpu';
       statusEl.innerHTML = [
         `mode: ${modeLabel}`,
         `eval: ${presetEvalMs.toFixed(2)} ms`,
@@ -1201,12 +1257,25 @@ Bindings: ${bindingSummary}`,
     });
 
     webgpuToggle.addEventListener('change', async () => {
+      const wantsWebGPU = !!webgpuToggle.checked;
       updateAnimateToggleAvailability();
       const manualOptions = getManualAnimationOptions();
       try {
-        await initCtx();
+        const initializedWithGPU = await initCtx();
+        if (wantsWebGPU && !initializedWithGPU) {
+          throw new Error('WebGPU initialization reported success without a GPU context.');
+        }
       } catch (e) {
         console.error(e);
+        if (wantsWebGPU) {
+          webgpuToggle.checked = false;
+          updateAnimateToggleAvailability();
+          try {
+            await initCtx();
+          } catch (restoreErr) {
+            console.error(restoreErr);
+          }
+        }
         return;
       }
       try {

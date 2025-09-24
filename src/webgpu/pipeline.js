@@ -9,6 +9,7 @@ import {
 } from '../constants.js';
 import { maskValues } from '../masks.js';
 import { resample } from '../value.js';
+import { PALETTES } from '../palettes.js';
 import * as SHADERS from './shaders.js';
 
 const { getShaderFilename, inheritShaderFilename } = SHADERS;
@@ -1808,6 +1809,13 @@ function collectPresetStages(preset) {
 function buildEffectStage(effect, category) {
   if (typeof effect === 'function' && effect.__effectName) {
     const params = cloneStageParams(effect.__params || {});
+    if (effect.__effectName === 'palette' && typeof params.name === 'string') {
+      // Palette shader uniforms resolve palette coefficients at runtime. The
+      // string parameter is preserved in the stage snapshot metadata but is
+      // removed here so GPU support detection is not blocked by non-numeric
+      // values.
+      delete params.name;
+    }
     return {
       stageType: 'effect',
       category,
@@ -1895,6 +1903,8 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
 
   if (isMultiresGenerator) {
     specializeMultiresDescriptor(descriptor, stage);
+  } else if (stage.stageType === 'effect') {
+    specializeEffectDescriptor(descriptor, stage);
   }
 
   if (!descriptor.shaderId) {
@@ -2342,6 +2352,96 @@ function specializeMultiresDescriptor(descriptor, stage) {
   if (Array.isArray(metadata.issues) && metadata.issues.length) {
     descriptor.issues.push(...metadata.issues);
   }
+}
+
+function specializeEffectDescriptor(descriptor, stage) {
+  if (!descriptor || !stage) return;
+  const stageName = getStageName(stage);
+  switch (stageName) {
+    case 'palette':
+      specializePaletteDescriptor(descriptor);
+      break;
+    default:
+      break;
+  }
+}
+
+function toVec4(values, fallback) {
+  const base = Array.isArray(fallback) ? fallback.slice(0, 4) : [0, 0, 0, 0];
+  const src = Array.isArray(values) ? values : [];
+  for (let i = 0; i < 4; i += 1) {
+    if (i < src.length && Number.isFinite(Number(src[i]))) {
+      base[i] = Number(src[i]);
+    } else if (!Number.isFinite(Number(base[i]))) {
+      base[i] = 0;
+    }
+  }
+  if (base.length < 4) {
+    base.length = 4;
+  }
+  return base.slice(0, 4);
+}
+
+function specializePaletteDescriptor(descriptor) {
+  if (!descriptor) return;
+  const defaults = {
+    width: 1,
+    height: 1,
+    channels: 4,
+    blend: 0,
+    amp: [0.5, 0.5, 0.5, 0],
+    freq: [1, 1, 1, 0],
+    offset: [0.5, 0.5, 0.5, 0],
+    phase: [0, 0, 0, 0],
+  };
+  const fields = [
+    { name: 'width', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.width },
+    { name: 'height', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.height },
+    { name: 'channels', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.channels },
+    { name: 'blend', scalarType: 'f32', components: 1, bool: false, defaultValue: defaults.blend },
+    { name: 'amp', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.amp },
+    { name: 'freq', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.freq },
+    { name: 'offset', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.offset },
+    { name: 'phase', scalarType: 'f32', components: 4, bool: false, defaultValue: defaults.phase },
+  ];
+  descriptor.uniformLayout = buildStd140Layout(fields, descriptor.issues);
+  descriptor.uniformDefaults = defaults;
+  descriptor.bindings.hasUniform = true;
+  descriptor.resolveUniformParams = (params = {}) => {
+    const width = Math.max(1, Math.floor(Number(params.width) || defaults.width));
+    const height = Math.max(1, Math.floor(Number(params.height) || defaults.height));
+    const channels = Math.max(1, Math.floor(Number(params.channels) || Number(params.channelCount) || defaults.channels));
+    let blend = defaults.blend;
+    if (typeof params.alpha === 'number' && Number.isFinite(params.alpha)) {
+      const angle = params.alpha * Math.PI;
+      blend = Math.fround((1 - Math.cos(angle)) * 0.5);
+    }
+    const paletteName = typeof params.name === 'string' ? params.name : null;
+    const palette = paletteName && Object.prototype.hasOwnProperty.call(PALETTES, paletteName)
+      ? PALETTES[paletteName]
+      : null;
+    const amp = toVec4(palette?.amp, defaults.amp);
+    const freq = toVec4(palette?.freq, defaults.freq);
+    const offset = toVec4(palette?.offset, defaults.offset);
+    const phaseBase = toVec4(palette?.phase, defaults.phase);
+    const time = Number(params.time) || 0;
+    for (let i = 0; i < 3; i += 1) {
+      phaseBase[i] = Math.fround((phaseBase[i] ?? 0) + time);
+    }
+    if (!palette || !paletteName || channels < 3) {
+      blend = 0;
+    }
+    return {
+      width,
+      height,
+      channels,
+      blend,
+      amp,
+      freq,
+      offset,
+      phase: phaseBase,
+    };
+  };
 }
 
 function buildMultiresUniformMetadata(stage) {

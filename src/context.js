@@ -431,6 +431,8 @@ export class Context {
     this.queue = null;
     this.presentationFormat = null;
     this.isCPU = !this.gpu;
+    this.forceCPU = false;
+    this.requireWebGPU = false;
     this.currentTarget = null;
     this._renderPipeline = null;
     this._renderSampler = null;
@@ -604,13 +606,20 @@ export class Context {
   }
 
   async initWebGPU() {
+    if (this.forceCPU) {
+      this.device = null;
+      this.queue = null;
+      this.presentationFormat = null;
+      this.isCPU = true;
+      return false;
+    }
     this.device = null;
     this.queue = null;
     this.presentationFormat = null;
     this.isCPU = true;
     this._timestampSupport = null;
     this._destroyTimestampQueryResources();
-    if (!this.gpu || typeof navigator === 'undefined' || !navigator.gpu) {
+    if (typeof navigator === 'undefined' || !navigator?.gpu) {
       return false;
     }
 
