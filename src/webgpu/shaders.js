@@ -51,6 +51,7 @@ export const REFRACT_EFFECT_WGSL = await loadShaderSource(
 export const CONVOLUTION_WGSL = await loadShaderSource(
   './shaders/convolution.wgsl',
 );
+export const CONVOLVE_WGSL = await loadShaderSource('./shaders/convolve.wgsl');
 export const FXAA_WGSL = await loadShaderSource('./shaders/fxaa.wgsl');
 export const NORMALIZE_WGSL = await loadShaderSource('./shaders/normalize.wgsl');
 export const RGB_TO_HSV_WGSL = SHADER_PLACEHOLDER;
