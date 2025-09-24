@@ -9,7 +9,6 @@ degauss
 density_map
 erosion_worms
 expand_tile
-false_color
 fibers
 frame
 glyph_map
