@@ -75,7 +75,52 @@ export function getShaderFilename(source) {
   return SHADER_SOURCE_REGISTRY.get(key) ?? null;
 }
 
+const ENABLED_SHADER_PATHS = new Set([
+  './shaders/multires.wgsl',
+  './shaders/multires_normalize.wgsl',
+]);
+
+function normalizeShaderRequest(path) {
+  if (typeof path !== 'string') {
+    return null;
+  }
+  let normalized = path.replace(/\\/g, '/');
+  if (!normalized.startsWith('./') && !normalized.startsWith('../')) {
+    normalized = `./${normalized.replace(/^\/+/, '')}`;
+  } else {
+    normalized = normalized.replace(/^\.\/+/, './');
+  }
+  return normalized;
+}
+
+function experimentalShadersEnabled() {
+  const globalFlag =
+    typeof globalThis !== 'undefined' &&
+    (globalThis.NOISEMAKER_ENABLE_EXPERIMENTAL_SHADERS ||
+      globalThis.noisemakerEnableExperimentalShaders);
+  if (typeof globalFlag === 'string') {
+    return globalFlag.toLowerCase() === 'true';
+  }
+  if (typeof globalFlag === 'boolean') {
+    return globalFlag;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    const envFlag = process.env.NOISEMAKER_ENABLE_EXPERIMENTAL_SHADERS;
+    if (typeof envFlag === 'string') {
+      return envFlag === '1' || envFlag.toLowerCase() === 'true';
+    }
+  }
+  return false;
+}
+
 async function loadShaderSource(relativePath) {
+  const requestKey = normalizeShaderRequest(relativePath);
+  const allowExperimental = experimentalShadersEnabled();
+  const shouldLoad = allowExperimental && requestKey ? true : ENABLED_SHADER_PATHS.has(requestKey);
+  if (!shouldLoad) {
+    return SHADER_PLACEHOLDER;
+  }
+
   if (typeof process !== 'undefined' && process.versions?.node) {
     const { readFile } = await import('fs/promises');
     const { fileURLToPath } = await import('url');
@@ -93,7 +138,7 @@ async function loadShaderSource(relativePath) {
     throw new Error(`Failed to load shader: ${url} (${response.status})`);
   }
   const source = await response.text();
-  return registerShaderSource(source, relativePath);
+  return registerShaderSource(source, requestKey || relativePath);
 }
 
 export const MULTIRES_WGSL = await loadShaderSource('./shaders/multires.wgsl');
