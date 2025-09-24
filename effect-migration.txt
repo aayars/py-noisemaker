@@ -13,7 +13,6 @@ pixel_sort
 reindex
 reverb
 sketch
-spooky_ticker
 vhs
 voronoi
 watermark

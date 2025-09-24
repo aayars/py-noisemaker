@@ -120,6 +120,9 @@ export const GLITCH_WGSL = await loadShaderSource('./shaders/glitch.wgsl');
 export const SCANLINE_ERROR_WGSL = await loadShaderSource(
   './shaders/scanline_error.wgsl',
 );
+export const SPOOKY_TICKER_WGSL = await loadShaderSource(
+  './shaders/spooky_ticker.wgsl',
+);
 export const JPEG_DECIMATE_WGSL = await loadShaderSource('./shaders/jpeg_decimate.wgsl');
 export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
 export const CRT_WGSL = await loadShaderSource('./shaders/crt.wgsl');
