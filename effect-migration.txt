@@ -24,7 +24,6 @@ reindex
 reverb
 scanline_error
 scratches
-simple_frame
 sketch
 sobel_operator
 spooky_ticker

@@ -140,3 +140,4 @@ export const SCALE_TENSOR_WGSL = await loadShaderSource('./shaders/scale_tensor.
 export const SQUARE_CROP_WGSL = await loadShaderSource('./shaders/square_crop.wgsl');
 export const SHADOW_WGSL = await loadShaderSource('./shaders/shadow.wgsl');
 export const OUTLINE_WGSL = await loadShaderSource('./shaders/outline.wgsl');
+export const SIMPLE_FRAME_WGSL = await loadShaderSource('./shaders/simple_frame.wgsl');

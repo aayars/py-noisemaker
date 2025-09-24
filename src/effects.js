@@ -115,6 +115,7 @@ import {
   SCALE_TENSOR_WGSL,
   OUTLINE_WGSL,
   SQUARE_CROP_WGSL,
+  SIMPLE_FRAME_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -8114,23 +8115,74 @@ register("dla", dla, {
 });
 
 export async function simpleFrame(tensor, shape, time, speed, brightness = 0) {
-  const [h, w, c] = shape;
-  const ctx = tensor.ctx;
+  const rawH = shape?.[0];
+  const rawW = shape?.[1];
+  const rawC = shape?.[2];
+  const h = Number.isFinite(rawH) ? rawH : tensor?.shape?.[0] ?? 0;
+  const w = Number.isFinite(rawW) ? rawW : tensor?.shape?.[1] ?? 0;
+  const cGuess = Number.isFinite(rawC) ? rawC : tensor?.shape?.[2] ?? 1;
+  const c = Math.max(1, cGuess || 0);
+  if (h <= 0 || w <= 0 || c <= 0) {
+    return tensor;
+  }
+  const effectiveShape = [h, w, c];
+  const ctx = tensor?.ctx ?? null;
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        let paramsBuf = null;
+        try {
+          paramsBuf = ctx.createGPUBuffer(
+            new Float32Array([w, h, c, brightness]),
+            GPUBufferUsage.UNIFORM,
+          );
+          await ctx.runCompute(
+            SIMPLE_FRAME_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(w / 8),
+            Math.ceil(h / 8),
+          );
+        } finally {
+          paramsBuf?.destroy?.();
+        }
+        return Tensor.fromGPUBuffer(ctx, outBuf, effectiveShape);
+      } catch (err) {
+        console.warn("WebGPU simple_frame fallback to CPU", err);
+      }
+    }
+  }
+
   let border = await singularity(
     tensor,
-    shape,
+    effectiveShape,
     time,
     speed,
     VoronoiDiagramType.range,
     DistanceMetric.chebyshev,
   );
   const zeroData = new Float32Array(h * w * c);
-  const zeroTensor = Tensor.fromArray(ctx, zeroData, shape);
+  const zeroTensor = Tensor.fromArray(ctx, zeroData, effectiveShape);
   border = await blend(zeroTensor, border, 0.55);
-  border = await posterize(border, shape, time, speed, 1);
+  border = await posterize(border, effectiveShape, time, speed, 1);
   const bright = new Float32Array(h * w * c);
   bright.fill(brightness);
-  const brightTensor = Tensor.fromArray(ctx, bright, shape);
+  const brightTensor = Tensor.fromArray(ctx, bright, effectiveShape);
   return await blend(tensor, brightTensor, border);
 }
 register("simple_frame", simpleFrame, { brightness: 0 });
