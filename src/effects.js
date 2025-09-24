@@ -20,7 +20,6 @@ import {
   toValueMap,
   convolution,
   fxaa,
-  getSeedValue,
 } from "./value.js";
 import { PALETTES } from "./palettes.js";
 import { register } from "./effectsRegistry.js";
@@ -32,6 +31,7 @@ import {
   randomInt,
   uniform as randomUniform,
   normal as randomNormalArray,
+  getBaseSeed,
   fromSRGB,
   toSRGB,
   withTensorData,
@@ -8354,7 +8354,7 @@ async function grimeWebGPU(tensor, shape, time, speed) {
   const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
   const [freqY, freqX] = freqForShape(5, [h, w]);
-  const baseSeed = getSeedValue();
+  const baseSeed = getBaseSeed();
   const { data: { perm, perm_grad: permGrad } } = simplexFromSeed(baseSeed);
   const maskParams = ctx.createGPUBuffer(
     new Float32Array([
