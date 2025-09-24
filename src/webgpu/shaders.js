@@ -45,6 +45,9 @@ export const BLEND_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_CONST_WGSL = SHADER_PLACEHOLDER;
 export const SOBEL_WGSL = await loadShaderSource('./shaders/sobel.wgsl');
 export const REFRACT_WGSL = await loadShaderSource('./shaders/refract.wgsl');
+export const REFRACT_EFFECT_WGSL = await loadShaderSource(
+  './shaders/refract_effect.wgsl',
+);
 export const CONVOLUTION_WGSL = await loadShaderSource(
   './shaders/convolution.wgsl',
 );

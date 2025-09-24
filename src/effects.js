@@ -74,6 +74,7 @@ import {
   SMOOTHSTEP_WGSL,
   ROTATE_WGSL,
   RIDGE_WGSL,
+  REFRACT_EFFECT_WGSL,
   SINE_WGSL,
   GLYPH_MAP_WGSL,
   WARP_WGSL,
@@ -5587,6 +5588,69 @@ export async function refractEffect(
   yFromOffset = false,
 ) {
   const [h, w, c] = shape;
+  const ctx = tensor?.ctx;
+  const quadDirectional = signedRange && !fromDerivative;
+  const warpProvided = warpFreq !== null && warpFreq !== undefined;
+  const hasRefX = referenceX !== null && referenceX !== undefined;
+  const hasRefY = referenceY !== null && referenceY !== undefined;
+
+  if (
+    tensor &&
+    typeof tensor.then !== "function" &&
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    !fromDerivative &&
+    !yFromOffset &&
+    !warpProvided &&
+    !hasRefX &&
+    !hasRefY
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const outSize = h * w * c;
+        const outBuf = ctx.device.createBuffer({
+          size: outSize * 4,
+          usage:
+            GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        });
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([
+            w,
+            h,
+            c,
+            displacement,
+            quadDirectional ? 1 : 0,
+            splineOrder,
+            1,
+            0,
+          ]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          REFRACT_EFFECT_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: tex.handle.createView() },
+            { binding: 2, resource: tex.handle.createView() },
+            { binding: 3, resource: { buffer: outBuf } },
+            { binding: 4, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const gpuResult = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c]);
+        paramsBuf.destroy?.();
+        return gpuResult;
+      } catch (err) {
+        console.warn("WebGPU refractEffect polar fallback to CPU", err);
+      }
+    }
+  }
+
   const valueShape = [h, w, 1];
   let rx = referenceX;
   let ry = referenceY;
