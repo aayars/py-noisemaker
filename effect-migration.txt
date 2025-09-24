@@ -32,8 +32,6 @@ refract
 reindex
 reverb
 ridge
-rotate
-rotate2D
 scanline_error
 scratches
 shadow
