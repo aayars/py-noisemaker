@@ -10,7 +10,6 @@ convolve
 crt
 degauss
 density_map
-dla
 erosion_worms
 expand_tile
 false_color
