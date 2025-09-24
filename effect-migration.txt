@@ -15,7 +15,6 @@ expand_tile
 false_color
 fibers
 frame
-glitch
 glyph_map
 inner_tile
 jpeg_decimate

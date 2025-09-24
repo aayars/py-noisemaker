@@ -83,6 +83,7 @@ import {
   PIXEL_SORT_WGSL,
   POSTERIZE_WGSL,
   KALEIDO_WGSL,
+  GLITCH_WGSL,
   NORMAL_MAP_WGSL,
   CRT_WGSL,
   WOBBLE_WGSL,
@@ -3874,6 +3875,41 @@ export async function glitch(tensor, shape, time, speed) {
     noiseMaybe && typeof noiseMaybe.then === "function"
       ? await noiseMaybe
       : noiseMaybe;
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const noiseData =
+          noise instanceof Float32Array ? noise : new Float32Array(noise);
+        const noiseBuf = ctx.createGPUBuffer(noiseData, GPUBufferUsage.STORAGE);
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * c),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, c, w, 0, 0, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          GLITCH_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: noiseBuf } },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outBuf, shape);
+      } catch (e) {
+        console.warn("WebGPU glitch fallback to CPU", e);
+      }
+    }
+  }
   const src = await tensor.read();
   const out = new Float32Array(h * w * c);
   for (let y = 0; y < h; y++) {
