@@ -10,6 +10,8 @@ import {
 import { maskValues } from '../masks.js';
 import { resample } from '../value.js';
 import * as SHADERS from './shaders.js';
+
+const { getShaderFilename, inheritShaderFilename } = SHADERS;
 import { OpenSimplex } from '../simplex.js';
 
 const DEFAULT_WORKGROUP_SIZE = [8, 8, 1];
@@ -370,10 +372,16 @@ export class PresetProgram {
       if (!shaderSource) {
         return false;
       }
+      const shaderFilename =
+        descriptor.normalizationShaderFilename || getShaderFilename(shaderSource) || null;
+      if (!descriptor.normalizationShaderFilename && shaderFilename) {
+        descriptor.normalizationShaderFilename = shaderFilename;
+      }
       const pipelineRequest = {
         code: shaderSource,
         pipelineLayout: descriptor.normalizationPipelineLayout || null,
         label: descriptor.label ? `stage:${descriptor.label}:normalize` : undefined,
+        shaderFilename,
       };
       try {
         pipeline = await context.createComputePipeline(pipelineRequest);
@@ -856,6 +864,7 @@ export class PresetProgram {
               code: descriptor.shaderSource,
               pipelineLayout: descriptor.pipelineLayout || null,
               label: descriptor.label ? `stage:${descriptor.label}` : undefined,
+              shaderFilename: descriptor.shaderFilename || getShaderFilename(descriptor.shaderSource) || null,
             };
             pipeline = await context.createComputePipeline(pipelineRequest);
             descriptor.pipeline = pipeline;
@@ -1840,6 +1849,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     signature: `${stage.category}:${stage.name}`,
     shaderId: resolveShaderId(stage),
     shaderSource: null,
+    shaderFilename: null,
     pipeline: null,
     bindingSignature: null,
     bindGroupLayout: null,
@@ -1847,6 +1857,7 @@ function finalizeStageDescriptor(stage, index, ctx, sharedResources) {
     uniformLayout: null,
     uniformDefaults: {},
     resourceParams: [],
+    normalizationShaderFilename: null,
     bindings: {
       hasUniform: false,
       hasFrameUniform: true,
@@ -1957,10 +1968,23 @@ function resolveShaderSource(descriptor, sharedResources) {
   if (!descriptor.shaderId) return null;
   const template = SHADERS[descriptor.shaderId];
   if (!template) return null;
-  if (sharedResources && typeof sharedResources.specializeShaderSource === 'function') {
-    return sharedResources.specializeShaderSource(template, descriptor);
+  const templateFilename = getShaderFilename(template);
+  if (templateFilename && !descriptor.shaderFilename) {
+    descriptor.shaderFilename = templateFilename;
   }
-  return template;
+  let source = template;
+  if (sharedResources && typeof sharedResources.specializeShaderSource === 'function') {
+    const specialized = sharedResources.specializeShaderSource(template, descriptor);
+    if (!specialized) {
+      return specialized;
+    }
+    source = inheritShaderFilename(specialized, template);
+  }
+  const resolvedFilename = getShaderFilename(source);
+  if (resolvedFilename && !descriptor.shaderFilename) {
+    descriptor.shaderFilename = resolvedFilename;
+  }
+  return source;
 }
 
 function acquirePipeline(descriptor, ctx, sharedResources) {
@@ -2252,6 +2276,8 @@ function specializeMultiresDescriptor(descriptor, stage) {
   });
   descriptor.requiresNormalizationResolve = true;
   descriptor.normalizationShaderSource = SHADERS.MULTIRES_NORMALIZE_WGSL;
+  descriptor.normalizationShaderFilename =
+    getShaderFilename(descriptor.normalizationShaderSource) || descriptor.normalizationShaderFilename || null;
   const workgroupSize = Array.isArray(descriptor.specialization?.workgroupSize)
     ? descriptor.specialization.workgroupSize.slice()
     : [...DEFAULT_WORKGROUP_SIZE];

@@ -30,6 +30,7 @@ import {
   OCTAVE_COMBINE_WGSL,
   PROPORTIONAL_DOWNSAMPLE_WGSL,
   ADJUST_HUE_WGSL,
+  inheritShaderFilename,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -1100,7 +1101,10 @@ export function combineOctaves(base, layer, mode = OctaveCombineMode.falloff, we
           paramsArr,
           GPUBufferUsage.UNIFORM,
         );
-        const shader = OCTAVE_COMBINE_WGSL.replace('rgba32float', format);
+        const shader = inheritShaderFilename(
+          OCTAVE_COMBINE_WGSL.replace('rgba32float', format),
+          OCTAVE_COMBINE_WGSL,
+        );
 
         await ctx.runCompute(
           shader,
@@ -1240,7 +1244,10 @@ export function blend(a, b, t) {
             0,
             0,
           ]);
-          shader = BLEND_CONST_WGSL.replace('rgba32float', format);
+          shader = inheritShaderFilename(
+            BLEND_CONST_WGSL.replace('rgba32float', format),
+            BLEND_CONST_WGSL,
+          );
         } else {
           const tChannels = t.shape[2];
           paramsArr = new Float32Array([
@@ -1253,7 +1260,10 @@ export function blend(a, b, t) {
             0,
             0,
           ]);
-          shader = BLEND_WGSL.replace('rgba32float', format);
+          shader = inheritShaderFilename(
+            BLEND_WGSL.replace('rgba32float', format),
+            BLEND_WGSL,
+          );
         }
         const paramsBuf = ctx.createGPUBuffer(
           paramsArr,

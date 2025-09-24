@@ -3,6 +3,7 @@
  */
 
 import { Random, setSeed, getSeed, random } from './rng.js';
+import { getShaderFilename } from './webgpu/shaders.js';
 
 export { Random, setSeed, getSeed, random };
 
@@ -705,15 +706,18 @@ export class Context {
     let code = codeOrDescriptor;
     let layout = null;
     let label = null;
+    let shaderFilename = null;
 
     if (codeOrDescriptor && typeof codeOrDescriptor === 'object') {
       const descriptor = codeOrDescriptor;
       code = descriptor.code ?? descriptor.shaderSource ?? descriptor.wgsl ?? null;
       layout = descriptor.layout ?? descriptor.pipelineLayout ?? descriptor.bindGroupLayout ?? null;
       label = descriptor.label ?? descriptor.debugLabel ?? null;
+      shaderFilename = descriptor.shaderFilename ?? descriptor.filename ?? descriptor.wgslFilename ?? null;
     } else if (maybeOptions && typeof maybeOptions === 'object') {
       layout = maybeOptions.layout ?? maybeOptions.pipelineLayout ?? null;
       label = maybeOptions.label ?? null;
+      shaderFilename = maybeOptions.shaderFilename ?? null;
     } else if (maybeOptions) {
       layout = maybeOptions;
     }
@@ -722,15 +726,34 @@ export class Context {
       throw new Error('createComputePipeline requires WGSL code');
     }
 
+    if (!shaderFilename) {
+      shaderFilename =
+        getShaderFilename(code) ??
+        (typeof codeOrDescriptor === 'string' ? getShaderFilename(codeOrDescriptor) : null) ??
+        (label ? `${label}.wgsl` : 'inline-shader.wgsl');
+    }
+
     const module = this.createShaderModule(code);
     if (module.getCompilationInfo) {
       const info = await module.getCompilationInfo();
-      const errors = info.messages.filter((m) => m.type === 'error');
+      const messages = Array.isArray(info.messages) ? info.messages : [];
+      const formatMessage = (m) => {
+        const line = Number.isFinite(m.lineNum) ? m.lineNum : '?';
+        const column = Number.isFinite(m.linePos) ? m.linePos : '?';
+        return `${shaderFilename}:${line}:${column} ${m.message}`;
+      };
+      const warnings = messages.filter((m) => m.type === 'warning');
+      if (warnings.length && typeof console !== 'undefined' && console.warn) {
+        for (const warn of warnings) {
+          console.warn('Shader compilation warning:', formatMessage(warn));
+        }
+      }
+      const errors = messages.filter((m) => m.type === 'error');
       if (errors.length) {
         const details = errors
-          .map((m) => `${m.lineNum}:${m.linePos} ${m.message}`)
+          .map((m) => formatMessage(m))
           .join('\n');
-        throw new Error(`Shader compilation failed:\n${details}`);
+        throw new Error(`Shader compilation failed for ${shaderFilename}:\n${details}`);
       }
     }
     const pipelineDescriptor = {
@@ -1562,7 +1585,11 @@ export class Context {
     if (this.debug) device.pushErrorScope('validation');
     let pipeline = this._pipelineCache.get(code);
     if (!pipeline) {
-      pipeline = await this.createComputePipeline(code);
+      const pipelineRequest =
+        code && typeof code === 'object' && (code.code || code.shaderSource || code.wgsl)
+          ? code
+          : { code, shaderFilename: getShaderFilename(code) ?? null };
+      pipeline = await this.createComputePipeline(pipelineRequest);
       this._pipelineCache.set(code, pipeline);
     }
     if (this.debug) {

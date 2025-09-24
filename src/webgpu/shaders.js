@@ -3,14 +3,88 @@
 // while ensuring any attempted WebGPU execution falls back to CPU code paths.
 const SHADER_PLACEHOLDER = null;
 
+const SHADER_SOURCE_REGISTRY = new Map();
+
+function toRegistryKey(source) {
+  if (typeof source === 'string') {
+    return source;
+  }
+  if (source && typeof source.valueOf === 'function') {
+    const value = source.valueOf();
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+  return null;
+}
+
+function normalizeShaderFilename(pathHint) {
+  if (!pathHint || typeof pathHint !== 'string') {
+    return null;
+  }
+  let normalized = pathHint.replace(/\\/g, '/');
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+  normalized = normalized.replace(/^\.\/+/, '');
+  if (normalized.startsWith('src/')) {
+    return normalized;
+  }
+  if (normalized.startsWith('webgpu/')) {
+    return `src/${normalized}`;
+  }
+  if (normalized.startsWith('shaders/')) {
+    return `src/webgpu/${normalized}`;
+  }
+  return normalized;
+}
+
+function registerShaderSource(source, pathHint) {
+  const key = toRegistryKey(source);
+  if (!key) {
+    return source;
+  }
+  const filename = normalizeShaderFilename(pathHint);
+  if (filename) {
+    SHADER_SOURCE_REGISTRY.set(key, filename);
+  }
+  return source;
+}
+
+export function inheritShaderFilename(source, base) {
+  const key = toRegistryKey(source);
+  if (!key) {
+    return source;
+  }
+  const baseKey = toRegistryKey(base);
+  if (!baseKey) {
+    return source;
+  }
+  const filename = SHADER_SOURCE_REGISTRY.get(baseKey);
+  if (filename) {
+    SHADER_SOURCE_REGISTRY.set(key, filename);
+  }
+  return source;
+}
+
+export function getShaderFilename(source) {
+  const key = toRegistryKey(source);
+  if (!key) {
+    return null;
+  }
+  return SHADER_SOURCE_REGISTRY.get(key) ?? null;
+}
+
 async function loadShaderSource(relativePath) {
   if (typeof process !== 'undefined' && process.versions?.node) {
     const { readFile } = await import('fs/promises');
     const { fileURLToPath } = await import('url');
-    const { dirname, join } = await import('path');
+    const { dirname, join, relative } = await import('path');
     const modulePath = fileURLToPath(import.meta.url);
     const shaderPath = join(dirname(modulePath), relativePath);
-    return readFile(shaderPath, 'utf8');
+    const source = await readFile(shaderPath, 'utf8');
+    const relPath = relative(process.cwd(), shaderPath).replace(/\\/g, '/');
+    return registerShaderSource(source, relPath);
   }
 
   const url = new URL(relativePath, import.meta.url);
@@ -18,7 +92,8 @@ async function loadShaderSource(relativePath) {
   if (!response.ok) {
     throw new Error(`Failed to load shader: ${url} (${response.status})`);
   }
-  return response.text();
+  const source = await response.text();
+  return registerShaderSource(source, relativePath);
 }
 
 export const MULTIRES_WGSL = await loadShaderSource('./shaders/multires.wgsl');

@@ -132,6 +132,7 @@ import {
   FRAME_WGSL,
   NEBULA_WGSL,
   ON_SCREEN_DISPLAY_WGSL,
+  inheritShaderFilename,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -3211,7 +3212,10 @@ export async function texture(tensor, shape, time, speed) {
           ]),
           GPUBufferUsage.UNIFORM,
         );
-        const shader = TEXTURE_WGSL.replace("rgba32float", format);
+        const shader = inheritShaderFilename(
+          TEXTURE_WGSL.replace("rgba32float", format),
+          TEXTURE_WGSL,
+        );
         await ctx.runCompute(
           shader,
           [
@@ -6758,7 +6762,10 @@ async function vaselineWebGPU(tensor, shape, alpha) {
   });
   const maskParams = ctx.createGPUBuffer(new Float32Array([w, h]), GPUBufferUsage.UNIFORM);
   await ctx.withEncoder(async () => {
-    const blurShader = VASELINE_BLUR_WGSL.replace('rgba32float', format);
+    const blurShader = inheritShaderFilename(
+      VASELINE_BLUR_WGSL.replace('rgba32float', format),
+      VASELINE_BLUR_WGSL,
+    );
     await ctx.runCompute(
       blurShader,
       [
@@ -9879,7 +9886,10 @@ export async function fibers(tensor, shape, time, speed) {
             : storageChannels === 2
             ? "rg32float"
             : "rgba32float";
-        const shader = FIBERS_WGSL.replace("rgba32float", format);
+        const shader = inheritShaderFilename(
+          FIBERS_WGSL.replace("rgba32float", format),
+          FIBERS_WGSL,
+        );
         const outTex = ctx.device.createTexture({
           size: { width: w, height: h, depthOrArrayLayers: 1 },
           format,
@@ -10155,7 +10165,10 @@ export async function strayHair(tensor, shape, time, speed) {
           : storageChannels === 2
           ? "rg32float"
           : "rgba32float";
-      const shader = STRAY_HAIR_WGSL.replace("rgba32float", format);
+      const shader = inheritShaderFilename(
+        STRAY_HAIR_WGSL.replace("rgba32float", format),
+        STRAY_HAIR_WGSL,
+      );
       const outTex = ctx.device.createTexture({
         size: { width: w, height: h, depthOrArrayLayers: 1 },
         format,
@@ -10566,7 +10579,10 @@ async function grimeWebGPU(tensor, shape, time, speed) {
     new Float32Array([w, h, c]),
     GPUBufferUsage.UNIFORM,
   );
-  const shader = GRIME_BLEND_WGSL.replace('rgba32float', format);
+  const shader = inheritShaderFilename(
+    GRIME_BLEND_WGSL.replace('rgba32float', format),
+    GRIME_BLEND_WGSL,
+  );
   await ctx.runCompute(
     shader,
     [
