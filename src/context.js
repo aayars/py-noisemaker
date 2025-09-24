@@ -48,6 +48,56 @@ function alignDown(value, alignment) {
   return value - (value % alignment);
 }
 
+function formatShaderMessageWithFilename(message, shaderFilename) {
+  if (!message || !shaderFilename) {
+    return message;
+  }
+  const lines = String(message).split('\n');
+  const formatted = lines.map((line, index) => {
+    if (index === 0) {
+      if (line.includes(shaderFilename)) {
+        return line;
+      }
+      if (/^Shader compilation failed\b/.test(line)) {
+        return line.replace(
+          /^Shader compilation failed:?/,
+          `Shader compilation failed for ${shaderFilename}:`,
+        );
+      }
+      return `${shaderFilename}: ${line}`;
+    }
+    if (/^\s*\d+:\d+/.test(line) && !line.includes(shaderFilename)) {
+      const trimmed = line.trim();
+      return `${shaderFilename}:${trimmed}`;
+    }
+    return line;
+  });
+  return formatted.join('\n');
+}
+
+function annotateShaderError(err, shaderFilename) {
+  const filename = shaderFilename || 'unknown-shader.wgsl';
+  if (err instanceof Error) {
+    const original = err.message || String(err);
+    const updated = formatShaderMessageWithFilename(original, filename);
+    if (updated && updated !== original) {
+      try {
+        err.message = updated;
+      } catch (e) {
+        return Object.assign(new Error(updated), { shaderFilename: filename });
+      }
+    }
+    if (!err.shaderFilename) {
+      err.shaderFilename = filename;
+    }
+    return err;
+  }
+  const fallbackMessage = formatShaderMessageWithFilename(String(err), filename);
+  const wrapped = new Error(fallbackMessage);
+  wrapped.shaderFilename = filename;
+  return wrapped;
+}
+
 function createTrackedDataView(buffer, onWrite) {
   const view = new DataView(buffer);
   const handler = {
@@ -753,7 +803,10 @@ export class Context {
         const details = errors
           .map((m) => formatMessage(m))
           .join('\n');
-        throw new Error(`Shader compilation failed for ${shaderFilename}:\n${details}`);
+        throw annotateShaderError(
+          new Error(`Shader compilation failed for ${shaderFilename}:\n${details}`),
+          shaderFilename,
+        );
       }
     }
     const pipelineDescriptor = {
@@ -763,7 +816,11 @@ export class Context {
     if (label) {
       pipelineDescriptor.label = label;
     }
-    return this.device.createComputePipelineAsync(pipelineDescriptor);
+    try {
+      return await this.device.createComputePipelineAsync(pipelineDescriptor);
+    } catch (err) {
+      throw annotateShaderError(err, shaderFilename);
+    }
   }
 
   createRenderPipeline(vsCode, fsCode, targets = [{ format: this.presentationFormat }]) {

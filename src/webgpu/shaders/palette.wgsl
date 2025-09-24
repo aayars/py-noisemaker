@@ -1,16 +1,16 @@
 struct PaletteParams {
-  width : f32;
-  height : f32;
-  channels : f32;
-  blend : f32;
-  pad0 : f32;
-  pad1 : f32;
-  pad2 : f32;
-  pad3 : f32;
-  amp : vec4<f32>;
-  freq : vec4<f32>;
-  offset : vec4<f32>;
-  phase : vec4<f32>;
+  width: f32,
+  height: f32,
+  channels: f32,
+  blend: f32,
+  pad0: f32,
+  pad1: f32,
+  pad2: f32,
+  pad3: f32,
+  amp: vec4<f32>,
+  freq: vec4<f32>,
+  offset: vec4<f32>,
+  phase: vec4<f32>,
 };
 
 @group(0) @binding(0) var inputTexture : texture_2d<f32>;
