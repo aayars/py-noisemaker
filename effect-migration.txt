@@ -3,7 +3,6 @@ The remaining effects in this list need shader implementations:
 convolve
 crt
 degauss
-density_map
 expand_tile
 fibers
 frame

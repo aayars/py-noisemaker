@@ -62,6 +62,7 @@ import {
   CLOUDS_WGSL,
   VIGNETTE_WGSL,
   DITHER_WGSL,
+  DENSITY_MAP_WGSL,
   GRAIN_WGSL,
   SNOW_WGSL,
   BLOOM_WGSL,
@@ -3240,6 +3241,70 @@ export async function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const bins = Math.max(h, w);
   const normalizedTensor = await normalize(tensor);
+  const ctx = tensor?.ctx ?? normalizedTensor?.ctx ?? null;
+
+  if (
+    ctx &&
+    ctx.device &&
+    bins > 0 &&
+    c > 0 &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const normTex = ensureTextureTensor(normalizedTensor);
+    if (normTex && normTex.ctx === ctx && normTex.handle instanceof GPUTexture) {
+      try {
+        const total = h * w * c;
+        const binIndexBuf = ctx.createGPUBuffer(
+          new Uint32Array(total),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const histogramBuf = ctx.createGPUBuffer(
+          new Uint32Array(bins),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(total),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsArr = new Uint32Array([w, h, c, bins, total, 0, 0, 0]);
+        const paramsBuf = ctx.createGPUBuffer(
+          paramsArr,
+          GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        );
+
+        const bindings = [
+          { binding: 0, resource: normTex.handle.createView() },
+          { binding: 1, resource: { buffer: binIndexBuf } },
+          { binding: 2, resource: { buffer: histogramBuf } },
+          { binding: 3, resource: { buffer: outBuf } },
+          { binding: 4, resource: { buffer: paramsBuf } },
+        ];
+
+        await ctx.runCompute(
+          DENSITY_MAP_WGSL,
+          bindings,
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+
+        paramsArr[5] = 1;
+        ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+
+        await ctx.runCompute(
+          DENSITY_MAP_WGSL,
+          bindings,
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+
+        const gatheredTensor = Tensor.fromGPUBuffer(ctx, outBuf, shape);
+        return normalize(gatheredTensor);
+      } catch (e) {
+        console.warn("WebGPU density_map fallback to CPU", e);
+      }
+    }
+  }
+
   const vals = await normalizedTensor.read();
   const total = vals.length;
   const binIndices = new Int32Array(total);

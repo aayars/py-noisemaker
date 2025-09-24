@@ -65,6 +65,9 @@ export const RIPPLE_WGSL = await loadShaderSource('./shaders/ripple.wgsl');
 export const COLOR_MAP_WGSL = await loadShaderSource('./shaders/color_map.wgsl');
 export const VIGNETTE_WGSL = await loadShaderSource('./shaders/vignette.wgsl');
 export const DITHER_WGSL = SHADER_PLACEHOLDER;
+export const DENSITY_MAP_WGSL = await loadShaderSource(
+  './shaders/density_map.wgsl',
+);
 export const GRAIN_WGSL = await loadShaderSource('./shaders/grain.wgsl');
 export const SNOW_WGSL = await loadShaderSource('./shaders/snow.wgsl');
 export const BLOOM_WGSL = await loadShaderSource('./shaders/bloom.wgsl');
