@@ -114,7 +114,7 @@ export const CONV_FEEDBACK_WGSL = await loadShaderSource(
 export const CENTER_MASK_WGSL = await loadShaderSource(
   './shaders/center_mask.wgsl',
 );
-export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
+export const PIXEL_SORT_WGSL = await loadShaderSource('./shaders/pixel_sort.wgsl');
 export const POSTERIZE_WGSL = await loadShaderSource('./shaders/posterize.wgsl');
 export const KALEIDO_WGSL = await loadShaderSource('./shaders/kaleido.wgsl');
 export const GLITCH_WGSL = await loadShaderSource('./shaders/glitch.wgsl');

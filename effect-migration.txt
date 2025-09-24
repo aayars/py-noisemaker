@@ -4,7 +4,6 @@ degauss
 glyph_map
 lowpoly
 on_screen_display
-pixel_sort
 vhs
 voronoi
 watermark

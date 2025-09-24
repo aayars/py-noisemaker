@@ -7907,6 +7907,39 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     dataMaybe instanceof Float32Array
       ? dataMaybe
       : Float32Array.from(dataMaybe ?? []);
+  let cachedValuesData = null;
+  const loadValuesData = async () => {
+    if (cachedValuesData) {
+      return cachedValuesData;
+    }
+    let valueTensor = toValueMap(working);
+    if (valueTensor && typeof valueTensor.then === "function") {
+      valueTensor = await valueTensor;
+    }
+    if (!valueTensor) {
+      cachedValuesData = new Float32Array(want * want);
+      return cachedValuesData;
+    }
+    let valuesMaybe = valueTensor.read ? valueTensor.read() : null;
+    if (valuesMaybe && typeof valuesMaybe.then === "function") {
+      valuesMaybe = await valuesMaybe;
+    }
+    let valuesData;
+    if (valuesMaybe instanceof Float32Array) {
+      valuesData = valuesMaybe;
+    } else if (valuesMaybe) {
+      valuesData = Float32Array.from(valuesMaybe);
+    } else {
+      valuesData = new Float32Array(want * want);
+    }
+    if (valuesData.length < want * want) {
+      const resized = new Float32Array(want * want);
+      resized.set(valuesData.subarray(0, valuesData.length));
+      valuesData = resized;
+    }
+    cachedValuesData = valuesData;
+    return cachedValuesData;
+  };
   const finalizeOutput = async (tensorOut) => {
     const sortedMaybe = tensorOut.read();
     const sortedData =
@@ -7929,14 +7962,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     return Tensor.fromArray(ctx, out, shape);
   };
   if (!ctx || !ctx.device) {
-    const valueTensor = await toValueMap(working);
-    let valuesData = valueTensor.read();
-    if (valuesData && typeof valuesData.then === "function") {
-      valuesData = await valuesData;
-    }
-    if (!(valuesData instanceof Float32Array)) {
-      valuesData = Float32Array.from(valuesData ?? []);
-    }
+    const valuesData = await loadValuesData();
     const sorted = new Float32Array(want * want * c);
     const order = new Array(want);
     for (let y = 0; y < want; y++) {
@@ -7985,6 +8011,7 @@ async function _pixelSort(tensor, shape, angle, darkest) {
     sortedTensor = await cropTensor(sortedTensor, [want, want, c], shape);
     return finalizeOutput(sortedTensor);
   }
+  const valuesData = await loadValuesData();
   const sorted = new Float32Array(want * want * c);
   const rowBuffers = [];
   await ctx.withEncoder(async () => {
@@ -7996,8 +8023,12 @@ async function _pixelSort(tensor, shape, angle, darkest) {
         GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       );
       const paramsBuf = ctx.createGPUBuffer(
-        new Uint32Array([want, c, darkest ? 1 : 0]),
+        new Uint32Array([want, c, darkest ? 1 : 0, 0]),
         GPUBufferUsage.UNIFORM,
+      );
+      const scratchBuf = ctx.createGPUBuffer(
+        valuesData.subarray(y * want, (y + 1) * want),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       );
       await ctx.runCompute(
         PIXEL_SORT_WGSL,
@@ -8005,19 +8036,21 @@ async function _pixelSort(tensor, shape, angle, darkest) {
           { binding: 0, resource: { buffer: srcBuf } },
           { binding: 1, resource: { buffer: outBuf } },
           { binding: 2, resource: { buffer: paramsBuf } },
+          { binding: 3, resource: { buffer: scratchBuf } },
         ],
         1,
       );
-      rowBuffers.push({ outBuf, srcBuf, paramsBuf });
+      rowBuffers.push({ outBuf, srcBuf, paramsBuf, scratchBuf });
     }
   });
   for (let y = 0; y < rowBuffers.length; y++) {
-    const { outBuf, srcBuf, paramsBuf } = rowBuffers[y];
+    const { outBuf, srcBuf, paramsBuf, scratchBuf } = rowBuffers[y];
     const outRow = await ctx.readGPUBuffer(outBuf, want * c * 4);
     sorted.set(outRow, y * want * c);
     if (typeof srcBuf.destroy === "function") srcBuf.destroy();
     if (typeof paramsBuf.destroy === "function") paramsBuf.destroy();
     if (typeof outBuf.destroy === "function") outBuf.destroy();
+    if (typeof scratchBuf.destroy === "function") scratchBuf.destroy();
   }
   let sortedTensor = Tensor.fromArray(ctx, sorted, [want, want, c]);
   if (angle !== false) {
