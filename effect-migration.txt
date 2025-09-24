@@ -17,5 +17,4 @@ spooky_ticker
 vhs
 voronoi
 watermark
-wormhole
 worms
