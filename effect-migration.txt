@@ -1,5 +1,4 @@
 The remaining effects in this list need shader implementations:
 
 lowpoly
-on_screen_display
 watermark

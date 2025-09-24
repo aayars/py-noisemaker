@@ -23,7 +23,11 @@ import {
 } from "./value.js";
 import { PALETTES } from "./palettes.js";
 import { register } from "./effectsRegistry.js";
-import { random as simplexRandom, fromSeed as simplexFromSeed } from "./simplex.js";
+import {
+  simplex,
+  random as simplexRandom,
+  fromSeed as simplexFromSeed,
+} from "./simplex.js";
 import { getAtlas, maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
 import {
@@ -127,6 +131,7 @@ import {
   FIBERS_WGSL,
   FRAME_WGSL,
   NEBULA_WGSL,
+  ON_SCREEN_DISPLAY_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -10648,6 +10653,7 @@ register("watermark", watermark, {});
 
 export async function onScreenDisplay(tensor, shape, time, speed) {
   const [h, w, c] = shape;
+  const ctx = tensor?.ctx ?? null;
   const glyphCount = randomInt(3, 6);
   const masks = [
     ValueMask.bank_ocr,
@@ -10656,51 +10662,193 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
   ];
   const mask = masks[randomInt(0, masks.length - 1)];
   const gShape = maskShape(mask);
+  const glyphHeight = gShape?.[0] ?? 0;
+  const glyphWidth = gShape?.[1] ?? 0;
+  const channels = Math.max(1, c || 1);
+  if (glyphHeight <= 0 || glyphWidth <= 0 || channels <= 0) {
+    return tensor;
+  }
+
   let baseWidth = Math.floor(w / 24);
-  baseWidth = gShape[1] * Math.floor(baseWidth / gShape[1]);
+  baseWidth = glyphWidth * Math.floor(baseWidth / glyphWidth);
   if (baseWidth <= 0) {
     return tensor;
   }
-  const tileCount = baseWidth / gShape[1];
-  const rowHeight = gShape[0] * tileCount;
+  const tileCount = Math.max(1, Math.floor(baseWidth / glyphWidth));
+  if (tileCount <= 0) {
+    return tensor;
+  }
+  const rowHeight = glyphHeight * tileCount;
   const totalWidth = baseWidth * glyphCount;
-  const freq = [gShape[0], gShape[1] * glyphCount];
-  let rowMask = await values(freq, [rowHeight, totalWidth, c], {
-    ctx: tensor.ctx,
-    corners: true,
-    mask,
-    splineOrder: InterpolationType.constant,
-    distrib: ValueDistribution.ones,
-    time,
-    speed,
+  if (rowHeight <= 0 || totalWidth <= 0) {
+    return tensor;
+  }
+
+  const offsetY = 25;
+  const offsetX = w - totalWidth - 25;
+  const alpha = Math.fround(0.5 + random() * 0.25);
+  const atlas = getAtlas(mask);
+  const atlasGlyphCount = Array.isArray(atlas) ? atlas.length : 0;
+  if (!atlasGlyphCount) {
+    return tensor;
+  }
+
+  const effTime = Number.isFinite(time) ? time : 0;
+  const effSpeed = Number.isFinite(speed) ? speed : 1;
+  const uvShape = [1, glyphCount];
+  const noiseSeed = randomInt(1, 65536);
+  const uvTensor = simplex([...uvShape, 1], {
+    time: effTime,
+    seed: noiseSeed,
+    speed: effSpeed,
   });
-  const rowDataMaybe = rowMask.read();
-  const rowData =
-    rowDataMaybe && typeof rowDataMaybe.then === "function"
-      ? await rowDataMaybe
-      : rowDataMaybe;
-  const rowArr =
-    rowData instanceof Float32Array
-      ? rowData
-      : Float32Array.from(rowData ?? []);
-  const pad = new Float32Array(h * w * c);
-  const yOff = 25;
-  const xOff = w - totalWidth - 25;
-  for (let y = 0; y < rowHeight; y++) {
-    const yy = yOff + y;
-    if (yy < 0 || yy >= h) continue;
-    for (let x = 0; x < totalWidth; x++) {
-      const xx = xOff + x;
-      if (xx < 0 || xx >= w) continue;
-      const srcBase = (y * totalWidth + x) * c;
-      const dstBase = (yy * w + xx) * c;
-      for (let k = 0; k < c; k++) {
-        pad[dstBase + k] = Math.fround(rowArr[srcBase + k] ?? 0);
+  const uvDataMaybe = uvTensor.read();
+  const uvData =
+    uvDataMaybe && typeof uvDataMaybe.then === "function"
+      ? await uvDataMaybe
+      : uvDataMaybe;
+  const uvArr =
+    uvData instanceof Float32Array
+      ? uvData
+      : Float32Array.from(uvData ?? []);
+
+  const glyphIndices = new Uint32Array(glyphCount);
+  for (let i = 0; i < glyphCount; i++) {
+    let noiseVal = uvArr[i] ?? 0;
+    if (!Number.isFinite(noiseVal)) {
+      noiseVal = 0;
+    }
+    let glyphIndex = Math.floor(noiseVal * atlasGlyphCount);
+    if (glyphIndex < 0) glyphIndex = 0;
+    if (glyphIndex >= atlasGlyphCount) {
+      glyphIndex = atlasGlyphCount - 1;
+    }
+    glyphIndices[i] = glyphIndex >>> 0;
+  }
+
+  const glyphAtlasData = new Float32Array(
+    atlasGlyphCount * glyphHeight * glyphWidth,
+  );
+  for (let gi = 0; gi < atlasGlyphCount; gi++) {
+    const glyph = atlas[gi] ?? [];
+    for (let gy = 0; gy < glyphHeight; gy++) {
+      const row = glyph[gy] ?? [];
+      for (let gx = 0; gx < glyphWidth; gx++) {
+        let val = row[gx];
+        if (Array.isArray(val)) {
+          val = val[0];
+        }
+        const idx = gi * glyphHeight * glyphWidth + gy * glyphWidth + gx;
+        glyphAtlasData[idx] = Math.fround(val ?? 0);
       }
     }
   }
-  const rendered = Tensor.fromArray(tensor.ctx, pad, shape);
-  const alpha = Math.fround(0.5 + random() * 0.25);
+
+  if (ctx && ctx.device && typeof GPUTexture !== "undefined") {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      let outBuf = null;
+      let paramsBuf = null;
+      let atlasBuf = null;
+      let indicesBuf = null;
+      try {
+        outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * channels),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsArr = new Float32Array([
+          w,
+          h,
+          channels,
+          alpha,
+          offsetX,
+          offsetY,
+          totalWidth,
+          rowHeight,
+          glyphWidth,
+          glyphHeight,
+          tileCount,
+          atlasGlyphCount,
+          glyphCount,
+          0,
+          0,
+          0,
+        ]);
+        paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+        atlasBuf = ctx.createGPUBuffer(glyphAtlasData, GPUBufferUsage.STORAGE);
+        indicesBuf = ctx.createGPUBuffer(glyphIndices, GPUBufferUsage.STORAGE);
+        await ctx.runCompute(
+          ON_SCREEN_DISPLAY_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+            { binding: 3, resource: { buffer: atlasBuf } },
+            { binding: 4, resource: { buffer: indicesBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return Tensor.fromGPUBuffer(ctx, outBuf, shape);
+      } catch (err) {
+        console.warn("WebGPU on_screen_display fallback to CPU", err);
+        try {
+          outBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+      } finally {
+        try {
+          paramsBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+        try {
+          atlasBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+        try {
+          indicesBuf?.destroy?.();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  const pad = new Float32Array(h * w * channels);
+  for (let y = 0; y < rowHeight; y++) {
+    const destY = offsetY + y;
+    if (destY < 0 || destY >= h) continue;
+    const scaledY = Math.floor(y / tileCount);
+    const glyphY = ((scaledY % glyphHeight) + glyphHeight) % glyphHeight;
+    for (let x = 0; x < totalWidth; x++) {
+      const destX = offsetX + x;
+      if (destX < 0 || destX >= w) continue;
+      const scaledX = Math.floor(x / tileCount);
+      const glyphColumn = Math.floor(scaledX / glyphWidth);
+      if (glyphColumn < 0 || glyphColumn >= glyphCount) continue;
+      const glyphIndex = glyphIndices[glyphColumn];
+      if (glyphIndex >= atlasGlyphCount) continue;
+      const glyph = atlas[glyphIndex] ?? [];
+      const glyphX = ((scaledX % glyphWidth) + glyphWidth) % glyphWidth;
+      let glyphVal = glyph[glyphY]?.[glyphX];
+      if (Array.isArray(glyphVal)) {
+        glyphVal = glyphVal[0];
+      }
+      const value = Math.fround(glyphVal ?? 0);
+      if (value <= 0) continue;
+      const dstBase = (destY * w + destX) * channels;
+      for (let k = 0; k < channels; k++) {
+        pad[dstBase + k] = value;
+      }
+    }
+  }
+
+  const rendered = Tensor.fromArray(ctx, pad, shape);
   const [renderedDataMaybe, tensorDataMaybe] = await Promise.all([
     rendered.read(),
     tensor.read(),
@@ -10725,7 +10873,7 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
     const maxVal = Math.max(rendArr[i] ?? 0, tensorArr[i] ?? 0);
     rendArr[i] = Math.fround(maxVal);
   }
-  const maxTensor = Tensor.fromArray(tensor.ctx, rendArr, shape);
+  const maxTensor = Tensor.fromArray(ctx, rendArr, shape);
   return blend(tensor, maxTensor, alpha);
 }
 register("on_screen_display", onScreenDisplay, {});
