@@ -16,7 +16,6 @@ pixel_sort
 refract
 reindex
 reverb
-scratches
 sketch
 sobel_operator
 spooky_ticker

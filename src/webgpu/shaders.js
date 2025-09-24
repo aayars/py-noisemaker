@@ -93,8 +93,12 @@ export const WARP_WGSL = SHADER_PLACEHOLDER;
 export const SPATTER_MASK_WGSL = await loadShaderSource(
   './shaders/spatter_mask.wgsl',
 );
-export const SCRATCHES_MASK_WGSL = SHADER_PLACEHOLDER;
-export const SCRATCHES_BLEND_WGSL = SHADER_PLACEHOLDER;
+export const SCRATCHES_MASK_WGSL = await loadShaderSource(
+  './shaders/scratches_mask.wgsl',
+);
+export const SCRATCHES_BLEND_WGSL = await loadShaderSource(
+  './shaders/scratches_blend.wgsl',
+);
 export const GRIME_MASK_WGSL = await loadShaderSource('./shaders/grime_mask.wgsl');
 export const GRIME_BLEND_WGSL = await loadShaderSource('./shaders/grime_blend.wgsl');
 export const CONV_FEEDBACK_WGSL = await loadShaderSource(
