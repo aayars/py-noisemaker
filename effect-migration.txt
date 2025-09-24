@@ -30,7 +30,6 @@ simple_frame
 sketch
 snow
 sobel_operator
-spatter
 spooky_ticker
 square_crop_and_resize
 stray_hair

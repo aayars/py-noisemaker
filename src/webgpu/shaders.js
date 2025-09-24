@@ -86,7 +86,9 @@ export const RIDGE_WGSL = await loadShaderSource('./shaders/ridge.wgsl');
 export const SINE_WGSL = await loadShaderSource('./shaders/sine.wgsl');
 export const GLYPH_MAP_WGSL = SHADER_PLACEHOLDER;
 export const WARP_WGSL = SHADER_PLACEHOLDER;
-export const SPATTER_MASK_WGSL = SHADER_PLACEHOLDER;
+export const SPATTER_MASK_WGSL = await loadShaderSource(
+  './shaders/spatter_mask.wgsl',
+);
 export const SCRATCHES_MASK_WGSL = SHADER_PLACEHOLDER;
 export const SCRATCHES_BLEND_WGSL = SHADER_PLACEHOLDER;
 export const GRIME_MASK_WGSL = await loadShaderSource('./shaders/grime_mask.wgsl');
