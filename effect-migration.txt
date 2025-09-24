@@ -18,7 +18,6 @@ reverb
 sketch
 sobel_operator
 spooky_ticker
-stray_hair
 vhs
 voronoi
 warp

@@ -121,6 +121,7 @@ import {
   SQUARE_CROP_WGSL,
   SIMPLE_FRAME_WGSL,
   INNER_TILE_WGSL,
+  STRAY_HAIR_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -9626,14 +9627,109 @@ export async function strayHair(tensor, shape, time, speed) {
     1,
     kink,
   );
+  const brightnessScale = 0.333;
+  const maskScale = 0.666;
   let brightness = await values(32, valueShape, { ctx, time, speed });
-  let bData = await brightness.read();
-  for (let i = 0; i < bData.length; i++) bData[i] *= 0.333;
-  brightness = Tensor.fromArray(ctx, bData, valueShape);
-  let mData = await mask.read();
-  for (let i = 0; i < mData.length; i++) mData[i] *= 0.666;
-  mask = Tensor.fromArray(ctx, mData, valueShape);
-  return await blend(tensor, brightness, mask);
+
+  tensor = ensureTextureTensor(tensor);
+  mask = ensureTextureTensor(mask);
+  brightness = ensureTextureTensor(brightness);
+
+  if (ctx && ctx.device) {
+    const hasGPUTexture = typeof GPUTexture !== "undefined";
+    const baseValid =
+      hasGPUTexture &&
+      tensor &&
+      tensor.ctx === ctx &&
+      tensor.handle instanceof GPUTexture;
+    const maskValid =
+      hasGPUTexture &&
+      mask &&
+      mask.ctx === ctx &&
+      mask.handle instanceof GPUTexture &&
+      mask.shape?.[0] === h &&
+      mask.shape?.[1] === w;
+    const brightnessValid =
+      hasGPUTexture &&
+      brightness &&
+      brightness.ctx === ctx &&
+      brightness.handle instanceof GPUTexture &&
+      brightness.shape?.[0] === h &&
+      brightness.shape?.[1] === w;
+    if (baseValid && maskValid && brightnessValid) {
+      const baseChannelsRaw = Number.isFinite(c) ? c : tensor.shape?.[2] ?? 1;
+      const baseChannels = Math.max(1, Math.floor(baseChannelsRaw));
+      const storageChannels = Tensor.storageChannels(baseChannels);
+      const format =
+        storageChannels === 1
+          ? "r32float"
+          : storageChannels === 2
+          ? "rg32float"
+          : "rgba32float";
+      const shader = STRAY_HAIR_WGSL.replace("rgba32float", format);
+      const outTex = ctx.device.createTexture({
+        size: { width: w, height: h, depthOrArrayLayers: 1 },
+        format,
+        usage:
+          GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC |
+          GPUTextureUsage.COPY_DST,
+      });
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([
+          w,
+          h,
+          baseChannels,
+          brightness.shape?.[2] ?? 1,
+          mask.shape?.[2] ?? 1,
+          brightnessScale,
+          maskScale,
+          0,
+        ]),
+        GPUBufferUsage.UNIFORM,
+      );
+      try {
+        await ctx.runCompute(
+          shader,
+          [
+            { binding: 0, resource: tensor.handle.createView() },
+            { binding: 1, resource: brightness.handle.createView() },
+            { binding: 2, resource: mask.handle.createView() },
+            { binding: 3, resource: outTex.createView() },
+            { binding: 4, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outTex, [h, w, baseChannels]);
+      } catch (err) {
+        console.warn("WebGPU stray_hair fallback to CPU", err);
+      } finally {
+        paramsBuf.destroy?.();
+      }
+    }
+  }
+
+  const scaleTensor = async (inputTensor, scale) => {
+    const dataMaybe = inputTensor.read();
+    const rawData =
+      dataMaybe && typeof dataMaybe.then === "function"
+        ? await dataMaybe
+        : dataMaybe;
+    const arr =
+      rawData instanceof Float32Array
+        ? rawData
+        : new Float32Array(rawData ?? []);
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] *= scale;
+    }
+    return Tensor.fromArray(inputTensor.ctx, arr, inputTensor.shape);
+  };
+
+  const scaledBrightness = await scaleTensor(brightness, brightnessScale);
+  const scaledMask = await scaleTensor(mask, maskScale);
+  return await blend(tensor, scaledBrightness, scaledMask);
 }
 register("stray_hair", strayHair, {});
 register("stray_hair", strayHair, {});
