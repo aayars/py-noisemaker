@@ -28,7 +28,6 @@ sketch
 sobel_operator
 spooky_ticker
 stray_hair
-value_refract
 vhs
 voronoi
 vortex
