@@ -60,6 +60,7 @@ export const EROSION_WORMS_WGSL = await loadShaderSource(
 );
 export const WORMS_WGSL = SHADER_PLACEHOLDER;
 export const REINDEX_WGSL = SHADER_PLACEHOLDER;
+export const OFFSET_INDEX_WGSL = await loadShaderSource('./shaders/offset_index.wgsl');
 export const RIPPLE_WGSL = await loadShaderSource('./shaders/ripple.wgsl');
 export const COLOR_MAP_WGSL = await loadShaderSource('./shaders/color_map.wgsl');
 export const VIGNETTE_WGSL = await loadShaderSource('./shaders/vignette.wgsl');

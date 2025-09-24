@@ -13,7 +13,6 @@ inner_tile
 lowpoly
 nebula
 normal_map
-offset_index
 on_screen_display
 pixel_sort
 refract

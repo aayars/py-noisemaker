@@ -56,6 +56,7 @@ import {
   EROSION_WORMS_WGSL,
   WORMS_WGSL,
   REINDEX_WGSL,
+  OFFSET_INDEX_WGSL,
   RIPPLE_WGSL,
   COLOR_MAP_WGSL,
   CLOUDS_WGSL,
@@ -3612,23 +3613,117 @@ export function expandTile(
 }
 
 export function offsetIndex(yIndex, height, xIndex, width) {
-  return withTensorDatas([yIndex, xIndex], (yData, xData) => {
-    const total = height * width;
-    const yArr = new Int32Array(total);
-    const xArr = new Int32Array(total);
-    for (let i = 0; i < total; i++) {
-      yArr[i] = Math.floor(yData[i] ?? 0);
-      xArr[i] = Math.floor(xData[i] ?? 0);
+  const yOffset = Math.floor(height * 0.5 + random() * height * 0.5);
+  const xOffset = Math.floor(random() * width * 0.5);
+  const fallback = () =>
+    withTensorDatas([yIndex, xIndex], (yData, xData) => {
+      const total = height * width;
+      const yArr = new Int32Array(total);
+      const xArr = new Int32Array(total);
+      for (let i = 0; i < total; i++) {
+        yArr[i] = Math.floor(yData[i] ?? 0);
+        xArr[i] = Math.floor(xData[i] ?? 0);
+      }
+      const offs = offsetIndexInternal(
+        yArr,
+        height,
+        xArr,
+        width,
+        yOffset,
+        xOffset,
+      );
+      const interleaved = new Int32Array(total * 2);
+      for (let i = 0; i < total; i++) {
+        interleaved[i * 2] = offs.y[i];
+        interleaved[i * 2 + 1] = offs.x[i];
+      }
+      const ctxOut = (yIndex && yIndex.ctx) || (xIndex && xIndex.ctx) || null;
+      return Tensor.fromArray(ctxOut, interleaved, [height, width, 2]);
+    });
+
+  if (width <= 0 || height <= 0) {
+    return fallback();
+  }
+
+  const ctx = (yIndex && yIndex.ctx) || (xIndex && xIndex.ctx) || null;
+  if (!ctx || !ctx.device) {
+    return fallback();
+  }
+
+  const toTexture = async (tensor) => {
+    if (!tensor) return null;
+    if (tensor.ctx !== ctx) {
+      const dataMaybe = tensor.read();
+      const data =
+        dataMaybe && typeof dataMaybe.then === 'function'
+          ? await dataMaybe
+          : dataMaybe;
+      return Tensor.fromArray(ctx, data, tensor.shape);
     }
-    const offs = offsetIndexInternal(yArr, height, xArr, width);
-    const interleaved = new Int32Array(total * 2);
-    for (let i = 0; i < total; i++) {
-      interleaved[i * 2] = offs.y[i];
-      interleaved[i * 2 + 1] = offs.x[i];
+    const ensured = ensureTextureTensor(tensor);
+    if (
+      ensured &&
+      typeof GPUTexture !== 'undefined' &&
+      ensured.handle instanceof GPUTexture
+    ) {
+      return ensured;
     }
-    const ctx = (yIndex && yIndex.ctx) || (xIndex && xIndex.ctx) || null;
-    return Tensor.fromArray(ctx, interleaved, [height, width, 2]);
-  });
+    const resolved = tensor.read();
+    const arr =
+      resolved && typeof resolved.then === 'function'
+        ? await resolved
+        : resolved;
+    return Tensor.fromArray(ctx, arr, tensor.shape);
+  };
+
+  const runGPU = async () => {
+    try {
+      const [yTexRaw, xTexRaw] = await Promise.all([
+        toTexture(yIndex),
+        toTexture(xIndex),
+      ]);
+      const yTex = ensureTextureTensor(yTexRaw);
+      const xTex = ensureTextureTensor(xTexRaw);
+      if (
+        yTex &&
+        xTex &&
+        yTex.ctx === ctx &&
+        xTex.ctx === ctx &&
+        typeof GPUTexture !== 'undefined' &&
+        yTex.handle instanceof GPUTexture &&
+        xTex.handle instanceof GPUTexture
+      ) {
+        const total = height * width;
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(total * 2),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([width, height, xOffset, yOffset]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          OFFSET_INDEX_WGSL,
+          [
+            { binding: 0, resource: yTex.handle.createView() },
+            { binding: 1, resource: xTex.handle.createView() },
+            { binding: 2, resource: { buffer: outBuf } },
+            { binding: 3, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(width / 8),
+          Math.ceil(height / 8),
+        );
+        return Tensor.fromGPUBuffer(ctx, outBuf, [height, width, 2]);
+      }
+    } catch (e) {
+      console.warn('WebGPU offsetIndex fallback to CPU', e);
+    }
+    return fallback();
+  };
+
+  return runGPU();
 }
 
 export async function posterize(tensor, shape, time, speed, levels = 9) {
@@ -5489,9 +5584,15 @@ export function wormsParams(
   return { x: Array.from(x), y: Array.from(y), stride: Array.from(strideVals), rot: Array.from(rot) };
 }
 
-function offsetIndexInternal(yArr, height, xArr, width) {
-  const yOff = Math.floor(height * 0.5 + random() * height * 0.5);
-  const xOff = Math.floor(random() * width * 0.5);
+function offsetIndexInternal(yArr, height, xArr, width, yOffset, xOffset) {
+  const yOff =
+    typeof yOffset === 'number'
+      ? Math.floor(yOffset)
+      : Math.floor(height * 0.5 + random() * height * 0.5);
+  const xOff =
+    typeof xOffset === 'number'
+      ? Math.floor(xOffset)
+      : Math.floor(random() * width * 0.5);
   const n = yArr.length;
   const oy = new Int32Array(n);
   const ox = new Int32Array(n);
