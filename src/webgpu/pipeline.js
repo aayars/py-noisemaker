@@ -2148,6 +2148,7 @@ function analyseStageParams(params) {
   const defaults = {};
   const resources = [];
   const issues = [];
+  let unsupported = false;
   const uniformFields = [];
   let requiresUniforms = false;
 
@@ -2164,6 +2165,13 @@ function analyseStageParams(params) {
       });
       defaults[name] = classification.original;
     } else if (classification.type === 'resource') {
+      if (classification.resourceType === 'string') {
+        unsupported = true;
+        issues.push({
+          level: 'error',
+          message: `Parameter "${name}" with type string is not supported on the GPU path.`,
+        });
+      }
       resources.push({ name, resourceType: classification.resourceType, value });
     } else {
       issues.push({ level: 'error', message: classification.reason });
@@ -2172,7 +2180,7 @@ function analyseStageParams(params) {
 
   const layout = uniformFields.length ? buildStd140Layout(uniformFields, issues) : null;
 
-  return { layout, defaults, resources, issues, requiresUniforms };
+  return { layout, defaults, resources, issues, requiresUniforms, unsupported };
 }
 
 function getStageName(stage) {

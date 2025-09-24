@@ -1,4 +1,4 @@
-struct PaletteParams {
+struct StageUniforms {
   width: f32,
   height: f32,
   channels: f32,
@@ -13,9 +13,19 @@ struct PaletteParams {
   phase: vec4<f32>,
 };
 
-@group(0) @binding(0) var inputTexture : texture_2d<f32>;
-@group(0) @binding(1) var<storage, read_write> outputBuffer : array<f32>;
-@group(0) @binding(2) var<uniform> params : PaletteParams;
+struct FrameUniforms {
+  resolution : vec2<f32>,
+  time : f32,
+  seed : u32,
+  frame_index : u32,
+  padding0 : u32,
+  padding1 : vec2<f32>,
+};
+
+@group(0) @binding(0) var<uniform> stage_uniforms : StageUniforms;
+@group(0) @binding(1) var<uniform> frame_uniforms : FrameUniforms;
+@group(0) @binding(2) var input_texture : texture_2d<f32>;
+@group(0) @binding(3) var output_texture : texture_storage_2d<rgba32float, write>;
 
 const TAU : f32 = 6.283185307179586;
 
@@ -52,37 +62,35 @@ fn oklab_l_component(rgb : vec3<f32>) -> f32 {
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-  let width : u32 = as_u32(params.width);
-  let height : u32 = as_u32(params.height);
+  let width : u32 = as_u32(stage_uniforms.width);
+  let height : u32 = as_u32(stage_uniforms.height);
+  if (frame_uniforms.resolution.x < 0.0 || frame_uniforms.resolution.y < 0.0) {
+    return;
+  }
   if (gid.x >= width || gid.y >= height) {
     return;
   }
 
-  let channel_count : u32 = as_u32(params.channels);
+  let channel_count : u32 = as_u32(stage_uniforms.channels);
   if (channel_count == 0u) {
     return;
   }
 
   let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
-  let texel : vec4<f32> = textureLoad(inputTexture, coords, 0);
-  let pixel_index : u32 = gid.y * width + gid.x;
-  let base_index : u32 = pixel_index * channel_count;
+  let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
 
   if (channel_count < 3u) {
-    outputBuffer[base_index] = texel.x;
-    if (channel_count > 1u) {
-      outputBuffer[base_index + 1u] = texel.y;
-    }
+    textureStore(output_texture, coords, texel);
     return;
   }
 
   let base_rgb : vec3<f32> = clamp(texel.xyz, vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 1.0, 1.0));
   let lightness : f32 = clamp01(oklab_l_component(base_rgb));
 
-  let freq_vec : vec3<f32> = params.freq.xyz;
-  let amp_vec : vec3<f32> = params.amp.xyz;
-  let offset_vec : vec3<f32> = params.offset.xyz;
-  let phase_vec : vec3<f32> = params.phase.xyz;
+  let freq_vec : vec3<f32> = stage_uniforms.freq.xyz;
+  let amp_vec : vec3<f32> = stage_uniforms.amp.xyz;
+  let offset_vec : vec3<f32> = stage_uniforms.offset.xyz;
+  let phase_vec : vec3<f32> = stage_uniforms.phase.xyz;
 
   let arg0 : f32 = freq_vec.x * lightness * 0.875 + 0.0625 + phase_vec.x;
   let arg1 : f32 = freq_vec.y * lightness * 0.875 + 0.0625 + phase_vec.y;
@@ -98,25 +106,16 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     offset_vec.z + amp_vec.z * cos2,
   );
 
-  let blend_amount : f32 = clamp(params.blend, 0.0, 1.0);
+  let blend_amount : f32 = clamp(stage_uniforms.blend, 0.0, 1.0);
   let inv_blend : f32 = 1.0 - blend_amount;
 
-  outputBuffer[base_index] = base_rgb.x * inv_blend + palette_rgb.x * blend_amount;
-  outputBuffer[base_index + 1u] = base_rgb.y * inv_blend + palette_rgb.y * blend_amount;
-  outputBuffer[base_index + 2u] = base_rgb.z * inv_blend + palette_rgb.z * blend_amount;
-
-  if (channel_count > 3u) {
-    let alpha : f32 = texel.w;
-    outputBuffer[base_index + 3u] = alpha;
-    if (channel_count > 4u) {
-      var ch : u32 = 4u;
-      loop {
-        if (ch >= channel_count) {
-          break;
-        }
-        outputBuffer[base_index + ch] = alpha;
-        ch = ch + 1u;
-      }
-    }
+  var result : vec4<f32> = texel;
+  result.x = base_rgb.x * inv_blend + palette_rgb.x * blend_amount;
+  result.y = base_rgb.y * inv_blend + palette_rgb.y * blend_amount;
+  result.z = base_rgb.z * inv_blend + palette_rgb.z * blend_amount;
+  if (channel_count <= 3u) {
+    result.w = texel.w;
   }
+
+  textureStore(output_texture, coords, result);
 }
