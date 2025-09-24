@@ -3,7 +3,6 @@ The remaining effects in this list need shader implementations:
 adjust_hue
 adjust_saturation
 blend_layers
-blur
 center_mask
 color_map
 conv_feedback

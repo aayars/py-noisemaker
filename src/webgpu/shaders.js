@@ -39,7 +39,7 @@ export const GLOWING_EDGES_STAGE4_WGSL = await loadShaderSource(
 );
 
 export const VALUE_WGSL = SHADER_PLACEHOLDER;
-export const RESAMPLE_WGSL = SHADER_PLACEHOLDER;
+export const RESAMPLE_WGSL = await loadShaderSource('./shaders/resample.wgsl');
 export const DOWNSAMPLE_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_WGSL = SHADER_PLACEHOLDER;
 export const BLEND_CONST_WGSL = SHADER_PLACEHOLDER;
@@ -106,3 +106,7 @@ export const EXPAND_CHANNELS_WGSL = SHADER_PLACEHOLDER;
 export const SOBEL_OPERATOR_FINALIZE_WGSL = await loadShaderSource(
   './shaders/sobel_operator_finalize.wgsl',
 );
+export const PROPORTIONAL_DOWNSAMPLE_WGSL = await loadShaderSource(
+  './shaders/proportional_downsample.wgsl',
+);
+export const SCALE_TENSOR_WGSL = await loadShaderSource('./shaders/scale_tensor.wgsl');

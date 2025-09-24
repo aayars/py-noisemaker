@@ -28,6 +28,7 @@ import {
   RGB_TO_HSV_WGSL,
   HSV_TO_RGB_WGSL,
   OCTAVE_COMBINE_WGSL,
+  PROPORTIONAL_DOWNSAMPLE_WGSL,
 } from './webgpu/shaders.js';
 
 let _seed = 0x12345678;
@@ -719,7 +720,16 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
         const device = ctx.device;
         const outSize = nh * nw * nc;
         const outBuf = device.createBuffer({ size: outSize * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-        const paramsArr = new Float32Array([ w, h, nw, nh, nc, splineOrder, 0, 0 ]);
+        const paramsArr = new Float32Array([
+          w,
+          h,
+          c,
+          splineOrder,
+          nw,
+          nh,
+          nc,
+          0,
+        ]);
         const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
         await ctx.runCompute(
           RESAMPLE_WGSL,
@@ -811,27 +821,74 @@ export function proportionalDownsample(tensor, shape, newShape) {
   const outH = Math.floor((h - kH) / kH + 1);
   const outW = Math.floor((w - kW) / kW + 1);
   const ctx = tensor.ctx;
-  return withTensorData(tensor, (src) => {
-    const out = new Float32Array(outH * outW * c);
-    for (let y = 0; y < outH; y++) {
-      for (let x = 0; x < outW; x++) {
-        for (let k = 0; k < c; k++) {
-          let sum = 0;
-          for (let yy = 0; yy < kH; yy++) {
-            for (let xx = 0; xx < kW; xx++) {
-              const iy = y * kH + yy;
-              const ix = x * kW + xx;
-              const idx = (iy * w + ix) * c + k;
-              sum += src[idx];
+  const cpuPath = () =>
+    withTensorData(tensor, (src) => {
+      const out = new Float32Array(outH * outW * c);
+      for (let y = 0; y < outH; y++) {
+        for (let x = 0; x < outW; x++) {
+          for (let k = 0; k < c; k++) {
+            let sum = 0;
+            for (let yy = 0; yy < kH; yy++) {
+              for (let xx = 0; xx < kW; xx++) {
+                const iy = y * kH + yy;
+                const ix = x * kW + xx;
+                const idx = (iy * w + ix) * c + k;
+                sum += src[idx];
+              }
             }
+            out[(y * outW + x) * c + k] = sum / (kH * kW);
           }
-          out[(y * outW + x) * c + k] = sum / (kH * kW);
         }
       }
+      const down = Tensor.fromArray(ctx, out, [outH, outW, c]);
+      return resample(down, [nh, nw, c]);
+    });
+
+  if (ctx && ctx.device) {
+    let tex = tensor;
+    if (typeof GPUBuffer !== 'undefined' && tex.handle instanceof GPUBuffer) {
+      tex = Tensor.fromGPUBuffer(ctx, tex.handle, tex.shape, tex);
     }
-    const down = Tensor.fromArray(ctx, out, [outH, outW, c]);
-    return resample(down, [nh, nw, c]);
-  });
+    if (tex && typeof GPUTexture !== 'undefined' && tex.handle instanceof GPUTexture) {
+      return (async () => {
+        try {
+          const outSize = nh * nw * c;
+          const outBuf = ctx.createGPUBuffer(
+            new Float32Array(outSize),
+            GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+          );
+          const paramsArr = new Float32Array([
+            w,
+            h,
+            c,
+            kW,
+            kH,
+            nw,
+            nh,
+            0,
+          ]);
+          const paramsBuf = ctx.createGPUBuffer(paramsArr, GPUBufferUsage.UNIFORM);
+          await ctx.runCompute(
+            PROPORTIONAL_DOWNSAMPLE_WGSL,
+            [
+              { binding: 0, resource: tex.handle.createView() },
+              { binding: 1, resource: { buffer: outBuf } },
+              { binding: 2, resource: { buffer: paramsBuf } },
+            ],
+            Math.ceil(nw / 8),
+            Math.ceil(nh / 8),
+          );
+          const downTensor = Tensor.fromGPUBuffer(ctx, outBuf, [nh, nw, c]);
+          return await resample(downTensor, [nh, nw, c]);
+        } catch (e) {
+          console.warn('WebGPU proportional downsample fallback to CPU', e);
+          return cpuPath();
+        }
+      })();
+    }
+  }
+
+  return cpuPath();
 }
 
 export function upsample(tensor, factor, splineOrder = InterpolationType.bicubic) {

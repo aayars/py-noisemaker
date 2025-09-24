@@ -102,6 +102,7 @@ import {
   GRAYSCALE_WGSL,
   EXPAND_CHANNELS_WGSL,
   SOBEL_OPERATOR_FINALIZE_WGSL,
+  SCALE_TENSOR_WGSL,
 } from "./webgpu/shaders.js";
 
 const UNARY_OP_INVERT = 0;
@@ -200,6 +201,46 @@ async function runBinaryShader(a, b, op, target = null) {
     pool.release(paramsBuf);
   }
   return target || result;
+}
+
+async function scaleTensor(tensor, factor) {
+  if (!tensor) {
+    return tensor;
+  }
+  const ctx = tensor.ctx;
+  const shape = tensor.shape;
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && typeof GPUTexture !== "undefined" && tex.handle instanceof GPUTexture) {
+      const [h, w, c] = tex.shape;
+      const outBuf = ctx.createGPUBuffer(
+        new Float32Array(h * w * c),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      );
+      const paramsBuf = ctx.createGPUBuffer(
+        new Float32Array([w, h, c, factor]),
+        GPUBufferUsage.UNIFORM,
+      );
+      await ctx.runCompute(
+        SCALE_TENSOR_WGSL,
+        [
+          { binding: 0, resource: tex.handle.createView() },
+          { binding: 1, resource: { buffer: outBuf } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+        ],
+        Math.ceil(w / 8),
+        Math.ceil(h / 8),
+      );
+      return Tensor.fromGPUBuffer(ctx, outBuf, shape);
+    }
+  }
+  return withTensorData(tensor, (src) => {
+    const data = src instanceof Float32Array ? src.slice() : new Float32Array(src);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.fround(data[i] * factor);
+    }
+    return Tensor.fromArray(tensor.ctx, data, shape);
+  });
 }
 
 async function runGrayscaleShader(tensor, srcChannels) {
@@ -6192,7 +6233,7 @@ export async function sine(
 }
 register("sine", sine, { amount: 1.0, rgb: false, freq: 1, octaves: 1 });
 
-export function blur(
+export async function blur(
   tensor,
   shape,
   time,
@@ -6206,18 +6247,22 @@ export function blur(
     Math.max(1, Math.floor(w / amount)),
     c,
   ];
-  let small = proportionalDownsample(tensor, shape, newShape);
-  const process = (s) =>
-    withTensorData(s, (data) => {
-      const arr = data instanceof Float32Array ? data.slice() : new Float32Array(data);
-      for (let i = 0; i < arr.length; i++) arr[i] *= 4;
-      const sm = Tensor.fromArray(tensor.ctx, arr, s.shape);
-      return resample(sm, shape, splineOrder);
-    });
-  if (small && typeof small.then === 'function') {
-    return small.then(process);
+  const ctx = tensor.ctx;
+  const hasGPUHandle =
+    ctx &&
+    ctx.device &&
+    ((typeof GPUTexture !== 'undefined' && tensor.handle instanceof GPUTexture) ||
+      (typeof GPUBuffer !== 'undefined' && tensor.handle instanceof GPUBuffer));
+
+  if (hasGPUHandle) {
+    const downsampled = await proportionalDownsample(tensor, shape, newShape);
+    const resampled = await resample(downsampled, shape, splineOrder);
+    return await scaleTensor(resampled, 4.0);
   }
-  return process(small);
+
+  const downsampled = await proportionalDownsample(tensor, shape, newShape);
+  const scaled = await scaleTensor(downsampled, 4.0);
+  return await resample(scaled, shape, splineOrder);
 }
 register("blur", blur, {
   amount: 10.0,
