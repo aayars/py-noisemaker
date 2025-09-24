@@ -23,7 +23,6 @@ spooky_ticker
 stray_hair
 vhs
 voronoi
-vortex
 warp
 watermark
 wormhole
