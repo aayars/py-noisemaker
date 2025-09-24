@@ -67,6 +67,9 @@ export const BLOOM_WGSL = await loadShaderSource('./shaders/bloom.wgsl');
 export const ABERRATION_WGSL = await loadShaderSource(
   './shaders/aberration.wgsl',
 );
+export const LIGHT_LEAK_SCREEN_WGSL = await loadShaderSource(
+  './shaders/light_leak_screen.wgsl',
+);
 export const ADJUST_BRIGHTNESS_WGSL = await loadShaderSource(
   './shaders/adjust_brightness.wgsl',
 );

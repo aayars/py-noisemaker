@@ -64,6 +64,7 @@ import {
   GRAIN_WGSL,
   BLOOM_WGSL,
   ABERRATION_WGSL,
+  LIGHT_LEAK_SCREEN_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
   ADJUST_SATURATION_WGSL,
@@ -208,6 +209,59 @@ async function runBinaryShader(a, b, op, target = null) {
     pool.release(paramsBuf);
   }
   return target || result;
+}
+
+async function screenBlendWebGPU(base, leak) {
+  const ctx = base?.ctx;
+  if (!ctx || !ctx.device || !leak || leak.ctx !== ctx) {
+    throw new Error("WebGPU context required for screen blend");
+  }
+  const texBase = ensureTextureTensor(base);
+  const texLeak = ensureTextureTensor(leak);
+  const [h, w, c] = texBase.shape;
+  const pool = getBufferPool(ctx);
+  const outBuf = pool.acquire(
+    h * w * c * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+  );
+  const paramsArr = new Uint32Array([w, h, c, 0]);
+  const paramsBuf = pool.acquire(
+    paramsArr.byteLength,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+  ctx.queue.writeBuffer(paramsBuf, 0, paramsArr);
+  let result;
+  try {
+    await ctx.runCompute(
+      LIGHT_LEAK_SCREEN_WGSL,
+      [
+        { binding: 0, resource: texBase.handle.createView() },
+        { binding: 1, resource: texLeak.handle.createView() },
+        { binding: 2, resource: { buffer: outBuf } },
+        { binding: 3, resource: { buffer: paramsBuf } },
+      ],
+      Math.ceil(w / 8),
+      Math.ceil(h / 8),
+    );
+    result = Tensor.fromGPUBuffer(ctx, outBuf, [h, w, c], texLeak);
+  } finally {
+    pool.release(outBuf);
+    pool.release(paramsBuf);
+  }
+  return result;
+}
+
+async function screenBlendCPU(base, leak, shape) {
+  const baseDataMaybe = base.read();
+  const leakDataMaybe = leak.read();
+  const [baseData, leakData] = await Promise.all([baseDataMaybe, leakDataMaybe]);
+  const out = new Float32Array(baseData.length);
+  for (let i = 0; i < baseData.length; i++) {
+    const a = baseData[i];
+    const b = leakData[i];
+    out[i] = Math.fround(1 - (1 - a) * (1 - b));
+  }
+  return Tensor.fromArray(base.ctx, out, shape);
 }
 
 async function scaleTensor(tensor, factor) {
@@ -6056,13 +6110,22 @@ export async function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
   let leak = await voronoiColorRegions(tensor, shape, time, speed, xPts, yPts);
   leak = await wormhole(leak, shape, time, speed, 1.0, 0.25, 1.0);
   leak = await bloom(leak, shape, time, speed, 1.0);
-  const src = await tensor.read();
-  const leakData = await leak.read();
-  const screened = new Float32Array(src.length);
-  for (let i = 0; i < src.length; i++) {
-    screened[i] = 1 - (1 - src[i]) * (1 - leakData[i]);
+  const ctx = tensor.ctx;
+  if (
+    ctx &&
+    ctx.device &&
+    leak?.ctx === ctx &&
+    tensor.ctx === ctx
+  ) {
+    try {
+      leak = await screenBlendWebGPU(tensor, leak);
+    } catch (err) {
+      console.warn("Light leak WebGPU fallback", err);
+      leak = await screenBlendCPU(tensor, leak, shape);
+    }
+  } else {
+    leak = await screenBlendCPU(tensor, leak, shape);
   }
-  leak = Tensor.fromArray(tensor.ctx, screened, shape);
   leak = await centerMaskInternal(
     tensor,
     leak,
