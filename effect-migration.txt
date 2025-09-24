@@ -16,7 +16,6 @@ frame
 glyph_map
 inner_tile
 jpeg_decimate
-lens_warp
 light_leak
 lowpoly
 nebula

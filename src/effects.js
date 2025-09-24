@@ -95,6 +95,7 @@ import {
   REVERB_WGSL,
   VASELINE_BLUR_WGSL,
   VASELINE_MASK_WGSL,
+  LENS_WARP_WGSL,
   LENS_DISTORTION_WGSL,
   DEGAUSS_WGSL,
   TINT_WGSL,
@@ -4144,17 +4145,89 @@ export async function vhs(tensor, shape, time, speed) {
 register("vhs", vhs, {});
 
 export async function lensWarp(tensor, shape, time, speed, displacement = 0.0625) {
-  const valueShape = [shape[0], shape[1], 1];
-  const maskTensor = await singularity(null, valueShape, time, speed);
-  const mask = await maskTensor.read();
+  const [h, w] = [shape[0], shape[1]];
+  const valueShape = [h, w, 1];
+  const ctx = tensor?.ctx ?? null;
+  let maskTensor = null;
+  let noiseTensor = null;
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined"
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex?.handle instanceof GPUTexture) {
+      tensor = tex;
+      maskTensor = ensureTextureTensor(
+        await singularity(tex, valueShape, time, speed),
+      );
+      noiseTensor = ensureTextureTensor(
+        await values(2, valueShape, {
+          ctx,
+          time,
+          speed,
+          splineOrder: InterpolationType.cosine,
+        }),
+      );
+      if (
+        maskTensor?.handle instanceof GPUTexture &&
+        noiseTensor?.handle instanceof GPUTexture
+      ) {
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        const refXTex = ctx.device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format: "r32float",
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
+        });
+        const refYTex = ctx.device.createTexture({
+          size: { width: w, height: h, depthOrArrayLayers: 1 },
+          format: "r32float",
+          usage:
+            GPUTextureUsage.STORAGE_BINDING |
+            GPUTextureUsage.TEXTURE_BINDING |
+            GPUTextureUsage.COPY_SRC |
+            GPUTextureUsage.COPY_DST,
+        });
+        await ctx.runCompute(
+          LENS_WARP_WGSL,
+          [
+            { binding: 0, resource: maskTensor.handle.createView() },
+            { binding: 1, resource: noiseTensor.handle.createView() },
+            { binding: 2, resource: refXTex.createView() },
+            { binding: 3, resource: refYTex.createView() },
+            { binding: 4, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        const refX = new Tensor(ctx, refXTex, valueShape);
+        const refY = new Tensor(ctx, refYTex, valueShape);
+        return await refractOp(tensor, refX, refY, displacement);
+      }
+    }
+  }
+
+  const cpuMaskTensor =
+    maskTensor ?? (await singularity(null, valueShape, time, speed));
+  const mask = await cpuMaskTensor.read();
   for (let i = 0; i < mask.length; i++) mask[i] = mask[i] ** 5;
-  const noiseTensor = await values(2, valueShape, {
-    ctx: tensor.ctx,
-    time,
-    speed,
-    splineOrder: InterpolationType.cosine,
-  });
-  const noise = await noiseTensor.read();
+  const cpuNoiseTensor =
+    noiseTensor ??
+    (await values(2, valueShape, {
+      ctx: tensor.ctx,
+      time,
+      speed,
+      splineOrder: InterpolationType.cosine,
+    }));
+  const noise = await cpuNoiseTensor.read();
   const cosData = new Float32Array(noise.length);
   const sinData = new Float32Array(noise.length);
   for (let i = 0; i < noise.length; i++) {
