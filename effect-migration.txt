@@ -34,7 +34,6 @@ on_screen_display
 outline
 palette
 pixel_sort
-posterize
 refract
 reindex
 reverb

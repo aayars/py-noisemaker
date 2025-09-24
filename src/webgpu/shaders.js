@@ -77,6 +77,7 @@ export const SCRATCHES_BLEND_WGSL = SHADER_PLACEHOLDER;
 export const GRIME_MASK_WGSL = await loadShaderSource('./shaders/grime_mask.wgsl');
 export const GRIME_BLEND_WGSL = await loadShaderSource('./shaders/grime_blend.wgsl');
 export const PIXEL_SORT_WGSL = SHADER_PLACEHOLDER;
+export const POSTERIZE_WGSL = await loadShaderSource('./shaders/posterize.wgsl');
 export const KALEIDO_WGSL = await loadShaderSource('./shaders/kaleido.wgsl');
 export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
 export const CRT_WGSL = SHADER_PLACEHOLDER;

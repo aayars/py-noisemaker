@@ -79,6 +79,7 @@ import {
   GLOWING_EDGES_STAGE3_WGSL,
   GLOWING_EDGES_STAGE4_WGSL,
   PIXEL_SORT_WGSL,
+  POSTERIZE_WGSL,
   KALEIDO_WGSL,
   NORMAL_MAP_WGSL,
   CRT_WGSL,
@@ -3048,44 +3049,86 @@ export function offsetIndex(yIndex, height, xIndex, width) {
 export async function posterize(tensor, shape, time, speed, levels = 9) {
   if (levels === 0) return tensor;
   const outShape = shape.slice();
-  let t = tensor;
-  if (outShape[2] === 3) {
-    t = await fromSRGB(t);
+  if (outShape.length < 3 || outShape[2] == null) {
+    outShape[2] = tensor.shape?.[2] ?? 1;
   }
-  let src = await t.read();
-  const expected = outShape[0] * outShape[1] * outShape[2];
-  if (src.length !== expected) {
-    const pixels = outShape[0] * outShape[1];
-    const srcChannels = src.length / pixels;
-    const tmp = new Float32Array(expected);
-    for (let i = 0; i < pixels; i++) {
-      const srcBase = i * srcChannels;
-      const dstBase = i * outShape[2];
-      for (let k = 0; k < outShape[2]; k++) {
-        const srcIdx = srcBase + Math.min(k, srcChannels - 1);
-        tmp[dstBase + k] = src[srcIdx];
+  const [h, w] = outShape;
+  const channels = outShape[2];
+
+  const runCPU = async () => {
+    let t = tensor;
+    if (outShape[2] === 3) {
+      t = await fromSRGB(t);
+    }
+    let src = await t.read();
+    const expected = outShape[0] * outShape[1] * outShape[2];
+    if (src.length !== expected) {
+      const pixels = outShape[0] * outShape[1];
+      const srcChannels = src.length / pixels;
+      const tmp = new Float32Array(expected);
+      for (let i = 0; i < pixels; i++) {
+        const srcBase = i * srcChannels;
+        const dstBase = i * outShape[2];
+        for (let k = 0; k < outShape[2]; k++) {
+          const srcIdx = srcBase + Math.min(k, srcChannels - 1);
+          tmp[dstBase + k] = src[srcIdx];
+        }
+      }
+      src = tmp;
+    }
+    const srcArr =
+      src instanceof Float32Array ? src : Float32Array.from(src ?? []);
+    const out = new Float32Array(expected);
+    const levelFactor = Math.fround(levels);
+    const invFactor = levelFactor === 0 ? 0 : Math.fround(1 / levelFactor);
+    const halfStep = Math.fround(invFactor * 0.5);
+    for (let i = 0; i < expected; i++) {
+      const value = Math.fround(srcArr[i] ?? 0);
+      const scaled = Math.fround(value * levelFactor);
+      const shifted = Math.fround(scaled + halfStep);
+      const quantized = Math.floor(shifted);
+      out[i] = Math.fround(quantized * invFactor);
+    }
+    let result = Tensor.fromArray(t.ctx, out, outShape);
+    if (outShape[2] === 3) {
+      result = await toSRGB(result);
+    }
+    return result;
+  };
+
+  const ctx = tensor.ctx;
+  if (ctx && ctx.device) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex && tex.ctx === ctx && tex.handle instanceof GPUTexture) {
+      try {
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(h * w * channels),
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([w, h, channels, levels]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          POSTERIZE_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(w / 8),
+          Math.ceil(h / 8),
+        );
+        return new Tensor(ctx, outBuf, outShape);
+      } catch (e) {
+        console.warn('WebGPU posterize fallback to CPU', e);
       }
     }
-    src = tmp;
   }
-  const srcArr =
-    src instanceof Float32Array ? src : Float32Array.from(src ?? []);
-  const out = new Float32Array(expected);
-  const levelFactor = Math.fround(levels);
-  const invFactor = levelFactor === 0 ? 0 : Math.fround(1 / levelFactor);
-  const halfStep = Math.fround(invFactor * 0.5);
-  for (let i = 0; i < expected; i++) {
-    const value = Math.fround(srcArr[i] ?? 0);
-    const scaled = Math.fround(value * levelFactor);
-    const shifted = Math.fround(scaled + halfStep);
-    const quantized = Math.floor(shifted);
-    out[i] = Math.fround(quantized * invFactor);
-  }
-  let result = Tensor.fromArray(t.ctx, out, outShape);
-  if (outShape[2] === 3) {
-    result = await toSRGB(result);
-  }
-  return result;
+
+  return runCPU();
 }
 register("posterize", posterize, { levels: 9 });
 
