@@ -5,7 +5,6 @@ degauss
 fibers
 glyph_map
 lowpoly
-normal_map
 on_screen_display
 pixel_sort
 reverb

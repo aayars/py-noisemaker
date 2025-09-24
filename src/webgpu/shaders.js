@@ -124,7 +124,7 @@ export const SPOOKY_TICKER_WGSL = await loadShaderSource(
   './shaders/spooky_ticker.wgsl',
 );
 export const JPEG_DECIMATE_WGSL = await loadShaderSource('./shaders/jpeg_decimate.wgsl');
-export const NORMAL_MAP_WGSL = SHADER_PLACEHOLDER;
+export const NORMAL_MAP_WGSL = await loadShaderSource('./shaders/normal_map.wgsl');
 export const CRT_WGSL = await loadShaderSource('./shaders/crt.wgsl');
 export const WOBBLE_WGSL = await loadShaderSource('./shaders/wobble.wgsl');
 export const VORTEX_WGSL = await loadShaderSource('./shaders/vortex.wgsl');
