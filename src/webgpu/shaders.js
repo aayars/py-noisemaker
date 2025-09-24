@@ -41,8 +41,10 @@ export const GLOWING_EDGES_STAGE4_WGSL = await loadShaderSource(
 export const VALUE_WGSL = SHADER_PLACEHOLDER;
 export const RESAMPLE_WGSL = await loadShaderSource('./shaders/resample.wgsl');
 export const DOWNSAMPLE_WGSL = SHADER_PLACEHOLDER;
-export const BLEND_WGSL = SHADER_PLACEHOLDER;
-export const BLEND_CONST_WGSL = SHADER_PLACEHOLDER;
+export const BLEND_WGSL = await loadShaderSource('./shaders/blend.wgsl');
+export const BLEND_CONST_WGSL = await loadShaderSource(
+  './shaders/blend_const.wgsl',
+);
 export const SOBEL_WGSL = await loadShaderSource('./shaders/sobel.wgsl');
 export const REFRACT_WGSL = await loadShaderSource('./shaders/refract.wgsl');
 export const REFRACT_EFFECT_WGSL = await loadShaderSource(
