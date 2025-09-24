@@ -62,7 +62,6 @@ voronoi
 vortex
 warp
 watermark
-wobble
 wormhole
 worms
 worms_params
