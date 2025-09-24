@@ -48,7 +48,6 @@ shadow
 simple_frame
 sine
 sketch
-smoothstep
 snow
 sobel
 sobel_operator

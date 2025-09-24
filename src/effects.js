@@ -64,6 +64,7 @@ import {
   GRAIN_WGSL,
   ADJUST_BRIGHTNESS_WGSL,
   ADJUST_CONTRAST_WGSL,
+  SMOOTHSTEP_WGSL,
   ROTATE_WGSL,
   GLYPH_MAP_WGSL,
   WARP_WGSL,
@@ -3089,16 +3090,63 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
 register("posterize", posterize, { levels: 9 });
 
 export async function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
+  const [rawH, rawW, rawC] = shape;
+  const height = Number.isFinite(rawH) ? rawH : 0;
+  const width = Number.isFinite(rawW) ? rawW : 0;
+  const channelCount = Number.isFinite(rawC) ? rawC : 0;
+  const totalElements = width * height * channelCount;
+  const ctx = tensor.ctx;
+  let delta = b - a;
+  if (!delta) {
+    delta = 1;
+  }
+  const invRange = 1 / delta;
+
+  if (
+    ctx &&
+    ctx.device &&
+    typeof GPUTexture !== "undefined" &&
+    width > 0 &&
+    height > 0 &&
+    channelCount > 0
+  ) {
+    const tex = ensureTextureTensor(tensor);
+    if (tex?.handle instanceof GPUTexture) {
+      try {
+        const outBuf = ctx.createGPUBuffer(
+          new Float32Array(totalElements),
+          GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        );
+        const paramsBuf = ctx.createGPUBuffer(
+          new Float32Array([width, height, channelCount, a, invRange, 0, 0, 0]),
+          GPUBufferUsage.UNIFORM,
+        );
+        await ctx.runCompute(
+          SMOOTHSTEP_WGSL,
+          [
+            { binding: 0, resource: tex.handle.createView() },
+            { binding: 1, resource: { buffer: outBuf } },
+            { binding: 2, resource: { buffer: paramsBuf } },
+          ],
+          Math.ceil(width / 8),
+          Math.ceil(height / 8),
+        );
+        return new Tensor(ctx, outBuf, shape);
+      } catch (e) {
+        console.warn("WebGPU smoothstep fallback to CPU", e);
+      }
+    }
+  }
+
   const src = await tensor.read();
   const out = new Float32Array(src.length);
-  const inv = 1 / (b - a || 1);
   for (let i = 0; i < src.length; i++) {
-    let t = (src[i] - a) * inv;
+    let t = (src[i] - a) * invRange;
     if (t < 0) t = 0;
     else if (t > 1) t = 1;
     out[i] = t * t * (3 - 2 * t);
   }
-  return Tensor.fromArray(tensor.ctx, out, shape);
+  return Tensor.fromArray(ctx, out, shape);
 }
 register("smoothstep", smoothstep, { a: 0, b: 1 });
 
