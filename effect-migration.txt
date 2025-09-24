@@ -19,7 +19,6 @@ expand_tile
 false_color
 fibers
 frame
-fxaa
 glitch
 glyph_map
 inner_tile
