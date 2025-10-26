@@ -74,7 +74,14 @@ Full documentation, including the complete API reference and preset guide, is av
 
 Issues and pull requests are welcome! Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before contributing. Run the test suite with `pytest` before submitting changes.
 
+## Ports
+
+This document is for the Python version of Noisedeck.
+
+For Javascript, see the [Javascript README](js/README-JS.md).
+
+For WGSL shaders, see the [Shaders README](shaders/README-SHADERS.md).
+
 ## License
 
 Noisemaker is released under the [Apache 2.0 License](LICENSE).
-

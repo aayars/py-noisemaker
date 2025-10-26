@@ -1,0 +1,14 @@
+{
+  "basic": {
+    "effects": [],
+    "rng_calls": 2
+  },
+  "worms": {
+    "effects": ["worms", "fxaa"],
+    "rng_calls": 264
+  },
+  "voronoi": {
+    "effects": ["voronoi"],
+    "rng_calls": 340
+  }
+}

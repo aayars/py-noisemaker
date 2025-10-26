@@ -1,0 +1,134 @@
+{
+  "id": "ripple",
+  "label": "Ripple",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/ripple/ripple.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_texture": {
+      "kind": "storageTexture",
+      "format": "rgba32float"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    },
+    "reference_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the ripple effect on or off."
+    },
+    {
+      "name": "freq",
+      "type": "float",
+      "default": 3.0,
+      "min": 1.0,
+      "max": 16.0,
+      "step": 0.5,
+      "label": "Frequency",
+      "description": "Ripple frequency."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 0.025,
+      "min": 0.0,
+      "max": 0.5,
+      "step": 0.001,
+      "label": "Displacement",
+      "description": "Ripple displacement strength."
+    },
+    {
+      "name": "kink",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 32.0,
+      "step": 0.5,
+      "label": "Kink",
+      "description": "Ripple kink factor."
+    },
+    {
+      "name": "spline_order",
+      "type": "int",
+      "default": 3,
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "label": "Spline Order",
+      "description": "Interpolation order (0=constant, 1=linear, 2=cosine, 3=bicubic)."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time parameter."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "freq": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "displacement": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "kink": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "spline_order": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 8
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "sine",
+  "label": "Sine",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/sine/sine.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the sine effect on or off."
+    },
+    {
+      "name": "amount",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Amount",
+      "description": "Sine wave amplitude."
+    },
+    {
+      "name": "rgb",
+      "type": "boolean",
+      "default": false,
+      "label": "RGB",
+      "description": "Apply per-channel RGB sine."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time parameter."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "amount": "params.amount",
+    "rgb": "params.rgb",
+    "time": "params.time",
+    "speed": "params.speed"
+  }
+}

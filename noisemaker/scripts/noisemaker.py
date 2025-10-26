@@ -12,10 +12,9 @@ import tensorflow as tf
 
 from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
 from noisemaker.constants import ColorSpace, ValueDistribution
-from noisemaker.presets import PRESETS
+from noisemaker.presets import PRESETS, Preset
 
 import noisemaker.ai as ai
-import noisemaker.dreamer as dreamer
 import noisemaker.cli as cli
 import noisemaker.generators as generators
 import noisemaker.effects as effects
@@ -56,7 +55,7 @@ def main():
 @click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
 @click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
 @click.option('--debug-out', help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
-@click.argument('preset_name', type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
+@click.argument('preset_name')
 @click.pass_context
 def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale,
              with_alt_text, stability_model, debug_print, debug_out, preset_name):
@@ -64,12 +63,23 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
-    reload_presets(PRESETS)
+    presets = PRESETS()
 
     if preset_name == "random":
-        preset_name = list(GENERATOR_PRESETS)[random.randint(0, len(GENERATOR_PRESETS) - 1)]
-
-    preset = GENERATOR_PRESETS[preset_name]
+        generator_presets = []
+        for name in presets:
+            try:
+                p = Preset(name)
+                if p.is_generator():
+                    generator_presets.append(p)
+            except Exception:
+                continue
+        preset = random.choice(generator_presets)
+        preset_name = preset.name
+    else:
+        if preset_name not in presets:
+            raise click.BadParameter(f"Unknown preset: {preset_name}")
+        preset = Preset(preset_name)
 
     if debug_print or debug_out:
         debug_text = _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model)
@@ -497,7 +507,7 @@ def magic_mashup(
                 speed=0.125
             )
 
-            control_img = collage_images.pop() if collage_images else tf.zeros(shape)
+            control_img = collage_images.pop() if collage_images else tf.zeros(shape, dtype=tf.float32)
             control = value.value_map(control_img, shape, keepdims=True)
             control = value.convolve(
                 kernel=effects.ValueMask.conv2d_blur,
@@ -652,15 +662,3 @@ def _use_reasonable_speed(preset, frame_count):
     """Return a reasonable speed parameter for the given animation length."""
 
     return preset.settings.get("speed", 0.25) * (frame_count / 50.0)
-
-
-@main.command(help="Let the machine dream whatever it wants")
-@cli.width_option()
-@cli.height_option()
-@cli.filename_option(default='dream.png')
-def dream(width, height, filename):
-    name, prompt, description = dreamer.dream(width, height, filename=filename)
-
-    print(name)
-    print(prompt)
-    print(description)

@@ -1,0 +1,33 @@
+{
+  "id": "vhs",
+  "label": "VHS",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/vhs/vhs.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the VHS tracking effect on or off."
+    }
+  ],
+  "parameterBindings": {}
+}

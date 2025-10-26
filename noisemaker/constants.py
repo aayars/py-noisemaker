@@ -108,10 +108,10 @@ class ValueDistribution(Enum):
 
     .. code-block:: python
 
-       image = basic(freq, [height, width, channels], distrib=ValueDistribution.uniform)
+       image = basic(freq, [height, width, channels], distrib=ValueDistribution.simplex)
     """
 
-    uniform = 1
+    simplex = 1
     exp = 2
 
     @classmethod
@@ -142,20 +142,10 @@ class ValueDistribution(Enum):
     def is_center_distance(cls, member):
         return member and (member.value >= 20) and (member.value < 40)
 
-    scan_up = 40
-    scan_down = 41
-    scan_left = 42
-    scan_right = 43
-
-    @classmethod
-    def is_scan(cls, member):
-        return member and (member.value >= 40) and (member.value < 50)
-
     @classmethod
     def is_native_size(cls, member):
         """The noise type is generated at full-size, rather than upsampled."""
-        return cls.is_center_distance(member) \
-            or cls.is_scan(member)
+        return cls.is_center_distance(member)
 
 
 class ValueMask(Enum):

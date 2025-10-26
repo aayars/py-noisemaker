@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+
+    To view the Noisemaker demos, launch a local HTTP server from the repository root, e.g.:
+
+      python3 -m http.server 8080
+
+    ...and visit http://localhost:8080/demo/ in a web browser.
+
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>noisemaker demos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./common.css" />
+</head>
+<body class="landing-page">
+  <main class="landing-shell">
+    <header>
+      <h1>noisemaker js demos</h1>
+    </header>
+    <section class="demo-grid">
+      <a class="demo-card" href="js/">
+        <span class="demo-name">js demo</span>
+        <span class="demo-summary">presets in javascript<br>(cpu only)</span>
+      </a>
+      <a class="demo-card" href="gpu-effects/">
+        <span class="demo-name">wgsl demo</span>
+        <span class="demo-summary">webgpu shader effects</span>
+      </a>
+    </section>
+    <footer class="landing-footer">
+      <span>Tip:</span> open the browser console for additional diagnostics while experimenting.
+    </footer>
+  </main>
+</body>
+</html>

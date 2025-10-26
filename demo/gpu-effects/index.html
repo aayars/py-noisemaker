@@ -1,0 +1,1423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Noisemaker WebGPU Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../common.css" />
+  <style>
+    :root {
+      --ui-accent: color-mix(in srgb, var(--accent3) 80%, var(--color7) 20%);
+      --ui-neutral: var(--color6);
+      --module-shared-accent: color-mix(in srgb, var(--accent1) 85%, var(--color6) 15%);
+      --surface-opacity: 85%;
+      --surface-transparency: 15%;
+      --glass-blur-strength: blur(20px);
+      --module-surface-opacity: 50%;
+      --module-surface-transparency: 50%;
+      --module-header-opacity: 29%;
+      --module-header-transparency: 71%;
+      --ui-corner-radius: 0.5rem;
+      --ui-corner-radius-small: 0.375rem;
+      --ui-corner-radius-large: 0.75rem;
+      --ui-corner-radius-pill: 999px;
+      --ui-chrome-highlight-blend: 86%;
+      --ui-chrome-highlight-tint: 14%;
+      --ui-chrome-shadow-blend: 72%;
+      --ui-chrome-shadow-shade: 28%;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      transition: background-color 0.3s ease;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Nunito, sans-serif;
+      font-weight: 580;
+      font-stretch: 108%;
+      font-variation-settings: 'wght' 580;
+      letter-spacing: 0.01em;
+      background: var(--color1);
+      color: var(--color6);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      text-size-adjust: none;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    #app-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    /* Fixed canvas mode (default) */
+    body.fixed-canvas-mode #canvas-container,
+    body:not(.full-bleed-mode) #canvas-container {
+      left: 440px;
+      width: calc(100vw - 440px);
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+
+    body.fixed-canvas-mode #canvas,
+    body:not(.full-bleed-mode) #canvas {
+      /* Scale to fit available space while maintaining 1:1 aspect ratio */
+      width: min(calc(100vw - 440px - 4rem), calc(100vh - 4rem));
+      height: min(calc(100vw - 440px - 4rem), calc(100vh - 4rem));
+      max-width: 100%;
+      max-height: 100%;
+      border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Full bleed mode */
+    body.full-bleed-mode #canvas-container {
+      justify-content: center;
+    }
+
+    body.full-bleed-mode #canvas {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas {
+      /* Checkerboard pattern to show alpha transparency */
+      background: 
+        repeating-conic-gradient(
+          color-mix(in srgb, var(--color2) 60%, var(--color1) 40%) 0% 25%, 
+          color-mix(in srgb, var(--color3) 50%, var(--color2) 50%) 0% 50%
+        ) 
+        50% / 20px 20px;
+    }
+
+    #left-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0;
+      background: transparent;
+      backdrop-filter: none;
+      border: none;
+      z-index: 100;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+    }
+
+    #left-panel::-webkit-scrollbar {
+      display: none; /* Chrome/Safari/Opera */
+    }
+
+    .shader-module {
+      background: color-mix(
+        in srgb,
+        var(--color2) var(--module-surface-opacity),
+        transparent var(--module-surface-transparency)
+      );
+      backdrop-filter: var(--glass-blur-strength);
+      border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      border-radius: var(--ui-corner-radius);
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .module-title {
+      background: color-mix(
+        in srgb,
+        var(--module-shared-accent) var(--module-header-opacity),
+        transparent var(--module-header-transparency)
+      );
+      border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      padding: 0.625em 0.875em;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-variation-settings: 'wght' 700;
+      color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
+      text-transform: lowercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.5em;
+    }
+
+    .module-title:hover {
+      background: color-mix(
+        in srgb,
+        var(--module-shared-accent) calc(var(--module-header-opacity) + 5%),
+        transparent calc(var(--module-header-transparency) - 5%)
+      );
+    }
+
+    .module-title::before {
+      content: '▼';
+      font-size: 0.65rem;
+      transition: transform 0.2s ease;
+      order: -1;
+    }
+
+    .shader-module.collapsed .module-title::before {
+      transform: rotate(-90deg);
+    }
+
+    .module-content {
+      padding: 0.5rem;
+    }
+
+    .shader-module.collapsed .module-content {
+      display: none;
+    }
+
+    #status {
+      display: none;
+      min-height: 20px;
+      font-size: 13px;
+      color: #8fa8ff;
+    }
+
+    #controls {
+      background: transparent;
+      border: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+      border-radius: var(--ui-corner-radius);
+      padding: 0.75rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .control-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .control-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      font-variation-settings: 'wght' 600;
+      color: color-mix(in srgb, var(--color6) 85%, var(--accent3) 15%);
+      text-transform: lowercase;
+      letter-spacing: 0.03em;
+    }
+
+    .control-value {
+      font-size: 0.625rem;
+      font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+      color: color-mix(in srgb, var(--color5) 90%, var(--accent3) 10%);
+    }
+
+    .control-slider {
+      width: 100%;
+      height: 1.125rem;
+      -webkit-appearance: none;
+      appearance: none;
+      background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+      border-radius: var(--ui-corner-radius-small);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .control-slider:hover {
+      background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+    }
+
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 0.875rem;
+      height: 0.875rem;
+      border-radius: 50%;
+      background: var(--accent3);
+      cursor: pointer;
+      border: 2px solid color-mix(in srgb, var(--accent3) 100%, var(--color7) 0%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .control-slider:hover::-webkit-slider-thumb {
+      background: color-mix(in srgb, var(--accent3) 85%, var(--color7) 15%);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    .control-slider::-moz-range-thumb {
+      width: 0.875rem;
+      height: 0.875rem;
+      border-radius: 50%;
+      background: var(--accent3);
+      cursor: pointer;
+      border: 2px solid color-mix(in srgb, var(--accent3) 100%, var(--color7) 0%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .control-slider:hover::-moz-range-thumb {
+      background: color-mix(in srgb, var(--accent3) 85%, var(--color7) 15%);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    .control-select {
+      width: 100%;
+      padding: 0.25rem 0.375rem;
+      background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+      border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      border-radius: var(--ui-corner-radius-small);
+      color: var(--color6);
+      font-family: Nunito, sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 560;
+      font-variation-settings: 'wght' 560;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .control-select:hover {
+      background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+      border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+    }
+
+    .control-select:focus {
+      border-color: var(--accent3);
+      background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+    }
+
+    #button-group {
+      background: color-mix(
+        in srgb,
+        var(--color2) var(--module-surface-opacity),
+        transparent var(--module-surface-transparency)
+      );
+      backdrop-filter: var(--glass-blur-strength);
+      border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      border-radius: var(--ui-corner-radius);
+      padding: 0.75rem;
+    }
+
+    #controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    #effect-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      padding: 0;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    button {
+      padding: 0.5em 0.75em;
+      border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+      border-radius: var(--ui-corner-radius-small);
+      background: color-mix(in srgb, var(--module-shared-accent) 15%, transparent 85%);
+      color: color-mix(in srgb, var(--color6) 85%, var(--accent3) 15%);
+      font-family: Nunito, sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      font-variation-settings: 'wght' 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: color-mix(in srgb, var(--module-shared-accent) 25%, transparent 75%);
+      border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+    }
+
+    button:active {
+      background: color-mix(in srgb, var(--module-shared-accent) 35%, transparent 65%);
+      transform: translateY(1px);
+    }
+
+    /* Scrollbar styling for left panel */
+    #left-panel::-webkit-scrollbar {
+      width: 0.5rem;
+    }
+
+    #left-panel::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--accent3) 5%, transparent 95%);
+      border-radius: var(--ui-corner-radius-small);
+    }
+
+    #left-panel::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+      border-radius: var(--ui-corner-radius-small);
+      transition: background 0.15s ease;
+    }
+
+    #left-panel::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+    }
+    
+    #multires-module .module-content,
+    #effect-module .module-content {
+      padding: 0.25rem 0.375rem 0.625rem;
+    }
+
+    #multires-module #controls {
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      gap: 0.375rem;
+    }
+
+    .effect-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .effect-selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .effect-selector-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-variation-settings: 'wght' 700;
+      text-transform: lowercase;
+      letter-spacing: 0.04em;
+      color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
+    }
+    
+    .effect-selector {
+      flex: 0 0 auto;
+      width: 140px;
+      min-width: 120px;
+      appearance: none;
+      background: color-mix(in srgb, var(--color1) 35%, transparent 65%);
+      border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+      border-radius: var(--ui-corner-radius-small);
+      color: var(--color6);
+      font-family: Nunito, sans-serif;
+      font-size: 0.75rem;
+      font-weight: 560;
+      font-variation-settings: 'wght' 560;
+      padding: 0.375rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .effect-selector:hover {
+      background: color-mix(in srgb, var(--color1) 45%, transparent 55%);
+      border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+    }
+
+    .effect-selector:focus {
+      border-color: var(--accent3);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+      outline: none;
+    }
+
+    .effect-enable-toggle {
+      appearance: none;
+      width: 2.25em;
+      height: 1.15em;
+      background: color-mix(in srgb, var(--color1) 55%, transparent 45%);
+      border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+      border-radius: var(--ui-corner-radius-pill);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .effect-enable-toggle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0.2em;
+      width: 0.9em;
+      height: 0.9em;
+      border-radius: 50%;
+      background: var(--color6);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      transform: translate(0, -50%);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .effect-enable-toggle:hover {
+      background: color-mix(in srgb, var(--color1) 65%, transparent 35%);
+      border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+    }
+
+    .effect-enable-toggle:checked {
+      background: color-mix(in srgb, var(--module-shared-accent) 45%, transparent 55%);
+      border-color: color-mix(in srgb, var(--accent3) 55%, transparent 45%);
+    }
+
+    .effect-enable-toggle:checked::after {
+      transform: translate(1.05em, -50%);
+      background: var(--color1);
+    }
+
+    .effect-enable-toggle:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--accent3) 75%, transparent 25%);
+      outline-offset: 2px;
+    }
+
+    .effect-enable-toggle:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .effect-enable-toggle.is-hidden {
+      visibility: hidden;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <div id="left-panel">
+      <div id="button-group">
+        <div class="button-row">
+          <button id="reset-btn">reset</button>
+          <button id="randomize-btn">randomize</button>
+          <button id="view-mode-btn">fixed canvas</button>
+        </div>
+      </div>
+
+  <div class="shader-module" id="multires-module">
+        <div class="module-title">multires</div>
+        <div class="module-content">
+          <form id="multires-form">
+          <div id="controls">
+            <div class="control-group">
+              <div class="control-header">
+                <label for="octaves-slider" class="control-label">octaves</label>
+                <span id="octaves-value" class="control-value"></span>
+              </div>
+              <input type="range" id="octaves-slider" class="control-slider" min="1" max="8" step="1">
+            </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="freqx-slider" class="control-label">frequency x</label>
+            <span id="freqx-value" class="control-value"></span>
+          </div>
+          <input type="range" id="freqx-slider" class="control-slider" min="1" max="10" step="1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="freqy-slider" class="control-label">frequency y</label>
+            <span id="freqy-value" class="control-value"></span>
+          </div>
+          <input type="range" id="freqy-slider" class="control-slider" min="1" max="10" step="1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="ridges-slider" class="control-label">ridges</label>
+            <span id="ridges-value" class="control-value">Off</span>
+          </div>
+          <input type="range" id="ridges-slider" class="control-slider" min="0" max="1" step="1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="sin-slider" class="control-label">sin amount</label>
+            <span id="sin-value" class="control-value">0.0</span>
+          </div>
+          <input type="range" id="sin-slider" class="control-slider" min="0" max="1" step="0.1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="distrib-select" class="control-label">distribution</label>
+          </div>
+          <select id="distrib-select" class="control-select">
+            <option value="0">None</option>
+            <option value="1" selected>Simplex</option>
+            <option value="2">Exp</option>
+            <option value="5">Ones</option>
+            <option value="6">Mids</option>
+            <option value="7">Zeros</option>
+            <option value="10">Column Index</option>
+            <option value="11">Row Index</option>
+            <option value="20">Center Circle</option>
+            <option value="21">Center Diamond</option>
+            <option value="23">Center Triangle</option>
+            <option value="24">Center Square</option>
+            <option value="25">Center Pentagon</option>
+            <option value="26">Center Hexagon</option>
+            <option value="27">Center Heptagon</option>
+            <option value="28">Center Octagon</option>
+            <option value="29">Center Nonagon</option>
+            <option value="30">Center Decagon</option>
+            <option value="31">Center Hendecagon</option>
+            <option value="32">Center Dodecagon</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="interp-select" class="control-label">interpolation</label>
+          </div>
+          <select id="interp-select" class="control-select">
+            <option value="0">Constant</option>
+            <option value="1">Linear</option>
+            <option value="2">Cosine</option>
+            <option value="3">Bicubic</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="corners-slider" class="control-label">corners</label>
+            <span id="corners-value" class="control-value">On</span>
+          </div>
+          <input type="range" id="corners-slider" class="control-slider" min="0" max="1" step="1" value="1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="mask-slider" class="control-label">mask</label>
+            <span id="mask-value" class="control-value">On</span>
+          </div>
+          <input type="range" id="mask-slider" class="control-slider" min="0" max="1" step="1" value="1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="mask-inverse-slider" class="control-label">mask inverse</label>
+            <span id="mask-inverse-value" class="control-value">Off</span>
+          </div>
+          <input type="range" id="mask-inverse-slider" class="control-slider" min="0" max="1" step="1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="mask-static-slider" class="control-label">mask static</label>
+            <span id="mask-static-value" class="control-value">Off</span>
+          </div>
+          <input type="range" id="mask-static-slider" class="control-slider" min="0" max="1" step="1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="lattice-drift-slider" class="control-label">lattice drift</label>
+            <span id="lattice-drift-value" class="control-value">0.0</span>
+          </div>
+          <input type="range" id="lattice-drift-slider" class="control-slider" min="0" max="2" step="0.1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="colorspace-select" class="control-label">color space</label>
+          </div>
+          <select id="colorspace-select" class="control-select">
+            <option value="1">Grayscale</option>
+            <option value="11">RGB</option>
+            <option value="21" selected>HSV</option>
+            <option value="31">Oklab</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="saturation-slider" class="control-label">saturation</label>
+            <span id="saturation-value" class="control-value">1.0</span>
+          </div>
+          <input type="range" id="saturation-slider" class="control-slider" min="0" max="2" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="hue-rotation-slider" class="control-label">hue rotation</label>
+            <span id="hue-rotation-value" class="control-value">0.00</span>
+          </div>
+          <input type="range" id="hue-rotation-slider" class="control-slider" min="-1" max="1" step="0.01" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="hue-range-slider" class="control-label">hue range</label>
+            <span id="hue-range-value" class="control-value">0.50</span>
+          </div>
+          <input type="range" id="hue-range-slider" class="control-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="hue-distrib-select" class="control-label">hue distribution</label>
+          </div>
+          <select id="hue-distrib-select" class="control-select">
+            <option value="0" selected>None</option>
+            <option value="1">Simplex</option>
+            <option value="2">Exp</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="saturation-distrib-select" class="control-label">saturation distrib</label>
+          </div>
+          <select id="saturation-distrib-select" class="control-select">
+            <option value="0" selected>None</option>
+            <option value="1">Simplex</option>
+            <option value="2">Exp</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="brightness-distrib-select" class="control-label">brightness distrib</label>
+          </div>
+          <select id="brightness-distrib-select" class="control-select">
+            <option value="0" selected>None</option>
+            <option value="1">Simplex</option>
+            <option value="2">Exp</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="brightness-freq-slider" class="control-label">brightness freq</label>
+            <span id="brightness-freq-value" class="control-value">0.0</span>
+          </div>
+          <input type="range" id="brightness-freq-slider" class="control-slider" min="0" max="10" step="1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="octave-blending-select" class="control-label">octave blending</label>
+          </div>
+          <select id="octave-blending-select" class="control-select">
+            <option value="0" selected>Falloff</option>
+            <option value="10">Reduce Max</option>
+            <option value="20">Alpha</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="with-alpha-slider" class="control-label">with alpha</label>
+            <span id="with-alpha-value" class="control-value">Off</span>
+          </div>
+          <input type="range" id="with-alpha-slider" class="control-slider" min="0" max="1" step="1" value="0">
+        </div>
+
+        <div class="control-group">
+          <div class="control-header">
+            <label for="speed-slider" class="control-label">speed</label>
+            <span id="speed-value" class="control-value">0.10</span>
+          </div>
+          <input type="range" id="speed-slider" class="control-slider" min="0" max="2" step="0.05" value="0.1">
+        </div>
+          </div>
+        </div>
+      </div>
+
+  <div class="shader-module" id="effect-module">
+        <div class="module-title" style="justify-content: space-between;">
+          <div class="effect-toolbar" style="flex: 1; display: flex; align-items: center; gap: 0.5em;">
+            <div class="effect-selector-group">
+              <span class="effect-selector-label">effect</span>
+              <select id="effect-selector" class="effect-selector"></select>
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            id="effect-enable-toggle"
+            class="effect-enable-toggle"
+            aria-label="Toggle effect"
+            title="Toggle effect"
+          />
+        </div>
+        <div class="module-content">
+          <div id="effect-controls"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <canvas id="canvas" width="512" height="512"></canvas>
+      <div id="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+  <script type="module">
+  import EffectUIGenerator from './effect-ui-generator.js';
+  import {
+    runMultiresGenerator,
+    updateParams,
+    setActiveEffect,
+    updateActiveEffectParams,
+    getRegisteredEffects,
+    getActiveEffectMetadata,
+    getActiveEffectUIState,
+    createDefaultMultiresParams,
+  } from './main.js';
+
+  const ENABLE_PARAM_NAME = 'enabled';
+
+  let animationHandle = null;
+    let currentSeed = Date.now() & 0xFFFFFF;
+    let currentSpeed = 0.1;
+    let startTime = performance.now();
+    let currentTime = 0.0;
+    let frameIndex = 0;
+  let currentEffectMetadata = null;
+  let currentEffectHasEnabled = false;
+  let currentEffectEnabledDefault = true;
+
+    // Safe re-render helper - catches errors and logs them
+    async function safeRerender() {
+      if (!animationHandle && currentSpeed === 0) {
+        try {
+          await runMultiresGenerator({ seed: currentSeed, time: 0.0, frameIndex: 0 });
+        } catch (error) {
+          console.error('Re-render failed:', error);
+        }
+      }
+    }
+
+    // Animation loop - async to properly catch errors
+    async function animate() {
+      if (currentSpeed > 0) {
+        const elapsed = (performance.now() - startTime) / 1000.0;
+        currentTime = elapsed * currentSpeed;
+        frameIndex++;
+        
+        try {
+          await runMultiresGenerator({ seed: currentSeed, time: currentTime, frameIndex });
+          
+          // Only schedule next frame if render succeeded and speed still > 0
+          if (currentSpeed > 0) {
+            animationHandle = requestAnimationFrame(animate);
+          }
+        } catch (error) {
+          console.error('Animation stopped due to error:', error);
+          if (animationHandle) {
+            cancelAnimationFrame(animationHandle);
+            animationHandle = null;
+          }
+          currentSpeed = 0;
+          const speedSlider = document.getElementById('speed-slider');
+          const speedValue = document.getElementById('speed-value');
+          if (speedSlider) speedSlider.value = '0';
+          if (speedValue) speedValue.textContent = '0.00';
+        }
+      }
+    }
+
+    // Get DOM elements first
+    const octavesSlider = document.getElementById('octaves-slider');
+    const octavesValue = document.getElementById('octaves-value');
+    const freqxSlider = document.getElementById('freqx-slider');
+    const freqxValue = document.getElementById('freqx-value');
+    const freqySlider = document.getElementById('freqy-slider');
+    const freqyValue = document.getElementById('freqy-value');
+    const interpSelect = document.getElementById('interp-select');
+
+    // Read defaults dynamically from createDefaultMultiresParams()
+    const defaultParams = createDefaultMultiresParams();
+    const freqX = defaultParams[0];
+    const freqY = defaultParams[1];
+    const octaves = defaultParams[2];
+    const splineOrder = defaultParams[5];
+    
+    octavesSlider.value = String(octaves);
+    octavesValue.textContent = String(octaves);
+    freqxSlider.value = String(freqX);
+    freqxValue.textContent = freqX.toFixed(1);
+    freqySlider.value = String(freqY);
+    freqyValue.textContent = freqY.toFixed(1);
+    interpSelect.value = String(splineOrder);
+
+    // Initial render
+    runMultiresGenerator({ seed: currentSeed, time: 0.0, frameIndex: 0 })
+      .catch(error => {
+        console.error('Initial render failed:', error);
+      });
+    
+    // Start animation if speed > 0
+    if (currentSpeed > 0) {
+      animate();
+    }
+
+    // Initialize UI labels to match control values
+    document.getElementById('with-alpha-value').textContent = 
+      document.getElementById('with-alpha-slider').value === '1' ? 'On' : 'Off';
+
+    // Wire up sliders
+    const ridgesSlider = document.getElementById('ridges-slider');
+    const ridgesValue = document.getElementById('ridges-value');
+    const sinSlider = document.getElementById('sin-slider');
+    const sinValue = document.getElementById('sin-value');
+    const distribSelect = document.getElementById('distrib-select');
+    const distribValue = document.getElementById('distrib-value');
+
+    octavesSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      octavesValue.textContent = String(value);
+      await updateParams({ octaves: value });
+      await safeRerender();
+    });
+
+    freqxSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      freqxValue.textContent = value.toFixed(1);
+      await updateParams({ freqx: value });
+      await safeRerender();
+    });
+
+    freqySlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      freqyValue.textContent = value.toFixed(1);
+      await updateParams({ freqy: value });
+      await safeRerender();
+    });
+
+    ridgesSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      ridgesValue.textContent = value === 1 ? 'On' : 'Off';
+      await updateParams({ ridges: Boolean(value) });
+      await safeRerender();
+    });
+
+    sinSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      sinValue.textContent = value.toFixed(1);
+      await updateParams({ sinAmount: value });
+      await safeRerender();
+    });
+
+    distribSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      console.log(`Distribution select: value=${value}`);
+      await updateParams({ distrib: value });
+      await safeRerender();
+    });
+
+    interpSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      await updateParams({ splineOrder: value });
+      await safeRerender();
+    });
+
+    // New controls
+    const cornersSlider = document.getElementById('corners-slider');
+    const cornersValue = document.getElementById('corners-value');
+    const maskSlider = document.getElementById('mask-slider');
+    const maskValue = document.getElementById('mask-value');
+    const colorspaceSelect = document.getElementById('colorspace-select');
+    const saturationSlider = document.getElementById('saturation-slider');
+    const saturationValue = document.getElementById('saturation-value');
+    const hueRotationSlider = document.getElementById('hue-rotation-slider');
+    const hueRotationValue = document.getElementById('hue-rotation-value');
+    const hueRangeSlider = document.getElementById('hue-range-slider');
+    const hueRangeValue = document.getElementById('hue-range-value');
+    const brightnessFreqSlider = document.getElementById('brightness-freq-slider');
+    const brightnessFreqValue = document.getElementById('brightness-freq-value');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedValue = document.getElementById('speed-value');
+
+    cornersSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      cornersValue.textContent = value === 1 ? 'On' : 'Off';
+      await updateParams({ corners: Boolean(value) });
+      await safeRerender();
+    });
+
+    maskSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      maskValue.textContent = value === 1 ? 'On' : 'Off';
+      await updateParams({ mask: Boolean(value) });
+      await safeRerender();
+    });
+
+    const maskInverseSlider = document.getElementById('mask-inverse-slider');
+    const maskInverseValue = document.getElementById('mask-inverse-value');
+    const maskStaticSlider = document.getElementById('mask-static-slider');
+    const maskStaticValue = document.getElementById('mask-static-value');
+    const latticeDriftSlider = document.getElementById('lattice-drift-slider');
+    const latticeDriftValue = document.getElementById('lattice-drift-value');
+
+    maskInverseSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      maskInverseValue.textContent = value === 1 ? 'On' : 'Off';
+      await updateParams({ maskInverse: Boolean(value) });
+      await safeRerender();
+    });
+
+    maskStaticSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      maskStaticValue.textContent = value === 1 ? 'On' : 'Off';
+      await updateParams({ maskStatic: Boolean(value) });
+      await safeRerender();
+    });
+
+    latticeDriftSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      latticeDriftValue.textContent = value.toFixed(1);
+      await updateParams({ latticeDrift: value });
+      await safeRerender();
+    });
+
+    colorspaceSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      await updateParams({ colorSpace: value });
+      await safeRerender();
+    });
+
+    saturationSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      saturationValue.textContent = value.toFixed(1);
+      await updateParams({ saturation: value });
+      await safeRerender();
+    });
+
+    hueRotationSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      hueRotationValue.textContent = value.toFixed(2);
+      await updateParams({ hueRotation: value });
+      await safeRerender();
+    });
+
+    hueRangeSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      hueRangeValue.textContent = value.toFixed(2);
+      await updateParams({ hueRange: value });
+      await safeRerender();
+    });
+
+    const hueDistribSelect = document.getElementById('hue-distrib-select');
+    const saturationDistribSelect = document.getElementById('saturation-distrib-select');
+    const brightnessDistribSelect = document.getElementById('brightness-distrib-select');
+
+    hueDistribSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      await updateParams({ hueDistrib: value });
+      await safeRerender();
+    });
+
+    saturationDistribSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      await updateParams({ saturationDistrib: value });
+      await safeRerender();
+    });
+
+    brightnessDistribSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      await updateParams({ brightnessDistrib: value });
+      await safeRerender();
+    });
+
+    brightnessFreqSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      brightnessFreqValue.textContent = value.toFixed(1);
+      await updateParams({ brightnessFreq: value });
+      await safeRerender();
+    });
+
+    const octaveBlendingSelect = document.getElementById('octave-blending-select');
+    const withAlphaSlider = document.getElementById('with-alpha-slider');
+    const withAlphaValue = document.getElementById('with-alpha-value');
+
+    const effectSelector = document.getElementById('effect-selector');
+    const effectControlsContainer = document.getElementById('effect-controls');
+    const effectEnableToggle = document.getElementById('effect-enable-toggle');
+    const effectUI = new EffectUIGenerator(effectControlsContainer, {
+      onChange: async (name, value) => {
+        await updateActiveEffectParams({ [name]: value });
+        await safeRerender();
+      },
+    });
+
+    async function syncEffectUI(effectId) {
+      const metadata = getActiveEffectMetadata(effectId) ?? {};
+      currentEffectMetadata = metadata;
+
+      const initialState = (await getActiveEffectUIState()) ?? {};
+      effectUI.render(metadata, initialState);
+
+      const parameters = Array.isArray(metadata.parameters) ? metadata.parameters : [];
+      const hasEnabledParam = parameters.some((param) => param.name === ENABLE_PARAM_NAME);
+      currentEffectHasEnabled = hasEnabledParam;
+
+
+      const enabledDefault = getEnabledDefault(metadata);
+      currentEffectEnabledDefault = enabledDefault;
+      const enabledState = typeof initialState.enabled !== 'undefined'
+        ? Boolean(initialState.enabled)
+        : enabledDefault;
+
+      if (effectEnableToggle) {
+        if (hasEnabledParam) {
+          effectEnableToggle.checked = enabledState;
+          effectEnableToggle.disabled = false;
+          effectEnableToggle.classList.remove('is-hidden');
+          effectEnableToggle.removeAttribute('aria-hidden');
+        } else {
+          effectEnableToggle.checked = true;
+          effectEnableToggle.disabled = true;
+          effectEnableToggle.classList.add('is-hidden');
+          effectEnableToggle.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      const filteredMetadata = hasEnabledParam
+        ? { ...metadata, parameters: parameters.filter((param) => param.name !== ENABLE_PARAM_NAME) }
+        : metadata;
+
+      const initialValues = { ...initialState };
+      if (hasEnabledParam) {
+        delete initialValues.enabled;
+      }
+
+      effectUI.render(filteredMetadata, initialValues);
+    }
+
+    function getEnabledDefault(metadata) {
+      const parameters = Array.isArray(metadata?.parameters) ? metadata.parameters : [];
+      const enabledParam = parameters.find((param) => param.name === ENABLE_PARAM_NAME);
+      if (enabledParam && typeof enabledParam.default !== 'undefined') {
+        return Boolean(enabledParam.default);
+      }
+      return true;
+    }
+
+    async function initializeEffectSelector() {
+      const effects = getRegisteredEffects();
+      if (!effects.length) {
+        effectSelector.innerHTML = '<option value="" disabled>No effects available</option>';
+        effectSelector.disabled = true;
+        effectControlsContainer.textContent = 'No effects available.';
+        return;
+      }
+
+      effectSelector.innerHTML = '';
+      effects.forEach(({ id, label }) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = label ?? id;
+        effectSelector.appendChild(option);
+      });
+
+      const activeMetadata = getActiveEffectMetadata();
+      const initialId = activeMetadata?.id ?? effects[0]?.id;
+      if (initialId) {
+        effectSelector.value = initialId;
+        if (activeMetadata?.id !== initialId) {
+          await setActiveEffect(initialId);
+        }
+        await syncEffectUI(initialId);
+      }
+    }
+
+    effectSelector.addEventListener('change', async (event) => {
+      const effectId = event.target.value;
+      try {
+        await setActiveEffect(effectId);
+        await syncEffectUI(effectId);
+        const renderFrameIndex = animationHandle ? frameIndex : 0;
+        await runMultiresGenerator({ seed: currentSeed, time: currentTime, frameIndex: renderFrameIndex });
+      } catch (error) {
+        console.error('Failed to switch effect:', error);
+      }
+    });
+
+    if (effectEnableToggle) {
+      effectEnableToggle.addEventListener('change', async (event) => {
+        if (effectEnableToggle.disabled) {
+          return;
+        }
+        const enabled = Boolean(event.target.checked);
+        try {
+          await updateActiveEffectParams({ [ENABLE_PARAM_NAME]: enabled });
+          const renderFrameIndex = animationHandle ? frameIndex : 0;
+          await runMultiresGenerator({ seed: currentSeed, time: currentTime, frameIndex: renderFrameIndex });
+        } catch (error) {
+          console.error('Failed to toggle effect:', error);
+        }
+      });
+    }
+
+    initializeEffectSelector().catch((error) => {
+      console.error('Failed to initialize effects UI:', error);
+    });
+
+    octaveBlendingSelect.addEventListener('change', async (e) => {
+      const value = Number(e.target.value);
+      console.log(`Octave blending: value=${value}`);
+      await updateParams({ octaveBlending: value });
+      await safeRerender();
+    });
+
+    withAlphaSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      withAlphaValue.textContent = value === 1 ? 'On' : 'Off';
+      console.log(`With alpha: slider=${value}, boolean=${Boolean(value)}`);
+      await updateParams({ withAlpha: Boolean(value) });
+      await safeRerender();
+    });
+
+    speedSlider.addEventListener('input', async (e) => {
+      const value = Number(e.target.value);
+      speedValue.textContent = value.toFixed(2);
+      currentSpeed = value;
+      await updateParams({ speed: value });
+      
+      // Restart animation if speed changed
+      if (animationHandle) {
+        cancelAnimationFrame(animationHandle);
+        animationHandle = null;
+      }
+      
+      if (value > 0) {
+        startTime = performance.now();
+        currentTime = 0.0;
+        frameIndex = 0;
+        animate();
+      } else {
+        // Speed is 0, render once without animation
+        await safeRerender();
+      }
+    });
+
+    // Reset to defaults
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+      // Reset all inputs to their default values
+      const defaultParams = createDefaultMultiresParams();
+      
+      // freq_octaves_ridges: [freq_x=3, freq_y=3, octaves=1, ridges=0]
+      freqxSlider.value = String(defaultParams[0]);
+      freqxValue.textContent = defaultParams[0].toFixed(1);
+      freqySlider.value = String(defaultParams[1]);
+      freqyValue.textContent = defaultParams[1].toFixed(1);
+      octavesSlider.value = String(defaultParams[2]);
+      octavesValue.textContent = String(defaultParams[2]);
+      ridgesSlider.value = String(defaultParams[3]);
+      ridgesValue.textContent = defaultParams[3] === 1 ? 'On' : 'Off';
+      
+      // sin_spline_distrib_corners: [sin_amount=0, spline_order=3, distrib=1, corner_effect=0]
+      sinSlider.value = String(defaultParams[4]);
+      sinValue.textContent = defaultParams[4].toFixed(1);
+      interpSelect.value = String(defaultParams[5]);
+      distribSelect.value = String(defaultParams[6]);
+      cornersSlider.value = String(defaultParams[7]);
+      cornersValue.textContent = defaultParams[7] === 1 ? 'On' : 'Off';
+      
+      // mask_options: [mask_enabled=1, mask_inverse=0, mask_static=0, lattice_drift=0]
+      maskSlider.value = String(defaultParams[8]);
+      maskValue.textContent = defaultParams[8] === 1 ? 'On' : 'Off';
+      maskInverseSlider.value = String(defaultParams[9]);
+      maskInverseValue.textContent = defaultParams[9] === 1 ? 'On' : 'Off';
+      maskStaticSlider.value = String(defaultParams[10]);
+      maskStaticValue.textContent = defaultParams[10] === 1 ? 'On' : 'Off';
+      latticeDriftSlider.value = String(defaultParams[11]);
+      latticeDriftValue.textContent = defaultParams[11] === 1 ? 'On' : 'Off';
+      
+      // supersample_color: [supersample=0, color_space=21, reindex_range=0.5, pad=0]
+      colorspaceSelect.value = String(defaultParams[13]);
+      
+      // saturation_hue: [saturation_scale=1, hue_distrib=0, saturation_distrib=0, brightness_distrib=0]
+      saturationSlider.value = String(defaultParams[16]);
+      saturationValue.textContent = defaultParams[16].toFixed(2);
+      hueDistribSelect.value = String(defaultParams[17]);
+      saturationDistribSelect.value = String(defaultParams[18]);
+      brightnessDistribSelect.value = String(defaultParams[19]);
+      
+      // brightness_settings: [brightness_freq_x=0, brightness_freq_y=0, octave_blending=0, with_alpha=0]
+      brightnessFreqSlider.value = String(defaultParams[20]);
+      brightnessFreqValue.textContent = defaultParams[20].toFixed(1);
+      octaveBlendingSelect.value = String(defaultParams[22]);
+      withAlphaSlider.value = String(defaultParams[23]);
+      withAlphaValue.textContent = defaultParams[23] === 1 ? 'On' : 'Off';
+      
+      // speed_padding: [speed=0.1, pad=0, pad=0, pad=0]
+      speedSlider.value = String(defaultParams[28]);
+      speedValue.textContent = defaultParams[28].toFixed(1);
+      
+      // hue rotation and range (not in default params, reset to reasonable defaults)
+      hueRotationSlider.value = '0';
+      hueRotationValue.textContent = '0.0';
+      hueRangeSlider.value = '1';
+      hueRangeValue.textContent = '1.0';
+      
+      // Update GPU parameters
+      await updateParams({
+        freqx: defaultParams[0],
+        freqy: defaultParams[1],
+        octaves: defaultParams[2],
+        ridges: Boolean(defaultParams[3]),
+        sinAmount: defaultParams[4],
+        splineOrder: defaultParams[5],
+        distrib: defaultParams[6],
+        corners: Boolean(defaultParams[7]),
+        mask: Boolean(defaultParams[8]),
+        maskInverse: Boolean(defaultParams[9]),
+        maskStatic: Boolean(defaultParams[10]),
+        latticeDrift: Boolean(defaultParams[11]),
+        colorSpace: defaultParams[13],
+        saturation: defaultParams[16],
+        hueDistrib: defaultParams[17],
+        saturationDistrib: defaultParams[18],
+        brightnessDistrib: defaultParams[19],
+        brightnessFreq: defaultParams[20],
+        octaveBlending: defaultParams[22],
+        withAlpha: Boolean(defaultParams[23]),
+        speed: defaultParams[28],
+        hueRotation: 0,
+        hueRange: 1
+      });
+      
+      // Redraw canvas
+      await safeRerender();
+    });
+
+    // Randomize seed
+    document.getElementById('randomize-btn').addEventListener('click', async () => {
+      currentSeed = Date.now() & 0xFFFFFF;
+      // Restart animation if running, otherwise just render once
+      if (currentSpeed > 0) {
+        if (animationHandle) {
+          cancelAnimationFrame(animationHandle);
+        }
+        startTime = performance.now();
+        currentTime = 0.0;
+        frameIndex = 0;
+        animate();
+      } else {
+        await safeRerender();
+      }
+    });
+
+    // Toggle view mode between full bleed and fixed canvas (default: fixed)
+    let isFullBleedMode = false;
+    const viewModeBtn = document.getElementById('view-mode-btn');
+    
+    // Set initial button text
+    viewModeBtn.textContent = 'full bleed';
+    
+    viewModeBtn.addEventListener('click', async () => {
+      isFullBleedMode = !isFullBleedMode;
+      document.body.classList.toggle('full-bleed-mode', isFullBleedMode);
+      
+      // Dispatch resize event with forceImmediate flag
+      const resizeEvent = new CustomEvent('resize', { detail: { forceImmediate: true } });
+      window.dispatchEvent(resizeEvent);
+      
+      // Update button text with resolution after a brief delay for canvas to resize
+      setTimeout(() => {
+        const canvas = document.querySelector('canvas');
+        const mode = isFullBleedMode ? 'fixed canvas' : 'full bleed';
+        const res = canvas ? ` (${canvas.width}×${canvas.height})` : '';
+        viewModeBtn.textContent = mode + res;
+      }, 50);
+      
+      // Force immediate re-render with new canvas size
+      if (currentSpeed === 0) {
+        // If animation is paused, manually trigger a render
+        await safeRerender();
+      }
+      // If animation is running, the next frame will pick up the resize flag automatically
+    });
+
+    // Make module titles collapsible
+    document.querySelectorAll('.module-title').forEach(title => {
+      title.addEventListener('click', () => {
+        const module = title.closest('.shader-module');
+        module.classList.toggle('collapsed');
+      });
+    });
+
+    // Auto-detect theme based on system preference
+    function detectTheme() {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      
+      // Check if user has manually set a theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        if (savedTheme === 'light') {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      } else {
+        // Apply system preference
+        if (prefersLight) {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      }
+    }
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('theme')) {
+        if (e.matches) {
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+        }
+      }
+    });
+
+    // Apply theme on load
+    detectTheme();
+  </script>
+</body>
+</html>

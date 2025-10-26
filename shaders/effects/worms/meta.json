@@ -1,0 +1,120 @@
+{
+  "id": "worms",
+  "label": "Worms",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/worms/worms.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 64
+    },
+    "prev_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float",
+      "persistent": true
+    },
+    "agent_state_in": {
+      "kind": "readOnlyStorageBuffer",
+      "size": "custom",
+      "persistent": true
+    },
+    "agent_state_out": {
+      "kind": "storageBuffer",
+      "size": "custom",
+      "persistent": true
+    }
+  },
+  "temporal": {
+    "enabled": true,
+    "feedback": "prev_texture",
+    "agentBuffers": ["agent_state_in", "agent_state_out"]
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the worms effect on or off."
+    },
+    {
+      "name": "behavior",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "label": "Behavior",
+      "description": "Worm behavior pattern."
+    },
+    {
+      "name": "density",
+      "type": "float",
+      "default": 4.0,
+      "min": 0.1,
+      "max": 20.0,
+      "step": 0.1,
+      "label": "Density",
+      "description": "Worm density multiplier."
+    },
+    {
+      "name": "duration",
+      "type": "float",
+      "default": 4.0,
+      "min": 0.1,
+      "max": 20.0,
+      "step": 0.1,
+      "label": "Duration",
+      "description": "Iteration multiplier."
+    },
+    {
+      "name": "stride",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Stride",
+      "description": "Mean travel distance per iteration."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Fade worms."
+    },
+    {
+      "name": "kink",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Kink",
+      "description": "Make worms twist."
+    }
+  ],
+  "parameterBindings": {
+    "behavior": "params.behavior_density_duration_stride.x",
+    "density": "params.behavior_density_duration_stride.y",
+    "duration": "params.behavior_density_duration_stride.z",
+    "stride": "params.behavior_density_duration_stride.w",
+    "alpha": "params.stride_deviation_alpha_kink_drunkenness.y",
+    "kink": "params.stride_deviation_alpha_kink_drunkenness.z"
+  }
+}

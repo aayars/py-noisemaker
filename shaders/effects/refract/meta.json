@@ -1,0 +1,152 @@
+{
+  "id": "refract",
+  "label": "Refract",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/refract/refract.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    },
+    "reference_x_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "reference_y_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the refract effect on or off."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.01,
+      "label": "Displacement",
+      "description": "Strength of the refraction displacement."
+    },
+    {
+      "name": "warp",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 0.1,
+      "label": "Warp",
+      "description": "Warp spline order."
+    },
+    {
+      "name": "spline_order",
+      "type": "int",
+      "default": 3,
+      "min": 0,
+      "max": 5,
+      "step": 1,
+      "label": "Spline Order",
+      "description": "Spline interpolation order."
+    },
+    {
+      "name": "derivative",
+      "type": "int",
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "label": "Derivative",
+      "description": "Derivative order for warp computation."
+    },
+    {
+      "name": "range",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 4.0,
+      "step": 0.1,
+      "label": "Range",
+      "description": "Displacement range."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time parameter."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "displacement": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "warp": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "spline_order": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "derivative": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "range": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 10
+    }
+  }
+}

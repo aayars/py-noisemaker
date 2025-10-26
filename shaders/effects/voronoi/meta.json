@@ -1,0 +1,200 @@
+{
+  "id": "voronoi",
+  "label": "Voronoi",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/voronoi/voronoi.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 96
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the voronoi effect on or off."
+    },
+    {
+      "name": "diagram_type",
+      "type": "integer",
+      "default": 1,
+      "min": 0,
+      "max": 7,
+      "step": 1,
+      "label": "Diagram Type",
+      "description": "0=None (passthrough), 1=Range, 2=Color Range, 3=Regions, 4=Color Regions, 5=Range Regions, 6=Flow, 7=Color Flow."
+    },
+    {
+      "name": "nth",
+      "type": "integer",
+      "default": 0,
+      "min": -4,
+      "max": 4,
+      "step": 1,
+      "label": "Nth Neighbor",
+      "description": "Plot Nth nearest neighbor, or -Nth farthest."
+    },
+    {
+      "name": "dist_metric",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "label": "Distance Metric",
+      "description": "1=Euclidean, 2=Manhattan, 3=Chebyshev, 4=Octagram."
+    },
+    {
+      "name": "sdf_sides",
+      "type": "integer",
+      "default": 3,
+      "min": 3,
+      "max": 24,
+      "step": 1,
+      "label": "SDF Sides",
+      "description": "Number of sides when using SDF metrics."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend with original tensor."
+    },
+    {
+      "name": "with_refract",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.01,
+      "label": "Refract",
+      "description": "Displace the input by the voronoi field."
+    },
+    {
+      "name": "inverse",
+      "type": "boolean",
+      "default": false,
+      "label": "Inverse",
+      "description": "Invert the range-derived output."
+    },
+    {
+      "name": "ridges_hint",
+      "type": "boolean",
+      "default": false,
+      "label": "Ridges Hint",
+      "description": "Match color weighting to ridged fractal output."
+    },
+    {
+      "name": "refract_y_from_offset",
+      "type": "boolean",
+      "default": true,
+      "label": "Refract Offset",
+      "description": "Offset warp sampling similar to the Python reference."
+    },
+    {
+      "name": "point_freq",
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "label": "Point Frequency",
+      "description": "Voronoi point frequency."
+    },
+    {
+      "name": "point_generations",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "label": "Generations",
+      "description": "Number of point cloud generations to accumulate."
+    },
+    {
+      "name": "point_distrib",
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "max": 9,
+      "step": 1,
+      "label": "Distribution",
+      "description": "0=Random, 1=Square, 2=Waffle, 3=Chess, 4=Hex (H), 5=Hex (V), 6=Spiral, 7=Circular, 8=Concentric, 9=Rotating."
+    },
+    {
+      "name": "point_drift",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Point Drift",
+      "description": "Jitter applied to generated point clouds."
+    },
+    {
+      "name": "point_corners",
+      "type": "boolean",
+      "default": false,
+      "label": "Include Corners",
+      "description": "Clamp grid distributions to the corners."
+    },
+    {
+      "name": "downsample",
+      "type": "boolean",
+      "default": true,
+      "label": "Downsample",
+      "description": "Compute the distance field at half resolution (saves work)."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier for drifting points."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "diagram_type": { "buffer": "params", "offset": 3 },
+    "nth": { "buffer": "params", "offset": 4 },
+    "dist_metric": { "buffer": "params", "offset": 5 },
+    "sdf_sides": { "buffer": "params", "offset": 6 },
+    "alpha": { "buffer": "params", "offset": 7 },
+    "with_refract": { "buffer": "params", "offset": 8 },
+    "inverse": { "buffer": "params", "offset": 9 },
+    "ridges_hint": { "buffer": "params", "offset": 12 },
+    "refract_y_from_offset": { "buffer": "params", "offset": 13 },
+    "time": { "buffer": "params", "offset": 14 },
+    "speed": { "buffer": "params", "offset": 15 },
+    "point_freq": { "buffer": "params", "offset": 16 },
+    "point_generations": { "buffer": "params", "offset": 17 },
+    "point_distrib": { "buffer": "params", "offset": 18 },
+    "point_drift": { "buffer": "params", "offset": 19 },
+    "point_corners": { "buffer": "params", "offset": 20 },
+    "downsample": { "buffer": "params", "offset": 21 },
+    "enabled": { "kind": "toggle" }
+  }
+}

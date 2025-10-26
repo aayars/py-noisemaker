@@ -1,0 +1,61 @@
+{
+  "id": "light_leak",
+  "label": "Light Leak",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/light_leak/light_leak.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the light leak overlay."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.25,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend amount for the leak composite."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed of the drifting points."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "alpha": { "buffer": "params", "offset": 4 },
+    "time": { "buffer": "params", "offset": 5 },
+    "speed": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "id": "blur",
+  "label": "Blur",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "upsample_main",
+    "url": "/shaders/effects/blur/blur.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "downsample_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the blur pass on or off."
+    },
+    {
+      "name": "amount",
+      "type": "float",
+      "default": 10,
+      "min": 1,
+      "max": 64,
+      "step": 1,
+      "label": "Amount",
+      "description": "Downsample factor that controls blur radius."
+    },
+    {
+      "name": "spline_order",
+      "type": "float",
+      "default": 3,
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "label": "Spline Order",
+      "description": "Interpolation order (0=Const, 1=Linear, 2=Cosine, 3=Bicubic)."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "amount": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "spline_order": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "downsample_width": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "downsample_height": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "inv_downsample_width": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "inv_downsample_height": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "texture",
+  "label": "Texture",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/texture/texture.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the texture effect on or off."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "enabled": { "kind": "toggle" }
+  }
+}

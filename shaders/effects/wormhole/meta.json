@@ -1,0 +1,67 @@
+{
+  "id": "wormhole",
+  "label": "Wormhole",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/wormhole/wormhole.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 64
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the wormhole effect on or off."
+    },
+    {
+      "name": "kink",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Kink",
+      "description": "Path twistiness."
+    },
+    {
+      "name": "input_stride",
+      "type": "float",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.01,
+      "label": "Input Stride",
+      "description": "Maximum pixel offset."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend amount."
+    }
+  ],
+  "parameterBindings": {
+    "kink": "params.flow.x",
+    "input_stride": "params.flow.y",
+    "alpha": "params.flow.z"
+  }
+}

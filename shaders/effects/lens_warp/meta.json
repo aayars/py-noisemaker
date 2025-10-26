@@ -1,0 +1,61 @@
+{
+  "id": "lens_warp",
+  "label": "Lens Warp",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/lens_warp/lens_warp.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the CRT-style lens warp."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 0.0625,
+      "min": 0.0,
+      "max": 0.5,
+      "step": 0.0025,
+      "label": "Displacement",
+      "description": "Warp amount applied to the refracted sample coordinates."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed multiplier for the procedural scan distortion."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "displacement": { "buffer": "params", "offset": 4 },
+    "time": { "buffer": "params", "offset": 5 },
+    "speed": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
+  }
+}

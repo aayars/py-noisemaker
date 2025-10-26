@@ -1,0 +1,78 @@
+{
+  "id": "grain",
+  "label": "Grain",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/grain/grain.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle grain effect on or off."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend amount for grain overlay."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 5
+    }
+  }
+}

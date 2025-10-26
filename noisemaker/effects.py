@@ -1,7 +1,7 @@
 """Low-level effects library for Noisemaker"""
 
 import math
-import random
+import noisemaker.rng as rng
 
 import numpy as np
 import tensorflow as tf
@@ -60,19 +60,19 @@ def erosion_worms(tensor, shape, density=50, iterations=50, contraction=1.0, qua
 
     count = int(math.sqrt(height * width) * density)
 
-    x = tf.random.uniform([count]) * (width - 1)
-    y = tf.random.uniform([count]) * (height - 1)
+    x = rng.uniform([count]) * (width - 1)
+    y = rng.uniform([count]) * (height - 1)
 
-    x_dir = tf.random.normal([count])
-    y_dir = tf.random.normal([count])
+    x_dir = rng.normal([count])
+    y_dir = rng.normal([count])
 
     length = tf.sqrt(x_dir * x_dir + y_dir * y_dir)
     x_dir /= length
     y_dir /= length
 
-    inertia = tf.random.normal([count], mean=0.75, stddev=0.25)
+    inertia = rng.normal([count], mean=0.75, stddev=0.25)
 
-    out = tf.zeros(shape)
+    out = tf.zeros(shape, dtype=tf.float32)
 
     # colors = tf.gather_nd(tensor, tf.cast(tf.stack([y, x], 1), tf.int32))
 
@@ -288,9 +288,9 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     count = int(max(width, height) * density)
 
-    worms_y = tf.random.uniform([count]) * (height - 1)
-    worms_x = tf.random.uniform([count]) * (width - 1)
-    worms_stride = tf.random.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)
+    worms_y = rng.uniform([count]) * (height - 1)  # RNG[1]
+    worms_x = rng.uniform([count]) * (width - 1)  # RNG[2]
+    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)  # RNG[3]
 
     color_source = colors if colors is not None else tensor
 
@@ -302,16 +302,16 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     rots = {
         WormBehavior.obedient: lambda n:
-            tf.ones([n]) * random.random() * math.tau,
+            tf.ones([n], dtype=tf.float32) * rng.random() * math.tau,  # RNG[4]
 
         WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(tf.random.uniform([n]) * 100) % 4) * math.radians(90),
+            rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),  # RNG[5]
 
         WormBehavior.unruly: lambda n:
-            rots[WormBehavior.obedient](n) + tf.random.uniform([n]) * .25 - .125,
+            rots[WormBehavior.obedient](n) + rng.uniform([n]) * .25 - .125,  # RNG[6]
 
         WormBehavior.chaotic: lambda n:
-            tf.random.uniform([n]) * math.tau,
+            rng.uniform([n]) * math.tau,  # RNG[7]
 
         WormBehavior.random: lambda _:
             tf.reshape(tf.stack([
@@ -322,7 +322,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
             ]), [count]),
 
         # Chaotic, changing over time
-        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, tf.random.uniform([count]))
+        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count]))  # RNG[8]
     }
 
     worms_rot = rots[behavior](count)
@@ -331,7 +331,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
 
     iterations = int(math.sqrt(min(width, height)) * duration)
 
-    out = tf.zeros(shape)
+    out = tf.zeros(shape, dtype=tf.float32)
 
     scatter_shape = tf.shape(tensor)  # Might be different than `shape` due to clut
 
@@ -340,7 +340,7 @@ def worms(tensor, shape, behavior=1, density=4.0, duration=4.0, stride=1.0, stri
         if drunkenness:
             start = int(min(shape[0], shape[1]) * time * speed + i * speed * 10)
 
-            worms_rot += (value.periodic_value(start, tf.random.uniform([count])) * 2.0 - 1.0) * drunkenness * math.pi
+            worms_rot += (value.periodic_value(start, rng.uniform([count])) * 2.0 - 1.0) * drunkenness * math.pi
 
         worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
 
@@ -518,7 +518,7 @@ def density_map(tensor, shape, time=0.0, speed=1.0):
 
     out = tf.gather(counts, tf.cast(values[:, :] * (bins - 1), tf.int32))
 
-    return tf.ones(shape) * value.normalize(tf.cast(out, tf.float32))
+    return tf.ones(shape, dtype=tf.float32) * value.normalize(tf.cast(out, tf.float32))
 
 
 @effect()
@@ -535,7 +535,7 @@ def jpeg_decimate(tensor, shape, iterations=25, time=0.0, speed=1.0):
     for i in range(iterations):
         jpegged = tf.image.convert_image_dtype(jpegged, tf.uint8)
 
-        data = tf.image.encode_jpeg(jpegged, quality=random.randint(5, 50), x_density=random.randint(50, 500), y_density=random.randint(50, 500))
+        data = tf.image.encode_jpeg(jpegged, quality=rng.random_int(5, 50), x_density=rng.random_int(50, 500), y_density=rng.random_int(50, 500))
         jpegged = tf.image.decode_jpeg(data)
 
         jpegged = tf.image.convert_image_dtype(jpegged, tf.float32, saturate=True)
@@ -702,8 +702,8 @@ def offset_index(y_index, height, x_index, width):
     """
 
     index = tf.stack([
-        (y_index + int(height * .5 + random.random() * height * .5)) % height,
-        (x_index + int(random.random() * width * .5)) % width,
+        (y_index + int(height * .5 + rng.random() * height * .5)) % height,
+        (x_index + int(rng.random() * width * .5)) % width,
         ], 2)
 
     return tf.cast(index, tf.int32)
@@ -810,7 +810,7 @@ def glowing_edges(tensor, shape, sobel_metric=2, alpha=1.0, time=0.0, speed=1.0)
 
     edges = value.value_map(tensor, shape, keepdims=True)
 
-    edges = posterize(edges, value_shape, random.randint(3, 5))
+    edges = posterize(edges, value_shape, rng.random_int(3, 5))
 
     edges = 1.0 - sobel_operator(edges, value_shape, dist_metric=sobel_metric)
 
@@ -892,7 +892,7 @@ def aberration(tensor, shape, displacement=.005, time=0.0, speed=1.0):
 
     gradient = value.normalize(x_index_float)
 
-    shift = random.random() * .1 - .05
+    shift = rng.random() * .1 - .05
     tensor = tf.image.adjust_hue(tensor, shift)
 
     for i in range(channels):
@@ -952,8 +952,16 @@ def bloom(tensor, shape, alpha=.5, time=0.0, speed=1.0):
 
     blurred = value.offset(blurred, shape, x=int(tf.cast(width, tf.float32) * -.05), y=int(tf.cast(shape[0], tf.float32) * -.05))
 
-    blurred = tf.image.adjust_brightness(blurred, .25)
-    blurred = tf.image.adjust_contrast(blurred, 1.5)
+    # Mirror the JavaScript bloom implementation exactly: brightness is a straight
+    # addition followed by clamping to ``[-1, 1]`` before the contrast stretch is
+    # applied.  Using the TensorFlow helpers here introduces small numerical
+    # differences, so we implement the arithmetic directly to stay bit-for-bit in
+    # sync with the reference.
+    blurred = tf.clip_by_value(blurred + 0.25, -1.0, 1.0)
+
+    mean = tf.reduce_mean(blurred, axis=[0, 1], keepdims=True)
+    blurred = (blurred - mean) * 1.5 + mean
+    blurred = value.clamp01(blurred)
 
     return value.blend(value.clamp01(tensor), value.clamp01((tensor + blurred) * .5), alpha)
 
@@ -1026,7 +1034,7 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
                 expanded_neighborhoods.add((node[0] + y_offset, node[1] + x_offset))
 
         for i in range(walkers_per_seed):
-            walkers.append((int(random.random() * half_height), int(random.random() * half_width)))
+            walkers.append((int(rng.random() * half_height), int(rng.random() * half_width)))
 
     iterations = int(math.sqrt(walkers_count) * time * time)
 
@@ -1059,12 +1067,12 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
             walker = walkers[w]
 
             if walker in expanded_neighborhoods:
-                walkers[w] = ((walker[0] + offsets[random.randint(0, len(offsets) - 1)]) % half_height,
-                              (walker[1] + offsets[random.randint(0, len(offsets) - 1)]) % half_width)
+                walkers[w] = ((walker[0] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_height,
+                              (walker[1] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_width)
 
             else:
-                walkers[w] = ((walker[0] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_height,
-                              (walker[1] + expanded_offsets[random.randint(0, len(expanded_offsets) - 1)]) % half_width)
+                walkers[w] = ((walker[0] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_height,
+                              (walker[1] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_width)
 
     seen = set()
     unique = []
@@ -1080,7 +1088,9 @@ def dla(tensor, shape, padding=2, seed_density=.01, density=.125, xy=None, alpha
     count = len(unique)
 
     # hot = tf.ones([count, channels])
-    hot = tf.ones([count, channels]) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
+    hot = tf.ones([count, channels], dtype=tf.float32) * tf.cast(
+        tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32
+    )
 
     out = value.convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape=shape)
 
@@ -1145,7 +1155,7 @@ def light_leak(tensor, shape, alpha=.25, time=0.0, speed=1.0):
     """
     """
 
-    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[random.randint(0, len(PointDistribution.grid_members()) - 1)],
+    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[rng.random_int(0, len(PointDistribution.grid_members()) - 1)],
                        drift=.05, shape=shape, time=time, speed=speed)
 
     leak = value.voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
@@ -1167,7 +1177,9 @@ def vignette(tensor, shape, brightness=0.0, alpha=1.0, time=0.0, speed=1.0):
 
     tensor = value.normalize(tensor)
 
-    edges = center_mask(tensor, tf.ones(shape) * brightness, shape, dist_metric=DistanceMetric.euclidean)
+    edges = center_mask(
+        tensor, tf.ones(shape, dtype=tf.float32) * brightness, shape, dist_metric=DistanceMetric.euclidean
+    )
 
     return value.blend(tensor, edges, alpha)
 
@@ -1300,7 +1312,7 @@ def glyph_map(tensor, shape, mask=None, colorize=True, zoom=1, alpha=1.0,
     out = value.resample(tf.gather_nd(glyphs, tf.stack([z_index, y_index, x_index], 2)), [shape[0], shape[1], 1], spline_order=spline_order)
 
     if not colorize:
-        return out * tf.ones(shape)
+        return out * tf.ones(shape, dtype=tf.float32)
 
     out *= value.resample(value.proportional_downsample(tensor, shape, [uv_shape[0], uv_shape[1], channels]), shape, spline_order=spline_order)
 
@@ -1323,7 +1335,7 @@ def pixel_sort(tensor, shape, angled=False, darkest=False, time=0.0, speed=1.0):
     """
 
     if angled:
-        angle = random.random() * 360.0 if isinstance(angled, bool) else angled
+        angle = rng.random() * 360.0 if isinstance(angled, bool) else angled
 
     else:
         angle = False
@@ -1381,7 +1393,7 @@ def rotate(tensor, shape, angle=None, time=0.0, speed=1.0):
     height, width, channels = shape
 
     if angle is None:
-        angle = random.random() * 360.0
+        angle = rng.random() * 360.0
 
     want_length = max(height, width) * 2
 
@@ -1442,7 +1454,7 @@ def sketch(tensor, shape, time=0.0, speed=1.0):
     combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time, speed=speed)
     combined *= combined
 
-    return combined * tf.ones(shape)
+    return combined * tf.ones(shape, dtype=tf.float32)
 
 
 @effect()
@@ -1452,11 +1464,11 @@ def simple_frame(tensor, shape, brightness=0.0, time=0.0, speed=1.0):
 
     border = value.singularity(None, shape, dist_metric=DistanceMetric.chebyshev)
 
-    border = value.blend(tf.zeros(shape), border, .55)
+    border = value.blend(tf.zeros(shape, dtype=tf.float32), border, .55)
 
     border = posterize(border, shape, 1)
 
-    return value.blend(tensor, tf.ones(shape) * brightness, border)
+    return value.blend(tensor, tf.ones(shape, dtype=tf.float32) * brightness, border)
 
 
 @effect()
@@ -1582,10 +1594,10 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
 
     p = palettes[name]
 
-    offset = p["offset"] * tf.ones(rgb_shape)
-    amp = p["amp"] * tf.ones(rgb_shape)
-    freq = p["freq"] * tf.ones(rgb_shape)
-    phase = p["phase"] * tf.ones(rgb_shape) + time
+    offset = p["offset"] * tf.ones(rgb_shape, dtype=tf.float32)
+    amp = p["amp"] * tf.ones(rgb_shape, dtype=tf.float32)
+    freq = p["freq"] * tf.ones(rgb_shape, dtype=tf.float32)
+    phase = p["phase"] * tf.ones(rgb_shape, dtype=tf.float32) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
     colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(
@@ -1603,47 +1615,31 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
 
 @effect()
 def glitch(tensor, shape, time=0.0, speed=1.0):
-    """
-    Apply a glitch effect.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :return: Tensor
-    """
+    """Apply a glitch effect that shifts color channels based on noise."""
 
     height, width, channels = shape
 
-    tensor = value.normalize(tensor)
+    # Base noise determines per-pixel channel displacement
+    base = value.values(4, [height, width, 1], time=time, speed=speed * 50)
+    shift = tf.cast(tf.floor(base[:, :, 0] * 4), tf.int32)
 
-    base = value.simple_multires(2, shape, time=time, speed=speed, 
-                                 octaves=random.randint(2, 5), spline_order=0)
+    x_coords = tf.tile(tf.expand_dims(tf.range(width, dtype=tf.int32), 0), [height, 1])
+    y_coords = tf.tile(tf.expand_dims(tf.range(height, dtype=tf.int32), 1), [1, width])
 
-    base = value.refract(base, shape, random.random())
+    out_channels = []
+    for k in range(channels):
+        sx = x_coords
+        if k == 0:
+            sx = (x_coords + shift) % width
+        elif k == 2:
+            sx = (x_coords - shift) % width
 
-    stylized = value.normalize(color_map(base, shape, clut=tensor, horizontal=True, displacement=2.5))
+        indices = tf.stack([y_coords, sx], 2)
+        flat = tf.reshape(indices, (-1, 2))
+        gathered = tf.gather_nd(tensor[:, :, k], flat)
+        out_channels.append(tf.reshape(gathered, (height, width)))
 
-    jpegged = color_map(base, shape, clut=stylized, horizontal=True, displacement=2.5)
-
-    if channels in (1, 3):
-        jpegged = jpeg_decimate(jpegged, shape)
-
-    # Offset a single color channel
-    separated = [stylized[:, :, i] for i in range(channels)]
-    x_index = (value.row_index(shape) + random.randint(1, width)) % width
-    index = tf.cast(tf.stack([value.column_index(shape), x_index], 2), tf.int32)
-
-    channel = random.randint(0, channels - 1)
-    separated[channel] = value.normalize(tf.gather_nd(separated[channel], index) % random.random())
-
-    stylized = tf.stack(separated, 2)
-
-    combined = value.blend(tf.multiply(stylized, 1.0), jpegged, base)
-    combined = value.blend(tensor, combined, tf.maximum(base * 2 - 1, 0))
-    combined = value.blend(combined, pixel_sort(combined, shape), 1.0 - base)
-
-    combined = tf.image.adjust_contrast(combined, 1.75)
-
-    return combined
+    return tf.stack(out_channels, 2)
 
 
 @effect()
@@ -1659,11 +1655,20 @@ def vhs(tensor, shape, time=0.0, speed=1.0):
     height, width, channels = shape
 
     # Generate scan noise
-    scan_noise = value.values(freq=[int(height * .5) + 1, int(width * .25) + 1], shape=[height, width, 1], time=time,
-                              speed=speed * 100, spline_order=1)
+    scan_noise = value.values(
+        freq=int(height * .5) + 1,
+        shape=[height, width, 1],
+        time=time,
+        speed=speed * 100,
+    )
 
     # Create horizontal offsets
-    grad = value.values(freq=[int(random.random() * 10) + 5, 1], shape=[height, width, 1], time=time, speed=speed)
+    grad = value.values(
+        freq=[5, 1],
+        shape=[height, width, 1],
+        time=time,
+        speed=speed,
+    )
     grad = tf.maximum(grad - .5, 0)
     grad = tf.minimum(grad * 2, 1)
 
@@ -1749,8 +1754,12 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     # Horizontal scanlines
-    scan_noise = tf.tile(value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)),
-                         [int(height * .125) or 1, width, 1])
+    scan_noise = value.normalize(
+        value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)
+    )
+
+    tile_h = max(1, int(height * .125))
+    scan_noise = expand_tile(scan_noise, [2, 1, 1], [tile_h * 2, width, 1], with_offset=False)
 
     scan_noise = value.resample(scan_noise, value_shape)
 
@@ -1759,12 +1768,13 @@ def crt(tensor, shape, time=0.0, speed=1.0):
     tensor = value.clamp01(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
     if channels == 3:
-        tensor = aberration(tensor, shape, .0125 + random.random() * .00625)
-        tensor = tf.image.random_hue(tensor, .125)
+        tensor = aberration(tensor, shape, .0125 + rng.random() * .00625)
+        tensor = adjust_hue(tensor, shape, rng.random() * .25 - .125)
         tensor = tf.image.adjust_saturation(tensor, 1.125)
 
-    tensor = vignette(tensor, shape, brightness=0, alpha=random.random() * .175)
-    tensor = tf.image.adjust_contrast(tensor, 1.25)
+    tensor = vignette(tensor, shape, brightness=0, alpha=rng.random() * .175)
+    mean = tf.reduce_mean(tensor)
+    tensor = (tensor - mean) * 1.25 + mean
 
     return tensor
 
@@ -1850,8 +1860,8 @@ def fibers(tensor, shape, time=0.0, speed=1.0):
     for i in range(4):
         mask = value.values(freq=4, shape=value_shape, time=time, speed=speed)
 
-        mask = worms(mask, shape, behavior=WormBehavior.chaotic, alpha=1, density=.05 + random.random() * .00125,
-                     duration=1, kink=random.randint(5, 10), stride=.75, stride_deviation=.125, time=time, speed=speed)
+        mask = worms(mask, shape, behavior=WormBehavior.chaotic, alpha=1, density=.05 + rng.random() * .00125,
+                     duration=1, kink=rng.random_int(5, 10), stride=.75, stride_deviation=.125, time=time, speed=speed)
 
         brightness = value.values(freq=128, shape=shape, time=time, speed=speed)
 
@@ -1868,13 +1878,13 @@ def scratches(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     for i in range(4):
-        mask = value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed)
+        mask = value.values(freq=rng.random_int(2, 4), shape=value_shape, time=time, speed=speed)
 
-        mask = worms(mask, value_shape, behavior=[1, 3][random.randint(0, 1)], alpha=1, density=.25 + random.random() * .25,
-                     duration=2 + random.random() * 2, kink=.125 + random.random() * .125, stride=.75, stride_deviation=.5,
+        mask = worms(mask, value_shape, behavior=[1, 3][rng.random_int(0, 1)], alpha=1, density=.25 + rng.random() * .25,
+                     duration=2 + rng.random() * 2, kink=.125 + rng.random() * .125, stride=.75, stride_deviation=.5,
                      time=time, speed=speed)
 
-        mask -= value.values(freq=random.randint(2, 4), shape=value_shape, time=time, speed=speed) * 2.0
+        mask -= value.values(freq=rng.random_int(2, 4), shape=value_shape, time=time, speed=speed) * 2.0
 
         mask = tf.maximum(mask, 0.0)
 
@@ -1894,8 +1904,8 @@ def stray_hair(tensor, shape, time=0.0, speed=1.0):
 
     mask = value.values(4, value_shape, time=time, speed=speed)
 
-    mask = worms(mask, value_shape, behavior=WormBehavior.unruly, alpha=1, density=.0025 + random.random() * .00125,
-                 duration=random.randint(8, 16), kink=random.randint(5, 50), stride=.5, stride_deviation=.25)
+    mask = worms(mask, value_shape, behavior=WormBehavior.unruly, alpha=1, density=.0025 + rng.random() * .00125,
+                 duration=rng.random_int(8, 16), kink=rng.random_int(5, 50), stride=.5, stride_deviation=.25)
 
     brightness = value.values(freq=32, shape=value_shape, time=time, speed=speed)
 
@@ -1939,8 +1949,8 @@ def frame(tensor, shape, time=0.0, speed=1.0):
 
     noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, octaves=8)
 
-    black = tf.zeros(half_value_shape)
-    white = tf.ones(half_value_shape)
+    black = tf.zeros(half_value_shape, dtype=tf.float32)
+    white = tf.ones(half_value_shape, dtype=tf.float32)
 
     mask = value.singularity(None, half_value_shape, VoronoiDiagramType.range, dist_metric=DistanceMetric.chebyshev, inverse=True)
     mask = value.normalize(mask + noise * .005)
@@ -1959,7 +1969,7 @@ def frame(tensor, shape, time=0.0, speed=1.0):
     out = grime(out, half_shape)
 
     out = tf.image.adjust_saturation(out, .5)
-    out = tf.image.random_hue(out, .05)
+    out = tf.image.random_hue(out, .05, seed=rng.random_int(0, 0xFFFFFFFF))
 
     out = value.resample(out, shape)
 
@@ -1980,7 +1990,7 @@ def texture(tensor, shape, time=0.0, speed=1.0):
     noise = value.simple_multires(64, value_shape, time=time, speed=speed,
                                   octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape) * .9 + shadow(noise, value_shape, 1.0) * .1)
+    return tensor * (tf.ones(value_shape, dtype=tf.float32) * .9 + shadow(noise, value_shape, 1.0) * .1)
 
 
 @effect()
@@ -2008,7 +2018,7 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
     """
     """
 
-    if random.random() > .75:
+    if rng.random() > .75:
         tensor = on_screen_display(tensor, shape, time=time, speed=speed)
 
     _masks = [
@@ -2033,10 +2043,10 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
 
     bottom_padding = 2
 
-    rendered_mask = tf.zeros(shape)
+    rendered_mask = tf.zeros(shape, dtype=tf.float32)
 
-    for _ in range(random.randint(1, 3)):
-        mask = _masks[random.randint(0, len(_masks) - 1)]
+    for _ in range(rng.random_int(1, 3)):
+        mask = _masks[rng.random_int(0, len(_masks) - 1)]
         mask_shape = masks.mask_shape(mask)
 
         multiplier = 1 if mask != ValueMask.script and (mask_shape[1] == 1 or mask_shape[1] >= 10) else 2
@@ -2059,7 +2069,7 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
 
         bottom_padding += mask_shape[0] * multiplier + 2
 
-    alpha = .5 + random.random() * .25
+    alpha = .5 + rng.random() * .25
 
     # shadow
     tensor = value.blend(tensor, tensor * 1.0 - value.offset(rendered_mask, shape, -1, -1), alpha * .333)
@@ -2069,7 +2079,7 @@ def spooky_ticker(tensor, shape, time=0.0, speed=1.0):
 
 @effect()
 def on_screen_display(tensor, shape, time=0.0, speed=1.0):
-    glyph_count = random.randint(3, 6)
+    glyph_count = rng.random_int(3, 6)
 
     _masks = [
         ValueMask.bank_ocr,
@@ -2077,7 +2087,7 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
         ValueMask.alphanum_numeric,
     ]
 
-    mask = _masks[random.randint(0, len(_masks) - 1)]
+    mask = _masks[rng.random_int(0, len(_masks) - 1)]
     mask_shape = masks.mask_shape(mask)
 
     width = int(shape[1] / 24)
@@ -2094,7 +2104,7 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 
     rendered_mask = tf.pad(row_mask, tf.stack([[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]))
 
-    alpha = .5 + random.random() * .25
+    alpha = .5 + rng.random() * .25
 
     return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
@@ -2103,19 +2113,25 @@ def on_screen_display(tensor, shape, time=0.0, speed=1.0):
 def nebula(tensor, shape, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
-    overlay = value.simple_multires([random.randint(3, 4), 1], value_shape, time=time, speed=speed,
+    overlay = value.simple_multires([rng.random_int(3, 4), 1], value_shape, time=time, speed=speed,
                                     distrib=ValueDistribution.exp, ridges=True, octaves=6)
 
-    overlay -= value.simple_multires([random.randint(2, 4), 1], value_shape, time=time, speed=speed,
+    overlay -= value.simple_multires([rng.random_int(2, 4), 1], value_shape, time=time, speed=speed,
                                      ridges=True, octaves=4)
 
     overlay *= .125
 
-    overlay = rotate(overlay, value_shape, angle=random.randint(-15, 15), time=time, speed=speed)
+    overlay = rotate(overlay, value_shape, angle=rng.random_int(-15, 15), time=time, speed=speed)
 
     tensor *= 1.0 - overlay
 
-    tensor += tint(tf.maximum(overlay * tf.ones(shape), 0), shape, alpha=1.0, time=time, speed=1.0)
+    tensor += tint(
+        tf.maximum(overlay * tf.ones(shape, dtype=tf.float32), 0),
+        shape,
+        alpha=1.0,
+        time=time,
+        speed=1.0,
+    )
 
     return tensor
 
@@ -2128,16 +2144,16 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     value_shape = value.value_shape(shape)
 
     # Generate a smear
-    smear = value.simple_multires(random.randint(3, 6), value_shape, time=time,
+    smear = value.simple_multires(rng.random_int(3, 6), value_shape, time=time,
                                   speed=speed, distrib=ValueDistribution.exp,
                                   octaves=6, spline_order=3)
 
-    smear = warp(smear, value_shape, [random.randint(2, 3), random.randint(1, 3)],
-                 octaves=random.randint(1, 2), displacement=1.0 + random.random(),
+    smear = warp(smear, value_shape, [rng.random_int(2, 3), rng.random_int(1, 3)],
+                 octaves=rng.random_int(1, 2), displacement=1.0 + rng.random(),
                  spline_order=3, time=time, speed=speed)
 
     # Add spatter dots
-    spatter = value.simple_multires(random.randint(32, 64), value_shape, time=time,
+    spatter = value.simple_multires(rng.random_int(32, 64), value_shape, time=time,
                                     speed=speed, distrib=ValueDistribution.exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
@@ -2146,7 +2162,7 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
 
     smear = tf.maximum(smear, spatter)
 
-    spatter = value.simple_multires(random.randint(150, 200), value_shape, time=time,
+    spatter = value.simple_multires(rng.random_int(150, 200), value_shape, time=time,
                                     speed=speed, distrib=ValueDistribution.exp,
                                     octaves=4, spline_order=InterpolationType.linear)
 
@@ -2156,20 +2172,24 @@ def spatter(tensor, shape, color=True, time=0.0, speed=1.0):
     smear = tf.maximum(smear, spatter)
 
     # Remove some of it
-    smear = tf.maximum(0.0, smear - value.simple_multires(random.randint(2, 3), value_shape, time=time,
+    smear = tf.maximum(0.0, smear - value.simple_multires(rng.random_int(2, 3), value_shape, time=time,
                                                           speed=speed, distrib=ValueDistribution.exp,
                                                           ridges=True, octaves=3, spline_order=2))
 
     #
     if color and shape[2] == 3:
         if color is True:
-            splash = tf.image.random_hue(tf.ones(shape) * tf.stack([.875, 0.125, 0.125]), .5)
+            splash = tf.image.random_hue(
+                tf.ones(shape, dtype=tf.float32) * tf.stack([.875, 0.125, 0.125]),
+                .5,
+                seed=rng.random_int(0, 0xFFFFFFFF)
+            )
 
         else:  # Pass in [r, g, b]
-            splash = tf.ones(shape) * tf.stack(color)
+            splash = tf.ones(shape, dtype=tf.float32) * tf.stack(color)
 
     else:
-        splash = tf.zeros(shape)
+        splash = tf.zeros(shape, dtype=tf.float32)
 
     return blend_layers(value.normalize(smear), shape, .005, tensor, splash * tensor)
 
@@ -2180,17 +2200,17 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
 
     pre_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, 1]
 
-    control = value.simple_multires(freq=random.randint(2, 4), shape=pre_shape,
+    control = value.simple_multires(freq=rng.random_int(2, 4), shape=pre_shape,
                                     octaves=8, ridges=True, time=time, speed=speed)
 
     control = warp(control, pre_shape, freq=3, displacement=.125, octaves=2)
 
-    layer_0 = tf.ones(pre_shape)
-    layer_1 = tf.zeros(pre_shape)
+    layer_0 = tf.ones(pre_shape, dtype=tf.float32)
+    layer_1 = tf.zeros(pre_shape, dtype=tf.float32)
 
     combined = blend_layers(control, pre_shape, 1.0, layer_0, layer_1)
 
-    shaded = value.offset(combined, pre_shape, random.randint(-15, 15), random.randint(-15, 15))
+    shaded = value.offset(combined, pre_shape, rng.random_int(-15, 15), rng.random_int(-15, 15))
     shaded = tf.minimum(shaded * 2.5, 1.0)
 
     for _ in range(3):
@@ -2201,8 +2221,8 @@ def clouds(tensor, shape, time=0.0, speed=1.0):
     shaded = value.resample(shaded, post_shape)
     combined = value.resample(combined, post_shape)
 
-    tensor = value.blend(tensor, tf.zeros(shape), shaded * .75)
-    tensor = value.blend(tensor, tf.ones(shape), combined)
+    tensor = value.blend(tensor, tf.zeros(shape, dtype=tf.float32), shaded * .75)
+    tensor = value.blend(tensor, tf.ones(shape, dtype=tf.float32), combined)
 
     tensor = shadow(tensor, shape, alpha=.5)
 
@@ -2220,7 +2240,7 @@ def tint(tensor, shape, time=0.0, speed=1.0, alpha=0.5):
     color = value.values(freq=3, shape=shape, time=time, speed=speed, corners=True)
 
     # Confine hue to a range
-    color = tf.stack([(tensor[:, :, 0] * .333 + random.random() * .333 + random.random()) % 1.0,
+    color = tf.stack([(tensor[:, :, 0] * .333 + rng.random() * .333 + rng.random()) % 1.0,
                       tensor[:, :, 1], tensor[:, :, 2]], 2)
 
     alpha_chan = None

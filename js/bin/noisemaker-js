@@ -1,0 +1,433 @@
+#!/usr/bin/env node
+
+import { createCanvas, loadImage } from 'canvas';
+import { PNG } from 'pngjs';
+import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+
+import { Preset } from '../noisemaker/composer.js';
+import { PRESETS } from '../noisemaker/presets.js';
+import { Context } from '../noisemaker/context.js';
+import { setSeed as setUtilSeed } from '../noisemaker/util.js';
+import { setSeed as setValueSeed } from '../noisemaker/value.js';
+import { random } from '../noisemaker/rng.js';
+import { squareCropAndResize } from '../noisemaker/effects.js';
+import { Tensor } from '../noisemaker/tensor.js';
+
+const MAX_SEED_VALUE = 2 ** 32 - 1;
+
+function printUsage() {
+  const message = `Usage:\n  noisemaker-js generate <presetName> --filename <filename> [options]\n  noisemaker-js apply <presetName> <inputFile> [options]\n\nGenerate options:\n  --width <pixels>       Output width in pixels (default: 1024)\n  --height <pixels>      Output height in pixels (default: 1024)\n  --seed <value>         Seed for deterministic output (default: random)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 0.25)\n  --with-alpha           Preserve alpha channel (default: disabled)\n  --with-supersample     Apply x2 supersample antialiasing (default: disabled)\n  --with-fxaa            Apply FXAA antialiasing (default: disabled)\n  --debug                Enable verbose preset debugging\n\nApply options:\n  --filename <path>      Output filename (default: mangled.png)\n  --seed <value>         Seed for deterministic output (default: random)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 0.25)\n  --no-resize            Skip square crop + resize (default: disabled)\n  --with-fxaa            Apply FXAA antialiasing (default: disabled)\n  --help                 Show this message\n`;
+  console.log(message);
+}
+
+function parseGenerateOptions(argv) {
+  const options = {
+    filename: undefined,
+    width: 1024,
+    height: 1024,
+    seed: null,
+    time: 0,
+    speed: 0.25,
+    withAlpha: false,
+    withSupersample: false,
+    withFxaa: false,
+    debug: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) {
+      throw new Error(`Unrecognized argument "${arg}"`);
+    }
+    const key = arg.slice(2);
+    if (key === 'help' || key === 'h') {
+      options.help = true;
+      continue;
+    }
+    if (key === 'with-alpha') {
+      options.withAlpha = true;
+      continue;
+    }
+    if (key === 'with-supersample') {
+      options.withSupersample = true;
+      continue;
+    }
+    if (key === 'with-fxaa') {
+      options.withFxaa = true;
+      continue;
+    }
+    if (key === 'debug') {
+      options.debug = true;
+      continue;
+    }
+    const next = argv[++i];
+    if (next === undefined) {
+      throw new Error(`Option "${arg}" requires a value`);
+    }
+    switch (key) {
+      case 'filename':
+        options.filename = next;
+        break;
+      case 'width':
+        options.width = Number.parseInt(next, 10);
+        break;
+      case 'height':
+        options.height = Number.parseInt(next, 10);
+        break;
+      case 'seed':
+        options.seed = Number.parseInt(next, 10);
+        break;
+      case 'time':
+        options.time = Number.parseFloat(next);
+        break;
+      case 'speed':
+        options.speed = Number.parseFloat(next);
+        break;
+      default:
+        throw new Error(`Unknown option "${arg}"`);
+    }
+  }
+
+  if (Number.isNaN(options.width) || options.width <= 0) {
+    throw new Error('Width must be a positive integer');
+  }
+  if (Number.isNaN(options.height) || options.height <= 0) {
+    throw new Error('Height must be a positive integer');
+  }
+  if (options.seed !== null && Number.isNaN(options.seed)) {
+    throw new Error('Seed must be a number');
+  }
+  if (Number.isNaN(options.time)) {
+    throw new Error('Time must be a number');
+  }
+  if (!Number.isFinite(options.speed) || Number.isNaN(options.speed)) {
+    throw new Error('Speed must be a finite number');
+  }
+
+  return options;
+}
+
+function parseApplyOptions(argv) {
+  const options = {
+    filename: 'mangled.png',
+    seed: null,
+    time: 0,
+    speed: 0.25,
+    noResize: false,
+    withFxaa: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) {
+      throw new Error(`Unrecognized argument "${arg}"`);
+    }
+    const key = arg.slice(2);
+    if (key === 'help' || key === 'h') {
+      options.help = true;
+      continue;
+    }
+    if (key === 'no-resize') {
+      options.noResize = true;
+      continue;
+    }
+    if (key === 'with-fxaa') {
+      options.withFxaa = true;
+      continue;
+    }
+    const next = argv[++i];
+    if (next === undefined) {
+      throw new Error(`Option "${arg}" requires a value`);
+    }
+    switch (key) {
+      case 'filename':
+        options.filename = next;
+        break;
+      case 'seed':
+        options.seed = Number.parseInt(next, 10);
+        break;
+      case 'time':
+        options.time = Number.parseFloat(next);
+        break;
+      case 'speed':
+        options.speed = Number.parseFloat(next);
+        break;
+      default:
+        throw new Error(`Unknown option "${arg}"`);
+    }
+  }
+
+  if (options.seed !== null && Number.isNaN(options.seed)) {
+    throw new Error('Seed must be a number');
+  }
+  if (Number.isNaN(options.time)) {
+    throw new Error('Time must be a number');
+  }
+  if (!Number.isFinite(options.speed) || Number.isNaN(options.speed)) {
+    throw new Error('Speed must be a finite number');
+  }
+
+  return options;
+}
+
+function clampToByte(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  const scaled = Math.round(value * 255);
+  return Math.max(0, Math.min(255, scaled));
+}
+
+async function tensorToImageData(tensor) {
+  const [height, width, channels] = tensor.shape;
+  const dataMaybe = tensor.read();
+  const raw = dataMaybe && typeof dataMaybe.then === 'function' ? await dataMaybe : dataMaybe;
+  const data = raw instanceof Float32Array ? raw : Float32Array.from(raw ?? []);
+  const totalPixels = width * height;
+  const out = new Uint8ClampedArray(totalPixels * 4);
+  for (let i = 0; i < totalPixels; i += 1) {
+    const src = i * channels;
+    const dst = i * 4;
+    const r = data[src] ?? 0;
+    const g = channels > 1 ? data[src + 1] : r;
+    const b = channels > 2 ? data[src + 2] : r;
+    const a = channels > 3 ? data[src + 3] : channels === 2 ? data[src + 1] : 1;
+    out[dst] = clampToByte(r);
+    out[dst + 1] = clampToByte(g);
+    out[dst + 2] = clampToByte(b);
+    out[dst + 3] = clampToByte(a);
+  }
+  return { width, height, data: out };
+}
+
+async function writeImage(tensor, filename) {
+  const { width, height, data } = await tensorToImageData(tensor);
+  const outputPath = path.resolve(process.cwd(), filename);
+  const directory = path.dirname(outputPath);
+  await mkdir(directory, { recursive: true });
+
+  const extension = path.extname(outputPath).toLowerCase();
+  if (extension === '.jpg' || extension === '.jpeg') {
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const imageData = ctx.createImageData(width, height);
+    imageData.data.set(data);
+    ctx.putImageData(imageData, 0, 0);
+    const buffer = canvas.toBuffer('image/jpeg', { quality: 0.95 });
+    await writeFile(outputPath, buffer);
+  } else {
+    const png = new PNG({ width, height });
+    png.data = Buffer.from(data);
+    await new Promise((resolve, reject) => {
+      const stream = createWriteStream(outputPath);
+      stream.on('finish', resolve);
+      stream.on('error', reject);
+      png.pack().pipe(stream);
+    });
+  }
+
+  return outputPath;
+}
+
+async function loadInputTensor(filename) {
+  const image = await loadImage(path.resolve(process.cwd(), filename));
+  if (!image.width || !image.height) {
+    throw new Error(`Unable to load image "${filename}"`);
+  }
+  const canvas = createCanvas(image.width, image.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0);
+  const { data } = ctx.getImageData(0, 0, image.width, image.height);
+  const channels = 3;
+  const totalPixels = image.width * image.height;
+  const out = new Float32Array(totalPixels * channels);
+  for (let i = 0; i < totalPixels; i += 1) {
+    const src = i * 4;
+    const dst = i * channels;
+    const r = (data[src] ?? 0) / 255;
+    const g = (data[src + 1] ?? 0) / 255;
+    const b = (data[src + 2] ?? 0) / 255;
+    out[dst] = Number.isFinite(r) ? r : 0;
+    out[dst + 1] = Number.isFinite(g) ? g : out[dst];
+    out[dst + 2] = Number.isFinite(b) ? b : out[dst];
+  }
+  const tensor = Tensor.fromArray(null, out, [image.height, image.width, channels]);
+  return { tensor, shape: tensor.shape.slice() };
+}
+
+function instantiatePreset(presetName, presets, seed, opts = {}) {
+  random();
+  random();
+  random();
+  return new Preset(presetName, presets, undefined, seed, opts);
+}
+
+function buildEffectPresetMap(presets, seed) {
+  const effectPresets = new Map();
+  for (const name of Object.keys(presets)) {
+    let preset;
+    try {
+      preset = instantiatePreset(name, presets, seed);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(`Preset "${name}"`)) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Preset "${name}": ${message}`);
+    }
+    if (!preset.is_generator() && preset.is_effect()) {
+      effectPresets.set(name, preset);
+    }
+  }
+  return effectPresets;
+}
+
+async function handleGenerate(presetName, argv) {
+  const options = parseGenerateOptions(argv);
+  if (options.help) {
+    printUsage();
+    return 0;
+  }
+  if (!options.filename) {
+    options.filename = 'art.png';
+  }
+
+  let seed = options.seed;
+  if (!Number.isFinite(seed) || seed === null || seed === 0) {
+    seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
+  }
+
+  setUtilSeed(seed);
+  setValueSeed(seed);
+
+  const presets = PRESETS();
+  if (!Object.prototype.hasOwnProperty.call(presets, presetName)) {
+    const available = Object.keys(presets)
+      .sort()
+      .join(', ');
+    throw new Error(`Preset "${presetName}" not found. Available presets: ${available}`);
+  }
+
+  const ctx = new Context(null, options.debug);
+  const preset = instantiatePreset(presetName, presets, seed, { debug: options.debug });
+
+  const tensor = await preset.render(seed, {
+    ctx,
+    width: options.width,
+    height: options.height,
+    time: options.time,
+    speed: options.speed,
+    withAlpha: options.withAlpha,
+    withSupersample: options.withSupersample,
+    withFxaa: options.withFxaa,
+    debug: options.debug,
+  });
+
+  const outputPath = await writeImage(tensor, options.filename);
+  console.log(`Wrote ${outputPath}`);
+  return 0;
+}
+
+async function handleApply(argv) {
+  if (argv.length < 2) {
+    throw new Error('Preset name and input filename are required');
+  }
+
+  const presetNameArg = argv[0];
+  const inputFilename = argv[1];
+  const options = parseApplyOptions(argv.slice(2));
+
+  if (options.help) {
+    printUsage();
+    return 0;
+  }
+
+  let seed = options.seed;
+  if (!Number.isFinite(seed) || seed === null || seed === 0) {
+    seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
+  }
+
+  setUtilSeed(seed);
+  setValueSeed(seed);
+
+  const presets = PRESETS();
+  const effectPresets = buildEffectPresetMap(presets, seed);
+  if (!effectPresets.size) {
+    throw new Error('No effect presets are available.');
+  }
+
+  let presetName = presetNameArg;
+  if (presetName === 'random') {
+    const names = Array.from(effectPresets.keys()).sort();
+    const index = Math.floor(Math.random() * names.length);
+    presetName = names[index];
+  }
+
+  const preset = effectPresets.get(presetName);
+  if (!preset) {
+    const available = Array.from(effectPresets.keys())
+      .sort()
+      .join(', ');
+    throw new Error(`Effect preset "${presetName}" not found. Available presets: ${available}`);
+  }
+
+  const { tensor: inputTensor, shape: inputShape } = await loadInputTensor(inputFilename);
+  let workingTensor = inputTensor;
+  let workingShape = inputShape.slice();
+
+  if (!options.noResize) {
+    workingTensor = await squareCropAndResize(workingTensor, workingShape, 1024);
+    workingShape = workingTensor.shape.slice();
+  }
+
+  const ctx = new Context(null, false);
+  const result = await preset.render(seed, {
+    ctx,
+    tensor: workingTensor,
+    width: workingShape[1],
+    height: workingShape[0],
+    withAlpha: false,
+    withFxaa: options.withFxaa,
+    time: options.time,
+    speed: options.speed,
+  });
+
+  console.log(presetName);
+  const outputPath = await writeImage(result, options.filename);
+  console.log(`Wrote ${outputPath}`);
+  return 0;
+}
+
+async function main(argv) {
+  if (!argv.length || argv.includes('--help') || argv.includes('-h')) {
+    printUsage();
+    return 0;
+  }
+
+  const [command, ...rest] = argv;
+  if (command === 'generate') {
+    const presetName = rest[0];
+    if (!presetName) {
+      throw new Error('Preset name is required');
+    }
+    return handleGenerate(presetName, rest.slice(1));
+  }
+  if (command === 'apply') {
+    return handleApply(rest);
+  }
+
+  throw new Error(`Unknown command "${command}"`);
+}
+
+main(process.argv.slice(2))
+  .then((code) => {
+    if (typeof code === 'number') {
+      process.exitCode = code;
+    }
+  })
+  .catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });

@@ -1,0 +1,71 @@
+{
+  "id": "stray_hair",
+  "label": "Stray Hair",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/stray_hair/stray_hair.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the stray hair effect on or off."
+    },
+    {
+      "name": "time",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1,
+      "label": "Time",
+      "description": "Time value for animation."
+    },
+    {
+      "name": "speed",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.1,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Speed multiplier for animation/variation."
+    },
+    {
+      "name": "seed",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1000.0,
+      "step": 1.0,
+      "label": "Seed",
+      "description": "Random seed - change this to get different hair patterns and flow fields."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "seed": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
+  }
+}

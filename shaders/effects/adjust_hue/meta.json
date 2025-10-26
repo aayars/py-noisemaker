@@ -1,0 +1,71 @@
+{
+  "id": "adjust_hue",
+  "label": "Adjust Hue",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/adjust_hue/adjust_hue.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the hue adjustment pass on or off."
+    },
+    {
+      "name": "amount",
+      "type": "float",
+      "default": 0.25,
+      "min": -1,
+      "max": 1,
+      "step": 0.01,
+      "label": "Amount",
+      "description": "Hue rotation amount expressed in turns (1.0 == full revolution)."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "amount": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

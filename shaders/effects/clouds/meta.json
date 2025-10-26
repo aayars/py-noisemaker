@@ -1,0 +1,103 @@
+{
+  "id": "clouds",
+  "label": "Clouds",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "upsample_main",
+    "url": "/shaders/effects/clouds/clouds.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "downsample_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "stats_buffer": {
+      "kind": "storageBuffer",
+      "size": "f32x2"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the clouds pass on or off."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed for advecting the cloud layer."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "downsample_width": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "downsample_height": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "pre_scale": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "inv_downsample_width": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "inv_downsample_height": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "shade_offset_x": {
+      "buffer": "params",
+      "offset": 10
+    },
+    "shade_offset_y": {
+      "buffer": "params",
+      "offset": 11
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

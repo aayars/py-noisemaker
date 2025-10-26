@@ -21,7 +21,7 @@ import noisemaker.value as value
 import tensorflow as tf
 
 def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
-          distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
+          distrib=ValueDistribution.simplex, corners=False, mask=None, mask_inverse=False, mask_static=False,
           lattice_drift=0.0, color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
           hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
           speed=1.0, time=0.0, octave_effects=None, octave=1):
@@ -137,7 +137,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
                 brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
             v = tf.squeeze(value.values(freq=brightness_freq or freq,
-                                        distrib=brightness_distrib or ValueDistribution.uniform,
+                                        distrib=brightness_distrib or ValueDistribution.simplex,
                                         **common_value_params))
         else:
             v = tensor[:, :, 2]
@@ -167,7 +167,7 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
 
 
 def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
-             spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
+             spline_order=InterpolationType.bicubic, distrib=ValueDistribution.simplex, corners=False,
              mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, with_supersample=False,
              color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
              hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
@@ -248,7 +248,7 @@ def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
         shape[2] += 1
 
     if tensor is None:
-        tensor = tf.zeros(shape)
+        tensor = tf.zeros(shape, dtype=tf.float32)
 
         for octave in range(1, octaves + 1):
             multiplier = 2 ** octave

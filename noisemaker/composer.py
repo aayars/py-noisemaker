@@ -1,10 +1,13 @@
 """Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
-from collections import UserDict
+from collections import UserDict, defaultdict
 from enum import Enum, EnumMeta
 from functools import partial
+import inspect
+from functools import lru_cache
+import re
 
-import random
+import noisemaker.rng as rng
 
 import tensorflow as tf
 
@@ -26,7 +29,7 @@ ALLOWED_AI_KEYS = ["prompt", "image_strength", "cfg_scale", "style_preset", "mod
 AI_MODEL = "core"
 
 # Don't raise an exception if the following keys are unused in settings
-UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "speed"]
+UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "palette_on", "speed"]
 
 # Populated by reload_presets() after setting random seed
 GENERATOR_PRESETS = {}
@@ -41,8 +44,10 @@ class Preset:
         """
         """
 
-        self.layers = presets[preset_name].get("layers", [])
         self.name = preset_name
+
+        layer_cache = {}
+        self.layers = list(_resolve_preset_layers(self.name, presets, layer_cache))
 
         prototype = presets.get(preset_name)
 
@@ -60,26 +65,36 @@ class Preset:
 
         # Build a flat list of parent preset names, in topological order.
         self.flattened_layers = []
-        _flatten_ancestors(self.name, presets, {}, self.flattened_layers)
+        _flatten_ancestors(self.name, presets, {}, self.flattened_layers, layer_cache)
 
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
         # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
-        self.settings = SettingsDict(_flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets))
+        self.settings = SettingsDict(
+            _flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets)
+        )
 
         if settings:  # Inline overrides from caller (such as from CLI)
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs = _flatten_ancestor_metadata(self, self.settings, "generator", {}, presets)
+        self.generator_kwargs = _flatten_ancestor_metadata(
+            self, self.settings, "generator", {}, presets
+        )
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects = _flatten_ancestor_metadata(self, self.settings, "octaves", [], presets)
+        self.octave_effects = _flatten_ancestor_metadata(
+            self, self.settings, "octaves", [], presets
+        )
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects = _flatten_ancestor_metadata(self, self.settings, "post", [], presets)
+        self.post_effects = _flatten_ancestor_metadata(
+            self, self.settings, "post", [], presets
+        )
 
         # A list of callable effects functions, to be applied in order after everything else
-        self.final_effects = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
+        self.final_effects = _flatten_ancestor_metadata(
+            self, self.settings, "final", [], presets
+        )
 
         try:
             # To avoid mistakes in presets, unused keys are disallowed.
@@ -118,15 +133,24 @@ class Preset:
 
     def render(self, seed, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png",
                with_alpha=False, with_supersample=False, with_fxaa=False, with_ai=False, with_upscale=False,
-               stability_model=None, style_filename=None):
-        """Render the preset to an image file."""
+               stability_model=None, style_filename=None, debug=False):
+        """Render the preset to an image file or return execution graph if debug."""
 
         try:
+            if debug:
+                rng.reset_call_count()
             tensor = multires(self, seed, tensor=tensor, shape=shape, with_supersample=with_supersample,
                               octave_effects=self.octave_effects, post_effects=self.post_effects,
                               with_fxaa=with_fxaa, with_ai=with_ai, final_effects=self.final_effects, with_alpha=with_alpha,
                               with_upscale=with_upscale, stability_model=stability_model, style_filename=style_filename,
                               time=time, speed=speed, **self.generator_kwargs)
+
+            if debug:
+                effect_names = [
+                    getattr(e, '_effect_name', getattr(e, '__name__', str(e)))
+                    for e in self.octave_effects + self.post_effects + self.final_effects
+                ]
+                return {"effects": effect_names, "rng_calls": rng.get_call_count()}
 
             save(tensor, filename)
 
@@ -145,12 +169,36 @@ def Effect(effect_name, **kwargs):
     for k in kwargs:
         if k not in EFFECTS[effect_name]:
             raise ValueError(f'Effect "{effect_name}" does not accept a parameter named "{k}"')
+    effect = partial(EFFECTS[effect_name]["func"], **kwargs)
+    effect._effect_name = effect_name
+    return effect
 
-    return partial(EFFECTS[effect_name]["func"], **kwargs)
+
+def _flatten_layer_entries(value):
+    if isinstance(value, (list, tuple)):
+        flattened = []
+        for item in value:
+            flattened.extend(_flatten_layer_entries(item))
+        return flattened
+    if value is None:
+        return []
+    return [value]
 
 
-def _flatten_ancestors(preset_name, presets, unique, ancestors):
-    for ancestor_name in presets[preset_name].get("layers", []):
+def _resolve_preset_layers(preset_name, presets, cache):
+    if preset_name in cache:
+        return cache[preset_name]
+
+    prototype = presets.get(preset_name, {})
+    raw_layers = prototype.get("layers", [])
+    dummy_settings = defaultdict(lambda: None)
+    resolved = _resolve_metadata_value(raw_layers, dummy_settings)
+    cache[preset_name] = tuple(_flatten_layer_entries(resolved))
+    return cache[preset_name]
+
+
+def _flatten_ancestors(preset_name, presets, unique, ancestors, layer_cache):
+    for ancestor_name in _resolve_preset_layers(preset_name, presets, layer_cache):
         if ancestor_name not in presets:
             raise ValueError(f"\"{ancestor_name}\" was not found among the available presets.")
 
@@ -161,9 +209,117 @@ def _flatten_ancestors(preset_name, presets, unique, ancestors):
         if presets[ancestor_name].get("unique"):
             unique[ancestor_name] = True
 
-        _flatten_ancestors(ancestor_name, presets, unique, ancestors)
+        _flatten_ancestors(ancestor_name, presets, unique, ancestors, layer_cache)
 
     ancestors.append(preset_name)
+
+
+def _callable_param_count_uncached(value):
+    try:
+        return len(inspect.signature(value).parameters)
+    except (ValueError, TypeError):
+        return None
+
+
+@lru_cache(maxsize=None)
+def _callable_param_count(value):
+    return _callable_param_count_uncached(value)
+
+
+def _resolve_metadata_value(value, settings):
+    if callable(value):
+        try:
+            param_count = _callable_param_count(value)
+        except TypeError:
+            param_count = _callable_param_count_uncached(value)
+
+        if param_count == 0:
+            return _resolve_metadata_value(value(), settings)
+        if param_count == 1:
+            return _resolve_metadata_value(value(settings), settings)
+        return value
+    if isinstance(value, list):
+        return [_resolve_metadata_value(v, settings) for v in value]
+    if isinstance(value, dict):
+        return {k: _resolve_metadata_value(v, settings) for k, v in value.items()}
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
+_CAMEL_PATTERN_1 = re.compile(r"(.)([A-Z][a-z]+)")
+_CAMEL_PATTERN_2 = re.compile(r"([a-z0-9])([A-Z])")
+
+
+def _camel_to_snake(name):
+    if not isinstance(name, str):
+        return name
+
+    s1 = _CAMEL_PATTERN_1.sub(r"\1_\2", name)
+    return _CAMEL_PATTERN_2.sub(r"\1_\2", s1).lower()
+
+
+def _lookup_effect_definition(effect_name):
+    if effect_name in EFFECTS:
+        return effect_name, EFFECTS[effect_name]
+
+    snake = _camel_to_snake(effect_name)
+
+    if snake in EFFECTS:
+        return snake, EFFECTS[snake]
+
+    return effect_name, None
+
+
+def _map_effect(effect, settings):
+    seen = set()
+    depth = 0
+
+    while (
+        callable(effect)
+        and not getattr(effect, "_effect_name", None)
+        and not getattr(effect, "post_effects", None)
+        and not getattr(effect, "final_effects", None)
+    ):
+        identity = id(effect)
+
+        if identity in seen or depth > 64:
+            raise ValueError("Runaway dynamic preset function")
+
+        seen.add(identity)
+        depth += 1
+        effect = _resolve_metadata_value(effect, settings)
+
+    if isinstance(effect, dict) and "__effectName" in effect:
+        raw_name = effect["__effectName"]
+        effect_name, effect_def = _lookup_effect_definition(raw_name)
+        params = {}
+
+        raw_params = effect.get("__params") or {}
+
+        if raw_params:
+            for key, value in raw_params.items():
+                resolved = _resolve_metadata_value(value, settings)
+                params[_camel_to_snake(key)] = resolved
+        elif effect.get("args"):
+            if effect_def is None:
+                raise ValueError(f'"{raw_name}" is not a registered effect name.')
+
+            keys = [k for k in effect_def.keys() if k != "func"]
+            args = effect["args"]
+
+            if len(args) > len(keys):
+                raise ValueError(
+                    f'Effect "{raw_name}" received {len(args)} positional arguments '
+                    f"but only {len(keys)} parameters are available."
+                )
+
+            for index, arg_value in enumerate(args):
+                params[keys[index]] = _resolve_metadata_value(arg_value, settings)
+
+        return Effect(effect_name, **params)
+
+    return effect
 
 
 def _flatten_ancestor_metadata(preset, settings, key, default, presets):
@@ -175,10 +331,7 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
         flattened_metadata = []
 
     for ancestor_name in preset.flattened_layers:
-        if key == SETTINGS_KEY:
-            ancestor = presets[ancestor_name].get(key, lambda: default)
-        else:
-            ancestor = presets[ancestor_name].get(key, lambda _: default)
+        ancestor = presets[ancestor_name].get(key, default)
 
         if callable(ancestor):
             try:
@@ -193,23 +346,29 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
                 else:
                     raise ValueError(f"In ancestor \"{ancestor_name}\": {e}")
 
-        else:
-            raise ValueError(f"{ancestor_name}: Key \"{key}\" wasn't wrapped in a lambda. " +
-                              "This can cause unexpected results for the given seed.")
+        ancestor = _resolve_metadata_value(ancestor, settings)
 
         if not isinstance(ancestor, type(default)):
-            raise ValueError(f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(data)}.")
+            raise ValueError(
+                f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(ancestor)}."
+            )
 
         if isinstance(ancestor, dict):
             flattened_metadata.update(ancestor)
         else:
+            if key in ("octaves", "post", "final"):
+                ancestor = [_map_effect(e, settings) for e in ancestor]
             flattened_metadata += ancestor
 
     return flattened_metadata
 
 
 def random_member(*collections):
-    """Return a random member from a collection, enum list, or enum. Ensures deterministic ordering."""
+    """Return a random member from a collection, enum list, or enum.
+
+    RNG: a single :func:`rng.random_int` to choose the index.
+    Ensures deterministic ordering.
+    """
 
     collection = []
 
@@ -217,7 +376,7 @@ def random_member(*collections):
         if not hasattr(c, "__iter__"):
             raise ValueError(f"random_member(arg) should be iterable (collection, enum list, or enum)")
 
-        if isinstance(collection, EnumMeta):
+        if isinstance(c, EnumMeta):
             collection += list(c)
 
         # maybe it's a list of enum members
@@ -228,11 +387,11 @@ def random_member(*collections):
             # make sure order is deterministic
             collection += sorted(c)
 
-    return collection[random.randint(0, len(collection) - 1)]
+    return collection[rng.random_int(0, len(collection) - 1)]
 
 
 def coin_flip():
-    return bool(random.randint(0, 1))
+    return bool(rng.random_int(0, 1))  # RNG[1]
 
 
 def enum_range(a, b):

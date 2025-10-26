@@ -1,0 +1,51 @@
+{
+  "id": "lens_distortion",
+  "label": "Lens Distortion",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/lens_distortion/lens_distortion.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the lens distortion pass."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 1.0,
+      "min": -2.0,
+      "max": 2.0,
+      "step": 0.01,
+      "label": "Displacement",
+      "description": "Strength of the radial warp (negative values zoom inward)."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "displacement": { "buffer": "params", "offset": 3 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "enabled": { "kind": "toggle" }
+  }
+}

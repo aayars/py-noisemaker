@@ -1,6 +1,6 @@
 """Value masks for Noisemaker. Used when generating value noise or glyph maps."""
 
-import random
+import noisemaker.rng as rng
 import re
 import string
 
@@ -2008,7 +2008,13 @@ Masks = {
         [0, 0, 0]
     ],
 
-    ValueMask.conv2d_rand: np.random.normal(.5, .5, (5, 5)).tolist(),
+    ValueMask.conv2d_rand: [
+        [1.382026172983832, 0.7000786041836117, 0.9893689920528697, 1.620446599600729, 1.4337789950749837],
+        [0.011361060061794492, 0.9750442087627946, 0.42432139585115103, 0.4483905741032211, 0.7052992509691862],
+        [0.572021785580439, 1.2271367534814877, 0.8805188625734968, 0.5608375082464142, 0.7219316163727129],
+        [0.6668371636871334, 1.2470395365788032, 0.39742086811709953, 0.6565338508254507, 0.07295213034913761],
+        [-0.7764949079170393, 0.8268092977201803, 0.9322180994297529, 0.12891748979677903, 1.6348773119938038],
+    ],
 
     ValueMask.conv2d_sharpen: [
         [0, -1, 0],
@@ -2211,7 +2217,7 @@ def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False
 
     if uv_noise is None:
         from noisemaker.simplex import simplex
-        uv_noise = simplex(uv_shape, time=time, seed=random.randint(1, 65536), speed=speed, as_np=True)
+        uv_noise = simplex(uv_shape, time=time, seed=rng.random_int(1, 65536), speed=speed, as_np=True)
 
         # normalize() but it's numpy
         # floor = np.amin(uv_noise)
@@ -2253,7 +2259,7 @@ def mask_values(mask, glyph_shape=None, uv_noise=None, atlas=None, inverse=False
 
 
 def uv_random(uv_noise, uv_x, uv_y):
-    return (uv_noise[uv_y][uv_x] + random.random()) % 1.0
+    return (uv_noise[uv_y][uv_x] + rng.random()) % 1.0
 
 
 def square_masks():
@@ -2301,7 +2307,7 @@ def sparsest(uv_noise, uv_x, uv_y, **kwargs):
     return uv_random(uv_noise, uv_x, uv_y) < .0125
 
 
-@mask(lambda: [random.randint(5, 7), random.randint(6, 12), 1])
+@mask(lambda: [rng.random_int(5, 7), rng.random_int(6, 12), 1])
 def invaders(**kwargs):
     return _invaders(**kwargs)
 
@@ -2347,7 +2353,7 @@ def matrix(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
-@mask(lambda: [random.randint(3, 4) * 2 + 1, random.randint(3, 4) * 2 + 1, 1])
+@mask(lambda: [rng.random_int(3, 4) * 2 + 1, rng.random_int(3, 4) * 2 + 1, 1])
 def letters(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
@@ -2391,7 +2397,7 @@ def iching(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     return uv_random(uv_noise, uv_x, uv_y) < .5
 
 
-@mask(lambda: [random.randint(4, 6) * 2] * 2 + [1])
+@mask(lambda: [rng.random_int(4, 6) * 2] * 2 + [1])
 def ideogram(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2408,7 +2414,7 @@ def ideogram(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     return uv_random(uv_noise, uv_x, uv_y) > .5
 
 
-@mask(lambda: [random.randint(7, 9), random.randint(12, 24), 1])
+@mask(lambda: [rng.random_int(7, 9), rng.random_int(12, 24), 1])
 def script(x, y, row, shape, uv_noise, uv_y, uv_x, **kwargs):
     height = shape[0]
     width = shape[1]
@@ -2652,7 +2658,7 @@ def bank_ocr(**kwargs):
     return _glyph_from_atlas_range(**kwargs)
 
 
-@mask(lambda: [random.randint(25, 50)] * 2 + [1])
+@mask(lambda: [rng.random_int(25, 50)] * 2 + [1])
 def fake_qr(x, y, row, shape, uv_noise, uv_x, uv_y, **kwargs):
     x = x % shape[1]
     y = y % shape[1]

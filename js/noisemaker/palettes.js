@@ -1,0 +1,243 @@
+const TAU = Math.PI * 2;
+
+// Cosine palette collection. Thanks to @rustysniper1 on Twitter.
+// https://iquilezles.org/www/articles/palettes/palettes.htm
+export const PALETTES = {
+  '70s-tshirt': {
+    amp: [0.76, 0.88, 0.37],
+    freq: [1, 1, 1],
+    offset: [0.93, 0.97, 0.52],
+    phase: [0.21, 0.41, 0.56],
+  },
+  'blue-brown': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.0, 0.1, 0.2],
+  },
+  'blue-green': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.2, 0.64, 0.62],
+    phase: [0.15, 0.2, 0.3],
+  },
+  'blue-green-2': {
+    amp: [0.1, 0.9, 0.7],
+    freq: [1, 1, 1],
+    offset: [0, 0.3, 0],
+    phase: [0.6, 0.1, 0.6],
+  },
+  'blue-orange': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [0.5, 1, 0.5],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.5, 0, 1],
+  },
+  'blue-white-orange': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.83, 0.6, 0.63],
+    phase: [0.3, 0.1, 0],
+  },
+  'burnt-cyan': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.28, 0.39, 0.07],
+    phase: [0.25, 0.2, 0.1],
+  },
+  cyan: {
+    amp: [0, 0.5, 0.5],
+    freq: [0, 1, 1],
+    offset: [0, 0.5, 0.5],
+    phase: [0, 0.5, 0.5],
+  },
+  'cyan-red': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.3, 0.2, 0.2],
+  },
+  'dark-blue': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.1, 0.4, 0.7],
+    phase: [0.1, 0.1, 0.1],
+  },
+  'dark-purple': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.41, 0.22, 0.67],
+    phase: [0.2, 0.25, 0.2],
+  },
+  'dealer-hat': {
+    amp: [0.83, 0.45, 0.19],
+    freq: [1, 1, 1],
+    offset: [0.79, 0.45, 0.35],
+    phase: [0.28, 0.91, 0.61],
+  },
+  grayscale: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [2.0, 2.0, 2.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [1.0, 1.0, 1.0],
+  },
+  'green-purple': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.22, 0.48, 0.62],
+    phase: [0.1, 0.3, 0.2],
+  },
+  jungle: {
+    amp: [0.65, 0.4, 0.11],
+    freq: [1, 1, 1],
+    offset: [0.72, 0.45, 0.08],
+    phase: [0.71, 0.8, 0.84],
+  },
+  neon: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.27, 0.01, 0.48],
+  },
+  pastels: {
+    amp: [0.568, 0.774, 0.234],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.727, 0.080, 0.104],
+  },
+  'pink-blue': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 1],
+    phase: [0, 0.2, 0.2],
+  },
+  'pink-blue-2': {
+    amp: [0.51, 0.39, 0.41],
+    freq: [1, 1, 1],
+    offset: [0.59, 0.53, 0.94],
+    phase: [0.15, 0.41, 0.46],
+  },
+  'purple-pink': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.64, 0.12, 0.84],
+    phase: [0.1, 0.25, 0.15],
+  },
+  rainbow: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.0, 0.33, 0.67],
+  },
+  'rainbow-2': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.25, 0.5, 0.75],
+  },
+  'rainbow-3': {
+    amp: [0.758, 0.628, 0.222],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.355, 0.129, 0.170],
+    phase: [0.0, 0.25, 0.5],
+  },
+  'red-blue-2': {
+    amp: [1, 0.25, 0.5],
+    freq: [1, 1, 1],
+    offset: [0, 0, 0.25],
+    phase: [0.5, 0, 0],
+  },
+  'red-green': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.3, 0.1, 0.1],
+  },
+  'red-orange-purple': {
+    amp: [0.2, 0.2, 0.1],
+    freq: [1, 1, 1],
+    offset: [0.7, 0.2, 0.2],
+    phase: [0.5, 0.4, 0],
+  },
+  sherbet: {
+    amp: [0.605, 0.175, 0.171],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.522, 0.386, 0.360],
+    phase: [0.0, 0.25, 0.5],
+  },
+  'sherbet-2': {
+    amp: [0.605, 0.175, 0.171],
+    freq: [2.0, 2.0, 2.0],
+    offset: [0.522, 0.386, 0.360],
+    phase: [0.0, 0.25, 0.5],
+  },
+  spectro: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0.4, 0.2, 0],
+  },
+  'spectro-2': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0, 0.2, 0.25],
+  },
+  'spectro-3': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0, 0.2, 0.4],
+  },
+  'spectro-double': {
+    amp: [0.5, 0.5, 0.5],
+    freq: [2, 2, 2],
+    offset: [0.5, 0.5, 0.5],
+    phase: [0, 0.2, 0.4],
+  },
+  sunburn: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.6, 0.4, 0.1],
+    phase: [0.3, 0.2, 0.1],
+  },
+  toxic: {
+    amp: [0.5, 0.5, 0.5],
+    freq: [1, 1, 1],
+    offset: [0.26, 0.57, 0.03],
+    phase: [0, 0.1, 0.3],
+  },
+  vaporwave: {
+    amp: [0.9, 0.76, 0.63],
+    freq: [1, 1, 1],
+    offset: [0, 0.19, 0.68],
+    phase: [0.43, 0.23, 0.32],
+  },
+  vibrant: {
+    amp: [0.78, 0.63, 0.68],
+    freq: [1, 1, 1],
+    offset: [0.41, 0.03, 0.16],
+    phase: [0.81, 0.61, 0.06],
+  },
+  'white-orange-blue': {
+    amp: [0.725, 0.700, 0.949],
+    freq: [1.0, 1.0, 1.0],
+    offset: [0.632, 0.378, 0.294],
+    phase: [0.0, 0.1, 0.2],
+  },
+  'yellow-rainbow': {
+    amp: [0.73, 0.36, 0.52],
+    freq: [1, 1, 1],
+    offset: [0.78, 0.68, 0.15],
+    phase: [0.74, 0.93, 0.28],
+  },
+};
+
+export function samplePalette(name, t) {
+  const p = PALETTES[name];
+  if (!p) throw new Error(`Unknown palette ${name}`);
+  const r = p.offset[0] + p.amp[0] * Math.cos(TAU * (p.freq[0] * t * 0.875 + 0.0625 + p.phase[0]));
+  const g = p.offset[1] + p.amp[1] * Math.cos(TAU * (p.freq[1] * t * 0.875 + 0.0625 + p.phase[1]));
+  const b = p.offset[2] + p.amp[2] * Math.cos(TAU * (p.freq[2] * t * 0.875 + 0.0625 + p.phase[2]));
+  return [r, g, b];
+}

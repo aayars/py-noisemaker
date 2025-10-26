@@ -1,0 +1,109 @@
+{
+  "id": "bloom",
+  "label": "Bloom",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "upsample_main",
+    "url": "/shaders/effects/bloom/bloom.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "downsample_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the bloom pass on or off."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "label": "Alpha",
+      "description": "Blend weight for the bloom contribution."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed multiplier for time-based modulation."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "downsample_width": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "downsample_height": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "inv_downsample_width": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "inv_downsample_height": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "offset_x": {
+      "buffer": "params",
+      "offset": 10
+    },
+    "offset_y": {
+      "buffer": "params",
+      "offset": 11
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

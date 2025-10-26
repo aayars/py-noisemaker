@@ -1,0 +1,71 @@
+{
+  "id": "adjust_contrast",
+  "label": "Adjust Contrast",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/adjust_contrast/adjust_contrast.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the contrast adjustment pass on or off."
+    },
+    {
+      "name": "amount",
+      "type": "float",
+      "default": 1.25,
+      "min": 0,
+      "max": 5,
+      "step": 0.05,
+      "label": "Amount",
+      "description": "Multiplier applied to per-channel contrast around mid-gray."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "amount": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

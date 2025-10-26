@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Noisemaker JS Demo</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="../common.css" />
+</head>
+<body class="two-column-layout js-demo-layout">
+  <aside>
+    <h1><a href="../index.html">Noisemaker</a> JS Demo</h1>
+    <details id="controls" class="details-expando controls-expando" open>
+      <summary>Program</summary>
+      <div class="details-expando__content">
+        <label class="control-group control-group--preset field">
+          <span class="field-label">Preset</span>
+          <select id="preset"></select>
+        </label>
+        <div class="button-row">
+          <button id="randomPreset">Random Preset</button>
+          <button id="reroll">Re-roll</button>
+        </div>
+      </div>
+    </details>
+    <details id="codePanel" class="details-expando code-expando" open>
+      <summary>Preset details</summary>
+      <div class="details-expando__content code-expando__content">
+        <div id="tabs">
+          <button id="tabFormula" class="active">Formula</button>
+          <button id="tabEvaluated">Evaluated</button>
+        </div>
+        <div class="code-content">
+          <pre id="presetFormula"></pre>
+          <pre id="presetEvaluated"></pre>
+        </div>
+      </div>
+    </details>
+    <details id="developmentExpando" class="details-expando development-expando">
+      <summary>Development</summary>
+      <div class="development-controls">
+        <label class="control-group control-group--seed field">
+          <span class="field-label">Seed</span>
+          <input id="seedInput" type="number" step="1" value="42" />
+        </label>
+        <div class="control-group control-group--dimensions field">
+          <span class="field-label">Dimensions</span>
+          <div class="field-row">
+            <label class="inline-field">
+              <span>Width</span>
+              <input id="canvasWidthInput" type="number" min="1" step="1" value="1024" />
+            </label>
+            <label class="inline-field">
+              <span>Height</span>
+              <input id="canvasHeightInput" type="number" min="1" step="1" value="1024" />
+            </label>
+          </div>
+        </div>
+        <!--
+        <div class="control-group control-group--animation field">
+          <span class="field-label">Animation</span>
+          <div class="field-row">
+            <label class="inline-field">
+              <span>FPS</span>
+              <input id="fpsInput" type="number" min="1" step="1" value="30" />
+            </label>
+            <label class="inline-field">
+              <span>Duration (s)</span>
+              <input id="durationInput" type="number" min="0.1" step="0.1" value="15" />
+            </label>
+          </div>
+        </div>
+        <div class="control-group control-group--toggles">
+          <label class="toggle-control">
+            <span>Animate</span>
+            <input type="checkbox" id="animateToggle" />
+          </label>
+        </div>
+        -->
+      </div>
+      <div class="development-debug">
+        <div id="status"></div>
+      </div>
+    </details>
+  </aside>
+  <main>
+    <canvas id="noise" width="1024" height="1024"></canvas>
+    <div id="errorBanner"></div>
+    <!-- Stage Outputs UI removed -->
+  </main>
+    <script type="module">
+  import { Context } from '../../js/noisemaker/context.js';
+  import { render, Preset } from '../../js/noisemaker/composer.js';
+    import { ColorSpace } from '../../js/noisemaker/constants.js';
+    import PRESETS from '../../js/noisemaker/presets.js';
+    import { random, setSeed } from '../../js/noisemaker/util.js';
+
+    const benchmark = window.location.hash.includes('benchmark');
+
+  const errorBannerEl = document.getElementById('errorBanner');
+
+    function showError(message) {
+      errorBannerEl.style.display = 'block';
+      errorBannerEl.textContent += (errorBannerEl.textContent ? '\n' : '') + message;
+    }
+
+    const origConsoleError = console.error.bind(console);
+    console.error = (...args) => {
+      origConsoleError(...args);
+      showError(args.map(String).join(' '));
+    };
+
+    console.warn = (...args) => {
+      origConsoleError(...args);
+      showError(args.map(String).join(' '));
+    };
+
+    window.addEventListener('error', (e) => {
+      showError(`${e.message}\n${e.error?.stack || ''}`);
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      const reason = e.reason;
+      showError(reason && reason.stack ? `${reason.message}\n${reason.stack}` : String(reason));
+    });
+
+  let canvas = document.getElementById('noise');
+  const canvasContainer = canvas?.parentElement;
+  const animateToggle = document.getElementById('animateToggle');
+    const canvasWidthInput = document.getElementById('canvasWidthInput');
+    const canvasHeightInput = document.getElementById('canvasHeightInput');
+    const fpsInput = document.getElementById('fpsInput');
+    const durationInput = document.getElementById('durationInput');
+    const DEFAULT_FPS = 30;
+    const MIN_FPS = 1;
+    const DEFAULT_DURATION_SECONDS = 15;
+    const MIN_DURATION_SECONDS = 0.1;
+    const requestFrame =
+      (typeof window !== 'undefined' && window.requestAnimationFrame?.bind(window)) ||
+      ((cb) => window.setTimeout(() => cb((performance?.now?.() ?? Date.now())), 16));
+    const cancelFrame =
+      (typeof window !== 'undefined' && window.cancelAnimationFrame?.bind(window)) ||
+      ((handle) => window.clearTimeout(handle));
+
+    function toPositiveInteger(value, fallback, min = 1) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num >= min) {
+        return Math.round(num);
+      }
+      return fallback;
+    }
+
+    function toPositiveNumber(value, fallback, min = Number.EPSILON) {
+      const num = Number(value);
+      if (Number.isFinite(num) && num >= min) {
+        return num;
+      }
+      return fallback;
+    }
+
+    function syncCanvasDimensionInputs(width, height) {
+      if (canvasWidthInput && Number(canvasWidthInput.value) !== width) {
+        canvasWidthInput.value = width;
+      }
+      if (canvasHeightInput && Number(canvasHeightInput.value) !== height) {
+        canvasHeightInput.value = height;
+      }
+    }
+
+    const initialCanvasWidth = toPositiveInteger(canvasWidthInput?.value, canvas.width);
+    const initialCanvasHeight = toPositiveInteger(canvasHeightInput?.value, canvas.height);
+    canvas.width = initialCanvasWidth;
+    canvas.height = initialCanvasHeight;
+    updateCanvasAspect();
+    syncCanvasDimensionInputs(initialCanvasWidth, initialCanvasHeight);
+    let lastCanvasSizeKey = `${canvas.width}x${canvas.height}`;
+
+    let targetFps = toPositiveNumber(fpsInput?.value, DEFAULT_FPS, MIN_FPS);
+    let frameIntervalMs = targetFps > 0 ? 1000 / targetFps : 0;
+    if (fpsInput) {
+      fpsInput.value = targetFps;
+    }
+
+    let animationDurationSeconds = toPositiveNumber(
+      durationInput?.value,
+      DEFAULT_DURATION_SECONDS,
+      MIN_DURATION_SECONDS,
+    );
+    if (durationInput) {
+      durationInput.value = animationDurationSeconds;
+    }
+    let ctx = new Context(canvas);
+    let renderQueue = Promise.resolve();
+    let animationRunning = false;
+    let animationFrameHandle = null;
+    let animationStartTime = 0;
+    let animationLastFrameTime = 0;
+    let animationPendingCount = 0;
+    let frameIndex = 0;
+    let currentPreset = null;
+    let currentSeed = 42;
+
+    const canvasResizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver((entries) => {
+            for (const entry of entries) {
+              if (entry.target === canvas) {
+                handleCanvasResize();
+              }
+            }
+          })
+        : null;
+
+    function observeCanvas(target) {
+      updateCanvasAspect();
+      if (!canvasResizeObserver) {
+        lastCanvasSizeKey = `${target?.width ?? canvas.width}x${target?.height ?? canvas.height}`;
+        return;
+      }
+      canvasResizeObserver.disconnect();
+      if (target) {
+        canvasResizeObserver.observe(target);
+        lastCanvasSizeKey = `${target.width}x${target.height}`;
+      }
+    }
+
+    observeCanvas(canvas);
+    const presetSelect = document.getElementById('preset');
+    const statusEl = document.getElementById('status');
+    const presetFormulaEl = document.getElementById('presetFormula');
+    const presetEvalEl = document.getElementById('presetEvaluated');
+    const tabFormulaBtn = document.getElementById('tabFormula');
+    const tabEvalBtn = document.getElementById('tabEvaluated');
+    const seedInput = document.getElementById('seedInput');
+    let presets = PRESETS();
+    const presetNames = Object.keys(presets).filter(
+      (name) => !name.startsWith('maybe-')
+    );
+
+    const dslSource = await fetch('/dsl/presets.dsl').then((r) => r.text());
+
+    function extractPresetSource(source, name) {
+      const quotedName = `"${name}"`;
+      let searchStart = 0;
+
+      while (searchStart < source.length) {
+        const nameIdx = source.indexOf(quotedName, searchStart);
+        if (nameIdx === -1) {
+          return '';
+        }
+
+        let idx = nameIdx + quotedName.length;
+        while (idx < source.length && /\s/.test(source[idx])) {
+          idx++;
+        }
+
+        if (idx >= source.length || source[idx] !== ':') {
+          searchStart = nameIdx + quotedName.length;
+          continue;
+        }
+
+        idx++;
+
+        let braceIdx = idx;
+        while (braceIdx < source.length) {
+          const ch = source[braceIdx];
+          if (/\s/.test(ch)) {
+            braceIdx++;
+            continue;
+          }
+          if (ch === '/' && source[braceIdx + 1] === '/') {
+            braceIdx += 2;
+            while (braceIdx < source.length && source[braceIdx] !== '\n') {
+              braceIdx++;
+            }
+            continue;
+          }
+          if (ch === '/' && source[braceIdx + 1] === '*') {
+            braceIdx += 2;
+            while (
+              braceIdx + 1 < source.length &&
+              !(source[braceIdx] === '*' && source[braceIdx + 1] === '/')
+            ) {
+              braceIdx++;
+            }
+            if (braceIdx + 1 < source.length) {
+              braceIdx += 2;
+            }
+            continue;
+          }
+          break;
+        }
+
+        if (braceIdx >= source.length || source[braceIdx] !== '{') {
+          searchStart = nameIdx + quotedName.length;
+          continue;
+        }
+
+        let end = braceIdx;
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+
+        while (end < source.length) {
+          const ch = source[end++];
+
+          if (inString) {
+            if (escaped) {
+              escaped = false;
+              continue;
+            }
+            if (ch === '\\') {
+              escaped = true;
+            } else if (ch === '"') {
+              inString = false;
+            }
+            continue;
+          }
+
+          if (ch === '"') {
+            inString = true;
+          } else if (ch === '{') {
+            depth++;
+          } else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              return source.slice(nameIdx, end);
+            }
+          }
+        }
+
+        return '';
+      }
+
+      return '';
+    }
+
+    const presetSource = {};
+    for (const name of presetNames) {
+      presetSource[name] = extractPresetSource(dslSource, name);
+    }
+
+    presetNames.sort().forEach((name) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      presetSelect.appendChild(option);
+    });
+
+    function toSnake(str) {
+      return str
+        .replace(/([A-Z])/g, '_$1')
+        .replace(/-/g, '_')
+        .toLowerCase();
+    }
+
+    function isPlainObject(value) {
+      if (!value || typeof value !== 'object') return false;
+      const proto = Object.getPrototypeOf(value);
+      return proto === Object.prototype || proto === null;
+    }
+
+    function toSnakeKeys(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => toSnakeKeys(item));
+      }
+      if (isPlainObject(value)) {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+          out[toSnake(k)] = toSnakeKeys(v);
+        }
+        return out;
+      }
+      return value;
+    }
+
+    function formatPreset(obj, indent = 0) {
+      const pad = '  '.repeat(indent);
+      if (typeof obj === 'function') {
+        if (obj.length === 0) {
+          try {
+            const result = obj();
+            if (result && typeof result === 'object') {
+              return formatPreset(result, indent);
+            }
+          } catch (e) {
+            // ignore invocation failures
+          }
+        }
+        return obj.toString();
+      }
+      if (obj && typeof obj === 'object') {
+        if (Array.isArray(obj)) {
+          return (
+            '[\n' +
+            obj
+              .map((v) => pad + '  ' + formatPreset(v, indent + 1))
+              .join(',\n') +
+            '\n' +
+            pad +
+            ']'
+          );
+        }
+        return (
+          '{\n' +
+          Object.entries(obj)
+            .map(
+              ([k, v]) => pad + '  ' + JSON.stringify(k) + ': ' + formatPreset(v, indent + 1)
+            )
+            .join(',\n') +
+          '\n' +
+          pad +
+          '}'
+        );
+      }
+      return JSON.stringify(obj);
+    }
+
+    function serializePreset(preset, seed) {
+      const toPlainObject = (obj) =>
+        Object.fromEntries(Object.entries(obj || {}));
+      const toPlain = (effects) =>
+        effects.map((fn) => ({
+          effect: toSnake(fn.__effectName || fn.name || 'fn'),
+          ...toSnakeKeys(fn.__params || {}),
+        }));
+      const rawSettings = toPlainObject(preset.settings);
+      const rawGenerator = toPlainObject(preset.generator);
+      const settings = toSnakeKeys(rawSettings);
+      const generator = toSnakeKeys(rawGenerator);
+      const merged = { ...settings, ...generator };
+      const colorSpace =
+        rawGenerator.color_space ??
+        rawGenerator.colorSpace ??
+        rawSettings.color_space ??
+        rawSettings.colorSpace ??
+        ColorSpace.hsv;
+      merged.color_space = colorSpace;
+      if (seed !== undefined) {
+        merged.seed = seed;
+      }
+      return {
+        settings: merged,
+        generator,
+        octaves: toPlain(preset.octave_effects),
+        post: toPlain(preset.post_effects),
+        final: toPlain(preset.final_effects),
+      };
+    }
+
+    function showTab(which) {
+      const formula = which === 'formula';
+      presetFormulaEl.style.display = formula ? 'block' : 'none';
+      presetEvalEl.style.display = formula ? 'none' : 'block';
+      tabFormulaBtn.classList.toggle('active', formula);
+      tabEvalBtn.classList.toggle('active', !formula);
+    }
+
+    tabFormulaBtn.addEventListener('click', () => showTab('formula'));
+    tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
+
+    presetSelect.value = 'basic';
+    currentPreset = presetSelect.value;
+    currentSeed = Number(seedInput.value) || 42;
+    seedInput.value = currentSeed;
+
+    function parseSeed(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
+    }
+
+    async function draw(seed, presetName, timeSeconds = null) {
+      const activeCtx = ctx;
+      if (!activeCtx) {
+        throw new Error('Context not initialized.');
+      }
+      const rawTimeSeconds = Number(timeSeconds);
+      const effectiveTime =
+        Number.isFinite(rawTimeSeconds) ? ((rawTimeSeconds % 1) + 1) % 1 : 0;
+      const frameIndexForThisFrame = frameIndex;
+      setSeed(seed);
+      const width = canvas.width;
+      const height = canvas.height;
+      lastCanvasSizeKey = `${width}x${height}`;
+      errorBannerEl.style.display = 'none';
+      errorBannerEl.textContent = '';
+
+      const presetEvalStart = performance.now();
+      const presetTable = PRESETS(presetName);
+      random();
+      random();
+      random();
+      const presetObj = new Preset(presetName, presetTable, {}, seed, { debug: false });
+      let renderPresetObj = presetObj;
+      let renderPresets = presetTable;
+      if (!presetObj.is_generator() && presetObj.is_effect()) {
+        renderPresets = PRESETS('basic');
+        random();
+        random();
+        random();
+        const basePreset = new Preset('basic', renderPresets, {}, seed, { debug: false });
+        basePreset.name = `${presetName}-on-basic`;
+        const combinedFinal = Array.isArray(basePreset.final_effects)
+          ? basePreset.final_effects.slice()
+          : [];
+        combinedFinal.push(presetObj);
+        basePreset.final_effects = combinedFinal;
+        renderPresetObj = basePreset;
+      }
+      presets = renderPresets;
+      const presetEvalMs = performance.now() - presetEvalStart;
+
+      const cpuStart = performance.now();
+      try {
+        await render(renderPresetObj, seed, {
+          width,
+          height,
+          ctx: activeCtx,
+          presets,
+          debug: false,
+          time: effectiveTime,
+          frameIndex: frameIndexForThisFrame,
+        });
+        if (activeCtx.flush) {
+          await activeCtx.flush();
+        }
+      } catch (e) {
+        const errorText = `${e.message || e}\n${e.stack || ''}`;
+        showError(errorText);
+        throw e;
+      }
+      if (benchmark && activeCtx.queue && activeCtx.queue.onSubmittedWorkDone) {
+        await activeCtx.queue.onSubmittedWorkDone();
+      }
+      const renderMs = performance.now() - cpuStart;
+      frameIndex += 1;
+
+      statusEl.innerHTML = [
+        'mode: cpu',
+        `eval: ${presetEvalMs.toFixed(2)} ms`,
+        `render: ${renderMs.toFixed(2)} ms`,
+        `seed: ${seed}`,
+      ].join('<br>');
+      presetFormulaEl.textContent = presetSource[presetName] || '';
+      const evaluatedPreset = serializePreset(renderPresetObj, seed);
+      const { settings: _settings, ...evaluatedWithoutSettings } = evaluatedPreset;
+      presetEvalEl.textContent = formatPreset(evaluatedWithoutSettings);
+      // Stage Outputs rendering removed
+    }
+
+    function renderPreset(seed = currentSeed, presetName = currentPreset, options = {}) {
+      const opts = options || {};
+      const nextSeed = parseSeed(seed);
+      currentSeed = nextSeed;
+      seedInput.value = nextSeed;
+      const usesAnimationTiming = Object.prototype.hasOwnProperty.call(opts, 'timeSeconds');
+      if (usesAnimationTiming) {
+        animationPendingCount += 1;
+      }
+      const renderPromise = renderQueue.then(() => draw(nextSeed, presetName, opts.timeSeconds ?? null));
+      renderQueue = renderPromise
+        .catch(() => {})
+        .finally(() => {
+          if (usesAnimationTiming) {
+            animationPendingCount = Math.max(0, animationPendingCount - 1);
+          }
+        });
+      return renderPromise;
+    }
+
+    function renderWithCatch(seed, presetName, options) {
+      const promise = renderPreset(seed, presetName, options);
+      promise.catch((e) => {
+        console.error(e);
+      });
+      return promise;
+    }
+
+    function resetAnimationClock() {
+      animationStartTime = 0;
+      animationLastFrameTime = 0;
+    }
+
+    function stopAnimation() {
+      animationRunning = false;
+      if (animationFrameHandle !== null) {
+        cancelFrame(animationFrameHandle);
+        animationFrameHandle = null;
+      }
+    }
+
+    function updateAnimateToggleAvailability() {
+      if (!animateToggle) {
+        return;
+      }
+      animateToggle.disabled = false;
+    }
+
+    updateAnimateToggleAvailability();
+
+    function scheduleAnimationFrame() {
+      if (!animationRunning) {
+        return;
+      }
+      animationFrameHandle = requestFrame(handleAnimationFrame);
+    }
+
+    function computeNormalizedAnimationTime(elapsedMs) {
+      const duration = animationDurationSeconds;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return 0;
+      }
+      const durationMs = duration * 1000;
+      if (!Number.isFinite(durationMs) || durationMs <= 0) {
+        return 0;
+      }
+      const wrapped = elapsedMs % durationMs;
+      return durationMs ? wrapped / durationMs : 0;
+    }
+
+    function handleAnimationFrame(now) {
+      if (!animationRunning) {
+        return;
+      }
+      if (!animationStartTime) {
+        animationStartTime = now;
+        animationLastFrameTime = 0;
+      }
+      const elapsedMs = now - animationStartTime;
+      const enoughTimeElapsed =
+        !animationLastFrameTime ||
+        frameIntervalMs <= 0 ||
+        now - animationLastFrameTime >= frameIntervalMs;
+      if (animationPendingCount === 0 && enoughTimeElapsed) {
+        animationLastFrameTime = now;
+        const normalizedTime = computeNormalizedAnimationTime(elapsedMs);
+        renderWithCatch(currentSeed, currentPreset, { timeSeconds: normalizedTime });
+      }
+      scheduleAnimationFrame();
+    }
+
+    function startAnimation() {
+      if (animationRunning) {
+        resetAnimationClock();
+        return;
+      }
+      animationRunning = true;
+      resetAnimationClock();
+      renderWithCatch(currentSeed, currentPreset, { timeSeconds: 0 });
+      scheduleAnimationFrame();
+    }
+
+    function getManualAnimationOptions() {
+      if (!animateToggle || !animateToggle.checked) {
+        return undefined;
+      }
+      resetAnimationClock();
+      return { timeSeconds: 0 };
+    }
+
+    function updateCanvasAspect() {
+      if (!canvasContainer) {
+        return;
+      }
+      const width = canvas?.width ?? 0;
+      const height = canvas?.height ?? 0;
+      if (!width || !height) {
+        canvasContainer.style.removeProperty('--canvas-aspect');
+        return;
+      }
+      canvasContainer.style.setProperty('--canvas-aspect', `${width} / ${height}`);
+    }
+
+    function applyCanvasDimensionsFromInputs() {
+      if (!canvas) {
+        return;
+      }
+      const currentWidth = canvas.width;
+      const currentHeight = canvas.height;
+      const nextWidth = toPositiveInteger(canvasWidthInput?.value, currentWidth);
+      const nextHeight = toPositiveInteger(canvasHeightInput?.value, currentHeight);
+      syncCanvasDimensionInputs(nextWidth, nextHeight);
+      if (nextWidth === currentWidth && nextHeight === currentHeight) {
+        return;
+      }
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      updateCanvasAspect();
+      handleCanvasResize();
+      if (!currentPreset) {
+        return;
+      }
+      const manualOptions = getManualAnimationOptions();
+      renderWithCatch(currentSeed, currentPreset, manualOptions);
+    }
+
+    function applyFrameRateFromInput() {
+      const nextFps = toPositiveNumber(fpsInput?.value, targetFps, MIN_FPS);
+      targetFps = nextFps;
+      frameIntervalMs = targetFps > 0 ? 1000 / targetFps : 0;
+      if (fpsInput) {
+        fpsInput.value = targetFps;
+      }
+      if (animationRunning) {
+        animationLastFrameTime = 0;
+      }
+    }
+
+    function applyDurationFromInput() {
+      const nextDuration = toPositiveNumber(
+        durationInput?.value,
+        animationDurationSeconds,
+        MIN_DURATION_SECONDS,
+      );
+      animationDurationSeconds = nextDuration;
+      if (durationInput) {
+        durationInput.value = animationDurationSeconds;
+      }
+      if (animationRunning) {
+        resetAnimationClock();
+        renderWithCatch(currentSeed, currentPreset, { timeSeconds: 0 });
+      }
+    }
+
+    try {
+      await renderPreset(currentSeed, currentPreset);
+    } catch (e) {
+      console.error(e);
+    }
+
+    const handleCanvasDimensionChange = () => {
+      applyCanvasDimensionsFromInputs();
+    };
+
+    if (canvasWidthInput) {
+      canvasWidthInput.addEventListener('change', handleCanvasDimensionChange);
+      canvasWidthInput.addEventListener('blur', handleCanvasDimensionChange);
+      canvasWidthInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCanvasDimensionChange();
+        }
+      });
+    }
+
+    if (canvasHeightInput) {
+      canvasHeightInput.addEventListener('change', handleCanvasDimensionChange);
+      canvasHeightInput.addEventListener('blur', handleCanvasDimensionChange);
+      canvasHeightInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCanvasDimensionChange();
+        }
+      });
+    }
+
+    if (fpsInput) {
+      const handleFpsChange = () => {
+        applyFrameRateFromInput();
+      };
+      fpsInput.addEventListener('change', handleFpsChange);
+      fpsInput.addEventListener('blur', handleFpsChange);
+      fpsInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleFpsChange();
+        }
+      });
+    }
+
+    if (durationInput) {
+      const handleDurationChange = () => {
+        applyDurationFromInput();
+      };
+      durationInput.addEventListener('change', handleDurationChange);
+      durationInput.addEventListener('blur', handleDurationChange);
+      durationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleDurationChange();
+        }
+      });
+    }
+
+    function applySeedFromInput() {
+      const options = getManualAnimationOptions();
+      renderWithCatch(seedInput.value, currentPreset, options);
+    }
+
+    seedInput.addEventListener('change', applySeedFromInput);
+    seedInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applySeedFromInput();
+      }
+    });
+
+    document.getElementById('reroll').addEventListener('click', () => {
+      const seed = Math.floor(random() * 1e9);
+      const options = getManualAnimationOptions();
+      renderWithCatch(seed, currentPreset, options);
+    });
+
+    presetSelect.addEventListener('change', (e) => {
+      currentPreset = e.target.value;
+      const seed = Math.floor(random() * 1e9);
+      const options = getManualAnimationOptions();
+      renderWithCatch(seed, currentPreset, options);
+    });
+
+    if (animateToggle) {
+      animateToggle.addEventListener('change', () => {
+        if (animateToggle.checked) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      });
+    }
+
+    document
+      .getElementById('randomPreset')
+      .addEventListener('click', () => {
+        const randomPreset =
+          presetNames[Math.floor(random() * presetNames.length)];
+        presetSelect.value = randomPreset;
+        currentPreset = randomPreset;
+        const seed = Math.floor(random() * 1e9);
+        const options = getManualAnimationOptions();
+        renderWithCatch(seed, currentPreset, options);
+      });
+
+    function handleCanvasResize() {
+      const sizeKey = `${canvas.width}x${canvas.height}`;
+      if (sizeKey === lastCanvasSizeKey) {
+        return;
+      }
+      lastCanvasSizeKey = sizeKey;
+    updateCanvasAspect();
+      syncCanvasDimensionInputs(canvas.width, canvas.height);
+      if (!ctx || !currentPreset) {
+        return;
+      }
+      const options = getManualAnimationOptions();
+      renderWithCatch(currentSeed, currentPreset, options);
+    }
+
+    showTab('formula');
+  </script>
+
+</body>
+</html>

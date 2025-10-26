@@ -1,0 +1,96 @@
+{
+  "id": "convolve",
+  "label": "Convolve",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/convolve/convolve.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "stats_buffer": {
+      "kind": "storageBuffer",
+      "size": 16
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the convolution pass."
+    },
+    {
+      "name": "kernel",
+      "type": "int",
+      "default": 800,
+      "min": 800,
+      "max": 810,
+      "step": 1,
+      "label": "Kernel Id",
+      "description": "Selects the convolution kernel (800=Blur, 801=Deriv X, 802=Deriv Y, 803=Edges, 804=Emboss, 805=Invert, 806=Random, 807=Sharpen, 808=Sobel X, 809=Sobel Y, 810=Box Blur)."
+    },
+    {
+      "name": "with_normalize",
+      "type": "boolean",
+      "default": true,
+      "label": "Normalize",
+      "description": "Re-normalize the result after filtering."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 1.0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend between the original image and the filtered result."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "kernel": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "with_normalize": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

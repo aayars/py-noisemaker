@@ -1,0 +1,85 @@
+{
+  "id": "conv_feedback",
+  "label": "Conv Feedback",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/conv_feedback/conv_feedback.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    },
+    "prev_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the feedback accumulation pass."
+    },
+    {
+      "name": "iterations",
+      "type": "float",
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "label": "Feedback Bias",
+      "description": "Controls how strongly the feedback leans toward the blurred buffer (0 keeps the sharpened result, 100 follows the blur)."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend weight between the original image and the feedback result."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "iterations": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

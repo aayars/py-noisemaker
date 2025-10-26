@@ -1,0 +1,20 @@
+{
+  "id": "multires",
+  "label": "multires.wgsl",
+  "stage": "compute",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/generators/multires/multires.wgsl"
+  },
+  "resources": {
+    "params": { "kind": "uniformBuffer", "size": 128 },
+    "frame_uniforms": { "kind": "uniformBuffer", "size": 32 },
+    "output_texture": { "kind": "storageTexture", "format": "rgba32float" },
+    "normalization_state": { "kind": "storageBuffer", "size": 16 },
+    "sin_normalization_state": { "kind": "storageBuffer", "size": 16 },
+    "mask_data": { "kind": "storageBuffer", "size": 4 },
+    "permutation_table_storage": { "kind": "storageBuffer", "size": 4 }
+  },
+  "parameters": [],
+  "parameterBindings": {}
+}

@@ -1,0 +1,67 @@
+{
+  "id": "snow",
+  "label": "Snow",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/snow/snow.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the snow effect on or off."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.25,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Snow overlay opacity."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time parameter."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "alpha": "params.alpha",
+    "time": "params.time",
+    "speed": "params.speed"
+  }
+}

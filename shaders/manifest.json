@@ -1,0 +1,302 @@
+[
+  {
+    "label": "aberration/aberration",
+    "path": "/shaders/effects/aberration/aberration.wgsl"
+  },
+  {
+    "label": "adjust_brightness/adjust_brightness",
+    "path": "/shaders/effects/adjust_brightness/adjust_brightness.wgsl"
+  },
+  {
+    "label": "adjust_contrast/adjust_contrast",
+    "path": "/shaders/effects/adjust_contrast/adjust_contrast.wgsl"
+  },
+  {
+    "label": "adjust_hue/adjust_hue",
+    "path": "/shaders/effects/adjust_hue/adjust_hue.wgsl"
+  },
+  {
+    "label": "adjust_saturation/adjust_saturation",
+    "path": "/shaders/effects/adjust_saturation/adjust_saturation.wgsl"
+  },
+  {
+    "label": "bloom/bloom",
+    "path": "/shaders/effects/bloom/bloom.wgsl"
+  },
+  {
+    "label": "blur/blur",
+    "path": "/shaders/effects/blur/blur.wgsl"
+  },
+  {
+    "label": "clouds/clouds",
+    "path": "/shaders/effects/clouds/clouds.wgsl"
+  },
+  {
+    "label": "color_map/color_map",
+    "path": "/shaders/effects/color_map/color_map.wgsl"
+  },
+  {
+    "label": "conv_feedback/conv_feedback",
+    "path": "/shaders/effects/conv_feedback/conv_feedback.wgsl"
+  },
+  {
+    "label": "convolve/convolve",
+    "path": "/shaders/effects/convolve/convolve.wgsl"
+  },
+  {
+    "label": "crt/crt",
+    "path": "/shaders/effects/crt/crt.wgsl"
+  },
+  {
+    "label": "degauss/degauss",
+    "path": "/shaders/effects/degauss/degauss.wgsl"
+  },
+  {
+    "label": "density_map/density_map",
+    "path": "/shaders/effects/density_map/density_map.wgsl"
+  },
+  {
+    "label": "derivative/derivative",
+    "path": "/shaders/effects/derivative/derivative.wgsl"
+  },
+  {
+    "label": "dla/agent_walk",
+    "path": "/shaders/effects/dla/agent_walk.wgsl"
+  },
+  {
+    "label": "dla/final_blend",
+    "path": "/shaders/effects/dla/final_blend.wgsl"
+  },
+  {
+    "label": "dla/init_from_prev",
+    "path": "/shaders/effects/dla/init_from_prev.wgsl"
+  },
+  {
+    "label": "erosion_worms/erosion_worms",
+    "path": "/shaders/effects/erosion_worms/erosion_worms.wgsl"
+  },
+  {
+    "label": "false_color/false_color",
+    "path": "/shaders/effects/false_color/false_color.wgsl"
+  },
+  {
+    "label": "fibers/fibers",
+    "path": "/shaders/effects/fibers/fibers.wgsl"
+  },
+  {
+    "label": "frame/frame",
+    "path": "/shaders/effects/frame/frame.wgsl"
+  },
+  {
+    "label": "fxaa/fxaa",
+    "path": "/shaders/effects/fxaa/fxaa.wgsl"
+  },
+  {
+    "label": "glitch/glitch",
+    "path": "/shaders/effects/glitch/glitch.wgsl"
+  },
+  {
+    "label": "glowing_edges/glowing_edges",
+    "path": "/shaders/effects/glowing_edges/glowing_edges.wgsl"
+  },
+  {
+    "label": "glyph_map/glyph_map",
+    "path": "/shaders/effects/glyph_map/glyph_map.wgsl"
+  },
+  {
+    "label": "grain/grain",
+    "path": "/shaders/effects/grain/grain.wgsl"
+  },
+  {
+    "label": "grime/grime",
+    "path": "/shaders/effects/grime/grime.wgsl"
+  },
+  {
+    "label": "jpeg_decimate/jpeg_decimate",
+    "path": "/shaders/effects/jpeg_decimate/jpeg_decimate.wgsl"
+  },
+  {
+    "label": "kaleido/kaleido",
+    "path": "/shaders/effects/kaleido/kaleido.wgsl"
+  },
+  {
+    "label": "lens_distortion/lens_distortion",
+    "path": "/shaders/effects/lens_distortion/lens_distortion.wgsl"
+  },
+  {
+    "label": "lens_warp/lens_warp",
+    "path": "/shaders/effects/lens_warp/lens_warp.wgsl"
+  },
+  {
+    "label": "light_leak/light_leak",
+    "path": "/shaders/effects/light_leak/light_leak.wgsl"
+  },
+  {
+    "label": "lowpoly/lowpoly",
+    "path": "/shaders/effects/lowpoly/lowpoly.wgsl"
+  },
+  {
+    "label": "nebula/nebula",
+    "path": "/shaders/effects/nebula/nebula.wgsl"
+  },
+  {
+    "label": "normal_map/normal_map",
+    "path": "/shaders/effects/normal_map/normal_map.wgsl"
+  },
+  {
+    "label": "normalize/stats",
+    "path": "/shaders/effects/normalize/stats.wgsl"
+  },
+  {
+    "label": "normalize/reduce",
+    "path": "/shaders/effects/normalize/reduce.wgsl"
+  },
+  {
+    "label": "normalize/apply",
+    "path": "/shaders/effects/normalize/apply.wgsl"
+  },
+  {
+    "label": "on_screen_display/on_screen_display",
+    "path": "/shaders/effects/on_screen_display/on_screen_display.wgsl"
+  },
+  {
+    "label": "outline/outline",
+    "path": "/shaders/effects/outline/outline.wgsl"
+  },
+  {
+    "label": "palette/palette",
+    "path": "/shaders/effects/palette/palette.wgsl"
+  },
+  {
+    "label": "pixel_sort/pixel_sort",
+    "path": "/shaders/effects/pixel_sort/pixel_sort.wgsl"
+  },
+  {
+    "label": "posterize/posterize",
+    "path": "/shaders/effects/posterize/posterize.wgsl"
+  },
+  {
+    "label": "refract/refract",
+    "path": "/shaders/effects/refract/refract.wgsl"
+  },
+  {
+    "label": "reindex/reindex",
+    "path": "/shaders/effects/reindex/reindex.wgsl"
+  },
+  {
+    "label": "reverb/reverb",
+    "path": "/shaders/effects/reverb/reverb.wgsl"
+  },
+  {
+    "label": "ridge/ridge",
+    "path": "/shaders/effects/ridge/ridge.wgsl"
+  },
+  {
+    "label": "ripple/ripple",
+    "path": "/shaders/effects/ripple/ripple.wgsl"
+  },
+  {
+    "label": "rotate/rotate",
+    "path": "/shaders/effects/rotate/rotate.wgsl"
+  },
+  {
+    "label": "scanline_error/scanline_error",
+    "path": "/shaders/effects/scanline_error/scanline_error.wgsl"
+  },
+  {
+    "label": "scratches/scratches",
+    "path": "/shaders/effects/scratches/scratches.wgsl"
+  },
+  {
+    "label": "shadow/shadow",
+    "path": "/shaders/effects/shadow/shadow.wgsl"
+  },
+  {
+    "label": "simple_frame/simple_frame",
+    "path": "/shaders/effects/simple_frame/simple_frame.wgsl"
+  },
+  {
+    "label": "sine/sine",
+    "path": "/shaders/effects/sine/sine.wgsl"
+  },
+  {
+    "label": "sketch/sketch",
+    "path": "/shaders/effects/sketch/sketch.wgsl"
+  },
+  {
+    "label": "smoothstep/smoothstep",
+    "path": "/shaders/effects/smoothstep/smoothstep.wgsl"
+  },
+  {
+    "label": "snow/snow",
+    "path": "/shaders/effects/snow/snow.wgsl"
+  },
+  {
+    "label": "sobel/sobel",
+    "path": "/shaders/effects/sobel/sobel.wgsl"
+  },
+  {
+    "label": "spatter/spatter",
+    "path": "/shaders/effects/spatter/spatter.wgsl"
+  },
+  {
+    "label": "spooky_ticker/spooky_ticker",
+    "path": "/shaders/effects/spooky_ticker/spooky_ticker.wgsl"
+  },
+  {
+    "label": "stray_hair/stray_hair",
+    "path": "/shaders/effects/stray_hair/stray_hair.wgsl"
+  },
+  {
+    "label": "texture/texture",
+    "path": "/shaders/effects/texture/texture.wgsl"
+  },
+  {
+    "label": "tint/tint",
+    "path": "/shaders/effects/tint/tint.wgsl"
+  },
+  {
+    "label": "value_refract/value_refract",
+    "path": "/shaders/effects/value_refract/value_refract.wgsl"
+  },
+  {
+    "label": "vaseline/vaseline",
+    "path": "/shaders/effects/vaseline/vaseline.wgsl"
+  },
+  {
+    "label": "vhs/vhs",
+    "path": "/shaders/effects/vhs/vhs.wgsl"
+  },
+  {
+    "label": "vignette/vignette",
+    "path": "/shaders/effects/vignette/vignette.wgsl"
+  },
+  {
+    "label": "voronoi/voronoi",
+    "path": "/shaders/effects/voronoi/voronoi.wgsl"
+  },
+  {
+    "label": "vortex/vortex",
+    "path": "/shaders/effects/vortex/vortex.wgsl"
+  },
+  {
+    "label": "warp/warp",
+    "path": "/shaders/effects/warp/warp.wgsl"
+  },
+  {
+    "label": "wobble/wobble",
+    "path": "/shaders/effects/wobble/wobble.wgsl"
+  },
+  {
+    "label": "wormhole/wormhole",
+    "path": "/shaders/effects/wormhole/wormhole.wgsl"
+  },
+  {
+    "label": "worms/worms",
+    "path": "/shaders/effects/worms/worms.wgsl"
+  },
+  {
+    "label": "multires/multires",
+    "path": "/shaders/generators/multires/multires.wgsl"
+  }
+]

@@ -3,10 +3,11 @@
 from collections import defaultdict
 
 import math
-import random
 
 import numpy as np
 import tensorflow as tf
+
+import noisemaker.rng as rng
 
 from noisemaker.constants import (
     DistanceMetric,
@@ -29,16 +30,30 @@ def set_seed(seed):
     """
 
     if seed is not None:
-        random.seed(seed)
-
-        np.random.seed(seed)
-
-        tf.random.set_seed(seed)
-
+        rng.set_seed(seed)
         simplex._seed = seed
 
 
-def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=None, mask_inverse=False, mask_static=False,
+def value_noise(count, freq=8):
+    """Generate 1D value noise samples.
+
+    RNG: ``freq + 1`` calls to :func:`rng.random` to build the lattice in
+    order from index 0 to ``freq``.
+    """
+
+    lattice = [rng.random() for _ in range(freq + 1)]
+    out = []
+    for i in range(count):
+        x = i / count * freq
+        xi = int(x)
+        xf = x - xi
+        t = xf * xf * (3 - 2 * xf)
+        out.append(lattice[xi] * (1 - t) + lattice[xi + 1] * t)
+
+    return tf.constant(out, dtype=tf.float32)
+
+
+def values(freq, shape, distrib=ValueDistribution.simplex, corners=False, mask=None, mask_inverse=False, mask_static=False,
            spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
     """
     """
@@ -49,26 +64,30 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
     initial_shape = freq + [shape[-1]]
 
     if distrib is None:
-        distrib = ValueDistribution.uniform
+        distrib = ValueDistribution.simplex
 
     distrib = coerce_enum(distrib, ValueDistribution)
 
     mask = coerce_enum(mask, ValueMask)
 
     if distrib == ValueDistribution.ones:
-        tensor = tf.ones(initial_shape)
+        tensor = tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.mids:
-        tensor = tf.ones(initial_shape) * .5
+        tensor = tf.ones(initial_shape, dtype=tf.float32) * .5
 
     elif distrib == ValueDistribution.zeros:
-        tensor = tf.zeros(initial_shape)
+        tensor = tf.zeros(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.column_index:
-        tensor = tf.expand_dims(normalize(tf.cast(column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(
+            normalize(tf.cast(column_index(initial_shape), tf.float32)), -1
+        ) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.row_index:
-        tensor = tf.expand_dims(normalize(tf.cast(row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, tf.float32)
+        tensor = tf.expand_dims(
+            normalize(tf.cast(row_index(initial_shape), tf.float32)), -1
+        ) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif ValueDistribution.is_center_distance(distrib):
         sdf_sides = None
@@ -110,41 +129,28 @@ def values(freq, shape, distrib=ValueDistribution.uniform, corners=False, mask=N
         else:
             rounded_speed = math.ceil(-1 + speed)
 
-        tensor = normalized_sine(singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
-                                 - math.tau * time * rounded_speed) * tf.ones(shape)
-
-    elif ValueDistribution.is_scan(distrib):
-        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_down):
-            scan_distrib = ValueDistribution.column_index
-
-        elif distrib in (ValueDistribution.scan_left, ValueDistribution.scan_right):
-            scan_distrib = ValueDistribution.row_index
-
-        tensor = values([shape[0], shape[1]], value_shape(shape), distrib=scan_distrib)
-
-        if distrib in (ValueDistribution.scan_up, ValueDistribution.scan_left):
-            tensor = 1.0 - tensor
-
-        # make sure speed doesn't break looping
-        # XXX copied from center distance
-        if speed > 0:
-            rounded_speed = math.floor(1 + speed)
-        else:
-            rounded_speed = math.ceil(-1 + speed)
-
-        tensor = normalized_sine(tensor * math.tau - math.tau * time * rounded_speed) * tf.ones(shape)
+        tensor = normalized_sine(
+            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
+            - math.tau * time * rounded_speed
+        ) * tf.ones(shape, dtype=tf.float32)
 
     elif ValueDistribution.is_noise(distrib):
-        # we need to control the periodic function's visual speed (i.e. scale the time factor), but without breaking loops.
-        # to accomplish this, we will use a scaled periodic uniform noise as the time value for periodic noise types.
-        # since time values are per-pixel, this has the added bonus of animating different parts of the image at different
-        # rates, rather than ping-ponging the entire image back and forth in lockstep. this creates a visual effect which
-        # closely resembles higher-dimensional noise.
+        base_seed = simplex.get_seed()
+        value_noise = tf.cast(
+            simplex.simplex(initial_shape, time=time, seed=base_seed, speed=speed),
+            tf.float32,
+        )
 
-        # get a periodic uniform noise, and scale it to speed:
-        scaled_time = periodic_value(time, tf.random.uniform(initial_shape)) * speed
-
-        tensor = periodic_value(scaled_time, tf.random.uniform(initial_shape))
+        if speed == 0 or time == 0:
+            tensor = value_noise
+        else:
+            time_seed = (base_seed + 0x9E3779B1) & 0xFFFFFFFF
+            time_noise = tf.cast(
+                simplex.simplex(initial_shape, time=0.0, seed=time_seed, speed=1),
+                tf.float32,
+            )
+            scaled_time = periodic_value(time, time_noise) * speed
+            tensor = periodic_value(scaled_time, value_noise)
 
         if distrib == ValueDistribution.exp:
             tensor = tf.math.pow(tensor, 4)
@@ -315,8 +321,8 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
 
     if diagram_type in VoronoiDiagramType.flow_members():
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
-        x += tf.random.normal(shape=tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y += tf.random.normal(shape=tf.shape(y), stddev=.0001, dtype=tf.float32)
+        x += rng.normal(tf.shape(x), stddev=.0001, dtype=tf.float32)
+        y += rng.normal(tf.shape(y), stddev=.0001, dtype=tf.float32)
 
     if is_triangular:
         # Keep it visually flipped "horizontal"-side-up
@@ -661,7 +667,7 @@ def proportional_downsample(tensor, shape, new_shape):
 
     kernel_shape = [max(int(shape[0] / new_shape[0]), 1), max(int(shape[1] / new_shape[1]), 1), shape[2], 1]
 
-    kernel = tf.ones(kernel_shape)
+    kernel = tf.ones(kernel_shape, dtype=tf.float32)
 
     try:
         out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
@@ -857,14 +863,14 @@ def ridge(tensor):
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.uniform, corners=False,
+def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.simplex, corners=False,
                     ridges=False, mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0):
     """Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects."""
 
     if isinstance(freq, int):
         freq = freq_for_shape(freq, shape)
 
-    tensor = tf.zeros(shape)
+    tensor = tf.zeros(shape, dtype=tf.float32)
 
     for octave in range(1, octaves + 1):
         multiplier = 2 ** octave
@@ -902,25 +908,45 @@ def normalized_sine(value):
 def _conform_kernel_to_tensor(kernel, tensor, shape):
     """Re-shape a convolution kernel to match the given tensor's color dimensions."""
 
-    values, _ = masks.mask_values(kernel)
+    if isinstance(kernel, ValueMask):
+        values, _ = masks.mask_values(kernel)
+        arr = np.asarray(values, dtype=np.float32)
+    else:
+        arr = np.asarray(kernel, dtype=np.float32)
 
-    length = len(values)
+    if arr.ndim == 3 and arr.shape[-1] == 1:
+        arr = arr[:, :, 0]
 
+    if arr.ndim != 2:
+        raise ValueError("Convolution kernel must be 2-D")
+
+    height, width = arr.shape
     channels = shape[-1]
 
-    temp = np.repeat(values, channels)
+    tiled = np.repeat(arr[:, :, None], channels, axis=2)
 
-    temp = tf.reshape(temp, (length, length, channels, 1))
+    temp = tf.reshape(tiled, (height, width, channels, 1))
 
     temp = tf.cast(temp, tf.float32)
 
-    temp /= tf.maximum(tf.reduce_max(temp), tf.reduce_min(temp) * -1)
+    # Normalize the kernel to match the JavaScript implementation, which scales
+    # the filter by the largest absolute value to preserve relative weights.
+    denom = tf.maximum(tf.reduce_max(temp), tf.reduce_min(temp) * -1)
+    temp = tf.math.divide_no_nan(temp, denom)
 
     return temp
 
 
 @effect()
-def convolve(tensor, shape, kernel=None, with_normalize=True, alpha=1.0, time=0.0, speed=1.0):
+def convolve(
+    tensor,
+    shape,
+    kernel=ValueMask.conv2d_blur,
+    with_normalize=True,
+    alpha=1.0,
+    time=0.0,
+    speed=1.0,
+):
     """
     Apply a convolution kernel to an image tensor.
 
@@ -938,6 +964,11 @@ def convolve(tensor, shape, kernel=None, with_normalize=True, alpha=1.0, time=0.
     """
 
     height, width, channels = shape
+
+    if kernel is None:
+        kernel = ValueMask.conv2d_blur
+
+    kernel = coerce_enum(kernel, ValueMask)
 
     kernel_values = _conform_kernel_to_tensor(kernel, tensor, shape)
 
@@ -1006,7 +1037,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
+            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -1017,7 +1048,7 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
             reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.uniform,
+            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
                                  time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -1030,6 +1061,8 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
                 reference_y = reference_x
                 reference_x = tf.cos(reference_x * math.tau)
                 reference_y = tf.sin(reference_y * math.tau)
+                reference_x = tf.clip_by_value(reference_x * 0.5 + 0.5, 0.0, 1.0)
+                reference_y = tf.clip_by_value(reference_y * 0.5 + 0.5, 0.0, 1.0)
 
     quad_directional = signed_range and not from_derivative
 
@@ -1043,18 +1076,41 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
         y_offsets *= 2.0
 
     # Bilinear interpolation of midpoints
-    x0_offsets = (tf.cast(x_offsets, tf.int32) + x0_index) % width
-    x1_offsets = (x0_offsets + 1) % width
-    y0_offsets = (tf.cast(y_offsets, tf.int32) + y0_index) % height
-    y1_offsets = (y0_offsets + 1) % height
+    x_coords = tf.cast(x0_index, tf.float32)
+    y_coords = tf.cast(y0_index, tf.float32)
+
+    sample_x = x_coords + x_offsets
+    sample_y = y_coords + y_offsets
+
+    width_f = tf.cast(width, tf.float32)
+    height_f = tf.cast(height, tf.float32)
+
+    sample_x_wrapped = tf.math.floormod(sample_x, width_f)
+    sample_y_wrapped = tf.math.floormod(sample_y, height_f)
+
+    x0_base = tf.floor(sample_x_wrapped)
+    y0_base = tf.floor(sample_y_wrapped)
+
+    x0_base = tf.minimum(x0_base, width_f - 1)
+    y0_base = tf.minimum(y0_base, height_f - 1)
+
+    x0_int = tf.cast(x0_base, tf.int32)
+    y0_int = tf.cast(y0_base, tf.int32)
+
+    x0_offsets = tf.math.floormod(x0_int, width)
+    x1_offsets = tf.math.floormod(x0_int + 1, width)
+    y0_offsets = tf.math.floormod(y0_int, height)
+    y1_offsets = tf.math.floormod(y0_int + 1, height)
 
     x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
     x1_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x1_offsets], 2))
     x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
     x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
 
-    x_fract = tf.reshape(x_offsets - tf.floor(x_offsets), [height, width, 1])
-    y_fract = tf.reshape(y_offsets - tf.floor(y_offsets), [height, width, 1])
+    x_fract = tf.reshape(sample_x_wrapped - x0_base, [height, width, 1])
+    y_fract = tf.reshape(sample_y_wrapped - y0_base, [height, width, 1])
+    x_fract = tf.clip_by_value(x_fract, 0.0, 1.0)
+    y_fract = tf.clip_by_value(y_fract, 0.0, 1.0)
 
     x_y0 = blend(x0_y0, x1_y0, x_fract)
     x_y1 = blend(x0_y1, x1_y1, x_fract)

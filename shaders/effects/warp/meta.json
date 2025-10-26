@@ -1,0 +1,76 @@
+{
+  "id": "warp",
+  "label": "Warp",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/warp/warp.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the warp effect on or off."
+    },
+    {
+      "name": "freq",
+      "type": "float",
+      "default": 2.0,
+      "min": 0.1,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Frequency",
+      "description": "Base frequency for noise."
+    },
+    {
+      "name": "octaves",
+      "type": "integer",
+      "default": 5,
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "label": "Octaves",
+      "description": "Number of noise octaves."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Displacement",
+      "description": "Displacement amount."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "freq": { "buffer": "params", "offset": 3 },
+    "octaves": { "buffer": "params", "offset": 4 },
+    "displacement": { "buffer": "params", "offset": 5 },
+    "spline_order": { "buffer": "params", "offset": 6 },
+    "warp_map_flag": { "buffer": "params", "offset": 7 },
+    "signed_range": { "buffer": "params", "offset": 8 },
+    "time": { "buffer": "params", "offset": 9 },
+    "speed": { "buffer": "params", "offset": 10 },
+    "enabled": { "kind": "toggle" }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "id": "color_map",
+  "label": "Color Map",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/color_map/color_map.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "stats_buffer": {
+      "kind": "storageBuffer",
+      "size": 8
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    },
+    "clut_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the color map pass on or off."
+    },
+    {
+      "name": "displacement",
+      "type": "float",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "label": "Displacement",
+      "description": "Offset applied when sampling the lookup texture."
+    },
+    {
+      "name": "horizontal",
+      "type": "boolean",
+      "default": false,
+      "label": "Horizontal",
+      "description": "Scan horizontally when sampling the lookup texture."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed for procedural lookup animation."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "displacement": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "horizontal": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

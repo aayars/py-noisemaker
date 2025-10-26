@@ -1,0 +1,51 @@
+{
+  "id": "vaseline",
+  "label": "Vaseline",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/vaseline/vaseline.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the vaseline effect on or off."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend amount between original and vaseline output."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "alpha": { "buffer": "params", "offset": 4 },
+    "time": { "buffer": "params", "offset": 5 },
+    "speed": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
+  }
+}

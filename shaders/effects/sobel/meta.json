@@ -1,0 +1,53 @@
+{
+  "id": "sobel",
+  "label": "Sobel",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/sobel/sobel.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the sobel edge detection effect on or off."
+    },
+    {
+      "name": "dist_metric",
+      "type": "integer",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "label": "Distance Metric",
+      "description": "Distance metric for edge detection (1=Manhattan, 2=Euclidean)."
+    },
+    {
+      "name": "rgb",
+      "type": "boolean",
+      "default": false,
+      "label": "RGB",
+      "description": "Apply per-channel RGB sobel."
+    }
+  ],
+  "parameterBindings": {
+    "dist_metric": "params.dist_metric",
+    "rgb": "params.rgb"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "py-noisemaker",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "noisemaker-js": "./bin/noisemaker-js"
+  },
+  "scripts": {
+    "test": "node scripts/checkEnums.js && node test/rng.test.js && node test/constants.test.js && node test/constants-parity.test.js && node test/simplex.test.js && node test/value.test.js && node test/value-parity.test.js && node test/points.test.js && node test/masks.test.js && node test/masks-parity.test.js && node test/palettes.test.js && node test/palettes-parity.test.js && node test/effectsRegistry.test.js && node test/effects-parity.test.js && node test/effects.test.js && node test/composer.test.js && node test/presets-parity.test.js && node test/presets-params-parity.test.js && node test/presets.test.js && node test/presets-render.test.js && node test/preset-cycle.test.js && node test/colors.test.js && node test/canvas.test.js && node test/generators.test.js && node test/parser.test.js && node test/evaluator.test.js && node test/encoder.test.js && node test/cli.test.js",
+    "build": "node scripts/build.js",
+    "regress": "node scripts/regress.js",
+    "test:shaders": "node shaders/tests/headless.test.js --size 128 --time 0.0 --seed 0",
+    "image-regress": "python scripts/image_regression.py",
+    "test:webgpu-step2": "node test/verify-step2-headless.js",
+    "test:webgpu-step3": "node test/verify-step3.js && node test/verify-step3-headless.js",
+    "test:webgpu-step4": "node test/verify-step4.js && node test/verify-step4-headless.js",
+    "test:webgpu-compliance": "node test/verify-webgpu-only.js",
+    "test:webgpu-step7": "node test/verify-step7.js && node test/verify-step7-headless.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "canvas": "^3.2.0",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^22.15.0"
+  }
+}

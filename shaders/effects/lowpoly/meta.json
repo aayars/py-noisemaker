@@ -1,0 +1,98 @@
+{
+  "id": "lowpoly",
+  "label": "Lowpoly",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/lowpoly/lowpoly.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the low-poly faceting pass."
+    },
+    {
+      "name": "distrib",
+      "type": "enum",
+      "default": 1000000,
+      "label": "Point Distribution",
+      "description": "Seed layout used to generate Voronoi cells.",
+      "options": [
+        { "value": 1000000, "label": "Random" },
+        { "value": 1000001, "label": "Square" },
+        { "value": 1000002, "label": "Waffle" },
+        { "value": 1000003, "label": "Chess" },
+        { "value": 1000010, "label": "Horizontal Hex" },
+        { "value": 1000011, "label": "Vertical Hex" },
+        { "value": 1000050, "label": "Spiral" },
+        { "value": 1000100, "label": "Circular" },
+        { "value": 1000101, "label": "Concentric" },
+        { "value": 1000102, "label": "Rotating" }
+      ]
+    },
+    {
+      "name": "freq",
+      "type": "int",
+      "default": 10,
+      "min": 1,
+      "max": 64,
+      "step": 1,
+      "label": "Frequency",
+      "description": "Number of Voronoi sites per axis."
+    },
+    {
+      "name": "dist_metric",
+      "type": "enum",
+      "default": 1,
+      "label": "Distance Metric",
+      "description": "Metric used to shade the Voronoi distance field.",
+      "options": [
+        { "value": 1, "label": "Euclidean" },
+        { "value": 2, "label": "Manhattan" },
+        { "value": 3, "label": "Chebyshev" },
+        { "value": 4, "label": "Octagram" },
+        { "value": 101, "label": "Triangular" },
+        { "value": 102, "label": "Hexagram" },
+        { "value": 201, "label": "SDF" }
+      ]
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed for point jitter."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "distrib": { "buffer": "params", "offset": 4 },
+    "freq": { "buffer": "params", "offset": 5 },
+    "time": { "buffer": "params", "offset": 6 },
+    "speed": { "buffer": "params", "offset": 7 },
+    "dist_metric": { "buffer": "params", "offset": 8 },
+    "enabled": { "kind": "toggle" }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "id": "glyph_map",
+  "label": "Glyph Map",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/glyph_map/glyph_map.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "glyph_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 64
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle glyph mapping on or off."
+    },
+    {
+      "name": "colorize",
+      "type": "boolean",
+      "default": true,
+      "label": "Colorize",
+      "description": "Apply source image color to glyphs."
+    },
+    {
+      "name": "zoom",
+      "type": "int",
+      "default": 1,
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "label": "Zoom",
+      "description": "Glyph size multiplier."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 1.0,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "label": "Alpha",
+      "description": "Blend amount with original image."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channels": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "glyph_width": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "glyph_height": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "glyph_count": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "mask": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "colorize": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "zoom": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "spline_order": {
+      "buffer": "params",
+      "offset": 10
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 11
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 12
+    }
+  }
+}

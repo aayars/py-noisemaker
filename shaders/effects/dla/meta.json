@@ -1,0 +1,143 @@
+{
+  "id": "dla",
+  "label": "DLA (Diffusion-Limited Aggregation)",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/dla/dla.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 48
+    },
+    "prev_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float",
+      "persistent": true
+    },
+    "agent_state_in": {
+      "kind": "readOnlyStorageBuffer",
+      "size": "custom",
+      "persistent": true
+    },
+    "agent_state_out": {
+      "kind": "storageBuffer",
+      "size": "custom",
+      "persistent": true
+    }
+  },
+  "temporal": {
+    "enabled": true,
+    "feedback": "prev_texture",
+    "agentBuffers": ["agent_state_in", "agent_state_out"]
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the DLA effect on or off."
+    },
+    {
+      "name": "padding",
+      "type": "float",
+      "default": 2.0,
+      "min": 1.0,
+      "max": 8.0,
+      "step": 0.5,
+      "label": "Padding",
+      "description": "Downscale factor for simulation space."
+    },
+    {
+      "name": "seed_density",
+      "type": "float",
+      "default": 0.005,
+      "min": 0.001,
+      "max": 0.1,
+      "step": 0.001,
+      "label": "Seed Density",
+      "description": "Initial seed point density."
+    },
+    {
+      "name": "density",
+      "type": "float",
+      "default": 0.2,
+      "min": 0.01,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "Walker Density",
+      "description": "Density of random walkers. Higher = more aggregation points."
+    },
+    {
+      "name": "alpha",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
+      "label": "Alpha",
+      "description": "Blend intensity of aggregated particles."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0,
+      "max": 3,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "padding": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "seed_density": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "density": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "alpha": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "enabled": {
+      "kind": "toggle"
+    }
+  }
+}

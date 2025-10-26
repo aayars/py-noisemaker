@@ -1,0 +1,44 @@
+{
+  "id": "normalize",
+  "label": "Normalize",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/normalize/apply.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    },
+    "stats_buffer": {
+      "kind": "storageBuffer",
+      "size": "dynamic"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the normalization pass."
+    }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "enabled": { "kind": "toggle" }
+  }
+}

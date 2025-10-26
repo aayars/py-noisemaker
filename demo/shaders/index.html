@@ -1,0 +1,2377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Noisemaker WGSL Demo</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="../common.css" />
+</head>
+<body class="two-column-layout">
+  <aside>
+    <h1><a href="../index.html">Noisemaker</a> WGSL Demo</h1>
+    <div class="panel controls-panel">
+      <h2>Program</h2>
+      <div class="field">
+        <span class="field-label">Shader</span>
+        <select id="shaderSelect"></select>
+      </div>
+      <button id="runButton">Compile & Render</button>
+    </div>
+    <div class="panel controls-panel">
+      <h2>Parameters</h2>
+      <div id="parameterContainer" class="parameter-grid">
+        <p class="parameter-placeholder">Select a shader to see available parameters.</p>
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+  </aside>
+  <main>
+    <div class="canvas-wrapper">
+      <canvas id="preview" width="512" height="512"></canvas>
+      <div class="code-panel">
+        <pre><code id="shaderSource"></code></pre>
+      </div>
+    </div>
+  </main>
+  <script type="module">
+    const SHADER_MANIFEST_URL = '/shaders/manifest.json';
+    const DEFAULT_WIDTH = 256;
+    const DEFAULT_HEIGHT = 256;
+    const DEFAULT_CHANNELS = 4;
+    const TIME_LOOP_DURATION_MS = 15000;
+    const TIME_EPSILON = 1e-4;
+    const MAX_RENDER_FPS = 30;
+    const MIN_RENDER_INTERVAL_MS = 1000 / MAX_RENDER_FPS;
+    const FRAME_TIME_REGEX = /frame_uniforms\s*\.\s*time/;
+
+    function wrapUnitInterval(value) {
+      if (!Number.isFinite(value)) {
+        return 0;
+      }
+      const wrapped = value - Math.floor(value);
+      return wrapped < 0 ? wrapped + 1 : wrapped;
+    }
+
+    const shaderSelect = document.getElementById('shaderSelect');
+    const shaderSourceEl = document.getElementById('shaderSource');
+    const runButton = document.getElementById('runButton');
+    const statusEl = document.getElementById('status');
+    const parameterContainer = document.getElementById('parameterContainer');
+    const previewCanvas = document.getElementById('preview');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    let device = null;
+    let checkerTexture = null;
+    let currentShaderPath = '';
+    let currentShaderCode = '';
+    let currentUniformOverrides = {};
+    let renderInFlight = false;
+    let queuedRenderOptions = null;
+    let nextAllowedRenderTime = 0;
+    let scheduledRenderTimer = null;
+    let scheduledRenderOptions = null;
+    let shaderLoadToken = 0;
+    let timeControlIndices = [];
+    let animationFrameId = null;
+    let animationStartTime = performance.now();
+    let frameUniformTimeValue = 0;
+    let frameUniformSeedValue = 0;
+    let frameUniformFrameIndex = 0;
+    let shaderUsesFrameTime = false;
+
+    const SHADER_PARAM_SETS = {
+      '/shaders/effects/aberration/aberration.wgsl': {
+        constants: {
+          2: 3.0,
+        },
+        controls: [
+          { index: 3, label: 'Displacement', min: 0, max: 0.05, step: 0.001, default: 0.005 },
+          { index: 4, label: 'Time', min: 0, max: 1, step: 0.01, default: 0.0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1.0 },
+        ],
+      },
+      '/shaders/effects/adjust_brightness/adjust_brightness.wgsl': {
+        constants: {
+          1: 0.0,
+          2: 1.0,
+          3: 0.0,
+        },
+        controls: [
+          { index: 0, label: 'Brightness', min: -1, max: 1, step: 0.01, default: 0.1 },
+        ],
+      },
+      '/shaders/effects/adjust_contrast/adjust_contrast.wgsl': {
+        controls: [
+          { index: 0, label: 'Contrast', min: 0, max: 4, step: 0.01, default: 1.25 },
+          { index: 1, label: 'Time', min: 0, max: 1, step: 0.01, default: 0.0 },
+          { index: 2, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1.0 },
+        ],
+      },
+      '/shaders/effects/adjust_hue/adjust_hue.wgsl': {
+        constants: {
+          4: 0.0,
+          5: 1.0,
+        },
+        controls: [
+          { index: 3, label: 'Hue Shift', min: -0.5, max: 0.5, step: 0.005, default: 0.08 },
+        ],
+      },
+      '/shaders/effects/adjust_saturation/adjust_saturation.wgsl': {
+        constants: {
+          4: 0.0,
+          5: 1.0,
+          6: 0.0,
+          7: 0.0,
+        },
+        controls: [
+          { index: 3, label: 'Saturation', min: 0, max: 3, step: 0.01, default: 1.35 },
+        ],
+      },
+      '/shaders/effects/binary_op/binary_op.wgsl': {
+        controls: [
+          { index: 3, label: 'Operation', min: 0, max: 8, step: 1, default: 0 },
+        ],
+      },
+      '/shaders/effects/blend_const/blend_const.wgsl': {
+        controls: [
+          { index: 3, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.5 },
+        ],
+      },
+      '/shaders/effects/bloom/bloom.wgsl': {
+        constants: {
+          3: 0,
+          4: 0.5,
+          5: 0,
+          6: 1.0,
+          7: 0,
+        },
+        controls: [
+          { index: 4, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 0.5 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/blur/blur.wgsl': {
+        constants: {
+          3: 10,
+          4: 0,
+          5: 1,
+          6: 3,
+        },
+        controls: [
+          { index: 3, label: 'Amount', min: 1, max: 64, step: 0.5, default: 10 },
+          { index: 6, label: 'Spline Order', min: 0, max: 3, step: 1, default: 3 },
+        ],
+      },
+      '/shaders/effects/clouds/clouds.wgsl': {
+        constants: {
+          4: 1,
+        },
+        controls: [
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/color_map/color_map.wgsl': {
+        constants: {
+          6: 0,
+          7: 1,
+        },
+        controls: [
+          { index: 4, label: 'Displacement', min: 0, max: 4, step: 0.01, default: 0.5 },
+          {
+            index: 5,
+            label: 'Direction',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+            trueLabel: 'Horizontal',
+            falseLabel: 'Vertical',
+          },
+        ],
+      },
+      '/shaders/effects/conv_feedback/conv_feedback.wgsl': {
+        constants: {
+          3: 0,
+          4: 100,
+          5: 0.5,
+          6: 0,
+          7: 1,
+        },
+        controls: [
+          { index: 5, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.5 },
+        ],
+      },
+      '/shaders/effects/convolve/convolve.wgsl': {
+        constants: {
+          3: 800,
+          4: 1,
+          5: 1,
+          6: 0,
+          7: 1,
+        },
+        controls: [
+          {
+            index: 3,
+            label: 'Kernel',
+            min: 800,
+            max: 810,
+            step: 1,
+            default: 800,
+          },
+          {
+            index: 4,
+            label: 'Normalize',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 5, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/crt/crt.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+          6: 0,
+          7: 0,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/degauss/degauss.wgsl': {
+        constants: {
+          2: 0.0625,
+          3: 0,
+          4: 1,
+          5: 0,
+          6: 0,
+          7: 0,
+        },
+        controls: [
+          { index: 2, label: 'Displacement', min: 0, max: 0.5, step: 0.0025, default: 0.0625 },
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: -5, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/density_map/density_map.wgsl': {
+        constants: {
+          6: 0,
+          7: 0,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/derivative/derivative.wgsl': {
+        constants: {
+          3: 1,
+          4: 1,
+          5: 1,
+          6: 0,
+          7: 1,
+        },
+        controls: [
+          {
+            index: 3,
+            label: 'Distance Metric',
+            min: 1,
+            max: 201,
+            step: 1,
+            default: 1,
+            valueType: 'uint32',
+          },
+          {
+            index: 4,
+            label: 'Normalize',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 5, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/dla/dla.wgsl': {
+        constants: {
+          3: 2.0,
+          4: 0.01,
+          5: 0.125,
+          6: 1.0,
+          7: 0.0,
+          8: 1.0,
+        },
+        controls: [
+          { index: 3, label: 'Padding', min: 1, max: 8, step: 0.1, default: 2 },
+          { index: 4, label: 'Seed Density', min: 0.001, max: 0.25, step: 0.001, default: 0.01 },
+          { index: 5, label: 'Density', min: 0.01, max: 1, step: 0.01, default: 0.125 },
+          { index: 6, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 7, label: 'Time', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 8, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/erosion_worms/erosion_worms.wgsl': {
+        constants: {
+          4: 50,
+          5: 50,
+          6: 1,
+          7: 0,
+          8: 0.25,
+          9: 0,
+          10: 0,
+          11: 0,
+          12: 1,
+        },
+        controls: [
+          { index: 4, label: 'Density', min: 0, max: 100, step: 1, default: 50 },
+          { index: 5, label: 'Iterations', min: 1, max: 128, step: 1, default: 50 },
+          { index: 6, label: 'Contraction', min: 0, max: 2, step: 0.05, default: 1 },
+          {
+            index: 7,
+            label: 'Quantize',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 8, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.25 },
+          {
+            index: 9,
+            label: 'Inverse',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 10, label: 'XY Blend', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 11, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 12, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/expand_tile/expand_tile.wgsl': {
+        constants: {
+          0: DEFAULT_WIDTH,
+          1: DEFAULT_HEIGHT,
+          2: DEFAULT_WIDTH * 2,
+          3: DEFAULT_HEIGHT * 2,
+          4: DEFAULT_CHANNELS,
+          5: 0,
+          6: 0,
+        },
+        controls: [
+          { index: 5, label: 'X Offset', min: -256, max: 256, step: 1, default: 0 },
+          { index: 6, label: 'Y Offset', min: -256, max: 256, step: 1, default: 0 },
+        ],
+      },
+      '/shaders/effects/false_color/false_color.wgsl': {
+        constants: {
+          3: 0,
+          4: 0.5,
+          5: 0,
+          6: 1,
+        },
+        controls: [
+          {
+            index: 3,
+            label: 'Horizontal',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+            trueLabel: 'Horizontal',
+            falseLabel: 'Vertical',
+          },
+          { index: 4, label: 'Displacement', min: 0, max: 1, step: 0.01, default: 0.5 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/fibers/fibers.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: -4, max: 4, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/fxaa/fxaa.wgsl': {
+        controls: [
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/frame/frame.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/glitch/glitch.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 10, step: 0.1, default: 1 },
+        ],
+      },
+      '/shaders/effects/glowing_edges/glowing_edges.wgsl': {
+        controls: [
+          {
+            index: 4,
+            label: 'Sobel Metric',
+            min: 0,
+            max: 201,
+            step: 1,
+            default: 2,
+            valueType: 'uint32',
+          },
+          { index: 5, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 6, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 7, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/glyph_map/glyph_map.wgsl': {
+        constants: {
+          3: 15,
+          4: 15,
+          5: 95,
+          6: 1020,
+          7: 1,
+          8: 1,
+          9: 1,
+          10: 0,
+          11: 0,
+          12: 1,
+        },
+        controls: [
+          {
+            index: 7,
+            label: 'Colorize',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 8, label: 'Zoom', min: 0.1, max: 8, step: 0.01, default: 1 },
+          { index: 9, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/grain/grain.wgsl': {
+        controls: [
+          { index: 3, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.25 },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/grime/grime.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/inner_tile/inner_tile.wgsl': {
+        constants: {
+          3: 4,
+          4: 4,
+          5: DEFAULT_WIDTH * 0.25,
+          6: DEFAULT_HEIGHT * 0.25,
+          7: DEFAULT_WIDTH * 0.25,
+          8: DEFAULT_HEIGHT * 0.25,
+        },
+        controls: [
+          { index: 3, label: 'Frequency X', min: 1, max: 16, step: 1, default: 4 },
+          { index: 4, label: 'Frequency Y', min: 1, max: 16, step: 1, default: 4 },
+        ],
+      },
+      '/shaders/effects/jpeg_decimate/jpeg_decimate.wgsl': {
+        constants: {
+          4: 25,
+          5: 0,
+          6: 1,
+        },
+        controls: [
+          { index: 4, label: 'Iterations', min: 1, max: 128, step: 1, default: 25 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/kaleido/kaleido.wgsl': {
+        constants: {
+          3: 6,
+          4: 5,
+          5: 0,
+          6: 0,
+          7: 0,
+          8: 1,
+          9: 0,
+          10: 1,
+          11: 1,
+          12: 1,
+          13: 1000000,
+          14: 0,
+          15: 0,
+        },
+        controls: [
+          { index: 3, label: 'Sides', min: 2, max: 16, step: 1, default: 6 },
+          { index: 4, label: 'SDF Sides', min: 3, max: 16, step: 1, default: 5 },
+          {
+            index: 8,
+            label: 'Blend Edges',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 9, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 10, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+          { index: 11, label: 'Point Frequency', min: 1, max: 16, step: 1, default: 1 },
+          { index: 12, label: 'Generations', min: 1, max: 8, step: 1, default: 1 },
+          { index: 14, label: 'Point Drift', min: 0, max: 2, step: 0.01, default: 0 },
+        ],
+      },
+      '/shaders/effects/light_leak/light_leak.wgsl': {
+        constants: {
+          3: 0,
+          4: 0.25,
+          5: 0,
+          6: 1,
+        },
+        controls: [
+          { index: 4, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 0.25 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/lens_distortion/lens_distortion.wgsl': {
+        constants: {
+          3: 1.0,
+          4: 0.0,
+          5: 1.0,
+        },
+        controls: [
+          { index: 3, label: 'Displacement', min: -1, max: 1, step: 0.01, default: 1.0 },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0.0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1.0 },
+        ],
+      },
+      '/shaders/effects/lens_warp/lens_warp.wgsl': {
+        constants: {
+          4: 0.0625,
+          5: 0,
+          6: 1,
+        },
+        controls: [
+          { index: 4, label: 'Displacement', min: 0, max: 0.5, step: 0.0025, default: 0.0625 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: -5, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/generators/multires/multires.wgsl': {
+        constants: {
+          0: 3,
+          1: 3,
+          2: 1,
+          3: 0,
+          4: 0,
+          5: 3,
+          6: 1,
+          7: 0,
+          8: 0,
+          9: 0,
+          10: 0,
+          11: 0,
+          12: 0,
+          13: 21,
+          14: 0.125,
+          15: 0,
+          16: 1,
+          17: 0,
+          18: 0,
+          19: 0,
+          20: 0,
+          21: 0,
+          22: 0,
+          23: 0,
+          24: 0,
+          25: 0,
+          26: 0,
+          27: 0,
+          28: 0.1,
+        },
+        controls: [
+          { index: 0, label: 'Freq X', min: 1, max: 32, step: 1, default: 3 },
+          { index: 1, label: 'Freq Y', min: 1, max: 32, step: 1, default: 3 },
+          { index: 2, label: 'Octaves', min: 1, max: 8, step: 1, default: 1, valueType: 'uint32' },
+          {
+            index: 3,
+            label: 'Ridges',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 4, label: 'Sin', min: 0, max: 8, step: 0.01, default: 0 },
+          { index: 11, label: 'Lattice Drift', min: 0, max: 2, step: 0.01, default: 0 },
+          {
+            index: 13,
+            label: 'Color Space',
+            type: 'select',
+            default: 21,
+            options: [
+              { value: 21, label: 'HSV' },
+              { value: 11, label: 'RGB' },
+              { value: 1, label: 'Grayscale' },
+            ],
+          },
+          { index: 14, label: 'Hue Range', min: 0, max: 1, step: 0.01, default: 0.125 },
+          { index: 15, label: 'Hue Rotation', min: 0, max: 1, step: 0.005, default: 0 },
+          { index: 16, label: 'Saturation', min: 0, max: 2, step: 0.01, default: 1 },
+          {
+            index: 22,
+            label: 'Octave Blend',
+            min: 0,
+            max: 20,
+            step: 10,
+            default: 0,
+            valueType: 'uint32',
+          },
+          { index: 28, label: 'Speed', min: 0, max: 2, step: 0.01, default: 0.1 },
+        ],
+      },
+      '/shaders/effects/lowpoly/lowpoly.wgsl': {
+        constants: {
+          5: 10,
+        },
+        controls: [
+          {
+            index: 4,
+            label: 'Distribution',
+            min: 1000000,
+            max: 1000102,
+            step: 1,
+            default: 1000000,
+            valueType: 'uint32',
+          },
+          { index: 5, label: 'Frequency', min: 2, max: 32, step: 1, default: 10, valueType: 'uint32' },
+          { index: 6, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 7, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+          {
+            index: 8,
+            label: 'Distance Metric',
+            min: 1,
+            max: 201,
+            step: 1,
+            default: 1,
+            valueType: 'uint32',
+          },
+        ],
+      },
+      '/shaders/effects/nebula/nebula.wgsl': {
+        constants: {
+          4: 1,
+        },
+        controls: [
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/normal_map/normal_map.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+      },
+      '/shaders/effects/normalize/stats.wgsl': {
+        constants: {
+          3: 0.0,
+          4: 0.0,
+          5: 1.0,
+          6: 0.0,
+          7: 0.0,
+        },
+      },
+      '/shaders/effects/normalize/reduce.wgsl': {
+        constants: {
+          3: 0.0,
+          4: 0.0,
+          5: 1.0,
+          6: 0.0,
+          7: 0.0,
+        },
+      },
+      '/shaders/effects/normalize/apply.wgsl': {
+        constants: {
+          3: 0.0,
+          4: 0.0,
+          5: 1.0,
+          6: 0.0,
+          7: 0.0,
+        },
+      },
+      '/shaders/effects/octave_combine/octave_combine.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+        },
+        controls: [
+          { index: 3, label: 'Mode', min: 0, max: 3, step: 1, default: 0 },
+          { index: 4, label: 'Layer Weight', min: 0, max: 4, step: 0.05, default: 1 },
+        ],
+      },
+      '/shaders/effects/offset_index/offset_index.wgsl': {
+        controls: [
+          { index: 2, label: 'X Offset', min: -128, max: 128, step: 1, default: 0 },
+          { index: 3, label: 'Y Offset', min: -128, max: 128, step: 1, default: 0 },
+        ],
+      },
+      '/shaders/effects/on_screen_display/on_screen_display.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/outline/outline.wgsl': {
+        constants: {
+          4: 1,
+          7: 1,
+        },
+        controls: [
+          {
+            index: 4,
+            label: 'Sobel Metric',
+            min: 0,
+            max: 201,
+            step: 1,
+            default: 1,
+            valueType: 'uint32',
+          },
+          {
+            index: 5,
+            label: 'Invert Mask',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+            trueLabel: 'Inverted',
+            falseLabel: 'Normal',
+          },
+          { index: 6, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 7, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/palette/palette.wgsl': {
+        constants: {
+          0: DEFAULT_WIDTH,
+          1: DEFAULT_HEIGHT,
+          2: DEFAULT_CHANNELS,
+          3: 0.65,
+          4: 0.0,
+          5: 1.0,
+          8: 31,
+        },
+        controls: [
+          {
+            index: 8,
+            label: 'Palette',
+            type: 'select',
+            default: 31,
+            valueType: 'uint32',
+            options: [
+              { label: 'None', value: 0 },
+              { label: '70s T-Shirt', value: 1 },
+              { label: 'Blue Brown', value: 2 },
+              { label: 'Blue Green', value: 3 },
+              { label: 'Blue Green 2', value: 4 },
+              { label: 'Blue Orange', value: 5 },
+              { label: 'Blue White Orange', value: 6 },
+              { label: 'Burnt Cyan', value: 7 },
+              { label: 'Cyan', value: 8 },
+              { label: 'Cyan Red', value: 9 },
+              { label: 'Dark Blue', value: 10 },
+              { label: 'Dark Purple', value: 11 },
+              { label: 'Dealer Hat', value: 12 },
+              { label: 'Grayscale', value: 13 },
+              { label: 'Green Purple', value: 14 },
+              { label: 'Jungle', value: 15 },
+              { label: 'Neon', value: 16 },
+              { label: 'Pastels', value: 17 },
+              { label: 'Pink Blue', value: 18 },
+              { label: 'Pink Blue 2', value: 19 },
+              { label: 'Purple Pink', value: 20 },
+              { label: 'Rainbow', value: 21 },
+              { label: 'Rainbow 2', value: 22 },
+              { label: 'Rainbow 3', value: 23 },
+              { label: 'Red Blue 2', value: 24 },
+              { label: 'Red Green', value: 25 },
+              { label: 'Red Orange Purple', value: 26 },
+              { label: 'Sherbet', value: 27 },
+              { label: 'Sherbet 2', value: 28 },
+              { label: 'Spectro', value: 29 },
+              { label: 'Spectro 2', value: 30 },
+              { label: 'Spectro 3', value: 31 },
+              { label: 'Spectro Double', value: 32 },
+              { label: 'Sunburn', value: 33 },
+              { label: 'Toxic', value: 34 },
+              { label: 'Vaporwave', value: 35 },
+              { label: 'Vibrant', value: 36 },
+              { label: 'White Orange Blue', value: 37 },
+              { label: 'Yellow Rainbow', value: 38 },
+            ],
+          },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 3, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.65 },
+        ],
+      },
+      '/shaders/effects/pixel_sort/pixel_sort.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          3: 0,
+          4: 0,
+          5: 0,
+          6: 1,
+          7: 0,
+        },
+        controls: [
+          {
+            index: 3,
+            label: 'Angled',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          {
+            index: 4,
+            label: 'Darkest',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 10, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/posterize/posterize.wgsl': {
+        constants: {
+          4: 0.0,
+          5: 1.0,
+          6: 0.0,
+          7: 0.0,
+        },
+        controls: [
+          { index: 3, label: 'Levels', min: 0, max: 64, step: 1, default: 9 },
+        ],
+      },
+      '/shaders/effects/proportional_downsample/proportional_downsample.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          3: 2,
+          4: 2,
+          5: DEFAULT_WIDTH / 2,
+          6: DEFAULT_HEIGHT / 2,
+        },
+        controls: [
+          { index: 3, label: 'Kernel Width', min: 1, max: 16, step: 1, default: 2 },
+          { index: 4, label: 'Kernel Height', min: 1, max: 16, step: 1, default: 2 },
+          { index: 5, label: 'Output Width', min: 16, max: DEFAULT_WIDTH, step: 1, default: DEFAULT_WIDTH / 2 },
+          { index: 6, label: 'Output Height', min: 16, max: DEFAULT_HEIGHT, step: 1, default: DEFAULT_HEIGHT / 2 },
+        ],
+      },
+      '/shaders/effects/refract/refract.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          4: 0,
+          5: 0,
+          6: 3,
+          7: 0,
+          8: 1,
+          9: 0,
+          10: 1,
+          11: 0,
+        },
+        controls: [
+          { index: 3, label: 'Displacement', min: 0, max: 0.5, step: 0.005, default: 0.1 },
+          { index: 4, label: 'Warp Freq X', min: 0, max: 32, step: 0.1, default: 0 },
+          { index: 5, label: 'Warp Freq Y', min: 0, max: 32, step: 0.1, default: 0 },
+          { index: 6, label: 'Spline Order', min: 0, max: 3, step: 1, default: 3 },
+          {
+            index: 7,
+            label: 'From Derivative',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          {
+            index: 8,
+            label: 'Signed Range',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 9, label: 'Time', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 10, label: 'Speed', min: 0, max: 4, step: 0.05, default: 1 },
+          {
+            index: 11,
+            label: 'Y From Offset',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+        ],
+      },
+      '/shaders/effects/refract_effect/refract_effect.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          5: 1,
+          6: 0,
+        },
+        controls: [
+          { index: 3, label: 'Displacement', min: 0, max: 0.5, step: 0.005, default: 0.12 },
+          {
+            index: 4,
+            label: 'Quad Directional',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 5, label: 'Spline Order', min: 0, max: 3, step: 1, default: 1 },
+          {
+            index: 6,
+            label: 'Use Polar',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+        ],
+      },
+      '/shaders/effects/reindex/reindex.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 3, label: 'Displacement', min: -8, max: 8, step: 0.05, default: 0.5 },
+          { index: 4, label: 'Time', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 8, step: 0.05, default: 1 },
+        ],
+      },
+      '/shaders/effects/resample/resample.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          3: 1,
+          4: DEFAULT_WIDTH,
+          5: DEFAULT_HEIGHT,
+          6: DEFAULT_CHANNELS,
+        },
+        controls: [
+          { index: 3, label: 'Spline Order', min: 0, max: 3, step: 1, default: 1 },
+          { index: 4, label: 'Output Width', min: 16, max: DEFAULT_WIDTH * 2, step: 1, default: DEFAULT_WIDTH },
+          { index: 5, label: 'Output Height', min: 16, max: DEFAULT_HEIGHT * 2, step: 1, default: DEFAULT_HEIGHT },
+          { index: 6, label: 'Output Channels', min: 1, max: 4, step: 1, default: DEFAULT_CHANNELS },
+        ],
+      },
+      '/shaders/effects/reverb/reverb.wgsl': {
+        constants: {
+          3: 2,
+          4: 1,
+          5: 1,
+          6: 0.0,
+          7: 1.0,
+        },
+        controls: [
+          { index: 3, label: 'Octaves', min: 0, max: 8, step: 1, default: 2, valueType: 'uint32' },
+          { index: 4, label: 'Iterations', min: 0, max: 6, step: 1, default: 1, valueType: 'uint32' },
+          {
+            index: 5,
+            label: 'Ridges',
+            type: 'checkbox',
+            trueValue: 1,
+            falseValue: 0,
+            trueLabel: 'Enabled',
+            falseLabel: 'Disabled',
+            default: 1,
+          },
+          { index: 6, label: 'Time', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 7, label: 'Speed', min: 0, max: 8, step: 0.05, default: 1 },
+        ],
+      },
+      '/shaders/effects/rgb_to_hsv/rgb_to_hsv.wgsl': {},
+      '/shaders/effects/ridge/ridge.wgsl': {
+        constants: {
+          3: 0.0,
+          4: 1.0,
+          5: 0.0,
+          6: 0.0,
+          7: 0.0,
+        },
+      },
+      '/shaders/effects/ripple/ripple.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+        },
+        controls: [
+          { index: 3, label: 'Frequency', min: 0, max: 16, step: 1, default: 2 },
+          { index: 4, label: 'Displacement', min: 0, max: 2, step: 0.01, default: 1 },
+          { index: 5, label: 'Kink', min: 0, max: 8, step: 0.05, default: 1 },
+          { index: 6, label: 'Spline Order', min: 0, max: 3, step: 1, default: 3 },
+          { index: 7, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 8, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/rotate/rotate.wgsl': {
+        constants: {
+          5: 0.0,
+          6: 1.0,
+        },
+        controls: [
+          { index: 4, label: 'Angle (deg)', min: -360, max: 360, step: 0.5, default: 30 },
+        ],
+      },
+      '/shaders/effects/scale_tensor/scale_tensor.wgsl': {
+        controls: [
+          { index: 3, label: 'Scale', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/scanline_error/scanline_error.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/scratches/scratches.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/shadow/shadow.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          3: 0.6,
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 3, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.6 },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/simple_frame/simple_frame.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 3, label: 'Brightness', min: 0, max: 2, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/sketch/sketch.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+        },
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/sine/sine.wgsl': {
+        constants: {
+          4: 0,
+          5: 1,
+          6: 0,
+        },
+        controls: [
+          { index: 3, label: 'Amount', min: 0, max: 32, step: 0.1, default: 8 },
+          {
+            index: 6,
+            label: 'RGB Mode',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+        ],
+      },
+      '/shaders/effects/smoothstep/smoothstep.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+          3: 0.0,
+          4: 1.0,
+          5: 0.0,
+          6: 1.0,
+        },
+        controls: [
+          { index: 3, label: 'a', min: -1, max: 1, step: 0.01, default: 0 },
+          { index: 4, label: 'b', min: -1, max: 1, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/snow/snow.wgsl': {
+        controls: [
+          { index: 3, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.25 },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/sobel/sobel.wgsl': {
+        controls: [
+          { index: 3, label: 'Distance Metric', min: 0, max: 201, step: 1, default: 1, valueType: 'uint32' },
+          { index: 4, label: 'Time', min: 0, max: 1, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/spatter/spatter.wgsl': {
+        constants: {
+          5: 0.875,
+          6: 0.125,
+          7: 0.125,
+        },
+        controls: [
+          {
+            index: 4,
+            label: 'Color Spatter',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 8, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 9, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/spooky_ticker/spooky_ticker.wgsl': {
+        constants: {
+          2: DEFAULT_CHANNELS,
+        },
+        controls: [
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/square_crop/square_crop.wgsl': {
+        constants: {
+          3: 0,
+          4: 0,
+          5: DEFAULT_WIDTH,
+        },
+        controls: [
+          { index: 3, label: 'Offset X', min: 0, max: DEFAULT_WIDTH - 1, step: 1, default: 0 },
+          { index: 4, label: 'Offset Y', min: 0, max: DEFAULT_HEIGHT - 1, step: 1, default: 0 },
+          {
+            index: 5,
+            label: 'Crop Size',
+            min: 8,
+            max: Math.min(DEFAULT_WIDTH, DEFAULT_HEIGHT),
+            step: 1,
+            default: Math.min(DEFAULT_WIDTH, DEFAULT_HEIGHT),
+          },
+        ],
+      },
+      '/shaders/effects/stray_hair/stray_hair.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: -4, max: 4, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/texture/texture.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/tint/tint.wgsl': {
+        controls: [
+          { index: 5, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 0.5 },
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/value_refract/value_refract.wgsl': {
+        constants: {
+          3: 4,
+          4: 0.125,
+          5: 0,
+          6: 1,
+          7: 20,
+        },
+        controls: [
+          { index: 3, label: 'Frequency', min: 1, max: 32, step: 1, default: 4 },
+          { index: 4, label: 'Displacement', min: 0, max: 0.5, step: 0.005, default: 0.125 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/vaseline/vaseline.wgsl': {
+        constants: {
+          3: 0,
+          4: 1,
+          5: 0,
+          6: 1,
+          7: 0,
+        },
+        controls: [
+          { index: 4, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/vhs/vhs.wgsl': {
+        controls: [
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/vignette/vignette.wgsl': {
+        constants: {
+          3: 0,
+          4: 1,
+          5: 0,
+          6: 1,
+        },
+        controls: [
+          { index: 3, label: 'Edge Brightness', min: -1, max: 1, step: 0.01, default: 0 },
+          { index: 4, label: 'Blend Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 5, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 6, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/voronoi/voronoi.wgsl': {
+        constants: {
+          3: 11,
+          4: 0,
+          5: 1,
+          6: 3,
+          7: 1,
+          8: 0,
+          9: 0,
+          10: 0,
+          11: 0,
+          12: 0,
+          13: 1,
+          14: 0,
+          15: 1,
+          16: 3,
+          17: 1,
+          18: 1000000,
+          19: 0,
+          20: 0,
+          21: 1,
+        },
+        controls: [
+          {
+            index: 3,
+            label: 'Diagram Type',
+            min: 0,
+            max: 42,
+            step: 1,
+            default: 11,
+            valueType: 'uint32',
+          },
+          { index: 4, label: 'Nth Neighbour', min: -16, max: 16, step: 1, default: 0 },
+          {
+            index: 5,
+            label: 'Distance Metric',
+            min: 1,
+            max: 201,
+            step: 1,
+            default: 1,
+            valueType: 'uint32',
+          },
+          { index: 6, label: 'SDF Sides', min: 3, max: 12, step: 1, default: 3 },
+          { index: 7, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 8, label: 'Refract Amount', min: 0, max: 2, step: 0.01, default: 0 },
+          {
+            index: 9,
+            label: 'Invert Output',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          {
+            index: 12,
+            label: 'Ridges Hint',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 14, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 15, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+          {
+            index: 16,
+            label: 'Point Frequency',
+            min: 1,
+            max: 16,
+            step: 1,
+            default: 3,
+            valueType: 'uint32',
+          },
+          {
+            index: 17,
+            label: 'Point Generations',
+            min: 1,
+            max: 4,
+            step: 1,
+            default: 1,
+            valueType: 'uint32',
+          },
+          { index: 19, label: 'Point Drift', min: 0, max: 1, step: 0.01, default: 0 },
+          {
+            index: 20,
+            label: 'Corner Points',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          {
+            index: 21,
+            label: 'Downsample',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+        ],
+      },
+      '/shaders/effects/vortex/vortex.wgsl': {
+        controls: [
+          { index: 3, label: 'Displacement', min: 0, max: 128, step: 1, default: 64 },
+          { index: 4, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 5, label: 'Speed', min: 0, max: 10, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/warp/warp.wgsl': {
+        constants: {
+          3: 2,
+          4: 5,
+          5: 1,
+          6: 3,
+          7: 0,
+          8: 1,
+          9: 0,
+          10: 1,
+        },
+        controls: [
+          { index: 3, label: 'Freq', min: 0.5, max: 16, step: 0.5, default: 2 },
+          { index: 4, label: 'Octaves', min: 0, max: 8, step: 1, default: 5, valueType: 'uint32' },
+          { index: 5, label: 'Displacement', min: 0, max: 2, step: 0.01, default: 1 },
+          { index: 6, label: 'Spline Order', min: 0, max: 3, step: 1, default: 3, valueType: 'uint32' },
+          {
+            index: 7,
+            label: 'Warp Map',
+            type: 'checkbox',
+            default: 0,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          {
+            index: 8,
+            label: 'Signed Range',
+            type: 'checkbox',
+            default: 1,
+            trueValue: 1,
+            falseValue: 0,
+          },
+          { index: 9, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 10, label: 'Speed', min: -5, max: 5, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/wobble/wobble.wgsl': {
+        controls: [
+          { index: 3, label: 'Time', min: 0, max: 1, step: 0.01, default: 0.0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1.0 },
+        ],
+      },
+      '/shaders/effects/wormhole/wormhole.wgsl': {
+        controls: [
+          { index: 0, label: 'Kink', min: 0, max: 8, step: 0.1, default: 1 },
+          { index: 1, label: 'Input Stride', min: 0, max: 4, step: 0.01, default: 1 },
+          { index: 2, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 1 },
+          { index: 3, label: 'Time', min: 0, max: 10, step: 0.01, default: 0 },
+          { index: 4, label: 'Speed', min: 0, max: 4, step: 0.01, default: 1 },
+        ],
+      },
+      '/shaders/effects/worms/worms.wgsl': {
+        controls: [
+          { index: 4, label: 'Behavior (10 = meandering)', min: 1, max: 10, step: 1, default: 1, valueType: 'uint32' },
+          { index: 5, label: 'Density', min: 0, max: 16, step: 0.1, default: 4 },
+          { index: 6, label: 'Duration', min: 0, max: 16, step: 0.1, default: 4 },
+          { index: 7, label: 'Stride', min: 0, max: 4, step: 0.05, default: 1 },
+          { index: 8, label: 'Stride Deviation', min: 0, max: 1, step: 0.01, default: 0.05 },
+          { index: 9, label: 'Alpha', min: 0, max: 1, step: 0.01, default: 0.5 },
+          { index: 10, label: 'Kink', min: 0, max: 8, step: 0.1, default: 1 },
+          { index: 11, label: 'Drunkenness', min: 0, max: 1, step: 0.01, default: 0 },
+          {
+            index: 12,
+            label: 'Quantize',
+            type: 'checkbox',
+            default: 0,
+            falseValue: 0,
+            trueValue: 1,
+          },
+          { index: 13, label: 'Time', min: 0, max: 10, step: 0.1, default: 0 },
+          { index: 14, label: 'Speed', min: 0, max: 4, step: 0.1, default: 1 },
+        ],
+      },
+    };
+
+    const manifest = await loadManifest();
+    populateShaderSelect(manifest);
+    renderParameterControls('');
+
+    if (!navigator.gpu) {
+      statusEl.textContent = 'WebGPU is not available in this browser.';
+      runButton.disabled = true;
+    }
+
+    shaderSelect.addEventListener('change', () => {
+      const shaderPath = shaderSelect.value;
+      handleShaderSelection(shaderPath).catch((error) => setStatus(`Error: ${error.message}`));
+    });
+
+    runButton.addEventListener('click', () => {
+      if (!shaderSelect.value) {
+        setStatus('Select a shader to compile.');
+        return;
+      }
+      if (!currentShaderCode) {
+        setStatus('Shader source is still loading…');
+        return;
+      }
+      requestRender({ silent: false });
+    });
+
+    async function loadManifest() {
+      const response = await fetch(SHADER_MANIFEST_URL);
+      if (!response.ok) {
+        throw new Error(`Unable to load shader manifest (${response.status})`);
+      }
+      return response.json();
+    }
+
+    function populateShaderSelect(list) {
+      shaderSelect.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a shader…';
+      shaderSelect.appendChild(placeholder);
+      for (const entry of list) {
+        const option = document.createElement('option');
+        option.value = entry.path;
+        const labelParts = entry.label.split('/');
+        option.textContent = labelParts[labelParts.length - 1] || entry.label;
+        shaderSelect.appendChild(option);
+      }
+    }
+
+    async function loadShaderSource(path) {
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${path} (${response.status})`);
+      }
+      const text = await response.text();
+      shaderSourceEl.textContent = text;
+      return text;
+    }
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    async function handleShaderSelection(shaderPath) {
+      currentShaderPath = shaderPath;
+      currentShaderCode = '';
+      shaderUsesFrameTime = false;
+      shaderLoadToken++;
+      const token = shaderLoadToken;
+      renderParameterControls(shaderPath);
+
+      if (!shaderPath) {
+        shaderSourceEl.textContent = '';
+        setStatus('Select a shader to compile.');
+        return;
+      }
+
+      try {
+        setStatus('Loading shader…');
+        const code = await loadShaderSource(shaderPath);
+        if (token !== shaderLoadToken) {
+          return;
+        }
+        currentShaderCode = code;
+        shaderUsesFrameTime = FRAME_TIME_REGEX.test(code);
+        setStatus('Shader loaded.');
+        requestRender({ silent: false });
+      } catch (error) {
+        if (token !== shaderLoadToken) {
+          return;
+        }
+        console.error(error);
+        setStatus(`Error: ${error.message}`);
+      }
+    }
+
+    function renderParameterControls(shaderPath) {
+      parameterContainer.innerHTML = '';
+      currentUniformOverrides = {};
+      timeControlIndices = [];
+
+      if (!shaderPath) {
+        parameterContainer.appendChild(makePlaceholder('Select a shader to see available parameters.'));
+        return;
+      }
+
+      const config = SHADER_PARAM_SETS[shaderPath];
+      const controls = config?.controls ?? [];
+
+      if (controls.length === 0) {
+        parameterContainer.appendChild(makePlaceholder('This shader does not expose editable uniforms.'));
+        return;
+      }
+
+      animationStartTime = performance.now();
+      frameUniformFrameIndex = 0;
+      frameUniformTimeValue = 0;
+      frameUniformSeedValue = 0;
+      let visibleControlCount = 0;
+
+      for (const control of controls) {
+        const rawDefault = control.valueType === 'uint32'
+          ? Math.round(control.default ?? 0)
+          : control.default ?? 0;
+        let defaultValue = isTimeControl(control)
+          ? wrapUnitInterval(rawDefault)
+          : rawDefault;
+        if (typeof control.min === 'number') {
+          defaultValue = Math.max(control.min, defaultValue);
+        }
+        if (typeof control.max === 'number') {
+          defaultValue = Math.min(control.max, defaultValue);
+        }
+        currentUniformOverrides[control.index] = defaultValue;
+        if (isTimeControl(control)) {
+          timeControlIndices.push(control.index);
+          continue;
+        }
+        const element = buildParameterControl(control, defaultValue);
+        parameterContainer.appendChild(element);
+        visibleControlCount++;
+      }
+
+      if (visibleControlCount === 0) {
+        const message = timeControlIndices.length > 0
+          ? 'Time animates automatically for this shader.'
+          : 'This shader does not expose editable uniforms.';
+        parameterContainer.appendChild(makePlaceholder(message));
+      }
+
+      updateAnimatedTime();
+    }
+
+    function makePlaceholder(message) {
+      const paragraph = document.createElement('p');
+      paragraph.className = 'parameter-placeholder';
+      paragraph.textContent = message;
+      return paragraph;
+    }
+
+    function buildParameterControl(control, initialValue) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'parameter-control';
+
+      const header = document.createElement('div');
+      header.className = 'parameter-header';
+      const name = document.createElement('span');
+      name.textContent = control.label;
+      const valueLabel = document.createElement('span');
+      valueLabel.className = 'parameter-value';
+      valueLabel.textContent = formatParamValue(control, initialValue);
+      header.appendChild(name);
+      header.appendChild(valueLabel);
+      wrapper.appendChild(header);
+
+      if (control.type === 'checkbox') {
+        const toggle = document.createElement('label');
+        toggle.className = 'toggle';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.setAttribute('aria-label', control.label);
+        checkbox.checked = initialValue === (control.trueValue ?? 1);
+        const toggleLabel = document.createElement('span');
+        toggleLabel.className = 'toggle-label';
+        toggleLabel.textContent = checkbox.checked ? (control.trueLabel ?? 'On') : (control.falseLabel ?? 'Off');
+
+        checkbox.addEventListener('change', () => {
+          const value = checkbox.checked ? (control.trueValue ?? 1) : (control.falseValue ?? 0);
+          currentUniformOverrides[control.index] = value;
+          valueLabel.textContent = formatParamValue(control, value);
+          toggleLabel.textContent = checkbox.checked ? (control.trueLabel ?? 'On') : (control.falseLabel ?? 'Off');
+          requestRender({ silent: true });
+        });
+
+        toggle.appendChild(checkbox);
+        toggle.appendChild(toggleLabel);
+        wrapper.appendChild(toggle);
+      } else if (control.type === 'select') {
+        const select = document.createElement('select');
+        select.setAttribute('aria-label', control.label);
+        const options = control.options ?? [];
+        for (const option of options) {
+          const optionElement = document.createElement('option');
+          optionElement.value = String(option.value);
+          optionElement.textContent = option.label;
+          select.appendChild(optionElement);
+        }
+        select.value = String(initialValue);
+        select.addEventListener('change', () => {
+          let value = Number(select.value);
+          if (control.valueType === 'uint32') {
+            value = Math.max(0, Math.round(value));
+          }
+          currentUniformOverrides[control.index] = value;
+          valueLabel.textContent = formatParamValue(control, value);
+          requestRender({ silent: true });
+        });
+        wrapper.appendChild(select);
+      } else {
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        const hasMin = typeof control.min === 'number';
+        const hasMax = typeof control.max === 'number';
+        if (hasMin) {
+          slider.min = String(control.min);
+        }
+        if (hasMax) {
+          slider.max = String(control.max);
+        }
+        const step = control.step !== undefined ? control.step : (control.valueType === 'uint32' ? 1 : undefined);
+        if (step !== undefined) {
+          slider.step = String(step);
+        }
+        const clampToRange = (value) => {
+          let numeric = Number(value);
+          if (!Number.isFinite(numeric)) {
+            numeric = 0;
+          }
+          if (hasMin) {
+            numeric = Math.max(control.min, numeric);
+          }
+          if (hasMax) {
+            numeric = Math.min(control.max, numeric);
+          }
+          return numeric;
+        };
+
+        let startingValue = clampToRange(initialValue);
+        if (control.valueType === 'uint32') {
+          startingValue = Math.max(0, Math.round(startingValue));
+        }
+        slider.value = String(startingValue);
+        slider.setAttribute('aria-label', control.label);
+        
+        const normalized = control.valueType === 'uint32'
+          ? Math.max(0, Math.round(startingValue))
+          : startingValue;
+        currentUniformOverrides[control.index] = normalized;
+
+        slider.addEventListener('input', () => {
+          let value = Number(slider.value);
+          value = clampToRange(value);
+          if (control.valueType === 'uint32') {
+            value = Math.max(0, Math.round(value));
+          }
+          slider.value = String(value);
+          currentUniformOverrides[control.index] = value;
+          valueLabel.textContent = formatParamValue(control, value);
+          requestRender({ silent: true });
+        });
+
+        wrapper.appendChild(slider);
+      }
+
+      return wrapper;
+    }
+
+    function formatParamValue(control, value) {
+      if (control.type === 'checkbox') {
+        const checkedValue = control.trueValue ?? 1;
+        return value === checkedValue ? (control.trueLabel ?? 'On') : (control.falseLabel ?? 'Off');
+      }
+      if (control.type === 'select') {
+        const options = control.options ?? [];
+        const match = options.find(option => Number(option.value) === Number(value));
+        return match ? match.label : String(value);
+      }
+      if (control.valueType === 'uint32') {
+        return String(Math.round(value));
+      }
+      const step = Number(control.step ?? 0.01);
+      const precision = Number.isFinite(step) ? Math.min(4, Math.max(0, decimalPlaces(step))) : 3;
+      return Number(value).toFixed(precision).replace(/\.0+$/, '').replace(/(\.\d*?[1-9])0+$/, '$1');
+    }
+
+    function decimalPlaces(value) {
+      const parts = String(value).split('.');
+      if (parts.length === 1) {
+        return 0;
+      }
+      return parts[1].length;
+    }
+
+    function isTimeControl(control) {
+      return typeof control.label === 'string' && control.label.trim().toLowerCase() === 'time';
+    }
+
+    function updateAnimatedTime(now = performance.now()) {
+      const elapsed = now - animationStartTime;
+      const normalized = wrapUnitInterval(
+        TIME_LOOP_DURATION_MS > 0 ? elapsed / TIME_LOOP_DURATION_MS : 0,
+      );
+      const previousFrameTime = frameUniformTimeValue;
+      frameUniformTimeValue = normalized;
+      let changed = false;
+      if (shaderUsesFrameTime) {
+        changed = !Number.isFinite(previousFrameTime)
+          || Math.abs(previousFrameTime - frameUniformTimeValue) > TIME_EPSILON;
+      }
+      if (timeControlIndices.length === 0) {
+        return changed;
+      }
+      for (const index of timeControlIndices) {
+        const previous = currentUniformOverrides[index];
+        if (!Number.isFinite(previous) || Math.abs(previous - normalized) > TIME_EPSILON) {
+          currentUniformOverrides[index] = normalized;
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
+    function startAnimationLoop() {
+      if (animationFrameId !== null) {
+        return;
+      }
+      animationFrameId = requestAnimationFrame(animationTick);
+    }
+
+    function stopAnimationLoop() {
+      if (animationFrameId === null) {
+        return;
+      }
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      const now = performance.now();
+      if (Number.isFinite(frameUniformTimeValue)) {
+        animationStartTime = now - frameUniformTimeValue * TIME_LOOP_DURATION_MS;
+      } else {
+        animationStartTime = now;
+      }
+    }
+
+    function animationTick(now) {
+      const timeUpdated = updateAnimatedTime(now);
+      if (timeUpdated && currentShaderPath && currentShaderCode) {
+        requestRender({ silent: true, skipTimeUpdate: true });
+      }
+      if (animationFrameId !== null) {
+        animationFrameId = requestAnimationFrame(animationTick);
+      }
+    }
+
+    function requestRender(options = {}) {
+      if (!currentShaderPath || !currentShaderCode) {
+        return;
+      }
+      const skipTimeUpdate = options.skipTimeUpdate ?? false;
+      if (!skipTimeUpdate) {
+        updateAnimatedTime();
+      }
+      const mergedOptions = {
+        silent: options.silent ?? false,
+      };
+
+      if (renderInFlight) {
+        queuedRenderOptions = mergeRenderOptions(queuedRenderOptions, mergedOptions);
+        return;
+      }
+
+      scheduleRender(mergedOptions);
+    }
+
+    function scheduleRender(options) {
+      const now = performance.now();
+      const delay = Math.max(0, nextAllowedRenderTime - now);
+      if (delay <= 0) {
+        if (scheduledRenderTimer !== null) {
+          clearTimeout(scheduledRenderTimer);
+          scheduledRenderTimer = null;
+        }
+        scheduledRenderOptions = null;
+        nextAllowedRenderTime = now + MIN_RENDER_INTERVAL_MS;
+        void compileAndRender(options);
+        return;
+      }
+
+      scheduledRenderOptions = mergeRenderOptions(scheduledRenderOptions, options);
+      if (scheduledRenderTimer !== null) {
+        return;
+      }
+
+      scheduledRenderTimer = window.setTimeout(() => {
+        scheduledRenderTimer = null;
+        const pendingOptions = scheduledRenderOptions ?? { silent: false };
+        scheduledRenderOptions = null;
+        nextAllowedRenderTime = performance.now() + MIN_RENDER_INTERVAL_MS;
+        void compileAndRender(pendingOptions);
+      }, delay);
+    }
+
+    function mergeRenderOptions(existing, incoming) {
+      if (!existing) {
+        return incoming;
+      }
+      return {
+        silent: existing.silent && incoming.silent,
+      };
+    }
+
+    async function compileAndRender(options = {}) {
+      if (!currentShaderPath || !currentShaderCode) {
+        return;
+      }
+
+      renderInFlight = true;
+      const silent = options.silent ?? false;
+      if (!silent) {
+        setStatus('Rendering…');
+      }
+
+      const shaderPath = currentShaderPath;
+      const shaderCode = currentShaderCode;
+      const uniformOverrides = { ...currentUniformOverrides };
+
+      try {
+        await ensureDevice();
+        const result = await renderShader(shaderPath, shaderCode, uniformOverrides);
+        if (result && currentShaderPath === shaderPath) {
+          drawImageData(result.imageData);
+          if (!silent) {
+            setStatus(`Rendered using entry point "${result.entryPoint}".`);
+          }
+          frameUniformFrameIndex = Number.isFinite(frameUniformFrameIndex)
+            ? frameUniformFrameIndex + 1
+            : 1;
+          startAnimationLoop();
+        }
+      } catch (error) {
+        console.error(error);
+        if (currentShaderPath === shaderPath) {
+          setStatus(`Error: ${error.message}`);
+        }
+        stopAnimationLoop();
+      } finally {
+        renderInFlight = false;
+        if (queuedRenderOptions) {
+          const next = queuedRenderOptions;
+          queuedRenderOptions = null;
+          requestRender(next);
+        }
+      }
+    }
+
+    async function ensureDevice() {
+      if (device) {
+        return;
+      }
+      if (!navigator.gpu) {
+        throw new Error('WebGPU not supported.');
+      }
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        throw new Error('Unable to acquire GPU adapter.');
+      }
+      device = await adapter.requestDevice();
+      checkerTexture = buildCheckerboardTexture(device, DEFAULT_WIDTH, DEFAULT_HEIGHT, 8);
+    }
+
+    function buildCheckerboardTexture(device, width, height, squares) {
+      const texture = device.createTexture({
+        size: { width, height },
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      });
+      const bytesPerRow = width * 4;
+      const data = new Uint8Array(bytesPerRow * height);
+      const squareWidth = Math.max(1, Math.floor(width / squares));
+      const squareHeight = Math.max(1, Math.floor(height / squares));
+      const spectrumColors = [
+        [255, 0, 0],
+        [255, 127, 0],
+        [255, 255, 0],
+        [0, 255, 0],
+        [0, 255, 255],
+        [0, 0, 255],
+        [75, 0, 130],
+        [255, 0, 255],
+      ];
+      const grayscaleShades = [255, 223, 191, 159, 127, 95, 63, 31];
+      const topBandEnd = Math.min(height, Math.floor(height / 4));
+      const bottomBandStart = Math.max(0, height - Math.floor(height / 4));
+
+      for (let y = 0; y < height; y++) {
+        const inGrayscaleBand = y < topBandEnd;
+        const inSpectrumBand = y >= bottomBandStart;
+        for (let x = 0; x < width; x++) {
+          const cx = Math.floor(x / squareWidth);
+          const cy = Math.floor(y / squareHeight);
+          const on = (cx + cy) % 2 === 0;
+          const value = on ? 230 : 40;
+          const brightness = value / 255;
+          const idx = y * bytesPerRow + x * 4;
+
+          if (inGrayscaleBand) {
+            const baseShade = grayscaleShades[cx % grayscaleShades.length];
+            const grayscaleValue = Math.round(baseShade * brightness);
+            data[idx + 0] = grayscaleValue;
+            data[idx + 1] = grayscaleValue;
+            data[idx + 2] = grayscaleValue;
+          } else if (inSpectrumBand) {
+            const baseColor = spectrumColors[cx % spectrumColors.length];
+            data[idx + 0] = Math.round(baseColor[0] * brightness);
+            data[idx + 1] = Math.round(baseColor[1] * brightness);
+            data[idx + 2] = Math.round(baseColor[2] * brightness);
+          } else {
+            data[idx + 0] = value;
+            data[idx + 1] = value;
+            data[idx + 2] = value;
+          }
+          data[idx + 3] = 255;
+        }
+      }
+      device.queue.writeTexture(
+        { texture },
+        data,
+        { bytesPerRow, rowsPerImage: height },
+        { width, height }
+      );
+      return texture;
+    }
+
+    function parseBindings(code) {
+      const regex = /@group\((\d+)\)\s*@binding\((\d+)\)\s*var(?:<([^>]+)>)?\s+([A-Za-z0-9_]+)\s*:\s*([^;]+);/g;
+      const bindings = new Map();
+      let match;
+      while ((match = regex.exec(code)) !== null) {
+        const group = Number(match[1]);
+        const binding = Number(match[2]);
+        const addressSpace = match[3] ? match[3].trim() : '';
+        const name = match[4];
+        const type = match[5].trim();
+        if (!bindings.has(group)) {
+          bindings.set(group, []);
+        }
+        bindings.get(group).push({ group, binding, addressSpace, name, type });
+      }
+      return bindings;
+    }
+
+    function classifyBinding(entry) {
+      const loweredType = entry.type.replace(/\s+/g, '');
+      if (loweredType.startsWith('texture_storage_2d')) {
+        const formatMatch = loweredType.match(/texture_storage_2d<([^,>]+),/);
+        return {
+          kind: 'storageTexture',
+          format: formatMatch ? formatMatch[1] : 'rgba32float',
+        };
+      }
+      if (loweredType.startsWith('texture_2d')) {
+        return { kind: 'sampledTexture' };
+      }
+      if (loweredType.startsWith('sampler')) {
+        return { kind: 'sampler' };
+      }
+      if (entry.addressSpace.includes('uniform')) {
+        return { kind: 'uniformBuffer' };
+      }
+      if (entry.addressSpace.includes('storage')) {
+        if (entry.addressSpace.includes('read_write')) {
+          return { kind: 'storageBuffer', access: 'read_write' };
+        }
+        return { kind: 'storageBuffer', access: 'read' };
+      }
+      return { kind: 'unsupported' };
+    }
+
+    function buildUniformArray(shaderPath, overrides, uniformType) {
+      const data = new Float32Array(32);
+
+      const writeUniformValue = (index, rawValue, valueType) => {
+        const numeric = Number(rawValue ?? 0);
+        if (valueType === 'uint32') {
+          const finite = Number.isFinite(numeric) ? numeric : 0;
+          const clamped = Math.max(0, Math.floor(finite));
+          data[index] = clamped;
+        } else {
+          data[index] = Number.isFinite(numeric) ? numeric : 0;
+        }
+      };
+
+      if (uniformType === 'FrameUniforms') {
+        data[0] = DEFAULT_WIDTH;
+        data[1] = DEFAULT_HEIGHT;
+        data[2] = Number.isFinite(frameUniformTimeValue) ? frameUniformTimeValue : 0.0;
+        data[3] = Number.isFinite(frameUniformSeedValue) ? frameUniformSeedValue : 0.0;
+        data[4] = Number.isFinite(frameUniformFrameIndex) ? frameUniformFrameIndex : 0.0;
+        data[5] = 0.0; // padding0
+        data[6] = 0.0; // padding1.x
+        data[7] = 0.0; // padding1.y
+        return data;
+      }
+
+      data[0] = DEFAULT_WIDTH;
+      data[1] = DEFAULT_HEIGHT;
+      data[2] = DEFAULT_CHANNELS;
+      data[3] = 0.0;
+      data[4] = DEFAULT_WIDTH - 1;
+      data[5] = DEFAULT_HEIGHT - 1;
+      data[6] = DEFAULT_CHANNELS;
+      data[7] = 0.0;
+
+      const config = SHADER_PARAM_SETS[shaderPath];
+      if (config?.constants) {
+        for (const [key, entry] of Object.entries(config.constants)) {
+          const index = Number(key);
+          if (entry !== null && typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, 'value')) {
+            writeUniformValue(index, entry.value, entry.valueType);
+          } else {
+            writeUniformValue(index, entry, entry?.valueType);
+          }
+        }
+      }
+
+      if (config?.controls) {
+        for (const control of config.controls) {
+          const hasOverride = overrides && Object.prototype.hasOwnProperty.call(overrides, control.index);
+          let fallback = control.default;
+          if (fallback === undefined) {
+            const constants = config.constants;
+            if (constants && Object.prototype.hasOwnProperty.call(constants, String(control.index))) {
+              const constantEntry = constants[String(control.index)];
+              if (constantEntry !== null && typeof constantEntry === 'object' && Object.prototype.hasOwnProperty.call(constantEntry, 'value')) {
+                fallback = constantEntry.value;
+              } else {
+                fallback = constantEntry;
+              }
+            } else if (data[control.index] !== undefined) {
+              fallback = data[control.index];
+            } else {
+              fallback = 0;
+            }
+          }
+          const value = hasOverride ? overrides[control.index] : fallback;
+          let numeric = Number(value);
+          if (!Number.isFinite(numeric)) {
+            numeric = Number(fallback ?? 0) || 0;
+          }
+          const hasMin = typeof control.min === 'number';
+          const hasMax = typeof control.max === 'number';
+          if (control.valueType === 'uint32') {
+            numeric = Math.max(0, Math.round(numeric));
+          }
+          if (hasMin) {
+            numeric = Math.max(control.min, numeric);
+          }
+          if (hasMax) {
+            numeric = Math.min(control.max, numeric);
+          }
+          writeUniformValue(control.index, numeric, control.valueType);
+        }
+      }
+      return data;
+    }
+
+    async function renderShader(shaderPath, code, overrides) {
+  const bindings = parseBindings(code);
+      const groupZero = bindings.get(0) || [];
+      const classified = groupZero.map((entry) => ({ ...entry, info: classifyBinding(entry) }));
+
+      if (classified.some((entry) => entry.info.kind === 'unsupported')) {
+        throw new Error('Shader uses bindings that are not supported by this viewer.');
+      }
+
+      const layoutEntries = [];
+      const bindEntries = [];
+      const resources = { outputs: [], temp: [] };
+
+      for (const entry of classified) {
+        const visibility = GPUShaderStage.COMPUTE;
+        const info = entry.info;
+        if (info.kind === 'sampledTexture') {
+          layoutEntries.push({
+            binding: entry.binding,
+            visibility,
+            texture: { sampleType: 'float' },
+          });
+          const view = checkerTexture.createView();
+          bindEntries.push({
+            binding: entry.binding,
+            resource: view,
+          });
+        } else if (info.kind === 'sampler') {
+          layoutEntries.push({
+            binding: entry.binding,
+            visibility,
+            sampler: { type: 'filtering' },
+          });
+          const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+          bindEntries.push({ binding: entry.binding, resource: sampler });
+          resources.temp.push(sampler);
+        } else if (info.kind === 'uniformBuffer') {
+          layoutEntries.push({
+            binding: entry.binding,
+            visibility,
+            buffer: { type: 'uniform' },
+          });
+          const uniformArray = buildUniformArray(shaderPath, overrides, entry.type);
+          const uniformBuffer = device.createBuffer({
+            size: uniformArray.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          });
+          device.queue.writeBuffer(uniformBuffer, 0, uniformArray.buffer);
+          bindEntries.push({ binding: entry.binding, resource: { buffer: uniformBuffer } });
+          resources.temp.push(uniformBuffer);
+        } else if (info.kind === 'storageBuffer') {
+          layoutEntries.push({
+            binding: entry.binding,
+            visibility,
+            buffer: { type: info.access === 'read' ? 'read-only-storage' : 'storage' },
+          });
+          const elementCount = DEFAULT_WIDTH * DEFAULT_HEIGHT * (info.access === 'read' ? 1 : DEFAULT_CHANNELS);
+          const byteLength = elementCount * 4;
+          const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+          const buffer = device.createBuffer({ size: byteLength, usage });
+          if (info.access === 'read') {
+            const zeros = new Float32Array(elementCount);
+            device.queue.writeBuffer(buffer, 0, zeros.buffer);
+          }
+          bindEntries.push({ binding: entry.binding, resource: { buffer } });
+          if (info.access === 'read_write') {
+            resources.outputs.push({ type: 'storageBuffer', buffer, byteLength });
+          }
+          resources.temp.push(buffer);
+        } else if (info.kind === 'storageTexture') {
+          layoutEntries.push({
+            binding: entry.binding,
+            visibility,
+            storageTexture: { format: info.format, access: 'write-only' },
+          });
+          const texture = device.createTexture({
+            size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
+            format: info.format,
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC,
+          });
+          bindEntries.push({ binding: entry.binding, resource: texture.createView() });
+          resources.outputs.push({ type: 'storageTexture', texture, format: info.format });
+          resources.temp.push(texture);
+        }
+      }
+
+      layoutEntries.sort((a, b) => a.binding - b.binding);
+      bindEntries.sort((a, b) => a.binding - b.binding);
+      const bindGroupLayout = device.createBindGroupLayout({ entries: layoutEntries });
+      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+      const module = device.createShaderModule({ code });
+      const entryPoint = pickEntryPoint(code) || 'main';
+      const pipeline = await device.createComputePipelineAsync({
+        layout: pipelineLayout,
+        compute: { module, entryPoint },
+      });
+      const bindGroup = device.createBindGroup({
+        layout: bindGroupLayout,
+        entries: bindEntries,
+      });
+
+      const encoder = device.createCommandEncoder();
+      const pass = encoder.beginComputePass();
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      const workgroup = inferWorkgroupSize(code);
+      const workgroupX = workgroup?.x ?? 8;
+      const workgroupY = workgroup?.y ?? 8;
+      const dispatchX = Math.ceil(DEFAULT_WIDTH / workgroupX);
+      const dispatchY = Math.ceil(DEFAULT_HEIGHT / workgroupY);
+      pass.dispatchWorkgroups(dispatchX, dispatchY);
+      pass.end();
+
+      let readOperations = null;
+      if (resources.outputs.length > 0) {
+        const primaryOutput = resources.outputs[0];
+        if (primaryOutput.type === 'storageBuffer') {
+          const readback = device.createBuffer({
+            size: primaryOutput.byteLength,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+          });
+          encoder.copyBufferToBuffer(primaryOutput.buffer, 0, readback, 0, primaryOutput.byteLength);
+          readOperations = async () => {
+            await device.queue.onSubmittedWorkDone();
+            await readback.mapAsync(GPUMapMode.READ);
+            const copy = readback.getMappedRange().slice(0);
+            readback.unmap();
+            const floats = new Float32Array(copy);
+            enforceOpaqueAlpha(floats, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_CHANNELS);
+            return makeImageDataFromFloats(floats, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_CHANNELS);
+          };
+        } else if (primaryOutput.type === 'storageTexture') {
+          const { bytesPerPixel, componentCount } = storageTextureFormatInfo(primaryOutput.format);
+          const bytesPerRow = align(DEFAULT_WIDTH * bytesPerPixel, 256);
+          const bufferSize = bytesPerRow * DEFAULT_HEIGHT;
+          const readback = device.createBuffer({
+            size: bufferSize,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+          });
+          encoder.copyTextureToBuffer(
+            { texture: primaryOutput.texture },
+            { buffer: readback, bytesPerRow, rowsPerImage: DEFAULT_HEIGHT },
+            { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }
+          );
+          readOperations = async () => {
+            await device.queue.onSubmittedWorkDone();
+            await readback.mapAsync(GPUMapMode.READ);
+            const mapped = readback.getMappedRange();
+            const rowStrideFloats = bytesPerRow / Float32Array.BYTES_PER_ELEMENT;
+            const floatsPerRow = componentCount * DEFAULT_WIDTH;
+            const dest = new Float32Array(DEFAULT_WIDTH * DEFAULT_HEIGHT * componentCount);
+            const source = new Float32Array(mapped);
+            for (let y = 0; y < DEFAULT_HEIGHT; y++) {
+              const srcOffset = y * rowStrideFloats;
+              const dstOffset = y * floatsPerRow;
+              dest.set(source.subarray(srcOffset, srcOffset + floatsPerRow), dstOffset);
+            }
+            readback.unmap();
+            enforceOpaqueAlpha(dest, DEFAULT_WIDTH, DEFAULT_HEIGHT, componentCount);
+            return makeImageDataFromFloats(dest, DEFAULT_WIDTH, DEFAULT_HEIGHT, componentCount);
+          };
+        }
+      }
+
+      device.queue.submit([encoder.finish()]);
+
+      let imageData = null;
+      if (readOperations) {
+        imageData = await readOperations();
+      } else {
+        imageData = buildCheckerboardImage(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+      }
+
+      return { imageData, entryPoint };
+    }
+
+    function pickEntryPoint(code) {
+      const match = code.match(/@compute\s+@workgroup_size\([^\)]*\)\s*fn\s+([A-Za-z0-9_]+)/);
+      return match ? match[1] : null;
+    }
+
+    function inferWorkgroupSize(code) {
+      const match = code.match(/@workgroup_size\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\)/);
+      if (!match) {
+        return null;
+      }
+      return {
+        x: Number(match[1]) || 1,
+        y: Number(match[2]) || 1,
+        z: Number(match[3]) || 1,
+      };
+    }
+
+    function align(value, alignment) {
+      return Math.ceil(value / alignment) * alignment;
+    }
+
+    function storageTextureFormatInfo(format) {
+      // The viewer assumes all storage textures are RGBA with float32 components.
+      // This keeps the readback logic aligned with the shader expectations, even
+      // if the declared format advertises fewer channels.
+      const bytesPerChannel = Float32Array.BYTES_PER_ELEMENT;
+      return {
+        bytesPerPixel: DEFAULT_CHANNELS * bytesPerChannel,
+        componentCount: DEFAULT_CHANNELS,
+      };
+    }
+
+    function makeImageDataFromFloats(floats, width, height, components) {
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0; i < width * height; i++) {
+        const baseFloat = i * components;
+        const baseOut = i * 4;
+        const r = floats[baseFloat] ?? 0;
+        const g = floats[baseFloat + 1] ?? r;
+        const b = floats[baseFloat + 2] ?? r;
+        const a = components >= 4 ? (floats[baseFloat + 3] ?? 1) : 1;
+        data[baseOut] = clampToByte(r * 255);
+        data[baseOut + 1] = clampToByte(g * 255);
+        data[baseOut + 2] = clampToByte(b * 255);
+        data[baseOut + 3] = clampToByte(a * 255);
+      }
+      return new ImageData(data, width, height);
+    }
+
+    function enforceOpaqueAlpha(floats, width, height, components) {
+      if (components < 4) {
+        return;
+      }
+      const totalPixels = width * height;
+      for (let i = 0; i < totalPixels; i++) {
+        floats[i * components + 3] = 1;
+      }
+    }
+
+    function buildCheckerboardImage(width, height) {
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 64;
+        data[i + 1] = 64;
+        data[i + 2] = 64;
+        data[i + 3] = 255;
+      }
+      return new ImageData(data, width, height);
+    }
+
+    function clampToByte(value) {
+      if (!Number.isFinite(value)) {
+        return 0;
+      }
+      return Math.min(255, Math.max(0, Math.round(value)));
+    }
+
+    function drawImageData(imageData) {
+      previewCanvas.width = imageData.width;
+      previewCanvas.height = imageData.height;
+      previewCtx.putImageData(imageData, 0, 0);
+    }
+
+    startAnimationLoop();
+  </script>
+</body>
+</html>

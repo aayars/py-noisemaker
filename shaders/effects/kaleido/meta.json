@@ -1,0 +1,135 @@
+{
+  "id": "kaleido",
+  "label": "Kaleido",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/kaleido/kaleido.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 64
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle kaleidoscope effect on or off."
+    },
+    {
+      "name": "sides",
+      "type": "int",
+      "default": 6,
+      "min": 2,
+      "max": 32,
+      "step": 1,
+      "label": "Sides",
+      "description": "Number of kaleidoscope wedges."
+    },
+    {
+      "name": "sdf_sides",
+      "type": "int",
+      "default": 5,
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "label": "SDF Sides",
+      "description": "Polygon sides for SDF distance metric (0-2 uses Euclidean)."
+    },
+    {
+      "name": "blend_edges",
+      "type": "boolean",
+      "default": true,
+      "label": "Blend Edges",
+      "description": "Fade to original image at edges."
+    },
+    {
+      "name": "point_freq",
+      "type": "int",
+      "default": 1,
+      "min": 1,
+      "max": 32,
+      "step": 1,
+      "label": "Point Frequency",
+      "description": "Number of Voronoi points per axis."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channels": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "sides": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "sdf_sides": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "xy_mode": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "xy_x": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "xy_y": {
+      "buffer": "params",
+      "offset": 7
+    },
+    "blend_edges": {
+      "buffer": "params",
+      "offset": 8
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 9
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 10
+    },
+    "point_freq": {
+      "buffer": "params",
+      "offset": 11
+    },
+    "point_generations": {
+      "buffer": "params",
+      "offset": 12
+    },
+    "point_distrib": {
+      "buffer": "params",
+      "offset": 13
+    },
+    "point_drift": {
+      "buffer": "params",
+      "offset": 14
+    },
+    "point_corners": {
+      "buffer": "params",
+      "offset": 15
+    }
+  }
+}

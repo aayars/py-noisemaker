@@ -1,0 +1,103 @@
+{
+  "id": "pixel_sort",
+  "label": "Pixel Sort",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/pixel_sort/pixel_sort.wgsl"
+  },
+  "resources": {
+    "input_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    },
+    "params": {
+      "kind": "uniformBuffer",
+      "size": 32
+    },
+    "scratch": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
+    }
+  },
+  "parameters": [
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "default": true,
+      "label": "Enabled",
+      "description": "Toggle the pixel sort effect on or off."
+    },
+    {
+      "name": "angled",
+      "type": "float",
+      "default": 0.0,
+      "min": -180.0,
+      "max": 180.0,
+      "step": 1.0,
+      "label": "Angle",
+      "description": "Sorting angle in degrees. 0 = axis-aligned, or use animated angle."
+    },
+    {
+      "name": "darkest",
+      "type": "boolean",
+      "default": false,
+      "label": "Darkest First",
+      "description": "Sort from darkest to lightest instead of lightest to darkest."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time parameter."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
+    }
+  ],
+  "parameterBindings": {
+    "width": {
+      "buffer": "params",
+      "offset": 0
+    },
+    "height": {
+      "buffer": "params",
+      "offset": 1
+    },
+    "channel_count": {
+      "buffer": "params",
+      "offset": 2
+    },
+    "angled": {
+      "buffer": "params",
+      "offset": 3
+    },
+    "darkest": {
+      "buffer": "params",
+      "offset": 4
+    },
+    "time": {
+      "buffer": "params",
+      "offset": 5
+    },
+    "speed": {
+      "buffer": "params",
+      "offset": 6
+    }
+  }
+}
