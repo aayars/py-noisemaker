@@ -472,7 +472,17 @@
     tabFormulaBtn.addEventListener('click', () => showTab('formula'));
     tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
 
-    presetSelect.value = 'basic';
+    // Parse URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPreset = urlParams.get('preset');
+    
+    // Set initial preset from URL or default to 'basic'
+    if (urlPreset && presetNames.includes(urlPreset)) {
+      presetSelect.value = urlPreset;
+    } else {
+      presetSelect.value = 'basic';
+    }
+    
     currentPreset = presetSelect.value;
     currentSeed = Number(seedInput.value) || 42;
     seedInput.value = currentSeed;
@@ -480,6 +490,12 @@
     function parseSeed(value) {
       const num = Number(value);
       return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
+    }
+
+    function updateURL(presetName) {
+      const url = new URL(window.location);
+      url.searchParams.set('preset', presetName);
+      window.history.replaceState({}, '', url);
     }
 
     function setRenderingState(rendering) {
@@ -872,6 +888,7 @@
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
+      updateURL(currentPreset);
       const seed = Math.floor(random() * 1e9);
       const options = getManualAnimationOptions();
       renderWithCatch(seed, currentPreset, options);
@@ -894,6 +911,7 @@
           presetNames[Math.floor(random() * presetNames.length)];
         presetSelect.value = randomPreset;
         currentPreset = randomPreset;
+        updateURL(currentPreset);
         const seed = Math.floor(random() * 1e9);
         const options = getManualAnimationOptions();
         renderWithCatch(seed, currentPreset, options);
