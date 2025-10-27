@@ -149,16 +149,9 @@ fn downsample_main(@builtin(global_invocation_id) gid : vec3<u32>) {
     var sample_count : f32 = 0.0;
 
     for (var ky : i32 = 0; ky < kernel_height; ky = ky + 1) {
-        let sample_y : i32 = origin_y + ky;
-        if (sample_y >= height) {
-            break;
-        }
-
         for (var kx : i32 = 0; kx < kernel_width; kx = kx + 1) {
-            let sample_x : i32 = origin_x + kx;
-            if (sample_x >= width) {
-                break;
-            }
+            let sample_x : i32 = wrap_index(origin_x + kx, width);
+            let sample_y : i32 = wrap_index(origin_y + ky, height);
 
             accum = accum + textureLoad(input_texture, vec2<i32>(sample_x, sample_y), 0);
             sample_count = sample_count + 1.0;
@@ -169,8 +162,7 @@ fn downsample_main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let scale : f32 = max(params.channel_count, 1.0);
-    let average : vec4<f32> = (accum / sample_count) * vec4<f32>(scale);
+    let average : vec4<f32> = (accum / sample_count) * 4.0;
 
     let base_index : u32 = (gid.y * u32(down_width) + gid.x) * CHANNEL_COUNT;
     downsample_buffer[base_index + 0u] = average.x;

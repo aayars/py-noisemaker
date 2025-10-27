@@ -103,7 +103,8 @@ fn downsample_main(@builtin(global_invocation_id) gid : vec3<u32>) {
             }
 
             let texel : vec3<f32> = textureLoad(input_texture, vec2<i32>(sample_x, sample_y), 0).xyz;
-            let highlight : vec3<f32> = clamp(texel * vec3<f32>(2.0) - vec3<f32>(1.0), vec3<f32>(0.0), vec3<f32>(1.0));
+            // Extract highlights - use the full pixel value instead of threshold
+            let highlight : vec3<f32> = clamp(texel, vec3<f32>(0.0), vec3<f32>(1.0));
             accum = accum + highlight;
             sample_count = sample_count + 1.0;
         }

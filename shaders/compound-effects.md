@@ -6,77 +6,77 @@ Extracted from Python source code by analyzing @effect decorated functions.
 
 Overall effect evaluation order, respecting dependencies:
 
-1. **adjust_brightness**
-2. **adjust_contrast**
-3. **adjust_hue**
-4. **adjust_saturation**
-5. **bloom**
-6. **blur**
-7. **color_map**
-8. **fxaa**
-9. **glitch**
-10. **glyph_map**
-11. **grain**
-12. **jpeg_decimate**
-13. **normalize**
-14. **aberration**
-15. **convolve**
-16. **conv_feedback**
-17. **density_map**
-18. **derivative**
-19. **dla**
-20. **false_color**
-21. **lens_distortion**
-22. **normal_map**
-23. **on_screen_display**
-24. **palette**
-25. **pixel_sort**
-26. **posterize**
-27. **refract**
-28. **grime**
-29. **lens_warp**
-30. **degauss**
-31. **reindex**
-32. **reverb**
-33. **ridge**
-34. **ripple**
-35. **rotate**
-36. **scanline_error**
-37. **shadow**
-38. **erosion_worms**
-39. **simple_frame**
-40. **sine**
-41. **smoothstep**
-42. **snow**
-43. **sobel_operator**
-44. **glowing_edges**
-45. **outline**
-46. **spooky_ticker**
-47. **texture**
-48. **tint**
-49. **nebula**
-50. **value_refract**
-51. **vaseline**
-52. **vhs**
-53. **vignette**
-54. **crt**
-55. **voronoi**
-56. **kaleido**
-57. **lowpoly**
-58. **vortex**
-59. **warp**
-60. **clouds**
-61. **spatter**
-62. **watermark**
-63. **wobble**
-64. **wormhole**
-65. **light_leak**
-66. **worms**
-67. **fibers**
-68. **scratches**
-69. **sketch**
-70. **stray_hair**
-71. **frame**
+[[ DONE ]] **adjust_brightness**
+[[ DONE ]] **adjust_contrast**
+[[ DONE ]] **adjust_hue**
+[[ DONE ]] **adjust_saturation**
+[[ DONE ]] **convolve**
+[[ DONE ]] **bloom**
+[[ DONE ]] **blur**
+[[ WIP ]] **color_map**
+[[ TODO ]] **fxaa**
+[[ TODO ]] **glitch**
+[[ TODO ]] **glyph_map**
+[[ TODO ]] **grain**
+[[ TODO ]] **jpeg_decimate**
+[[ TODO ]] **normalize**
+[[ TODO ]] **aberration**
+[[ TODO ]] **conv_feedback**
+[[ TODO ]] **density_map**
+[[ TODO ]] **derivative**
+[[ TODO ]] **dla**
+[[ TODO ]] **false_color**
+[[ TODO ]] **lens_distortion**
+[[ TODO ]] **normal_map**
+[[ TODO ]] **on_screen_display**
+[[ TODO ]] **palette**
+[[ TODO ]] **pixel_sort**
+[[ TODO ]] **posterize**
+[[ TODO ]] **refract**
+[[ TODO ]] **grime**
+[[ TODO ]] **lens_warp**
+[[ TODO ]] **degauss**
+[[ TODO ]] **reindex**
+[[ TODO ]] **reverb**
+[[ TODO ]] **ridge**
+[[ TODO ]] **ripple**
+[[ TODO ]] **rotate**
+[[ TODO ]] **scanline_error**
+[[ TODO ]] **shadow**
+[[ TODO ]] **erosion_worms**
+[[ TODO ]] **simple_frame**
+[[ TODO ]] **sine**
+[[ TODO ]] **smoothstep**
+[[ TODO ]] **snow**
+[[ TODO ]] **sobel_operator**
+[[ TODO ]] **glowing_edges**
+[[ TODO ]] **outline**
+[[ TODO ]] **spooky_ticker**
+[[ TODO ]] **texture**
+[[ TODO ]] **tint**
+[[ TODO ]] **nebula**
+[[ TODO ]] **value_refract**
+[[ TODO ]] **vaseline**
+[[ TODO ]] **vhs**
+[[ TODO ]] **vignette**
+[[ TODO ]] **crt**
+[[ TODO ]] **voronoi**
+[[ TODO ]] **kaleido**
+[[ TODO ]] **lowpoly**
+[[ TODO ]] **vortex**
+[[ TODO ]] **warp**
+[[ TODO ]] **clouds**
+[[ TODO ]] **spatter**
+[[ TODO ]] **watermark**
+[[ TODO ]] **wobble**
+[[ TODO ]] **wormhole**
+[[ TODO ]] **light_leak**
+[[ TODO ]] **worms**
+[[ TODO ]] **fibers**
+[[ TODO ]] **scratches**
+[[ TODO ]] **sketch**
+[[ TODO ]] **stray_hair**
+[[ TODO ]] **frame**
 
 ## Leaf Effects (No Dependencies)
 

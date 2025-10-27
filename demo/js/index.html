@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Noisemaker JS Demo</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="../common.css" />
@@ -22,7 +23,7 @@
         </div>
       </div>
     </details>
-    <details id="codePanel" class="details-expando code-expando" open>
+    <details id="codePanel" class="details-expando code-expando">
       <summary>Preset details</summary>
       <div class="details-expando__content code-expando__content">
         <div id="tabs">
@@ -472,7 +473,17 @@
     tabFormulaBtn.addEventListener('click', () => showTab('formula'));
     tabEvalBtn.addEventListener('click', () => showTab('evaluated'));
 
-    presetSelect.value = 'basic';
+    // Parse URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPreset = urlParams.get('preset');
+    
+    // Set initial preset from URL or default to 'basic'
+    if (urlPreset && presetNames.includes(urlPreset)) {
+      presetSelect.value = urlPreset;
+    } else {
+      presetSelect.value = 'basic';
+    }
+    
     currentPreset = presetSelect.value;
     currentSeed = Number(seedInput.value) || 42;
     seedInput.value = currentSeed;
@@ -480,6 +491,12 @@
     function parseSeed(value) {
       const num = Number(value);
       return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
+    }
+
+    function updateURL(presetName) {
+      const url = new URL(window.location);
+      url.searchParams.set('preset', presetName);
+      window.history.replaceState({}, '', url);
     }
 
     function setRenderingState(rendering) {
@@ -872,6 +889,7 @@
 
     presetSelect.addEventListener('change', (e) => {
       currentPreset = e.target.value;
+      updateURL(currentPreset);
       const seed = Math.floor(random() * 1e9);
       const options = getManualAnimationOptions();
       renderWithCatch(seed, currentPreset, options);
@@ -894,6 +912,7 @@
           presetNames[Math.floor(random() * presetNames.length)];
         presetSelect.value = randomPreset;
         currentPreset = randomPreset;
+        updateURL(currentPreset);
         const seed = Math.floor(random() * 1e9);
         const options = getManualAnimationOptions();
         renderWithCatch(seed, currentPreset, options);

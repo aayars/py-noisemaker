@@ -760,17 +760,25 @@ input[type="range"] {
   body.two-column-layout.js-demo-layout {
     height: auto;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
   }
 
-  body.two-column-layout.js-demo-layout aside,
+  body.two-column-layout.js-demo-layout aside {
+    height: auto;
+    overflow: visible;
+    max-height: none;
+  }
+
   body.two-column-layout.js-demo-layout main {
     height: auto;
     overflow: visible;
-  }
-
-  body.two-column-layout.js-demo-layout main {
-    padding: clamp(18px, 5vw, 32px);
-    gap: clamp(18px, 5vw, 32px);
+    position: relative;
+    padding: 0;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .canvas-wrapper {
@@ -792,20 +800,33 @@ input[type="range"] {
   }
 
   body.two-column-layout.js-demo-layout canvas {
-    position: static;
+    position: relative;
+    top: auto;
+    left: auto;
     transform: none;
     width: 100%;
     height: auto;
     min-width: 0;
     min-height: 0;
     max-width: 100%;
-    max-height: none;
+    max-height: 60vh;
+    border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+    border-radius: var(--ui-corner-radius);
+    box-shadow: 0 20px 60px rgba(10, 12, 20, 0.55);
+    object-fit: contain;
   }
 
   body.two-column-layout.js-demo-layout #errorBanner {
     position: static;
     transform: none;
-    width: 100%;
-    margin-top: 16px;
+    width: calc(100% - 32px);
+    margin: 16px;
+  }
+
+  body.two-column-layout.js-demo-layout #loadingOverlay {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
   }
 }
