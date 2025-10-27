@@ -84,19 +84,28 @@
   </aside>
   <main>
     <canvas id="noise" width="1024" height="1024"></canvas>
+    <div id="loadingOverlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(7, 9, 13, 0.85); padding: 20px 32px; border-radius: 12px; border: 1px solid rgba(165, 184, 255, 0.25); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); font-size: 16px; color: #a5b8ff; font-weight: 600; pointer-events: none; z-index: 1000;">
+      <span id="loadingText">Rendering (0%)</span>
+    </div>
     <div id="errorBanner"></div>
     <!-- Stage Outputs UI removed -->
   </main>
+  <style>
+    main { position: relative; }
+  </style>
     <script type="module">
   import { Context } from '../../js/noisemaker/context.js';
   import { render, Preset } from '../../js/noisemaker/composer.js';
     import { ColorSpace } from '../../js/noisemaker/constants.js';
     import PRESETS from '../../js/noisemaker/presets.js';
     import { random, setSeed } from '../../js/noisemaker/util.js';
+    import { yieldToMain } from '../../js/noisemaker/asyncHelpers.js';
 
     const benchmark = window.location.hash.includes('benchmark');
 
   const errorBannerEl = document.getElementById('errorBanner');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingText = document.getElementById('loadingText');
 
     function showError(message) {
       errorBannerEl.style.display = 'block';
@@ -198,6 +207,8 @@
     let frameIndex = 0;
     let currentPreset = null;
     let currentSeed = 42;
+    let isRendering = false;
+    let renderProgress = 0;
 
     const canvasResizeObserver =
       typeof ResizeObserver !== 'undefined'
@@ -231,6 +242,9 @@
     const tabFormulaBtn = document.getElementById('tabFormula');
     const tabEvalBtn = document.getElementById('tabEvaluated');
     const seedInput = document.getElementById('seedInput');
+    const randomPresetBtn = document.getElementById('randomPreset');
+    const rerollBtn = document.getElementById('reroll');
+    
     let presets = PRESETS();
     const presetNames = Object.keys(presets).filter(
       (name) => !name.startsWith('maybe-')
@@ -468,6 +482,35 @@
       return Number.isFinite(num) ? Math.trunc(num) : currentSeed;
     }
 
+    function setRenderingState(rendering) {
+      isRendering = rendering;
+      
+      // Update button states
+      if (randomPresetBtn) randomPresetBtn.disabled = rendering;
+      if (rerollBtn) rerollBtn.disabled = rendering;
+      if (presetSelect) presetSelect.disabled = rendering;
+      if (seedInput) seedInput.disabled = rendering;
+      
+      // Update visual feedback
+      if (rendering) {
+        renderProgress = 0;
+        statusEl.innerHTML = '<span style="color: #a5b8ff; font-weight: 600;">Rendering (0%)</span>';
+        if (loadingOverlay) loadingOverlay.style.display = 'block';
+        if (loadingText) loadingText.textContent = 'Rendering (0%)';
+      } else {
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+      }
+    }
+
+    function updateRenderProgress(percent) {
+      renderProgress = Math.min(100, Math.max(0, percent));
+      const percentInt = Math.floor(renderProgress);
+      if (loadingText) {
+        loadingText.textContent = `Rendering (${percentInt}%)`;
+      }
+      statusEl.innerHTML = `<span style="color: #a5b8ff; font-weight: 600;">Rendering (${percentInt}%)</span>`;
+    }
+
     async function draw(seed, presetName, timeSeconds = null) {
       const activeCtx = ctx;
       if (!activeCtx) {
@@ -484,6 +527,13 @@
       errorBannerEl.style.display = 'none';
       errorBannerEl.textContent = '';
 
+      // Show rendering state
+      setRenderingState(true);
+      
+      // Yield to allow UI to update before heavy computation
+      await yieldToMain();
+
+      updateRenderProgress(10);
       const presetEvalStart = performance.now();
       const presetTable = PRESETS(presetName);
       random();
@@ -509,8 +559,13 @@
       presets = renderPresets;
       const presetEvalMs = performance.now() - presetEvalStart;
 
+      // Yield after preset evaluation
+      updateRenderProgress(20);
+      await yieldToMain();
+
       const cpuStart = performance.now();
       try {
+        updateRenderProgress(30);
         await render(renderPresetObj, seed, {
           width,
           height,
@@ -519,13 +574,18 @@
           debug: false,
           time: effectiveTime,
           frameIndex: frameIndexForThisFrame,
+          progressCallback: updateRenderProgress,
         });
+        updateRenderProgress(90);
         if (activeCtx.flush) {
           await activeCtx.flush();
         }
+        updateRenderProgress(100);
       } catch (e) {
         const errorText = `${e.message || e}\n${e.stack || ''}`;
         showError(errorText);
+        // Clear rendering state on error
+        setRenderingState(false);
         throw e;
       }
       if (benchmark && activeCtx.queue && activeCtx.queue.onSubmittedWorkDone) {
@@ -534,16 +594,23 @@
       const renderMs = performance.now() - cpuStart;
       frameIndex += 1;
 
+      // Update status with completed render info
       statusEl.innerHTML = [
         'mode: cpu',
         `eval: ${presetEvalMs.toFixed(2)} ms`,
         `render: ${renderMs.toFixed(2)} ms`,
         `seed: ${seed}`,
       ].join('<br>');
+      statusEl.style.opacity = '1';
+      
       presetFormulaEl.textContent = presetSource[presetName] || '';
       const evaluatedPreset = serializePreset(renderPresetObj, seed);
       const { settings: _settings, ...evaluatedWithoutSettings } = evaluatedPreset;
       presetEvalEl.textContent = formatPreset(evaluatedWithoutSettings);
+      
+      // Clear rendering state
+      setRenderingState(false);
+      
       // Stage Outputs rendering removed
     }
 
@@ -556,7 +623,10 @@
       if (usesAnimationTiming) {
         animationPendingCount += 1;
       }
-      const renderPromise = renderQueue.then(() => draw(nextSeed, presetName, opts.timeSeconds ?? null));
+      
+      const renderPromise = renderQueue
+        .then(() => yieldToMain()) // Yield between renders
+        .then(() => draw(nextSeed, presetName, opts.timeSeconds ?? null));
       renderQueue = renderPromise
         .catch(() => {})
         .finally(() => {

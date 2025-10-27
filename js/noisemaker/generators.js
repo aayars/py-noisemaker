@@ -19,6 +19,7 @@ import { Tensor } from './tensor.js';
 import { random as simplexRandom } from './simplex.js';
 import { setSeed as setRngSeed } from './rng.js';
 import { EFFECTS } from './effectsRegistry.js';
+import { YieldController } from './asyncHelpers.js';
 
 function toCamelCase(prop) {
   return typeof prop === 'string'
@@ -534,6 +535,7 @@ export async function multires(freq, shape, opts = {}) {
   const octaveEffects = opts.octaveEffects ?? opts.octave_effects ?? [];
   const postEffects = opts.postEffects ?? opts.post_effects ?? [];
   const finalEffects = opts.finalEffects ?? opts.final_effects ?? [];
+  const progressCallback = opts.progressCallback ?? null;
 
   const withSupersample =
     opts.withSupersample ?? opts.with_supersample ?? false;
@@ -592,6 +594,35 @@ export async function multires(freq, shape, opts = {}) {
   let tensor = inputTensor;
   let currentShape = tensor ? tensor.shape.slice() : combineShape.slice();
 
+  // Calculate total steps for progress tracking
+  const totalSteps = octaves + octaveEffects.length + postEffects.length + finalEffects.length + 3;
+  let currentStepNum = 0;
+  
+  const updateProgress = (stepIncrement = 1) => {
+    currentStepNum += stepIncrement;
+    if (progressCallback) {
+      const baseProgress = 30; // Start at 30% (after preset eval)
+      const renderProgress = 60; // Rendering gets 60% of the progress bar
+      const progress = baseProgress + (currentStepNum / totalSteps) * renderProgress;
+      progressCallback(Math.min(90, progress));
+    }
+  };
+
+  // Create yield controller to prevent UI blocking
+  const yieldCtrl = new YieldController({ 
+    yieldIntervalMs: 16,  // Yield at least every 16ms (~60fps)
+    enabled: typeof window !== 'undefined', // Only in browser context
+    progressCallback: progressCallback ? (p) => {
+      // Fine-grained progress within current step
+      const baseProgress = 30;
+      const renderProgress = 60;
+      const stepProgress = (currentStepNum / totalSteps) * renderProgress;
+      const microProgress = (p / 100) * (renderProgress / totalSteps);
+      progressCallback(Math.min(90, baseProgress + stepProgress + microProgress));
+    } : null,
+    totalSteps: 100
+  });
+
   if (!tensor) {
     const zero = new Float32Array(
       combineShape[0] * combineShape[1] * combineShape[2],
@@ -599,6 +630,10 @@ export async function multires(freq, shape, opts = {}) {
     tensor = Tensor.fromArray(ctx, zero, combineShape);
 
     for (let octave = 1; octave <= octaves; octave++) {
+      // Yield before processing each octave to keep UI responsive
+      await yieldCtrl.checkYield();
+      updateProgress();
+      
       const multiplier = 2 ** octave;
       const baseFreq = [
         Math.floor(freqArray[0] * 0.5 * multiplier),
@@ -650,6 +685,8 @@ export async function multires(freq, shape, opts = {}) {
     }
   } else if (octaveEffects && octaveEffects.length) {
     for (const effect of octaveEffects) {
+      await yieldCtrl.checkYield();
+      updateProgress();
       tensor = await _applyOctaveEffectOrPreset(
         effect,
         tensor,
@@ -688,9 +725,12 @@ export async function multires(freq, shape, opts = {}) {
 
   tensor = await normalize(tensor);
   currentShape = tensor.shape.slice();
+  updateProgress();
 
   let final = [];
   for (const e of postEffects) {
+    await yieldCtrl.checkYield();
+    updateProgress();
     const res = await _applyPostEffectOrPreset(
       e,
       tensor,
@@ -711,6 +751,8 @@ export async function multires(freq, shape, opts = {}) {
   }
 
   for (const e of final) {
+    await yieldCtrl.checkYield();
+    updateProgress();
     tensor = await _applyFinalEffectOrPreset(
       e,
       tensor,
@@ -724,6 +766,7 @@ export async function multires(freq, shape, opts = {}) {
 
   tensor = await normalize(tensor);
   currentShape = tensor.shape.slice();
+  updateProgress();
 
   if (withFxaa) {
     tensor = await fxaa(tensor);

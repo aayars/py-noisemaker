@@ -382,6 +382,7 @@ export class Preset {
       frame: frameOpt,
       presentationTarget = undefined,
       readback: readbackOpt = false,
+      progressCallback = null,
     } = opts;
     const debug = Boolean(debugOpt);
     const collectDebug = Boolean(collectDebugOpt);
@@ -455,6 +456,7 @@ export class Preset {
         octaveEffects: this.octave_effects,
         postEffects: this.post_effects,
         finalEffects: this.final_effects,
+        progressCallback,
         ...merged,
       });
     }
