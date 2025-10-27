@@ -78,7 +78,7 @@ data = {
 }
 print(json.dumps(data))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }

@@ -20,7 +20,7 @@ for mask, value in Masks.items():
         result[mask.name] = value
 print(json.dumps(result))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }
@@ -61,7 +61,7 @@ import json
 from noisemaker.masks import square_masks
 print(json.dumps([m.name for m in square_masks()]))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }

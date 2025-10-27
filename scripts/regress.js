@@ -18,7 +18,7 @@ simp=OpenSimplex(seed)
 rows=[[ (simp.noise3d(x,y,z)+1)/2 for x in range(${shape[1]})] for y in range(${shape[0]})]
 print(json.dumps(rows))
 `;
-const py = spawnSync('python', ['-'], { input: pyCode, encoding: 'utf8' });
+const py = spawnSync('python3', ['-'], { input: pyCode, encoding: 'utf8' });
 if (py.status !== 0) {
   console.error(py.stderr);
   process.exit(py.status);

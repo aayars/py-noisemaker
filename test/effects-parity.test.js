@@ -17,7 +17,7 @@ import noisemaker.effects  # populate EFFECTS
 from noisemaker.effects_registry import EFFECTS
 print(json.dumps(sorted(EFFECTS.keys())))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }

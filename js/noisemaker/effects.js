@@ -4214,11 +4214,9 @@ register("adjust_contrast", adjustContrast, { amount: 1.25 });
 export const adjust_contrast = adjustContrast;
 
 export function adjustHueEffect(tensor, shape, time, speed, amount = 0.25) {
-  console.log(`[adjustHueEffect] shape[2]=${shape[2]}, amount=${amount}, will bail=${shape[2] < 3 || amount === 0 || amount === 1 || amount === null}`);
   if (shape[2] < 3 || amount === 0 || amount === 1 || amount === null)
     return tensor;
   const result = adjustHue(tensor, amount);
-  console.log(`[adjustHueEffect] adjustHue returned same tensor? ${result === tensor}`);
   return result;
 }
 register("adjust_hue", adjustHueEffect, { amount: 0.25 });

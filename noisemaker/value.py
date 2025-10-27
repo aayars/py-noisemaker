@@ -141,7 +141,7 @@ def values(freq, shape, distrib=ValueDistribution.simplex, corners=False, mask=N
             tf.float32,
         )
 
-        if speed == 0 or time == 0:
+        if speed == 0:
             tensor = value_noise
         else:
             time_seed = (base_seed + 0x9E3779B1) & 0xFFFFFFFF

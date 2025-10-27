@@ -32,7 +32,7 @@ const JS_ONLY = [
 
 function getPythonPresetData() {
 const py = `import json, random\nfrom noisemaker import rng\nfrom noisemaker.presets import PRESETS\nseeds=[0,1,2,3,4]\npreset_names=sorted(PRESETS().keys())\ncombined={}\nfor name in preset_names:\n    layers=None\n    settings_per_seed=[]\n    for seed in seeds:\n        random.seed(seed)\n        rng.set_seed(seed)\n        preset=PRESETS()[name]\n        if layers is None and preset.get('layers'):\n            layers=preset['layers']\n        if preset.get('settings'):\n            s=preset['settings']()\n            s={k:getattr(v,'value',v) for k,v in s.items()}\n        else:\n            s={}\n        settings_per_seed.append(s)\n    entry={}\n    if layers is not None:\n        entry['layers']=layers\n    if settings_per_seed and settings_per_seed[0]:\n        s={}\n        for key in settings_per_seed[0]:\n            vals=[d.get(key) for d in settings_per_seed]\n            first=vals[0]\n            s[key]=first if all(v==first for v in vals) else 'RANDOM'\n        entry['settings']=s\n    combined[name]=entry\nprint(json.dumps(combined))`;
-  const res = spawnSync('python', ['-c', py], {
+  const res = spawnSync('python3', ['-c', py], {
     cwd: repoRoot,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024 * 50,

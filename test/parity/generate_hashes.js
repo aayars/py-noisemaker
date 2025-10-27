@@ -152,7 +152,7 @@ async function composerParity() {
             collectDebug: true,
         });
         const python = spawnSync(
-            'python',
+            'python3',
             ['-'],
             {
                 input: `from noisemaker import rng\nfrom noisemaker.composer import Preset\nfrom noisemaker.presets import PRESETS\n\nrng.set_seed(1)\npreset = Preset(${JSON.stringify(name)}, PRESETS())\nprint(preset.render(1, shape=[128, 128, 3], debug=True)['rng_calls'])\n`,

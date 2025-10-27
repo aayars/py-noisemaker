@@ -9,7 +9,7 @@ const repoRoot = resolve(__dirname, '..');
 
 function getPythonPresets() {
   const py = `import json\nfrom noisemaker.presets import PRESETS\nprint(json.dumps(sorted(PRESETS().keys())))`;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }

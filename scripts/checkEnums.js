@@ -17,7 +17,7 @@ for name, obj in vars(c).items():
         result[name] = {m.name: m.value for m in obj}
 print(json.dumps(result))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     console.error(res.stderr);
     process.exit(1);
@@ -35,7 +35,7 @@ for mask, value in Masks.items():
         result[mask.name] = mask_shape(mask)
 print(json.dumps(result))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     console.error(res.stderr);
     process.exit(1);

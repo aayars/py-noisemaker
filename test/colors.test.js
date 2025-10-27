@@ -15,7 +15,7 @@ rgb = ${JSON.stringify(rgb)}
 hsv = colorsys.rgb_to_hsv(*rgb)
 print(json.dumps(hsv))
 `;
-const py1 = spawnSync('python', ['-'], { input: pyRgbToHsv, encoding: 'utf8' });
+const py1 = spawnSync('python3', ['-'], { input: pyRgbToHsv, encoding: 'utf8' });
 const pyHsv = JSON.parse(py1.stdout.trim());
 
 for (let i = 0; i < 3; i++) {
@@ -33,7 +33,7 @@ hsv = ${JSON.stringify(hsv)}
 rgb = colorsys.hsv_to_rgb(*hsv)
 print(json.dumps(rgb))
 `;
-const py2 = spawnSync('python', ['-'], { input: pyHsvToRgb, encoding: 'utf8' });
+const py2 = spawnSync('python3', ['-'], { input: pyHsvToRgb, encoding: 'utf8' });
 const pyRgb = JSON.parse(py2.stdout.trim());
 
 for (let i = 0; i < 3; i++) {

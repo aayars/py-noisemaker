@@ -18,7 +18,7 @@ shape = ${JSON.stringify(shape)}
 t = values(freq, shape, distrib=ValueDistribution.${distribName})
 print(json.dumps(t.numpy().flatten().tolist()))
 `;
-  const res = spawnSync('python', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
   if (res.status !== 0) {
     throw new Error(res.stderr);
   }

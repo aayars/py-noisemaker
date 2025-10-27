@@ -29,7 +29,13 @@ def generate_hashes():
         result = subprocess.run(
             ["node", str(script)], check=True, capture_output=True, text=True
         )
-        data = json.loads(result.stdout)
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse JSON from generate_hashes.js")
+            print(f"stdout: {result.stdout[:500]}")
+            print(f"stderr: {result.stderr[:500]}")
+            raise
         _CACHE = _int_keys(data)
     return _CACHE
 

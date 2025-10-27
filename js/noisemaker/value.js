@@ -374,7 +374,7 @@ export function values(freq, shape, opts = {}) {
       speed,
     });
     if (speed === 0) {
-      // Only skip periodic wrapping if speed is exactly 0 (static)
+      // Only skip periodic wrapping if speed is exactly 0 (no animation)
       tensor = baseNoise;
       if (distrib === ValueDistribution.exp) {
         tensor = withTensorData(tensor, (data) => {
