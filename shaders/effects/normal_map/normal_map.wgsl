@@ -3,8 +3,6 @@
 
 const CHANNEL_COUNT : u32 = 4u;
 const CHANNEL_CAP : u32 = 4u;
-const F32_MAX : f32 = 0x1.fffffep+127;
-const F32_MIN : f32 = -0x1.fffffep+127;
 
 struct NormalMapParams {
     size : vec4<f32>,    // (width, height, channels, unused)
@@ -108,219 +106,75 @@ fn value_map_component(texel : vec4<f32>, channel_count : u32) -> f32 {
     return oklab_l_component(clamped_rgb);
 }
 
-fn normalize_value(value : f32, min_value : f32, delta : f32) -> f32 {
-    if (delta == 0.0) {
-        return value;
-    }
-    return (value - min_value) / delta;
-}
-
 fn compute_reference_value(coords : vec2<i32>, channel_count : u32) -> f32 {
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
     return value_map_component(texel, channel_count);
 }
 
-fn compute_normalized_reference(coords : vec2<i32>, channel_count : u32, ref_min : f32, ref_delta : f32) -> f32 {
-    let reference_value : f32 = compute_reference_value(coords, channel_count);
-    return normalize_value(reference_value, ref_min, ref_delta);
-}
-
-fn sobel_response_x(x : u32, y : u32, width_i : i32, height_i : i32, channel_count : u32, ref_min : f32, ref_delta : f32) -> f32 {
-    var accum : f32 = 0.0;
-    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
-        let offset : vec2<i32> = SOBEL_OFFSETS[i];
-        let sample_x : i32 = wrap_coord(i32(x) + offset.x, width_i);
-        let sample_y : i32 = wrap_coord(i32(y) + offset.y, height_i);
-        let coords : vec2<i32> = vec2<i32>(sample_x, sample_y);
-        let sample_value : f32 = compute_normalized_reference(coords, channel_count, ref_min, ref_delta);
-        accum = accum + sample_value * SOBEL_X_KERNEL[i];
-    }
-    return accum;
-}
-
-fn sobel_response_y(x : u32, y : u32, width_i : i32, height_i : i32, channel_count : u32, ref_min : f32, ref_delta : f32) -> f32 {
-    var accum : f32 = 0.0;
-    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
-        let offset : vec2<i32> = SOBEL_OFFSETS[i];
-        let sample_x : i32 = wrap_coord(i32(x) + offset.x, width_i);
-        let sample_y : i32 = wrap_coord(i32(y) + offset.y, height_i);
-        let coords : vec2<i32> = vec2<i32>(sample_x, sample_y);
-        let sample_value : f32 = compute_normalized_reference(coords, channel_count, ref_min, ref_delta);
-        accum = accum + sample_value * SOBEL_Y_KERNEL[i];
-    }
-    return accum;
-}
-
-fn final_x_value(
-    x : u32,
-    y : u32,
-    width_i : i32,
-    height_i : i32,
-    channel_count : u32,
-    ref_min : f32,
-    ref_delta : f32,
-    inverted_min : f32,
-    inverted_delta : f32
-) -> f32 {
-    let sobel_raw : f32 = sobel_response_x(x, y, width_i, height_i, channel_count, ref_min, ref_delta);
-    let inverted_raw : f32 = 1.0 - sobel_raw;
-    return normalize_value(inverted_raw, inverted_min, inverted_delta);
-}
-
-fn final_y_value(
-    x : u32,
-    y : u32,
-    width_i : i32,
-    height_i : i32,
-    channel_count : u32,
-    ref_min : f32,
-    ref_delta : f32,
-    sobel_min : f32,
-    sobel_delta : f32
-) -> f32 {
-    let sobel_raw : f32 = sobel_response_y(x, y, width_i, height_i, channel_count, ref_min, ref_delta);
-    return normalize_value(sobel_raw, sobel_min, sobel_delta);
-}
-
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    if (gid.x != 0u || gid.y != 0u) {
-        return;
-    }
-
     let width : u32 = as_u32(params.size.x);
     let height : u32 = as_u32(params.size.y);
-    if (width == 0u || height == 0u) {
+    
+    // Parallel per-pixel computation: each thread handles one pixel
+    let x : u32 = gid.x;
+    let y : u32 = gid.y;
+    
+    if (x >= width || y >= height) {
         return;
     }
 
     let channel_count : u32 = sanitize_channel_count(params.size.z);
     let width_i : i32 = i32(width);
     let height_i : i32 = i32(height);
-
-    var reference_min : f32 = F32_MAX;
-    var reference_max : f32 = F32_MIN;
-
-    for (var y : u32 = 0u; y < height; y = y + 1u) {
-        for (var x : u32 = 0u; x < width; x = x + 1u) {
-            let coords : vec2<i32> = vec2<i32>(i32(x), i32(y));
-            let value_component : f32 = compute_reference_value(coords, channel_count);
-            reference_min = min(reference_min, value_component);
-            reference_max = max(reference_max, value_component);
-        }
+    
+    // Compute Sobel X response (no normalization needed - matches Python reference)
+    var sobel_x : f32 = 0.0;
+    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
+        let offset : vec2<i32> = SOBEL_OFFSETS[i];
+        let sample_x : i32 = wrap_coord(i32(x) + offset.x, width_i);
+        let sample_y : i32 = wrap_coord(i32(y) + offset.y, height_i);
+        let coords : vec2<i32> = vec2<i32>(sample_x, sample_y);
+        let sample_value : f32 = compute_reference_value(coords, channel_count);
+        sobel_x = sobel_x + sample_value * SOBEL_X_KERNEL[i];
     }
-
-    let reference_delta : f32 = reference_max - reference_min;
-
-    var inverted_min : f32 = F32_MAX;
-    var inverted_max : f32 = F32_MIN;
-
-    var sobel_y_min : f32 = F32_MAX;
-    var sobel_y_max : f32 = F32_MIN;
-    for (var y1 : u32 = 0u; y1 < height; y1 = y1 + 1u) {
-        for (var x1 : u32 = 0u; x1 < width; x1 = x1 + 1u) {
-            let sobel_x_raw : f32 = sobel_response_x(
-                x1,
-                y1,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta
-            );
-            let inverted_raw : f32 = 1.0 - sobel_x_raw;
-            inverted_min = min(inverted_min, inverted_raw);
-            inverted_max = max(inverted_max, inverted_raw);
-
-            let sobel_y_raw : f32 = sobel_response_y(
-                x1,
-                y1,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta
-            );
-            sobel_y_min = min(sobel_y_min, sobel_y_raw);
-            sobel_y_max = max(sobel_y_max, sobel_y_raw);
-        }
+    
+    // Compute Sobel Y response (no normalization needed - matches Python reference)
+    var sobel_y : f32 = 0.0;
+    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
+        let offset : vec2<i32> = SOBEL_OFFSETS[i];
+        let sample_x : i32 = wrap_coord(i32(x) + offset.x, width_i);
+        let sample_y : i32 = wrap_coord(i32(y) + offset.y, height_i);
+        let coords : vec2<i32> = vec2<i32>(sample_x, sample_y);
+        let sample_value : f32 = compute_reference_value(coords, channel_count);
+        sobel_y = sobel_y + sample_value * SOBEL_Y_KERNEL[i];
     }
+    
+    // Normalize Sobel outputs to [0, 1] range
+    // Sobel kernels can produce values roughly in [-4, 4] for typical gradients
+    // We use a scaling factor to map this to a reasonable range
+    let sobel_scale : f32 = 0.25;  // Approximates 1/4, mapping [-4,4] to [-1,1]
+    
+    // Python does: x = normalize(1 - sobel_x), y = normalize(sobel_y)
+    // Map sobel responses to [0, 1] range and apply the inversion for x
+    let sobel_x_scaled : f32 = sobel_x * sobel_scale + 0.5;  // Map to [0, 1]
+    let sobel_y_scaled : f32 = sobel_y * sobel_scale + 0.5;  // Map to [0, 1]
+    
+    let x_value : f32 = clamp01(1.0 - sobel_x_scaled);
+    let y_value : f32 = clamp01(sobel_y_scaled);
+    
+    // Compute Z component: z = 1 - abs(normalize(sqrt(x^2 + y^2)) * 2 - 1) * 0.5 + 0.5
+    let magnitude : f32 = sqrt(x_value * x_value + y_value * y_value);
+    let normalized_magnitude : f32 = clamp01(magnitude);
+    let two_z : f32 = normalized_magnitude * 2.0 - 1.0;
+    let z_value : f32 = 1.0 - abs(two_z) * 0.5 + 0.5;
 
-    let inverted_delta : f32 = inverted_max - inverted_min;
-    let sobel_y_delta : f32 = sobel_y_max - sobel_y_min;
+    let pixel : u32 = y * width + x;
+    let base_index : u32 = pixel * CHANNEL_COUNT;
+    let texel : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(x), i32(y)), 0);
 
-    var magnitude_min : f32 = F32_MAX;
-    var magnitude_max : f32 = F32_MIN;
-
-    for (var y5 : u32 = 0u; y5 < height; y5 = y5 + 1u) {
-        for (var x5 : u32 = 0u; x5 < width; x5 = x5 + 1u) {
-            let x_value : f32 = final_x_value(
-                x5,
-                y5,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta,
-                inverted_min,
-                inverted_delta
-            );
-            let y_value : f32 = final_y_value(
-                x5,
-                y5,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta,
-                sobel_y_min,
-                sobel_y_delta
-            );
-            let magnitude : f32 = sqrt(x_value * x_value + y_value * y_value);
-            magnitude_min = min(magnitude_min, magnitude);
-            magnitude_max = max(magnitude_max, magnitude);
-        }
-    }
-
-    let magnitude_delta : f32 = magnitude_max - magnitude_min;
-
-    for (var y6 : u32 = 0u; y6 < height; y6 = y6 + 1u) {
-        for (var x6 : u32 = 0u; x6 < width; x6 = x6 + 1u) {
-            let x_value : f32 = final_x_value(
-                x6,
-                y6,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta,
-                inverted_min,
-                inverted_delta
-            );
-            let y_value : f32 = final_y_value(
-                x6,
-                y6,
-                width_i,
-                height_i,
-                channel_count,
-                reference_min,
-                reference_delta,
-                sobel_y_min,
-                sobel_y_delta
-            );
-            let magnitude : f32 = sqrt(x_value * x_value + y_value * y_value);
-            let normalized_magnitude : f32 = normalize_value(magnitude, magnitude_min, magnitude_delta);
-            let two_z : f32 = normalized_magnitude * 2.0 - 1.0;
-            let z_value : f32 = 1.0 - abs(two_z) * 0.5 + 0.5;
-
-            let pixel : u32 = y6 * width + x6;
-            let base_index : u32 = pixel * CHANNEL_COUNT;
-            let texel : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(x6), i32(y6)), 0);
-
-            output_buffer[base_index + 0u] = x_value;
-            output_buffer[base_index + 1u] = y_value;
-            output_buffer[base_index + 2u] = z_value;
-            output_buffer[base_index + 3u] = texel.w;
-        }
-    }
+    output_buffer[base_index + 0u] = x_value;
+    output_buffer[base_index + 1u] = y_value;
+    output_buffer[base_index + 2u] = z_value;
+    output_buffer[base_index + 3u] = texel.w;
 }
