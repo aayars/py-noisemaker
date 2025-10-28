@@ -56,7 +56,6 @@ import wobbleMetadata from '../../shaders/effects/wobble/meta.json' with { type:
 import wormholeMetadata from '../../shaders/effects/wormhole/meta.json' with { type: 'json' };
 import wormsMetadata from '../../shaders/effects/worms/meta.json' with { type: 'json' };
 import fxaaMetadata from '../../shaders/effects/fxaa/meta.json' with { type: 'json' };
-import glitchMetadata from '../../shaders/effects/glitch/meta.json' with { type: 'json' };
 import glowingEdgesMetadata from '../../shaders/effects/glowing_edges/meta.json' with { type: 'json' };
 import glyphMapMetadata from '../../shaders/effects/glyph_map/meta.json' with { type: 'json' };
 import grainMetadata from '../../shaders/effects/grain/meta.json' with { type: 'json' };
@@ -646,13 +645,6 @@ effectManager.registerEffect({
   label: fxaaMetadata.label,
   metadata: fxaaMetadata,
   loadModule: () => import('../../shaders/effects/fxaa/effect.js'),
-});
-
-effectManager.registerEffect({
-  id: glitchMetadata.id,
-  label: glitchMetadata.label,
-  metadata: glitchMetadata,
-  loadModule: () => import('../../shaders/effects/glitch/effect.js'),
 });
 
 effectManager.registerEffect({
