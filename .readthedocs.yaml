@@ -1,0 +1,33 @@
+# Read the Docs configuration file for Noisemaker
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+# Build documentation with Sphinx
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: false
+
+# Build formats (PDF, ePub, etc.)
+formats:
+  - pdf
+  - epub
+
+# Python configuration
+python:
+  version: "3.12"
+  install:
+    - requirements: docs/sphinx-requirements.txt
+    - requirements: requirements.txt
+    - method: pip
+      path: .
+
+# Build environment
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+  jobs:
+    post_checkout:
+      # Ensure the docs directory is accessible
+      - ls -la docs/
