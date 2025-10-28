@@ -13,11 +13,10 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **convolve**
 [[ DONE ]] **bloom**
 [[ DONE ]] **blur**
-[[ WIP ]] **color_map**
-[[ TODO ]] **fxaa**
-[[ TODO ]] **glitch**
-[[ TODO ]] **glyph_map**
-[[ TODO ]] **grain**
+[[ DONE ]] **color_map**
+[[ DONE ]] **fxaa**
+[[ DONE ]] **glyph_map**
+[[ WIP ]] **grain**
 [[ TODO ]] **jpeg_decimate**
 [[ TODO ]] **normalize**
 [[ TODO ]] **aberration**
@@ -80,7 +79,7 @@ Overall effect evaluation order, respecting dependencies:
 
 ## Leaf Effects (No Dependencies)
 
-These 28 effects don't call any other effects:
+These 27 effects don't call any other effects:
 
 - **adjust_brightness** ← used by: spatter
 - **adjust_contrast** ← used by: spatter
@@ -90,7 +89,6 @@ These 28 effects don't call any other effects:
 - **blur**
 - **color_map** ← used by: false_color
 - **fxaa**
-- **glitch**
 - **glyph_map**
 - **grain**
 - **jpeg_decimate**

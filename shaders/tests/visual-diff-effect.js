@@ -88,7 +88,7 @@ async function runTest() {
   try {
     // Load demo
     console.log('Loading GPU effects demo...');
-    await page.goto('http://localhost:9090/demo/gpu-effects/index.html', {
+    await page.goto('http://localhost:8080/demo/gpu-effects/index.html', {
       waitUntil: 'networkidle',
       timeout: 30000
     });

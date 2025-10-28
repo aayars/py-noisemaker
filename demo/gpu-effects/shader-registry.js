@@ -23,7 +23,6 @@ import falseColorMeta from '../../shaders/effects/false_color/meta.json' with { 
 import fibersMeta from '../../shaders/effects/fibers/meta.json' with { type: 'json' };
 import frameMeta from '../../shaders/effects/frame/meta.json' with { type: 'json' };
 import fxaaMeta from '../../shaders/effects/fxaa/meta.json' with { type: 'json' };
-import glitchMeta from '../../shaders/effects/glitch/meta.json' with { type: 'json' };
 import glowingEdgesMeta from '../../shaders/effects/glowing_edges/meta.json' with { type: 'json' };
 import glyphMapMeta from '../../shaders/effects/glyph_map/meta.json' with { type: 'json' };
 import grainMeta from '../../shaders/effects/grain/meta.json' with { type: 'json' };
@@ -113,7 +112,6 @@ const SHADER_MANIFEST = {
   fibers: metaToDescriptor(fibersMeta),
   frame: metaToDescriptor(frameMeta),
   fxaa: metaToDescriptor(fxaaMeta),
-  glitch: metaToDescriptor(glitchMeta),
   glowing_edges: metaToDescriptor(glowingEdgesMeta),
   glyph_map: metaToDescriptor(glyphMapMeta),
   grain: metaToDescriptor(grainMeta),

@@ -1378,7 +1378,7 @@
 
   "glitchin-out": {
     layers: ["corrupt"],
-    final: [glitch(), preset("crt"), preset("bloom")],
+    final: [preset("crt"), preset("bloom")],
   },
 
   "globules": {
