@@ -11,6 +11,7 @@ Noisemaker
    :caption: Contents:
    :hidden:
 
+   composer
    api
    cli
 
