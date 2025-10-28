@@ -14,9 +14,9 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **bloom**
 [[ DONE ]] **blur**
 [[ DONE ]] **color_map**
-[[ WIP ]] **fxaa**
-[[ TODO ]] **glyph_map**
-[[ TODO ]] **grain**
+[[ DONE ]] **fxaa**
+[[ DONE ]] **glyph_map**
+[[ WIP ]] **grain**
 [[ TODO ]] **jpeg_decimate**
 [[ TODO ]] **normalize**
 [[ TODO ]] **aberration**
