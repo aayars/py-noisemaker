@@ -1614,34 +1614,6 @@ def palette(tensor, shape, name=None, alpha=1.0, time=0.0, speed=1.0):
 
 
 @effect()
-def glitch(tensor, shape, time=0.0, speed=1.0):
-    """Apply a glitch effect that shifts color channels based on noise."""
-
-    height, width, channels = shape
-
-    # Base noise determines per-pixel channel displacement
-    base = value.values(4, [height, width, 1], time=time, speed=speed * 50)
-    shift = tf.cast(tf.floor(base[:, :, 0] * 4), tf.int32)
-
-    x_coords = tf.tile(tf.expand_dims(tf.range(width, dtype=tf.int32), 0), [height, 1])
-    y_coords = tf.tile(tf.expand_dims(tf.range(height, dtype=tf.int32), 1), [1, width])
-
-    out_channels = []
-    for k in range(channels):
-        sx = x_coords
-        if k == 0:
-            sx = (x_coords + shift) % width
-        elif k == 2:
-            sx = (x_coords - shift) % width
-
-        indices = tf.stack([y_coords, sx], 2)
-        flat = tf.reshape(indices, (-1, 2))
-        gathered = tf.gather_nd(tensor[:, :, k], flat)
-        out_channels.append(tf.reshape(gathered, (height, width)))
-
-    return tf.stack(out_channels, 2)
-
-
 @effect()
 def vhs(tensor, shape, time=0.0, speed=1.0):
     """

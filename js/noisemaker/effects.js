@@ -2593,41 +2593,6 @@ export async function aberration(
 }
 register("aberration", aberration, { displacement: 0.005 });
 
-export async function glitch(tensor, shape, time, speed) {
-  const [h, w, c] = shape;
-  const baseMaybe = values(4, [h, w, 1], {
-    ctx: tensor.ctx,
-    time,
-    speed: speed * 50,
-  });
-  const base =
-    baseMaybe && typeof baseMaybe.then === "function"
-      ? await baseMaybe
-      : baseMaybe;
-  const noiseMaybe = base.read();
-  const noise =
-    noiseMaybe && typeof noiseMaybe.then === "function"
-      ? await noiseMaybe
-      : noiseMaybe;
-  const src = await tensor.read();
-  const out = new Float32Array(h * w * c);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      const shiftAmt = Math.floor(noise[idx] * 4);
-      for (let k = 0; k < c; k++) {
-        let sx = x;
-        if (k === 0) sx = (x + shiftAmt) % w;
-        else if (k === 2) sx = ((x - shiftAmt) % w + w) % w;
-        const srcBase = (y * w + sx) * c + k;
-        out[idx * c + k] = src[srcBase];
-      }
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, shape);
-}
-register("glitch", glitch, {});
-
 export async function vhs(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;

@@ -47,7 +47,7 @@ PRESETS = lambda: {
         ],
 
         "post": lambda settings: [
-            Effect("glitch"),
+            Effect("posterize"),
         ]
     },
 
@@ -113,7 +113,7 @@ class TestComposer(unittest.TestCase):
         assert len(preset.post_effects) == 2
         assert preset.post_effects[0].func.__name__ == 'posterize'
         assert len(preset.post_effects[0].keywords) == 0
-        assert preset.post_effects[1].func.__name__ == 'glitch'
+        assert preset.post_effects[1].func.__name__ == 'posterize'
         assert len(preset.post_effects[1].keywords) == 0
 
     def test_render(self):
