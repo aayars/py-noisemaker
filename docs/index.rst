@@ -15,11 +15,14 @@ Noisemaker
    api
    cli
    javascript
+   shaders
 
 
 **Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3.9+`_ and `TensorFlow`_.
 
 **Noisemaker also includes a vanilla JavaScript port** that runs in modern browsers. See the :doc:`javascript` documentation for details.
+
+**Experimental WebGPU shaders** provide GPU-accelerated effects in the browser. See the :doc:`shaders` documentation for details.
 
 Installation
 ------------
