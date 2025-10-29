@@ -153,6 +153,24 @@ Preset loading and management.
     :undoc-members:
     :show-inheritance:
 
+noisemaker.dsl
+--------------
+
+DSL parser and evaluator for Composer presets.
+
+.. autofunction:: noisemaker.dsl.parse_preset_dsl(source, context=...)
+
+.. autofunction:: noisemaker.dsl.evaluate(ast, ctx=...)
+
+.. autofunction:: noisemaker.dsl.tokenize
+
+.. autofunction:: noisemaker.dsl.parse
+
+.. autodata:: noisemaker.dsl.defaultContext
+    :annotation: = {...}
+
+    Default evaluation context containing enums, operations, surfaces, and enum methods.
+
 noisemaker.effects_registry
 ---------------------------
 
