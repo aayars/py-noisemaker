@@ -4,6 +4,10 @@ The JS porting project aims for a 1:1 surface-level port of Noisemaker's Python 
 
 CLI tools are not included.
 
+## WebGPU Bifurcation
+
+**Note:** The WebGPU implementation has been bifurcated from the main JavaScript implementation. This vanilla JS port currently uses CPU-based rendering with TypedArrays. The WebGPU shader-based implementation exists as a separate parallel effort under `/shaders`.
+
 ## When in doubt
 
 When in doubt: refer to what the Python version is doing, and just do what it does. The Python version is our baseline reference implementation.
@@ -11,7 +15,7 @@ When in doubt: refer to what the Python version is doing, and just do what it do
 ## 1. Goals and Scope
 
 * Reproduce the reusable library portion of the Python project in plain JavaScript.
-* Runtime target: WebGPU in modern browsers.
+* Runtime target: Modern browsers with ES module support.
 * Node.js may be used for bundling, unit tests and regression scripts only; the final library must not depend on Node APIs.
 * Support deterministic results through seed control and provide feature parity with the Python implementation where feasible.
 * Out of scope: existing CLI tooling, rendering scripts, Stable Diffusion integration and any non-library utilities.
@@ -39,16 +43,16 @@ The library is organised as ES modules inside `src/`.
 
 ### 2.2 Data Representation
 
-* **Tensor** – wrapper around a WebGPU texture representing a 3‑D float array `[height, width, channels]`.
-* `Tensor.fromArray(Float32Array, shape)` uploads data to a floating‑point texture.
-* `Tensor.read()` downloads pixels to a typed array for tests or export.
-* Fallback CPU paths mirror the API using typed arrays when WebGPU or float textures are unavailable.
+* **Tensor** – wrapper around a TypedArray representing a 3‑D float array `[height, width, channels]`.
+* `Tensor.fromArray(Float32Array, shape)` creates a tensor from the provided data.
+* `Tensor.read()` returns the underlying typed array for tests or export.
+* All operations are performed on the CPU using TypedArrays.
 
 ### 2.3 Rendering Pipeline
 
-1. Create a WebGPU context bound to a `<canvas>`.
-2. Each operation is a shader program that reads one or more input textures and writes to an FBO‑backed texture.
-3. Operations are chained by ping‑ponging between textures; the final texture is presented on the canvas or converted to image data.
+1. Operations accept and return `Tensor` instances wrapping Float32Arrays.
+2. Each operation performs calculations directly on typed arrays.
+3. Final output can be written to a canvas using the `save()` utility or converted to image data.
 
 ## 3. Module Specifications
 
@@ -73,7 +77,7 @@ The library is organised as ES modules inside `src/`.
   * Blending utilities: `blend(a,b,t)`, `normalize`, `clamp01`, `distance(dx,dy,metric)`.
   * Derivatives and filtering: `sobel`, `fxaa`, `gaussianBlur`.
   * Palette mapping: `valueMap`, `hsvToRgb`, `rgbToHsv`.
-* All operations are expressed as GLSL snippets composed into shader programs.
+* All operations are performed on CPU using TypedArray math.
 
 ### 3.4 `points.js`
 * Generates two parallel arrays `(x[], y[])` in pixel coordinates for a given `freq` and distribution.
@@ -83,8 +87,8 @@ The library is organised as ES modules inside `src/`.
 ### 3.5 `masks.js`
 * Hard‑coded bitmap masks (`ValueMask` enums) stored as nested arrays.
 * Procedural masks such as Truchet tiles or invader patterns computed on demand.
-* `maskValues(type, shape, {atlas, inverse, static})` returns a `Tensor` and an optional atlas texture.
-* Glyph atlas loader reads user fonts, rasterises characters to textures and caches results.
+* `maskValues(type, shape, {atlas, inverse, static})` returns a `Tensor` and optional atlas data.
+* Glyph atlas loader reads user fonts, rasterises characters using Canvas API and caches results.
 
 ### 3.6 `effectsRegistry.js`
 * `register(name, fn, defaults)` records effect metadata.
@@ -93,13 +97,13 @@ The library is organised as ES modules inside `src/`.
 * Validation ensures every effect accepts `(tensor, shape, time, speed, ...params)`.
 
 ### 3.7 `effects.js`
-* Over 70 shader‑driven effects; grouped for implementation clarity.
+* Over 70 CPU-based effects; grouped for implementation clarity.
   * **Sampling/geometry:** `warp`, `reindex`, `funhouse`, `kaleidoscope`, `repeat`, `rotate`, `zoom`, `reflect`.
   * **Lighting/shading:** `shadow`, `bloom`, `vignette`, `brcosa`, `levels`.
   * **Stylisation:** `posterize`, `dither`, `halftone`, `valueMask`, `glyphMap`.
   * **Noise based:** `fbm`, `worms`, `grain`, `erosionWorms`.
   * **Post colour:** `palette`, `saturation`, `invert`, `aberration`, `randomHue`.
-* Every effect is defined as a JS function that builds or reuses shader programs and returns a new `Tensor`.
+* Every effect is defined as a JS function operating on TypedArrays and returns a new `Tensor`.
 * All effects are registered through `effectsRegistry.register` for discovery by the composer.
 
 ### 3.8 `composer.js`
