@@ -1,0 +1,67 @@
+/* Custom Noisemaker Documentation Styles for Furo Theme */
+
+/* Import Nunito for body text */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+
+/* Import Sono (mono) for code */
+@import url('https://fonts.googleapis.com/css2?family=Sono:wght@400;500;600&display=swap');
+
+/* Additional refinements for Furo theme */
+.sidebar-brand-text {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+/* Improve code block appearance */
+.highlight pre {
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+/* Inline code styling */
+code.literal {
+    background-color: rgba(27, 31, 35, 0.05);
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-size: 0.9em;
+}
+
+/* Dark mode inline code */
+body[data-theme="dark"] code.literal {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Improve table styling */
+table.docutils {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Better admonition styling */
+.admonition {
+    border-radius: 6px;
+}
+
+/* Adjust heading weights */
+h1, h2, h3 {
+    font-weight: 700;
+}
+
+h4, h5, h6 {
+    font-weight: 600;
+}
+
+/* Improve readability */
+.content {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Better link hover effects */
+a {
+    transition: opacity 0.2s ease;
+}
+
+a:hover {
+    opacity: 0.8;
+}
