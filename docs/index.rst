@@ -18,7 +18,7 @@ Noisemaker
    shaders
 
 
-**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3.9+`_ and `TensorFlow`_.
+**Noisemaker** is a collection of creative coding effects for Python and JavaScript.
 
 **Noisemaker also includes a vanilla JavaScript port** that runs in modern browsers. See the :doc:`javascript` documentation for details.
 

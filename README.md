@@ -1,14 +1,15 @@
 # Noisemaker
 
-Noisemaker adapts classic procedural noise generation algorithms for **Python 3.9+** and **TensorFlow**. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
+Noisemaker is a collection of creative coding effects for Python and JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
 
 ## Features
 
 - Modern Python 3.9+ API with type hints
-- Built on TensorFlow for GPU-accelerated generation
 - Command line interface for generating images and animations
 - High-level *composer* presets with reusable settings and layered effects
 - Low-level generator and effect functions for custom workflows
+- Browser-based JavaScript implementation
+- Experimental WebGPU shader effects
 - Optional Docker image and interactive Colab notebook
 
 ## Installation
