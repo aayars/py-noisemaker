@@ -18,11 +18,7 @@ Noisemaker
    shaders
 
 
-**Noisemaker** is a collection of creative coding effects for Python and JavaScript.
-
-**Noisemaker also includes a vanilla JavaScript port** that runs in modern browsers. See the :doc:`javascript` documentation for details.
-
-**Experimental WebGPU shaders** provide GPU-accelerated effects in the browser. See the :doc:`shaders` documentation for details.
+**Noisemaker** is a collection of creative coding effects for Python or JavaScript.
 
 Installation
 ------------
