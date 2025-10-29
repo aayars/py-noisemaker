@@ -90,10 +90,14 @@ noisemaker.masks
 
 Mask generation and application functions.
 
+The ``Masks`` dictionary contains pre-defined mask patterns for all ValueMask enum members.
+See :class:`noisemaker.constants.ValueMask` for available mask types.
+
 .. automodule:: noisemaker.masks
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: Masks
 
 noisemaker.points
 -----------------
