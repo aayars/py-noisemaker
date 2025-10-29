@@ -12,7 +12,7 @@ This guide is for AI coding agents working on Noisemaker, a procedural noise gen
 - **Python setup**:
   1. `python3 -m venv venv && source venv/bin/activate`
   2. `pip install -r requirements.txt`
-  3. `python setup.py develop && python setup.py install_scripts`
+  3. `pip install -e ".[dev]"`
   4. Run CLI: `noisemaker --help`
 - **Testing**: Run `pytest` before submitting Python changes. JS tests are in `test/` and use Node only for testing.
 - **Docker**: See `docker/README.md` for running Noisemaker in containers. Output must be mounted to `/output`.
