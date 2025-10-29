@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 """Noise generation interface for Noisemaker"""
+
+from typing import Any
 
 #
 # stability.ai key is needed for stable diffusion.
@@ -30,7 +34,23 @@ OPENAI_MODEL = "o4-mini"
 
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
-def apply(settings, seed, input_filename, stability_model):
+def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None) -> str:
+    """Apply Stability AI image-to-image transformation (v1 models).
+
+    For v2 models (sd3, core, ultra), delegates to apply_v2().
+
+    Args:
+        settings: AI settings dict with keys: model, image_strength, prompt, cfg_scale, style_preset.
+        seed: Random seed for generation.
+        input_filename: Path to input image file.
+        stability_model: Optional model override (uses settings['model'] if None).
+
+    Returns:
+        Transformed image as TensorFlow tensor.
+
+    Raises:
+        Exception: If API returns non-200 status code.
+    """
     model = stability_model if stability_model else settings['model']
 
     if model in ('sd3', 'core', 'ultra'):
@@ -68,7 +88,21 @@ def apply(settings, seed, input_filename, stability_model):
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def apply_v2(settings, seed, input_filename, stability_model=None):
+def apply_v2(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None = None) -> str:
+    """Apply Stability AI image-to-image transformation (v2 models: sd3, core, ultra).
+
+    Args:
+        settings: AI settings dict with keys: model, prompt, negative_prompt (optional), image_strength.
+        seed: Random seed for generation.
+        input_filename: Path to input image file.
+        stability_model: Optional model override (uses settings['model'] if None).
+
+    Returns:
+        Transformed image as TensorFlow tensor.
+
+    Raises:
+        Exception: If API returns non-200 status or generation fails.
+    """
     model = stability_model if stability_model else settings['model']
 
     response = requests.post(
@@ -106,7 +140,22 @@ def apply_v2(settings, seed, input_filename, stability_model=None):
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def apply_style(settings, seed, content_filename, style_filename, output_format="png"):
+def apply_style(settings: dict[str, Any], seed: int, content_filename: str, style_filename: str, output_format: str = "png") -> str:
+    """Apply Stability AI style transfer from a reference image.
+
+    Args:
+        settings: AI settings dict with keys: prompt, negative_prompt (optional), image_strength (style strength).
+        seed: Random seed for generation.
+        content_filename: Path to content image file.
+        style_filename: Path to style reference image file.
+        output_format: Output image format ("png" or "jpeg").
+
+    Returns:
+        Style-transferred image as TensorFlow tensor.
+
+    Raises:
+        Exception: If API returns non-200 status code.
+    """
     response = requests.post(
         f"{STABILITY_API_HOST}/v2beta/stable-image/control/style-transfer",
         headers={
@@ -134,7 +183,18 @@ def apply_style(settings, seed, content_filename, style_filename, output_format=
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def x4_upscale(input_filename):
+def x4_upscale(input_filename: str) -> str:
+    """Upscale an image by 4x using Stability AI's fast upscaler.
+
+    Args:
+        input_filename: Path to input image file.
+
+    Returns:
+        Upscaled image as TensorFlow tensor.
+
+    Raises:
+        Exception: If API returns non-200 status code.
+    """
     response = requests.post(
         f"{STABILITY_API_HOST}/v2beta/stable-image/upscale/fast",
         headers={
@@ -156,7 +216,23 @@ def x4_upscale(input_filename):
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def describe(preset_name, prompt, filename):
+def describe(preset_name: str, prompt: str, filename: str) -> str:
+    """Generate an AI-powered alt text description for a generated image.
+
+    Uses OpenAI to create accessible image descriptions based on the preset name,
+    descriptive terms, and extracted color palette.
+
+    Args:
+        preset_name: Name of the Noisemaker preset used.
+        prompt: Comma-delimited descriptive terms.
+        filename: Path to the generated image file.
+
+    Returns:
+        Human-readable alt text summary (max 250 characters).
+
+    Raises:
+        Exception: If OpenAI API fails or returns invalid response.
+    """
     try:
         #
         #
@@ -234,7 +310,18 @@ def describe(preset_name, prompt, filename):
     return summary
 
 
-def _api_key(api):
+def _api_key(api: str) -> str:
+    """Load API key from credentials directory.
+
+    Args:
+        api: API name ("stability" or "openai").
+
+    Returns:
+        API key string.
+
+    Raises:
+        Exception: If key file doesn't exist or is empty.
+    """
     api_key = None
     api_key_path = f"{util.get_noisemaker_dir()}/.creds/.{api}"
     if os.path.exists(api_key_path):
@@ -247,7 +334,19 @@ def _api_key(api):
     return api_key
 
 
-def _openai_query(system_prompt, user_prompt):
+def _openai_query(system_prompt: str, user_prompt: str) -> str:
+    """Query OpenAI chat completion API.
+
+    Args:
+        system_prompt: System-level instructions for the AI.
+        user_prompt: User query to process.
+
+    Returns:
+        AI-generated response text.
+
+    Raises:
+        Exception: If API call fails or returns invalid response.
+    """
     response = requests.post(
         f"{OPENAI_API_HOST}/v1/chat/completions",
         headers={
