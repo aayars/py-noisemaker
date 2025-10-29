@@ -212,8 +212,21 @@ class Preset:
             raise
 
 
-def Effect(effect_name, **kwargs):
-    """Return a partial effects function. Invoke the wrapped function with params "tensor", "shape", "time", and "speed." """
+def Effect(effect_name: str, **kwargs: Any) -> Callable:
+    """Create a partial effect function with preset parameters.
+
+    The returned function can be invoked with runtime parameters: tensor, shape, time, and speed.
+
+    Args:
+        effect_name: Name of the registered effect to wrap.
+        **kwargs: Parameter overrides to bind to the effect function.
+
+    Returns:
+        Partial function with preset parameters bound.
+
+    Raises:
+        ValueError: If effect_name is not registered or kwargs contains invalid parameters.
+    """
 
     if effect_name not in EFFECTS:
         raise ValueError(f'"{effect_name}" is not a registered effect name.')
@@ -226,7 +239,7 @@ def Effect(effect_name, **kwargs):
     return effect
 
 
-def _flatten_layer_entries(value):
+def _flatten_layer_entries(value: Any) -> list[Any]:
     if isinstance(value, (list, tuple)):
         flattened = []
         for item in value:
@@ -237,7 +250,7 @@ def _flatten_layer_entries(value):
     return [value]
 
 
-def _resolve_preset_layers(preset_name, presets, cache):
+def _resolve_preset_layers(preset_name: str, presets: dict[str, Any], cache: dict[str, Any]) -> tuple[Any, ...]:
     if preset_name in cache:
         return cache[preset_name]
 
@@ -249,7 +262,7 @@ def _resolve_preset_layers(preset_name, presets, cache):
     return cache[preset_name]
 
 
-def _flatten_ancestors(preset_name, presets, unique, ancestors, layer_cache):
+def _flatten_ancestors(preset_name: str, presets: dict[str, Any], unique: dict[str, bool], ancestors: list[str], layer_cache: dict[str, Any]) -> None:
     for ancestor_name in _resolve_preset_layers(preset_name, presets, layer_cache):
         if ancestor_name not in presets:
             raise ValueError(f"\"{ancestor_name}\" was not found among the available presets.")
@@ -266,7 +279,7 @@ def _flatten_ancestors(preset_name, presets, unique, ancestors, layer_cache):
     ancestors.append(preset_name)
 
 
-def _callable_param_count_uncached(value):
+def _callable_param_count_uncached(value: Callable) -> int | None:
     try:
         return len(inspect.signature(value).parameters)
     except (ValueError, TypeError):
@@ -274,11 +287,11 @@ def _callable_param_count_uncached(value):
 
 
 @lru_cache(maxsize=None)
-def _callable_param_count(value):
+def _callable_param_count(value: Callable) -> int | None:
     return _callable_param_count_uncached(value)
 
 
-def _resolve_metadata_value(value, settings):
+def _resolve_metadata_value(value: Any, settings: dict[str, Any]) -> Any:
     if callable(value):
         try:
             param_count = _callable_param_count(value)
@@ -303,7 +316,7 @@ _CAMEL_PATTERN_1 = re.compile(r"(.)([A-Z][a-z]+)")
 _CAMEL_PATTERN_2 = re.compile(r"([a-z0-9])([A-Z])")
 
 
-def _camel_to_snake(name):
+def _camel_to_snake(name: str | Any) -> str | Any:
     if not isinstance(name, str):
         return name
 
@@ -311,7 +324,7 @@ def _camel_to_snake(name):
     return _CAMEL_PATTERN_2.sub(r"\1_\2", s1).lower()
 
 
-def _lookup_effect_definition(effect_name):
+def _lookup_effect_definition(effect_name: str) -> tuple[str, dict[str, Any] | None]:
     if effect_name in EFFECTS:
         return effect_name, EFFECTS[effect_name]
 
@@ -323,7 +336,7 @@ def _lookup_effect_definition(effect_name):
     return effect_name, None
 
 
-def _map_effect(effect, settings):
+def _map_effect(effect: Any, settings: dict[str, Any]) -> Any:
     seen = set()
     depth = 0
 
@@ -374,8 +387,25 @@ def _map_effect(effect, settings):
     return effect
 
 
-def _flatten_ancestor_metadata(preset, settings, key, default, presets):
-    """Flatten ancestor preset metadata"""
+def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: str, default: Any, presets: dict[str, Any]) -> dict[str, Any] | list[Any]:
+    """Collect and merge metadata from all ancestor presets.
+
+    Traverses the preset inheritance chain and accumulates values for the specified
+    key. Dicts are merged via update(), lists/tuples are concatenated.
+
+    Args:
+        preset: The preset whose ancestors to traverse.
+        settings: Current settings dictionary for value resolution.
+        key: Metadata key to collect (e.g., "octaves", "post", "final", "settings").
+        default: Default value type (dict or list) to initialize accumulator.
+        presets: Dictionary of all available presets.
+
+    Returns:
+        Merged metadata as dict (if default is dict) or list (otherwise).
+
+    Raises:
+        ValueError: If ancestor metadata has wrong type or evaluation fails.
+    """
 
     if isinstance(default, dict):
         flattened_metadata = {}
@@ -415,11 +445,22 @@ def _flatten_ancestor_metadata(preset, settings, key, default, presets):
     return flattened_metadata
 
 
-def random_member(*collections):
-    """Return a random member from a collection, enum list, or enum.
+def random_member(*collections: Any) -> Any:
+    """Select a random member from one or more collections, ensuring deterministic ordering.
 
-    RNG: a single :func:`rng.random_int` to choose the index.
-    Ensures deterministic ordering.
+    Accepts enums, enum lists, or regular collections. Multiple collections are merged
+    before selection. Order is deterministic to ensure consistent RNG behavior.
+
+    RNG: Single call to :func:`rng.random_int` to choose the index.
+
+    Args:
+        *collections: One or more iterables (enums, lists, sets, etc.) to select from.
+
+    Returns:
+        A randomly selected member from the merged collections.
+
+    Raises:
+        ValueError: If any argument is not iterable.
     """
 
     collection = []
@@ -442,12 +483,27 @@ def random_member(*collections):
     return collection[rng.random_int(0, len(collection) - 1)]
 
 
-def coin_flip():
+def coin_flip() -> bool:
+    """Return a random boolean (True/False with equal probability).
+
+    RNG: Single call to :func:`rng.random_int` with range [0, 1].
+
+    Returns:
+        Randomly selected True or False.
+    """
     return bool(rng.random_int(0, 1))  # RNG[1]
 
 
-def enum_range(a, b):
-    """Return a list of enum members within the specified inclusive numeric value range."""
+def enum_range(a: Enum, b: Enum) -> list[Enum]:
+    """Return a list of enum members within the specified inclusive numeric value range.
+
+    Args:
+        a: Starting enum member (inclusive).
+        b: Ending enum member (inclusive).
+
+    Returns:
+        List of all enum members from a.value to b.value (inclusive).
+    """
 
     enum_class = type(a)
 
@@ -459,8 +515,18 @@ def enum_range(a, b):
     return members
 
 
-def reload_presets(presets):
-    """Re-evaluate presets after changing the interpreter's random seed."""
+def reload_presets(presets: Callable[[], dict[str, Any]]) -> None:
+    """Re-evaluate all presets and categorize them as generators or effects.
+
+    Clears existing preset caches and reloads from the provided factory function.
+    This should be called after changing the random seed to get fresh evaluations.
+
+    Args:
+        presets: Factory function that returns a dictionary of preset definitions.
+
+    Raises:
+        ValueError: If any preset fails to initialize or validate.
+    """
 
     GENERATOR_PRESETS.clear()
     EFFECT_PRESETS.clear()
@@ -484,8 +550,19 @@ def reload_presets(presets):
                 raise ValueError(f"Preset \"{preset_name}\": {e}")
 
 
-def stash(key, value=None):
-    """Hold on to a variable for reference within the same lambda. Returns the stashed value."""
+def stash(key: str, value: Any | None = None) -> Any:
+    """Store and retrieve values for cross-reference within preset lambda functions.
+
+    Useful for holding intermediate values that need to be shared across multiple
+    effect definitions within the same preset.
+
+    Args:
+        key: Identifier for the stashed value.
+        value: Value to store (if provided).
+
+    Returns:
+        The currently stored value for the given key.
+    """
 
     global _STASH
 
@@ -504,20 +581,20 @@ class UnusedKeys(Exception):
 class SettingsDict(UserDict):
     """dict, but it makes sure the caller eats everything on their plate."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.__accessed__ = {}
 
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         self.__accessed__[key] = True
 
         return super().__getitem__(key)
 
-    def was_accessed(self, key):
+    def was_accessed(self, key: str) -> bool:
         return key in self.__accessed__
 
-    def raise_if_unaccessed(self, unused_okay=None):
+    def raise_if_unaccessed(self, unused_okay: list[str] | None = None) -> None:
         keys = []
 
         for key in self:

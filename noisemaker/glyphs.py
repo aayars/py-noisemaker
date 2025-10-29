@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Font loader for Noisemaker. Creates glyph atlases from TrueType fonts."""
 
 import os
@@ -8,9 +10,11 @@ from PIL import Image, ImageDraw, ImageFont
 from noisemaker.util import get_noisemaker_dir
 
 
-def load_fonts():
-    """
-    Finds all TrueType fonts in your ~/.noisemaker/fonts directory.
+def load_fonts() -> list[str]:
+    """Find all TrueType fonts in the ~/.noisemaker/fonts directory.
+
+    Returns:
+        List of absolute paths to .ttf font files, or empty list if fonts directory doesn't exist.
     """
 
     fonts_dir = os.path.join(get_noisemaker_dir(), "fonts")
@@ -21,11 +25,20 @@ def load_fonts():
     return [os.path.join(fonts_dir, f) for f in os.listdir(fonts_dir) if f.endswith(".ttf")]
 
 
-def load_glyphs(shape):
-    """
-    Return a list of glyphs, sorted from darkest to brightest.
+def load_glyphs(shape: list[int]) -> list[list[list[list[float]]]]:
+    """Generate a list of ASCII character glyphs sorted from darkest to brightest.
 
-    :param list[int] shape:
+    Renders printable ASCII characters (32-126) using a randomly selected font,
+    then sorts them by brightness for use in value-based text rendering.
+
+    RNG: One call to :func:`random.randint` to select font.
+
+    Args:
+        shape: Glyph dimensions as [height, width].
+
+    Returns:
+        List of glyphs, where each glyph is [y][x][channel] with normalized [0.0, 1.0] values.
+        Sorted from darkest (space) to brightest (dense characters).
     """
 
     fonts = load_fonts()

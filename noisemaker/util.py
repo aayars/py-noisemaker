@@ -124,7 +124,13 @@ def check_call(command: list[str], quiet: bool = False) -> Any:
         raise
 
 
-def log_subprocess_error(command, e):
+def log_subprocess_error(command: list[str], e: Exception) -> None:
+    """Log subprocess execution errors with appropriate detail.
+
+    Args:
+        command: The command that failed.
+        e: The exception that was raised.
+    """
     if isinstance(e, subprocess.CalledProcessError):
         logger.error(f"{e}: {e.output.strip()}")
 
@@ -132,11 +138,24 @@ def log_subprocess_error(command, e):
         logger.error(f"Command '{command}' failed to execute: {e}")
 
 
-def get_noisemaker_dir():
+def get_noisemaker_dir() -> str:
+    """Get the Noisemaker configuration directory path.
+
+    Returns:
+        Path to ~/.noisemaker or NOISEMAKER_DIR environment variable.
+    """
     return os.environ.get('NOISEMAKER_DIR', os.path.join(os.path.expanduser("~"), '.noisemaker'))
 
 
-def dumps(kwargs):
+def dumps(kwargs: dict[str, Any]) -> str:
+    """Serialize kwargs to JSON, converting Enums to strings.
+
+    Args:
+        kwargs: Dictionary to serialize.
+
+    Returns:
+        Pretty-printed JSON string with sorted keys.
+    """
     out = {}
 
     for k, v in kwargs.items():
@@ -148,7 +167,18 @@ def dumps(kwargs):
     return json.dumps(out, indent=4, sort_keys=True)
 
 
-def shape_from_params(width, height, color_space, with_alpha):
+def shape_from_params(width: int, height: int, color_space: ColorSpace, with_alpha: bool) -> list[int]:
+    """Construct a shape array from image parameters.
+
+    Args:
+        width: Image width in pixels.
+        height: Image height in pixels.
+        color_space: Color space (grayscale or color).
+        with_alpha: Include alpha channel.
+
+    Returns:
+        Shape list [height, width, channels].
+    """
     if color_space == ColorSpace.grayscale:
         shape = [height, width, 1]
 
@@ -161,9 +191,16 @@ def shape_from_params(width, height, color_space, with_alpha):
     return shape
 
 
-def shape_from_file(filename):
-    """
-    Get image dimensions from a file, using PIL, to avoid adding to the TensorFlow graph.
+def shape_from_file(filename: str) -> list[int]:
+    """Extract image dimensions from a file using PIL.
+
+    Uses PIL to avoid adding operations to the TensorFlow computation graph.
+
+    Args:
+        filename: Path to image file.
+
+    Returns:
+        Shape list [height, width, channels].
     """
 
     image = Image.open(filename)
@@ -173,15 +210,29 @@ def shape_from_file(filename):
     return [input_height, input_width, len(image.getbands())]
 
 
-def from_srgb(srgb):
-    """Converts an sRGB image to Linear RGB."""
+def from_srgb(srgb: tf.Tensor) -> tf.Tensor:
+    """Convert an sRGB image tensor to Linear RGB color space.
+
+    Args:
+        srgb: Image tensor in sRGB color space.
+
+    Returns:
+        Image tensor in Linear RGB color space.
+    """
     condition = tf.less(srgb, 0.04045)
     linear_rgb = tf.where(condition, srgb / 12.92, tf.pow((srgb + 0.055) / 1.055, 2.4))
     return linear_rgb
 
 
-def from_linear_rgb(linear_rgb):
-    """Converts a Linear RGB image to sRGB."""
+def from_linear_rgb(linear_rgb: tf.Tensor) -> tf.Tensor:
+    """Convert a Linear RGB image tensor to sRGB color space.
+
+    Args:
+        linear_rgb: Image tensor in Linear RGB color space.
+
+    Returns:
+        Image tensor in sRGB color space.
+    """
     condition = tf.less(linear_rgb, 0.0031308)
     srgb = tf.where(condition, linear_rgb * 12.92, 1.055 * tf.pow(linear_rgb, 1/2.4) - 0.055)
     return srgb
