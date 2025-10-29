@@ -1,5 +1,5 @@
-Noisemaker Composer DSL
-=======================
+Noisemaker Composer
+===================
 
 Noisemaker Composer is a high-level interface for creating generative art with procedural noise. The design is informed by lessons learned from previous preset systems in Noisemaker.
 
