@@ -1,6 +1,9 @@
 """Point cloud library for Noisemaker. Used for Voronoi and DLA functions."""
 
+from __future__ import annotations
+
 import math
+from typing import Any
 
 import noisemaker.rng as rng
 
@@ -10,8 +13,22 @@ import noisemaker.masks as masks
 import noisemaker.simplex as simplex
 
 
-def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=False, generations=1, drift=0.0, time=0.0, speed=1.0):
+def point_cloud(freq: int, distrib: PointDistribution | ValueMask = PointDistribution.random, shape: list[int] | None = None, corners: bool = False, generations: int = 1, drift: float = 0.0, time: float = 0.0, speed: float = 1.0) -> tuple[list[int], list[int]] | None:
     """
+    Generate a point cloud for Voronoi diagrams or other point-based effects.
+
+    Args:
+        freq: Point frequency/density
+        distrib: Point distribution method (PointDistribution or ValueMask)
+        shape: Optional shape [height, width, channels]
+        corners: If True, anchor points to corners instead of center
+        generations: Number of generations for iterative distributions
+        drift: Amount of random drift to apply to points
+        time: Time parameter for animation
+        speed: Animation speed multiplier
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists, or None if freq is 0
     """
 
     if not freq:
@@ -146,11 +163,18 @@ def point_cloud(freq, distrib=PointDistribution.random, shape=None, corners=Fals
     return (x, y)
 
 
-def cloud_points(count, seed=None):
+def cloud_points(count: int, seed: int | None = None) -> tuple[list[float], list[float]]:
     """Convenience wrapper for random point clouds.
 
     RNG: ``count * count * 2`` calls to :func:`rng.random` via :func:`rand`,
     ordered as x then y for each point.
+
+    Args:
+        count: Number of points per axis (total points = count * count).
+        seed: Optional random seed for reproducible output.
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists with normalized [0.0, 1.0] coordinates.
     """
 
     if seed is not None:
@@ -159,8 +183,23 @@ def cloud_points(count, seed=None):
     return point_cloud(count, PointDistribution.random)
 
 
-def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0, height=1.0, **kwargs):
-    """
+def rand(freq: int = 2, center_x: float = 0.5, center_y: float = 0.5, range_x: float = 0.5, range_y: float = 0.5, width: float = 1.0, height: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+    """Generate a random cloud of points within a specified region.
+
+    RNG: ``freq * freq * 2`` calls to :func:`rng.random`, ordered as x then y.
+
+    Args:
+        freq: Number of points per axis (total points = freq * freq).
+        center_x: Horizontal center of the distribution region [0.0, 1.0].
+        center_y: Vertical center of the distribution region [0.0, 1.0].
+        range_x: Horizontal radius from center [0.0, 1.0].
+        range_y: Vertical radius from center [0.0, 1.0].
+        width: Horizontal wrapping bounds.
+        height: Vertical wrapping bounds.
+        **kwargs: Unused; accepts additional parameters for compatibility.
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists with coordinates wrapped to [0.0, width) and [0.0, height).
     """
 
     x = []
@@ -176,8 +215,25 @@ def rand(freq=2, center_x=0.5, center_y=0.5, range_x=0.5, range_y=0.5, width=1.0
     return x, y
 
 
-def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, **kwargs):
-    """
+def square_grid(freq: float = 1.0, distrib: PointDistribution | None = None, corners: bool = False, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+    """Generate a square grid of points with optional distribution patterns.
+
+    Supports various grid patterns including waffle, chess, and hexagonal layouts.
+
+    Args:
+        freq: Number of grid divisions per axis (total points = freq * freq).
+        distrib: Optional point distribution pattern (waffle, chess, h_hex, v_hex).
+        corners: If True, align grid to corners; otherwise center the grid.
+        center_x: Horizontal center offset [0.0, 1.0].
+        center_y: Vertical center offset [0.0, 1.0].
+        range_x: Horizontal scale factor.
+        range_y: Vertical scale factor.
+        width: Horizontal wrapping bounds.
+        height: Vertical wrapping bounds.
+        **kwargs: Unused; accepts additional parameters for compatibility.
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists with grid coordinates.
     """
 
     x = []
@@ -224,8 +280,25 @@ def square_grid(freq=1.0, distrib=None, corners=False, center_x=0.0, center_y=0.
     return x, y
 
 
-def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, time=0.0, speed=1.0, **kwargs):
-    """
+def spiral(freq: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, time: float = 0.0, speed: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+    """Generate points along a spiral path with time-based rotation.
+
+    RNG: 1 call to :func:`rng.random` for spiral kink factor.
+
+    Args:
+        freq: Number of points to generate.
+        center_x: Horizontal center of the spiral [0.0, 1.0].
+        center_y: Vertical center of the spiral [0.0, 1.0].
+        range_x: Horizontal radius of the spiral.
+        range_y: Vertical radius of the spiral.
+        width: Horizontal wrapping bounds.
+        height: Vertical wrapping bounds.
+        time: Animation time parameter for rotation.
+        speed: Animation speed multiplier.
+        **kwargs: Unused; accepts additional parameters for compatibility.
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists with spiral coordinates.
     """
 
     kink = .5 + rng.random() * .5
@@ -246,8 +319,27 @@ def spiral(freq=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width
     return x, y
 
 
-def circular(freq=1.0, distrib=1.0, center_x=0.0, center_y=0.0, range_x=1.0, range_y=1.0, width=1.0, height=1.0, generation=1, time=0.0, speed=1.0, **kwargs):
-    """
+def circular(freq: float = 1.0, distrib: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, generation: int = 1, time: float = 0.0, speed: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+    """Generate points in concentric circular rings.
+
+    Creates a center point surrounded by rings of evenly spaced points.
+
+    Args:
+        freq: Number of rings and points per ring.
+        distrib: Distribution factor (typically 1.0 for uniform spacing).
+        center_x: Horizontal center of the circular pattern [0.0, 1.0].
+        center_y: Vertical center of the circular pattern [0.0, 1.0].
+        range_x: Horizontal radius scale factor.
+        range_y: Vertical radius scale factor.
+        width: Horizontal wrapping bounds.
+        height: Vertical wrapping bounds.
+        generation: Ring generation parameter for pattern variation.
+        time: Animation time parameter for rotation.
+        speed: Animation speed multiplier.
+        **kwargs: Unused; accepts additional parameters for compatibility.
+
+    Returns:
+        Tuple of (x_coords, y_coords) lists with circular coordinates.
     """
 
     x = []

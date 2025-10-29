@@ -242,43 +242,46 @@ def multires(
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param Preset preset: The Preset object being rendered
-    :param int seed: The generation seed to use
-    :param int|list[int] freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
-    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
-    :param int octaves: Octave count. Number of multi-res layers. Typically 1-8
-    :param bool ridges: Per-octave "crease" at midpoint values: (1 - abs(n * 2 - 1))
-    :param bool post_ridges: Post-reduce "crease" at midpoint values: (1 - abs(n * 2 - 1))
-    :param float sin: Apply sin function to noise basis
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
-    :param bool corners: If True, pin values to corners instead of image center
-    :param None|ValueMask mask:
-    :param bool mask_inverse:
-    :param bool mask_static: If True, don't animate the mask
-    :param float lattice_drift: Push away from underlying lattice
-    :param bool with_supersample: Use x2 supersampling
-    :param ColorSpace color_space:
-    :param float hue_range: HSV hue range
-    :param float|None hue_rotation: HSV hue bias
-    :param float saturation: HSV saturation
-    :param None|ValueDistribution hue_distrib: Override ValueDistribution for HSV hue
-    :param None|ValueDistribution saturation_distrib: Override ValueDistribution for HSV saturation
-    :param None|ValueDistribution brightness_distrib: Override ValueDistribution for HSV brightness
-    :param None|int|list[int] brightness_freq: Override frequency for HSV brightness
-    :param OctaveBlendingMethod|int octave_blending: Method for flattening octave values
-    :param list[callable] octave_effects: A list of composer lambdas to invoke per-octave
-    :param list[callable] post_effects: A list of composer lambdas to invoke after flattening layers
-    :param bool with_alpha: Include alpha channel
-    :param bool with_ai: AI: Apply image-to-image before the final effects pass
-    :param list[callable] final_effects: A list of composer lambdas to invoke after everything else
-    :param bool with_upscale: AI: x2 upscale final results
-    :param bool with_fxaa: Apply FXAA to results
-    :param str stability_model: AI: Override the default stability.ai model
-    :param str|None style_filename: AI: Save the style reference, or load it if the file already exists.
-    :param float speed: Displacement range for Z/W axis (simplex and periodic only)
-    :param float time: Time argument for Z/W axis (simplex and periodic only)
-    :return: Tensor
+    Args:
+        preset: The Preset object being rendered
+        seed: The generation seed to use
+        freq: Bottom layer frequency. Int, or list of ints for each spatial dimension
+        shape: Shape of noise. For 2D noise, this is [height, width, channels]
+        octaves: Octave count. Number of multi-res layers. Typically 1-8
+        ridges: Per-octave "crease" at midpoint values: (1 - abs(n * 2 - 1))
+        sin: Apply sin function to noise basis
+        spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+        distrib: Type of noise distribution. See :class:`ValueDistribution` enum
+        corners: If True, pin values to corners instead of image center
+        mask: Optional mask to apply
+        mask_inverse: Invert the mask
+        mask_static: If True, don't animate the mask
+        lattice_drift: Push away from underlying lattice
+        with_supersample: Use x2 supersampling
+        color_space: Color space to use (HSV, RGB, etc)
+        hue_range: HSV hue range
+        hue_rotation: HSV hue bias
+        saturation: HSV saturation
+        hue_distrib: Override ValueDistribution for HSV hue
+        saturation_distrib: Override ValueDistribution for HSV saturation
+        brightness_distrib: Override ValueDistribution for HSV brightness
+        brightness_freq: Override frequency for HSV brightness
+        octave_blending: Method for flattening octave values
+        octave_effects: A list of composer lambdas to invoke per-octave
+        post_effects: A list of composer lambdas to invoke after flattening layers
+        with_alpha: Include alpha channel
+        with_ai: AI: Apply image-to-image before the final effects pass
+        final_effects: A list of composer lambdas to invoke after everything else
+        with_upscale: AI: x2 upscale final results
+        with_fxaa: Apply FXAA to results
+        stability_model: AI: Override the default stability.ai model
+        style_filename: AI: Save the style reference, or load it if the file already exists
+        speed: Displacement range for Z/W axis (simplex and periodic only)
+        time: Time argument for Z/W axis (simplex and periodic only)
+        tensor: Optional input tensor to start with
+
+    Returns:
+        Generated multi-resolution noise tensor
     """
 
     if seed:
@@ -433,8 +436,21 @@ def multires(
     return tensor
 
 
-def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, octave):
-    """Helper function to either invoke a octave effect or unroll a preset."""
+def _apply_octave_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float, octave: int) -> tf.Tensor:
+    """
+    Helper function to either invoke an octave effect or unroll a preset.
+    
+    Args:
+        effect_or_preset: Effect function or Preset to apply
+        tensor: Input tensor
+        shape: Tensor shape
+        time: Time parameter
+        speed: Speed parameter
+        octave: Current octave number
+    
+    Returns:
+        Processed tensor
+    """
     if callable(effect_or_preset):
         if "displacement" in effect_or_preset.keywords:
             kwargs = dict(effect_or_preset.keywords)  # Be sure to copy, otherwise it modifies the original
@@ -449,8 +465,20 @@ def _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed,
 
         return tensor
 
-def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
-    """Helper function to either invoke a post effect or unroll a preset."""
+def _apply_post_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tuple[tf.Tensor, list]:
+    """
+    Helper function to either invoke a post effect or unroll a preset.
+    
+    Args:
+        effect_or_preset: Effect function or Preset to apply
+        tensor: Input tensor
+        shape: Tensor shape
+        time: Time parameter
+        speed: Speed parameter
+    
+    Returns:
+        Tuple of (processed tensor, list of final effects to apply later)
+    """
     if callable(effect_or_preset):
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed), []
 
@@ -467,8 +495,20 @@ def _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
         return tensor, final
 
 
-def _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed):
-    """Helper function to either invoke a final effect or unroll a preset."""
+def _apply_final_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tf.Tensor:
+    """
+    Helper function to either invoke a final effect or unroll a preset.
+    
+    Args:
+        effect_or_preset: Effect function or Preset to apply
+        tensor: Input tensor
+        shape: Tensor shape
+        time: Time parameter
+        speed: Speed parameter
+    
+    Returns:
+        Processed tensor
+    """
     if callable(effect_or_preset):
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
 
