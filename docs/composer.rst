@@ -43,15 +43,15 @@ A minimal preset looks like this:
 .. code-block:: javascript
 
     {
-      "my-preset": {
+      "bloom": {
         settings: {
-          my_freq: random_int(2, 4),
+          bloom_alpha: 0.025 + random() * 0.0125,
         },
-        generator: {
-          freq: settings.my_freq,
-        },
+        final: [bloom(alpha: settings.bloom_alpha)],
       },
     }
+
+This real preset from the library defines a simple bloom effect with randomized intensity.
 
 Preset Keys
 -----------
@@ -78,22 +78,18 @@ settings
 
 **Purpose:** Define variables that can be referenced throughout the preset using ``settings.key_name``.
 
-Settings support:
-
-* Literal values (numbers, strings, booleans, null)
-* Enum references
-* Helper function calls (``random()``, ``random_int()``, ``coin_flip()``, etc.)
-* Arithmetic expressions
-* Conditional expressions (ternary)
+Settings support literals, enum references, helper functions, arithmetic expressions, and conditionals.
 
 .. code-block:: javascript
 
     settings: {
-      base_freq: random_int(2, 8),
-      use_ridges: coin_flip(),
-      hue_value: random(),
-      computed: settings.base_freq * 2,
+      freq: random_int(10, 15),
+      octaves: 8,
+      reindex_range: 1.25 + random() * 1.25,
+      color_space: ColorSpace.rgb,
     }
+
+This example from the ``acid`` preset shows typical settings usage.
 
 generator
 ~~~~~~~~~
@@ -102,28 +98,15 @@ generator
 
 **Purpose:** Configure noise generation parameters passed to ``noisemaker.generators.multires``.
 
-All keys must be valid generator parameters. Values can reference settings or be literals.
-
 .. code-block:: javascript
 
     generator: {
-      freq: settings.base_freq,
-      octaves: 6,
-      ridges: settings.use_ridges,
-      lattice_drift: 0.5,
+      freq: settings.freq,
+      octaves: settings.octaves,
+      lattice_drift: 1.0,
     }
 
-Common generator parameters:
-
-* ``freq`` - Frequency of noise (can be int or [width, height])
-* ``octaves`` - Number of octaves for multi-resolution noise
-* ``ridges`` - Enable ridge noise (boolean)
-* ``distrib`` - Value distribution (ValueDistribution enum)
-* ``color_space`` - Color space (ColorSpace enum)
-* ``hue_range`` - Hue variation range (0.0-1.0)
-* ``lattice_drift`` - Lattice drift amount
-* ``corners`` - Enable corner artifacts (boolean)
-* ``spline_order`` - Interpolation type (InterpolationType enum)
+All keys must be valid generator parameters. Common ones include ``freq``, ``octaves``, ``ridges``, ``distrib``, ``color_space``, ``hue_range``, ``lattice_drift``, ``corners``, and ``spline_order``.
 
 octaves
 ~~~~~~~
@@ -135,8 +118,7 @@ octaves
 .. code-block:: javascript
 
     octaves: [
-      derivative(alpha: 0.5),
-      ripple(range: 0.1),
+      derivative(alpha: 0.333),
     ]
 
 post
@@ -150,7 +132,6 @@ post
 
     post: [
       bloom(alpha: 0.25),
-      preset("vignette"),
       saturation(amount: 1.5),
     ]
 
@@ -165,7 +146,6 @@ final
 
     final: [
       aberration(displacement: 0.01),
-      adjust_contrast(amount: 1.1),
     ]
 
 unique
@@ -269,9 +249,8 @@ Standard operators: ``+``, ``-``, ``*``, ``/``
 
 .. code-block:: javascript
 
-    value: 0.5 + random() * 0.25
-    doubled: settings.freq * 2
-    averaged: (settings.a + settings.b) / 2
+    reindex_range: 1.25 + random() * 1.25
+    double_freq: settings.freq * 2
 
 Conditional (Ternary)
 ~~~~~~~~~~~~~~~~~~~~~
@@ -280,14 +259,8 @@ JavaScript-style ternary:
 
 .. code-block:: javascript
 
-    value: coin_flip() ? 1 : 0
+    voronoi_inverse: coin_flip() ? true : false
     freq: random() < 0.5 ? 4 : 8
-
-Python-style conditional:
-
-.. code-block:: javascript
-
-    value: 1 if coin_flip() else 0
 
 Comparison and Logic
 ~~~~~~~~~~~~~~~~~~~~
@@ -299,7 +272,6 @@ Logical operators: ``&&`` (and), ``||`` (or)
 .. code-block:: javascript
 
     use_effect: random() < 0.75
-    value: (settings.a > 10 && settings.b < 5) ? 1 : 0
 
 Settings References
 ~~~~~~~~~~~~~~~~~~~
@@ -309,9 +281,8 @@ Access previously defined settings:
 .. code-block:: javascript
 
     settings: {
-      base_freq: random_int(2, 8),
-      double_freq: settings.base_freq * 2,
-      derived: settings.base_freq + settings.double_freq,
+      freq: random_int(8, 12),
+      reflect_range: 7.5 + random() * 3.5,
     }
 
 Helper Functions
@@ -326,9 +297,7 @@ Returns a random float between 0.0 and 1.0.
 
 .. code-block:: javascript
 
-    alpha: 0.5 + random() * 0.5
-
-**RNG Impact:** Consumes 1 random number from the generator.
+    bloom_alpha: 0.025 + random() * 0.0125
 
 random_int(min, max)
 ~~~~~~~~~~~~~~~~~~~~
@@ -337,10 +306,8 @@ Returns a random integer between ``min`` and ``max`` (inclusive).
 
 .. code-block:: javascript
 
-    freq: random_int(2, 8)
-    octaves: random_int(4, 12)
-
-**RNG Impact:** Consumes 1 random number from the generator.
+    freq: random_int(10, 15)
+    voronoi_sdf_sides: random_int(2, 8)
 
 coin_flip()
 ~~~~~~~~~~~
@@ -349,34 +316,22 @@ Returns a random boolean (true or false).
 
 .. code-block:: javascript
 
-    ridges: coin_flip()
-    should_invert: coin_flip()
-
-**RNG Impact:** Consumes 1 random number from the generator.
+    voronoi_inverse: coin_flip()
 
 random_member(collection, ...)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Returns a random member from one or more collections. Multiple collections are flattened and sorted deterministically before selection.
+Returns a random member from one or more collections.
 
 .. code-block:: javascript
 
-    // From array
-    value: random_member([1, 2, 3])
+    dist_metric: random_member(DistanceMetric.all())
     
-    // From enum
-    color_space: random_member(ColorSpace.color_members())
-    
-    // Multiple collections
-    option: random_member([1, 2], [3, 4])
-    
-    // Multiple enums
-    dist: random_member(
-      DistanceMetric.absolute_members(),
-      [DistanceMetric.euclidean]
-    )
-
-**RNG Impact:** Consumes 1 random number from the generator.
+    voronoi_diagram_type: random_member([
+      VoronoiDiagramType.range,
+      VoronoiDiagramType.color_range,
+      VoronoiDiagramType.regions,
+    ])
 
 enum_range(start, end)
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -387,8 +342,6 @@ Returns a list of integers from ``start`` to ``end`` (inclusive).
 
     values: enum_range(1, 5)  // [1, 2, 3, 4, 5]
 
-**RNG Impact:** None (deterministic).
-
 stash(key, value)
 ~~~~~~~~~~~~~~~~~
 
@@ -396,13 +349,8 @@ Stores a value for later retrieval within the same evaluation context.
 
 .. code-block:: javascript
 
-    // Store
     temp: stash("my_key", 42)
-    
-    // Retrieve
     retrieved: stash("my_key")
-
-**RNG Impact:** None.
 
 mask_freq(mask, repeat)
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -413,8 +361,6 @@ Returns the appropriate frequency for a given mask and repeat value.
 
     freq: mask_freq(ValueMask.chess, 8)
 
-**RNG Impact:** None.
-
 preset(name)
 ~~~~~~~~~~~~
 
@@ -424,10 +370,8 @@ Inline another preset's post/final effects.
 
     post: [
       bloom(alpha: 0.25),
-      preset("vignette"),  // Includes vignette's post/final
+      preset("grain"),
     ]
-
-**RNG Impact:** Depends on the referenced preset.
 
 Enum Helper Methods
 -------------------
@@ -478,11 +422,9 @@ Example usage:
 
 .. code-block:: javascript
 
-    settings: {
-      color_space: random_member(ColorSpace.color_members()),
-      mask: random_member(ValueMask.grid_members()),
-      dist: random_member(DistanceMetric.absolute_members()),
-    }
+    dist_metric: random_member(DistanceMetric.all())
+    color_space: random_member(ColorSpace.color_members())
+    mask: random_member(ValueMask.grid_members())
 
 Effect Calls
 ------------
@@ -493,119 +435,79 @@ Effects are called with named parameters using colon syntax:
 
     effect_name(param1: value1, param2: value2)
 
-Examples:
+Examples from actual presets:
 
 .. code-block:: javascript
 
     octaves: [
-      derivative(alpha: 0.5),
-      ripple(range: 0.1, freq: 2),
+      derivative(alpha: 0.333),
     ]
     
     post: [
       bloom(alpha: settings.bloom_alpha),
       saturation(amount: 1.5),
-      rotate(angle: settings.rotation),
     ]
-
-Common effects and their parameters:
-
-**Color/Hue:**
-
-* ``random_hue()`` - Randomize hue
-* ``nudge_hue(amount)`` - Slight hue shift
-* ``saturation(amount)`` - Adjust saturation
-
-**Blur/Bloom:**
-
-* ``bloom(alpha)`` - Bloom/glow effect
-* ``vaseline(alpha)`` - Blur effect
-
-**Distortion:**
-
-* ``aberration(displacement)`` - Chromatic aberration
-* ``ripple(range, freq)`` - Ripple distortion
-* ``warp(displacement, octaves, freq)`` - Warp effect
-* ``funhouse()`` - Funhouse mirror effect
-
-**Tone/Contrast:**
-
-* ``adjust_contrast(amount)`` - Adjust contrast
-* ``normalize()`` - Normalize values
-* ``posterize(levels)`` - Posterize colors
-* ``vignette(alpha, brightness)`` - Vignette effect
-
-**Texture:**
-
-* ``grain()`` - Add film grain
-* ``snow(alpha)`` - Add noise
-* ``spatter(amount)`` - Spatter effect
-
-**Geometry:**
-
-* ``rotate(angle)`` - Rotate image
-* ``reflect(orientation)`` - Mirror/reflect
-* ``symmetry()`` - Create symmetry
-
-See the `effects API documentation <api.html#module-noisemaker.effects>`_ for complete parameter lists.
+    
+    final: [
+      aberration(displacement: 0.01),
+    ]
 
 Complete Example
 ----------------
 
-Here's a complete preset demonstrating all major features:
+Here's the ``acid`` preset from the standard library (one of many presets in :file:`dsl/presets.dsl`):
 
 .. code-block:: javascript
 
     {
-      "example-preset": {
-        // Inherit from parent presets
-        layers: ["basic", "voronoi"],
-        
-        // Define reusable settings
+      "acid": {
+        layers: ["basic", "reindex-post", "normalize"],
         settings: {
-          // Random values
-          base_freq: random_int(4, 8),
-          bloom_alpha: 0.1 + random() * 0.15,
-          use_ridges: coin_flip(),
-          
-          // Conditional values
-          octave_count: random() < 0.5 ? 4 : 8,
-          
-          // Enum selection
-          color_space: random_member(ColorSpace.color_members()),
-          
-          // Computed values
-          double_freq: settings.base_freq * 2,
+          color_space: ColorSpace.rgb,
+          freq: random_int(10, 15),
+          octaves: 8,
+          reindex_range: 1.25 + random() * 1.25,
         },
-        
-        // Configure noise generation
-        generator: {
-          freq: settings.base_freq,
-          octaves: settings.octave_count,
-          ridges: settings.use_ridges,
-          color_space: settings.color_space,
-          distrib: ValueDistribution.simplex,
+      },
+      
+      // ... hundreds of other presets ...
+    }
+
+This preset demonstrates:
+
+* **Layering**: Inherits from ``basic`` (noise generation), ``reindex-post`` (color reindexing effect), and ``normalize`` (value normalization)
+* **Settings**: Defines randomized frequency (10-15), fixed octave count (8), and randomized reindex range
+* **Enums**: Uses ``ColorSpace.rgb`` for RGB color space
+* **Randomization**: Combines ``random_int()`` and ``random()`` for varied output
+
+Another example, ``acid-droplets``, shows a more complex preset:
+
+.. code-block:: javascript
+
+    {
+      "acid-droplets": {
+        layers: [
+          "multires",
+          "reflect-octaves",
+          "density-map",
+          "random-hue",
+          "bloom",
+          "shadow",
+          "saturation"
+        ],
+        settings: {
+          freq: random_int(8, 12),
+          hue_range: 0,
+          lattice_drift: 1.0,
+          mask: ValueMask.sparse,
+          mask_static: true,
+          palette_on: false,
+          reflect_range: 7.5 + random() * 3.5,
         },
-        
-        // Per-octave effects
-        octaves: [
-          derivative(alpha: 0.333),
-        ],
-        
-        // Post-processing effects
-        post: [
-          bloom(alpha: settings.bloom_alpha),
-          preset("grain"),  // Inline another preset
-          saturation(amount: 1.25),
-        ],
-        
-        // Final pass effects
-        final: [
-          aberration(displacement: 0.0125),
-          adjust_contrast(amount: 1.1),
-        ],
       },
     }
+
+This demonstrates extensive layering of multiple effect presets to create a complex composition.
 
 Naming Conventions
 ------------------
@@ -623,49 +525,29 @@ Best Practices
 
 1. **Use settings for reusable values**
 
-   Store commonly used values in ``settings`` to avoid repetition and make presets easier to tune:
-
    .. code-block:: javascript
 
        settings: {
-         bloom_alpha: 0.25,
+         bloom_alpha: 0.025 + random() * 0.0125,
        },
-       post: [
+       final: [
          bloom(alpha: settings.bloom_alpha),
        ]
 
 2. **Layer presets for composition**
 
-   Build complex presets by layering simpler ones:
-
    .. code-block:: javascript
 
-       layers: ["basic", "grain", "saturation"]
+       layers: ["basic", "reindex-post", "normalize"]
 
 3. **Use descriptive setting names**
 
-   Make your intent clear:
-
    .. code-block:: javascript
 
-       settings: {
-         vignette_brightness: 0.5,  // Good
-         vb: 0.5,                     // Bad
-       }
+       reflect_range: 7.5 + random() * 3.5  // Good
+       rr: 7.5 + random() * 3.5              // Bad
 
-4. **Understand RNG consumption**
-
-   Be aware that ``random()``, ``random_int()``, ``coin_flip()``, and ``random_member()`` all advance the random number generator. The order of evaluation matters for reproducible results.
-
-5. **Use conditional effects**
-
-   Make presets more varied by conditionally including effects:
-
-   .. code-block:: javascript
-
-       post: coin_flip() ? [bloom(alpha: 0.25)] : []
-
-6. **Reference the canonical library**
+4. **Reference the canonical library**
 
    Study existing presets in :file:`dsl/presets.dsl` for patterns and techniques.
 
@@ -685,56 +567,39 @@ The Python and JavaScript parsers provide error messages with line/column inform
 Using Presets in Python
 ------------------------
 
-The Composer API provides high-level access to presets defined in the DSL.
-
 Basic Usage
 ~~~~~~~~~~~
-
-Import and instantiate a preset by name:
 
 .. code-block:: python
 
     from noisemaker.composer import Preset
 
     preset = Preset('acid')
-    # Render directly to a file
-    preset.render(seed=1, shape=[256, 256, 3], filename='art.png')
+    preset.render(seed=1, shape=[1024, 1024, 3], filename='acid.png')
 
-The ``shape`` parameter defines the output dimensions as ``[height, width, channels]``. Use 3 channels for RGB color images.
+The ``shape`` parameter is ``[height, width, channels]``. Use 3 channels for RGB.
 
 Working with Arrays
 ~~~~~~~~~~~~~~~~~~~
 
-To work with the generated data as a NumPy array instead of writing to a file:
-
 .. code-block:: python
 
     from noisemaker.composer import Preset
 
-    preset = Preset('acid')
-    # Returns a TensorFlow tensor
-    tensor = preset.render(seed=1, shape=[256, 256, 3])
-    # Convert to NumPy array
+    preset = Preset('voronoi')
+    tensor = preset.render(seed=42, shape=[512, 512, 3])
     array = tensor.numpy()
 
-Custom Settings
-~~~~~~~~~~~~~~~
-
-Override preset settings at render time:
+Override Settings
+~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from noisemaker.composer import Preset
-
     preset = Preset('acid', settings={'freq': 20, 'octaves': 12})
-    preset.render(seed=1, shape=[256, 256, 3], filename='custom-acid.png')
+    preset.render(seed=1, shape=[1024, 1024, 3], filename='custom.png')
 
-This allows you to tweak parameters without modifying the DSL file.
-
-Available Presets
-~~~~~~~~~~~~~~~~~
-
-List all available presets:
+List Available Presets
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -742,8 +607,6 @@ List all available presets:
 
     presets = PRESETS()
     print(list(presets.keys()))
-
-Or explore the canonical DSL file at :file:`dsl/presets.dsl`.
 
 Architecture Overview
 ---------------------
