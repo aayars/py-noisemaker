@@ -7,7 +7,7 @@ The modern preset library is authored with the **Composer DSL**, a domain-specif
 
 .. note::
    **JavaScript Compatibility**: The Composer DSL is shared between Python and JavaScript implementations.
-   See :doc:`javascript` for using presets in the browser with WebGPU.
+   See :doc:`javascript` for using presets in the browser.
 
 Overview
 --------

@@ -19,7 +19,7 @@ Noisemaker
 
 **Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3.9+`_ and `TensorFlow`_.
 
-**Noisemaker also includes a vanilla JavaScript port** that runs in modern browsers with WebGPU support. See the :doc:`javascript` documentation for details.
+**Noisemaker also includes a vanilla JavaScript port** that runs in modern browsers. See the :doc:`javascript` documentation for details.
 
 Installation
 ------------
