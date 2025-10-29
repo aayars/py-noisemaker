@@ -132,6 +132,7 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+.. _`Python 3.9+`: https://www.python.org/
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
 .. _`Colab Notebook`: https://colab.research.google.com/github/aayars/py-noisemaker/blob/master/py_noisemaker.ipynb
