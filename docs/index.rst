@@ -117,13 +117,6 @@ Low-level API: Generator and Effects
 See :doc:`api` documentation.
 
 
-See also
---------
-
--  `Wikipedia: Value noise`_
--  `Wikipedia: Voronoi diagram`_
--  `Wikipedia: Worley noise`_
-
 Indices and tables
 ==================
 
@@ -138,7 +131,4 @@ Indices and tables
 .. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/py-noisemaker/
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
-.. _`Wikipedia: Value noise`: https://en.wikipedia.org/wiki/Value_noise
-.. _`Wikipedia: Voronoi diagram`: https://en.wikipedia.org/wiki/Voronoi_diagram
-.. _`Wikipedia: Worley noise`: https://en.wikipedia.org/wiki/Worley_noise
 
