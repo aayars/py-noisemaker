@@ -1,9 +1,9 @@
 Noisemaker Composer
 ===================
 
-Noisemaker Composer is a high-level interface for creating generative art with procedural noise. The design is informed by lessons learned from previous preset systems in Noisemaker.
+Noisemaker Composer is a high-level interface for creating generative art with procedural noise.
 
-The modern preset library is authored with the **Composer DSL**, a domain-specific language for defining procedural art presets. It provides a structured, declarative syntax for composing noise generators and image effects while supporting randomization, inheritance, and reusable configurations.
+Presets are authored with the **Composer DSL**, a domain-specific language for defining procedural art presets. It provides a structured, declarative syntax for composing noise generators and image effects while supporting randomization, inheritance, and reusable configurations.
 
 .. note::
    **JavaScript Compatibility**: The Composer DSL is shared between Python and JavaScript implementations.
