@@ -2,6 +2,8 @@ You're working on Noisemaker, a procedural noise generation algorithm playground
 
 ## Bootstrapping the Python environment
 
+**Note:** Noisemaker requires Python 3.9+. Modern build system using pyproject.toml.
+
 1. Create a virtual environment and activate it:
 
    ```bash
@@ -12,22 +14,42 @@ You're working on Noisemaker, a procedural noise generation algorithm playground
 2. Install dependencies and set up the local package:
 
    ```bash
-   pip install -r requirements.txt
-   python setup.py develop
-   python setup.py install_scripts
+   pip install -e ".[dev]"
    ```
 
-3. Verify the installation by running the CLI:
+3. (Optional) Install pre-commit hooks for automated code quality:
+
+   ```bash
+   pre-commit install
+   ```
+
+4. Verify the installation by running the CLI:
 
    ```bash
    noisemaker --help
    ```
 
-4. Run the test suite before submitting changes (only if modifying Python code):
+5. Run the test suite before submitting changes (only if modifying Python code):
 
    ```bash
    pytest
    ```
+
+6. (Optional) Run linting and type checking:
+
+   ```bash
+   black noisemaker
+   ruff check noisemaker
+   mypy noisemaker
+   ```
+
+## Code Quality
+
+- Use modern Python 3.9+ syntax: `list[int]` not `List[int]`, `str | None` not `Optional[str]`
+- Add type hints to new functions using PEP 484/585/604 standards
+- Use Google-style docstrings with proper Args/Returns sections
+- Run black before committing
+- Address ruff linting issues
 
 ## Docs
 

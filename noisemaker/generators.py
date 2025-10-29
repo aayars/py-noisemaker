@@ -1,7 +1,10 @@
 """Noise generation interface for Noisemaker"""
 
+from __future__ import annotations
+
 import os
 from functools import partial
+from typing import Callable
 
 import tempfile
 
@@ -9,7 +12,8 @@ from noisemaker.constants import (
     ColorSpace,
     InterpolationType,
     OctaveBlending,
-    ValueDistribution
+    ValueDistribution,
+    ValueMask,
 )
 
 import noisemaker.ai as ai
@@ -20,11 +24,32 @@ import noisemaker.util as util
 import noisemaker.value as value
 import tensorflow as tf
 
-def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bicubic,
-          distrib=ValueDistribution.simplex, corners=False, mask=None, mask_inverse=False, mask_static=False,
-          lattice_drift=0.0, color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
-          hue_distrib=None, brightness_distrib=None, brightness_freq=None, saturation_distrib=None,
-          speed=1.0, time=0.0, octave_effects=None, octave=1):
+
+def basic(
+    freq: int | list[int],
+    shape: list[int],
+    ridges: bool = False,
+    sin: float = 0.0,
+    spline_order: InterpolationType = InterpolationType.bicubic,
+    distrib: ValueDistribution = ValueDistribution.simplex,
+    corners: bool = False,
+    mask: ValueMask | None = None,
+    mask_inverse: bool = False,
+    mask_static: bool = False,
+    lattice_drift: float = 0.0,
+    color_space: ColorSpace = ColorSpace.hsv,
+    hue_range: float = 0.125,
+    hue_rotation: float | None = None,
+    saturation: float = 1.0,
+    hue_distrib: ValueDistribution | None = None,
+    brightness_distrib: ValueDistribution | None = None,
+    brightness_freq: int | list[int] | None = None,
+    saturation_distrib: ValueDistribution | None = None,
+    speed: float = 1.0,
+    time: float = 0.0,
+    octave_effects: list[Callable] | None = None,
+    octave: int = 1,
+) -> tf.Tensor:
     """
     Generate a single layer of scaled noise.
 
@@ -33,28 +58,33 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
        :height: 256
        :alt: Noisemaker example output (CC0)
 
-    :param int|list[int] freq: Base noise frequency. Int, or list of ints for each spatial dimension
-    :param list[int]: Shape of noise. For 2D noise, this is [height, width, channels]
-    :param bool ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
-    :param float sin: Apply sin function to noise basis
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param int|str|ValueDistribution distrib: Type of noise distribution. See :class:`ValueDistribution` enum
-    :param bool corners: If True, pin values to corners instead of image center
-    :param None|ValueMask mask:
-    :param bool mask_inverse:
-    :param bool mask_static: If True, don't animate the mask
-    :param float lattice_drift: Push away from underlying lattice
-    :param ColorSpace color_space:
-    :param float hue_range: HSV hue range
-    :param float|None hue_rotation: HSV hue bias
-    :param float saturation: HSV saturation
-    :param None|int|str|ValueDistribution hue_distrib: Override ValueDistribution for hue
-    :param None|int|str|ValueDistribution saturation_distrib: Override ValueDistribution for saturation
-    :param None|int|str|ValueDistribution brightness_distrib: Override ValueDistribution for brightness
-    :param None|int|list[int] brightness_freq: Override frequency for brightness
-    :param float speed: Displacement range for Z/W axis (simplex and periodic only)
-    :param float time: Time argument for Z/W axis (simplex and periodic only)
-    :return: Tensor
+    Args:
+        freq: Base noise frequency. Int, or list of ints for each spatial dimension
+        shape: Shape of noise. For 2D noise, this is [height, width, channels]
+        ridges: "Crease" at midpoint values: (1 - abs(n * 2 - 1))
+        sin: Apply sin function to noise basis
+        spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
+        distrib: Type of noise distribution. See :class:`ValueDistribution` enum
+        corners: If True, pin values to corners instead of image center
+        mask: Optional mask to apply
+        mask_inverse: Invert the mask
+        mask_static: If True, don't animate the mask
+        lattice_drift: Push away from underlying lattice
+        color_space: Color space to use (HSV, RGB, etc)
+        hue_range: HSV hue range
+        hue_rotation: HSV hue bias
+        saturation: HSV saturation
+        hue_distrib: Override ValueDistribution for hue
+        saturation_distrib: Override ValueDistribution for saturation
+        brightness_distrib: Override ValueDistribution for brightness
+        brightness_freq: Override frequency for brightness
+        speed: Displacement range for Z/W axis (simplex and periodic only)
+        time: Time argument for Z/W axis (simplex and periodic only)
+        octave_effects: Effects to apply per octave
+        octave: Current octave number
+
+    Returns:
+        Generated noise tensor
     """
 
     if isinstance(freq, int):
@@ -166,14 +196,44 @@ def basic(freq, shape, ridges=False, sin=0.0, spline_order=InterpolationType.bic
     return tensor
 
 
-def multires(preset, seed, freq=3, shape=None, octaves=1, ridges=False, sin=0.0,
-             spline_order=InterpolationType.bicubic, distrib=ValueDistribution.simplex, corners=False,
-             mask=None, mask_inverse=False, mask_static=False, lattice_drift=0.0, with_supersample=False,
-             color_space=ColorSpace.hsv, hue_range=.125, hue_rotation=None, saturation=1.0,
-             hue_distrib=None, saturation_distrib=None, brightness_distrib=None, brightness_freq=None,
-             octave_blending=OctaveBlending.falloff, octave_effects=None, post_effects=None,
-             with_alpha=False, with_ai=False, final_effects=None, with_upscale=False, with_fxaa=False,
-             stability_model=None, style_filename=None, time=0.0, speed=1.0, tensor=None):
+def multires(
+    preset,
+    seed: int,
+    freq: int | list[int] = 3,
+    shape: list[int] | None = None,
+    octaves: int = 1,
+    ridges: bool = False,
+    sin: float = 0.0,
+    spline_order: InterpolationType = InterpolationType.bicubic,
+    distrib: ValueDistribution = ValueDistribution.simplex,
+    corners: bool = False,
+    mask: ValueMask | None = None,
+    mask_inverse: bool = False,
+    mask_static: bool = False,
+    lattice_drift: float = 0.0,
+    with_supersample: bool = False,
+    color_space: ColorSpace = ColorSpace.hsv,
+    hue_range: float = 0.125,
+    hue_rotation: float | None = None,
+    saturation: float = 1.0,
+    hue_distrib: ValueDistribution | None = None,
+    saturation_distrib: ValueDistribution | None = None,
+    brightness_distrib: ValueDistribution | None = None,
+    brightness_freq: int | list[int] | None = None,
+    octave_blending: OctaveBlending = OctaveBlending.falloff,
+    octave_effects: list[Callable] | None = None,
+    post_effects: list[Callable] | None = None,
+    with_alpha: bool = False,
+    with_ai: bool = False,
+    final_effects: list[Callable] | None = None,
+    with_upscale: bool = False,
+    with_fxaa: bool = False,
+    stability_model: str | None = None,
+    style_filename: str | None = None,
+    time: float = 0.0,
+    speed: float = 1.0,
+    tensor: tf.Tensor | None = None,
+) -> tf.Tensor:
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 

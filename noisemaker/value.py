@@ -1,6 +1,9 @@
 """Low-level value noise functions"""
 
+from __future__ import annotations
+
 from collections import defaultdict
+from typing import Callable
 
 import math
 
@@ -25,8 +28,15 @@ import noisemaker.oklab as oklab
 import noisemaker.simplex as simplex
 
 
-def set_seed(seed):
+def set_seed(seed: int | None) -> None:
     """
+    Set the random seed for noise generation.
+    
+    Args:
+        seed: Random seed value, or None to skip seeding
+    
+    Returns:
+        Processed tensor
     """
 
     if seed is not None:
@@ -34,11 +44,16 @@ def set_seed(seed):
         simplex._seed = seed
 
 
-def value_noise(count, freq=8):
-    """Generate 1D value noise samples.
-
-    RNG: ``freq + 1`` calls to :func:`rng.random` to build the lattice in
-    order from index 0 to ``freq``.
+def value_noise(count: int, freq: int = 8) -> tf.Tensor:
+    """
+    Generate 1D value noise samples.
+    
+    Args:
+        count: Number of samples to generate
+        freq: Frequency for noise generation
+    
+    Returns:
+        Processed tensor
     """
 
     lattice = [rng.random() for _ in range(freq + 1)]
@@ -53,9 +68,35 @@ def value_noise(count, freq=8):
     return tf.constant(out, dtype=tf.float32)
 
 
-def values(freq, shape, distrib=ValueDistribution.simplex, corners=False, mask=None, mask_inverse=False, mask_static=False,
-           spline_order=InterpolationType.bicubic, time=0.0, speed=1.0):
+def values(
+    freq: int | list[int],
+    shape: list[int],
+    distrib: ValueDistribution | None = ValueDistribution.simplex,
+    corners: bool = False,
+    mask: ValueMask | None = None,
+    mask_inverse: bool = False,
+    mask_static: bool = False,
+    spline_order: InterpolationType = InterpolationType.bicubic,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
+    Generate a tensor of noise values with specified distribution.
+    
+    Args:
+        freq: Frequency for noise generation
+        shape: Shape of the tensor [height, width, channels]
+        distrib: Value distribution method
+        corners: Include corner values
+        mask: Value mask to apply
+        mask_inverse: Invert the mask
+        mask_static: Use static mask values
+        spline_order: Interpolation type for resampling
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+    
+    Returns:
+        Processed tensor
     """
 
     if isinstance(freq, int):
@@ -191,14 +232,18 @@ def values(freq, shape, distrib=ValueDistribution.simplex, corners=False, mask=N
     return tensor
 
 
-def distance(a, b, metric=DistanceMetric.euclidean, sdf_sides=5):
+def distance(a: tf.Tensor, b: tf.Tensor, metric: int | DistanceMetric=DistanceMetric.euclidean, sdf_sides: int=5) -> tf.Tensor:
     """
     Compute the distance from a to b, using the specified metric.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param DistanceMetric|int|str metric: Distance metric
-    :return: Tensor
+    
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        metric: Distance metric to use
+        sdf_sides: SDF polygon sides for distance metric
+    
+    Returns:
+        Processed tensor
     """
 
     metric = coerce_enum(metric, DistanceMetric)
@@ -238,32 +283,59 @@ def distance(a, b, metric=DistanceMetric.euclidean, sdf_sides=5):
 
 
 @effect()
-def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
-            dist_metric=DistanceMetric.euclidean, sdf_sides=3, alpha=1.0, with_refract=0.0, inverse=False,
-            xy=None, ridges_hint=False, refract_y_from_offset=True, time=0.0, speed=1.0,
-            point_freq=3, point_generations=1, point_distrib=PointDistribution.random, point_drift=0.0, point_corners=False,
-            downsample=True):
+def voronoi(
+    tensor: tf.Tensor,
+    shape: list[int],
+    diagram_type: VoronoiDiagramType = VoronoiDiagramType.range,
+    nth: int = 0,
+    dist_metric: int | DistanceMetric = DistanceMetric.euclidean,
+    sdf_sides: int = 3,
+    alpha: float = 1.0,
+    with_refract: float = 0.0,
+    inverse: bool = False,
+    xy: tf.Tensor | None = None,
+    ridges_hint: bool = False,
+    refract_y_from_offset: bool = True,
+    time: float = 0.0,
+    speed: float = 1.0,
+    point_freq: int = 3,
+    point_generations: int = 1,
+    point_distrib: PointDistribution = PointDistribution.random,
+    point_drift: float = 0.0,
+    point_corners: bool = False,
+    downsample: bool = True,
+) -> tf.Tensor:
     """
     Create a voronoi diagram, blending with input image Tensor color values.
-
     .. image:: images/voronoi.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param VoronoiDiagramType|int diagram_type: Diagram type (0=Off, 1=Range, 2=Color Range, 3=Indexed, 4=Color Map, 5=Blended, 6=Flow)
-    :param float nth: Plot Nth nearest neighbor, or -Nth farthest
-    :param DistanceMetric|int dist_metric: Voronoi distance metric
-    :param bool regions: Assign colors to control points (memory intensive)
-    :param float alpha: Blend with original tensor (0.0 = Original, 1.0 = Voronoi)
-    :param float with_refract: Domain warp input tensor against resulting voronoi
-    :param bool inverse: Invert range brightness values (does not affect hue)
-    :param (Tensor, Tensor, int) xy: Bring your own x, y, and point count (You shouldn't normally need this)
-    :param float ridges_hint: Adjust output colors to match ridged multifractal output (You shouldn't normally need this)
-    :param bool downsample: Use a downsampled distance field, probably to conserve memory
-    :return: Tensor
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        diagram_type: Type of Voronoi diagram
+        nth: Use nth closest point
+        dist_metric: Distance metric to use
+        sdf_sides: SDF polygon sides for distance metric
+        alpha: Blending alpha value (0.0-1.0)
+        with_refract: Apply refraction amount
+        inverse: Invert the effect
+        xy: Optional XY coordinates for point cloud
+        ridges_hint: Apply ridge transformation hint
+        refract_y_from_offset: Use Y offset for refraction
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+        point_freq: Point frequency for Voronoi
+        point_generations: Point generation count
+        point_distrib: Point distribution method
+        point_drift: Point drift amount
+        point_corners: Include corner points
+        downsample: Downsample the result
+    
+    Returns:
+        Processed tensor
     """
 
     diagram_type = coerce_enum(diagram_type, VoronoiDiagramType)
@@ -452,12 +524,16 @@ def voronoi(tensor, shape, diagram_type=VoronoiDiagramType.range, nth=0,
     return out
 
 
-def periodic_value(time, value):
+def periodic_value(time: float, value: float) -> tf.Tensor:
     """
     Coerce the received value to animate smoothly between time values 0 and 1, by applying a sine function and scaling the result.
-
-    :param float time:
-    :param float|Tensor value:
+    
+    Args:
+        time: Time value for animation (0.0-1.0)
+        value: Input value
+    
+    Returns:
+        Processed tensor
     """
 
     # h/t Etienne Jacob again
@@ -465,13 +541,16 @@ def periodic_value(time, value):
     return normalized_sine((time - value) * math.tau)
 
 
-def normalize(tensor, signed_range=False):
+def normalize(tensor: tf.Tensor, signed_range: bool=False) -> tf.Tensor:
     """
     Squeeze the given Tensor into a range between 0 and 1.
-
-    :param Tensor tensor: An image tensor.
-    :param bool signed_range: Use a range between -1 and 1.
-    :return: Tensor
+    
+    Args:
+        tensor: Input tensor to process
+        signed_range: Use signed range (-1 to 1)
+    
+    Returns:
+        Normalized tensor
     """
 
     floor = float(tf.reduce_min(tensor))
@@ -495,20 +574,34 @@ def normalize(tensor, signed_range=False):
     return values
 
 
-def _gather_scaled_offset(tensor, input_column_index, input_row_index, output_index):
-    """ Helper function for resample(). Apply index offset to input tensor, return output_index values gathered post-offset. """
+def _gather_scaled_offset(tensor: tf.Tensor, input_column_index: tf.Tensor, input_row_index: tf.Tensor, output_index: tf.Tensor) -> tf.Tensor:
+    """
+    Helper function for resample(). Apply index offset to input tensor, return output_index values gathered post-offset.
+    
+    Args:
+        tensor: Input tensor to process
+        input_column_index: Column indices for input
+        input_row_index: Row indices for input
+        output_index: Output index values
+    
+    Returns:
+        Processed value
+    """
 
     return tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_column_index, input_row_index], 2)), output_index)
 
 
-def resample(tensor, shape, spline_order=3):
+def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | InterpolationType=3) -> tf.Tensor:
     """
     Resize an image tensor to the specified shape.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param int spline_order: Spline point count. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :return: Tensor
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        spline_order: Interpolation type for resampling
+    
+    Returns:
+        Processed tensor
     """
 
     spline_order = coerce_enum(spline_order, InterpolationType)
@@ -656,13 +749,17 @@ def resample(tensor, shape, spline_order=3):
         return blend_cubic(*args)
 
 
-def proportional_downsample(tensor, shape, new_shape):
+def proportional_downsample(tensor: tf.Tensor, shape: list[int], new_shape: list[int]) -> tf.Tensor:
     """
     Given a new shape which is evenly divisible by the old shape, shrink the image by averaging pixel values.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param list[int] new_shape:
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        new_shape: New shape for resampling
+    
+    Returns:
+        Processed tensor
     """
 
     kernel_shape = [max(int(shape[0] / new_shape[0]), 1), max(int(shape[1] / new_shape[1]), 1), shape[2], 1]
@@ -679,25 +776,25 @@ def proportional_downsample(tensor, shape, new_shape):
     return resample(out, new_shape)
 
 
-def row_index(shape):
+def row_index(shape: list[int]) -> tf.Tensor:
     """
     Generate an X index for the given tensor.
-
     .. code-block:: python
-
-      [
-        [ 0, 1, 2, ... width-1 ],
-        [ 0, 1, 2, ... width-1 ],
-        ... (x height)
-      ]
-
+    [
+    [ 0, 1, 2, ... width-1 ],
+    [ 0, 1, 2, ... width-1 ],
+    ... (x height)
+    ]
     .. image:: images/row_index.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param list[int] shape:
-    :return: Tensor of shape (height, width)
+    :width: 1024
+    :height: 256
+    :alt: Noisemaker example output (CC0)
+    
+    Args:
+        shape: Shape of the tensor [height, width, channels]
+    
+    Returns:
+        Index tensor
     """
 
     height = shape[0]
@@ -709,27 +806,27 @@ def row_index(shape):
     return row_identity
 
 
-def column_index(shape):
+def column_index(shape: list[int]) -> tf.Tensor:
     """
     Generate a Y index for the given tensor.
-
     .. code-block:: python
-
-      [
-        [ 0, 0, 0, ... ],
-        [ 1, 1, 1, ... ],
-        [ n, n, n, ... ],
-        ...
-        [ height-1, height-1, height-1, ... ]
-      ]
-
+    [
+    [ 0, 0, 0, ... ],
+    [ 1, 1, 1, ... ],
+    [ n, n, n, ... ],
+    ...
+    [ height-1, height-1, height-1, ... ]
+    ]
     .. image:: images/column_index.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param list[int] shape:
-    :return: Tensor of shape (height, width)
+    :width: 1024
+    :height: 256
+    :alt: Noisemaker example output (CC0)
+    
+    Args:
+        shape: Shape of the tensor [height, width, channels]
+    
+    Returns:
+        Index tensor
     """
 
     height = shape[0]
@@ -743,8 +840,16 @@ def column_index(shape):
     return column_identity
 
 
-def offset(tensor, shape, x=0, y=0):
+def offset(tensor: tf.Tensor, shape: list[int], x: int=0, y: int=0) -> tf.Tensor:
     """
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        x: X offset amount
+        y: Y offset amount
+    
+    Returns:
+        Processed tensor
     """
 
     if x == 0 and y == 0:
@@ -753,24 +858,45 @@ def offset(tensor, shape, x=0, y=0):
     return tf.gather_nd(tensor, tf.stack([(column_index(shape) + y) % shape[0], (row_index(shape) + x) % shape[1]], 2))
 
 
-def _linear_components(a, b, g):
+def _linear_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
+    """
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Processed value
+    """
     return a * (1 - g), b * g
 
 
-def blend(a, b, g):
+def blend(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend a and b values with linear interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param float|Tensor g: Blending gradient a to b (0..1)
-    :return Tensor:
+    
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Blended tensor
     """
 
     return sum(_linear_components(a, b, g))
 
 
-def _cosine_components(a, b, g):
+def _cosine_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
+    """
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Processed value
+    """
     # This guy is great http://paulbourke.net/miscellaneous/interpolation/
 
     g2 = (1 - tf.cos(g * math.pi)) / 2
@@ -778,20 +904,34 @@ def _cosine_components(a, b, g):
     return a * (1 - g2), b * g2
 
 
-def blend_cosine(a, b, g):
+def blend_cosine(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend a and b values with cosine interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param float|Tensor g: Blending gradient a to b (0..1)
-    :return Tensor:
+    
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Blended tensor
     """
 
     return sum(_cosine_components(a, b, g))
 
 
-def _cubic_components(a, b, c, d, g):
+def _cubic_components(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
+    """
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        c: Third value for blending
+        d: Fourth value for blending
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Processed value
+    """
     # This guy is great http://paulbourke.net/miscellaneous/interpolation/
 
     g2 = g * g
@@ -804,34 +944,53 @@ def _cubic_components(a, b, c, d, g):
     return a0 * g * g2, a1 * g2, a2 * g + a3
 
 
-def blend_cubic(a, b, c, d, g):
+def blend_cubic(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend b and c values with bi-cubic interpolation.
-
-    :param Tensor a:
-    :param Tensor b:
-    :param Tensor c:
-    :param Tensor d:
-    :param float|Tensor g: Blending gradient b to c (0..1)
-    :return Tensor:
+    
+    Args:
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        c: Third value for blending
+        d: Fourth value for blending
+        g: Interpolation factor (0.0-1.0)
+    
+    Returns:
+        Blended tensor
     """
 
     return sum(_cubic_components(a, b, c, d, g))
 
 
 @effect()
-def smoothstep(tensor, shape, a=0.0, b=1.0, time=0.0, speed=1.0):
+def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor=0.0, b: tf.Tensor=1.0, time: float=0.0, speed: float=1.0) -> tf.Tensor:
+    """
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        a: First value for blending/distance
+        b: Second value for blending/distance
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+    
+    Returns:
+        Processed tensor
+    """
     t = tf.clip_by_value((tensor - a) / (b - a), 0.0, 1.0)
 
     return t * t * (3.0 - 2.0 * t)
 
 
-def freq_for_shape(freq, shape):
+def freq_for_shape(freq: int | list[int], shape: list[int]) -> tf.Tensor:
     """
     Given a base frequency as int, generate noise frequencies for each spatial dimension.
-
-    :param int freq: Base frequency
-    :param list[int] shape: List of spatial dimensions, e.g. [height, width]
+    
+    Args:
+        freq: Frequency for noise generation
+        shape: Shape of the tensor [height, width, channels]
+    
+    Returns:
+        Processed tensor
     """
 
     height = shape[0]
@@ -847,25 +1006,58 @@ def freq_for_shape(freq, shape):
         return [int(freq * height / width), freq]
 
 
-def ridge(tensor):
+def ridge(tensor: tf.Tensor) -> tf.Tensor:
     """
     Create a "ridge" at midpoint values. 1 - abs(n * 2 - 1)
-
     .. image:: images/crease.jpg
-       :width: 1024
-       :height: 256
-       :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor: An image tensor.
-    :return: Tensor
+    :width: 1024
+    :height: 256
+    :alt: Noisemaker example output (CC0)
+    
+    Args:
+        tensor: Input tensor to process
+    
+    Returns:
+        Processed tensor
     """
 
     return 1.0 - tf.abs(tensor * 2 - 1)
 
 
-def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicubic, distrib=ValueDistribution.simplex, corners=False,
-                    ridges=False, mask=None, mask_inverse=False, mask_static=False, time=0.0, speed=1.0):
-    """Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects."""
+def simple_multires(
+    freq: int | list[int],
+    shape: list[int],
+    octaves: int = 1,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
+    distrib: ValueDistribution = ValueDistribution.simplex,
+    corners: bool = False,
+    ridges: bool = False,
+    mask: ValueMask | None = None,
+    mask_inverse: bool = False,
+    mask_static: bool = False,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
+    """
+    Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects.
+    
+    Args:
+        freq: Frequency for noise generation
+        shape: Shape of the tensor [height, width, channels]
+        octaves: Number of octave layers
+        spline_order: Interpolation type for resampling
+        distrib: Value distribution method
+        corners: Include corner values
+        ridges: Apply ridge transformation
+        mask: Value mask to apply
+        mask_inverse: Invert the mask
+        mask_static: Use static mask values
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+    
+    Returns:
+        Processed tensor
+    """
 
     if isinstance(freq, int):
         freq = freq_for_shape(freq, shape)
@@ -891,22 +1083,42 @@ def simple_multires(freq, shape, octaves=1, spline_order=InterpolationType.bicub
     return normalize(tensor)
 
 
-def value_shape(shape):
+def value_shape(shape: list[int]) -> tf.Tensor:
     """
+    Args:
+        shape: Shape of the tensor [height, width, channels]
+    
+    Returns:
+        Processed tensor
     """
 
     return [shape[0], shape[1], 1]
 
 
-def normalized_sine(value):
+def normalized_sine(value: float) -> tf.Tensor:
     """
+    Args:
+        value: Input value
+    
+    Returns:
+        Normalized tensor
     """
 
     return (tf.sin(value) + 1.0) * 0.5
 
 
-def _conform_kernel_to_tensor(kernel, tensor, shape):
-    """Re-shape a convolution kernel to match the given tensor's color dimensions."""
+def _conform_kernel_to_tensor(kernel: ValueMask, tensor: tf.Tensor, shape: list[int]) -> tf.Tensor:
+    """
+    Re-shape a convolution kernel to match the given tensor's color dimensions.
+    
+    Args:
+        kernel: Convolution kernel mask
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+    
+    Returns:
+        Processed value
+    """
 
     if isinstance(kernel, ValueMask):
         values, _ = masks.mask_values(kernel)
@@ -939,28 +1151,30 @@ def _conform_kernel_to_tensor(kernel, tensor, shape):
 
 @effect()
 def convolve(
-    tensor,
-    shape,
-    kernel=ValueMask.conv2d_blur,
-    with_normalize=True,
-    alpha=1.0,
-    time=0.0,
-    speed=1.0,
-):
+    tensor: tf.Tensor,
+    shape: list[int],
+    kernel: ValueMask = ValueMask.conv2d_blur,
+    with_normalize: bool = True,
+    alpha: float = 1.0,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Apply a convolution kernel to an image tensor.
-
     .. code-block:: python
-
-       image = convolve(image, shape, ValueMask.conv2d_shadow)
-
-    :param Tensor tensor: An image tensor.
-    :param list[int] shape:
-    :param ValueMask kernel: See conv2d_* members in ValueMask enum
-    :param bool with_normalize: Normalize output (True)
-    :paral float alpha: Alpha blending amount
-    :return: Tensor
-
+    image = convolve(image, shape, ValueMask.conv2d_shadow)
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        kernel: Convolution kernel mask
+        with_normalize: Normalize the output
+        alpha: Blending alpha value (0.0-1.0)
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+    
+    Returns:
+        Processed tensor
     """
 
     height, width, channels = shape
@@ -999,27 +1213,43 @@ def convolve(
 
 
 @effect()
-def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, warp_freq=None, spline_order=InterpolationType.bicubic,
-            from_derivative=False, signed_range=True, time=0.0, speed=1.0, y_from_offset=False):
+def refract(
+    tensor: tf.Tensor,
+    shape: list[int],
+    displacement: float = 0.5,
+    reference_x: tf.Tensor | None = None,
+    reference_y: tf.Tensor | None = None,
+    warp_freq: int | list[int] | None = None,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
+    from_derivative: bool = False,
+    signed_range: bool = True,
+    time: float = 0.0,
+    speed: float = 1.0,
+    y_from_offset: bool = False,
+) -> tf.Tensor:
     """
     Apply displacement from pixel values.
-
     .. image:: images/refract.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-
-    :param Tensor tensor: An image tensor.
-    :param list[int] shape:
-    :param float displacement:
-    :param Tensor reference_x: An optional horizontal displacement map.
-    :param Tensor reference_y: An optional vertical displacement map.
-    :param list[int] warp_freq: If given, generate new reference_x and reference_y noise with this base frequency.
-    :param int spline_order: Interpolation for warp effect only. 0=Constant, 1=Linear, 2=Cosine, 3=Bicubic
-    :param bool from_derivative: If True, generate X and Y offsets from noise derivatives.
-    :param bool signed_range: Scale displacement values from -1..1 instead of 0..1
-    :param bool y_from_offset: If True, derive Y offsets from offsetting the image
-    :return: Tensor
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        displacement: Displacement
+        reference_x: Reference x
+        reference_y: Reference y
+        warp_freq: Warp freq
+        spline_order: Interpolation type for resampling
+        from_derivative: From derivative
+        signed_range: Use signed range (-1 to 1)
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+        y_from_offset: Y from offset
+    
+    Returns:
+        Processed tensor
     """
 
     height, width, channels = shape
@@ -1118,17 +1348,20 @@ def refract(tensor, shape, displacement=.5, reference_x=None, reference_y=None, 
     return blend(x_y0, x_y1, y_fract)
 
 
-def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=True):
+def value_map(tensor: tf.Tensor, shape: list[int], keepdims: bool = False, signed_range: bool = False, with_normalize: bool = True) -> tf.Tensor:
     """
     Create a grayscale value map from the given image Tensor, based on apparent luminance.
-
     Return value ranges between 0 and 1.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param bool keepdims: If True, don't collapse the channel dimension.
-    :param bool signed_range: If True, use an extended value range between -1 and 1.
-    :return: Tensor of shape (height, width), or (height, width, channels) if keepdims was True.
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        keepdims: Keepdims
+        signed_range: Use signed range (-1 to 1)
+        with_normalize: Normalize the output
+    
+    Returns:
+        Processed tensor
     """
 
     # XXX Why is shape sometimes wrong when passed in from refract?
@@ -1156,16 +1389,18 @@ def value_map(tensor, shape, keepdims=False, signed_range=False, with_normalize=
     return tensor
 
 
-def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
+def singularity(tensor: tf.Tensor, shape: list[int], diagram_type: VoronoiDiagramType = VoronoiDiagramType.range, **kwargs: any) -> tf.Tensor:
     """
     Return the range diagram for a single voronoi point, approximately centered.
-
-    :param Tensor tensor:
-    :param list[int] shape:
-    :param VoronoiDiagramType|int diagram_type:
-    :param DistanceMetric|int dist_metric:
-
-    Additional kwargs will be sent to the `voronoi` metric.
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        diagram_type: Type of Voronoi diagram
+        **kwargs: Additional keyword arguments for voronoi
+    
+    Returns:
+        Processed tensor
     """
 
     x, y = point_cloud(1, PointDistribution.square, shape)
@@ -1173,8 +1408,19 @@ def singularity(tensor, shape, diagram_type=VoronoiDiagramType.range, **kwargs):
     return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
 
 
-def pin_corners(tensor, shape, freq, corners):
-    """Pin values to image corners, or align with image center, as per the given "corners" arg."""
+def pin_corners(tensor: tf.Tensor, shape: list[int], freq: int | list[int], corners: bool) -> tf.Tensor:
+    """
+    Pin values to image corners, or align with image center, as per the given "corners" arg.
+    
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        freq: Frequency for noise generation
+        corners: Include corner values
+    
+    Returns:
+        Processed tensor
+    """
 
     if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
         tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
@@ -1182,8 +1428,17 @@ def pin_corners(tensor, shape, freq, corners):
     return tensor
 
 
-def coerce_enum(value, cls):
-    """Attempt to coerce a given string or int value into an Enum instance."""
+def coerce_enum(value: float, cls: type) -> tf.Tensor:
+    """
+    Attempt to coerce a given string or int value into an Enum instance.
+    
+    Args:
+        value: Input value
+        cls: Enum class to coerce to
+    
+    Returns:
+        Processed tensor
+    """
 
     if isinstance(value, int):
         value = cls(value)
@@ -1194,12 +1449,29 @@ def coerce_enum(value, cls):
     return value
 
 
-def clamp01(tensor):
+def clamp01(tensor: tf.Tensor) -> tf.Tensor:
+    """
+    Args:
+        tensor: Input tensor to process
+    
+    Returns:
+        Processed tensor
+    """
     return tf.maximum(tf.minimum(tensor, 1.0), 0.0)
 
 
 @effect()
-def fxaa(tensor, shape, time=0.0, speed=1.0):
+def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0) -> tf.Tensor:
+    """
+    Args:
+        tensor: Input tensor to process
+        shape: Shape of the tensor [height, width, channels]
+        time: Time value for animation (0.0-1.0)
+        speed: Animation speed multiplier
+    
+    Returns:
+        Processed tensor
+    """
     # Determine the number of channels
     channels = shape[2]
 

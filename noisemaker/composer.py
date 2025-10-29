@@ -1,10 +1,12 @@
 """Extremely high-level interface for composable noise presets. See `detailed docs <composer.html>`_."""
 
+from __future__ import annotations
+
 from collections import UserDict, defaultdict
 from enum import Enum, EnumMeta
-from functools import partial
+from functools import partial, lru_cache
+from typing import Any, Callable
 import inspect
-from functools import lru_cache
 import re
 
 import noisemaker.rng as rng
@@ -32,21 +34,34 @@ AI_MODEL = "core"
 UNUSED_OKAY = ["ai", "angle", "palette_alpha", "palette_name", "palette_on", "speed"]
 
 # Populated by reload_presets() after setting random seed
-GENERATOR_PRESETS = {}
-EFFECT_PRESETS = {}
+GENERATOR_PRESETS: dict[str, Any] = {}
+EFFECT_PRESETS: dict[str, Any] = {}
 
 
-_STASH = {}
+_STASH: dict[str, Any] = {}
 
 
 class Preset:
-    def __init__(self, preset_name, presets, settings=None):
+    """
+    A composable noise preset with layered effects and settings.
+
+    This class represents a preset configuration that can generate procedural noise
+    with various effects applied in stages (per-octave, post-reduce, and final).
+    """
+
+    def __init__(self, preset_name: str, presets: dict[str, Any], settings: dict[str, Any] | None = None):
         """
+        Initialize a Preset from the presets dictionary.
+
+        Args:
+            preset_name: Name of the preset to load
+            presets: Dictionary of all available presets
+            settings: Optional settings overrides
         """
 
         self.name = preset_name
 
-        layer_cache = {}
+        layer_cache: dict[str, Any] = {}
         self.layers = list(_resolve_preset_layers(self.name, presets, layer_cache))
 
         prototype = presets.get(preset_name)
@@ -64,7 +79,7 @@ class Preset:
                                  f"Allowed keys are: {ALLOWED_KEYS}")
 
         # Build a flat list of parent preset names, in topological order.
-        self.flattened_layers = []
+        self.flattened_layers: list[str] = []
         _flatten_ancestors(self.name, presets, {}, self.flattened_layers, layer_cache)
 
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
@@ -77,22 +92,22 @@ class Preset:
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs = _flatten_ancestor_metadata(
+        self.generator_kwargs: dict[str, Any] = _flatten_ancestor_metadata(
             self, self.settings, "generator", {}, presets
         )
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects = _flatten_ancestor_metadata(
+        self.octave_effects: list[Callable] = _flatten_ancestor_metadata(
             self, self.settings, "octaves", [], presets
         )
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects = _flatten_ancestor_metadata(
+        self.post_effects: list[Callable] = _flatten_ancestor_metadata(
             self, self.settings, "post", [], presets
         )
 
         # A list of callable effects functions, to be applied in order after everything else
-        self.final_effects = _flatten_ancestor_metadata(
+        self.final_effects: list[Callable] = _flatten_ancestor_metadata(
             self, self.settings, "final", [], presets
         )
 
@@ -109,7 +124,7 @@ class Preset:
                 raise ValueError(f"Preset \"{preset_name}\": Disallowed key in \"ai\" section: " \
                                  f"\"{k}\"")
 
-        self.ai_settings = {
+        self.ai_settings: dict[str, Any] = {
             "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", abstract art"),
             "image_strength": _ai_settings.get("image_strength", 0.5),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
@@ -120,21 +135,58 @@ class Preset:
         self.ai_settings.update(prototype.get("ai_settings", {}))
 
         # This will be set to True if the call to Stable Diffusion succeeds
-        self.ai_success = False
+        self.ai_success: bool = False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<Preset \"{self.name}\">"
 
-    def is_generator(self):
-        return self.generator_kwargs
+    def is_generator(self) -> bool:
+        """Check if this preset generates noise (has generator settings)."""
+        return bool(self.generator_kwargs)
 
-    def is_effect(self):
-        return self.post_effects or self.final_effects
+    def is_effect(self) -> bool:
+        """Check if this preset applies effects (has post or final effects)."""
+        return bool(self.post_effects or self.final_effects)
 
-    def render(self, seed, tensor=None, shape=DEFAULT_SHAPE, time=0.0, speed=1.0, filename="art.png",
-               with_alpha=False, with_supersample=False, with_fxaa=False, with_ai=False, with_upscale=False,
-               stability_model=None, style_filename=None, debug=False):
-        """Render the preset to an image file or return execution graph if debug."""
+    def render(
+        self,
+        seed: int,
+        tensor: tf.Tensor | None = None,
+        shape: list[int] = DEFAULT_SHAPE,
+        time: float = 0.0,
+        speed: float = 1.0,
+        filename: str = "art.png",
+        with_alpha: bool = False,
+        with_supersample: bool = False,
+        with_fxaa: bool = False,
+        with_ai: bool = False,
+        with_upscale: bool = False,
+        stability_model: str | None = None,
+        style_filename: str | None = None,
+        debug: bool = False,
+    ) -> tf.Tensor | dict[str, Any]:
+        """
+        Render the preset to an image file or return execution graph if debug.
+
+        Args:
+            seed: Random seed for generation
+            tensor: Optional input tensor to process
+            shape: Output shape [height, width, channels]
+            time: Time parameter for animation
+            speed: Speed multiplier for animation
+            filename: Output filename
+            with_alpha: Include alpha channel
+            with_supersample: Use 2x supersampling
+            with_fxaa: Apply FXAA antialiasing
+            with_ai: Use AI post-processing
+            with_upscale: Use AI upscaling
+            stability_model: Override AI model
+            style_filename: AI style reference file
+            debug: Return execution graph instead of rendering
+
+        Returns:
+            Rendered tensor, or execution graph dict if debug=True
+        """
 
         try:
             if debug:

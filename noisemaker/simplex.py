@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import math
 
 import numpy as np
+from typing import Optional
+
 import tensorflow as tf
 
 import noisemaker.rng as rng
@@ -9,12 +13,24 @@ import noisemaker.rng as rng
 _seed = None
 
 
-def set_seed(s):
+def set_seed(s: int) -> None:
+    """
+    Set the global simplex noise seed.
+
+    Args:
+        s: Random seed value
+    """
     global _seed
     _seed = s & 0xFFFFFFFF
 
 
-def get_seed():
+def get_seed() -> int:
+    """
+    Get the current simplex noise seed, generating one if needed.
+
+    Returns:
+        Current seed value
+    """
     global _seed
     if _seed is None:
         _seed = rng.random_int(1, 65536)
@@ -49,7 +65,16 @@ GRADIENTS_3D = [
 ]
 
 
-def _build_permutations(seed):
+def _build_permutations(seed: int) -> tuple[list[int], list[int]]:
+    """
+    Build permutation tables for simplex noise.
+
+    Args:
+        seed: Random seed for generating permutations
+
+    Returns:
+        Tuple of (permutation_table, gradient_index_table)
+    """
     perm = [0] * 256
     perm_grad_index_3D = [0] * 256
     source = list(range(256))
@@ -64,19 +89,51 @@ def _build_permutations(seed):
 
 
 class OpenSimplex:
-    def __init__(self, seed=0):
+    def __init__(self, seed: int = 0) -> None:
+        """
+        Initialize OpenSimplex noise generator.
+
+        Args:
+            seed: Random seed value, default 0
+        """
         perm, perm_grad_index_3D = _build_permutations(seed)
         self.perm = perm
         self.perm_grad_index_3D = perm_grad_index_3D
 
-    def _extrapolate2d(self, xsb, ysb, dx, dy):
+    def _extrapolate2d(self, xsb: int, ysb: int, dx: float, dy: float) -> float:
+        """
+        Extrapolate 2D simplex noise gradient contribution.
+
+        Args:
+            xsb: X simplex base coordinate
+            ysb: Y simplex base coordinate
+            dx: X distance from base
+            dy: Y distance from base
+
+        Returns:
+            Gradient contribution value
+        """
         perm = self.perm
         index = perm[(perm[xsb & 0xff] + ysb) & 0xff] & 0x0e
         g1 = GRADIENTS_2D[index]
         g2 = GRADIENTS_2D[index + 1]
         return g1 * dx + g2 * dy
 
-    def _extrapolate3d(self, xsb, ysb, zsb, dx, dy, dz):
+    def _extrapolate3d(self, xsb: int, ysb: int, zsb: int, dx: float, dy: float, dz: float) -> float:
+        """
+        Extrapolate 3D simplex noise gradient contribution.
+
+        Args:
+            xsb: X simplex base coordinate
+            ysb: Y simplex base coordinate
+            zsb: Z simplex base coordinate
+            dx: X distance from base
+            dy: Y distance from base
+            dz: Z distance from base
+
+        Returns:
+            Gradient contribution value
+        """
         perm = self.perm
         index = self.perm_grad_index_3D[(perm[(perm[xsb & 0xff] + ysb) & 0xff] + zsb) & 0xff]
         g1 = GRADIENTS_3D[index]
@@ -84,7 +141,17 @@ class OpenSimplex:
         g3 = GRADIENTS_3D[index + 2]
         return g1 * dx + g2 * dy + g3 * dz
 
-    def noise2d(self, x, y):
+    def noise2d(self, x: float, y: float) -> float:
+        """
+        Generate 2D OpenSimplex noise value.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+
+        Returns:
+            Noise value in range approximately [-1, 1]
+        """
         stretch_offset = (x + y) * STRETCH_CONSTANT_2D
         xs = x + stretch_offset
         ys = y + stretch_offset
@@ -167,7 +234,18 @@ class OpenSimplex:
 
         return value / NORM_CONSTANT_2D
 
-    def noise3d(self, x, y, z):
+    def noise3d(self, x: float, y: float, z: float) -> float:
+        """
+        Generate 3D OpenSimplex noise value.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            z: Z coordinate
+
+        Returns:
+            Noise value in range approximately [-1, 1]
+        """
         stretch_offset = (x + y + z) * STRETCH_CONSTANT_3D
         xs = x + stretch_offset
         ys = y + stretch_offset
@@ -535,12 +613,32 @@ class OpenSimplex:
         return value / NORM_CONSTANT_3D
 
 
-def from_seed(seed):
+def from_seed(seed: int) -> OpenSimplex:
+    """
+    Create OpenSimplex noise generator from seed.
+
+    Args:
+        seed: Random seed value
+
+    Returns:
+        Initialized OpenSimplex generator
+    """
     os = OpenSimplex(seed)
     return os, {"perm": list(os.perm), "perm_grad": list(os.perm_grad_index_3D)}
 
 
-def random(time=0, seed=None, speed=1):
+def random(time: int = 0, seed: Optional[int] = None, speed: int = 1) -> OpenSimplex:
+    """
+    Create time-evolving OpenSimplex noise generator.
+
+    Args:
+        time: Time offset for seed evolution, default 0
+        seed: Optional random seed (uses global if None), default None
+        speed: Seed evolution speed multiplier, default 1
+
+    Returns:
+        Initialized OpenSimplex generator with evolved seed
+    """
     angle = math.pi * 2 * time
     z = math.cos(angle) * speed
     w = math.sin(angle) * speed
@@ -550,7 +648,20 @@ def random(time=0, seed=None, speed=1):
     return (value + 1) * 0.5
 
 
-def simplex(shape, time=0, seed=None, speed=1, as_np=False):
+def simplex(shape, time: int = 0, seed: Optional[int] = None, speed: int = 1, as_np: bool = False) -> tf.Tensor | np.ndarray:
+    """
+    Generate simplex noise tensor.
+
+    Args:
+        shape: Output tensor shape
+        time: Time offset for noise evolution, default 0
+        seed: Optional random seed (uses global if None), default None
+        speed: Noise evolution speed multiplier, default 1
+        as_np: Return as NumPy array instead of Tensor, default False
+
+    Returns:
+        Simplex noise tensor or array with values in range approximately [-1, 1]
+    """
     height, width = shape[0], shape[1]
     channels = shape[2] if len(shape) > 2 else 1
     base_seed = seed if seed is not None else get_seed()

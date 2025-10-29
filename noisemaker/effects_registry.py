@@ -1,14 +1,32 @@
 """Effect decorator for Noisemaker Composer Presets"""
 
+from __future__ import annotations
+
 import inspect
+from typing import Any, Callable
 
-EFFECTS = {}
+EFFECTS: dict[str, dict[str, Any]] = {}
 
 
-def effect(*args):
-    """Function decorator for declaring composable effects."""
+def effect(*args: str) -> Callable:
+    """
+    Function decorator for declaring composable effects.
 
-    def decorator_fn(func):
+    Registers effect functions with their parameter defaults for use in Composer presets.
+    Validates that effects accept required "time" and "speed" keyword arguments.
+
+    Args:
+        *args: Optional effect name. If not provided, uses function name.
+
+    Returns:
+        Decorator function that registers the effect and returns the original function
+
+    Raises:
+        ValueError: If function doesn't accept required "time" or "speed" parameters,
+                   or if keyword parameter counts don't match defaults
+    """
+
+    def decorator_fn(func: Callable) -> Callable:
         argspec = inspect.getfullargspec(func)
 
         params = argspec.args

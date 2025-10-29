@@ -1,19 +1,39 @@
+"""Deterministic random number generation for Noisemaker."""
+
+from __future__ import annotations
+
+from typing import Any, Sequence, TypeVar
+
 import math
 
 import numpy as np
 import tensorflow as tf
 
-_seed = 0x12345678
-_call_count = 0
+_seed: int = 0x12345678
+_call_count: int = 0
+
+T = TypeVar('T')
 
 
 class Random:
     """Deterministic mulberry32 RNG with independent state."""
 
     def __init__(self, seed: int):
+        """
+        Initialize a new random number generator.
+
+        Args:
+            seed: Random seed value
+        """
         self.state = seed & 0xFFFFFFFF
 
     def random(self) -> float:
+        """
+        Return a random float in [0, 1).
+
+        Returns:
+            Random float value
+        """
         global _call_count
         _call_count += 1
         t = (self.state + 0x6D2B79F5) & 0xFFFFFFFF
@@ -23,11 +43,33 @@ class Random:
         return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
 
     def random_int(self, a: int, b: int) -> int:
+        """
+        Return a random integer N such that a <= N <= b.
+
+        Args:
+            a: Minimum value (inclusive)
+            b: Maximum value (inclusive)
+
+        Returns:
+            Random integer in range [a, b]
+        """
         if b < a:
             a, b = b, a
         return int(self.random() * (b - a + 1)) + a
 
-    def choice(self, seq):
+    def choice(self, seq: Sequence[T]) -> T:
+        """
+        Return a random element from sequence.
+
+        Args:
+            seq: Sequence to choose from
+
+        Returns:
+            Random element from sequence
+
+        Raises:
+            IndexError: If sequence is empty
+        """
         if not seq:
             raise IndexError("Cannot choose from an empty sequence")
         idx = self.random_int(0, len(seq) - 1)
@@ -35,13 +77,23 @@ class Random:
 
 
 def set_seed(seed: int) -> None:
-    """Set the global RNG seed."""
+    """
+    Set the global RNG seed.
+
+    Args:
+        seed: Random seed value
+    """
     global _seed
     _seed = seed & 0xFFFFFFFF
 
 
 def get_seed() -> int:
-    """Return the current RNG seed."""
+    """
+    Return the current RNG seed.
+
+    Returns:
+        Current seed value
+    """
     return _seed
 
 
@@ -52,11 +104,17 @@ def reset_call_count() -> None:
 
 
 def get_call_count() -> int:
-    """Return the number of RNG calls since last reset."""
+    """
+    Return the number of RNG calls since last reset.
+
+    Returns:
+        Number of RNG calls
+    """
     return _call_count
 
 
 def _next() -> float:
+    """Internal function to generate next random value."""
     global _seed, _call_count
     _call_count += 1
     t = (_seed + 0x6D2B79F5) & 0xFFFFFFFF
@@ -69,12 +127,26 @@ def _next() -> float:
 
 
 def random() -> float:
-    """Return a float in [0,1)."""
+    """
+    Return a random float in [0, 1).
+
+    Returns:
+        Random float value
+    """
     return _next()
 
 
 def random_int(a: int, b: int) -> int:
-    """Return a random integer N such that a <= N <= b."""
+    """
+    Return a random integer N such that a <= N <= b.
+
+    Args:
+        a: Minimum value (inclusive)
+        b: Maximum value (inclusive)
+
+    Returns:
+        Random integer in range [a, b]
+    """
     if b < a:
         a, b = b, a
     return int(random() * (b - a + 1)) + a
@@ -84,16 +156,35 @@ def random_int(a: int, b: int) -> int:
 randint = random_int
 
 
-def choice(seq):
-    """Return a random element from *seq*."""
+def choice(seq: Sequence[T]) -> T:
+    """
+    Return a random element from sequence.
+
+    Args:
+        seq: Sequence to choose from
+
+    Returns:
+        Random element from sequence
+
+    Raises:
+        IndexError: If sequence is empty
+    """
     if not seq:
         raise IndexError("Cannot choose from an empty sequence")
     idx = random_int(0, len(seq) - 1)
     return seq[idx]
 
 
-def _normalize_shape(shape) -> tuple:
-    """Normalize *shape* values into a concrete tuple of integers."""
+def _normalize_shape(shape: Any) -> tuple:
+    """
+    Normalize shape values into a concrete tuple of integers.
+
+    Args:
+        shape: Shape specification (None, int, list, or tuple)
+
+    Returns:
+        Normalized shape as tuple
+    """
 
     if shape is None:
         return ()
@@ -130,8 +221,19 @@ def _to_tensor(values: np.ndarray, shape: tuple, dtype) -> tf.Tensor:
     return tensor
 
 
-def uniform(shape, minval=0.0, maxval=1.0, dtype=tf.float32):
-    """Return a tensor of uniformly distributed random values from the custom RNG."""
+def uniform(shape, minval=0.0, maxval=1.0, dtype=tf.float32) -> tf.Tensor:
+    """
+    Return a tensor of uniformly distributed random values from the custom RNG.
+
+    Args:
+        shape: Shape specification for output tensor
+        minval: Minimum value (inclusive), default 0.0
+        maxval: Maximum value (exclusive), default 1.0
+        dtype: TensorFlow data type, default tf.float32
+
+    Returns:
+        Tensor of uniformly distributed random values in [minval, maxval)
+    """
 
     minval = float(minval)
     maxval = float(maxval)
@@ -150,8 +252,21 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=tf.float32):
     return _to_tensor(values, shape, dtype)
 
 
-def normal(shape, mean=0.0, stddev=1.0, dtype=tf.float32):
-    """Return a tensor of normally distributed random values from the custom RNG."""
+def normal(shape, mean=0.0, stddev=1.0, dtype=tf.float32) -> tf.Tensor:
+    """
+    Return a tensor of normally distributed random values from the custom RNG.
+
+    Uses Box-Muller transform to generate normally distributed values from uniform random values.
+
+    Args:
+        shape: Shape specification for output tensor
+        mean: Mean of the normal distribution, default 0.0
+        stddev: Standard deviation of the normal distribution, default 1.0
+        dtype: TensorFlow data type, default tf.float32
+
+    Returns:
+        Tensor of normally distributed random values with specified mean and stddev
+    """
 
     mean = float(mean)
     stddev = float(stddev)

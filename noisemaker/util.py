@@ -1,6 +1,9 @@
 """Utility functions for Noisemaker."""
 
+from __future__ import annotations
+
 from enum import Enum
+from typing import Any
 
 import json
 import os
@@ -14,13 +17,16 @@ from loguru import logger as default_logger
 import tensorflow as tf
 
 
-def save(tensor, name="noise.png"):
+def save(tensor: tf.Tensor, name: str = "noise.png") -> None:
     """
     Save an image Tensor to a file.
 
-    :param Tensor tensor: Image tensor
-    :param str name: Filename, ending with .png or .jpg
-    :return: None
+    Args:
+        tensor: Image tensor to save
+        name: Filename, ending with .png or .jpg
+
+    Returns:
+        None
     """
 
     tensor = tf.image.convert_image_dtype(tensor, tf.uint8, saturate=True)
@@ -38,12 +44,16 @@ def save(tensor, name="noise.png"):
         fh.write(data)
 
 
-def load(filename, channels=None):
+def load(filename: str, channels: int | None = None) -> tf.Tensor:
     """
     Load a .png or .jpg by filename.
 
-    :param str filename:
-    :return: Tensor
+    Args:
+        filename: Path to the image file
+        channels: Optional number of channels to force
+
+    Returns:
+        Loaded image tensor
     """
 
     with open(filename, "rb") as fh:
@@ -54,12 +64,16 @@ def load(filename, channels=None):
             return tf.image.decode_jpeg(fh.read(), channels=channels)
 
 
-def magick(glob, name):
+def magick(glob: str, name: str) -> Any:
     """
-    Shell out to ImageMagick's "convert" (im6) or "magick" (im7) commands for GIF composition, depending on what's available.
+    Shell out to ImageMagick's "convert" (im6) or "magick" (im7) commands for GIF composition.
 
-    :param str glob: Frame filename glob pattern
-    :param str name: Filename
+    Args:
+        glob: Frame filename glob pattern
+        name: Output filename
+
+    Returns:
+        Result of subprocess call
     """
 
     common_params = ['-delay', '5', glob, name]
@@ -76,12 +90,16 @@ def magick(glob, name):
         log_subprocess_error(command, e)  # Try to only log non-pathological errors from `magick`
 
 
-def watermark(text, filename):
+def watermark(text: str, filename: str) -> Any:
     """
     Annotate an image.
 
-    :param text:
-    :param filename:
+    Args:
+        text: Text to add to the image
+        filename: Image filename to annotate
+
+    Returns:
+        Result of subprocess call
     """
 
     return check_call(['mood',
@@ -94,7 +112,8 @@ def watermark(text, filename):
                        '--right'])
 
 
-def check_call(command, quiet=False):
+def check_call(command: list[str], quiet: bool = False) -> Any:
+    """Execute a subprocess command."""
     try:
         subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
 

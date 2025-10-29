@@ -1,10 +1,11 @@
 # Noisemaker
 
-Noisemaker adapts classic procedural noise generation algorithms for **Python 3** and **TensorFlow**. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
+Noisemaker adapts classic procedural noise generation algorithms for **Python 3.9+** and **TensorFlow**. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
 
 ## Features
 
-- Modern Python API built on TensorFlow
+- Modern Python 3.9+ API with type hints
+- Built on TensorFlow for GPU-accelerated generation
 - Command line interface for generating images and animations
 - High-level *composer* presets with reusable settings and layered effects
 - Low-level generator and effect functions for custom workflows
@@ -12,13 +13,12 @@ Noisemaker adapts classic procedural noise generation algorithms for **Python 3*
 
 ## Installation
 
-Noisemaker targets Python 3.5+ and requires TensorFlow. Create a virtual environment and install from GitHub:
+Noisemaker requires Python 3.9+ and TensorFlow. Create a virtual environment and install from GitHub:
 
 ```bash
 python3 -m venv noisemaker
 source noisemaker/bin/activate
 pip install git+https://github.com/aayars/py-noisemaker
-pip install tensorflow
 ```
 
 ### Development setup
@@ -28,9 +28,22 @@ git clone https://github.com/aayars/py-noisemaker
 cd py-noisemaker
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-python setup.py develop
-python setup.py install_scripts
+pip install -e ".[dev]"
+pre-commit install
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+Run linting and type checking:
+
+```bash
+black noisemaker
+ruff check noisemaker
+mypy noisemaker
 ```
 
 ## Usage

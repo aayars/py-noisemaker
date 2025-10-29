@@ -1,11 +1,26 @@
-"""https://bottosson.github.io/posts/oklab/"""
+"""
+Oklab color space conversion.
+
+Based on https://bottosson.github.io/posts/oklab/
+"""
+
+from __future__ import annotations
 
 import tensorflow as tf
 
 from noisemaker.util import from_srgb, from_linear_rgb
 
 
-def rgb_to_oklab(tensor):
+def rgb_to_oklab(tensor: tf.Tensor) -> tf.Tensor:
+    """
+    Convert RGB color space to Oklab.
+
+    Args:
+        tensor: RGB tensor with shape [height, width, channels]
+
+    Returns:
+        Oklab tensor with shape [height, width, 3]
+    """
     tensor = from_srgb(tensor)
 
     r = tensor[:, :, 0]
@@ -27,7 +42,16 @@ def rgb_to_oklab(tensor):
     ], 2)
 
 
-def oklab_to_rgb(tensor):
+def oklab_to_rgb(tensor: tf.Tensor) -> tf.Tensor:
+    """
+    Convert Oklab color space to RGB.
+
+    Args:
+        tensor: Oklab tensor with shape [height, width, 3]
+
+    Returns:
+        RGB tensor with shape [height, width, channels]
+    """
     L = tensor[:, :, 0]
     a = tensor[:, :, 1]
     b = tensor[:, :, 2]

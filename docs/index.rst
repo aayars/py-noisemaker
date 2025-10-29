@@ -16,15 +16,15 @@ Noisemaker
    cli
 
 
-**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3`_ and `TensorFlow`_.
+**Noisemaker** is an adaptation of classic procedural noise generation algorithms, for `Python 3.9+`_ and `TensorFlow`_.
 
 Installation
 ------------
 
-Python 3 virtualenv
-~~~~~~~~~~~~~~~~~~~
+Python 3.9+ virtualenv
+~~~~~~~~~~~~~~~~~~~~~~
 
-Noisemaker is intended for Python 3.5+.
+Noisemaker requires Python 3.9 or later.
 
 Install `Noisemaker`_ in a new virtualenv:
 
@@ -36,7 +36,7 @@ Install `Noisemaker`_ in a new virtualenv:
 
     pip install git+https://github.com/aayars/py-noisemaker
 
-    pip install tensorflow
+TensorFlow is included as a dependency and will be installed automatically.
 
 For subsequent activation of the virtual environment, run ``source bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
 
@@ -52,7 +52,7 @@ Activate the virtual environment, and run:
 Development
 ~~~~~~~~~~~
 
-To install noisemaker in a dev env:
+To install noisemaker in a dev env with code quality tools:
 
 .. code-block:: bash
 
@@ -64,8 +64,25 @@ To install noisemaker in a dev env:
 
     source venv/bin/activate
 
-    python setup.py develop
-    python setup.py install_scripts
+    pip install -e ".[dev]"
+
+    pre-commit install
+
+This installs noisemaker with development dependencies including black, ruff, mypy, and pytest.
+
+To run tests:
+
+.. code-block:: bash
+
+    pytest
+
+To format and lint code:
+
+.. code-block:: bash
+
+    black noisemaker
+    ruff check noisemaker
+    mypy noisemaker
 
 For subsequent activation of the virtual environment, run ``source venv/bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
 

@@ -17,9 +17,10 @@ formats:
 python:
   install:
     - requirements: docs/sphinx-requirements.txt
-    - requirements: requirements.txt
     - method: pip
       path: .
+      extra_requirements:
+        - dev
 
 # Build environment
 build:
@@ -30,3 +31,7 @@ build:
     post_checkout:
       # Ensure the docs directory is accessible
       - ls -la docs/
+    post_install:
+      # Verify installation
+      - python --version
+      - pip list | grep noisemaker
