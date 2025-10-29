@@ -1,6 +1,6 @@
 # Noisemaker
 
-Noisemaker is a collection of creative coding effects for Python and JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
+Noisemaker is a collection of creative coding effects for Python or JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
 
 ## Features
 
