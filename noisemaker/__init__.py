@@ -5,6 +5,8 @@ This package provides tools for generating and composing procedural noise patter
 applying image effects, and creating generative art.
 """
 
+# Import effects module to register all @effect() decorated functions
+import noisemaker.effects  # noqa: F401
 from noisemaker.composer import Preset
 from noisemaker.constants import (
     ColorSpace,
