@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence, TypeVar
-
 import math
+from collections.abc import Sequence
+from typing import Any, TypeVar
 
 import numpy as np
 import tensorflow as tf
@@ -12,7 +12,7 @@ import tensorflow as tf
 _seed: int = 0x12345678
 _call_count: int = 0
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Random:

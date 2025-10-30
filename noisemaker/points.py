@@ -5,15 +5,22 @@ from __future__ import annotations
 import math
 from typing import Any
 
+import noisemaker.masks as masks
 import noisemaker.rng as rng
-
+import noisemaker.simplex as simplex
 from noisemaker.constants import PointDistribution, ValueMask
 
-import noisemaker.masks as masks
-import noisemaker.simplex as simplex
 
-
-def point_cloud(freq: int, distrib: PointDistribution | ValueMask = PointDistribution.random, shape: list[int] | None = None, corners: bool = False, generations: int = 1, drift: float = 0.0, time: float = 0.0, speed: float = 1.0) -> tuple[list[int], list[int]] | None:
+def point_cloud(
+    freq: int,
+    distrib: PointDistribution | ValueMask = PointDistribution.random,
+    shape: list[int] | None = None,
+    corners: bool = False,
+    generations: int = 1,
+    drift: float = 0.0,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tuple[list[int], list[int]] | None:
     """
     Generate a point cloud for Voronoi diagrams or other point-based effects.
 
@@ -62,8 +69,8 @@ def point_cloud(freq: int, distrib: PointDistribution | ValueMask = PointDistrib
 
     point_func = rand
 
-    range_x = width * .5
-    range_y = height * .5
+    range_x = width * 0.5
+    range_y = height * 0.5
 
     #
     seen = set()
@@ -93,8 +100,8 @@ def point_cloud(freq: int, distrib: PointDistribution | ValueMask = PointDistrib
         x_space = shape[1] / mask_shape[1]
         y_space = shape[0] / mask_shape[0]
 
-        x_margin = x_space * .5
-        y_margin = y_space * .5
+        x_margin = x_space * 0.5
+        y_margin = y_space * 0.5
 
         for _x in range(mask_shape[1]):
             for _y in range(mask_shape[0]):
@@ -124,11 +131,20 @@ def point_cloud(freq: int, distrib: PointDistribution | ValueMask = PointDistrib
         if generation <= generations:
             multiplier = max(2 * (generation - 1), 1)
 
-            _x, _y = point_func(freq=freq, distrib=distrib, corners=corners,
-                                center_x=x_point, center_y=y_point,
-                                range_x=range_x / multiplier, range_y=range_y / multiplier,
-                                width=width, height=height, generation=generation,
-                                time=time, speed=speed * .1)
+            _x, _y = point_func(
+                freq=freq,
+                distrib=distrib,
+                corners=corners,
+                center_x=x_point,
+                center_y=y_point,
+                range_x=range_x / multiplier,
+                range_y=range_y / multiplier,
+                width=width,
+                height=height,
+                generation=generation,
+                time=time,
+                speed=speed * 0.1,
+            )
 
             for i in range(len(_x)):
                 x_point = _x[i]
@@ -183,7 +199,16 @@ def cloud_points(count: int, seed: int | None = None) -> tuple[list[float], list
     return point_cloud(count, PointDistribution.random)
 
 
-def rand(freq: int = 2, center_x: float = 0.5, center_y: float = 0.5, range_x: float = 0.5, range_y: float = 0.5, width: float = 1.0, height: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+def rand(
+    freq: int = 2,
+    center_x: float = 0.5,
+    center_y: float = 0.5,
+    range_x: float = 0.5,
+    range_y: float = 0.5,
+    width: float = 1.0,
+    height: float = 1.0,
+    **kwargs: Any,
+) -> tuple[list[float], list[float]]:
     """Generate a random cloud of points within a specified region.
 
     RNG: ``freq * freq * 2`` calls to :func:`rng.random`, ordered as x then y.
@@ -215,7 +240,18 @@ def rand(freq: int = 2, center_x: float = 0.5, center_y: float = 0.5, range_x: f
     return x, y
 
 
-def square_grid(freq: float = 1.0, distrib: PointDistribution | None = None, corners: bool = False, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+def square_grid(
+    freq: float = 1.0,
+    distrib: PointDistribution | None = None,
+    corners: bool = False,
+    center_x: float = 0.0,
+    center_y: float = 0.0,
+    range_x: float = 1.0,
+    range_y: float = 1.0,
+    width: float = 1.0,
+    height: float = 1.0,
+    **kwargs: Any,
+) -> tuple[list[float], list[float]]:
     """Generate a square grid of points with optional distribution patterns.
 
     Supports various grid patterns including waffle, chess, and hexagonal layouts.
@@ -240,7 +276,7 @@ def square_grid(freq: float = 1.0, distrib: PointDistribution | None = None, cor
     y = []
 
     # Keep a node in the center of the image, or pin to corner:
-    drift_amount = .5 / freq
+    drift_amount = 0.5 / freq
 
     if (freq % 2) == 0:
         drift = 0.0 if not corners else drift_amount
@@ -249,8 +285,8 @@ def square_grid(freq: float = 1.0, distrib: PointDistribution | None = None, cor
         drift = drift_amount if not corners else 0.0
 
     #
-    for a in range(freq):
-        for b in range(freq):
+    for a in range(int(freq)):
+        for b in range(int(freq)):
             if distrib == PointDistribution.waffle and (b % 2) == 0 and (a % 2) == 0:
                 continue
 
@@ -280,7 +316,18 @@ def square_grid(freq: float = 1.0, distrib: PointDistribution | None = None, cor
     return x, y
 
 
-def spiral(freq: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, time: float = 0.0, speed: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+def spiral(
+    freq: float = 1.0,
+    center_x: float = 0.0,
+    center_y: float = 0.0,
+    range_x: float = 1.0,
+    range_y: float = 1.0,
+    width: float = 1.0,
+    height: float = 1.0,
+    time: float = 0.0,
+    speed: float = 1.0,
+    **kwargs: Any,
+) -> tuple[list[float], list[float]]:
     """Generate points along a spiral path with time-based rotation.
 
     RNG: 1 call to :func:`rng.random` for spiral kink factor.
@@ -301,14 +348,14 @@ def spiral(freq: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, rang
         Tuple of (x_coords, y_coords) lists with spiral coordinates.
     """
 
-    kink = .5 + rng.random() * .5
+    kink = 0.5 + rng.random() * 0.5
 
     x = []
     y = []
 
     count = freq * freq
 
-    for i in range(count):
+    for i in range(int(count)):
         fract = i / count
 
         degrees = fract * 360.0 * math.radians(1) * kink
@@ -319,7 +366,20 @@ def spiral(freq: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, rang
     return x, y
 
 
-def circular(freq: float = 1.0, distrib: float = 1.0, center_x: float = 0.0, center_y: float = 0.0, range_x: float = 1.0, range_y: float = 1.0, width: float = 1.0, height: float = 1.0, generation: int = 1, time: float = 0.0, speed: float = 1.0, **kwargs: Any) -> tuple[list[float], list[float]]:
+def circular(
+    freq: float = 1.0,
+    distrib: float = 1.0,
+    center_x: float = 0.0,
+    center_y: float = 0.0,
+    range_x: float = 1.0,
+    range_y: float = 1.0,
+    width: float = 1.0,
+    height: float = 1.0,
+    generation: int = 1,
+    time: float = 0.0,
+    speed: float = 1.0,
+    **kwargs: Any,
+) -> tuple[list[float], list[float]]:
     """Generate points in concentric circular rings.
 
     Creates a center point surrounded by rings of evenly spaced points.
@@ -353,22 +413,22 @@ def circular(freq: float = 1.0, distrib: float = 1.0, center_x: float = 0.0, cen
 
     rotation = (1 / dot_count) * 360.0 * math.radians(1)
 
-    kink = .5 + rng.random() * .5
+    kink = 0.5 + rng.random() * 0.5
 
-    for i in range(1, ring_count + 1):
+    for i in range(1, int(ring_count) + 1):
         dist_fract = i / ring_count
 
-        for j in range(1, dot_count + 1):
+        for j in range(1, int(dot_count) + 1):
             rads = j * rotation
 
             if distrib == PointDistribution.circular:
-                rads += rotation * .5 * i
+                rads += rotation * 0.5 * i
 
             if distrib == PointDistribution.rotating:
                 rads += rotation * dist_fract * kink
 
-            x_point = (center_x + math.sin(rads) * dist_fract * range_x)
-            y_point = (center_y + math.cos(rads) * dist_fract * range_y)
+            x_point = center_x + math.sin(rads) * dist_fract * range_x
+            y_point = center_y + math.cos(rads) * dist_fract * range_y
 
             x.append(x_point % width)
             y.append(y_point % height)

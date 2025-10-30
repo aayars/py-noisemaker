@@ -4,10 +4,11 @@ from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-import noisemaker.rng as random
 
+import noisemaker.rng as random
 from noisemaker.composer import Preset as ComposerPreset
 from noisemaker.dsl import parse_preset_dsl
+
 
 @lru_cache(maxsize=1)
 def _cached_dsl_presets() -> dict[str, Any]:
@@ -24,7 +25,7 @@ def _cached_dsl_presets() -> dict[str, Any]:
     seed_before = random.get_seed()
     random.set_seed(0)
     try:
-        with open(dsl_path, "r", encoding="utf-8") as fh:
+        with open(dsl_path, encoding="utf-8") as fh:
             return parse_preset_dsl(fh.read())
     finally:
         random.set_seed(seed_before)
@@ -41,7 +42,7 @@ def PRESETS() -> dict[str, Any]:
     """
     presets = deepcopy(_cached_dsl_presets())
 
-    # This is somehow keeping the Python and JS ports in sync, removing it from both 
+    # This is somehow keeping the Python and JS ports in sync, removing it from both
     # places breaks parity. WTF
     random.random()
     random.random()
@@ -65,6 +66,4 @@ def Preset(preset_name: str, *, settings: dict[str, Any] | None = None) -> Compo
     Raises:
         ValueError: If preset_name is not found or preset definition is invalid.
     """
-    return ComposerPreset(
-        preset_name, presets=PRESETS(), settings=settings
-    )
+    return ComposerPreset(preset_name, presets=PRESETS(), settings=settings)

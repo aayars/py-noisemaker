@@ -3,10 +3,10 @@ from __future__ import annotations
 """Font loader for Noisemaker. Creates glyph atlases from TrueType fonts."""
 
 import os
-import noisemaker.rng as random
 
 from PIL import Image, ImageDraw, ImageFont
 
+import noisemaker.rng as random
 from noisemaker.util import get_noisemaker_dir
 
 
@@ -48,7 +48,7 @@ def load_glyphs(shape: list[int]) -> list[list[list[list[float]]]]:
 
     font_name = fonts[random.randint(0, len(fonts) - 1)]
 
-    font = ImageFont.truetype(font_name, int(max(shape[0], shape[1]) * .9))
+    font = ImageFont.truetype(font_name, int(max(shape[0], shape[1]) * 0.9))
 
     glyphs = []
     totals = []

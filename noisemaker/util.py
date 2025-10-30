@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any
-
 import json
 import os
 import subprocess
-
-from noisemaker.constants import ColorSpace
-
-from PIL import Image
-from loguru import logger as default_logger
+from enum import Enum
+from typing import Any
 
 import tensorflow as tf
+from loguru import logger as default_logger
+from PIL import Image
+
+from noisemaker.constants import ColorSpace
 
 
 def save(tensor: tf.Tensor, name: str = "noise.png") -> None:
@@ -76,14 +74,14 @@ def magick(glob: str, name: str) -> Any:
         Result of subprocess call
     """
 
-    common_params = ['-delay', '5', glob, name]
+    common_params = ["-delay", "5", glob, name]
 
     try:
-        command = 'magick'
+        command = "magick"
         return check_call([command] + common_params, quiet=True)
 
     except FileNotFoundError:
-        command = 'convert'
+        command = "convert"
         return check_call([command] + common_params)
 
     except Exception as e:
@@ -102,14 +100,9 @@ def watermark(text: str, filename: str) -> Any:
         Result of subprocess call
     """
 
-    return check_call(['mood',
-                       '--filename', filename,
-                       '--text', text,
-                       '--font', 'Nunito-VariableFont_wght',
-                       '--font-size', '12',
-                       '--no-rect',
-                       '--bottom',
-                       '--right'])
+    return check_call(
+        ["mood", "--filename", filename, "--text", text, "--font", "Nunito-VariableFont_wght", "--font-size", "12", "--no-rect", "--bottom", "--right"]
+    )
 
 
 def check_call(command: list[str], quiet: bool = False) -> Any:
@@ -144,7 +137,7 @@ def get_noisemaker_dir() -> str:
     Returns:
         Path to ~/.noisemaker or NOISEMAKER_DIR environment variable.
     """
-    return os.environ.get('NOISEMAKER_DIR', os.path.join(os.path.expanduser("~"), '.noisemaker'))
+    return os.environ.get("NOISEMAKER_DIR", os.path.join(os.path.expanduser("~"), ".noisemaker"))
 
 
 def dumps(kwargs: dict[str, Any]) -> str:
@@ -234,11 +227,11 @@ def from_linear_rgb(linear_rgb: tf.Tensor) -> tf.Tensor:
         Image tensor in sRGB color space.
     """
     condition = tf.less(linear_rgb, 0.0031308)
-    srgb = tf.where(condition, linear_rgb * 12.92, 1.055 * tf.pow(linear_rgb, 1/2.4) - 0.055)
+    srgb = tf.where(condition, linear_rgb * 12.92, 1.055 * tf.pow(linear_rgb, 1 / 2.4) - 0.055)
     return srgb
 
 
-_LOGS_DIR = os.path.join(get_noisemaker_dir(), 'logs')
+_LOGS_DIR = os.path.join(get_noisemaker_dir(), "logs")
 
 os.makedirs(_LOGS_DIR, exist_ok=True)
 

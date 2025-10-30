@@ -3,42 +3,40 @@
 from __future__ import annotations
 
 import math
-import noisemaker.rng as rng
 from typing import Any
 
 import numpy as np
 import tensorflow as tf
 
+import noisemaker.masks as masks
+import noisemaker.rng as rng
+import noisemaker.simplex as simplex
+import noisemaker.util as util
+import noisemaker.value as value
 from noisemaker.constants import (
-    ColorSpace,
     DistanceMetric,
     InterpolationType,
     PointDistribution,
     ValueDistribution,
     ValueMask,
     VoronoiDiagramType,
-    WormBehavior
+    WormBehavior,
 )
 from noisemaker.effects_registry import effect
 from noisemaker.glyphs import load_glyphs
 from noisemaker.palettes import PALETTES as palettes
 from noisemaker.points import point_cloud
 
-import noisemaker.masks as masks
-import noisemaker.simplex as simplex
-import noisemaker.util as util
-import noisemaker.value as value
-
 
 def _conform_kernel_to_tensor(kernel: ValueMask, tensor: tf.Tensor, shape: list[int]) -> tf.Tensor:
     """
     Re-shape a convolution kernel to match the given tensor's color dimensions.
-    
+
     Args:
         kernel: Convolution kernel mask
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Processed tensor
     """
@@ -61,10 +59,22 @@ def _conform_kernel_to_tensor(kernel: ValueMask, tensor: tf.Tensor, shape: list[
 
 
 @effect()
-def erosion_worms(tensor: tf.Tensor, shape: list[int], density: float = 50, iterations: int = 50, contraction: float = 1.0, quantize: bool = False, alpha: float = .25, inverse: bool = False, xy_blend: bool = False, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def erosion_worms(
+    tensor: tf.Tensor,
+    shape: list[int],
+    density: float = 50,
+    iterations: int = 50,
+    contraction: float = 1.0,
+    quantize: bool = False,
+    alpha: float = 0.25,
+    inverse: bool = False,
+    xy_blend: bool = False,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     WIP hydraulic erosion effect.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -77,7 +87,7 @@ def erosion_worms(tensor: tf.Tensor, shape: list[int], density: float = 50, iter
         xy_blend: XY blend amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -158,22 +168,22 @@ def erosion_worms(tensor: tf.Tensor, shape: list[int], density: float = 50, iter
 
 
 @effect()
-def reindex(tensor: tf.Tensor, shape: list[int], displacement: float = .5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def reindex(tensor: tf.Tensor, shape: list[int], displacement: float = 0.5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
-    
+
     .. image:: images/reindex.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -192,15 +202,25 @@ def reindex(tensor: tf.Tensor, shape: list[int], displacement: float = .5, time:
 
 
 @effect()
-def ripple(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, displacement: float = 1.0, kink: float = 1.0, reference: tf.Tensor | None = None, spline_order: int | InterpolationType = InterpolationType.bicubic, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def ripple(
+    tensor: tf.Tensor,
+    shape: list[int],
+    freq: int | list[int] = 2,
+    displacement: float = 1.0,
+    kink: float = 1.0,
+    reference: tf.Tensor | None = None,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Apply displacement from pixel radian values.
-    
+
     .. image:: images/ripple.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -211,7 +231,7 @@ def ripple(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, displ
         spline_order: Interpolation type for resampling
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -253,16 +273,24 @@ def ripple(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, displ
 
 
 @effect()
-def color_map(tensor: tf.Tensor, shape: list[int], clut: tf.Tensor | str | None = None, horizontal: bool = False, displacement: float = .5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def color_map(
+    tensor: tf.Tensor,
+    shape: list[int],
+    clut: tf.Tensor | str | None = None,
+    horizontal: bool = False,
+    displacement: float = 0.5,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Apply a color map to an image tensor.
     The color map can be a photo or whatever else.
-    
+
     .. image:: images/color_map.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -271,7 +299,7 @@ def color_map(tensor: tf.Tensor, shape: list[int], clut: tf.Tensor | str | None 
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -319,12 +347,12 @@ def worms(
 ) -> tf.Tensor:
     """
     Make a furry patch of worms which follow field flow rules.
-    
+
     .. image:: images/worms.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -340,7 +368,7 @@ def worms(
         colors: Optional color tensor for rendering
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -353,39 +381,34 @@ def worms(
 
     worms_y = rng.uniform([count]) * (height - 1)  # RNG[1]
     worms_x = rng.uniform([count]) * (width - 1)  # RNG[2]
-    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height)/1024.0)  # RNG[3]
+    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height) / 1024.0)  # RNG[3]
 
     color_source = colors if colors is not None else tensor
 
     colors = tf.gather_nd(color_source, tf.cast(tf.stack([worms_y, worms_x], 1), tf.int32))
 
-    quarter_count = int(count * .25)
+    quarter_count = int(count * 0.25)
 
     rots = {}
 
     rots = {
-        WormBehavior.obedient: lambda n:
-            tf.ones([n], dtype=tf.float32) * rng.random() * math.tau,  # RNG[4]
-
-        WormBehavior.crosshatch: lambda n:
-            rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),  # RNG[5]
-
-        WormBehavior.unruly: lambda n:
-            rots[WormBehavior.obedient](n) + rng.uniform([n]) * .25 - .125,  # RNG[6]
-
-        WormBehavior.chaotic: lambda n:
-            rng.uniform([n]) * math.tau,  # RNG[7]
-
-        WormBehavior.random: lambda _:
-            tf.reshape(tf.stack([
-                rots[WormBehavior.obedient](quarter_count),
-                rots[WormBehavior.crosshatch](quarter_count),
-                rots[WormBehavior.unruly](quarter_count),
-                rots[WormBehavior.chaotic](quarter_count),
-            ]), [count]),
-
+        WormBehavior.obedient: lambda n: tf.ones([n], dtype=tf.float32) * rng.random() * math.tau,  # RNG[4]
+        WormBehavior.crosshatch: lambda n: rots[WormBehavior.obedient](n) + (tf.floor(rng.uniform([n]) * 100) % 4) * math.radians(90),  # RNG[5]
+        WormBehavior.unruly: lambda n: rots[WormBehavior.obedient](n) + rng.uniform([n]) * 0.25 - 0.125,  # RNG[6]
+        WormBehavior.chaotic: lambda n: rng.uniform([n]) * math.tau,  # RNG[7]
+        WormBehavior.random: lambda _: tf.reshape(
+            tf.stack(
+                [
+                    rots[WormBehavior.obedient](quarter_count),
+                    rots[WormBehavior.crosshatch](quarter_count),
+                    rots[WormBehavior.unruly](quarter_count),
+                    rots[WormBehavior.chaotic](quarter_count),
+                ]
+            ),
+            [count],
+        ),
         # Chaotic, changing over time
-        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count]))  # RNG[8]
+        WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count])),  # RNG[8]
     }
 
     worms_rot = rots[behavior](count)
@@ -425,15 +448,17 @@ def worms(
 
 
 @effect()
-def wormhole(tensor: tf.Tensor, shape: list[int], kink: float = 1.0, input_stride: float = 1.0, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def wormhole(
+    tensor: tf.Tensor, shape: list[int], kink: float = 1.0, input_stride: float = 1.0, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0
+) -> tf.Tensor:
     """
     Apply per-pixel field flow. Non-iterative.
-    
+
     .. image:: images/wormhole.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -442,7 +467,7 @@ def wormhole(tensor: tf.Tensor, shape: list[int], kink: float = 1.0, input_strid
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -471,15 +496,23 @@ def wormhole(tensor: tf.Tensor, shape: list[int], kink: float = 1.0, input_strid
 
 
 @effect()
-def derivative(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = DistanceMetric.euclidean, with_normalize: bool = True, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def derivative(
+    tensor: tf.Tensor,
+    shape: list[int],
+    dist_metric: int | DistanceMetric = DistanceMetric.euclidean,
+    with_normalize: bool = True,
+    alpha: float = 1.0,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Extract a derivative from the given noise.
-    
+
     .. image:: images/derived.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -488,7 +521,7 @@ def derivative(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceM
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -508,22 +541,24 @@ def derivative(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceM
 
 
 @effect("sobel")
-def sobel_operator(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = DistanceMetric.euclidean, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def sobel_operator(
+    tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = DistanceMetric.euclidean, time: float = 0.0, speed: float = 1.0
+) -> tf.Tensor:
     """
     Apply a sobel operator.
-    
+
     .. image:: images/sobel.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         dist_metric: Distance metric to use
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -546,18 +581,18 @@ def sobel_operator(tensor: tf.Tensor, shape: list[int], dist_metric: int | Dista
 def normal_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Generate a tangent-space normal map.
-    
+
     .. image:: images/normals.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -569,7 +604,7 @@ def normal_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
     x = value.normalize(1 - value.convolve(kernel=ValueMask.conv2d_sobel_x, tensor=reference, shape=value_shape))
     y = value.normalize(value.convolve(kernel=ValueMask.conv2d_sobel_y, tensor=reference, shape=value_shape))
 
-    z = 1 - tf.abs(value.normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * .5 + .5
+    z = 1 - tf.abs(value.normalize(tf.sqrt(x * x + y * y)) * 2 - 1) * 0.5 + 0.5
 
     return tf.stack([x[:, :, 0], y[:, :, 0], z[:, :, 0]], 2)
 
@@ -578,18 +613,18 @@ def normal_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
 def density_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Create a binned pixel value density map.
-    
+
     .. image:: images/density.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -616,14 +651,14 @@ def density_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: f
 def jpeg_decimate(tensor: tf.Tensor, shape: list[int], iterations: int = 25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Destroy an image with the power of JPEG
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         iterations: Number of iterations to perform
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -642,10 +677,10 @@ def jpeg_decimate(tensor: tf.Tensor, shape: list[int], iterations: int = 25, tim
 
 
 @effect()
-def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alpha: float = .5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alpha: float = 0.5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Conv2d feedback loop
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -653,14 +688,14 @@ def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alp
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
     iterations = 100
 
-    half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
+    half_shape = [int(shape[0] * 0.5), int(shape[1] * 0.5), shape[2]]
 
     convolved = value.proportional_downsample(tensor, shape, half_shape)
 
@@ -670,7 +705,7 @@ def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alp
 
     convolved = value.normalize(convolved)
 
-    up = tf.maximum((convolved - .5) * 2, 0.0)
+    up = tf.maximum((convolved - 0.5) * 2, 0.0)
 
     down = tf.minimum(convolved * 2, 1.0)
 
@@ -680,13 +715,13 @@ def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alp
 def blend_layers(control: list[tuple[tf.Tensor, float]], shape: list[int], feather: float = 1.0, *layers: Any) -> tf.Tensor:
     """
     Blend multiple image layers based on a control tensor.
-    
+
     Args:
         control: Control tensor for blending
         shape: Shape of the tensor [height, width, channels]
         feather: Feathering amount for blending transitions
         *layers: Variable number of layer tensors to blend
-    
+
     Returns:
         Modified tensor
     """
@@ -715,17 +750,19 @@ def blend_layers(control: list[tuple[tf.Tensor, float]], shape: list[int], feath
     return value.blend(combined_layer_0, combined_layer_1, control_floor_fract)
 
 
-def center_mask(center: tf.Tensor, edges: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = DistanceMetric.chebyshev, power: float = 2) -> tf.Tensor:
+def center_mask(
+    center: tf.Tensor, edges: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = DistanceMetric.chebyshev, power: float = 2
+) -> tf.Tensor:
     """
     Blend two image tensors from the center to the edges.
-    
+
     Args:
         center: Center point coordinates
         edges: Edge handling mode
         shape: Shape of the tensor [height, width, channels]
         dist_metric: Distance metric to use
         power: Power curve exponent
-    
+
     Returns:
         Processed tensor
     """
@@ -739,19 +776,19 @@ def center_mask(center: tf.Tensor, edges: tf.Tensor, shape: list[int], dist_metr
 def posterize(tensor: tf.Tensor, shape: list[int], levels: int = 9, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Reduce the number of color levels per channel.
-    
+
     .. image:: images/posterize.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         levels: Number of posterization levels
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -760,18 +797,18 @@ def posterize(tensor: tf.Tensor, shape: list[int], levels: int = 9, time: float 
         return tensor
 
     if shape[-1] == 3:
-       tensor = util.from_srgb(tensor)
+        tensor = util.from_srgb(tensor)
 
     tensor *= levels
 
-    tensor += (1/levels) * .5
+    tensor += (1 / levels) * 0.5
 
     tensor = tf.floor(tensor)
 
     tensor /= levels
 
     if shape[-1] == 3:
-       tensor = util.from_linear_rgb(tensor)
+        tensor = util.from_linear_rgb(tensor)
 
     return tensor
 
@@ -782,7 +819,7 @@ def inner_tile(tensor: tf.Tensor, shape: list[int], freq: int | list[int]) -> tf
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         freq: Noise frequency
-    
+
     Returns:
         Modified tensor
     """
@@ -809,7 +846,7 @@ def expand_tile(tensor: tf.Tensor, input_shape: list[int], output_shape: list[in
         input_shape: Shape of input tensor
         output_shape: Shape of output tensor
         with_offset: Apply offset to output
-    
+
     Returns:
         Modified tensor
     """
@@ -835,35 +872,49 @@ def offset_index(y_index: tf.Tensor, height: int, x_index: tf.Tensor, width: int
     """
     Offset X and Y displacement channels from each other, to help with diagonal banding.
     Returns a combined Tensor with shape [height, width, 2]
-    
+
     Args:
         y_index: Y coordinate indices
         height: Height dimension
         x_index: X coordinate indices
         width: Width dimension
-    
+
     Returns:
         Processed tensor
     """
 
-    index = tf.stack([
-        (y_index + int(height * .5 + rng.random() * height * .5)) % height,
-        (x_index + int(rng.random() * width * .5)) % width,
-        ], 2)
+    index = tf.stack(
+        [
+            (y_index + int(height * 0.5 + rng.random() * height * 0.5)) % height,
+            (x_index + int(rng.random() * width * 0.5)) % width,
+        ],
+        2,
+    )
 
     return tf.cast(index, tf.int32)
 
 
 @effect()
-def warp(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, octaves: int = 5, displacement: float = 1, spline_order: int | InterpolationType = InterpolationType.bicubic, warp_map: tf.Tensor | None = None, signed_range: bool = True, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def warp(
+    tensor: tf.Tensor,
+    shape: list[int],
+    freq: int | list[int] = 2,
+    octaves: int = 5,
+    displacement: float = 1,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
+    warp_map: tf.Tensor | None = None,
+    signed_range: bool = True,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Multi-octave warp effect
-    
+
     .. image:: images/warp.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -875,7 +926,7 @@ def warp(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, octaves
         signed_range: Use signed range (-1 to 1)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -884,9 +935,10 @@ def warp(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, octaves
         freq = value.freq_for_shape(freq, shape)
 
     for octave in range(1, octaves + 1):
-        multiplier = 2 ** octave
+        multiplier = 2**octave
 
-        base_freq = [int(f * .5 * multiplier) for f in freq]
+        freq_list = freq if isinstance(freq, list) else [freq, freq]
+        base_freq = [int(f * 0.5 * multiplier) for f in freq_list]
 
         if base_freq[0] >= shape[0] or base_freq[1] >= shape[1]:
             break
@@ -901,8 +953,9 @@ def warp(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, octaves
         else:
             kwargs["warp_freq"] = base_freq
 
-        tensor = value.refract(tensor, shape, displacement=displacement / multiplier,
-                               spline_order=spline_order, signed_range=signed_range, time=time, speed=speed, **kwargs)
+        tensor = value.refract(
+            tensor, shape, displacement=displacement / multiplier, spline_order=spline_order, signed_range=signed_range, time=time, speed=speed, **kwargs
+        )
 
     return tensor
 
@@ -910,13 +963,13 @@ def warp(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 2, octaves
 def sobel(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric = 1, rgb: bool = False) -> tf.Tensor:
     """
     Colorized sobel edges.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         dist_metric: Distance metric to use
         rgb: Treat as RGB (vs grayscale)
-    
+
     Returns:
         Modified tensor
     """
@@ -929,10 +982,12 @@ def sobel(tensor: tf.Tensor, shape: list[int], dist_metric: int | DistanceMetric
 
 
 @effect()
-def outline(tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMetric = 1, invert: bool = False, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def outline(
+    tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMetric = 1, invert: bool = False, time: float = 0.0, speed: float = 1.0
+) -> tf.Tensor:
     """
     Superimpose sobel operator results (cartoon edges)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -940,7 +995,7 @@ def outline(tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMet
         invert: Invert the effect
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -960,7 +1015,9 @@ def outline(tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMet
 
 
 @effect()
-def glowing_edges(tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMetric = 2, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def glowing_edges(
+    tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMetric = 2, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0
+) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -969,7 +1026,7 @@ def glowing_edges(tensor: tf.Tensor, shape: list[int], sobel_metric: int | Dista
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -986,7 +1043,7 @@ def glowing_edges(tensor: tf.Tensor, shape: list[int], sobel_metric: int | Dista
 
     edges = tf.minimum(edges * 8, 1.0) * tf.minimum(tensor * 1.25, 1.0)
 
-    edges = bloom(edges, shape, alpha=.5)
+    edges = bloom(edges, shape, alpha=0.5)
 
     edges = value.normalize(edges + value.convolve(kernel=ValueMask.conv2d_blur, tensor=edges, shape=shape))
 
@@ -997,19 +1054,19 @@ def glowing_edges(tensor: tf.Tensor, shape: list[int], sobel_metric: int | Dista
 def vortex(tensor: tf.Tensor, shape: list[int], displacement: float = 64.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Vortex tiling effect
-    
+
     .. image:: images/vortex.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1028,30 +1085,28 @@ def vortex(tensor: tf.Tensor, shape: list[int], displacement: float = 64.0, time
     x *= fader
     y *= fader
 
-    warped = value.refract(tensor, shape,
-                           displacement=simplex.random(time, speed=speed) * 100 * displacement,
-                           reference_x=x, reference_y=y, signed_range=False)
+    warped = value.refract(tensor, shape, displacement=simplex.random(time, speed=speed) * 100 * displacement, reference_x=x, reference_y=y, signed_range=False)
 
     return warped
 
 
 @effect()
-def aberration(tensor: tf.Tensor, shape: list[int], displacement: float = .005, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def aberration(tensor: tf.Tensor, shape: list[int], displacement: float = 0.005, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Chromatic aberration
-    
+
     .. image:: images/aberration.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1074,7 +1129,7 @@ def aberration(tensor: tf.Tensor, shape: list[int], displacement: float = .005, 
 
     gradient = value.normalize(x_index_float)
 
-    shift = rng.random() * .1 - .05
+    shift = rng.random() * 0.1 - 0.05
     tensor = tf.image.adjust_hue(tensor, shift)
 
     for i in range(channels):
@@ -1115,18 +1170,18 @@ def aberration(tensor: tf.Tensor, shape: list[int], displacement: float = .005, 
 
 
 @effect()
-def bloom(tensor: tf.Tensor, shape: list[int], alpha: float = .5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def bloom(tensor: tf.Tensor, shape: list[int], alpha: float = 0.5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Bloom effect
     Input image must currently be square (sorry).
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1137,7 +1192,7 @@ def bloom(tensor: tf.Tensor, shape: list[int], alpha: float = .5, time: float = 
     blurred = value.proportional_downsample(blurred, shape, [max(int(height / 100), 1), max(int(width / 100), 1), channels]) * 4.0
     blurred = value.resample(blurred, shape)
 
-    blurred = value.offset(blurred, shape, x=int(tf.cast(width, tf.float32) * -.05), y=int(tf.cast(shape[0], tf.float32) * -.05))
+    blurred = value.offset(blurred, shape, x=int(tf.cast(width, tf.float32) * -0.05), y=int(tf.cast(shape[0], tf.float32) * -0.05))
 
     # Mirror the JavaScript bloom implementation exactly: brightness is a straight
     # addition followed by clamping to ``[-1, 1]`` before the contrast stretch is
@@ -1150,19 +1205,29 @@ def bloom(tensor: tf.Tensor, shape: list[int], alpha: float = .5, time: float = 
     blurred = (blurred - mean) * 1.5 + mean
     blurred = value.clamp01(blurred)
 
-    return value.blend(value.clamp01(tensor), value.clamp01((tensor + blurred) * .5), alpha)
+    return value.blend(value.clamp01(tensor), value.clamp01((tensor + blurred) * 0.5), alpha)
 
 
 @effect()
-def dla(tensor: tf.Tensor, shape: list[int], padding: int = 2, seed_density: float = .01, density: float = .125, xy: tuple[tf.Tensor, tf.Tensor, int] | None = None, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def dla(
+    tensor: tf.Tensor,
+    shape: list[int],
+    padding: int = 2,
+    seed_density: float = 0.01,
+    density: float = 0.125,
+    xy: tuple[tf.Tensor, tf.Tensor, int] | None = None,
+    alpha: float = 1.0,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Diffusion-limited aggregation. Renders with respect to the `time` param (0..1)
-    
+
     .. image:: images/dla.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1173,7 +1238,7 @@ def dla(tensor: tf.Tensor, shape: list[int], padding: int = 2, seed_density: flo
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1261,12 +1326,16 @@ def dla(tensor: tf.Tensor, shape: list[int], padding: int = 2, seed_density: flo
             walker = walkers[w]
 
             if walker in expanded_neighborhoods:
-                walkers[w] = ((walker[0] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_height,
-                              (walker[1] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_width)
+                walkers[w] = (
+                    (walker[0] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_height,
+                    (walker[1] + offsets[rng.random_int(0, len(offsets) - 1)]) % half_width,
+                )
 
             else:
-                walkers[w] = ((walker[0] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_height,
-                              (walker[1] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_width)
+                walkers[w] = (
+                    (walker[0] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_height,
+                    (walker[1] + expanded_offsets[rng.random_int(0, len(expanded_offsets) - 1)]) % half_width,
+                )
 
     seen = set()
     unique = []
@@ -1282,11 +1351,9 @@ def dla(tensor: tf.Tensor, shape: list[int], padding: int = 2, seed_density: flo
     count = len(unique)
 
     # hot = tf.ones([count, channels])
-    hot = tf.ones([count, channels], dtype=tf.float32) * tf.cast(
-        tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32
-    )
+    hot = tf.ones([count, channels], dtype=tf.float32) * tf.cast(tf.reshape(tf.stack(list(reversed(range(count)))), [count, 1]), tf.float32)
 
-    out = value.convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1/scale), hot, [height, width, channels]), shape=shape)
+    out = value.convolve(kernel=ValueMask.conv2d_blur, tensor=tf.scatter_nd(tf.stack(unique) * int(1 / scale), hot, [height, width, channels]), shape=shape)
 
     return value.blend(tensor, out * tensor, alpha)
 
@@ -1295,19 +1362,19 @@ def dla(tensor: tf.Tensor, shape: list[int], padding: int = 2, seed_density: flo
 def wobble(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Move the entire image around
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
-    x_offset = tf.cast(simplex.random(time=time, speed=speed * .5) * shape[1], tf.int32)
-    y_offset = tf.cast(simplex.random(time=time, speed=speed * .5) * shape[0], tf.int32)
+    x_offset = tf.cast(simplex.random(time=time, speed=speed * 0.5) * shape[1], tf.int32)
+    y_offset = tf.cast(simplex.random(time=time, speed=speed * 0.5) * shape[0], tf.int32)
 
     return value.offset(tensor, shape, x=x_offset, y=y_offset)
 
@@ -1316,7 +1383,7 @@ def wobble(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: int = 1, ridges: bool = True, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Multi-octave "reverberation" of input image tensor
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1325,7 +1392,7 @@ def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: in
         ridges: Apply ridge transformation
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1345,7 +1412,7 @@ def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: in
 
     for i in range(iterations):
         for octave in range(1, octaves + 1):
-            multiplier = 2 ** octave
+            multiplier = 2**octave
 
             octave_shape = [int(height / multiplier) or 1, int(width / multiplier) or 1, channels]
 
@@ -1360,7 +1427,7 @@ def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: in
 
 
 @effect()
-def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = .25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -1368,16 +1435,22 @@ def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = .25, time: fl
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
-    x, y = point_cloud(6, distrib=PointDistribution.grid_members()[rng.random_int(0, len(PointDistribution.grid_members()) - 1)],
-                       drift=.05, shape=shape, time=time, speed=speed)
+    x, y = point_cloud(
+        6,
+        distrib=PointDistribution.grid_members()[rng.random_int(0, len(PointDistribution.grid_members()) - 1)],
+        drift=0.05,
+        shape=shape,
+        time=time,
+        speed=speed,
+    )
 
     leak = value.voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
-    leak = wormhole(leak, shape, kink=1.0, input_stride=.25)
+    leak = wormhole(leak, shape, kink=1.0, input_stride=0.25)
 
     leak = bloom(leak, shape, 1.0)
 
@@ -1398,16 +1471,14 @@ def vignette(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, alpha
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
     tensor = value.normalize(tensor)
 
-    edges = center_mask(
-        tensor, tf.ones(shape, dtype=tf.float32) * brightness, shape, dist_metric=DistanceMetric.euclidean
-    )
+    edges = center_mask(tensor, tf.ones(shape, dtype=tf.float32) * brightness, shape, dist_metric=DistanceMetric.euclidean)
 
     return value.blend(tensor, edges, alpha)
 
@@ -1421,7 +1492,7 @@ def vaseline(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, time: floa
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1433,12 +1504,12 @@ def vaseline(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, time: floa
 def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: tf.Tensor | None = None, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Convolution-based self-shadowing effect.
-    
+
     .. image:: images/shadow.jpg
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1446,7 +1517,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
         reference: Reference tensor for comparison
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1465,7 +1536,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
 
     shade = value.normalize(value.distance(x, y, DistanceMetric.euclidean))
 
-    shade = value.convolve(kernel=ValueMask.conv2d_sharpen, tensor=shade, shape=value_shape, alpha=.5)
+    shade = value.convolve(kernel=ValueMask.conv2d_sharpen, tensor=shade, shape=value_shape, alpha=0.5)
 
     # Ramp values to not be so imposing visually
     highlight = tf.math.square(shade)
@@ -1485,8 +1556,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
         # Limit effect to just the brightness channel
         tensor = tf.image.rgb_to_hsv([tensor])[0]
 
-        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1],
-                           value.blend(tensor[:, :, 2], tf.image.rgb_to_hsv([shade])[0][:, :, 2], alpha)], 2)
+        tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], value.blend(tensor[:, :, 2], tf.image.rgb_to_hsv([shade])[0][:, :, 2], alpha)], 2)
 
         tensor = tf.image.hsv_to_rgb([tensor])[0]
 
@@ -1519,7 +1589,7 @@ def glyph_map(
         spline_order: Interpolation type for resampling
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1588,7 +1658,7 @@ def glyph_map(
 def pixel_sort(tensor: tf.Tensor, shape: list[int], angled: bool | float = False, darkest: bool = False, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Pixel sort effect
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1596,7 +1666,7 @@ def pixel_sort(tensor: tf.Tensor, shape: list[int], angled: bool | float = False
         darkest: Sort from darkest pixels
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1619,7 +1689,7 @@ def _pixel_sort(tensor: tf.Tensor, shape: list[int], angle: float | None, darkes
         shape: Shape of the tensor [height, width, channels]
         angle: Rotation angle in radians
         darkest: Sort from darkest pixels
-    
+
     Returns:
         Processed tensor
     """
@@ -1667,14 +1737,14 @@ def _pixel_sort(tensor: tf.Tensor, shape: list[int], angle: float | None, darkes
 def rotate(tensor: tf.Tensor, shape: list[int], angle: float | None = None, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Rotate the image. This breaks seamless edges.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         angle: Rotation angle in radians
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1701,7 +1771,7 @@ def rotate2D(tensor: tf.Tensor, shape: list[int], angle: float | None) -> tf.Ten
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         angle: Rotation angle in radians
-    
+
     Returns:
         Modified tensor
     """
@@ -1723,13 +1793,13 @@ def rotate2D(tensor: tf.Tensor, shape: list[int], angle: float | None) -> tf.Ten
 def sketch(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Pencil sketch effect
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1743,16 +1813,16 @@ def sketch(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 
     outline = 1.0 - derivative(values, value_shape)
     outline = tf.minimum(outline, 1.0 - derivative(1.0 - values, value_shape))
-    outline = tf.image.adjust_contrast(outline, .25)
+    outline = tf.image.adjust_contrast(outline, 0.25)
     outline = value.normalize(outline)
 
-    values = vignette(values, value_shape, 1.0, .875)
+    values = vignette(values, value_shape, 1.0, 0.875)
 
-    crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=125, duration=.5, stride=1, stride_deviation=.25, alpha=1.0)
+    crosshatch = 1.0 - worms(1.0 - values, value_shape, behavior=2, density=125, duration=0.5, stride=1, stride_deviation=0.25, alpha=1.0)
     crosshatch = value.normalize(crosshatch)
 
-    combined = value.blend(crosshatch, outline, .75)
-    combined = warp(combined, value_shape, [int(shape[0] * .125) or 1, int(shape[1] * .125) or 1], octaves=1, displacement=.0025, time=time, speed=speed)
+    combined = value.blend(crosshatch, outline, 0.75)
+    combined = warp(combined, value_shape, [int(shape[0] * 0.125) or 1, int(shape[1] * 0.125) or 1], octaves=1, displacement=0.0025, time=time, speed=speed)
     combined *= combined
 
     return combined * tf.ones(shape, dtype=tf.float32)
@@ -1767,14 +1837,14 @@ def simple_frame(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, t
         brightness: Brightness adjustment
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
     border = value.singularity(None, shape, dist_metric=DistanceMetric.chebyshev)
 
-    border = value.blend(tf.zeros(shape, dtype=tf.float32), border, .55)
+    border = value.blend(tf.zeros(shape, dtype=tf.float32), border, 0.55)
 
     border = posterize(border, shape, 1)
 
@@ -1782,10 +1852,18 @@ def simple_frame(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, t
 
 
 @effect()
-def lowpoly(tensor: tf.Tensor, shape: list[int], distrib: int | PointDistribution | ValueDistribution = PointDistribution.random, freq: int | list[int] = 10, time: float = 0.0, speed: float = 1.0, dist_metric: int | DistanceMetric = DistanceMetric.euclidean) -> tf.Tensor:
+def lowpoly(
+    tensor: tf.Tensor,
+    shape: list[int],
+    distrib: int | PointDistribution | ValueDistribution = PointDistribution.random,
+    freq: int | list[int] = 10,
+    time: float = 0.0,
+    speed: float = 1.0,
+    dist_metric: int | DistanceMetric = DistanceMetric.euclidean,
+) -> tf.Tensor:
     """
     Low-poly art style effect
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1794,7 +1872,7 @@ def lowpoly(tensor: tf.Tensor, shape: list[int], distrib: int | PointDistributio
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
         dist_metric: Distance metric to use
-    
+
     Returns:
         Modified tensor
     """
@@ -1804,18 +1882,18 @@ def lowpoly(tensor: tf.Tensor, shape: list[int], distrib: int | PointDistributio
     distance = value.voronoi(tensor, shape, nth=1, xy=xy, dist_metric=dist_metric)
     color = value.voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_metric=dist_metric)
 
-    return value.normalize(value.blend(distance, color, .5))
+    return value.normalize(value.blend(distance, color, 0.5))
 
 
 def square_crop_and_resize(tensor: tf.Tensor, shape: list[int], length: int = 1024) -> tf.Tensor:
     """
     Crop and resize an image Tensor into a square with desired side length.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         length: Length
-    
+
     Returns:
         Modified tensor
     """
@@ -1864,7 +1942,7 @@ def kaleido(
         point_distrib: Point distribution method
         point_drift: Point drift amount
         point_corners: Include corner points
-    
+
     Returns:
         Modified tensor
     """
@@ -1875,8 +1953,8 @@ def kaleido(
     y_identity = tf.cast(value.column_index(shape), tf.float32)
 
     # indices offset to center
-    x_index = value.normalize(tf.cast(x_identity, tf.float32)) - .5
-    y_index = value.normalize(tf.cast(y_identity, tf.float32)) - .5
+    x_index = value.normalize(tf.cast(x_identity, tf.float32)) - 0.5
+    y_index = value.normalize(tf.cast(y_identity, tf.float32)) - 0.5
 
     value_shape = value.value_shape(shape)
 
@@ -1886,9 +1964,18 @@ def kaleido(
         dist_metric = DistanceMetric.sdf
 
     # distance from any pixel to center
-    r = value.voronoi(None, value_shape, dist_metric=dist_metric, sdf_sides=sdf_sides,
-                      xy=xy, point_freq=point_freq, point_generations=point_generations,
-                      point_distrib=point_distrib, point_drift=point_drift, point_corners=point_corners)
+    r = value.voronoi(
+        None,
+        value_shape,
+        dist_metric=dist_metric,
+        sdf_sides=sdf_sides,
+        xy=xy,
+        point_freq=point_freq,
+        point_generations=point_generations,
+        point_distrib=point_distrib,
+        point_drift=point_drift,
+        point_corners=point_corners,
+    )
 
     r = tf.squeeze(r)
 
@@ -1924,7 +2011,7 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
     """
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1932,7 +2019,7 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1960,9 +2047,7 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
     phase = p["phase"] * tf.ones(rgb_shape, dtype=tf.float32) + time
 
     # Multiply value_map's result x .875, in case the image is just black and white (0 == 1, we don't want a solid color image)
-    colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(
-        tensor, shape, keepdims=True, with_normalize=False
-    ) * .875 + .0625 + phase))
+    colored = offset + amp * tf.math.cos(math.tau * (freq * value.value_map(tensor, shape, keepdims=True, with_normalize=False) * 0.875 + 0.0625 + phase))
 
     tensor = value.blend_cosine(tensor, colored, alpha)
 
@@ -1978,13 +2063,13 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
 def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Apply a bad VHS tracking effect.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -1993,7 +2078,7 @@ def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
 
     # Generate scan noise
     scan_noise = value.values(
-        freq=int(height * .5) + 1,
+        freq=int(height * 0.5) + 1,
         shape=[height, width, 1],
         time=time,
         speed=speed * 100,
@@ -2006,7 +2091,7 @@ def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
         time=time,
         speed=speed,
     )
-    grad = tf.maximum(grad - .5, 0)
+    grad = tf.maximum(grad - 0.5, 0)
     grad = tf.minimum(grad * 2, 1)
 
     x_index = value.row_index(shape)
@@ -2023,7 +2108,7 @@ def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
 
 
 @effect()
-def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = 0.0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2031,7 +2116,7 @@ def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, 
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2042,8 +2127,7 @@ def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, 
     mask = tf.pow(value.singularity(None, value_shape), 5)  # obscure center pinch
 
     # Displacement values multiplied by mask to make it wavy towards the edges
-    distortion_x = (value.values(2, value_shape,
-                                 time=time, speed=speed, spline_order=2) * 2.0 - 1.0) * mask
+    distortion_x = (value.values(2, value_shape, time=time, speed=speed, spline_order=2) * 2.0 - 1.0) * mask
 
     return value.refract(tensor, shape, displacement, reference_x=distortion_x)
 
@@ -2057,7 +2141,7 @@ def lens_distortion(tensor: tf.Tensor, shape: list[int], displacement: float = 1
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2065,13 +2149,13 @@ def lens_distortion(tensor: tf.Tensor, shape: list[int], displacement: float = 1
     x_index = tf.cast(value.row_index(shape), tf.float32) / shape[1]
     y_index = tf.cast(value.column_index(shape), tf.float32) / shape[0]
 
-    x_dist = x_index - .5
-    y_dist = y_index - .5
+    x_dist = x_index - 0.5
+    y_dist = y_index - 0.5
 
     center_dist = 1.0 - value.normalize(value.distance(x_dist, y_dist))
 
     if displacement < 0.0:
-        zoom = displacement * -.25
+        zoom = displacement * -0.25
     else:
         zoom = 0.0
 
@@ -2082,7 +2166,7 @@ def lens_distortion(tensor: tf.Tensor, shape: list[int], displacement: float = 1
 
 
 @effect()
-def degauss(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def degauss(tensor: tf.Tensor, shape: list[int], displacement: float = 0.0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2090,7 +2174,7 @@ def degauss(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, ti
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2108,13 +2192,13 @@ def degauss(tensor: tf.Tensor, shape: list[int], displacement: float = .0625, ti
 def crt(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Apply vintage CRT scanlines.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2124,11 +2208,9 @@ def crt(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
     value_shape = value.value_shape(shape)
 
     # Horizontal scanlines
-    scan_noise = value.normalize(
-        value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * .1, spline_order=0)
-    )
+    scan_noise = value.normalize(value.values(freq=[2, 1], shape=[2, 1, 1], time=time, speed=speed * 0.1, spline_order=0))
 
-    tile_h = max(1, int(height * .125))
+    tile_h = max(1, int(height * 0.125))
     scan_noise = expand_tile(scan_noise, [2, 1, 1], [tile_h * 2, width, 1], with_offset=False)
 
     scan_noise = value.resample(scan_noise, value_shape)
@@ -2138,11 +2220,11 @@ def crt(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
     tensor = value.clamp01(value.blend(tensor, (tensor + scan_noise) * scan_noise, 0.05))
 
     if channels == 3:
-        tensor = aberration(tensor, shape, .0125 + rng.random() * .00625)
-        tensor = adjust_hue(tensor, shape, rng.random() * .25 - .125)
+        tensor = aberration(tensor, shape, 0.0125 + rng.random() * 0.00625)
+        tensor = adjust_hue(tensor, shape, rng.random() * 0.25 - 0.125)
         tensor = tf.image.adjust_saturation(tensor, 1.125)
 
-    tensor = vignette(tensor, shape, brightness=0, alpha=rng.random() * .175)
+    tensor = vignette(tensor, shape, brightness=0, alpha=rng.random() * 0.175)
     mean = tf.reduce_mean(tensor)
     tensor = (tensor - mean) * 1.25 + mean
 
@@ -2157,7 +2239,7 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2166,12 +2248,10 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
 
     value_shape = value.value_shape(shape)
 
-    error_freq = [int(value_shape[0] * .5) or 1, int(value_shape[1] * .5) or 1]
+    error_freq = [int(value_shape[0] * 0.5) or 1, int(value_shape[1] * 0.5) or 1]
 
-    error_line = tf.maximum(value.values(freq=error_freq, shape=value_shape, time=time,
-                                         speed=speed * 10, distrib=ValueDistribution.exp) - .5, 0)
-    error_swerve = tf.maximum(value.values(freq=[int(height * .01), 1], shape=value_shape, time=time,
-                                           speed=speed, distrib=ValueDistribution.exp) - .5, 0)
+    error_line = tf.maximum(value.values(freq=error_freq, shape=value_shape, time=time, speed=speed * 10, distrib=ValueDistribution.exp) - 0.5, 0)
+    error_swerve = tf.maximum(value.values(freq=[int(height * 0.01), 1], shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.exp) - 0.5, 0)
 
     error_line *= error_swerve
 
@@ -2183,7 +2263,7 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
     error = error_line + white_noise
 
     y_index = value.column_index(shape)
-    x_index = (value.row_index(shape) - tf.cast(value.value_map(error, value_shape) * width * .025, tf.int32)) % width
+    x_index = (value.row_index(shape) - tf.cast(value.value_map(error, value_shape) * width * 0.025, tf.int32)) % width
 
     return tf.minimum(tf.gather_nd(tensor, tf.stack([y_index, x_index], 2)) + error_line * white_noise * 4, 1)
 
@@ -2197,7 +2277,7 @@ def snow(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float =
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2206,11 +2286,9 @@ def snow(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float =
 
     value_shape = value.value_shape(shape)
 
-    static = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100,
-                          spline_order=0)
+    static = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100, spline_order=0)
 
-    static_limiter = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100,
-                                  distrib=ValueDistribution.exp, spline_order=0) * alpha
+    static_limiter = value.values(freq=[height, width], shape=value_shape, time=time, speed=speed * 100, distrib=ValueDistribution.exp, spline_order=0) * alpha
 
     return value.blend(tensor, static, static_limiter)
 
@@ -2224,7 +2302,7 @@ def grain(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float 
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2237,7 +2315,7 @@ def grain(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float 
 
 
 @effect()
-def false_color(tensor: tf.Tensor, shape: list[int], horizontal: bool = False, displacement: float = .5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def false_color(tensor: tf.Tensor, shape: list[int], horizontal: bool = False, displacement: float = 0.5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2246,7 +2324,7 @@ def false_color(tensor: tf.Tensor, shape: list[int], horizontal: bool = False, d
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2264,7 +2342,7 @@ def fibers(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2274,12 +2352,23 @@ def fibers(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
     for i in range(4):
         mask = value.values(freq=4, shape=value_shape, time=time, speed=speed)
 
-        mask = worms(mask, shape, behavior=WormBehavior.chaotic, alpha=1, density=.05 + rng.random() * .00125,
-                     duration=1, kink=rng.random_int(5, 10), stride=.75, stride_deviation=.125, time=time, speed=speed)
+        mask = worms(
+            mask,
+            shape,
+            behavior=WormBehavior.chaotic,
+            alpha=1,
+            density=0.05 + rng.random() * 0.00125,
+            duration=1,
+            kink=rng.random_int(5, 10),
+            stride=0.75,
+            stride_deviation=0.125,
+            time=time,
+            speed=speed,
+        )
 
         brightness = value.values(freq=128, shape=shape, time=time, speed=speed)
 
-        tensor = value.blend(tensor, brightness, mask * .5)
+        tensor = value.blend(tensor, brightness, mask * 0.5)
 
     return tensor
 
@@ -2292,7 +2381,7 @@ def scratches(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2302,9 +2391,19 @@ def scratches(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
     for i in range(4):
         mask = value.values(freq=rng.random_int(2, 4), shape=value_shape, time=time, speed=speed)
 
-        mask = worms(mask, value_shape, behavior=[1, 3][rng.random_int(0, 1)], alpha=1, density=.25 + rng.random() * .25,
-                     duration=2 + rng.random() * 2, kink=.125 + rng.random() * .125, stride=.75, stride_deviation=.5,
-                     time=time, speed=speed)
+        mask = worms(
+            mask,
+            value_shape,
+            behavior=[1, 3][rng.random_int(0, 1)],
+            alpha=1,
+            density=0.25 + rng.random() * 0.25,
+            duration=2 + rng.random() * 2,
+            kink=0.125 + rng.random() * 0.125,
+            stride=0.75,
+            stride_deviation=0.5,
+            time=time,
+            speed=speed,
+        )
 
         mask -= value.values(freq=rng.random_int(2, 4), shape=value_shape, time=time, speed=speed) * 2.0
 
@@ -2325,7 +2424,7 @@ def stray_hair(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2334,12 +2433,21 @@ def stray_hair(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
 
     mask = value.values(4, value_shape, time=time, speed=speed)
 
-    mask = worms(mask, value_shape, behavior=WormBehavior.unruly, alpha=1, density=.0025 + rng.random() * .00125,
-                 duration=rng.random_int(8, 16), kink=rng.random_int(5, 50), stride=.5, stride_deviation=.25)
+    mask = worms(
+        mask,
+        value_shape,
+        behavior=WormBehavior.unruly,
+        alpha=1,
+        density=0.0025 + rng.random() * 0.00125,
+        duration=rng.random_int(8, 16),
+        kink=rng.random_int(5, 50),
+        stride=0.5,
+        stride_deviation=0.25,
+    )
 
     brightness = value.values(freq=32, shape=value_shape, time=time, speed=speed)
 
-    return value.blend(tensor, brightness * .333, mask * .666)
+    return value.blend(tensor, brightness * 0.333, mask * 0.666)
 
 
 @effect()
@@ -2350,31 +2458,37 @@ def grime(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
     value_shape = value.value_shape(shape)
 
-    mask = value.simple_multires(freq=5, shape=value_shape, time=time, speed=speed,
-                                 octaves=8)
+    mask = value.simple_multires(freq=5, shape=value_shape, time=time, speed=speed, octaves=8)
 
     mask = value.refract(mask, value_shape, 1.0, y_from_offset=True)
     mask = derivative(mask, value_shape, DistanceMetric.chebyshev, alpha=0.125)
 
-    dusty = value.blend(tensor, .25, tf.square(mask) * .075)
+    dusty = value.blend(tensor, 0.25, tf.square(mask) * 0.075)
 
-    specks = value.values(freq=[int(shape[0] * .25), int(shape[1] * .25)], shape=value_shape, time=time,
-                          mask=ValueMask.dropout, speed=speed, distrib=ValueDistribution.exp)
-    specks = value.refract(specks, value_shape, .25)
+    specks = value.values(
+        freq=[int(shape[0] * 0.25), int(shape[1] * 0.25)], shape=value_shape, time=time, mask=ValueMask.dropout, speed=speed, distrib=ValueDistribution.exp
+    )
+    specks = value.refract(specks, value_shape, 0.25)
 
-    specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - .625, 0.0)))
+    specks = 1.0 - tf.sqrt(value.normalize(tf.maximum(specks - 0.625, 0.0)))
 
-    dusty = value.blend(dusty, value.values(freq=[shape[0], shape[1]], shape=value_shape, mask=ValueMask.sparse,
-                                            time=time, speed=speed, distrib=ValueDistribution.exp), .075) * specks
+    dusty = (
+        value.blend(
+            dusty,
+            value.values(freq=[shape[0], shape[1]], shape=value_shape, mask=ValueMask.sparse, time=time, speed=speed, distrib=ValueDistribution.exp),
+            0.075,
+        )
+        * specks
+    )
 
-    return value.blend(tensor, dusty, mask * .75)
+    return value.blend(tensor, dusty, mask * 0.75)
 
 
 @effect()
@@ -2385,12 +2499,12 @@ def frame(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
-    half_shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
+    half_shape = [int(shape[0] * 0.5), int(shape[1] * 0.5), shape[2]]
     half_value_shape = value.value_shape(half_shape)
 
     noise = value.simple_multires(64, half_value_shape, time=time, speed=speed, octaves=8)
@@ -2399,23 +2513,23 @@ def frame(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
     white = tf.ones(half_value_shape, dtype=tf.float32)
 
     mask = value.singularity(None, half_value_shape, VoronoiDiagramType.range, dist_metric=DistanceMetric.chebyshev, inverse=True)
-    mask = value.normalize(mask + noise * .005)
+    mask = value.normalize(mask + noise * 0.005)
     mask = blend_layers(tf.sqrt(mask), half_value_shape, 0.0125, white, black, black, black)
 
     faded = value.proportional_downsample(tensor, shape, half_shape)
-    faded = tf.image.adjust_brightness(faded, .1)
-    faded = tf.image.adjust_contrast(faded, .75)
-    faded = light_leak(faded, half_shape, .125)
-    faded = vignette(faded, half_shape, 0.05, .75)
+    faded = tf.image.adjust_brightness(faded, 0.1)
+    faded = tf.image.adjust_contrast(faded, 0.75)
+    faded = light_leak(faded, half_shape, 0.125)
+    faded = vignette(faded, half_shape, 0.05, 0.75)
 
-    edge_texture = white * .9 + shadow(noise, half_value_shape, alpha=1.0) * .1
+    edge_texture = white * 0.9 + shadow(noise, half_value_shape, alpha=1.0) * 0.1
 
     out = value.blend(faded, edge_texture, mask)
-    out = aberration(out, half_shape, .00666)
+    out = aberration(out, half_shape, 0.00666)
     out = grime(out, half_shape)
 
-    out = tf.image.adjust_saturation(out, .5)
-    out = tf.image.random_hue(out, .05, seed=rng.random_int(0, 0xFFFFFFFF))
+    out = tf.image.adjust_saturation(out, 0.5)
+    out = tf.image.random_hue(out, 0.05, seed=rng.random_int(0, 0xFFFFFFFF))
 
     out = value.resample(out, shape)
 
@@ -2434,17 +2548,16 @@ def texture(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
     value_shape = value.value_shape(shape)
 
-    noise = value.simple_multires(64, value_shape, time=time, speed=speed,
-                                  octaves=8, ridges=True)
+    noise = value.simple_multires(64, value_shape, time=time, speed=speed, octaves=8, ridges=True)
 
-    return tensor * (tf.ones(value_shape, dtype=tf.float32) * .9 + shadow(noise, value_shape, 1.0) * .1)
+    return tensor * (tf.ones(value_shape, dtype=tf.float32) * 0.9 + shadow(noise, value_shape, 1.0) * 0.1)
 
 
 @effect()
@@ -2455,7 +2568,7 @@ def watermark(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2466,13 +2579,13 @@ def watermark(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
 
     mask = crt(mask, value_shape)
 
-    mask = warp(mask, value_shape, [2, 4], octaves=1, displacement=.5, time=time, speed=speed)
+    mask = warp(mask, value_shape, [2, 4], octaves=1, displacement=0.5, time=time, speed=speed)
 
     mask *= tf.square(value.values(freq=2, shape=value_shape, time=time, speed=speed))
 
     brightness = value.values(freq=16, shape=value_shape, time=time, speed=speed)
 
-    return value.blend(tensor, brightness, mask * .125)
+    return value.blend(tensor, brightness, mask * 0.125)
 
 
 @effect()
@@ -2483,12 +2596,12 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
-    if rng.random() > .75:
+    if rng.random() > 0.75:
         tensor = on_screen_display(tensor, shape, time=time, speed=speed)
 
     _masks = [
@@ -2527,11 +2640,10 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
         freq = [mask_shape[0], width]
 
         row_shape = [mask_shape[0], width, 1]
-        row_mask = value.values(freq=freq, shape=row_shape, corners=True, spline_order=0, distrib=ValueDistribution.ones,
-                                mask=mask, time=time, speed=speed)
+        row_mask = value.values(freq=freq, shape=row_shape, corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask, time=time, speed=speed)
 
         if time != 0.0:  # Make the ticker tick!
-            row_mask = value.offset(row_mask, row_shape, int(time*width), 0)
+            row_mask = value.offset(row_mask, row_shape, int(time * width), 0)
 
         row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
 
@@ -2539,10 +2651,10 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
 
         bottom_padding += mask_shape[0] * multiplier + 2
 
-    alpha = .5 + rng.random() * .25
+    alpha = 0.5 + rng.random() * 0.25
 
     # shadow
-    tensor = value.blend(tensor, tensor * 1.0 - value.offset(rendered_mask, shape, -1, -1), alpha * .333)
+    tensor = value.blend(tensor, tensor * 1.0 - value.offset(rendered_mask, shape, -1, -1), alpha * 0.333)
 
     return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
@@ -2555,7 +2667,7 @@ def on_screen_display(tensor: tf.Tensor, shape: list[int], time: float = 0.0, sp
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2579,12 +2691,13 @@ def on_screen_display(tensor: tf.Tensor, shape: list[int], time: float = 0.0, sp
 
     freq = [mask_shape[0], mask_shape[1] * glyph_count]
 
-    row_mask = value.values(freq=freq, shape=[height, width, shape[2]], corners=True, spline_order=0, distrib=ValueDistribution.ones,
-                            mask=mask, time=time, speed=speed)
+    row_mask = value.values(
+        freq=freq, shape=[height, width, shape[2]], corners=True, spline_order=0, distrib=ValueDistribution.ones, mask=mask, time=time, speed=speed
+    )
 
     rendered_mask = tf.pad(row_mask, tf.stack([[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]))
 
-    alpha = .5 + rng.random() * .25
+    alpha = 0.5 + rng.random() * 0.25
 
     return value.blend(tensor, tf.maximum(rendered_mask, tensor), alpha)
 
@@ -2597,19 +2710,17 @@ def nebula(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
     value_shape = value.value_shape(shape)
 
-    overlay = value.simple_multires([rng.random_int(3, 4), 1], value_shape, time=time, speed=speed,
-                                    distrib=ValueDistribution.exp, ridges=True, octaves=6)
+    overlay = value.simple_multires([rng.random_int(3, 4), 1], value_shape, time=time, speed=speed, distrib=ValueDistribution.exp, ridges=True, octaves=6)
 
-    overlay -= value.simple_multires([rng.random_int(2, 4), 1], value_shape, time=time, speed=speed,
-                                     ridges=True, octaves=4)
+    overlay -= value.simple_multires([rng.random_int(2, 4), 1], value_shape, time=time, speed=speed, ridges=True, octaves=4)
 
-    overlay *= .125
+    overlay *= 0.125
 
     overlay = rotate(overlay, value_shape, angle=rng.random_int(-15, 15), time=time, speed=speed)
 
@@ -2635,7 +2746,7 @@ def spatter(tensor: tf.Tensor, shape: list[int], color: bool = True, time: float
         color: Color
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2643,27 +2754,32 @@ def spatter(tensor: tf.Tensor, shape: list[int], color: bool = True, time: float
     value_shape = value.value_shape(shape)
 
     # Generate a smear
-    smear = value.simple_multires(rng.random_int(3, 6), value_shape, time=time,
-                                  speed=speed, distrib=ValueDistribution.exp,
-                                  octaves=6, spline_order=3)
+    smear = value.simple_multires(rng.random_int(3, 6), value_shape, time=time, speed=speed, distrib=ValueDistribution.exp, octaves=6, spline_order=3)
 
-    smear = warp(smear, value_shape, [rng.random_int(2, 3), rng.random_int(1, 3)],
-                 octaves=rng.random_int(1, 2), displacement=1.0 + rng.random(),
-                 spline_order=3, time=time, speed=speed)
+    smear = warp(
+        smear,
+        value_shape,
+        [rng.random_int(2, 3), rng.random_int(1, 3)],
+        octaves=rng.random_int(1, 2),
+        displacement=1.0 + rng.random(),
+        spline_order=3,
+        time=time,
+        speed=speed,
+    )
 
     # Add spatter dots
-    spatter = value.simple_multires(rng.random_int(32, 64), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.exp,
-                                    octaves=4, spline_order=InterpolationType.linear)
+    spatter = value.simple_multires(
+        rng.random_int(32, 64), value_shape, time=time, speed=speed, distrib=ValueDistribution.exp, octaves=4, spline_order=InterpolationType.linear
+    )
 
     spatter = adjust_brightness(spatter, shape, -1.0)
     spatter = adjust_contrast(spatter, shape, 4.0)
 
     smear = tf.maximum(smear, spatter)
 
-    spatter = value.simple_multires(rng.random_int(150, 200), value_shape, time=time,
-                                    speed=speed, distrib=ValueDistribution.exp,
-                                    octaves=4, spline_order=InterpolationType.linear)
+    spatter = value.simple_multires(
+        rng.random_int(150, 200), value_shape, time=time, speed=speed, distrib=ValueDistribution.exp, octaves=4, spline_order=InterpolationType.linear
+    )
 
     spatter = adjust_brightness(spatter, shape, -1.25)
     spatter = adjust_contrast(spatter, shape, 4.0)
@@ -2671,18 +2787,18 @@ def spatter(tensor: tf.Tensor, shape: list[int], color: bool = True, time: float
     smear = tf.maximum(smear, spatter)
 
     # Remove some of it
-    smear = tf.maximum(0.0, smear - value.simple_multires(rng.random_int(2, 3), value_shape, time=time,
-                                                          speed=speed, distrib=ValueDistribution.exp,
-                                                          ridges=True, octaves=3, spline_order=2))
+    smear = tf.maximum(
+        0.0,
+        smear
+        - value.simple_multires(
+            rng.random_int(2, 3), value_shape, time=time, speed=speed, distrib=ValueDistribution.exp, ridges=True, octaves=3, spline_order=2
+        ),
+    )
 
     #
     if color and shape[2] == 3:
         if color is True:
-            splash = tf.image.random_hue(
-                tf.ones(shape, dtype=tf.float32) * tf.stack([.875, 0.125, 0.125]),
-                .5,
-                seed=rng.random_int(0, 0xFFFFFFFF)
-            )
+            splash = tf.image.random_hue(tf.ones(shape, dtype=tf.float32) * tf.stack([0.875, 0.125, 0.125]), 0.5, seed=rng.random_int(0, 0xFFFFFFFF))
 
         else:  # Pass in [r, g, b]
             splash = tf.ones(shape, dtype=tf.float32) * tf.stack(color)
@@ -2690,30 +2806,29 @@ def spatter(tensor: tf.Tensor, shape: list[int], color: bool = True, time: float
     else:
         splash = tf.zeros(shape, dtype=tf.float32)
 
-    return blend_layers(value.normalize(smear), shape, .005, tensor, splash * tensor)
+    return blend_layers(value.normalize(smear), shape, 0.005, tensor, splash * tensor)
 
 
 @effect()
 def clouds(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Top-down cloud cover effect
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
 
-    pre_shape = [int(shape[0] * .25) or 1, int(shape[1] * .25) or 1, 1]
+    pre_shape = [int(shape[0] * 0.25) or 1, int(shape[1] * 0.25) or 1, 1]
 
-    control = value.simple_multires(freq=rng.random_int(2, 4), shape=pre_shape,
-                                    octaves=8, ridges=True, time=time, speed=speed)
+    control = value.simple_multires(freq=rng.random_int(2, 4), shape=pre_shape, octaves=8, ridges=True, time=time, speed=speed)
 
-    control = warp(control, pre_shape, freq=3, displacement=.125, octaves=2)
+    control = warp(control, pre_shape, freq=3, displacement=0.125, octaves=2)
 
     layer_0 = tf.ones(pre_shape, dtype=tf.float32)
     layer_1 = tf.zeros(pre_shape, dtype=tf.float32)
@@ -2731,10 +2846,10 @@ def clouds(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
     shaded = value.resample(shaded, post_shape)
     combined = value.resample(combined, post_shape)
 
-    tensor = value.blend(tensor, tf.zeros(shape, dtype=tf.float32), shaded * .75)
+    tensor = value.blend(tensor, tf.zeros(shape, dtype=tf.float32), shaded * 0.75)
     tensor = value.blend(tensor, tf.ones(shape, dtype=tf.float32), combined)
 
-    tensor = shadow(tensor, shape, alpha=.5)
+    tensor = shadow(tensor, shape, alpha=0.5)
 
     return tensor
 
@@ -2748,7 +2863,7 @@ def tint(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
         alpha: Blending alpha value (0.0-1.0)
-    
+
     Returns:
         Modified tensor
     """
@@ -2759,8 +2874,7 @@ def tint(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 
     color = value.values(freq=3, shape=shape, time=time, speed=speed, corners=True)
 
     # Confine hue to a range
-    color = tf.stack([(tensor[:, :, 0] * .333 + rng.random() * .333 + rng.random()) % 1.0,
-                      tensor[:, :, 1], tensor[:, :, 2]], 2)
+    color = tf.stack([(tensor[:, :, 0] * 0.333 + rng.random() * 0.333 + rng.random()) % 1.0, tensor[:, :, 1], tensor[:, :, 2]], 2)
 
     alpha_chan = None
     if shape[2] == 4:
@@ -2780,7 +2894,7 @@ def tint(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 
 
 
 @effect()
-def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = .25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2788,7 +2902,7 @@ def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = .25, time: f
         amount: Amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2799,7 +2913,7 @@ def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = .25, time: f
 
 
 @effect()
-def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = .75, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = 0.75, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2807,7 +2921,7 @@ def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = .75, 
         amount: Amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2818,7 +2932,7 @@ def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = .75, 
 
 
 @effect()
-def adjust_brightness(tensor: tf.Tensor, shape: list[int], amount: float = .125, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def adjust_brightness(tensor: tf.Tensor, shape: list[int], amount: float = 0.125, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2826,7 +2940,7 @@ def adjust_brightness(tensor: tf.Tensor, shape: list[int], amount: float = .125,
         amount: Amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2842,7 +2956,7 @@ def adjust_contrast(tensor: tf.Tensor, shape: list[int], amount: float = 1.25, t
         amount: Amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2857,7 +2971,7 @@ def normalize(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2872,7 +2986,7 @@ def ridge(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2889,7 +3003,7 @@ def sine(tensor: tf.Tensor, shape: list[int], amount: float = 1.0, time: float =
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
         rgb: Treat as RGB (vs grayscale)
-    
+
     Returns:
         Modified tensor
     """
@@ -2917,7 +3031,15 @@ def sine(tensor: tf.Tensor, shape: list[int], amount: float = 1.0, time: float =
 
 
 @effect()
-def value_refract(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 4, distrib: int | PointDistribution | ValueDistribution = ValueDistribution.center_circle, displacement: float = .125, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def value_refract(
+    tensor: tf.Tensor,
+    shape: list[int],
+    freq: int | list[int] = 4,
+    distrib: int | PointDistribution | ValueDistribution = ValueDistribution.center_circle,
+    displacement: float = 0.125,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2927,7 +3049,7 @@ def value_refract(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 4
         displacement: Displacement amount
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """
@@ -2938,7 +3060,14 @@ def value_refract(tensor: tf.Tensor, shape: list[int], freq: int | list[int] = 4
 
 
 @effect()
-def blur(tensor: tf.Tensor, shape: list[int], amount: float = 10.0, spline_order: int | InterpolationType = InterpolationType.bicubic, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
+def blur(
+    tensor: tf.Tensor,
+    shape: list[int],
+    amount: float = 10.0,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
+    time: float = 0.0,
+    speed: float = 1.0,
+) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -2947,7 +3076,7 @@ def blur(tensor: tf.Tensor, shape: list[int], amount: float = 10.0, spline_order
         spline_order: Interpolation type for resampling
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Modified tensor
     """

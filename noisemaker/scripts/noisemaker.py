@@ -1,40 +1,40 @@
-from enum import Enum
-
 import os
 import random
 import shutil
-import subprocess
+import sys
 import tempfile
 import textwrap
+from enum import Enum
 
 import click
 import tensorflow as tf
 
-from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
-from noisemaker.constants import ColorSpace, ValueDistribution
-from noisemaker.presets import PRESETS, Preset
-
 import noisemaker.ai as ai
 import noisemaker.cli as cli
-import noisemaker.generators as generators
 import noisemaker.effects as effects
+import noisemaker.generators as generators
 import noisemaker.util as util
 import noisemaker.value as value
+from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
+from noisemaker.presets import PRESETS, Preset
 
-MAX_SEED_VALUE = 2 ** 32 - 1
+MAX_SEED_VALUE = 2**32 - 1
 
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
 reload_presets(PRESETS)
 
 
-@click.group(help="""
+@click.group(
+    help="""
         Noisemaker - Let's make generative art with noise
 
         https://github.com/aayars/py-noisemaker
-        """, context_settings=cli.CLICK_CONTEXT_SETTINGS)
+        """,
+    context_settings=cli.CLICK_CONTEXT_SETTINGS,
+)
 def main():
     pass
 
@@ -43,22 +43,39 @@ def main():
 @cli.width_option()
 @cli.height_option()
 @cli.time_option()
-@click.option('--speed', help="Animation speed", type=float, default=0.25)
+@click.option("--speed", help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
-@cli.filename_option(default='art.png')
-@click.option('--with-alpha', help="Include alpha channel", is_flag=True, default=False)
-@click.option('--with-supersample', help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
-@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
-@click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
-@click.option('--with-upscale', help="AI: Apply x4 upscale (requires stability.ai key)", is_flag=True, default=False)
-@click.option('--with-alt-text', help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
-@click.option('--stability-model', help="AI: Override default stability.ai model", type=str, default=None)
-@click.option('--debug-print', help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
-@click.option('--debug-out', help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
-@click.argument('preset_name')
+@cli.filename_option(default="art.png")
+@click.option("--with-alpha", help="Include alpha channel", is_flag=True, default=False)
+@click.option("--with-supersample", help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
+@click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
+@click.option("--with-ai", help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
+@click.option("--with-upscale", help="AI: Apply x4 upscale (requires stability.ai key)", is_flag=True, default=False)
+@click.option("--with-alt-text", help="AI: Generate alt text (requires OpenAI key)", is_flag=True, default=False)
+@click.option("--stability-model", help="AI: Override default stability.ai model", type=str, default=None)
+@click.option("--debug-print", help="Debug: Print ancestors and settings to STDOUT", is_flag=True, default=False)
+@click.option("--debug-out", help="Debug: Log ancestors and settings to file", type=click.Path(dir_okay=False), default=None)
+@click.argument("preset_name")
 @click.pass_context
-def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale,
-             with_alt_text, stability_model, debug_print, debug_out, preset_name):
+def generate(
+    ctx,
+    width,
+    height,
+    time,
+    speed,
+    seed,
+    filename,
+    with_alpha,
+    with_supersample,
+    with_fxaa,
+    with_ai,
+    with_upscale,
+    with_alt_text,
+    stability_model,
+    debug_print,
+    debug_out,
+    preset_name,
+):
     if not seed:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -89,24 +106,34 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
                 print(line)
 
         if debug_out is not None:
-            with open(debug_out, 'w') as fh:
+            with open(debug_out, "w") as fh:
                 for line in debug_text:
                     fh.write(line + "\n")
 
     try:
-        preset.render(seed, shape=[height, width, None], time=time, speed=speed, filename=filename,
-                      with_alpha=with_alpha, with_supersample=with_supersample, with_fxaa=with_fxaa,
-                      with_ai=with_ai, with_upscale=with_upscale, stability_model=stability_model)
+        preset.render(
+            seed,
+            shape=[height, width, None],
+            time=time,
+            speed=speed,
+            filename=filename,
+            with_alpha=with_alpha,
+            with_supersample=with_supersample,
+            with_fxaa=with_fxaa,
+            with_ai=with_ai,
+            with_upscale=with_upscale,
+            stability_model=stability_model,
+        )
 
     except Exception as e:
         util.logger.error(f"preset.render() failed: {e}\nSeed: {seed}\nArgs: {preset.__dict__}")
         raise
 
     if preset.ai_success:
-        if preset.ai_settings['model'] in ('sd3', 'core', 'ultra'):
-            ai_label = 'stable-image ai'
+        if preset.ai_settings["model"] in ("sd3", "core", "ultra"):
+            ai_label = "stable-image ai"
         else:
-            ai_label = 'ai'
+            ai_label = "ai"
 
         print(f"{preset_name} (procedural) vs. {preset.ai_settings['model']} ({ai_label})")
 
@@ -114,7 +141,7 @@ def generate(ctx, width, height, time, speed, seed, filename, with_alpha, with_s
         print(preset_name)
 
     if with_alt_text:
-        print(ai.describe(preset.name.replace('-', ' '), preset.ai_settings.get("prompt"), filename))
+        print(ai.describe(preset.name.replace("-", " "), preset.ai_settings.get("prompt"), filename))
 
 
 def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model):
@@ -148,10 +175,10 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai,
         first_column.append("")
 
     if with_ai:
-        first_column.append(f"    - AI Settings:")
+        first_column.append("    - AI Settings:")
 
-        for (k, v) in sorted(preset.ai_settings.items()):
-            if stability_model and k == 'model':
+        for k, v in sorted(preset.ai_settings.items()):
+            if stability_model and k == "model":
                 v = stability_model
 
             for i, line in enumerate(textwrap.wrap(f"{k.replace('_', ' ')}: {v}", 42)):
@@ -196,7 +223,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai,
     first_column.append("")
 
     second_column = ["Settings:"]
-    for (k, v) in sorted(preset.settings.items()):
+    for k, v in sorted(preset.settings.items()):
         if isinstance(v, Enum):
             second_column.append(f"  - {k.replace('_', ' ')}: {v.name.replace('_', ' ')}")
         elif isinstance(v, float):
@@ -226,13 +253,13 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai,
 
 @main.command(help="Apply an effect to a .png or .jpg image")
 @cli.seed_option()
-@cli.filename_option(default='mangled.png')
-@cli.option('--no-resize', is_flag=True, help="Don't resize image. May break some presets.")
-@click.option('--with-fxaa', help="Apply FXAA anti-aliasing", is_flag=True, default=False)
+@cli.filename_option(default="mangled.png")
+@cli.option("--no-resize", is_flag=True, help="Don't resize image. May break some presets.")
+@click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @cli.time_option()
-@click.option('--speed', help="Animation speed", type=float, default=0.25)
-@click.argument('preset_name', type=click.Choice(['random'] + sorted(EFFECT_PRESETS)))
-@click.argument('input_filename')
+@click.option("--speed", help="Animation speed", type=float, default=0.25)
+@click.argument("preset_name", type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
+@click.argument("input_filename")
 @click.pass_context
 def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
     if not seed:
@@ -283,13 +310,8 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 @click.option("--with-alt-text", help="Generate alt text (requires OpenAI key)", is_flag=True, default=False)
 @click.option("--with-supersample", help="Apply x2 supersample anti-aliasing", is_flag=True, default=False)
 @click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
-@click.option('--with-ai', help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
-@click.option(
-    "--target-duration",
-    type=float,
-    default=None,
-    help="Stretch output to this duration (seconds) using motion-compensated interpolation"
-)
+@click.option("--with-ai", help="AI: Apply image-to-image (requires stability.ai key)", is_flag=True, default=False)
+@click.option("--target-duration", type=float, default=None, help="Stretch output to this duration (seconds) using motion-compensated interpolation")
 @click.argument("preset_name", type=click.Choice(["random"] + sorted(GENERATOR_PRESETS)))
 @click.pass_context
 def animate(
@@ -348,7 +370,7 @@ def animate(
                     with_fxaa=with_fxaa,
                     with_ai=with_ai,
                     style_filename=f"{tmp}/style.png",
-                    stability_model="stable-diffusion-v1-6"
+                    stability_model="stable-diffusion-v1-6",
                 )
             except Exception as e:
                 util.logger.error(f"Generator render failed: {e}\nSeed: {seed}\nArgs: {generator.__dict__}")
@@ -360,9 +382,7 @@ def animate(
             if effect:
                 input_shape = util.shape_from_file(frame_path)
                 input_shape[2] = min(input_shape[2], 3)
-                tensor = tf.image.convert_image_dtype(
-                    util.load(frame_path, channels=input_shape[2]), dtype=tf.float32
-                )
+                tensor = tf.image.convert_image_dtype(util.load(frame_path, channels=input_shape[2]), dtype=tf.float32)
 
                 shape = input_shape
 
@@ -397,26 +417,59 @@ def animate(
 
                 factor = 30 * target_duration / frame_count
 
-                util.check_call([
-                    "ffmpeg", "-y", "-framerate", "30",
-                    "-i", os.path.join(tmp, "%04d.png"),
-                    "-s", f"{width}x{height}",
-                    "-vf", f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
-                    "-c:v", "libx264", "-preset", "veryslow",
-                    "-crf", "15", "-pix_fmt", "yuv420p",
-                    "-b:v", "8000k", "-bufsize", "16000k",
-                    filename,
-                ])
+                util.check_call(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-framerate",
+                        "30",
+                        "-i",
+                        os.path.join(tmp, "%04d.png"),
+                        "-s",
+                        f"{width}x{height}",
+                        "-vf",
+                        f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryslow",
+                        "-crf",
+                        "15",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-b:v",
+                        "8000k",
+                        "-bufsize",
+                        "16000k",
+                        filename,
+                    ]
+                )
             else:
-                util.check_call([
-                    "ffmpeg", "-y", "-framerate", "30",
-                    "-i", os.path.join(tmp, "%04d.png"),
-                    "-s", f"{width}x{height}",
-                    "-c:v", "libx264", "-preset", "veryslow",
-                    "-crf", "15", "-pix_fmt", "yuv420p",
-                    "-b:v", "8000k", "-bufsize", "16000k",
-                    filename,
-                ])
+                util.check_call(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-framerate",
+                        "30",
+                        "-i",
+                        os.path.join(tmp, "%04d.png"),
+                        "-s",
+                        f"{width}x{height}",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryslow",
+                        "-crf",
+                        "15",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-b:v",
+                        "8000k",
+                        "-bufsize",
+                        "16000k",
+                        filename,
+                    ]
+                )
         else:
             util.magick(f"{tmp}/*png", filename)
 
@@ -432,27 +485,9 @@ def animate(
 @cli.option("--frame-count", type=int, default=50, help="How many frames total")
 @cli.option("--watermark", type=str)
 @cli.option("--preview-filename", type=click.Path(exists=False))
-@cli.option(
-    "--target-duration",
-    type=float,
-    default=None,
-    help="Stretch output to this duration (seconds) using motion-compensated interpolation"
-)
+@cli.option("--target-duration", type=float, default=None, help="Stretch output to this duration (seconds) using motion-compensated interpolation")
 @click.pass_context
-def magic_mashup(
-    ctx,
-    input_dir,
-    width,
-    height,
-    seed,
-    effect_preset,
-    filename,
-    save_frames,
-    frame_count,
-    watermark,
-    preview_filename,
-    target_duration
-):
+def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, target_duration):
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -464,14 +499,11 @@ def magic_mashup(
     if effect_preset:
         print(f"magic-mashup vs. {effect_preset}")
     else:
-        print(f"magic-mashup")
+        print("magic-mashup")
 
     effect = EFFECT_PRESETS.get(effect_preset) if effect_preset else None
 
-    dirnames = [
-        d for d in os.listdir(input_dir)
-        if os.path.isdir(os.path.join(input_dir, d))
-    ]
+    dirnames = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
     if not dirnames:
         click.echo(f"No subdirectories found in input dir {input_dir}")
         sys.exit(1)
@@ -490,39 +522,22 @@ def magic_mashup(
                 if i >= len(files):
                     continue
                 src = os.path.join(src_dir, files[i])
-                img = tf.image.convert_image_dtype(
-                    util.load(src, channels=3),
-                    dtype=tf.float32
-                )
+                img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
                 collage_images.append(img)
 
             value.set_seed(seed)
             shape = [height, width, 3]
 
-            base = generators.basic(
-                freq=random.randint(2, 4),
-                shape=shape,
-                hue_range=random.random(),
-                time=i / frame_count,
-                speed=0.125
-            )
+            base = generators.basic(freq=random.randint(2, 4), shape=shape, hue_range=random.random(), time=i / frame_count, speed=0.125)
 
             control_img = collage_images.pop() if collage_images else tf.zeros(shape, dtype=tf.float32)
             control = value.value_map(control_img, shape, keepdims=True)
-            control = value.convolve(
-                kernel=effects.ValueMask.conv2d_blur,
-                tensor=control,
-                shape=[shape[0], shape[1], 1]
-            )
+            control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[shape[0], shape[1], 1])
 
-            tensor = effects.blend_layers(
-                control, shape, random.random() * 0.5, *collage_images
-            )
+            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
             tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
             tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
-            tensor = effects.shadow(
-                tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control
-            )
+            tensor = effects.shadow(tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control)
             tensor = tf.image.adjust_brightness(tensor, 0.1)
             tensor = tf.image.adjust_contrast(tensor, 1.5)
 
@@ -560,37 +575,85 @@ def magic_mashup(
 
                 factor = 30 * target_duration / frame_count
 
-                util.check_call([
-                    "ffmpeg", "-y",
-                    "-framerate", "30",
-                    "-i", os.path.join(tmp, "%04d.png"),
-                    "-s", f"{width}x{height}",
-                    "-vf", f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
-                    "-c:v", "libx264", "-preset", "veryslow",
-                    "-crf", "15", "-pix_fmt", "yuv420p",
-                    "-b:v", "8000k", "-bufsize", "16000k",
-                    filename
-                ])
+                util.check_call(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-framerate",
+                        "30",
+                        "-i",
+                        os.path.join(tmp, "%04d.png"),
+                        "-s",
+                        f"{width}x{height}",
+                        "-vf",
+                        f"setpts={factor}*PTS,minterpolate=mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryslow",
+                        "-crf",
+                        "15",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-b:v",
+                        "8000k",
+                        "-bufsize",
+                        "16000k",
+                        filename,
+                    ]
+                )
             else:
-                util.check_call([
-                    "ffmpeg", "-y", "-framerate", "30",
-                    "-i", os.path.join(tmp, "%04d.png"),
-                    "-s", f"{width}x{height}",
-                    "-c:v", "libx264", "-preset", "veryslow",
-                    "-crf", "15", "-pix_fmt", "yuv420p",
-                    "-b:v", "8000k", "-bufsize", "16000k",
-                    filename
-                ])
+                util.check_call(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-framerate",
+                        "30",
+                        "-i",
+                        os.path.join(tmp, "%04d.png"),
+                        "-s",
+                        f"{width}x{height}",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "veryslow",
+                        "-crf",
+                        "15",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-b:v",
+                        "8000k",
+                        "-bufsize",
+                        "16000k",
+                        filename,
+                    ]
+                )
         else:
-            util.check_call([
-                "ffmpeg", "-y", "-framerate", "30",
-                "-i", os.path.join(tmp, "%04d.png"),
-                "-s", f"{width}x{height}",
-                "-c:v", "libx264", "-preset", "veryslow",
-                "-crf", "15", "-pix_fmt", "yuv420p",
-                "-b:v", "8000k", "-bufsize", "16000k",
-                filename
-            ])
+            util.check_call(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-framerate",
+                    "30",
+                    "-i",
+                    os.path.join(tmp, "%04d.png"),
+                    "-s",
+                    f"{width}x{height}",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryslow",
+                    "-crf",
+                    "15",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-b:v",
+                    "8000k",
+                    "-bufsize",
+                    "16000k",
+                    filename,
+                ]
+            )
 
 
 @main.command(help="Blend a directory of .png or .jpg images")
@@ -598,7 +661,7 @@ def magic_mashup(
 @cli.filename_option(default="mashup.png")
 @click.option("--control-filename", help="Control image filename (optional)")
 @cli.time_option()
-@click.option('--speed', help="Animation speed", type=float, default=0.25)
+@click.option("--speed", help="Animation speed", type=float, default=0.25)
 @cli.seed_option()
 @click.pass_context
 def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
@@ -606,7 +669,7 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 
     for root, _, files in os.walk(input_dir):
         for f in files:
-            if f.endswith(('.png', '.jpg')):
+            if f.endswith((".png", ".jpg")):
                 filenames_list.append(os.path.join(root, f))
 
     collage_count = min(random.randint(4, 6), len(filenames_list))
@@ -619,8 +682,7 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 
     if control_filename:
         shape_ctrl = util.shape_from_file(control_filename)
-        control_img = tf.image.convert_image_dtype(
-            util.load(control_filename, channels=shape_ctrl[2]), dtype=tf.float32)
+        control_img = tf.image.convert_image_dtype(util.load(control_filename, channels=shape_ctrl[2]), dtype=tf.float32)
     else:
         control_img = collage_images.pop()
 
@@ -629,33 +691,20 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
 
     value.set_seed(seed)
 
-    base = generators.basic(
-        freq=random.randint(2, 5),
-        shape=shape,
-        lattice_drift=random.randint(0, 1),
-        hue_range=random.random(),
-        time=time,
-        speed=speed
-    )
+    base = generators.basic(freq=random.randint(2, 5), shape=shape, lattice_drift=random.randint(0, 1), hue_range=random.random(), time=time, speed=speed)
 
     val_shape = value.value_shape(shape)
-    control = value.convolve(
-        kernel=effects.ValueMask.conv2d_blur,
-        tensor=control,
-        shape=val_shape
-    )
+    control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=val_shape)
 
     tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
     tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
     tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
-    tensor = effects.shadow(
-        tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control
-    )
+    tensor = effects.shadow(tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control)
     tensor = tf.image.adjust_brightness(tensor, 0.1)
     tensor = tf.image.adjust_contrast(tensor, 1.5)
 
     util.save(tensor, filename)
-    print('mashup')
+    print("mashup")
 
 
 def _use_reasonable_speed(preset, frame_count):

@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from functools import partial
 from typing import Callable
 
-import tempfile
+import tensorflow as tf
 
+import noisemaker.ai as ai
+import noisemaker.oklab as oklab
+import noisemaker.simplex as simplex
+import noisemaker.util as util
+import noisemaker.value as value
 from noisemaker.constants import (
     ColorSpace,
     InterpolationType,
@@ -15,14 +21,6 @@ from noisemaker.constants import (
     ValueDistribution,
     ValueMask,
 )
-
-import noisemaker.ai as ai
-import noisemaker.effects as effects
-import noisemaker.oklab as oklab
-import noisemaker.simplex as simplex
-import noisemaker.util as util
-import noisemaker.value as value
-import tensorflow as tf
 
 
 def basic(
@@ -105,9 +103,16 @@ def basic(
     tensor = value.values(freq=freq, shape=shape, distrib=distrib, **common_value_params)
 
     if lattice_drift:
-        tensor = value.refract(tensor, shape, time=time, speed=speed,
-                               displacement=lattice_drift / min(freq[0], freq[1]),
-                               warp_freq=freq, spline_order=spline_order, signed_range=False)
+        tensor = value.refract(
+            tensor,
+            shape,
+            time=time,
+            speed=speed,
+            displacement=lattice_drift / min(freq[0], freq[1]),
+            warp_freq=freq,
+            spline_order=spline_order,
+            signed_range=False,
+        )
 
     if octave_effects is not None:
         for effect_or_preset in octave_effects:
@@ -126,8 +131,8 @@ def basic(
 
     if color_space == ColorSpace.oklab:
         L = tensor[:, :, 0]
-        a = tensor[:, :, 1] * -.509 + .276
-        b = tensor[:, :, 2] * -.509 + .198
+        a = tensor[:, :, 1] * -0.509 + 0.276
+        b = tensor[:, :, 2] * -0.509 + 0.198
 
         tensor = value.clamp01(oklab.oklab_to_rgb(tf.stack([L, a, b], 2)))
         color_space = ColorSpace.rgb
@@ -166,9 +171,7 @@ def basic(
             if isinstance(brightness_freq, int):
                 brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
-            v = tf.squeeze(value.values(freq=brightness_freq or freq,
-                                        distrib=brightness_distrib or ValueDistribution.simplex,
-                                        **common_value_params))
+            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.simplex, **common_value_params))
         else:
             v = tensor[:, :, 2]
 
@@ -295,9 +298,9 @@ def multires(
     color_space = value.coerce_enum(color_space, ColorSpace)
     octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
-    original_shape = shape.copy()
+    original_shape = shape.copy() if shape is not None else None
 
-    if shape[-1] is None:
+    if shape is not None and shape[-1] is None:
         shape = util.shape_from_params(shape[1], shape[0], color_space, with_alpha)
 
     if isinstance(freq, int):
@@ -314,20 +317,39 @@ def multires(
         tensor = tf.zeros(shape, dtype=tf.float32)
 
         for octave in range(1, octaves + 1):
-            multiplier = 2 ** octave
+            multiplier = 2**octave
 
-            base_freq = [int(f * .5 * multiplier) for f in freq]
+            freq_list = freq if isinstance(freq, list) else [freq, freq]
+            base_freq = [int(f * 0.5 * multiplier) for f in freq_list]
 
             if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
                 break
 
-            layer = basic(base_freq, shape, ridges=ridges, sin=sin, spline_order=spline_order, corners=corners,
-                          distrib=distrib, mask=mask, mask_inverse=mask_inverse, mask_static=mask_static,
-                          lattice_drift=lattice_drift, color_space=color_space, hue_range=hue_range,
-                          hue_rotation=hue_rotation, saturation=saturation, hue_distrib=hue_distrib,
-                          brightness_distrib=brightness_distrib, brightness_freq=brightness_freq,
-                          saturation_distrib=saturation_distrib, octave_effects=octave_effects, octave=octave,
-                          time=time, speed=speed)
+            layer = basic(
+                base_freq,
+                shape,
+                ridges=ridges,
+                sin=sin,
+                spline_order=spline_order,
+                corners=corners,
+                distrib=distrib,
+                mask=mask,
+                mask_inverse=mask_inverse,
+                mask_static=mask_static,
+                lattice_drift=lattice_drift,
+                color_space=color_space,
+                hue_range=hue_range,
+                hue_rotation=hue_rotation,
+                saturation=saturation,
+                hue_distrib=hue_distrib,
+                brightness_distrib=brightness_distrib,
+                brightness_freq=brightness_freq,
+                saturation_distrib=saturation_distrib,
+                octave_effects=octave_effects,
+                octave=octave,
+                time=time,
+                speed=speed,
+            )
 
             if octave_blending == OctaveBlending.reduce_max:
                 tensor = tf.maximum(tensor, layer)
@@ -353,8 +375,9 @@ def multires(
             shape = original_shape
 
     else:
-        for effect_or_preset in octave_effects:
-            tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, 1)
+        if octave_effects is not None:
+            for effect_or_preset in octave_effects:
+                tensor = _apply_octave_effect_or_preset(effect_or_preset, tensor, shape, time, speed, 1)
 
     tensor = value.normalize(tensor)
 
@@ -363,9 +386,10 @@ def multires(
     if tensor.shape != shape:
         value.resample(tensor, shape)
 
-    for effect_or_preset in post_effects:
-        tensor, f = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
-        final += f
+    if post_effects is not None:
+        for effect_or_preset in post_effects:
+            tensor, f = _apply_post_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
+            final += f
 
     if with_ai:
         tensor = value.normalize(tensor)
@@ -390,8 +414,7 @@ def multires(
                     style_path = f"{tmp}/temp-style.png"
 
                 if style_reference is None:
-                    style_reference = ai.apply(preset.ai_settings, seed, input_filename=tmp_path,
-                                               stability_model=stability_model)
+                    style_reference = ai.apply(preset.ai_settings, seed, input_filename=tmp_path, stability_model=stability_model)
 
                 style_reference = value.resample(style_reference, shape)
 
@@ -436,10 +459,12 @@ def multires(
     return tensor
 
 
-def _apply_octave_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float, octave: int) -> tf.Tensor:
+def _apply_octave_effect_or_preset(
+    effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float, octave: int
+) -> tf.Tensor:
     """
     Helper function to either invoke an octave effect or unroll a preset.
-    
+
     Args:
         effect_or_preset: Effect function or Preset to apply
         tensor: Input tensor
@@ -447,14 +472,14 @@ def _apply_octave_effect_or_preset(effect_or_preset: Callable | object, tensor: 
         time: Time parameter
         speed: Speed parameter
         octave: Current octave number
-    
+
     Returns:
         Processed tensor
     """
     if callable(effect_or_preset):
         if "displacement" in effect_or_preset.keywords:
             kwargs = dict(effect_or_preset.keywords)  # Be sure to copy, otherwise it modifies the original
-            kwargs["displacement"] /= 2 ** octave
+            kwargs["displacement"] /= 2**octave
             effect_or_preset = partial(effect_or_preset.func, **kwargs)
 
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
@@ -465,17 +490,18 @@ def _apply_octave_effect_or_preset(effect_or_preset: Callable | object, tensor: 
 
         return tensor
 
+
 def _apply_post_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tuple[tf.Tensor, list]:
     """
     Helper function to either invoke a post effect or unroll a preset.
-    
+
     Args:
         effect_or_preset: Effect function or Preset to apply
         tensor: Input tensor
         shape: Tensor shape
         time: Time parameter
         speed: Speed parameter
-    
+
     Returns:
         Tuple of (processed tensor, list of final effects to apply later)
     """
@@ -498,14 +524,14 @@ def _apply_post_effect_or_preset(effect_or_preset: Callable | object, tensor: tf
 def _apply_final_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tf.Tensor:
     """
     Helper function to either invoke a final effect or unroll a preset.
-    
+
     Args:
         effect_or_preset: Effect function or Preset to apply
         tensor: Input tensor
         shape: Tensor shape
         time: Time parameter
         speed: Speed parameter
-    
+
     Returns:
         Processed tensor
     """

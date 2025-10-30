@@ -2,8 +2,6 @@ from __future__ import annotations
 
 """Noise generation interface for Noisemaker"""
 
-from typing import Any
-
 #
 # stability.ai key is needed for stable diffusion.
 # Put the key in a file named: $NOISEMAKER_DIR/.creds/.stability
@@ -13,18 +11,16 @@ from typing import Any
 #
 # $NOISEMAKER_DIR defaults to ~/.noisemaker
 #
-
 import base64
 import os
-import noisemaker.rng as random
-
-import noisemaker.util as util
-
-from colorthief import ColorThief
+from typing import Any
 
 import requests
 import tensorflow as tf
+from colorthief import ColorThief
 
+import noisemaker.rng as random
+import noisemaker.util as util
 
 STABILITY_API_HOST = "https://api.stability.ai"
 
@@ -51,20 +47,15 @@ def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_mo
     Raises:
         Exception: If API returns non-200 status code.
     """
-    model = stability_model if stability_model else settings['model']
+    model = stability_model if stability_model else settings["model"]
 
-    if model in ('sd3', 'core', 'ultra'):
+    if model in ("sd3", "core", "ultra"):
         return apply_v2(settings, seed, input_filename, stability_model)
 
     response = requests.post(
         f"{STABILITY_API_HOST}/v1/generation/{model}/image-to-image",
-        headers={
-            "Accept": "application/json",
-            "Authorization": f"Bearer {_api_key('stability')}"
-        },
-        files={
-            "init_image": open(input_filename, "rb")
-        },
+        headers={"Accept": "application/json", "Authorization": f"Bearer {_api_key('stability')}"},
+        files={"init_image": open(input_filename, "rb")},
         data={
             "image_strength": settings["image_strength"],
             "init_image_mode": "IMAGE_STRENGTH",
@@ -74,7 +65,7 @@ def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_mo
             "steps": 50,
             "seed": seed,
             "style_preset": settings["style_preset"],
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -103,25 +94,20 @@ def apply_v2(settings: dict[str, Any], seed: int, input_filename: str, stability
     Raises:
         Exception: If API returns non-200 status or generation fails.
     """
-    model = stability_model if stability_model else settings['model']
+    model = stability_model if stability_model else settings["model"]
 
     response = requests.post(
         f"{STABILITY_API_HOST}/v2beta/stable-image/generate/{model}",
-        headers={
-            "Accept": "application/json",
-            "Authorization": f"Bearer {_api_key('stability')}"
-        },
-        files={
-            "image": open(input_filename, "rb")
-        },
+        headers={"Accept": "application/json", "Authorization": f"Bearer {_api_key('stability')}"},
+        files={"image": open(input_filename, "rb")},
         data={
             "mode": "image-to-image",
             "prompt": settings["prompt"],
             "negative_prompt": settings.get("negative_prompt", "People, Words"),
             "strength": settings["image_strength"],
             "seed": seed,
-            "output_format": "png"
-        }
+            "output_format": "png",
+        },
     )
 
     if response.status_code != 200:
@@ -158,25 +144,19 @@ def apply_style(settings: dict[str, Any], seed: int, content_filename: str, styl
     """
     response = requests.post(
         f"{STABILITY_API_HOST}/v2beta/stable-image/control/style-transfer",
-        headers={
-            "Accept": "image/*",
-            'Authorization': f"Bearer {_api_key('stability')}"
-        },
-        files={
-            "init_image": open(content_filename, "rb"),
-            "style_image": open(style_filename, "rb")
-        },
+        headers={"Accept": "image/*", "Authorization": f"Bearer {_api_key('stability')}"},
+        files={"init_image": open(content_filename, "rb"), "style_image": open(style_filename, "rb")},
         data={
             "prompt": settings["prompt"],
             "negative_prompt": settings.get("negative_prompt", "People, Words"),
             "style_strength": settings["image_strength"],
             "seed": seed,
             "output_format": output_format,
-        }
+        },
     )
 
     if response.status_code != 200:
-        raise Exception('Non-200 response: ' + response.text)
+        raise Exception("Non-200 response: " + response.text)
 
     tensor = tf.io.decode_image(response.content, channels=0)
 
@@ -197,16 +177,9 @@ def x4_upscale(input_filename: str) -> str:
     """
     response = requests.post(
         f"{STABILITY_API_HOST}/v2beta/stable-image/upscale/fast",
-        headers={
-            "Accept": "image/*",
-            "Authorization": f"Bearer {_api_key('stability')}"
-        },
-        files={
-            "image": open(input_filename, "rb")
-        },
-        data={
-            "output_format": "png"
-        }
+        headers={"Accept": "image/*", "Authorization": f"Bearer {_api_key('stability')}"},
+        files={"image": open(input_filename, "rb")},
+        data={"output_format": "png"},
     )
 
     if response.status_code != 200:
@@ -238,7 +211,7 @@ def describe(preset_name: str, prompt: str, filename: str) -> str:
         #
         #
         thief = ColorThief(filename)
-        palette = thief.get_palette(color_count=random.randint(2,3))
+        palette = thief.get_palette(color_count=random.randint(2, 3))
 
         prompt += """
                   The composition includes the following colors.
@@ -258,27 +231,27 @@ def describe(preset_name: str, prompt: str, filename: str) -> str:
             assumptions or declarative statements that fall outside
             of the information you are provided with.
 
-	        You will be provided with a name of a generative art
-	        composition, along with a comma-delimited list of
-		    descriptive terms and key colors. You will use this
-		    information to generate a brief but informative alt
-		    text caption. Put quotes around the provided name
-		    of the composition, and properly capitalize it.
+            You will be provided with a name of a generative art
+            composition, along with a comma-delimited list of
+            descriptive terms and key colors. You will use this
+            information to generate a brief but informative alt
+            text caption. Put quotes around the provided name
+            of the composition, and properly capitalize it.
 
-	        Input may specify RGB color codes in the format of
-	        rgb(R,G,B) in the range of 0-255, but you must convert
-	        these into human-readable color names and refer to them
-	        as such. Do not refer to RGB color code representations
-	        or quote the names.  Do not put the entire summary in
-	        quotes.  The summary may not exceed 250 characters.
+            Input may specify RGB color codes in the format of
+            rgb(R,G,B) in the range of 0-255, but you must convert
+            these into human-readable color names and refer to them
+            as such. Do not refer to RGB color code representations
+            or quote the names.  Do not put the entire summary in
+            quotes.  The summary may not exceed 250 characters.
             """
 
-        user_prompt =  f"""
-	        Create a human-readable English summary to be used as
-	        a descriptive \"alt text\" image caption, for those who
-	        are unable to see the image. The name of the composition
-	        is \"{preset_name}\", and the list of terms is:
-	        \"{prompt}\"
+        user_prompt = f"""
+            Create a human-readable English summary to be used as
+            a descriptive \"alt text\" image caption, for those who
+            are unable to see the image. The name of the composition
+            is \"{preset_name}\", and the list of terms is:
+            \"{prompt}\"
             """
 
         summary = _openai_query(system_prompt, user_prompt)
@@ -287,25 +260,24 @@ def describe(preset_name: str, prompt: str, filename: str) -> str:
         #
         #
         system_prompt = """
-	        Sometimes the previous OpenAI assistant makes mistakes, it
-	        is your job to correct them. For the given summary of a
-	        generative art piece, perform the following fixes as
-	        necessary: Shorten the summary to 250 characters or fewer.
-	        Composition name must be in quotes and properly capitalized.
-	        Any lingering RGB color codes must be converted into
-	        human-readable color names. Color names must be lower-case,
-	        and not in quotes. The summary paragraph must not be in
-	        quotes. Take it easy with superlatives such as \"captivating\"
-	        and \"mesmerizing\". Finally, check the grammar and tone
-	        of the summary, and make sure it doesn't sound too pretentious
-	        or repetitive.
+            Sometimes the previous OpenAI assistant makes mistakes, it
+            is your job to correct them. For the given summary of a
+            generative art piece, perform the following fixes as
+            necessary: Shorten the summary to 250 characters or fewer.
+            Composition name must be in quotes and properly capitalized.
+            Any lingering RGB color codes must be converted into
+            human-readable color names. Color names must be lower-case,
+            and not in quotes. The summary paragraph must not be in
+            quotes. Take it easy with superlatives such as \"captivating\"
+            and \"mesmerizing\". Finally, check the grammar and tone
+            of the summary, and make sure it doesn't sound too pretentious
+            or repetitive.
             """
 
         summary = _openai_query(system_prompt, summary)
 
     except Exception:
-        summary = f"\"{preset_name}\" is an abstract generative art composition. " \
-                   "(An error occurred while trying to come up with a better description)"
+        summary = f'"{preset_name}" is an abstract generative art composition. ' "(An error occurred while trying to come up with a better description)"
 
     return summary
 
@@ -325,7 +297,7 @@ def _api_key(api: str) -> str:
     api_key = None
     api_key_path = f"{util.get_noisemaker_dir()}/.creds/.{api}"
     if os.path.exists(api_key_path):
-        with open(api_key_path, 'r') as fh:
+        with open(api_key_path) as fh:
             api_key = fh.read().strip()
 
     if api_key is None:
@@ -363,12 +335,12 @@ def _openai_query(system_prompt: str, user_prompt: str) -> str:
                 {
                     "role": "user",
                     "content": user_prompt,
-                }
+                },
             ],
-        }
+        },
     )
 
     try:
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception:
         raise Exception(f"Unexpected JSON structure: {response.json()}")

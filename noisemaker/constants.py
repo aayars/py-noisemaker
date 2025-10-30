@@ -28,7 +28,7 @@ class DistanceMetric(Enum):
     def all(cls: Type[DistanceMetric]) -> list[DistanceMetric]:
         """
         Get all distance metrics except none.
-        
+
         Returns:
             List of all non-none distance metrics
         """
@@ -38,7 +38,7 @@ class DistanceMetric(Enum):
     def absolute_members(cls: Type[DistanceMetric]) -> list[DistanceMetric]:
         """
         Get all distance metrics that require absolute inputs.
-        
+
         Returns:
             List of absolute distance metrics (euclidean, manhattan, chebyshev, octagram)
         """
@@ -48,10 +48,10 @@ class DistanceMetric(Enum):
     def is_absolute(cls: Type[DistanceMetric], member: DistanceMetric) -> bool:
         """
         Check if a distance metric requires absolute inputs.
-        
+
         Args:
             member: Distance metric to check
-        
+
         Returns:
             True if metric requires absolute inputs
         """
@@ -61,7 +61,7 @@ class DistanceMetric(Enum):
     def signed_members(cls: Type[DistanceMetric]) -> list[DistanceMetric]:
         """
         Get all distance metrics that require signed inputs.
-        
+
         Returns:
             List of signed distance metrics (triangular, hexagram, sdf)
         """
@@ -71,10 +71,10 @@ class DistanceMetric(Enum):
     def is_signed(cls: Type[DistanceMetric], member: DistanceMetric) -> bool:
         """
         Check if a distance metric requires signed inputs.
-        
+
         Args:
             member: Distance metric to check
-        
+
         Returns:
             True if metric requires signed inputs
         """
@@ -236,8 +236,7 @@ class ValueDistribution(Enum):
 
 
 class ValueMask(Enum):
-    """
-    """
+    """ """
 
     square = 1
     waffle = 2
@@ -542,7 +541,7 @@ class ValueMask(Enum):
         Returns:
             True if the mask is conv2d-based
         """
-        return member.name.startswith('conv2d')
+        return member.name.startswith("conv2d")
 
     @classmethod
     def grid_members(cls: Type[PointDistribution]) -> list[PointDistribution]:
@@ -631,11 +630,14 @@ class ValueMask(Enum):
         Returns:
             List of glyph-based value mask types
         """
-        return [m for m in cls if
-                    (m.value >= cls.invaders.value and m.value <= cls.tromino.value) or
-                    (m.value >= cls.lcd.value and m.value <= cls.arecibo_dna.value) or
-                    m.value == cls.emoji.value or
-                    m.value == cls.bank_ocr.value]
+        return [
+            m
+            for m in cls
+            if (m.value >= cls.invaders.value and m.value <= cls.tromino.value)
+            or (m.value >= cls.lcd.value and m.value <= cls.arecibo_dna.value)
+            or m.value == cls.emoji.value
+            or m.value == cls.bank_ocr.value
+        ]
 
     @classmethod
     def is_glyph(cls, member) -> bool:
@@ -752,8 +754,7 @@ class OctaveBlending(Enum):
 
 
 class ColorSpace(Enum):
-    """
-    """
+    """ """
 
     grayscale = 1
 

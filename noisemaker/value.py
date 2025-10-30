@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import Callable
-
 import math
+from collections import defaultdict
+from typing import Any
 
 import numpy as np
 import tensorflow as tf
 
+import noisemaker.masks as masks
+import noisemaker.oklab as oklab
 import noisemaker.rng as rng
-
+import noisemaker.simplex as simplex
 from noisemaker.constants import (
     DistanceMetric,
     InterpolationType,
@@ -23,18 +24,14 @@ from noisemaker.constants import (
 from noisemaker.effects_registry import effect
 from noisemaker.points import point_cloud
 
-import noisemaker.masks as masks
-import noisemaker.oklab as oklab
-import noisemaker.simplex as simplex
-
 
 def set_seed(seed: int | None) -> None:
     """
     Set the random seed for noise generation.
-    
+
     Args:
         seed: Random seed value, or None to skip seeding
-    
+
     Returns:
         Processed tensor
     """
@@ -47,11 +44,11 @@ def set_seed(seed: int | None) -> None:
 def value_noise(count: int, freq: int = 8) -> tf.Tensor:
     """
     Generate 1D value noise samples.
-    
+
     Args:
         count: Number of samples to generate
         freq: Frequency for noise generation
-    
+
     Returns:
         Processed tensor
     """
@@ -82,7 +79,7 @@ def values(
 ) -> tf.Tensor:
     """
     Generate a tensor of noise values with specified distribution.
-    
+
     Args:
         freq: Frequency for noise generation
         shape: Shape of the tensor [height, width, channels]
@@ -94,7 +91,7 @@ def values(
         spline_order: Interpolation type for resampling
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -115,20 +112,16 @@ def values(
         tensor = tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.mids:
-        tensor = tf.ones(initial_shape, dtype=tf.float32) * .5
+        tensor = tf.ones(initial_shape, dtype=tf.float32) * 0.5
 
     elif distrib == ValueDistribution.zeros:
         tensor = tf.zeros(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.column_index:
-        tensor = tf.expand_dims(
-            normalize(tf.cast(column_index(initial_shape), tf.float32)), -1
-        ) * tf.ones(initial_shape, dtype=tf.float32)
+        tensor = tf.expand_dims(normalize(tf.cast(column_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif distrib == ValueDistribution.row_index:
-        tensor = tf.expand_dims(
-            normalize(tf.cast(row_index(initial_shape), tf.float32)), -1
-        ) * tf.ones(initial_shape, dtype=tf.float32)
+        tensor = tf.expand_dims(normalize(tf.cast(row_index(initial_shape), tf.float32)), -1) * tf.ones(initial_shape, dtype=tf.float32)
 
     elif ValueDistribution.is_center_distance(distrib):
         sdf_sides = None
@@ -171,8 +164,7 @@ def values(
             rounded_speed = math.ceil(-1 + speed)
 
         tensor = normalized_sine(
-            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1])
-            - math.tau * time * rounded_speed
+            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1]) - math.tau * time * rounded_speed
         ) * tf.ones(shape, dtype=tf.float32)
 
     elif ValueDistribution.is_noise(distrib):
@@ -204,8 +196,7 @@ def values(
 
         glyph_shape = freq + [1]
 
-        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse,
-                                           time=0 if mask_static else time, speed=speed)
+        mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse, time=0 if mask_static else time, speed=speed)
 
         # These noise types are generated at full size, resize and pin just the mask.
         if ValueDistribution.is_native_size(distrib):
@@ -232,16 +223,16 @@ def values(
     return tensor
 
 
-def distance(a: tf.Tensor, b: tf.Tensor, metric: int | DistanceMetric=DistanceMetric.euclidean, sdf_sides: int=5) -> tf.Tensor:
+def distance(a: tf.Tensor, b: tf.Tensor, metric: int | DistanceMetric = DistanceMetric.euclidean, sdf_sides: int = 5) -> tf.Tensor:
     """
     Compute the distance from a to b, using the specified metric.
-    
+
     Args:
         a: First value for blending/distance
         b: Second value for blending/distance
         metric: Distance metric to use
         sdf_sides: SDF polygon sides for distance metric
-    
+
     Returns:
         Processed tensor
     """
@@ -261,23 +252,20 @@ def distance(a: tf.Tensor, b: tf.Tensor, metric: int | DistanceMetric=DistanceMe
         dist = tf.maximum((tf.abs(a) + tf.abs(b)) / math.sqrt(2), tf.maximum(tf.abs(a), tf.abs(b)))
 
     elif metric == DistanceMetric.triangular:
-        dist = tf.maximum(tf.abs(a) - b * .5, b)
+        dist = tf.maximum(tf.abs(a) - b * 0.5, b)
 
     elif metric == DistanceMetric.hexagram:
-        dist = tf.maximum(
-            tf.maximum(tf.abs(a) - b * .5, b),
-            tf.maximum(tf.abs(a) - b * -.5, b * -1)
-        )
+        dist = tf.maximum(tf.maximum(tf.abs(a) - b * 0.5, b), tf.maximum(tf.abs(a) - b * -0.5, b * -1))
 
     elif metric == DistanceMetric.sdf:
         # https://thebookofshaders.com/07/
         arctan = tf.math.atan2(a, -b) + math.pi
         r = math.tau / sdf_sides
 
-        dist = tf.math.cos(tf.math.floor(.5 + arctan / r) * r - arctan) * tf.sqrt(a * a + b * b)
+        dist = tf.math.cos(tf.math.floor(0.5 + arctan / r) * r - arctan) * tf.sqrt(a * a + b * b)
 
     else:
-        raise ValueError("{0} isn't a distance metric.".format(metric))
+        raise ValueError(f"{metric} isn't a distance metric.")
 
     return dist
 
@@ -311,7 +299,7 @@ def voronoi(
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -333,7 +321,7 @@ def voronoi(
         point_drift: Point drift amount
         point_corners: Include corner points
         downsample: Downsample the result
-    
+
     Returns:
         Processed tensor
     """
@@ -345,7 +333,7 @@ def voronoi(
     original_shape = shape
 
     if downsample:  # To save memory
-        shape = [int(shape[0] * .5), int(shape[1] * .5), shape[2]]
+        shape = [int(shape[0] * 0.5), int(shape[1] * 0.5), shape[2]]
 
     height, width, channels = shape
 
@@ -355,8 +343,9 @@ def voronoi(
             point_count = len(x)
 
         else:
-            x0, y0 = point_cloud(point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations,
-                               drift=point_drift, time=time, speed=speed)
+            x0, y0 = point_cloud(
+                point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations, drift=point_drift, time=time, speed=speed
+            )
             point_count = len(x0)
 
             x = []
@@ -393,8 +382,8 @@ def voronoi(
 
     if diagram_type in VoronoiDiagramType.flow_members():
         # If we're using flow with a perfectly tiled grid, it just disappears. Perturbing the points seems to prevent this from happening.
-        x += rng.normal(tf.shape(x), stddev=.0001, dtype=tf.float32)
-        y += rng.normal(tf.shape(y), stddev=.0001, dtype=tf.float32)
+        x += rng.normal(tf.shape(x), stddev=0.0001, dtype=tf.float32)
+        y += rng.normal(tf.shape(y), stddev=0.0001, dtype=tf.float32)
 
     if is_triangular:
         # Keep it visually flipped "horizontal"-side-up
@@ -403,8 +392,8 @@ def voronoi(
         dist = distance((x_index - x) / width, (y_index - y) * y_sign / height, dist_metric, sdf_sides=sdf_sides)
 
     else:
-        half_width = int(width * .5)
-        half_height = int(height * .5)
+        half_width = int(width * 0.5)
+        half_height = int(height * 0.5)
 
         # Wrapping edges! Nearest neighbors might be actually be "wrapped around", on the opposite side of the image.
         # Determine which direction is closer, and use the minimum.
@@ -435,8 +424,8 @@ def voronoi(
 
     # Seamless alg offset pixels by half image size. Move results slice back to starting points with `offset`:
     offset_kwargs = {
-        'x': 0.0 if is_triangular else half_width,
-        'y': 0.0 if is_triangular else half_height,
+        "x": 0.0 if is_triangular else half_width,
+        "y": 0.0 if is_triangular else half_height,
     }
 
     if diagram_type in (VoronoiDiagramType.range, VoronoiDiagramType.color_range, VoronoiDiagramType.range_regions):
@@ -515,8 +504,7 @@ def voronoi(
         out = tf.expand_dims(out, -1) / point_count
 
     if with_refract != 0.0:
-        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out,
-                      y_from_offset=refract_y_from_offset)
+        out = refract(tensor, original_shape, displacement=with_refract, reference_x=out, y_from_offset=refract_y_from_offset)
 
     if tensor is not None:
         out = blend(tensor, out, alpha)
@@ -527,11 +515,11 @@ def voronoi(
 def periodic_value(time: float, value: float) -> tf.Tensor:
     """
     Coerce the received value to animate smoothly between time values 0 and 1, by applying a sine function and scaling the result.
-    
+
     Args:
         time: Time value for animation (0.0-1.0)
         value: Input value
-    
+
     Returns:
         Processed tensor
     """
@@ -541,14 +529,14 @@ def periodic_value(time: float, value: float) -> tf.Tensor:
     return normalized_sine((time - value) * math.tau)
 
 
-def normalize(tensor: tf.Tensor, signed_range: bool=False) -> tf.Tensor:
+def normalize(tensor: tf.Tensor, signed_range: bool = False) -> tf.Tensor:
     """
     Squeeze the given Tensor into a range between 0 and 1.
-    
+
     Args:
         tensor: Input tensor to process
         signed_range: Use signed range (-1 to 1)
-    
+
     Returns:
         Normalized tensor
     """
@@ -577,13 +565,13 @@ def normalize(tensor: tf.Tensor, signed_range: bool=False) -> tf.Tensor:
 def _gather_scaled_offset(tensor: tf.Tensor, input_column_index: tf.Tensor, input_row_index: tf.Tensor, output_index: tf.Tensor) -> tf.Tensor:
     """
     Helper function for resample(). Apply index offset to input tensor, return output_index values gathered post-offset.
-    
+
     Args:
         tensor: Input tensor to process
         input_column_index: Column indices for input
         input_row_index: Row indices for input
         output_index: Output index values
-    
+
     Returns:
         Processed value
     """
@@ -591,15 +579,15 @@ def _gather_scaled_offset(tensor: tf.Tensor, input_column_index: tf.Tensor, inpu
     return tf.gather_nd(tf.gather_nd(tensor, tf.stack([input_column_index, input_row_index], 2)), output_index)
 
 
-def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | InterpolationType=3) -> tf.Tensor:
+def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | InterpolationType = 3) -> tf.Tensor:
     """
     Resize an image tensor to the specified shape.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         spline_order: Interpolation type for resampling
-    
+
     Returns:
         Processed tensor
     """
@@ -677,8 +665,9 @@ def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | Interpolat
                 tensor = rgb
 
     # Blown up row and column indices. These map into input tensor, producing a big blocky version.
-    resized_row_index = tf.cast(row_index(shape), tf.float32) \
-        * (tf.cast(input_shape[1], tf.float32) / tf.cast(shape[1], tf.float32))   # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
+    resized_row_index = tf.cast(row_index(shape), tf.float32) * (
+        tf.cast(input_shape[1], tf.float32) / tf.cast(shape[1], tf.float32)
+    )  # 0, 1, 2, 3, -> 0, 0.5, 1, 1.5A
 
     resized_col_index = tf.cast(column_index(shape), tf.float32) * (tf.cast(input_shape[0], tf.float32) / tf.cast(shape[0], tf.float32))
 
@@ -752,12 +741,12 @@ def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | Interpolat
 def proportional_downsample(tensor: tf.Tensor, shape: list[int], new_shape: list[int]) -> tf.Tensor:
     """
     Given a new shape which is evenly divisible by the old shape, shrink the image by averaging pixel values.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         new_shape: New shape for resampling
-    
+
     Returns:
         Processed tensor
     """
@@ -768,10 +757,9 @@ def proportional_downsample(tensor: tf.Tensor, shape: list[int], new_shape: list
 
     try:
         out = tf.nn.depthwise_conv2d([tensor], kernel, [1, kernel_shape[0], kernel_shape[1], 1], "VALID")[0] / (kernel_shape[0] * kernel_shape[1])
-    except Exception as e:
+    except Exception:
         out = tensor
         # ValueError(f"Could not convolve with kernel shape: {kernel_shape}: {e}")
-
 
     return resample(out, new_shape)
 
@@ -789,10 +777,10 @@ def row_index(shape: list[int]) -> tf.Tensor:
     :width: 1024
     :height: 256
     :alt: Noisemaker example output (CC0)
-    
+
     Args:
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Index tensor
     """
@@ -821,10 +809,10 @@ def column_index(shape: list[int]) -> tf.Tensor:
     :width: 1024
     :height: 256
     :alt: Noisemaker example output (CC0)
-    
+
     Args:
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Index tensor
     """
@@ -840,14 +828,14 @@ def column_index(shape: list[int]) -> tf.Tensor:
     return column_identity
 
 
-def offset(tensor: tf.Tensor, shape: list[int], x: int=0, y: int=0) -> tf.Tensor:
+def offset(tensor: tf.Tensor, shape: list[int], x: int = 0, y: int = 0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         x: X offset amount
         y: Y offset amount
-    
+
     Returns:
         Processed tensor
     """
@@ -864,7 +852,7 @@ def _linear_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
         a: First value for blending/distance
         b: Second value for blending/distance
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Processed value
     """
@@ -874,12 +862,12 @@ def _linear_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
 def blend(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend a and b values with linear interpolation.
-    
+
     Args:
         a: First value for blending/distance
         b: Second value for blending/distance
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Blended tensor
     """
@@ -893,7 +881,7 @@ def _cosine_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
         a: First value for blending/distance
         b: Second value for blending/distance
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Processed value
     """
@@ -907,12 +895,12 @@ def _cosine_components(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
 def blend_cosine(a: tf.Tensor, b: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend a and b values with cosine interpolation.
-    
+
     Args:
         a: First value for blending/distance
         b: Second value for blending/distance
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Blended tensor
     """
@@ -928,7 +916,7 @@ def _cubic_components(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g:
         c: Third value for blending
         d: Fourth value for blending
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Processed value
     """
@@ -947,14 +935,14 @@ def _cubic_components(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g:
 def blend_cubic(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Tensor) -> tf.Tensor:
     """
     Blend b and c values with bi-cubic interpolation.
-    
+
     Args:
         a: First value for blending/distance
         b: Second value for blending/distance
         c: Third value for blending
         d: Fourth value for blending
         g: Interpolation factor (0.0-1.0)
-    
+
     Returns:
         Blended tensor
     """
@@ -963,7 +951,7 @@ def blend_cubic(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Te
 
 
 @effect()
-def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor=0.0, b: tf.Tensor=1.0, time: float=0.0, speed: float=1.0) -> tf.Tensor:
+def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor = 0.0, b: tf.Tensor = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -972,7 +960,7 @@ def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor=0.0, b: tf.Tens
         b: Second value for blending/distance
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -984,11 +972,11 @@ def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor=0.0, b: tf.Tens
 def freq_for_shape(freq: int | list[int], shape: list[int]) -> tf.Tensor:
     """
     Given a base frequency as int, generate noise frequencies for each spatial dimension.
-    
+
     Args:
         freq: Frequency for noise generation
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Processed tensor
     """
@@ -1013,10 +1001,10 @@ def ridge(tensor: tf.Tensor) -> tf.Tensor:
     :width: 1024
     :height: 256
     :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
-    
+
     Returns:
         Processed tensor
     """
@@ -1040,7 +1028,7 @@ def simple_multires(
 ) -> tf.Tensor:
     """
     Generate multi-octave value noise. Unlike generators.multires, this function is single-channel and does not apply effects.
-    
+
     Args:
         freq: Frequency for noise generation
         shape: Shape of the tensor [height, width, channels]
@@ -1054,7 +1042,7 @@ def simple_multires(
         mask_static: Use static mask values
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -1065,15 +1053,26 @@ def simple_multires(
     tensor = tf.zeros(shape, dtype=tf.float32)
 
     for octave in range(1, octaves + 1):
-        multiplier = 2 ** octave
+        multiplier = 2**octave
 
-        base_freq = [int(f * .5 * multiplier) for f in freq]
+        freq_list = freq if isinstance(freq, list) else [freq, freq]
+        base_freq = [int(f * 0.5 * multiplier) for f in freq_list]
 
         if all(base_freq[i] > shape[i] for i in range(len(base_freq))):
             break
 
-        layer = values(freq=base_freq, shape=shape, spline_order=spline_order, distrib=distrib, corners=corners,
-                       mask=mask, mask_inverse=mask_inverse, mask_static=mask_static, time=time, speed=speed)
+        layer = values(
+            freq=base_freq,
+            shape=shape,
+            spline_order=spline_order,
+            distrib=distrib,
+            corners=corners,
+            mask=mask,
+            mask_inverse=mask_inverse,
+            mask_static=mask_static,
+            time=time,
+            speed=speed,
+        )
 
         if ridges:
             layer = ridge(layer)
@@ -1087,7 +1086,7 @@ def value_shape(shape: list[int]) -> tf.Tensor:
     """
     Args:
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Processed tensor
     """
@@ -1099,7 +1098,7 @@ def normalized_sine(value: float) -> tf.Tensor:
     """
     Args:
         value: Input value
-    
+
     Returns:
         Normalized tensor
     """
@@ -1110,12 +1109,12 @@ def normalized_sine(value: float) -> tf.Tensor:
 def _conform_kernel_to_tensor(kernel: ValueMask, tensor: tf.Tensor, shape: list[int]) -> tf.Tensor:
     """
     Re-shape a convolution kernel to match the given tensor's color dimensions.
-    
+
     Args:
         kernel: Convolution kernel mask
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
-    
+
     Returns:
         Processed value
     """
@@ -1163,7 +1162,7 @@ def convolve(
     Apply a convolution kernel to an image tensor.
     .. code-block:: python
     image = convolve(image, shape, ValueMask.conv2d_shadow)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1172,7 +1171,7 @@ def convolve(
         alpha: Blending alpha value (0.0-1.0)
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -1204,7 +1203,7 @@ def convolve(
         out = normalize(out)
 
     if kernel == ValueMask.conv2d_edges:
-        out = tf.abs(out - .5) * 2
+        out = tf.abs(out - 0.5) * 2
 
     if alpha == 1.0:
         return out
@@ -1233,7 +1232,7 @@ def refract(
        :width: 1024
        :height: 256
        :alt: Noisemaker example output (CC0)
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1247,7 +1246,7 @@ def refract(
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
         y_from_offset: Y from offset
-    
+
     Returns:
         Processed tensor
     """
@@ -1267,8 +1266,7 @@ def refract(
             reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
-                                 time=time, speed=speed, spline_order=spline_order)
+            reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex, time=time, speed=speed, spline_order=spline_order)
 
         else:
             reference_x = tensor
@@ -1278,14 +1276,13 @@ def refract(
             reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
-            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex,
-                                 time=time, speed=speed, spline_order=spline_order)
+            reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex, time=time, speed=speed, spline_order=spline_order)
 
         else:
             if y_from_offset:
                 # "the old way"
-                y0_index += int(height * .5)
-                x0_index += int(width * .5)
+                y0_index += int(height * 0.5)
+                x0_index += int(width * 0.5)
                 reference_y = tf.gather_nd(reference_x, tf.stack([y0_index % height, x0_index % width], 2))
             else:
                 reference_y = reference_x
@@ -1352,14 +1349,14 @@ def value_map(tensor: tf.Tensor, shape: list[int], keepdims: bool = False, signe
     """
     Create a grayscale value map from the given image Tensor, based on apparent luminance.
     Return value ranges between 0 and 1.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         keepdims: Keepdims
         signed_range: Use signed range (-1 to 1)
         with_normalize: Normalize the output
-    
+
     Returns:
         Processed tensor
     """
@@ -1389,16 +1386,16 @@ def value_map(tensor: tf.Tensor, shape: list[int], keepdims: bool = False, signe
     return tensor
 
 
-def singularity(tensor: tf.Tensor, shape: list[int], diagram_type: VoronoiDiagramType = VoronoiDiagramType.range, **kwargs: any) -> tf.Tensor:
+def singularity(tensor: tf.Tensor, shape: list[int], diagram_type: VoronoiDiagramType = VoronoiDiagramType.range, **kwargs: Any) -> tf.Tensor:
     """
     Return the range diagram for a single voronoi point, approximately centered.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         diagram_type: Type of Voronoi diagram
         **kwargs: Additional keyword arguments for voronoi
-    
+
     Returns:
         Processed tensor
     """
@@ -1411,19 +1408,19 @@ def singularity(tensor: tf.Tensor, shape: list[int], diagram_type: VoronoiDiagra
 def pin_corners(tensor: tf.Tensor, shape: list[int], freq: int | list[int], corners: bool) -> tf.Tensor:
     """
     Pin values to image corners, or align with image center, as per the given "corners" arg.
-    
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         freq: Frequency for noise generation
         corners: Include corner values
-    
+
     Returns:
         Processed tensor
     """
 
     if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
-        tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * .5), y=int((shape[0] / freq[0]) * .5))
+        tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * 0.5), y=int((shape[0] / freq[0]) * 0.5))
 
     return tensor
 
@@ -1431,11 +1428,11 @@ def pin_corners(tensor: tf.Tensor, shape: list[int], freq: int | list[int], corn
 def coerce_enum(value: float, cls: type) -> tf.Tensor:
     """
     Attempt to coerce a given string or int value into an Enum instance.
-    
+
     Args:
         value: Input value
         cls: Enum class to coerce to
-    
+
     Returns:
         Processed tensor
     """
@@ -1453,7 +1450,7 @@ def clamp01(tensor: tf.Tensor) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
-    
+
     Returns:
         Processed tensor
     """
@@ -1461,14 +1458,14 @@ def clamp01(tensor: tf.Tensor) -> tf.Tensor:
 
 
 @effect()
-def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0) -> tf.Tensor:
+def fxaa(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
         time: Time value for animation (0.0-1.0)
         speed: Animation speed multiplier
-    
+
     Returns:
         Processed tensor
     """
@@ -1476,14 +1473,14 @@ def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0)
     channels = shape[2]
 
     # Pad tensor to handle boundary conditions
-    padded = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode='REFLECT')
+    padded = tf.pad(tensor, [[1, 1], [1, 1], [0, 0]], mode="REFLECT")
 
     # Extract neighbors for all channels
     center = padded[1:-1, 1:-1, :]
-    north  = padded[:-2,  1:-1, :]
-    south  = padded[2:,   1:-1, :]
-    west   = padded[1:-1, :-2,  :]
-    east   = padded[1:-1, 2:,   :]
+    north = padded[:-2, 1:-1, :]
+    south = padded[2:, 1:-1, :]
+    west = padded[1:-1, :-2, :]
+    east = padded[1:-1, 2:, :]
 
     if channels == 1:
         # Single-channel (grayscale): use the channel itself as luma
@@ -1506,12 +1503,12 @@ def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0)
 
     elif channels == 2:
         # Two-channel: [grayscale, alpha]
-        lumC   = center[..., 0:1]
-        alpha  = center[..., 1:2]
-        lumN   = north[...,  0:1]
-        lumS   = south[...,  0:1]
-        lumW   = west[...,   0:1]
-        lumE   = east[...,   0:1]
+        lumC = center[..., 0:1]
+        alpha = center[..., 1:2]
+        lumN = north[..., 0:1]
+        lumS = south[..., 0:1]
+        lumW = west[..., 0:1]
+        lumE = east[..., 0:1]
 
         # Compute weights from grayscale channel only
         wC = 1.0
@@ -1530,10 +1527,10 @@ def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0)
         weights = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)
 
         lC = tf.reduce_sum(center * weights, axis=-1, keepdims=True)
-        lN = tf.reduce_sum(north  * weights, axis=-1, keepdims=True)
-        lS = tf.reduce_sum(south  * weights, axis=-1, keepdims=True)
-        lW = tf.reduce_sum(west   * weights, axis=-1, keepdims=True)
-        lE = tf.reduce_sum(east   * weights, axis=-1, keepdims=True)
+        lN = tf.reduce_sum(north * weights, axis=-1, keepdims=True)
+        lS = tf.reduce_sum(south * weights, axis=-1, keepdims=True)
+        lW = tf.reduce_sum(west * weights, axis=-1, keepdims=True)
+        lE = tf.reduce_sum(east * weights, axis=-1, keepdims=True)
 
         # Compute weights from luminance differences
         wC = 1.0
@@ -1548,12 +1545,12 @@ def fxaa(tensor: tf.Tensor, shape: list[int], time: float=0.0, speed: float=1.0)
 
     elif channels == 4:
         # Four-channel (RGBA): separate RGB and alpha
-        rgbC   = center[..., 0:3]
-        alpha  = center[..., 3:4]
-        rgbN   = north[...,  0:3]
-        rgbS   = south[...,  0:3]
-        rgbW   = west[...,   0:3]
-        rgbE   = east[...,   0:3]
+        rgbC = center[..., 0:3]
+        alpha = center[..., 3:4]
+        rgbN = north[..., 0:3]
+        rgbS = south[..., 0:3]
+        rgbW = west[..., 0:3]
+        rgbE = east[..., 0:3]
 
         # Compute luminance from RGB channels
         weights = tf.constant([0.299, 0.587, 0.114], dtype=tf.float32)

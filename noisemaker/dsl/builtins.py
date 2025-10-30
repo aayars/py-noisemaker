@@ -1,18 +1,25 @@
-from noisemaker.constants import *  # noqa: F401,F403
-import noisemaker.constants as constants
 import types
-
 from enum import Enum
 
+import noisemaker.constants as constants
+import noisemaker.masks as _masks
+import noisemaker.rng as _random
 from noisemaker.composer import (
-    coin_flip as _coin_flip,
-    enum_range as _enum_range,
-    random_member as _random_member,
-    stash as _stash,
     Preset as _Preset,
 )
-import noisemaker.rng as _random
-import noisemaker.masks as _masks
+from noisemaker.composer import (
+    coin_flip as _coin_flip,
+)
+from noisemaker.composer import (
+    enum_range as _enum_range,
+)
+from noisemaker.composer import (
+    random_member as _random_member,
+)
+from noisemaker.composer import (
+    stash as _stash,
+)
+from noisemaker.constants import *  # noqa: F401,F403
 from noisemaker.palettes import PALETTES as _PALETTES
 
 
@@ -31,10 +38,12 @@ class _SettingsSurface:
 
 surfaces = {"settings": _SettingsSurface()}
 
+
 def coin_flip(*args):
     if len(args) != 0:
         raise ValueError(f"coin_flip() takes no arguments, received {len(args)}")
     return _coin_flip()
+
 
 def enum_range(*args):
     if len(args) != 2:
@@ -46,17 +55,19 @@ def enum_range(*args):
         return list(range(int(a), int(b) + 1))
     raise ValueError("enum_range(a, b) requires numeric arguments")
 
+
 def random_member(*collections):
     if len(collections) == 0:
         raise ValueError("random_member() requires at least one iterable argument")
     return _random_member(*collections)
+
 
 def stash(*args):
     if len(args) == 0 or len(args) > 2:
         raise ValueError(f"stash(key[, value]) expects 1 or 2 arguments, received {len(args)}")
     key = args[0]
     if not isinstance(key, str):
-        raise ValueError('stash(key[, value]) key must be a string')
+        raise ValueError("stash(key[, value]) key must be a string")
     value = args[1] if len(args) == 2 else None
 
     def _thunk(settings=None):
@@ -68,10 +79,12 @@ def stash(*args):
 
     return _thunk
 
+
 def random(*args):
     if len(args) != 0:
         raise ValueError(f"random() takes no arguments, received {len(args)}")
     return _random.random()
+
 
 def random_int(*args):
     if len(args) != 2:
@@ -81,6 +94,7 @@ def random_int(*args):
         raise ValueError("random_int(a, b) requires numeric arguments")
     return _random.randint(int(a), int(b))
 
+
 def mask_freq(*args):
     if len(args) != 2:
         raise ValueError(f"mask_freq(mask, repeat) requires exactly 2 arguments, received {len(args)}")
@@ -88,16 +102,18 @@ def mask_freq(*args):
     shape = _masks.mask_shape(mask)
     return [int(i * 0.5 + i * repeat) for i in shape[0:2]]
 
+
 def preset(*args):
     if len(args) == 0 or len(args) > 2:
         raise ValueError(f"preset(name[, settings]) expects 1 or 2 arguments, received {len(args)}")
     name = args[0]
     if not isinstance(name, str):
-        raise ValueError('preset(name[, settings]) name must be a string')
+        raise ValueError("preset(name[, settings]) name must be a string")
     settings = args[1] if len(args) == 2 else {}
 
     def _thunk(parent_settings=None):
         from noisemaker.presets import PRESETS as _PRESETS
+
         resolved = {}
         for k, v in settings.items():
             resolved[k] = v(parent_settings) if callable(v) else v

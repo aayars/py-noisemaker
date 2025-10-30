@@ -1,28 +1,26 @@
 import os
 import random
-
-from PIL import Image, ImageDraw, ImageFont
-
-import click
-
 import textwrap
 
+import click
+from PIL import Image, ImageDraw, ImageFont
 
-def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fill=None, rect=True, wrap_width=42, bottom=False, right=False, invert=False):
+
+def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fill=None, rect=True, wrap_width=42, bottom=False, right=False, invert=False):
     if fill is None:
         if invert:
             fill = (0, 0, 0, 0)
         else:
             fill = (255, 255, 255, 255)
 
-    image = Image.open(input_filename).convert('RGB')
+    image = Image.open(input_filename).convert("RGB")
 
     input_width, input_height = image.size
 
-    font_path = os.path.join(os.path.expanduser('~'), '.noisemaker', 'fonts', '{}.ttf'.format(font))
+    font_path = os.path.join(os.path.expanduser("~"), ".noisemaker", "fonts", f"{font}.ttf")
 
     font = ImageFont.truetype(font_path, font_size)
-    draw = ImageDraw.Draw(image, 'RGBA')
+    draw = ImageDraw.Draw(image, "RGBA")
 
     padding = 6
 
@@ -40,7 +38,7 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
     text_y = input_height - text_height
 
     if bottom:
-        text_y -= int(padding * .5)
+        text_y -= int(padding * 0.5)
 
     else:
         text_y /= 2
@@ -69,16 +67,16 @@ def mood_text(input_filename, text, font='LiberationSans-Bold', font_size=42, fi
 
 
 @click.command()
-@click.option('--filename', type=click.Path(dir_okay=False), required=True)
-@click.option('--text', type=str, required=True)
-@click.option('--font', type=str, default='LiberationSans-Bold')
-@click.option('--font-size', type=int, default=42)
-@click.option('--color', is_flag=True)
-@click.option('--no-rect', is_flag=True)
-@click.option('--wrap-width', type=int, default=42)
-@click.option('--bottom', is_flag=True)
-@click.option('--right', is_flag=True)
-@click.option('--invert', is_flag=True)
+@click.option("--filename", type=click.Path(dir_okay=False), required=True)
+@click.option("--text", type=str, required=True)
+@click.option("--font", type=str, default="LiberationSans-Bold")
+@click.option("--font-size", type=int, default=42)
+@click.option("--color", is_flag=True)
+@click.option("--no-rect", is_flag=True)
+@click.option("--wrap-width", type=int, default=42)
+@click.option("--bottom", is_flag=True)
+@click.option("--right", is_flag=True)
+@click.option("--invert", is_flag=True)
 def main(filename, text, font, font_size, color, no_rect, wrap_width, bottom, right, invert):
     if color:
         if invert:

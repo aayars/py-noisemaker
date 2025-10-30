@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from collections import UserDict, defaultdict
-from enum import Enum, EnumMeta
-from functools import partial, lru_cache
-from typing import Any, Callable
 import inspect
 import re
-
-import noisemaker.rng as rng
+from collections import UserDict, defaultdict
+from enum import Enum, EnumMeta
+from functools import cache, partial
+from typing import Any, Callable
 
 import tensorflow as tf
 
+import noisemaker.rng as rng
 from noisemaker.effects_registry import EFFECTS
 from noisemaker.generators import multires
 from noisemaker.util import logger, save
@@ -67,16 +66,15 @@ class Preset:
         prototype = presets.get(preset_name)
 
         if prototype is None:
-            raise ValueError(f"Preset \"{preset_name}\" was not found among the available presets.")
+            raise ValueError(f'Preset "{preset_name}" was not found among the available presets.')
 
         if not isinstance(prototype, dict):
-            raise ValueError(f"Preset \"{preset_name}\" should be a dict, not \"{type(prototype)}\"")
+            raise ValueError(f'Preset "{preset_name}" should be a dict, not "{type(prototype)}"')
 
         # To avoid mistakes in presets, unknown top-level keys are disallowed.
         for key in prototype:
             if key not in ALLOWED_KEYS:
-                raise ValueError(f"Preset \"{preset_name}\": Key \"{key}\" is not permitted. " \
-                                 f"Allowed keys are: {ALLOWED_KEYS}")
+                raise ValueError(f'Preset "{preset_name}": Key "{key}" is not permitted. ' f"Allowed keys are: {ALLOWED_KEYS}")
 
         # Build a flat list of parent preset names, in topological order.
         self.flattened_layers: list[str] = []
@@ -84,52 +82,41 @@ class Preset:
 
         # self.settings provides overridable args which can be consumed by generator, octaves, post, ai, and final.
         # SettingsDict is a custom dict class that enforces no unused extra keys, to minimize human error.
-        self.settings = SettingsDict(
-            _flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets)
-        )
+        self.settings = SettingsDict(_flatten_ancestor_metadata(self, None, SETTINGS_KEY, {}, presets))
 
         if settings:  # Inline overrides from caller (such as from CLI)
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs: dict[str, Any] = _flatten_ancestor_metadata(
-            self, self.settings, "generator", {}, presets
-        )
+        self.generator_kwargs: dict[str, Any] = _flatten_ancestor_metadata(self, self.settings, "generator", {}, presets)
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects: list[Callable] = _flatten_ancestor_metadata(
-            self, self.settings, "octaves", [], presets
-        )
+        self.octave_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "octaves", [], presets)
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects: list[Callable] = _flatten_ancestor_metadata(
-            self, self.settings, "post", [], presets
-        )
+        self.post_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "post", [], presets)
 
         # A list of callable effects functions, to be applied in order after everything else
-        self.final_effects: list[Callable] = _flatten_ancestor_metadata(
-            self, self.settings, "final", [], presets
-        )
+        self.final_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
 
         try:
             # To avoid mistakes in presets, unused keys are disallowed.
             self.settings.raise_if_unaccessed(unused_okay=UNUSED_OKAY)
         except Exception as e:
-            raise ValueError(f"Preset \"{preset_name}\": {e}")
+            raise ValueError(f'Preset "{preset_name}": {e}')
 
         # AI post-processing settings are not currently inherited, but are specified on a per-preset basis.
         _ai_settings = prototype.get("ai", {})
         for k in _ai_settings:
             if k not in ALLOWED_AI_KEYS:
-                raise ValueError(f"Preset \"{preset_name}\": Disallowed key in \"ai\" section: " \
-                                 f"\"{k}\"")
+                raise ValueError(f'Preset "{preset_name}": Disallowed key in "ai" section: ' f'"{k}"')
 
         self.ai_settings: dict[str, Any] = {
-            "prompt": _ai_settings.get("prompt", self.name.replace('-', ' ') + ", abstract art"),
+            "prompt": _ai_settings.get("prompt", self.name.replace("-", " ") + ", abstract art"),
             "image_strength": _ai_settings.get("image_strength", 0.5),
             "cfg_scale": _ai_settings.get("cfg_scale", 15),
             "style_preset": _ai_settings.get("style_preset", "digital-art"),
-            "model": _ai_settings.get("model", AI_MODEL)
+            "model": _ai_settings.get("model", AI_MODEL),
         }
 
         self.ai_settings.update(prototype.get("ai_settings", {}))
@@ -138,7 +125,7 @@ class Preset:
         self.ai_success: bool = False
 
     def __str__(self) -> str:
-        return f"<Preset \"{self.name}\">"
+        return f'<Preset "{self.name}">'
 
     def is_generator(self) -> bool:
         """Check if this preset generates noise (has generator settings)."""
@@ -191,16 +178,29 @@ class Preset:
         try:
             if debug:
                 rng.reset_call_count()
-            tensor = multires(self, seed, tensor=tensor, shape=shape, with_supersample=with_supersample,
-                              octave_effects=self.octave_effects, post_effects=self.post_effects,
-                              with_fxaa=with_fxaa, with_ai=with_ai, final_effects=self.final_effects, with_alpha=with_alpha,
-                              with_upscale=with_upscale, stability_model=stability_model, style_filename=style_filename,
-                              time=time, speed=speed, **self.generator_kwargs)
+            tensor = multires(
+                self,
+                seed,
+                tensor=tensor,
+                shape=shape,
+                with_supersample=with_supersample,
+                octave_effects=self.octave_effects,
+                post_effects=self.post_effects,
+                with_fxaa=with_fxaa,
+                with_ai=with_ai,
+                final_effects=self.final_effects,
+                with_alpha=with_alpha,
+                with_upscale=with_upscale,
+                stability_model=stability_model,
+                style_filename=style_filename,
+                time=time,
+                speed=speed,
+                **self.generator_kwargs,
+            )
 
             if debug:
                 effect_names = [
-                    getattr(e, '_effect_name', getattr(e, '__name__', str(e)))
-                    for e in self.octave_effects + self.post_effects + self.final_effects
+                    getattr(e, "_effect_name", getattr(e, "__name__", str(e))) for e in self.octave_effects + self.post_effects + self.final_effects
                 ]
                 return {"effects": effect_names, "rng_calls": rng.get_call_count()}
 
@@ -265,7 +265,7 @@ def _resolve_preset_layers(preset_name: str, presets: dict[str, Any], cache: dic
 def _flatten_ancestors(preset_name: str, presets: dict[str, Any], unique: dict[str, bool], ancestors: list[str], layer_cache: dict[str, Any]) -> None:
     for ancestor_name in _resolve_preset_layers(preset_name, presets, layer_cache):
         if ancestor_name not in presets:
-            raise ValueError(f"\"{ancestor_name}\" was not found among the available presets.")
+            raise ValueError(f'"{ancestor_name}" was not found among the available presets.')
 
         # "unique" layers may only be inherited once
         if ancestor_name in unique:
@@ -286,7 +286,7 @@ def _callable_param_count_uncached(value: Callable) -> int | None:
         return None
 
 
-@lru_cache(maxsize=None)
+@cache
 def _callable_param_count(value: Callable) -> int | None:
     return _callable_param_count_uncached(value)
 
@@ -374,10 +374,7 @@ def _map_effect(effect: Any, settings: dict[str, Any]) -> Any:
             args = effect["args"]
 
             if len(args) > len(keys):
-                raise ValueError(
-                    f'Effect "{raw_name}" received {len(args)} positional arguments '
-                    f"but only {len(keys)} parameters are available."
-                )
+                raise ValueError(f'Effect "{raw_name}" received {len(args)} positional arguments ' f"but only {len(keys)} parameters are available.")
 
             for index, arg_value in enumerate(args):
                 params[keys[index]] = _resolve_metadata_value(arg_value, settings)
@@ -426,14 +423,12 @@ def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: st
                 if preset.name == ancestor_name:
                     raise
                 else:
-                    raise ValueError(f"In ancestor \"{ancestor_name}\": {e}")
+                    raise ValueError(f'In ancestor "{ancestor_name}": {e}')
 
         ancestor = _resolve_metadata_value(ancestor, settings)
 
         if not isinstance(ancestor, type(default)):
-            raise ValueError(
-                f"{ancestor_name}: Key \"{key}\" should be {type(default)}, not {type(ancestor)}."
-            )
+            raise ValueError(f'{ancestor_name}: Key "{key}" should be {type(default)}, not {type(ancestor)}.')
 
         if isinstance(ancestor, dict):
             flattened_metadata.update(ancestor)
@@ -467,7 +462,7 @@ def random_member(*collections: Any) -> Any:
 
     for c in collections:
         if not hasattr(c, "__iter__"):
-            raise ValueError(f"random_member(arg) should be iterable (collection, enum list, or enum)")
+            raise ValueError("random_member(arg) should be iterable (collection, enum list, or enum)")
 
         if isinstance(c, EnumMeta):
             collection += list(c)
@@ -544,10 +539,10 @@ def reload_presets(presets: Callable[[], dict[str, Any]]) -> None:
                 EFFECT_PRESETS[preset_name] = preset
 
         except Exception as e:
-            if f"Preset \"{preset_name}\"" in str(e):
+            if f'Preset "{preset_name}"' in str(e):
                 raise
             else:
-                raise ValueError(f"Preset \"{preset_name}\": {e}")
+                raise ValueError(f'Preset "{preset_name}": {e}')
 
 
 def stash(key: str, value: Any | None = None) -> Any:
@@ -603,6 +598,6 @@ class SettingsDict(UserDict):
 
         if keys:
             if len(keys) == 1:
-                raise UnusedKeys(f"Settings key \"{keys[0]}\" (value: {self[keys[0]]}) is unused. This is usually human error.")
+                raise UnusedKeys(f'Settings key "{keys[0]}" (value: {self[keys[0]]}) is unused. This is usually human error.')
             else:
                 raise UnusedKeys(f"Settings keys {keys} are unused. This is usually human error.")

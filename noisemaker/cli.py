@@ -6,22 +6,6 @@ from typing import Any, Callable
 
 import click
 
-from noisemaker.constants import (
-    ColorSpace,
-    DistanceMetric,
-    InterpolationType,
-    OctaveBlending,
-    PointDistribution,
-    ValueDistribution,
-    ValueMask,
-    VoronoiDiagramType,
-    WormBehavior
-)
-
-from noisemaker.palettes import PALETTES as palettes
-
-import noisemaker.masks as masks
-
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -44,7 +28,6 @@ def show_values(enum_class: type) -> str:
 
 
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 160}
-
 
 
 def validate_more_than_one(allow_none: bool = False) -> Callable:
@@ -70,7 +53,7 @@ def validate_more_than_one(allow_none: bool = False) -> Callable:
             is_valid = True
 
         if not is_valid:
-            raise click.BadParameter("invalid choice: {0}. (choose a value greater than 1)".format(value))
+            raise click.BadParameter(f"invalid choice: {value}. (choose a value greater than 1)")
 
         return value
 
@@ -92,7 +75,7 @@ def validate_enum(cls: type) -> Callable:
 
     def validate(ctx, param, value):
         if value is not None and value not in [m.value for m in cls]:
-            raise click.BadParameter("invalid choice: {0}. (choose from {1})".format(value, ", ".join(["{0} ({1})".format(m.value, m.name) for m in cls])))
+            raise click.BadParameter("invalid choice: {0}. (choose from {1})".format(value, ", ".join([f"{m.value} ({m.name})" for m in cls])))
 
         return value
 
@@ -196,7 +179,7 @@ def option(*param_decls: Any, **attrs: Any) -> Callable:
         if isinstance(attrs.get("type"), click.IntRange):
             r = attrs["type"]
 
-            attrs["help"] += "  [range: {0}-{1}]".format(r.min, r.max)
+            attrs["help"] += f"  [range: {r.min}-{r.max}]"
 
         if attrs.get("default") not in (None, False, 0):
             attrs["help"] += "  [default: {0}]".format(attrs["default"])

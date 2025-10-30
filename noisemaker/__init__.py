@@ -17,7 +17,7 @@ from noisemaker.constants import (
     VoronoiDiagramType,
     WormBehavior,
 )
-from noisemaker.generators import multires, basic
+from noisemaker.generators import basic, multires
 
 __version__ = "0.5.0"
 

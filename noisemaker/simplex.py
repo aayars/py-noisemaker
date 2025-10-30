@@ -3,12 +3,9 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from typing import Optional
-
 import tensorflow as tf
 
 import noisemaker.rng as rng
-
 
 _seed = None
 
@@ -47,21 +44,97 @@ NORM_CONSTANT_2D = 47
 NORM_CONSTANT_3D = 103
 
 GRADIENTS_2D = [
-    5, 2, 2, 5,
-    -5, 2, -2, 5,
-    5, -2, 2, -5,
-    -5, -2, -2, -5,
+    5,
+    2,
+    2,
+    5,
+    -5,
+    2,
+    -2,
+    5,
+    5,
+    -2,
+    2,
+    -5,
+    -5,
+    -2,
+    -2,
+    -5,
 ]
 
 GRADIENTS_3D = [
-    -11, 4, 4, -4, 11, 4, -4, 4, 11,
-    11, 4, 4, 4, 11, 4, 4, 4, 11,
-    -11, -4, 4, -4, -11, 4, -4, -4, 11,
-    11, -4, 4, 4, -11, 4, 4, -4, 11,
-    -11, 4, -4, -4, 11, -4, -4, 4, -11,
-    11, 4, -4, 4, 11, -4, 4, 4, -11,
-    -11, -4, -4, -4, -11, -4, -4, -4, -11,
-    11, -4, -4, 4, -11, -4, 4, -4, -11,
+    -11,
+    4,
+    4,
+    -4,
+    11,
+    4,
+    -4,
+    4,
+    11,
+    11,
+    4,
+    4,
+    4,
+    11,
+    4,
+    4,
+    4,
+    11,
+    -11,
+    -4,
+    4,
+    -4,
+    -11,
+    4,
+    -4,
+    -4,
+    11,
+    11,
+    -4,
+    4,
+    4,
+    -11,
+    4,
+    4,
+    -4,
+    11,
+    -11,
+    4,
+    -4,
+    -4,
+    11,
+    -4,
+    -4,
+    4,
+    -11,
+    11,
+    4,
+    -4,
+    4,
+    11,
+    -4,
+    4,
+    4,
+    -11,
+    -11,
+    -4,
+    -4,
+    -4,
+    -11,
+    -4,
+    -4,
+    -4,
+    -11,
+    11,
+    -4,
+    -4,
+    4,
+    -11,
+    -4,
+    4,
+    -4,
+    -11,
 ]
 
 
@@ -114,7 +187,7 @@ class OpenSimplex:
             Gradient contribution value
         """
         perm = self.perm
-        index = perm[(perm[xsb & 0xff] + ysb) & 0xff] & 0x0e
+        index = perm[(perm[xsb & 0xFF] + ysb) & 0xFF] & 0x0E
         g1 = GRADIENTS_2D[index]
         g2 = GRADIENTS_2D[index + 1]
         return g1 * dx + g2 * dy
@@ -135,7 +208,7 @@ class OpenSimplex:
             Gradient contribution value
         """
         perm = self.perm
-        index = self.perm_grad_index_3D[(perm[(perm[xsb & 0xff] + ysb) & 0xff] + zsb) & 0xff]
+        index = self.perm_grad_index_3D[(perm[(perm[xsb & 0xFF] + ysb) & 0xFF] + zsb) & 0xFF]
         g1 = GRADIENTS_3D[index]
         g2 = GRADIENTS_3D[index + 1]
         g3 = GRADIENTS_3D[index + 2]
@@ -627,7 +700,7 @@ def from_seed(seed: int) -> OpenSimplex:
     return os, {"perm": list(os.perm), "perm_grad": list(os.perm_grad_index_3D)}
 
 
-def random(time: int = 0, seed: Optional[int] = None, speed: int = 1) -> OpenSimplex:
+def random(time: int = 0, seed: int | None = None, speed: int = 1) -> OpenSimplex:
     """
     Create time-evolving OpenSimplex noise generator.
 
@@ -648,7 +721,7 @@ def random(time: int = 0, seed: Optional[int] = None, speed: int = 1) -> OpenSim
     return (value + 1) * 0.5
 
 
-def simplex(shape, time: int = 0, seed: Optional[int] = None, speed: int = 1, as_np: bool = False) -> tf.Tensor | np.ndarray:
+def simplex(shape, time: int = 0, seed: int | None = None, speed: int = 1, as_np: bool = False) -> tf.Tensor | np.ndarray:
     """
     Generate simplex noise tensor.
 
@@ -677,4 +750,3 @@ def simplex(shape, time: int = 0, seed: Optional[int] = None, speed: int = 1, as
     if not as_np:
         data = tf.stack(data)
     return data
-
