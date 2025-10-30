@@ -3,7 +3,7 @@
 ## Overview
 
 Noisemaker uses Sphinx to generate API documentation with support for:
-- **Type hints** - Automatic rendering of Python 3.9+ type annotations
+- **Type hints** - Automatic rendering of Python 3.10+ type annotations
 - **Google-style docstrings** - Modern, readable documentation format
 - **Intersphinx** - Cross-references to Python, NumPy, and TensorFlow docs
 - **Read the Docs** - Automated building and hosting

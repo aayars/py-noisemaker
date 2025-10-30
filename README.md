@@ -4,7 +4,7 @@ Noisemaker is a collection of creative coding effects for Python or JavaScript. 
 
 ## Features
 
-- Modern Python 3.9+ API with type hints
+- Modern Python 3.10+ API with type hints
 - Command line interface for generating images and animations
 - High-level *composer* presets with reusable settings and layered effects
 - Low-level generator and effect functions for custom workflows
@@ -14,7 +14,7 @@ Noisemaker is a collection of creative coding effects for Python or JavaScript. 
 
 ## Installation
 
-Noisemaker requires Python 3.9+ and TensorFlow. Create a virtual environment and install from GitHub:
+Noisemaker requires Python 3.10+ and TensorFlow. Create a virtual environment and install from GitHub:
 
 ```bash
 python3 -m venv noisemaker

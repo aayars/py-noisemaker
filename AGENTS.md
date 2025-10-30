@@ -2,7 +2,7 @@ You're working on Noisemaker, a procedural noise generation algorithm playground
 
 ## Bootstrapping the Python environment
 
-**Note:** Noisemaker requires Python 3.9+. Modern build system using pyproject.toml.
+**Note:** Noisemaker requires Python 3.10+. Modern build system using pyproject.toml.
 
 1. Create a virtual environment and activate it:
 
@@ -45,7 +45,7 @@ You're working on Noisemaker, a procedural noise generation algorithm playground
 
 ## Code Quality
 
-- Use modern Python 3.9+ syntax: `list[int]` not `List[int]`, `str | None` not `Optional[str]`
+- Use modern Python 3.10+ syntax: `list[int]` not `List[int]`, `str | None` not `Optional[str]`
 - Add type hints to new functions using PEP 484/585/604 standards
 - Use Google-style docstrings with proper Args/Returns sections
 - Run black before committing
