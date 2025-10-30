@@ -1742,7 +1742,7 @@ def mask_shape(mask: ValueMask) -> list[int]:
 
         if callable(shape):
             shape = shape()
-        
+
         # Ensure shape is a list for type checking
         shape = list(shape) if not isinstance(shape, list) else shape
 

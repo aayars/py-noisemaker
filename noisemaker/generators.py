@@ -25,6 +25,7 @@ from noisemaker.constants import (
 if TYPE_CHECKING:
     from noisemaker.composer import Preset
 
+
 def basic(
     freq: int | list[int],
     shape: list[int],
@@ -498,7 +499,7 @@ def _apply_octave_effect_or_preset(
     """
     if callable(effect_or_preset):
         # Check if this is a functools.partial object with displacement keyword
-        if hasattr(effect_or_preset, 'keywords') and hasattr(effect_or_preset, 'func'):
+        if hasattr(effect_or_preset, "keywords") and hasattr(effect_or_preset, "func"):
             if "displacement" in effect_or_preset.keywords:
                 kwargs = dict(effect_or_preset.keywords)
                 kwargs["displacement"] /= 2**octave

@@ -395,7 +395,9 @@ def _map_effect(effect: Any, settings: dict[str, Any]) -> Any:
     return effect
 
 
-def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any] | SettingsDict | None, key: str, default: Any, presets: dict[str, Any]) -> dict[str, Any] | list[Any]:
+def _flatten_ancestor_metadata(
+    preset: Preset, settings: dict[str, Any] | SettingsDict | None, key: str, default: Any, presets: dict[str, Any]
+) -> dict[str, Any] | list[Any]:
     """Collect and merge metadata from all ancestor presets.
 
     Traverses the preset inheritance chain and accumulates values for the specified

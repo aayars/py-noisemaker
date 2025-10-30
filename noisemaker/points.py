@@ -96,7 +96,7 @@ def point_cloud(
         # Use a ValueMask as a PointDistribution!
         if shape is None:
             raise ValueError("shape must be provided when using ValueMask as PointDistribution")
-            
+
         mask: Any = masks.Masks[distrib]
         mask_shape = masks.mask_shape(distrib)
 
