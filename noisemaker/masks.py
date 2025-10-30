@@ -1742,13 +1742,17 @@ def mask_shape(mask: ValueMask) -> list[int]:
 
         if callable(shape):
             shape = shape()
+        
+        # Ensure shape is a list for type checking
+        shape = list(shape) if not isinstance(shape, list) else shape
 
     else:
-        height = len(Masks[mask])
-        width = len(Masks[mask][0])
+        mask_data: Any = Masks[mask]
+        height = len(mask_data)
+        width = len(mask_data[0])
 
-        if isinstance(Masks[mask][0][0], list):
-            channels = len(Masks[mask][0][0])
+        if isinstance(mask_data[0][0], list):
+            channels = len(mask_data[0][0])
         else:
             channels = 1
 
@@ -1757,7 +1761,7 @@ def mask_shape(mask: ValueMask) -> list[int]:
     return shape
 
 
-def get_atlas(mask: ValueMask) -> np.ndarray | None:
+def get_atlas(mask: ValueMask) -> Any:
     """
     Get the glyph atlas for a procedural mask.
 
@@ -1778,16 +1782,16 @@ def get_atlas(mask: ValueMask) -> np.ndarray | None:
         base_name = re.sub(r"_[a-z]+$", "", mask.name)
 
         if mask.name.endswith("_binary"):
-            atlas = [Masks[ValueMask[f"{base_name}_0"]], Masks[ValueMask[f"{base_name}_1"]]]
+            atlas = [Masks[ValueMask[f"{base_name}_0"]], Masks[ValueMask[f"{base_name}_1"]]]  # type: ignore[list-item]
 
         elif mask.name.endswith("_numeric"):
-            atlas = [Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]
+            atlas = [Masks[ValueMask[f"{base_name}_{i}"]] for i in string.digits]  # type: ignore[misc]
 
         elif mask.name.endswith("_hex"):
-            atlas = [Masks[g] for g in Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]
+            atlas = [Masks[g] for g in Masks if re.match(f"^{base_name}_[0-9a-f]$", g.name)]  # type: ignore[misc]
 
         else:
-            atlas = [Masks[g] for g in Masks if g.name.startswith(f"{mask.name}_") and not callable(Masks[g])]
+            atlas = [Masks[g] for g in Masks if g.name.startswith(f"{mask.name}_") and not callable(Masks[g])]  # type: ignore[misc]
 
     return atlas
 
@@ -1800,7 +1804,7 @@ def mask_values(
     inverse: bool = False,
     time: float = 0.0,
     speed: float = 1.0,
-) -> np.ndarray:
+) -> tuple[list[list[Any]], float]:
     """
     Return pixel values for the received ValueMask.
 
@@ -1844,19 +1848,20 @@ def mask_values(
     for y in range(glyph_shape[0]):
         uv_y = int((y / glyph_shape[0]) * uv_shape[0])
 
-        mask_row = []
+        mask_row: list[Any] = []
         mask_values.append(mask_row)
 
         for x in range(glyph_shape[1]):
             uv_x = int((x / glyph_shape[1]) * uv_shape[1])
 
-            if callable(Masks[mask]):
-                pixel = Masks[mask](
+            mask_entry: Any = Masks[mask]
+            if callable(mask_entry):
+                pixel = mask_entry(
                     x=x, y=y, row=mask_row, shape=shape, uv_x=uv_x, uv_y=uv_y, uv_noise=uv_noise, uv_shape=uv_shape, atlas=atlas, glyph_shape=glyph_shape
                 )
 
             else:
-                pixel = Masks[mask][y % shape[0]][x % shape[1]]
+                pixel = mask_entry[y % shape[0]][x % shape[1]]
 
             if not isinstance(pixel, list):
                 pixel = [pixel]
@@ -1874,7 +1879,7 @@ def mask_values(
 
 
 def uv_random(uv_noise: np.ndarray, uv_x: int, uv_y: int) -> float:
-    return (uv_noise[uv_y][uv_x] + rng.random()) % 1.0
+    return float((uv_noise[uv_y][uv_x] + rng.random()) % 1.0)
 
 
 def square_masks() -> list[ValueMask]:
@@ -1899,7 +1904,7 @@ def square_masks() -> list[ValueMask]:
     return square
 
 
-def _glyph_from_atlas_range(x: int, y: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> list[list[int]]:
+def _glyph_from_atlas_range(x: int, y: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> Any:
     glyph_index = int(uv_noise[uv_y][uv_x] * (len(atlas)))
 
     glyph_index = min(max(glyph_index, 0), len(atlas) - 1)
@@ -1908,46 +1913,46 @@ def _glyph_from_atlas_range(x: int, y: int, shape: list[int], uv_x: int, uv_y: i
 
 
 @mask([10, 10, 1])
-def dropout(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def dropout(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     return uv_random(uv_noise, uv_x, uv_y) < 0.25
 
 
 @mask([10, 10, 1])
-def sparse(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def sparse(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     return uv_random(uv_noise, uv_x, uv_y) < 0.15
 
 
 @mask([10, 10, 1])
-def sparser(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def sparser(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     return uv_random(uv_noise, uv_x, uv_y) < 0.05
 
 
 @mask([10, 10, 1])
-def sparsest(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def sparsest(uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     return uv_random(uv_noise, uv_x, uv_y) < 0.0125
 
 
 @mask(lambda: [rng.random_int(5, 7), rng.random_int(6, 12), 1])
-def invaders(**kwargs: Any) -> list[list[int]]:
+def invaders(**kwargs: Any) -> Any:
     return _invaders(**kwargs)
 
 
 @mask([18, 18, 1])
-def invaders_large(**kwargs: Any) -> list[list[int]]:
+def invaders_large(**kwargs: Any) -> Any:
     return _invaders(**kwargs)
 
 
 @mask([6, 6, 1])
-def invaders_square(**kwargs: Any) -> list[list[int]]:
+def invaders_square(**kwargs: Any) -> Any:
     return _invaders(**kwargs)
 
 
 @mask([4, 4, 1])
-def white_bear(**kwargs: Any) -> list[list[int]]:
+def white_bear(**kwargs: Any) -> Any:
     return _invaders(**kwargs)
 
 
-def _invaders(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def _invaders(x: int, y: int, row: list[Any], shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     # Inspired by http://www.complexification.net/gallery/machines/invaderfractal/
     height = shape[0]
     width = shape[1]
@@ -1963,7 +1968,7 @@ def _invaders(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, 
 
 
 @mask([6, 4, 1])
-def matrix(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def matrix(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     height = shape[0]
     width = shape[1]
 
@@ -1974,7 +1979,7 @@ def matrix(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_
 
 
 @mask(lambda: [rng.random_int(3, 4) * 2 + 1, rng.random_int(3, 4) * 2 + 1, 1])
-def letters(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def letters(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     # Inspired by https://www.shadertoy.com/view/4lscz8
     height = shape[0]
     width = shape[1]
@@ -1995,7 +2000,7 @@ def letters(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv
 
 
 @mask([14, 8, 1])
-def iching(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def iching(x: int, y: int, row: list[Any], shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     height = shape[0]
     width = shape[1]
 
@@ -2018,7 +2023,7 @@ def iching(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_
 
 
 @mask(lambda: [rng.random_int(4, 6) * 2] * 2 + [1])
-def ideogram(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def ideogram(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     height = shape[0]
     width = shape[1]
 
@@ -2035,7 +2040,7 @@ def ideogram(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, u
 
 
 @mask(lambda: [rng.random_int(7, 9), rng.random_int(12, 24), 1])
-def script(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_y: int, uv_x: int, **kwargs: Any) -> list[list[int]]:
+def script(x: int, y: int, row: list[Any], shape: list[int], uv_noise: np.ndarray, uv_y: int, uv_x: int, **kwargs: Any) -> Any:
     height = shape[0]
     width = shape[1]
 
@@ -2072,7 +2077,7 @@ def script(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_
 @mask([4, 4, 1])
 def tromino(
     x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, uv_shape: list[int], atlas: np.ndarray, **kwargs: Any
-) -> list[list[int]]:
+) -> Any:
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2098,22 +2103,22 @@ def tromino(
 
 
 @mask([6, 6, 1])
-def alphanum_binary(**kwargs: Any) -> list[list[int]]:
+def alphanum_binary(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def alphanum_numeric(**kwargs: Any) -> list[list[int]]:
+def alphanum_numeric(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def alphanum_hex(**kwargs: Any) -> list[list[int]]:
+def alphanum_hex(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([15, 15, 1])
-def truetype(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> list[list[int]]:
+def truetype(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> Any:
     value = max(0, min(1, uv_noise[uv_y][uv_x]))
 
     glyph = atlas[int(value * (len(atlas) - 1))]
@@ -2122,42 +2127,42 @@ def truetype(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, u
 
 
 @mask([4, 4, 1])
-def halftone(**kwargs: Any) -> list[list[int]]:
+def halftone(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 5, 1])
-def lcd(**kwargs: Any) -> list[list[int]]:
+def lcd(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 5, 1])
-def lcd_binary(**kwargs: Any) -> list[list[int]]:
+def lcd_binary(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd(**kwargs: Any) -> list[list[int]]:
+def fat_lcd(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_binary(**kwargs: Any) -> list[list[int]]:
+def fat_lcd_binary(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_numeric(**kwargs: Any) -> list[list[int]]:
+def fat_lcd_numeric(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([10, 10, 1])
-def fat_lcd_hex(**kwargs: Any) -> list[list[int]]:
+def fat_lcd_hex(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 3, 1])
-def arecibo_num(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def arecibo_num(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2171,12 +2176,12 @@ def arecibo_num(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray
 
 
 @mask([6, 5, 1])
-def arecibo_bignum(*args: Any, **kwargs: Any) -> list[list[int]]:
+def arecibo_bignum(*args: Any, **kwargs: Any) -> Any:
     return arecibo_num(*args, **kwargs)
 
 
 @mask([6, 6, 1])
-def arecibo_nucleotide(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def arecibo_nucleotide(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2208,7 +2213,7 @@ _ARECIBO_DNA_TEMPLATE = [
 
 
 @mask([11, 17, 1])
-def arecibo_dna(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def arecibo_dna(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
@@ -2218,7 +2223,7 @@ def arecibo_dna(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray
 
 
 @mask(lambda: [64, 64, 1])
-def arecibo(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, glyph_shape: list[int], **kwargs: Any) -> list[list[int]]:
+def arecibo(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, glyph_shape: list[int], **kwargs: Any) -> Any:
     third_height = glyph_shape[0] / 3
     half_width = glyph_shape[1] / 2
     dna_half_width = mask_shape(ValueMask.arecibo_dna)[1] * 0.5
@@ -2241,47 +2246,47 @@ def arecibo(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv
 
 
 @mask([6, 6, 1])
-def truchet_lines(**kwargs: Any) -> list[list[int]]:
+def truchet_lines(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def truchet_curves(**kwargs: Any) -> list[list[int]]:
+def truchet_curves(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([6, 6, 1])
-def truchet_tile(**kwargs: Any) -> list[list[int]]:
+def truchet_tile(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([8, 8, 1])
-def mcpaint(**kwargs: Any) -> list[list[int]]:
+def mcpaint(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([13, 13, 1])
-def emoji(**kwargs: Any) -> list[list[int]]:
+def emoji(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask([24, 1, 1])
-def bar_code(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, **kwargs: Any) -> list[list[int]]:
+def bar_code(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, **kwargs: Any) -> Any:
     return uv_noise[0][uv_x] < 0.5
 
 
 @mask([10, 1, 1])
-def bar_code_short(*args: Any, **kwargs: Any) -> list[list[int]]:
+def bar_code_short(*args: Any, **kwargs: Any) -> Any:
     return bar_code(*args, **kwargs)
 
 
 @mask([8, 7, 1])
-def bank_ocr(**kwargs: Any) -> list[list[int]]:
+def bank_ocr(**kwargs: Any) -> Any:
     return _glyph_from_atlas_range(**kwargs)
 
 
 @mask(lambda: [rng.random_int(25, 50)] * 2 + [1])
-def fake_qr(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> list[list[int]]:
+def fake_qr(x: int, y: int, row: int, shape: list[int], uv_noise: np.ndarray, uv_x: int, uv_y: int, **kwargs: Any) -> Any:
     x = x % shape[1]
     y = y % shape[1]
 

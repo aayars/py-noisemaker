@@ -73,7 +73,7 @@ def values(
     mask: ValueMask | None = None,
     mask_inverse: bool = False,
     mask_static: bool = False,
-    spline_order: InterpolationType = InterpolationType.bicubic,
+    spline_order: int | InterpolationType = InterpolationType.bicubic,
     time: float = 0.0,
     speed: float = 1.0,
 ) -> tf.Tensor:
@@ -96,10 +96,16 @@ def values(
         Processed tensor
     """
 
-    if isinstance(freq, int):
-        freq = freq_for_shape(freq, shape)
+    if isinstance(spline_order, int):
+        spline_order = InterpolationType(spline_order)
 
-    initial_shape = freq + [shape[-1]]
+    freq_list: list[int]
+    if isinstance(freq, int):
+        freq_list = freq_for_shape(freq, shape)
+    else:
+        freq_list = freq
+
+    initial_shape: list[int] = freq_list + [shape[-1]]
 
     if distrib is None:
         distrib = ValueDistribution.simplex
@@ -164,7 +170,7 @@ def values(
             rounded_speed = math.ceil(-1 + speed)
 
         tensor = normalized_sine(
-            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq[0], freq[1]) - math.tau * time * rounded_speed
+            singularity(None, shape, dist_metric=metric, sdf_sides=sdf_sides) * math.tau * max(freq_list[0], freq_list[1]) - math.tau * time * rounded_speed
         ) * tf.ones(shape, dtype=tf.float32)
 
     elif ValueDistribution.is_noise(distrib):
@@ -194,14 +200,14 @@ def values(
     if mask:
         atlas = masks.get_atlas(mask)
 
-        glyph_shape = freq + [1]
+        glyph_shape = freq_list + [1]
 
         mask_values, _ = masks.mask_values(mask, glyph_shape, atlas=atlas, inverse=mask_inverse, time=0 if mask_static else time, speed=speed)
 
         # These noise types are generated at full size, resize and pin just the mask.
         if ValueDistribution.is_native_size(distrib):
             mask_values = resample(mask_values, shape, spline_order=spline_order)
-            mask_values = pin_corners(mask_values, shape, freq, corners)
+            mask_values = pin_corners(mask_values, shape, freq_list, corners)
 
         if shape[2] == 2:
             tensor = tf.stack([tensor[:, :, 0], tf.stack(mask_values)[:, :, 0]], 2)
@@ -214,7 +220,7 @@ def values(
 
     if not ValueDistribution.is_native_size(distrib):
         tensor = resample(tensor, shape, spline_order=spline_order)
-        tensor = pin_corners(tensor, shape, freq, corners)
+        tensor = pin_corners(tensor, shape, freq_list, corners)
 
     if distrib not in (ValueDistribution.ones, ValueDistribution.mids, ValueDistribution.zeros):
         # I wish we didn't have to do this, but values out of the 0..1 range screw all kinds of things up
@@ -339,13 +345,19 @@ def voronoi(
 
     if xy is None:
         if point_freq == 1:
-            x, y = point_cloud(point_freq, PointDistribution.square, shape)
+            result = point_cloud(point_freq, PointDistribution.square, shape)
+            if result is None:
+                raise ValueError("point_cloud returned None")
+            x, y = result
             point_count = len(x)
 
         else:
-            x0, y0 = point_cloud(
+            result = point_cloud(
                 point_freq, distrib=point_distrib, shape=shape, corners=point_corners, generations=point_generations, drift=point_drift, time=time, speed=speed
             )
+            if result is None:
+                raise ValueError("point_cloud returned None")
+            x0, y0 = result
             point_count = len(x0)
 
             x = []
@@ -677,15 +689,15 @@ def resample(tensor: tf.Tensor, shape: list[int], spline_order: int | Interpolat
     resized_index_trunc = tf.cast(tf.stack([resized_col_index_trunc, resized_row_index_trunc], 2), tf.int32)
 
     # Resized original
-    resized = defaultdict(dict)
+    resized: defaultdict[int, dict[int, tf.Tensor]] = defaultdict(dict)
     resized[1][1] = tf.gather_nd(tensor, resized_index_trunc)
 
     if spline_order == InterpolationType.constant:
         return resized[1][1]
 
     # Resized neighbors
-    input_rows = defaultdict(dict)
-    input_columns = defaultdict(dict)
+    input_rows: defaultdict[int, tf.Tensor] = defaultdict(dict)
+    input_columns: defaultdict[int, tf.Tensor] = defaultdict(dict)
 
     input_rows[1] = row_index(input_shape)
     input_columns[1] = column_index(input_shape)
@@ -828,7 +840,7 @@ def column_index(shape: list[int]) -> tf.Tensor:
     return column_identity
 
 
-def offset(tensor: tf.Tensor, shape: list[int], x: int = 0, y: int = 0) -> tf.Tensor:
+def offset(tensor: tf.Tensor, shape: list[int], x: int | float = 0, y: int | float = 0) -> tf.Tensor:
     """
     Args:
         tensor: Input tensor to process
@@ -980,6 +992,9 @@ def freq_for_shape(freq: int | list[int], shape: list[int]) -> tf.Tensor:
     Returns:
         Processed tensor
     """
+
+    if isinstance(freq, list):
+        freq = freq[0]
 
     height = shape[0]
     width = shape[1]
@@ -1266,6 +1281,7 @@ def refract(
             reference_x = convolve(kernel=ValueMask.conv2d_deriv_x, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
+            assert warp_shape is not None
             reference_x = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex, time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -1276,6 +1292,7 @@ def refract(
             reference_y = convolve(kernel=ValueMask.conv2d_deriv_y, tensor=tensor, shape=shape, with_normalize=False)
 
         elif warp_freq:
+            assert warp_shape is not None
             reference_y = values(freq=warp_freq, shape=warp_shape, distrib=ValueDistribution.simplex, time=time, speed=speed, spline_order=spline_order)
 
         else:
@@ -1400,7 +1417,10 @@ def singularity(tensor: tf.Tensor, shape: list[int], diagram_type: VoronoiDiagra
         Processed tensor
     """
 
-    x, y = point_cloud(1, PointDistribution.square, shape)
+    result = point_cloud(1, PointDistribution.square, shape)
+    if result is None:
+        raise ValueError("point_cloud returned None")
+    x, y = result
 
     return voronoi(tensor, shape, diagram_type=diagram_type, xy=(x, y, 1), **kwargs)
 
@@ -1419,13 +1439,16 @@ def pin_corners(tensor: tf.Tensor, shape: list[int], freq: int | list[int], corn
         Processed tensor
     """
 
+    if isinstance(freq, int):
+        freq = [freq, freq]
+
     if (not corners and (freq[0] % 2) == 0) or (corners and (freq[0] % 2) == 1):
         tensor = offset(tensor, shape, x=int((shape[1] / freq[1]) * 0.5), y=int((shape[0] / freq[0]) * 0.5))
 
     return tensor
 
 
-def coerce_enum(value: float, cls: type) -> tf.Tensor:
+def coerce_enum(value: float | int | str | Any, cls: type) -> tf.Tensor:
     """
     Attempt to coerce a given string or int value into an Enum instance.
 
@@ -1441,7 +1464,7 @@ def coerce_enum(value: float, cls: type) -> tf.Tensor:
         value = cls(value)
 
     elif isinstance(value, str):
-        value = cls[value]
+        value = cls[value]  # type: ignore[index]
 
     return value
 

@@ -30,7 +30,7 @@ OPENAI_MODEL = "o4-mini"
 
 # Adapted from stability.ai API usage example
 # https://platform.stability.ai/rest-api#tag/v1generation/operation/imageToImage
-def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None) -> str:
+def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None) -> tf.Tensor:
     """Apply Stability AI image-to-image transformation (v1 models).
 
     For v2 models (sd3, core, ultra), delegates to apply_v2().
@@ -79,7 +79,7 @@ def apply(settings: dict[str, Any], seed: int, input_filename: str, stability_mo
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def apply_v2(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None = None) -> str:
+def apply_v2(settings: dict[str, Any], seed: int, input_filename: str, stability_model: str | None = None) -> tf.Tensor:
     """Apply Stability AI image-to-image transformation (v2 models: sd3, core, ultra).
 
     Args:
@@ -126,7 +126,7 @@ def apply_v2(settings: dict[str, Any], seed: int, input_filename: str, stability
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def apply_style(settings: dict[str, Any], seed: int, content_filename: str, style_filename: str, output_format: str = "png") -> str:
+def apply_style(settings: dict[str, Any], seed: int, content_filename: str, style_filename: str, output_format: str = "png") -> tf.Tensor:
     """Apply Stability AI style transfer from a reference image.
 
     Args:
@@ -163,7 +163,7 @@ def apply_style(settings: dict[str, Any], seed: int, content_filename: str, styl
     return tf.image.convert_image_dtype(tensor, tf.float32, saturate=True)
 
 
-def x4_upscale(input_filename: str) -> str:
+def x4_upscale(input_filename: str) -> tf.Tensor:
     """Upscale an image by 4x using Stability AI's fast upscaler.
 
     Args:
@@ -341,6 +341,7 @@ def _openai_query(system_prompt: str, user_prompt: str) -> str:
     )
 
     try:
-        return response.json()["choices"][0]["message"]["content"]
+        result: str = response.json()["choices"][0]["message"]["content"]
+        return result
     except Exception:
         raise Exception(f"Unexpected JSON structure: {response.json()}")

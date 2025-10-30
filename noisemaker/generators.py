@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 from functools import partial
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import tensorflow as tf
 
@@ -22,6 +22,8 @@ from noisemaker.constants import (
     ValueMask,
 )
 
+if TYPE_CHECKING:
+    from noisemaker.composer import Preset
 
 def basic(
     freq: int | list[int],
@@ -85,12 +87,15 @@ def basic(
         Generated noise tensor
     """
 
+    freq_list: list[int]
     if isinstance(freq, int):
-        freq = value.freq_for_shape(freq, shape)
+        freq_list = value.freq_for_shape(freq, shape)
+    else:
+        freq_list = freq
 
     color_space = value.coerce_enum(color_space, ColorSpace)
 
-    common_value_params = {
+    common_value_params: dict[str, Any] = {
         "corners": corners,
         "mask": mask,
         "mask_inverse": mask_inverse,
@@ -100,7 +105,18 @@ def basic(
         "time": time,
     }
 
-    tensor = value.values(freq=freq, shape=shape, distrib=distrib, **common_value_params)
+    tensor = value.values(
+        freq=freq_list,
+        shape=shape,
+        distrib=distrib,
+        corners=corners,
+        mask=mask,
+        mask_inverse=mask_inverse,
+        mask_static=mask_static,
+        speed=speed,
+        spline_order=spline_order,
+        time=time,
+    )
 
     if lattice_drift:
         tensor = value.refract(
@@ -108,8 +124,8 @@ def basic(
             shape,
             time=time,
             speed=speed,
-            displacement=lattice_drift / min(freq[0], freq[1]),
-            warp_freq=freq,
+            displacement=lattice_drift / min(freq_list[0], freq_list[1]),
+            warp_freq=freq_list,
             spline_order=spline_order,
             signed_range=False,
         )
@@ -147,7 +163,7 @@ def basic(
 
         # tweak hue
         if hue_distrib:
-            h = tf.squeeze(value.values(freq=freq, distrib=hue_distrib, **common_value_params))
+            h = tf.squeeze(value.values(freq=freq_list, distrib=hue_distrib, **common_value_params))
         else:
             if original_color_space == ColorSpace.hsv:
                 if hue_rotation is None:
@@ -160,7 +176,7 @@ def basic(
 
         # tweak saturation
         if saturation_distrib:
-            s = tf.squeeze(value.values(freq=freq, distrib=saturation_distrib, **common_value_params))
+            s = tf.squeeze(value.values(freq=freq_list, distrib=saturation_distrib, **common_value_params))
         else:
             s = tensor[:, :, 1]
 
@@ -171,7 +187,7 @@ def basic(
             if isinstance(brightness_freq, int):
                 brightness_freq = value.freq_for_shape(brightness_freq, shape)
 
-            v = tf.squeeze(value.values(freq=brightness_freq or freq, distrib=brightness_distrib or ValueDistribution.simplex, **common_value_params))
+            v = tf.squeeze(value.values(freq=brightness_freq or freq_list, distrib=brightness_distrib or ValueDistribution.simplex, **common_value_params))
         else:
             v = tensor[:, :, 2]
 
@@ -298,9 +314,13 @@ def multires(
     color_space = value.coerce_enum(color_space, ColorSpace)
     octave_blending = value.coerce_enum(octave_blending, OctaveBlending)
 
-    original_shape = shape.copy() if shape is not None else None
+    # At this point, shape must be defined
+    if shape is None:
+        raise ValueError("shape must be provided")
 
-    if shape is not None and shape[-1] is None:
+    original_shape = shape.copy()
+
+    if shape[-1] is None:
         shape = util.shape_from_params(shape[1], shape[0], color_space, with_alpha)
 
     if isinstance(freq, int):
@@ -433,7 +453,7 @@ def multires(
             except Exception as e:
                 util.logger.error(f"ai.apply() failed: {e}\nSeed: {seed}")
 
-    for effect_or_preset in final + final_effects:
+    for effect_or_preset in final + (final_effects or []):
         tensor = _apply_final_effect_or_preset(effect_or_preset, tensor, shape, time, speed)
 
     tensor = value.normalize(tensor)
@@ -460,7 +480,7 @@ def multires(
 
 
 def _apply_octave_effect_or_preset(
-    effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float, octave: int
+    effect_or_preset: Callable | Preset, tensor: tf.Tensor, shape: list[int], time: float, speed: float, octave: int
 ) -> tf.Tensor:
     """
     Helper function to either invoke an octave effect or unroll a preset.
@@ -477,10 +497,12 @@ def _apply_octave_effect_or_preset(
         Processed tensor
     """
     if callable(effect_or_preset):
-        if "displacement" in effect_or_preset.keywords:
-            kwargs = dict(effect_or_preset.keywords)  # Be sure to copy, otherwise it modifies the original
-            kwargs["displacement"] /= 2**octave
-            effect_or_preset = partial(effect_or_preset.func, **kwargs)
+        # Check if this is a functools.partial object with displacement keyword
+        if hasattr(effect_or_preset, 'keywords') and hasattr(effect_or_preset, 'func'):
+            if "displacement" in effect_or_preset.keywords:
+                kwargs = dict(effect_or_preset.keywords)
+                kwargs["displacement"] /= 2**octave
+                effect_or_preset = partial(effect_or_preset.func, **kwargs)
 
         return effect_or_preset(tensor=tensor, shape=shape, time=time, speed=speed)
 
@@ -491,7 +513,7 @@ def _apply_octave_effect_or_preset(
         return tensor
 
 
-def _apply_post_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tuple[tf.Tensor, list]:
+def _apply_post_effect_or_preset(effect_or_preset: Callable | Preset, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tuple[tf.Tensor, list]:
     """
     Helper function to either invoke a post effect or unroll a preset.
 
@@ -521,7 +543,7 @@ def _apply_post_effect_or_preset(effect_or_preset: Callable | object, tensor: tf
         return tensor, final
 
 
-def _apply_final_effect_or_preset(effect_or_preset: Callable | object, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tf.Tensor:
+def _apply_final_effect_or_preset(effect_or_preset: Callable | Preset, tensor: tf.Tensor, shape: list[int], time: float, speed: float) -> tf.Tensor:
     """
     Helper function to either invoke a final effect or unroll a preset.
 

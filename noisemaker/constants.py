@@ -194,7 +194,7 @@ class ValueDistribution(Enum):
         Returns:
             True if the distribution is noise-based
         """
-        return member and member.value < 5
+        return bool(member and member.value < 5)
 
     ones = 5
     mids = 6
@@ -227,7 +227,7 @@ class ValueDistribution(Enum):
         Returns:
             True if the distribution is center distance-based
         """
-        return member and (member.value >= 20) and (member.value < 40)
+        return bool(member and (member.value >= 20) and (member.value < 40))
 
     @classmethod
     def is_native_size(cls, member) -> bool:
@@ -541,10 +541,10 @@ class ValueMask(Enum):
         Returns:
             True if the mask is conv2d-based
         """
-        return member.name.startswith("conv2d")
+        return bool(member.name.startswith("conv2d"))
 
     @classmethod
-    def grid_members(cls: Type[PointDistribution]) -> list[PointDistribution]:
+    def grid_members(cls: type[ValueMask]) -> list:
         """
         Get all grid-based value masks.
 
@@ -554,7 +554,7 @@ class ValueMask(Enum):
         return [m for m in cls if cls.is_grid(m)]
 
     @classmethod
-    def is_grid(cls: Type[PointDistribution], member: PointDistribution) -> bool:
+    def is_grid(cls: type[ValueMask], member) -> bool:
         """
         Check if a value mask is grid-based.
 
@@ -564,7 +564,7 @@ class ValueMask(Enum):
         Returns:
             True if the mask is grid-based
         """
-        return member.value < cls.alphanum_0.value
+        return bool(member.value < cls.alphanum_0.value)
 
     @classmethod
     def rgb_members(cls) -> list:
@@ -587,7 +587,7 @@ class ValueMask(Enum):
         Returns:
             True if the mask is RGB-based
         """
-        return member.value >= cls.rgb.value and member.value < cls.sparse.value
+        return bool(member.value >= cls.rgb.value and member.value < cls.sparse.value)
 
     @classmethod
     def nonprocedural_members(cls) -> list:
@@ -620,7 +620,7 @@ class ValueMask(Enum):
         Returns:
             True if the mask is procedural
         """
-        return member.value >= cls.sparse.value
+        return bool(member.value >= cls.sparse.value)
 
     @classmethod
     def glyph_members(cls) -> list:
@@ -650,7 +650,7 @@ class ValueMask(Enum):
         Returns:
             True if the mask is glyph-based
         """
-        return member in glyph_members
+        return member in cls.glyph_members()
 
 
 class VoronoiDiagramType(Enum):
@@ -730,7 +730,7 @@ class WormBehavior(Enum):
     meandering = 10  # like chaotic, but changes smoothly over time
 
     @classmethod
-    def all(cls: Type[DistanceMetric]) -> list[DistanceMetric]:
+    def all(cls: type[WormBehavior]) -> list[WormBehavior]:
         """
         Get all worm behaviors except none.
 
@@ -773,7 +773,7 @@ class ColorSpace(Enum):
         Returns:
             True if the color space has color channels (not grayscale)
         """
-        return m and m.value > 1
+        return bool(m and m.value > 1)
 
     @classmethod
     def color_members(cls) -> list:

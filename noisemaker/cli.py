@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Common CLI boilerplate for Noisemaker"""
 
+from enum import Enum
 from typing import Any, Callable
 
 import click
@@ -10,7 +11,7 @@ import click
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-def show_values(enum_class: type) -> str:
+def show_values(enum_class: type[Enum]) -> str:
     """Format enum values for CLI help text.
 
     Args:
@@ -60,7 +61,7 @@ def validate_more_than_one(allow_none: bool = False) -> Callable:
     return validate
 
 
-def validate_enum(cls: type) -> Callable:
+def validate_enum(cls: type[Enum]) -> Callable:
     """Create a Click validator that enforces enum membership.
 
     Args:

@@ -39,12 +39,13 @@ def effect(*args: str) -> Callable:
         params.remove("tensor")
         params.remove("shape")
 
-        if params and len(params) != len(argspec.defaults):
-            raise ValueError(f'Expected {len(argspec.defaults)} keyword params to "{func.__name__}", but got {len(params)}.')
+        defaults = argspec.defaults or ()
+        if params and len(params) != len(defaults):
+            raise ValueError(f'Expected {len(defaults)} keyword params to "{func.__name__}", but got {len(params)}.')
 
         # Register effect name and params
         name = args[0] if args else func.__name__
-        EFFECTS[name] = dict((params[i], argspec.defaults[i]) for i in range(len(params)))
+        EFFECTS[name] = dict((params[i], defaults[i]) for i in range(len(params)))
         EFFECTS[name]["func"] = func
 
         return func

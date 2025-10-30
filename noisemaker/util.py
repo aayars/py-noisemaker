@@ -117,7 +117,7 @@ def check_call(command: list[str], quiet: bool = False) -> Any:
         raise
 
 
-def log_subprocess_error(command: list[str], e: Exception) -> None:
+def log_subprocess_error(command: str | list[str], e: Exception) -> None:
     """Log subprocess execution errors with appropriate detail.
 
     Args:

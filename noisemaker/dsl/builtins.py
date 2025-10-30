@@ -125,10 +125,10 @@ def preset(*args):
 # Mark non-deterministic operations as thunks so the evaluator defers their
 # execution until settings are resolved, mirroring the JavaScript
 # implementation.
-coin_flip.__thunk = True
-random_member.__thunk = True
-random.__thunk = True
-random_int.__thunk = True
+coin_flip.__thunk = True  # type: ignore[attr-defined]
+random_member.__thunk = True  # type: ignore[attr-defined]
+random.__thunk = True  # type: ignore[attr-defined]
+random_int.__thunk = True  # type: ignore[attr-defined]
 
 # Unlike the JavaScript implementation, eagerly evaluate these helpers so tests
 # can inspect their return values directly.
@@ -169,25 +169,25 @@ enumMethods = {
         "all": operations["distance_metric_all"],
     },
     "PointDistribution": {
-        "grid_members": lambda: operations["grid_members"](),
-        "circular_members": lambda: operations["circular_members"](),
+        "grid_members": lambda: operations["grid_members"](),  # type: ignore[operator]
+        "circular_members": lambda: operations["circular_members"](),  # type: ignore[operator]
     },
     "ColorSpace": {
         "color_members": operations["color_space_members"],
     },
     "ValueMask": {
-        "procedural_members": lambda: operations["value_mask_procedural_members"](),
-        "grid_members": lambda: operations["value_mask_grid_members"](),
-        "glyph_members": lambda: operations["value_mask_glyph_members"](),
-        "nonprocedural_members": lambda: operations["value_mask_nonprocedural_members"](),
-        "rgb_members": lambda: operations["value_mask_rgb_members"](),
+        "procedural_members": lambda: operations["value_mask_procedural_members"](),  # type: ignore[operator]
+        "grid_members": lambda: operations["value_mask_grid_members"](),  # type: ignore[operator]
+        "glyph_members": lambda: operations["value_mask_glyph_members"](),  # type: ignore[operator]
+        "nonprocedural_members": lambda: operations["value_mask_nonprocedural_members"](),  # type: ignore[operator]
+        "rgb_members": lambda: operations["value_mask_rgb_members"](),  # type: ignore[operator]
     },
     "WormBehavior": {
-        "all": lambda: operations["worm_behavior_all"](),
+        "all": lambda: operations["worm_behavior_all"](),  # type: ignore[operator]
     },
     "masks": {
         "mask_shape": operations["mask_shape"],
-        "square_masks": lambda: operations["square_masks"](),
+        "square_masks": lambda: operations["square_masks"](),  # type: ignore[operator]
     },
 }
 

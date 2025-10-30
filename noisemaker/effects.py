@@ -389,7 +389,7 @@ def worms(
 
     quarter_count = int(count * 0.25)
 
-    rots = {}
+    rots: dict[WormBehavior, Any] = {}
 
     rots = {
         WormBehavior.obedient: lambda n: tf.ones([n], dtype=tf.float32) * rng.random() * math.tau,  # RNG[4]
@@ -410,6 +410,10 @@ def worms(
         # Chaotic, changing over time
         WormBehavior.meandering: lambda n: value.periodic_value(time * speed, rng.uniform([count])),  # RNG[8]
     }
+
+    # Ensure behavior is WormBehavior enum
+    if isinstance(behavior, int):
+        behavior = WormBehavior(behavior)
 
     worms_rot = rots[behavior](count)
 
@@ -827,10 +831,14 @@ def inner_tile(tensor: tf.Tensor, shape: list[int], freq: int | list[int]) -> tf
     if isinstance(freq, int):
         freq = value.freq_for_shape(freq, shape)
 
-    small_shape = [int(shape[0] / freq[0]), int(shape[1] / freq[1]), shape[2]]
+    # At this point freq is definitely list[int]
+    assert isinstance(freq, list)
+    freq_list: list[int] = freq
 
-    y_index = tf.tile(value.column_index(small_shape) * freq[0], [freq[0], freq[0]])
-    x_index = tf.tile(value.row_index(small_shape) * freq[1], [freq[0], freq[0]])
+    small_shape = [int(shape[0] / freq_list[0]), int(shape[1] / freq_list[1]), shape[2]]
+
+    y_index = tf.tile(value.column_index(small_shape) * freq_list[0], [freq_list[0], freq_list[0]])
+    x_index = tf.tile(value.row_index(small_shape) * freq_list[1], [freq_list[0], freq_list[0]])
 
     tiled = tf.gather_nd(tensor, tf.stack([y_index, x_index], 2))
 
@@ -1264,7 +1272,10 @@ def dla(
 
     if xy is None:
         seed_count = int(math.sqrt(int(half_height * seed_density) or 1))
-        x, y = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape, time=time, speed=speed)
+        result = point_cloud(seed_count, distrib=PointDistribution.random, shape=shape, time=time, speed=speed)
+        if result is None:
+            raise ValueError("point_cloud returned None")
+        x, y = result
 
     else:
         x, y, seed_count = xy
@@ -1440,7 +1451,7 @@ def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: f
         Modified tensor
     """
 
-    x, y = point_cloud(
+    result = point_cloud(
         6,
         distrib=PointDistribution.grid_members()[rng.random_int(0, len(PointDistribution.grid_members()) - 1)],
         drift=0.05,
@@ -1448,6 +1459,9 @@ def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: f
         time=time,
         speed=speed,
     )
+    if result is None:
+        raise ValueError("point_cloud returned None")
+    x, y = result
 
     leak = value.voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=(x, y, len(x)))
     leak = wormhole(leak, shape, kink=1.0, input_stride=0.25)
@@ -1698,6 +1712,10 @@ def _pixel_sort(tensor: tf.Tensor, shape: list[int], angle: float | None, darkes
     if darkest:
         tensor = 1.0 - tensor
 
+    # Handle None angle
+    if angle is None:
+        angle = 0.0
+
     want_length = max(height, width) * 2
 
     padded_shape = [want_length, want_length, channels]
@@ -1877,7 +1895,11 @@ def lowpoly(
         Modified tensor
     """
 
-    xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time, speed=speed)
+    # Convert freq to int if it's a list
+    if isinstance(freq, list):
+        freq = freq[0]
+
+    xy = point_cloud(freq, distrib=distrib, shape=shape, drift=1.0, time=time, speed=speed)  # type: ignore[arg-type]
 
     distance = value.voronoi(tensor, shape, nth=1, xy=xy, dist_metric=dist_metric)
     color = value.voronoi(tensor, shape, diagram_type=VoronoiDiagramType.color_regions, xy=xy, dist_metric=dist_metric)
@@ -2039,7 +2061,7 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
 
     rgb_shape = [shape[0], shape[1], 3]
 
-    p = palettes[name]
+    p: Any = palettes[name]
 
     offset = p["offset"] * tf.ones(rgb_shape, dtype=tf.float32)
     amp = p["amp"] * tf.ones(rgb_shape, dtype=tf.float32)
@@ -2575,7 +2597,7 @@ def watermark(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
 
     value_shape = value.value_shape(shape)
 
-    mask = value.values(freq=240, shape=value_shape, spline_order=0, distrib=ValueDistribution.ones, mask="alphanum_numeric")
+    mask = value.values(freq=240, shape=value_shape, spline_order=0, distrib=ValueDistribution.ones, mask=ValueMask.alphanum_numeric)
 
     mask = crt(mask, value_shape)
 
@@ -3054,7 +3076,7 @@ def value_refract(
         Modified tensor
     """
 
-    blend_values = value.values(freq=freq, shape=value.value_shape(shape), distrib=distrib, time=time, speed=speed)
+    blend_values = value.values(freq=freq, shape=value.value_shape(shape), distrib=distrib, time=time, speed=speed)  # type: ignore[arg-type]
 
     return value.refract(tensor, shape, time=time, speed=speed, reference_x=blend_values, displacement=displacement)
 

@@ -88,16 +88,24 @@ class Preset:
             self.settings.update(settings)
 
         # These args will be sent to generators.multires() to create the noise basis
-        self.generator_kwargs: dict[str, Any] = _flatten_ancestor_metadata(self, self.settings, "generator", {}, presets)
+        generator_kwargs_raw = _flatten_ancestor_metadata(self, self.settings, "generator", {}, presets)
+        assert isinstance(generator_kwargs_raw, dict)
+        self.generator_kwargs: dict[str, Any] = generator_kwargs_raw
 
         # A list of callable effects functions, to be applied per-octave, in order
-        self.octave_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "octaves", [], presets)
+        octave_effects_raw = _flatten_ancestor_metadata(self, self.settings, "octaves", [], presets)
+        assert isinstance(octave_effects_raw, list)
+        self.octave_effects: list[Callable] = octave_effects_raw
 
         # A list of callable effects functions, to be applied post-reduce, in order
-        self.post_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "post", [], presets)
+        post_effects_raw = _flatten_ancestor_metadata(self, self.settings, "post", [], presets)
+        assert isinstance(post_effects_raw, list)
+        self.post_effects: list[Callable] = post_effects_raw
 
         # A list of callable effects functions, to be applied in order after everything else
-        self.final_effects: list[Callable] = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
+        final_effects_raw = _flatten_ancestor_metadata(self, self.settings, "final", [], presets)
+        assert isinstance(final_effects_raw, list)
+        self.final_effects: list[Callable] = final_effects_raw
 
         try:
             # To avoid mistakes in presets, unused keys are disallowed.
@@ -205,6 +213,7 @@ class Preset:
                 return {"effects": effect_names, "rng_calls": rng.get_call_count()}
 
             save(tensor, filename)
+            return tensor
 
         except Exception as e:
             logger.error(f"Error rendering preset named {self.name}: {e}")
@@ -235,7 +244,7 @@ def Effect(effect_name: str, **kwargs: Any) -> Callable:
         if k not in EFFECTS[effect_name]:
             raise ValueError(f'Effect "{effect_name}" does not accept a parameter named "{k}"')
     effect = partial(EFFECTS[effect_name]["func"], **kwargs)
-    effect._effect_name = effect_name
+    effect._effect_name = effect_name  # type: ignore[attr-defined]
     return effect
 
 
@@ -252,14 +261,16 @@ def _flatten_layer_entries(value: Any) -> list[Any]:
 
 def _resolve_preset_layers(preset_name: str, presets: dict[str, Any], cache: dict[str, Any]) -> tuple[Any, ...]:
     if preset_name in cache:
-        return cache[preset_name]
+        result: tuple[Any, ...] = cache[preset_name]
+        return result
 
     prototype = presets.get(preset_name, {})
     raw_layers = prototype.get("layers", [])
-    dummy_settings = defaultdict(lambda: None)
+    dummy_settings: dict[str, Any] = defaultdict(lambda: None)
     resolved = _resolve_metadata_value(raw_layers, dummy_settings)
     cache[preset_name] = tuple(_flatten_layer_entries(resolved))
-    return cache[preset_name]
+    result = cache[preset_name]
+    return result
 
 
 def _flatten_ancestors(preset_name: str, presets: dict[str, Any], unique: dict[str, bool], ancestors: list[str], layer_cache: dict[str, Any]) -> None:
@@ -384,7 +395,7 @@ def _map_effect(effect: Any, settings: dict[str, Any]) -> Any:
     return effect
 
 
-def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: str, default: Any, presets: dict[str, Any]) -> dict[str, Any] | list[Any]:
+def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any] | SettingsDict | None, key: str, default: Any, presets: dict[str, Any]) -> dict[str, Any] | list[Any]:
     """Collect and merge metadata from all ancestor presets.
 
     Traverses the preset inheritance chain and accumulates values for the specified
@@ -392,7 +403,7 @@ def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: st
 
     Args:
         preset: The preset whose ancestors to traverse.
-        settings: Current settings dictionary for value resolution.
+        settings: Current settings dictionary for value resolution (can be None).
         key: Metadata key to collect (e.g., "octaves", "post", "final", "settings").
         default: Default value type (dict or list) to initialize accumulator.
         presets: Dictionary of all available presets.
@@ -404,6 +415,7 @@ def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: st
         ValueError: If ancestor metadata has wrong type or evaluation fails.
     """
 
+    flattened_metadata: dict[str, Any] | list[Any]
     if isinstance(default, dict):
         flattened_metadata = {}
     else:
@@ -425,16 +437,18 @@ def _flatten_ancestor_metadata(preset: Preset, settings: dict[str, Any], key: st
                 else:
                     raise ValueError(f'In ancestor "{ancestor_name}": {e}')
 
-        ancestor = _resolve_metadata_value(ancestor, settings)
+        ancestor = _resolve_metadata_value(ancestor, settings)  # type: ignore[arg-type]
 
         if not isinstance(ancestor, type(default)):
             raise ValueError(f'{ancestor_name}: Key "{key}" should be {type(default)}, not {type(ancestor)}.')
 
         if isinstance(ancestor, dict):
+            assert isinstance(flattened_metadata, dict)
             flattened_metadata.update(ancestor)
         else:
             if key in ("octaves", "post", "final"):
-                ancestor = [_map_effect(e, settings) for e in ancestor]
+                ancestor = [_map_effect(e, settings) for e in ancestor]  # type: ignore[arg-type]
+            assert isinstance(flattened_metadata, list)
             flattened_metadata += ancestor
 
     return flattened_metadata
@@ -458,7 +472,7 @@ def random_member(*collections: Any) -> Any:
         ValueError: If any argument is not iterable.
     """
 
-    collection = []
+    collection: list[Any] = []
 
     for c in collections:
         if not hasattr(c, "__iter__"):
@@ -526,11 +540,11 @@ def reload_presets(presets: Callable[[], dict[str, Any]]) -> None:
     GENERATOR_PRESETS.clear()
     EFFECT_PRESETS.clear()
 
-    presets = presets()
+    presets_dict = presets()
 
-    for preset_name in presets:
+    for preset_name in presets_dict:
         try:
-            preset = Preset(preset_name, presets)
+            preset = Preset(preset_name, presets_dict)
 
             if preset.is_generator():
                 GENERATOR_PRESETS[preset_name] = preset
@@ -577,7 +591,7 @@ class SettingsDict(UserDict):
     """dict, but it makes sure the caller eats everything on their plate."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self.__accessed__ = {}
+        self.__accessed__: dict[str, bool] = {}
 
         super().__init__(*args, **kwargs)
 

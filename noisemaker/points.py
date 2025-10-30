@@ -20,7 +20,7 @@ def point_cloud(
     drift: float = 0.0,
     time: float = 0.0,
     speed: float = 1.0,
-) -> tuple[list[int], list[int]] | None:
+) -> tuple[list[Any], list[Any]] | None:
     """
     Generate a point cloud for Voronoi diagrams or other point-based effects.
 
@@ -39,10 +39,10 @@ def point_cloud(
     """
 
     if not freq:
-        return
+        return None
 
-    x = []
-    y = []
+    x: list[Any] = []
+    y: list[Any] = []
 
     if shape is None:
         width = 1.0
@@ -67,14 +67,14 @@ def point_cloud(
     if distrib in ValueMask.procedural_members():
         raise Exception("Procedural ValueMask can't be used as a PointDistribution.")
 
-    point_func = rand
+    point_func: Any = rand
 
     range_x = width * 0.5
     range_y = height * 0.5
 
     #
-    seen = set()
-    active_set = set()
+    seen: set[tuple[Any, Any]] = set()
+    active_set: set[tuple[Any, Any, int]] = set()
 
     if isinstance(distrib, PointDistribution):
         if PointDistribution.is_grid(distrib):
@@ -94,7 +94,10 @@ def point_cloud(
 
     else:
         # Use a ValueMask as a PointDistribution!
-        mask = masks.Masks[distrib]
+        if shape is None:
+            raise ValueError("shape must be provided when using ValueMask as PointDistribution")
+            
+        mask: Any = masks.Masks[distrib]
         mask_shape = masks.mask_shape(distrib)
 
         x_space = shape[1] / mask_shape[1]
@@ -123,7 +126,7 @@ def point_cloud(
 
         return x, y
 
-    seen.update(active_set)
+    seen.update((x, y) for x, y, _ in active_set)
 
     while active_set:
         x_point, y_point, generation = active_set.pop()
@@ -196,7 +199,10 @@ def cloud_points(count: int, seed: int | None = None) -> tuple[list[float], list
     if seed is not None:
         rng.set_seed(seed)
 
-    return point_cloud(count, PointDistribution.random)
+    result = point_cloud(count, PointDistribution.random)
+    if result is None:
+        return ([], [])
+    return result
 
 
 def rand(
@@ -368,7 +374,7 @@ def spiral(
 
 def circular(
     freq: float = 1.0,
-    distrib: float = 1.0,
+    distrib: PointDistribution = PointDistribution.circular,
     center_x: float = 0.0,
     center_y: float = 0.0,
     range_x: float = 1.0,
@@ -386,7 +392,7 @@ def circular(
 
     Args:
         freq: Number of rings and points per ring.
-        distrib: Distribution factor (typically 1.0 for uniform spacing).
+        distrib: Point distribution method (circular or rotating).
         center_x: Horizontal center of the circular pattern [0.0, 1.0].
         center_y: Vertical center of the circular pattern [0.0, 1.0].
         range_x: Horizontal radius scale factor.

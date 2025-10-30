@@ -113,7 +113,7 @@ def generate(
     try:
         preset.render(
             seed,
-            shape=[height, width, None],
+            shape=[height, width, None],  # type: ignore[list-item]
             time=time,
             speed=speed,
             filename=filename,
@@ -141,7 +141,7 @@ def generate(
         print(preset_name)
 
     if with_alt_text:
-        print(ai.describe(preset.name.replace("-", " "), preset.ai_settings.get("prompt"), filename))
+        print(ai.describe(preset.name.replace("-", " "), preset.ai_settings.get("prompt", ""), filename))
 
 
 def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai, with_upscale, stability_model):

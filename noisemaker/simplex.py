@@ -686,23 +686,23 @@ class OpenSimplex:
         return value / NORM_CONSTANT_3D
 
 
-def from_seed(seed: int) -> OpenSimplex:
+def from_seed(seed: int) -> tuple[OpenSimplex, dict[str, list[int]]]:
     """
-    Create OpenSimplex noise generator from seed.
+    Create OpenSimplex generator from seed.
 
     Args:
-        seed: Random seed value
+        seed: Random seed for generator initialization
 
     Returns:
-        Initialized OpenSimplex generator
+        Tuple of (initialized OpenSimplex generator, metadata dict)
     """
     os = OpenSimplex(seed)
     return os, {"perm": list(os.perm), "perm_grad": list(os.perm_grad_index_3D)}
 
 
-def random(time: int = 0, seed: int | None = None, speed: int = 1) -> OpenSimplex:
+def random(time: int | float = 0, seed: int | None = None, speed: int | float = 1) -> float:
     """
-    Create time-evolving OpenSimplex noise generator.
+    Create time-evolving OpenSimplex noise value.
 
     Args:
         time: Time offset for seed evolution, default 0
@@ -710,7 +710,7 @@ def random(time: int = 0, seed: int | None = None, speed: int = 1) -> OpenSimple
         speed: Seed evolution speed multiplier, default 1
 
     Returns:
-        Initialized OpenSimplex generator with evolved seed
+        Random float value between 0 and 1
     """
     angle = math.pi * 2 * time
     z = math.cos(angle) * speed
@@ -721,7 +721,7 @@ def random(time: int = 0, seed: int | None = None, speed: int = 1) -> OpenSimple
     return (value + 1) * 0.5
 
 
-def simplex(shape, time: int = 0, seed: int | None = None, speed: int = 1, as_np: bool = False) -> tf.Tensor | np.ndarray:
+def simplex(shape, time: int | float = 0, seed: int | None = None, speed: int | float = 1, as_np: bool = False) -> tf.Tensor | np.ndarray:
     """
     Generate simplex noise tensor.
 

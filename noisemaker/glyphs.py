@@ -54,9 +54,9 @@ def load_glyphs(shape: list[int]) -> list[list[list[list[float]]]]:
     totals = []
 
     for i in range(32, 127):
-        total = 0
+        total = 0.0
 
-        glyph = []
+        glyph: list[list[list[float]]] = []
         glyphs.append(glyph)
 
         image = Image.new("RGB", (shape[1], shape[0]))
@@ -64,11 +64,14 @@ def load_glyphs(shape: list[int]) -> list[list[list[list[float]]]]:
         ImageDraw.Draw(image).text((0, 0), chr(i), font=font)
 
         for y in range(shape[0]):
-            row = []
+            row: list[list[float]] = []
             glyph.append(row)
 
             for x in range(shape[1]):
-                value = image.getpixel((x, y))[0] / 255
+                pixel = image.getpixel((x, y))
+                if not isinstance(pixel, tuple):
+                    raise ValueError(f"Expected tuple pixel value, got {type(pixel)}")
+                value = float(pixel[0]) / 255.0
 
                 row.append([value])
                 total += value

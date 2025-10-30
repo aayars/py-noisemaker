@@ -2,6 +2,15 @@
 PUNCT = set("(){}[],.:+-*/?=<>")
 
 
+class TokenizerError(Exception):
+    """Custom exception for tokenizer errors with line and column tracking."""
+
+    def __init__(self, message: str, line: int, column: int):
+        super().__init__(f"{message} at line {line} column {column}")
+        self.line = line
+        self.column = column
+
+
 def is_digit(ch):
     return ch is not None and "0" <= ch <= "9"
 
@@ -19,10 +28,7 @@ def is_ident(ch):
 
 
 def make_error(message, line, column):
-    err = Exception(f"{message} at line {line} column {column}")
-    err.line = line
-    err.column = column
-    return err
+    return TokenizerError(message, line, column)
 
 
 def tokenize(source):
