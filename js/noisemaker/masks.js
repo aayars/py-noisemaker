@@ -107,7 +107,14 @@ function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
   if (float3 < 0.5) {
     texY = shape[0] - texY - 1;
   }
-  return atlas[uvFloor][texX][texY];
+  // Ensure indices are within bounds of the atlas tile
+  const tile = atlas[uvFloor];
+  if (!tile) return 0;
+  const tileHeight = tile.length;
+  const tileWidth = tile[0] ? tile[0].length : 0;
+  texY = Math.min(texY, tileHeight - 1);
+  texX = Math.min(texX, tileWidth - 1);
+  return tile[texY][texX];
 }
 
 function _randomAtlasTile({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
