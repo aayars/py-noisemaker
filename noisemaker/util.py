@@ -77,17 +77,17 @@ def magick(pattern: str, name: str) -> Any:
     # If pattern is like "/tmp/dir/*png", convert to "/tmp/dir/%04d.png"
     import os
     import tempfile
-    
+
     if "*" in pattern:
         directory = os.path.dirname(pattern)
         input_pattern = os.path.join(directory, "%04d.png")
     else:
         input_pattern = pattern
-    
+
     # Use ffmpeg to create GIF with good quality palette
     # First generate a palette
     palette_file = os.path.join(tempfile.gettempdir(), "noisemaker_palette.png")
-    
+
     palette_cmd = [
         "ffmpeg",
         "-y",
@@ -99,9 +99,9 @@ def magick(pattern: str, name: str) -> Any:
         "scale=flags=lanczos,palettegen",
         palette_file,
     ]
-    
+
     check_call(palette_cmd, quiet=True)
-    
+
     # Then use the palette to create the GIF
     gif_cmd = [
         "ffmpeg",
@@ -116,7 +116,7 @@ def magick(pattern: str, name: str) -> Any:
         "scale=flags=lanczos[x];[x][1:v]paletteuse",
         name,
     ]
-    
+
     return check_call(gif_cmd)
 
 
