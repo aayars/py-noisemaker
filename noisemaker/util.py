@@ -64,7 +64,7 @@ def load(filename: str, channels: int | None = None) -> tf.Tensor:
 
 def magick(pattern: str, name: str) -> Any:
     """
-    Create a GIF from frames using ffmpeg.
+    Create a GIF from frames using ``ffmpeg``.
 
     Args:
         pattern: Frame filename pattern (e.g., ``/tmp/dir/*png`` or ``/tmp/dir/%04d.png``)

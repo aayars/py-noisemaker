@@ -70,7 +70,7 @@ To install noisemaker in a dev env with code quality tools:
 
     pre-commit install
 
-This installs noisemaker with development dependencies including black, ruff, mypy, and pytest.
+This installs noisemaker with development dependencies including ``black``, ``ruff``, ``mypy``, and ``pytest``.
 
 To run tests:
 
