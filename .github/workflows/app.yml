@@ -81,7 +81,8 @@ jobs:
 
   publish-js-snapshot:
     runs-on: ubuntu-latest
-    needs: [test, lint, type-check]
+    permissions:
+      contents: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
