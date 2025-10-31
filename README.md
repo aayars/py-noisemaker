@@ -4,7 +4,7 @@ Noisemaker is a collection of creative coding effects for Python or JavaScript. 
 
 ## Features
 
-- Modern Python 3.10+ API with type hints
+- Modern Python 3.10+ API
 - Command line interface for generating images and animations
 - High-level *composer* presets with reusable settings and layered effects
 - Low-level generator and effect functions for custom workflows
@@ -54,9 +54,9 @@ mypy noisemaker
 The `noisemaker` CLI can generate images, animations, and apply post-processing effects:
 
 ```bash
-noisemaker generate acid -o acid.png
-noisemaker animate 2d-chess -o chess.gif
-noisemaker apply glitchin-out input.jpg -o output.jpg
+noisemaker generate acid -filename acid.png
+noisemaker animate 2d-chess -filename chess.gif
+noisemaker apply glitchin-out input.jpg -filename output.jpg
 ```
 
 Run `noisemaker --help` to see the full command list.
