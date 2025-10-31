@@ -575,7 +575,7 @@ Custom Effect Pipeline
 Further Reading
 ---------------
 
-* `JavaScript README <https://github.com/aayars/py-noisemaker/blob/master/js/README-JS.md>`_
-* `Vanilla JS Port Specification <https://github.com/aayars/py-noisemaker/blob/master/js/doc/VANILLA_JS_PORT_SPEC.md>`_
-* `Python/JS Parity Requirements <https://github.com/aayars/py-noisemaker/blob/master/js/doc/PY_JS_PARITY_SPEC.md>`_
-* `Browser Demos <https://github.com/aayars/py-noisemaker/tree/master/demo>`_
+* `JavaScript README <https://github.com/aayars/noisemaker/blob/main/js/README-JS.md>`_
+* `Vanilla JS Port Specification <https://github.com/aayars/noisemaker/blob/main/js/doc/VANILLA_JS_PORT_SPEC.md>`_
+* `Python/JS Parity Requirements <https://github.com/aayars/noisemaker/blob/main/js/doc/PY_JS_PARITY_SPEC.md>`_
+* `Browser Demos <https://github.com/aayars/noisemaker/tree/main/demo>`_

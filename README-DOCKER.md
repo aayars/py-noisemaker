@@ -28,7 +28,7 @@ docker run -v `pwd`/output:/output noisemaker \
 Or use the published image:
 
 ```bash
-docker run -v `pwd`/output:/output aayars/py-noisemaker \
+docker run -v `pwd`/output:/output aayars/noisemaker \
     noisemaker generate multires --filename output/noise.png
 ```
 
@@ -90,5 +90,5 @@ docker run noisemaker noisemaker apply --help
 
 ### See also
 
-- [source](https://github.com/aayars/py-noisemaker)
+- [source](https://github.com/aayars/noisemaker)
 - [readthedocs](http://noisemaker.readthedocs.io/en/latest/)

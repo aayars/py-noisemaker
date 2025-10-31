@@ -23,14 +23,14 @@ Noisemaker requires Python 3.10+ and TensorFlow. Create a virtual environment an
 ```bash
 python3 -m venv noisemaker
 source noisemaker/bin/activate
-pip install git+https://github.com/aayars/py-noisemaker
+pip install git+https://github.com/aayars/noisemaker
 ```
 
 ### Development setup
 
 ```bash
-git clone https://github.com/aayars/py-noisemaker
-cd py-noisemaker
+git clone https://github.com/aayars/noisemaker
+cd noisemaker
 python3 -m venv venv
 source venv/bin/activate
 pip install -e ".[dev]"

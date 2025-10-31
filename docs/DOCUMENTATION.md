@@ -14,7 +14,7 @@ Noisemaker uses Sphinx to generate API documentation with support for:
 
 1. Install documentation dependencies:
 ```bash
-cd py-noisemaker
+cd noisemaker
 pip install -e ".[dev]"
 pip install -r docs/sphinx-requirements.txt
 ```

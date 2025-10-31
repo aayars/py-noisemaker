@@ -55,10 +55,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aayars/py-noisemaker"
+Homepage = "https://github.com/aayars/noisemaker"
 Documentation = "http://noisemaker.readthedocs.io/"
-Repository = "https://github.com/aayars/py-noisemaker"
-Issues = "https://github.com/aayars/py-noisemaker/issues"
+Repository = "https://github.com/aayars/noisemaker"
+Issues = "https://github.com/aayars/noisemaker/issues"
 
 [project.scripts]
 magic-mashup = "noisemaker.scripts.magic_mashup:main"

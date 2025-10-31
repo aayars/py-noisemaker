@@ -2,7 +2,7 @@ Usage: noisemaker [OPTIONS] COMMAND [ARGS]...
 
   Noisemaker - Let's make generative art with noise
 
-  https://github.com/aayars/py-noisemaker
+  https://github.com/aayars/noisemaker
 
 Options:
   -h, --help  Show this message and exit.
