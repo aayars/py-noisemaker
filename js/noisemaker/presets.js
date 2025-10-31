@@ -213,7 +213,9 @@ function evaluateSettings(template) {
 }
 
 let _SOURCE;
-{
+if (typeof NOISEMAKER_PRESETS_DSL !== 'undefined') {
+  _SOURCE = NOISEMAKER_PRESETS_DSL;
+} else {
   const url = new URL('../../dsl/presets.dsl', import.meta.url);
   if (typeof process !== 'undefined' && process.versions && process.versions.node) {
     const fs = await import('node:fs/promises');

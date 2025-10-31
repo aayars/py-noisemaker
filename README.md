@@ -1,6 +1,10 @@
 # Noisemaker
 
-Noisemaker is a collection of creative coding effects for Python or JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art from the command line or Python.
+Noisemaker is a collection of creative coding effects for Python or JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art.
+
+## Documentation
+
+Full documentation, including the complete API reference and preset guide, is available on [Read the Docs](http://noisemaker.readthedocs.io/).
 
 ## Features
 
@@ -12,7 +16,7 @@ Noisemaker is a collection of creative coding effects for Python or JavaScript. 
 - Experimental WebGPU shader effects
 - Optional Docker image and interactive Colab notebook
 
-## Installation
+## Installation (Python)
 
 Noisemaker requires Python 3.10+ and TensorFlow. Create a virtual environment and install from GitHub:
 
@@ -79,10 +83,6 @@ from noisemaker import generators
 tensor = generators.multires(seed=1, shape=[256, 256, 3])
 array = tensor.numpy()
 ```
-
-## Documentation
-
-Full documentation, including the complete API reference and preset guide, is available on [Read the Docs](http://noisemaker.readthedocs.io/).
 
 ## Contributing
 

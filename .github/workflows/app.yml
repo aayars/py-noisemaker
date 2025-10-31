@@ -78,3 +78,42 @@ jobs:
     - name: Run mypy
       run: |
         mypy noisemaker --ignore-missing-imports
+
+  publish-js-snapshot:
+    runs-on: ubuntu-latest
+    needs: [test, lint, type-check]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Node dependencies
+      run: npm install --include=dev
+
+    - name: Build browser bundles
+      run: npm run bundle
+
+    - name: Resolve project version
+      id: version
+      run: |
+        VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\\s*=\\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=${VERSION}-SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+    - name: Publish snapshot release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ steps.version.outputs.tag }}
+        name: Noisemaker JS ${{ steps.version.outputs.version }} SNAPSHOT
+        commit: ${{ github.sha }}
+        prerelease: true
+        allowUpdates: true
+        removeArtifacts: true
+        artifactErrorsFailBuild: true
+        artifacts: dist/noisemaker.bundle.js,dist/noisemaker.min.js,dist/noisemaker.esm.js,dist/noisemaker.cjs

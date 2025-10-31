@@ -42,6 +42,30 @@ Include the ES modules directly in your HTML:
       });
     </script>
 
+Using the Prebuilt Bundle
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you prefer a single-file build (no import map or bundler required), download
+``noisemaker.bundle.js`` from the latest GitHub release or build it locally with
+``npm run bundle``. The script registers a ``Noisemaker`` global that mirrors the
+module exports.
+
+.. code-block:: html
+
+    <canvas id="output" width="512" height="512"></canvas>
+    <script src="./dist/noisemaker.bundle.js"></script>
+    <script>
+      const { Preset, PRESETS } = window.Noisemaker;
+      const presets = PRESETS();
+      const preset = Preset('acid', presets);
+
+      preset.render({
+        seed: 42,
+        shape: [512, 512, 3],
+        canvas: document.getElementById('output')
+      });
+    </script>
+
 For Development/Testing
 ~~~~~~~~~~~~~~~~~~~~~~~
 

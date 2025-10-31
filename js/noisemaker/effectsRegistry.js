@@ -64,33 +64,38 @@ function getParamNames(fn) {
  * @param {Function} fn Effect callback invoked during rendering.
  * @param {object} [defaults={}] Map of optional parameter names to default values.
  */
+const VALIDATE_EFFECT_SIGNATURES =
+  typeof __NOISEMAKER_DISABLE_EFFECT_VALIDATION__ === 'undefined';
+
 export function register(name, fn, defaults = {}) {
   const params = getParamNames(fn);
   const required = ["tensor", "shape", "time", "speed"];
-  if (params.length < required.length) {
-    throw new Error(
-      "Effect functions must accept (tensor, shape, time, speed, ...params)",
-    );
-  }
-  for (let i = 0; i < required.length; i++) {
-    if (params[i] !== required[i]) {
+  if (VALIDATE_EFFECT_SIGNATURES) {
+    if (params.length < required.length) {
       throw new Error(
-        `Effect "${name}" must have parameter "${required[i]}" at position ${i + 1}`,
+        "Effect functions must accept (tensor, shape, time, speed, ...params)",
       );
     }
-  }
-  const extraParams = params.slice(required.length);
-  const defaultKeys = Object.keys(defaults);
-  if (extraParams.length !== defaultKeys.length) {
-    throw new Error(
-      `Expected ${extraParams.length} default params to "${name}", but got ${defaultKeys.length}`,
-    );
-  }
-  for (let i = 0; i < extraParams.length; i++) {
-    if (extraParams[i] !== defaultKeys[i]) {
+    for (let i = 0; i < required.length; i++) {
+      if (params[i] !== required[i]) {
+        throw new Error(
+          `Effect "${name}" must have parameter "${required[i]}" at position ${i + 1}`,
+        );
+      }
+    }
+    const extraParams = params.slice(required.length);
+    const defaultKeys = Object.keys(defaults);
+    if (extraParams.length !== defaultKeys.length) {
       throw new Error(
-        `Parameter "${extraParams[i]}" does not match default key "${defaultKeys[i]}"`,
+        `Expected ${extraParams.length} default params to "${name}", but got ${defaultKeys.length}`,
       );
+    }
+    for (let i = 0; i < extraParams.length; i++) {
+      if (extraParams[i] !== defaultKeys[i]) {
+        throw new Error(
+          `Parameter "${extraParams[i]}" does not match default key "${defaultKeys[i]}"`,
+        );
+      }
     }
   }
   EFFECT_METADATA[name] = { ...defaults };
