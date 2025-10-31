@@ -30,9 +30,9 @@ Preset-based noise composition system.
     :show-inheritance:
 
 noisemaker.value
-----------------
+-----------------
 
-Low-level value noise functions.
+Procedural helpers for constructing and manipulating value-noise tensors.
 
 .. automodule:: noisemaker.value
     :members:
@@ -52,7 +52,7 @@ Image effect and post-processing functions.
 noisemaker.util
 ---------------
 
-Utility functions for I/O and image processing.
+General-purpose helpers used across the Noisemaker codebase.
 
 .. automodule:: noisemaker.util
     :members:
@@ -62,7 +62,7 @@ Utility functions for I/O and image processing.
 noisemaker.rng
 --------------
 
-Deterministic random number generation.
+Deterministic RNG utilities that underpin preset and generator reproducibility.
 
 .. automodule:: noisemaker.rng
     :members:
@@ -106,7 +106,7 @@ See :class:`noisemaker.constants.ValueMask` for available mask types.
 noisemaker.points
 -----------------
 
-Point cloud generation utilities.
+Point cloud generation utilities used for Voronoi and DLA effects.
 
 .. automodule:: noisemaker.points
     :members:
@@ -176,7 +176,7 @@ DSL parser and evaluator for Composer presets.
 noisemaker.effects_registry
 ---------------------------
 
-Effect function registry and decorators.
+Registry and decorators for Noisemaker composer effects.
 
 .. automodule:: noisemaker.effects_registry
     :members:
