@@ -12,6 +12,8 @@ The Dockerfile is located at the root of the repository and uses a multi-stage b
 
 ## Usage
 
+A prebuilt Docker Hub image is published as [`aayars/noisemaker`](https://hub.docker.com/r/aayars/noisemaker).
+
 Getting noisemaker output out of Docker requires mounting a volume for output files. You must:
 - Mount a local directory to `/output` in the container (`-v /your/local/output:/output`)
 - Prefix the output filename with `output/` (`--filename output/noise.png`)

@@ -14,7 +14,7 @@ Full documentation, including the complete API reference and preset guide, is av
 - Low-level generator and effect functions for custom workflows
 - Browser-based JavaScript implementation
 - Experimental WebGPU shader effects
-- Optional Docker image and interactive Colab notebook
+- Prebuilt Docker image [`aayars/noisemaker`](https://hub.docker.com/r/aayars/noisemaker) and interactive Colab notebook
 
 ## Installation (Python)
 
