@@ -54,9 +54,9 @@ mypy noisemaker
 The `noisemaker` CLI can generate images, animations, and apply post-processing effects:
 
 ```bash
-noisemaker generate acid -filename acid.png
-noisemaker animate 2d-chess -filename chess.gif
-noisemaker apply glitchin-out input.jpg -filename output.jpg
+noisemaker generate acid --filename acid.png
+noisemaker animate 2d-chess --filename chess.gif
+noisemaker apply glitchin-out input.jpg --filename output.jpg
 ```
 
 Run `noisemaker --help` to see the full command list.
