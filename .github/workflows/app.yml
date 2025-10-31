@@ -107,13 +107,24 @@ jobs:
         echo "tag=${VERSION}-SNAPSHOT" >> "$GITHUB_OUTPUT"
 
     - name: Publish snapshot release
-      uses: ncipollo/release-action@v1
-      with:
-        tag: ${{ steps.version.outputs.tag }}
-        name: Noisemaker JS ${{ steps.version.outputs.version }} SNAPSHOT
-        commit: ${{ github.sha }}
-        prerelease: true
-        allowUpdates: true
-        removeArtifacts: true
-        artifactErrorsFailBuild: true
-        artifacts: dist/noisemaker.bundle.js,dist/noisemaker.min.js,dist/noisemaker.esm.js,dist/noisemaker.cjs
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.version.outputs.version }}
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        set -euo pipefail
+
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          gh release delete "$TAG" --yes --cleanup-tag
+        fi
+
+        notes=$(printf 'Automated snapshot bundles for version %s.\n\nCommit: %s' "$VERSION" "$GITHUB_SHA")
+        gh release create "$TAG" \
+          --title "Noisemaker JS ${VERSION} SNAPSHOT" \
+          --notes "$notes" \
+          --prerelease \
+          --target "$GITHUB_SHA" \
+          dist/noisemaker.bundle.js \
+          dist/noisemaker.min.js \
+          dist/noisemaker.esm.js \
+          dist/noisemaker.cjs
