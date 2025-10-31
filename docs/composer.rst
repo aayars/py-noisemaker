@@ -318,15 +318,17 @@ Returns a random boolean (true or false).
 
     voronoi_inverse: coin_flip()
 
-random_member(collection, ...)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+random_member(collection)
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Returns a random member from one or more collections.
+Returns a random member from a single iterable. The iterable can be an enum (for example,
+``DistanceMetric``) or any collection that yields members. Passing scalars directly raises an
+error.
 
 .. code-block:: javascript
 
     dist_metric: random_member(DistanceMetric.all())
-    
+
     voronoi_diagram_type: random_member([
       VoronoiDiagramType.range,
       VoronoiDiagramType.color_range,
@@ -336,11 +338,14 @@ Returns a random member from one or more collections.
 enum_range(start, end)
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Returns a list of integers from ``start`` to ``end`` (inclusive).
+Returns a list of enum members from ``start`` to ``end`` (inclusive). Both arguments must be
+members of the same enum.
 
 .. code-block:: javascript
 
-    values: enum_range(1, 5)  // [1, 2, 3, 4, 5]
+  values: enum_range(InterpolationType.constant, InterpolationType.bicubic)
+  // [InterpolationType.constant, InterpolationType.linear,
+  //  InterpolationType.cosine, InterpolationType.bicubic]
 
 stash(key, value)
 ~~~~~~~~~~~~~~~~~
