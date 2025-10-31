@@ -66,10 +66,11 @@ mood = "noisemaker.scripts.mood:main"
 noisemaker = "noisemaker.scripts.noisemaker:main"
 
 [tool.setuptools]
-packages = ["noisemaker", "noisemaker.scripts", "noisemaker.dsl"]
+packages = ["noisemaker", "noisemaker.scripts", "noisemaker.dsl", "dsl"]
 
 [tool.setuptools.package-data]
-noisemaker = ["fonts/**/*", "dsl/*.dsl"]
+noisemaker = ["fonts/**/*"]
+dsl = ["*.dsl"]
 
 [tool.black]
 line-length = 160

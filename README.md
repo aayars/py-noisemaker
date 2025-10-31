@@ -96,6 +96,8 @@ For Javascript, see the [Javascript README](js/README-JS.md).
 
 For WGSL shaders, see the [Shaders README](shaders/README-SHADERS.md).
 
+For Docker, see the [Docker README](docker/README.md).
+
 ## License
 
 Noisemaker is released under the [Apache 2.0 License](LICENSE).

@@ -62,30 +62,62 @@ def load(filename: str, channels: int | None = None) -> tf.Tensor:
             return tf.image.decode_jpeg(fh.read(), channels=channels)
 
 
-def magick(glob: str, name: str) -> Any:
+def magick(pattern: str, name: str) -> Any:
     """
-    Shell out to ImageMagick's "convert" (im6) or "magick" (im7) commands for GIF composition.
+    Create a GIF from frames using ffmpeg.
 
     Args:
-        glob: Frame filename glob pattern
+        pattern: Frame filename pattern (e.g., "/tmp/dir/*png" or "/tmp/dir/%04d.png")
         name: Output filename
 
     Returns:
         Result of subprocess call
     """
-
-    common_params = ["-delay", "5", glob, name]
-
-    try:
-        command = "magick"
-        return check_call([command] + common_params, quiet=True)
-
-    except FileNotFoundError:
-        command = "convert"
-        return check_call([command] + common_params)
-
-    except Exception as e:
-        log_subprocess_error(command, e)  # Try to only log non-pathological errors from `magick`
+    # Convert glob pattern to directory and ffmpeg pattern
+    # If pattern is like "/tmp/dir/*png", convert to "/tmp/dir/%04d.png"
+    import os
+    import tempfile
+    
+    if "*" in pattern:
+        directory = os.path.dirname(pattern)
+        input_pattern = os.path.join(directory, "%04d.png")
+    else:
+        input_pattern = pattern
+    
+    # Use ffmpeg to create GIF with good quality palette
+    # First generate a palette
+    palette_file = os.path.join(tempfile.gettempdir(), "noisemaker_palette.png")
+    
+    palette_cmd = [
+        "ffmpeg",
+        "-y",
+        "-framerate",
+        "20",
+        "-i",
+        input_pattern,
+        "-vf",
+        "scale=flags=lanczos,palettegen",
+        palette_file,
+    ]
+    
+    check_call(palette_cmd, quiet=True)
+    
+    # Then use the palette to create the GIF
+    gif_cmd = [
+        "ffmpeg",
+        "-y",
+        "-framerate",
+        "20",
+        "-i",
+        input_pattern,
+        "-i",
+        palette_file,
+        "-lavfi",
+        "scale=flags=lanczos[x];[x][1:v]paletteuse",
+        name,
+    ]
+    
+    return check_call(gif_cmd)
 
 
 def watermark(text: str, filename: str) -> Any:

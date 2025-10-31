@@ -128,7 +128,7 @@ Indices and tables
 .. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/aayars/py-noisemaker
 .. _`Colab Notebook`: https://colab.research.google.com/github/aayars/py-noisemaker/blob/master/py_noisemaker.ipynb
-.. _`Noisemaker on Docker`: https://hub.docker.com/r/aayars/py-noisemaker/
+.. _`Noisemaker on Docker`: https://github.com/aayars/py-noisemaker/blob/main/docker/README.md
 .. _`TensorFlow`: https://www.tensorflow.org/
 .. _`install TensorFlow`: https://www.tensorflow.org/install/
 

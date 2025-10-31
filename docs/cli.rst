@@ -21,19 +21,19 @@ Generate a simple noise image:
 
 .. code-block:: bash
 
-    noisemaker generate basic -o output.png
+    noisemaker generate basic --filename output.png
 
 Create an animation:
 
 .. code-block:: bash
 
-    noisemaker animate acid --width 1024 --height 1024 -o acid.mp4
+    noisemaker animate acid --width 1024 --height 1024 --filename acid.mp4
 
 Apply an effect to an existing image:
 
 .. code-block:: bash
 
-    noisemaker apply glitchin-out input.jpg -o glitched.png
+    noisemaker apply glitchin-out input.jpg --filename glitched.png
 
 Commands
 --------
