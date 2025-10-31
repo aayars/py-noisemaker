@@ -96,7 +96,7 @@ For Javascript, see the [Javascript README](js/README-JS.md).
 
 For WGSL shaders, see the [Shaders README](shaders/README-SHADERS.md).
 
-For Docker, see the [Docker README](docker/README.md).
+For Docker, see the [Docker README](README-DOCKER.md).
 
 ## License
 
