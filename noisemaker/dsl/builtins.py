@@ -191,6 +191,7 @@ enumMethods = {
     },
 }
 
+#: Default evaluation context containing enums, operations, surfaces, and enum methods.
 defaultContext = {
     "surfaces": surfaces,
     "operations": operations,

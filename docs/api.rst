@@ -153,6 +153,8 @@ Preset loading and management.
     :undoc-members:
     :show-inheritance:
 
+.. py:module:: noisemaker.dsl
+
 noisemaker.dsl
 --------------
 
@@ -166,8 +168,8 @@ DSL parser and evaluator for Composer presets.
 
 .. autofunction:: noisemaker.dsl.parse
 
-.. autodata:: noisemaker.dsl.defaultContext
-    :annotation: = {...}
+.. data:: noisemaker.dsl.defaultContext
+    :module: noisemaker.dsl
 
     Default evaluation context containing enums, operations, surfaces, and enum methods.
 

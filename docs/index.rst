@@ -24,7 +24,7 @@ Installation
 ------------
 
 Python 3.10+ virtualenv
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Noisemaker requires Python 3.10 or later.
 

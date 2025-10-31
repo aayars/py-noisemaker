@@ -301,6 +301,7 @@ def voronoi(
 ) -> tf.Tensor:
     """
     Create a voronoi diagram, blending with input image Tensor color values.
+
     .. image:: images/voronoi.jpg
        :width: 1024
        :height: 256
@@ -1243,6 +1244,7 @@ def refract(
 ) -> tf.Tensor:
     """
     Apply displacement from pixel values.
+
     .. image:: images/refract.jpg
        :width: 1024
        :height: 256

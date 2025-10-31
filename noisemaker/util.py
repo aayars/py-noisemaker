@@ -67,7 +67,7 @@ def magick(pattern: str, name: str) -> Any:
     Create a GIF from frames using ffmpeg.
 
     Args:
-        pattern: Frame filename pattern (e.g., "/tmp/dir/*png" or "/tmp/dir/%04d.png")
+        pattern: Frame filename pattern (e.g., ``/tmp/dir/*png`` or ``/tmp/dir/%04d.png``)
         name: Output filename
 
     Returns:
