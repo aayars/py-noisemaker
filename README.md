@@ -8,15 +8,16 @@ Full documentation, including the complete API reference and preset guide, is av
 
 ## Features
 
-- Modern Python 3.10+ API
-- Command line interface for generating images and animations
-- High-level *composer* presets with reusable settings and layered effects
-- Low-level generator and effect functions for custom workflows
-- Browser-based JavaScript implementation
-- Experimental WebGPU shader effects
-- Prebuilt Docker image [`aayars/noisemaker`](https://hub.docker.com/r/aayars/noisemaker) and interactive Colab notebook
+- Unified noise and effects pipeline driven by a shared preset DSL
+- Command-line interface for generating images, animations, and post-processing workflows
+- Programmatic APIs for Python and vanilla JavaScript consumers
+- Modular generator and effect building blocks for custom compositions
+- Experimental WebGPU playground for GPU-native effects
+- Prebuilt Docker image [`aayars/noisemaker`](https://hub.docker.com/r/aayars/noisemaker) and an interactive Colab notebook
 
-## Installation (Python)
+## Quick Start
+
+### Python CLI or API
 
 Noisemaker requires Python 3.10+ and TensorFlow. Create a virtual environment and install from GitHub:
 
@@ -26,7 +27,7 @@ source noisemaker/bin/activate
 pip install git+https://github.com/aayars/noisemaker
 ```
 
-### Development setup
+### Local development
 
 ```bash
 git clone https://github.com/aayars/noisemaker
@@ -50,6 +51,8 @@ black noisemaker
 ruff check noisemaker
 mypy noisemaker
 ```
+
+For browser usage, see the vanilla JavaScript guide in `js/README-JS.md`. Docker usage is documented in `README-DOCKER.md`.
 
 ## Usage
 
@@ -90,13 +93,12 @@ Issues and pull requests are welcome! Please read the [Code of Conduct](CODE_OF_
 
 ## Ports
 
-This document is for the Python version of Noisedeck.
+Additional platform-specific guides:
 
-For Javascript, see the [Javascript README](js/README-JS.md).
-
-For WGSL shaders, see the [Shaders README](shaders/README-SHADERS.md).
-
-For Docker, see the [Docker README](README-DOCKER.md).
+- Python development and API details live in the docs linked above
+- Browser integration is covered in the [JavaScript README](js/README-JS.md)
+- WebGPU shaders are documented in the [Shaders README](shaders/README-SHADERS.md)
+- Container workflows appear in the [Docker README](README-DOCKER.md)
 
 ## License
 
