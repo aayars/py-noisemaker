@@ -33,9 +33,31 @@
         
         console.log(`Found ${canvases.length} Noisemaker live example(s)`);
         
-        // Render each canvas
+        // Set up lazy loading with IntersectionObserver
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.dataset.rendered) {
+                    entry.target.dataset.rendered = 'true';
+                    renderCanvas(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            rootMargin: '200px',
+            threshold: 0.5
+        });
+        
+        // Render each canvas (lazy or immediate based on data attribute)
         for (const canvas of canvases) {
-            await renderCanvas(canvas);
+            const isLazy = canvas.dataset.lazy === 'true';
+            
+            if (isLazy) {
+                // Use IntersectionObserver for lazy loading
+                observer.observe(canvas);
+            } else {
+                // Render immediately
+                await renderCanvas(canvas);
+            }
             
             // Attach random button handler
             const wrapper = canvas.closest('.noisemaker-live-canvas-wrapper');
@@ -59,17 +81,17 @@
         try {
             // Get parameters from data attributes
             const presetName = canvas.dataset.preset;
+            const effectName = canvas.dataset.effect;
+            const inputName = canvas.dataset.input || 'basic';
             const seed = parseInt(canvas.dataset.seed, 10) || 42;
             const width = parseInt(canvas.dataset.width, 10) || 512;
             const height = parseInt(canvas.dataset.height, 10) || 512;
             const time = parseFloat(canvas.dataset.time) || 0.0;
             const frame = parseFloat(canvas.dataset.frame) || 0.0;
             
-            if (!presetName) {
-                throw new Error('No preset specified');
+            if (!presetName && !effectName) {
+                throw new Error('No preset or effect specified');
             }
-            
-            console.log(`Rendering preset "${presetName}" (seed: ${seed}, ${width}x${height})`);
             
             // Show loading state
             if (loadingDiv) loadingDiv.style.display = 'block';
@@ -78,23 +100,61 @@
             // Create preset and render
             // Note: The bundled API requires loading the preset table first
             const { Preset, PRESETS } = window.Noisemaker;
+            
             const PRESET_TABLE = PRESETS();
             
-            if (!PRESET_TABLE[presetName]) {
-                throw new Error(`Preset "${presetName}" not found. Available presets: ${Object.keys(PRESET_TABLE).slice(0, 5).join(', ')}...`);
-            }
-            
-            const preset = new Preset(presetName, PRESET_TABLE, {}, seed, { debug: false });
-            
+            let tensor;
             const startTime = performance.now();
             
-            // Render the preset - returns a tensor
-            const tensor = await preset.render(seed, {
-                width: width,
-                height: height,
-                time: time,
-                speed: 1.0,
-            });
+            // If rendering an effect, we need to render the input then apply the effect
+            if (effectName) {
+                // Check if effect exists (EFFECTS is the registry from effectsRegistry.js)
+                const { EFFECTS, Effect } = window.Noisemaker;
+                
+                // Try both dash and underscore versions (e.g., "adjust-hue" and "adjust_hue")
+                const effectNameSnake = effectName.replace(/-/g, '_');
+                if (!EFFECTS || (!EFFECTS[effectName] && !EFFECTS[effectNameSnake])) {
+                    throw new Error(`Effect "${effectName}" is not available in the JavaScript implementation yet. This effect exists in Python but hasn't been ported.`);
+                }
+                
+                // Step 1: Render the input preset to get a tensor
+                if (!PRESET_TABLE[inputName]) {
+                    throw new Error(`Input preset "${inputName}" not found. Available presets: ${Object.keys(PRESET_TABLE).slice(0, 5).join(', ')}...`);
+                }
+                
+                const inputPreset = new Preset(inputName, PRESET_TABLE, {}, seed, { debug: false });
+                const inputTensor = await inputPreset.render(seed, {
+                    width: width,
+                    height: height,
+                    time: time,
+                    speed: 1.0,
+                });
+                
+                // Step 2: Create an effect function with default parameters
+                const effectFunc = Effect(effectName, {});
+                
+                // Step 3: Apply the effect function to the tensor
+                // Note: effects might be async, and shape needs channels
+                const shape = inputTensor.shape; // Use the input tensor's shape which has [h, w, c]
+                const result = effectFunc(inputTensor, shape, 0, 1);
+                
+                // Effects might return a Promise
+                tensor = result && typeof result.then === 'function' ? await result : result;
+            } else {
+                // Just render a preset directly
+                if (!PRESET_TABLE[presetName]) {
+                    throw new Error(`Preset "${presetName}" not found. Available presets: ${Object.keys(PRESET_TABLE).slice(0, 5).join(', ')}...`);
+                }
+                
+                const preset = new Preset(presetName, PRESET_TABLE, {}, seed, { debug: false });
+                tensor = await preset.render(seed, {
+                    width: width,
+                    height: height,
+                    time: time,
+                    speed: 1.0,
+                });
+            }
+
             
             // Convert tensor to ImageData and draw on canvas
             const ctx = canvas.getContext('2d');
@@ -121,9 +181,6 @@
             }
             
             ctx.putImageData(imageData, 0, 0);
-            
-            const elapsed = performance.now() - startTime;
-            console.log(`Rendered "${presetName}" in ${elapsed.toFixed(0)}ms`);
             
             // Show canvas, hide loading
             if (loadingDiv) loadingDiv.style.display = 'none';

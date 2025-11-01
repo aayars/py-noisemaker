@@ -302,10 +302,14 @@ def voronoi(
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
-    .. image:: images/voronoi.jpg
-       :width: 1024
+    
+    .. noisemaker-live::
+       :effect: voronoi
+       :input: basic
+       :seed: 42
+       :width: 512
        :height: 256
-       :alt: Noisemaker example output (CC0)
+       :lazy:
 
     Args:
         tensor: Input tensor to process
@@ -966,6 +970,15 @@ def blend_cubic(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Te
 @effect()
 def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor = 0.0, b: tf.Tensor = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
+    
+    .. noisemaker-live::
+       :effect: smoothstep
+       :input: basic
+       :seed: 42
+       :width: 512
+       :height: 256
+       :lazy:
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1179,6 +1192,15 @@ def convolve(
     .. code-block:: python
     image = convolve(image, shape, ValueMask.conv2d_shadow)
 
+    
+    .. noisemaker-live::
+       :effect: convolve
+       :input: basic
+       :seed: 42
+       :width: 512
+       :height: 256
+       :lazy:
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]
@@ -1245,10 +1267,14 @@ def refract(
     """
     Apply displacement from pixel values.
 
-    .. image:: images/refract.jpg
-       :width: 1024
+    
+    .. noisemaker-live::
+       :effect: refract
+       :input: basic
+       :seed: 42
+       :width: 512
        :height: 256
-       :alt: Noisemaker example output (CC0)
+       :lazy:
 
     Args:
         tensor: Input tensor to process
@@ -1485,6 +1511,15 @@ def clamp01(tensor: tf.Tensor) -> tf.Tensor:
 @effect()
 def fxaa(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
+    
+    .. noisemaker-live::
+       :effect: fxaa
+       :input: basic
+       :seed: 42
+       :width: 512
+       :height: 256
+       :lazy:
+
     Args:
         tensor: Input tensor to process
         shape: Shape of the tensor [height, width, channels]

@@ -26,7 +26,9 @@ class NoisemakerLiveDirective(Directive):
     Directive for embedding live Noisemaker canvas examples.
     
     Options:
-        preset: Name of the preset to render (required)
+        preset: Name of the preset to render (mutually exclusive with effect)
+        effect: Name of the effect to render (mutually exclusive with preset)
+        input: Input generator for effect (default: basic, only used with effect)
         seed: Random seed (default: 42)
         width: Canvas width in pixels (default: 512)
         height: Canvas height in pixels (default: 512)
@@ -39,23 +41,35 @@ class NoisemakerLiveDirective(Directive):
     required_arguments = 0
     optional_arguments = 0
     option_spec = {
-        'preset': directives.unchanged_required,
+        'preset': directives.unchanged,
+        'effect': directives.unchanged,
+        'input': directives.unchanged,
         'seed': directives.nonnegative_int,
         'width': directives.nonnegative_int,
         'height': directives.nonnegative_int,
         'caption': directives.unchanged,
         'time': directives.unchanged,
         'frame': directives.unchanged,
+        'lazy': directives.flag,  # Enable lazy loading
     }
     
     def run(self):
         preset = self.options.get('preset')
+        effect = self.options.get('effect')
+        input_gen = self.options.get('input', 'basic')
         seed = self.options.get('seed', 42)
         width = self.options.get('width', 512)
         height = self.options.get('height', 512)
         caption = self.options.get('caption', '')
         time = self.options.get('time', '0.0')
         frame = self.options.get('frame', '0.0')
+        lazy = 'lazy' in self.options
+        
+        # Validate that either preset or effect is provided, but not both
+        if preset and effect:
+            raise self.error('Cannot specify both :preset: and :effect:')
+        if not preset and not effect:
+            raise self.error('Must specify either :preset: or :effect:')
         
         # Create container div
         container_attrs = {
@@ -63,17 +77,26 @@ class NoisemakerLiveDirective(Directive):
         }
         container = nodes.container(**container_attrs)
         
+        # Add data-lazy attribute if lazy loading is enabled
+        lazy_attr = ' data-lazy="true"' if lazy else ''
+        
+        # Build data attributes based on whether we're rendering a preset or effect
+        if preset:
+            data_attrs = f'data-preset="{preset}"'
+        else:
+            data_attrs = f'data-effect="{effect}" data-input="{input_gen}"'
+        
         # Create canvas element with data attributes
         canvas_html = f'''
 <div class="noisemaker-live-container">
     <div class="noisemaker-live-canvas-wrapper">
         <canvas class="noisemaker-live-canvas"
-                data-preset="{preset}"
+                {data_attrs}
                 data-seed="{seed}"
                 data-width="{width}"
                 data-height="{height}"
                 data-time="{time}"
-                data-frame="{frame}"
+                data-frame="{frame}"{lazy_attr}
                 width="{width}"
                 height="{height}">
         </canvas>

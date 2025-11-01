@@ -54,10 +54,12 @@ def basic(
     """
     Generate a single layer of scaled noise.
 
-    .. image:: images/gaussian.jpg
-       :width: 1024
+    .. noisemaker-live::
+       :preset: basic
+       :seed: 12345
+       :width: 512
        :height: 256
-       :alt: Noisemaker example output (CC0)
+       :lazy:
 
     Args:
         freq: Base noise frequency. Int, or list of ints for each spatial dimension
@@ -257,10 +259,12 @@ def multires(
     """
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
-    .. image:: images/multires.jpg
-       :width: 1024
+    .. noisemaker-live::
+       :preset: multires
+       :seed: 42
+       :width: 512
        :height: 256
-       :alt: Noisemaker example output (CC0)
+       :lazy:
 
     Args:
         preset: The Preset object being rendered
