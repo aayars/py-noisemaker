@@ -27,11 +27,20 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
+    nodejs: "20"
   jobs:
     post_checkout:
       # Ensure the docs directory is accessible
       - ls -la docs/
     post_install:
-      # Verify installation
+      # Verify Python installation
       - python --version
       - pip list | grep noisemaker
+      # Install Node.js dependencies and build bundle
+      - npm --version
+      - node --version
+      - npm install
+      - npm run bundle
+      # Copy bundle to docs static directory
+      - cp dist/noisemaker.min.js docs/_static/
+      - ls -lh docs/_static/noisemaker.min.js

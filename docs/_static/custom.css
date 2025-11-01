@@ -65,3 +65,193 @@ a {
 a:hover {
     opacity: 0.8;
 }
+
+/* ========================================
+   Live Noisemaker Canvas Examples
+   ======================================== */
+
+/* Container for live examples */
+.noisemaker-live-container {
+    margin: 2em 0;
+    text-align: center;
+}
+
+/* Canvas wrapper - tightly wraps canvas with button overlay */
+.noisemaker-live-canvas-wrapper {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    overflow: visible;
+}
+
+/* Random button positioned in bottom right corner */
+.noisemaker-live-random {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    line-height: normal; /* Reset for button text */
+}
+
+.noisemaker-live-random:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
+}
+
+.noisemaker-live-random:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode random button */
+body[data-theme="dark"] .noisemaker-live-random {
+    background: rgba(60, 60, 60, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #eee;
+}
+
+body[data-theme="dark"] .noisemaker-live-random:hover {
+    background: rgba(80, 80, 80, 1);
+}
+
+/* Canvas styling */
+.noisemaker-live-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    transition: opacity 0.3s ease-in;
+    position: relative;
+}
+
+/* Dark mode canvas border */
+body[data-theme="dark"] .noisemaker-live-canvas {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: #1a1a1a;
+}
+
+/* Random button anchored to canvas bottom right corner */
+.noisemaker-live-random {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    pointer-events: auto;
+    line-height: normal;
+    display: block !important;
+    visibility: visible !important;
+}
+
+
+/* Loading indicator */
+.noisemaker-live-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    z-index: 50;
+}
+
+/* Dark mode loading */
+body[data-theme="dark"] .noisemaker-live-loading {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: #555;
+    color: #ddd;
+}
+
+/* Loading animation */
+.noisemaker-live-loading::after {
+    content: '';
+    display: inline-block;
+    width: 0;
+    animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+    100% { content: ''; }
+}
+
+/* Error display */
+.noisemaker-live-error {
+    margin-top: 8px;
+    padding: 12px;
+    background: #ffe6e6;
+    border: 1px solid #ffcccc;
+    border-radius: 6px;
+    color: #cc0000;
+    font-size: 14px;
+    font-family: monospace;
+    text-align: left;
+}
+
+/* Dark mode error */
+body[data-theme="dark"] .noisemaker-live-error {
+    background: rgba(204, 0, 0, 0.1);
+    border-color: rgba(204, 0, 0, 0.3);
+    color: #ff6666;
+}
+
+/* Caption styling */
+.noisemaker-live-caption {
+    margin-top: 8px;
+    margin-bottom: 0;
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    line-height: normal;
+}
+
+/* Dark mode caption */
+body[data-theme="dark"] .noisemaker-live-caption {
+    color: #aaa;
+}
+
+/* Responsive behavior */
+@media (max-width: 768px) {
+    .noisemaker-live-canvas {
+        max-width: 100%;
+    }
+}

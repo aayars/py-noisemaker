@@ -20,6 +20,8 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('_ext'))  # Add custom extensions path
+
 
 
 # -- General configuration ------------------------------------------------
@@ -38,6 +40,7 @@ extensions = [
     'sphinx.ext.intersphinx',  # Link to other project docs
     'sphinx.ext.autodoc.typehints',  # Better type hint rendering
     'sphinxcontrib.programoutput',
+    'noisemaker_live',  # Custom extension for live examples
 ]
 
 # Napoleon settings for Google-style docstrings
@@ -153,6 +156,12 @@ html_static_path = ['_static']
 # Custom CSS files
 html_css_files = [
     'custom.css',
+]
+
+# Custom JavaScript files
+html_js_files = [
+    'noisemaker.min.js',  # Bundled Noisemaker library
+    'noisemaker-live.js',  # Live example renderer
 ]
 
 

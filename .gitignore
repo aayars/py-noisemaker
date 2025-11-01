@@ -1,6 +1,7 @@
 __pycache__/
 docs-venv/
 docs/_build/
+docs/_static/noisemaker.min.js
 venv/
 node_modules/
 *.png
