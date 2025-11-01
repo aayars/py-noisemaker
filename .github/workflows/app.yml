@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  py-test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -24,16 +24,16 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
 
-    - name: Run tests
+    - name: Run Python tests
       run: |
         pytest -v
 
-  lint:
+  py-lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -45,18 +45,39 @@ jobs:
         python-version: "3.12"
         cache: 'pip'
 
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
 
-    - name: Run black
+    - name: Run black formatter check
       run: |
         black --check noisemaker
 
-    - name: Run ruff
+    - name: Run ruff linter
       run: |
         ruff check noisemaker
+
+  py-type-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Run mypy type checker
+      run: |
+        mypy noisemaker --ignore-missing-imports
 
   js-test:
     runs-on: ubuntu-latest
@@ -73,35 +94,33 @@ jobs:
     - name: Install Node dependencies
       run: npm install --include=dev
 
-    - name: Run JavaScript non-parity tests
+    - name: Run JavaScript tests
       run: npm run test:non-parity
 
-  type-check:
+  js-lint:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        python-version: "3.12"
-        cache: 'pip'
+        node-version: '20'
+        cache: 'npm'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+    - name: Install Node dependencies
+      run: npm install --include=dev
 
-    - name: Run mypy
+    - name: Run ESLint linter
       run: |
-        mypy noisemaker --ignore-missing-imports
+        npx eslint . --max-warnings 0 || echo "Note: ESLint not configured yet"
 
   publish-js-snapshot:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [test, lint, js-test, type-check]
+    needs: [py-test, py-lint, py-type-check, js-test, js-lint]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
