@@ -17,12 +17,26 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import importlib.util
 import os
 import sys
 
 DOCS_DIR = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(DOCS_DIR, '..')))
-sys.path.insert(0, os.path.join(DOCS_DIR, '_ext'))  # Add custom extensions path
+ROOT_DIR = os.path.abspath(os.path.join(DOCS_DIR, '..'))
+EXT_DIR = os.path.join(DOCS_DIR, '_ext')
+
+sys.path.insert(0, ROOT_DIR)
+sys.path.insert(0, EXT_DIR)  # Add custom extensions path
+
+# Ensure custom extension can always be imported (RTD safe)
+extension_name = 'noisemaker_live'
+extension_path = os.path.join(EXT_DIR, f'{extension_name}.py')
+if os.path.isfile(extension_path) and extension_name not in sys.modules:
+    spec = importlib.util.spec_from_file_location(extension_name, extension_path)
+    if spec and spec.loader:
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        sys.modules[extension_name] = module
 
 
 
