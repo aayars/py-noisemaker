@@ -8,7 +8,7 @@ Full documentation, including the complete API reference and preset guide, is av
 
 ## Features
 
-- Unified noise and effects pipeline driven by a shared preset DSL
+- Unified noise and effects pipeline powered by preset-driven compositions
 - Command-line interface for generating images, animations, and post-processing workflows
 - Programmatic APIs for Python and vanilla JavaScript consumers
 - Modular generator and effect building blocks for custom compositions
