@@ -19,8 +19,10 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('_ext'))  # Add custom extensions path
+
+DOCS_DIR = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(DOCS_DIR, '..')))
+sys.path.insert(0, os.path.join(DOCS_DIR, '_ext'))  # Add custom extensions path
 
 
 
