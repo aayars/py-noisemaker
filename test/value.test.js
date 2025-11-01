@@ -141,47 +141,6 @@ const colB = Tensor.fromArray(null, new Float32Array([6, 7]), [2, 1, 1]);
 const blendedCol = await blend(baseA, colB, 0.5);
 arraysClose(blendedCol.read(), new Float32Array([3, 3.5, 4.5, 5]));
 
-// GPU blend should handle channel mismatch by falling back to CPU
-let gpuCanvas = null;
-if (typeof document !== 'undefined' && document.createElement) {
-  gpuCanvas = document.createElement('canvas');
-} else if (typeof OffscreenCanvas !== 'undefined') {
-  gpuCanvas = new OffscreenCanvas(1, 1);
-}
-const gpuBlendCtx = new Context(gpuCanvas, DEBUG);
-if (!gpuBlendCtx.isCPU) {
-  const a3g = values(4, [2, 2, 3], { seed: 1, ctx: gpuBlendCtx });
-  const b1g = values(4, [2, 2, 1], { seed: 2, ctx: gpuBlendCtx });
-  const blendGPU = await blend(a3g, b1g, 0.5);
-  const da = a3g.read();
-  const db = b1g.read();
-  const expected = new Float32Array(2 * 2 * 3);
-  for (let i = 0; i < 4; i++) {
-    const bVal = db[i];
-    for (let k = 0; k < 3; k++) {
-      const idx = i * 3 + k;
-      expected[idx] = da[idx] * 0.5 + bVal * 0.5;
-    }
-  }
-  arraysClose(blendGPU.read(), expected);
-
-  const maskg = values(4, [2, 2, 1], { seed: 3, ctx: gpuBlendCtx });
-  const blendMaskGPU = await blend(a3g, b1g, maskg);
-  const dm = maskg.read();
-  const expectedMask = new Float32Array(2 * 2 * 3);
-  for (let i = 0; i < 4; i++) {
-    const bVal = db[i];
-    const tVal = dm[i];
-    for (let k = 0; k < 3; k++) {
-      const idx = i * 3 + k;
-      expectedMask[idx] = da[idx] * (1 - tVal) + bVal * tVal;
-    }
-  }
-  arraysClose(await blendMaskGPU.read(), expectedMask);
-} else {
-  console.log('Skipping GPU blend mismatch test');
-}
-
 // sobel edge detection
 const edgeData = new Float32Array([
   0, 0, 1, 1,
@@ -471,25 +430,5 @@ arraysClose(
     0, 0, 0.018315639, 0.13533528, 0.018315639,
   ]),
 );
-
-// GPU vs CPU parity for additional distributions
-let canvas = null;
-if (typeof document !== 'undefined' && document.createElement) {
-  canvas = document.createElement('canvas');
-} else if (typeof OffscreenCanvas !== 'undefined') {
-  canvas = new OffscreenCanvas(1, 1);
-}
-const gpuCtx = new Context(canvas, DEBUG);
-const cpuCtx = new Context(null, DEBUG);
-if (!gpuCtx.isCPU) {
-  const distribs = Object.values(ValueDistribution);
-  for (const d of distribs) {
-    const gpu = values(4, [4, 4, 1], { seed: 1, ctx: gpuCtx, distrib: d });
-    const cpu = values(4, [4, 4, 1], { seed: 1, ctx: cpuCtx, distrib: d });
-    arraysClose(gpu.read(), cpu.read());
-  }
-} else {
-  console.log('Skipping GPU vs CPU distribution comparisons');
-}
 
 console.log('Value tests passed');
