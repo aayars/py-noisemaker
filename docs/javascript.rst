@@ -6,34 +6,6 @@ Noisemaker includes a vanilla JavaScript port that runs in modern browsers. The 
 .. note::
    The JavaScript port is an experimental work in progress. The implementation is largely machine-derived from the Python reference implementation.
 
-Visual Examples
----------------
-
-Here are some live examples of Noisemaker.js rendering presets directly in your browser:
-
-.. noisemaker-live::
-   :preset: multires
-   :seed: 42
-   :width: 400
-   :height: 400
-   :caption: Multires preset - multi-octave value noise
-
-.. noisemaker-live::
-   :preset: acid
-   :seed: 12345
-   :width: 400
-   :height: 400
-   :caption: Acid preset - psychedelic patterns
-
-.. noisemaker-live::
-   :preset: voronoi
-   :seed: 99999
-   :width: 400
-   :height: 400
-   :caption: Voronoi diagram preset
-
-These examples are rendered client-side using the bundled Noisemaker.js library. Click the "Random" button on each canvas to generate a new variation with a random seed.
-
 Overview
 --------
 
