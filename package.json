@@ -6,8 +6,8 @@
     "noisemaker-js": "./bin/noisemaker-js"
   },
   "scripts": {
-  "test": "node scripts/run-js-tests.js",
-  "test:non-parity": "node scripts/run-js-tests.js --skip-parity",
+    "test": "node scripts/run-js-tests.js",
+    "test:non-parity": "node scripts/run-js-tests.js --skip-parity",
     "build": "node scripts/build.js",
     "bundle": "node scripts/bundle.js",
     "regress": "node scripts/regress.js",
@@ -17,8 +17,8 @@
   "devDependencies": {
     "@playwright/test": "^1.56.0",
     "canvas": "^3.2.0",
+    "esbuild": "^0.25.0",
     "pngjs": "^7.0.0",
-    "puppeteer": "^22.15.0",
-    "esbuild": "^0.25.0"
+    "puppeteer": "^22.15.0"
   }
 }
