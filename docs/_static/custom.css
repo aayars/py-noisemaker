@@ -73,7 +73,13 @@ a:hover {
 /* Container for live examples */
 .noisemaker-live-container {
     margin: 2em 0;
-    text-align: center;
+}
+
+/* Example layout: canvas on left, controls on right */
+.noisemaker-live-example {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
 }
 
 /* Canvas wrapper - tightly wraps canvas with button overlay */
@@ -82,6 +88,101 @@ a:hover {
     display: inline-block;
     line-height: 0;
     overflow: visible;
+    flex-shrink: 0;
+}
+
+/* Controls panel */
+.noisemaker-live-controls {
+    flex: 1;
+    min-width: 200px;
+    max-height: 384px;
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+/* Dark mode controls */
+body[data-theme="dark"] .noisemaker-live-controls {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Individual control - high density single row */
+.noisemaker-live-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.noisemaker-live-control:last-child {
+    margin-bottom: 0;
+}
+
+.noisemaker-live-control label {
+    flex-shrink: 0;
+    width: 80px;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.noisemaker-live-control input[type="number"],
+.noisemaker-live-control input[type="range"],
+.noisemaker-live-control input[type="text"],
+.noisemaker-live-control input[type="checkbox"],
+.noisemaker-live-control select {
+    flex: 1;
+    padding: 2px 4px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+body[data-theme="dark"] .noisemaker-live-control input[type="number"],
+body[data-theme="dark"] .noisemaker-live-control input[type="range"],
+body[data-theme="dark"] .noisemaker-live-control input[type="text"],
+body[data-theme="dark"] .noisemaker-live-control input[type="checkbox"],
+body[data-theme="dark"] .noisemaker-live-control select {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Checkbox specific styling */
+.noisemaker-live-control input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+/* Text input specific styling */
+.noisemaker-live-control input[type="text"] {
+    font-family: monospace;
+    font-size: 11px;
+}
+
+/* Range input styling */
+.noisemaker-live-control input[type="range"] {
+    padding: 0;
+    height: 18px;
+}
+
+/* Value display for range inputs */
+.noisemaker-live-control .control-value {
+    flex-shrink: 0;
+    width: 50px;
+    font-size: 11px;
+    font-family: monospace;
+    text-align: right;
+}
+
+.no-params-message {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+}
+
+body[data-theme="dark"] .no-params-message {
+    color: #999;
 }
 
 /* Random button positioned in bottom right corner */
@@ -129,8 +230,8 @@ body[data-theme="dark"] .noisemaker-live-random:hover {
 /* Canvas styling */
 .noisemaker-live-canvas {
     display: block;
-    max-width: 100%;
-    height: auto;
+    width: 384px;
+    height: 384px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -251,7 +352,16 @@ body[data-theme="dark"] .noisemaker-live-caption {
 
 /* Responsive behavior */
 @media (max-width: 768px) {
+    .noisemaker-live-example {
+        flex-direction: column;
+    }
+    
     .noisemaker-live-canvas {
         max-width: 100%;
+        height: auto;
+    }
+    
+    .noisemaker-live-controls {
+        width: 100%;
     }
 }

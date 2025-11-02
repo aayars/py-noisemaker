@@ -8,6 +8,131 @@
 (function() {
     'use strict';
     
+    const ENUM_PARAM_MAP = {
+        distMetric: 'DistanceMetric',
+        diagramType: 'VoronoiDiagramType',
+        colorSpace: 'ColorSpace',
+        behavior: 'WormBehavior',
+        pointDistrib: 'PointDistribution',
+        mask: 'ValueMask'
+    };
+
+    function getEnumForParam(paramName, effectName, defaultValue) {
+        if (!window.Noisemaker) {
+            return null;
+        }
+
+        if (paramName === 'distrib') {
+            if (typeof defaultValue === 'number' && defaultValue >= 1000000) {
+                return 'PointDistribution';
+            }
+            return 'ValueDistribution';
+        }
+
+        if (paramName === 'name' && effectName === 'palette') {
+            return 'PALETTES';
+        }
+
+        return ENUM_PARAM_MAP[paramName] ?? null;
+    }
+
+    function buildEnumOptions(enumSource) {
+        const nm = window.Noisemaker;
+        if (enumSource === 'PALETTES') {
+            const palettes = nm?.PALETTES ?? {};
+            return Object.keys(palettes)
+                .sort((a, b) => a.localeCompare(b))
+                .map(name => ({ value: name, label: humanizeLabel(name) }));
+        }
+
+        const enumObject = nm?.[enumSource] ?? nm?.enums?.[enumSource];
+        if (!enumObject) {
+            return [];
+        }
+
+        return Object.entries(enumObject)
+            .sort((a, b) => {
+                const [, valueA] = a;
+                const [, valueB] = b;
+                if (typeof valueA === 'number' && typeof valueB === 'number') {
+                    return valueA - valueB;
+                }
+                return String(valueA).localeCompare(String(valueB));
+            })
+            .map(([key, value]) => ({
+                value: String(value),
+                label: humanizeLabel(key)
+            }));
+    }
+
+    function humanizeLabel(value) {
+        return String(value)
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+
+    function resolveValue(rawValue, defaultValue) {
+        if (rawValue === undefined) {
+            return defaultValue;
+        }
+
+        if (typeof defaultValue === 'boolean') {
+            return rawValue === 'true';
+        }
+
+        if (typeof defaultValue === 'number') {
+            const parsed = Number(rawValue);
+            return Number.isFinite(parsed) ? parsed : defaultValue;
+        }
+
+        if (defaultValue === null || defaultValue === undefined) {
+            return rawValue;
+        }
+
+        return rawValue;
+    }
+
+    function coerceParamValue(rawValue, defaultValue, enumSource) {
+        if (rawValue === undefined) {
+            return undefined;
+        }
+
+        if (enumSource === 'PALETTES') {
+            return rawValue;
+        }
+
+        if (enumSource) {
+            const parsedEnumValue = Number(rawValue);
+            return Number.isNaN(parsedEnumValue) ? undefined : parsedEnumValue;
+        }
+
+        if (typeof defaultValue === 'boolean') {
+            return rawValue === 'true';
+        }
+
+        if (typeof defaultValue === 'number') {
+            const parsedNumber = Number(rawValue);
+            return Number.isNaN(parsedNumber) ? undefined : parsedNumber;
+        }
+
+        if (typeof defaultValue === 'string') {
+            return rawValue;
+        }
+
+        if (defaultValue === null || defaultValue === undefined) {
+            if (rawValue === 'true' || rawValue === 'false') {
+                return rawValue === 'true';
+            }
+            const parsedFallback = Number(rawValue);
+            return Number.isNaN(parsedFallback) ? rawValue : parsedFallback;
+        }
+
+        return rawValue;
+    }
+
     // Wait for both DOM and Noisemaker to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initLiveExamples);
@@ -61,7 +186,10 @@
             
             // Attach random button handler
             const wrapper = canvas.closest('.noisemaker-live-canvas-wrapper');
+            const example = canvas.closest('.noisemaker-live-example');
             const randomBtn = wrapper?.querySelector('.noisemaker-live-random');
+            const controlsContainer = example?.querySelector('.noisemaker-live-controls');
+            
             if (randomBtn) {
                 randomBtn.addEventListener('click', () => {
                     // Generate new random seed
@@ -69,6 +197,239 @@
                     canvas.dataset.seed = newSeed;
                     renderCanvas(canvas);
                 });
+            }
+            
+            // Generate effect parameter controls if this is an effect
+            const effectName = canvas.dataset.effect;
+            if (effectName && controlsContainer && window.Noisemaker?.EFFECTS) {
+                const effectNameSnake = effectName.replace(/-/g, '_');
+                const effect = window.Noisemaker.EFFECTS[effectName] || window.Noisemaker.EFFECTS[effectNameSnake];
+                
+                if (effect) {
+                    // Clear existing controls (except structure)
+                    controlsContainer.innerHTML = '';
+                    
+                    // Get parameter names (everything except 'func')
+                    const paramNames = Object.keys(effect).filter(k => k !== 'func');
+                    
+                    if (paramNames.length > 0) {
+                        paramNames.forEach(paramName => {
+                            const defaultValue = effect[paramName];
+                            const { dataset } = canvas;
+                            const rawDatasetValue = dataset[paramName];
+
+                            const control = document.createElement('div');
+                            control.className = 'noisemaker-live-control';
+
+                            const label = document.createElement('label');
+                            label.textContent = humanizeLabel(paramName);
+                            control.appendChild(label);
+
+                            const enumSource = getEnumForParam(paramName, effectName, defaultValue);
+                            let resolvedValue = resolveValue(rawDatasetValue, defaultValue);
+                            let input;
+
+                            if (enumSource) {
+                                input = document.createElement('select');
+                                input.className = `control-${paramName}`;
+
+                                const options = buildEnumOptions(enumSource);
+
+                                // Add a null/auto option if the default is null or undefined
+                                if (defaultValue === null || defaultValue === undefined) {
+                                    const noneOption = document.createElement('option');
+                                    noneOption.value = '';
+                                    noneOption.textContent = 'auto';
+                                    input.appendChild(noneOption);
+                                    if (rawDatasetValue === undefined) {
+                                        resolvedValue = '';
+                                    }
+                                }
+
+                                options.forEach(({ value, label: optionLabel }) => {
+                                    const option = document.createElement('option');
+                                    option.value = value;
+                                    option.textContent = optionLabel;
+                                    input.appendChild(option);
+                                });
+
+                                input.value = String(resolvedValue ?? '');
+
+                                input.addEventListener('change', (e) => {
+                                    const newValue = e.target.value;
+                                    if (newValue === '') {
+                                        delete dataset[paramName];
+                                    } else {
+                                        dataset[paramName] = newValue;
+                                    }
+                                    renderCanvas(canvas);
+                                });
+
+                                control.appendChild(input);
+                            } else if (typeof defaultValue === 'boolean') {
+                                // Checkbox for boolean
+                                input = document.createElement('input');
+                                input.type = 'checkbox';
+                                input.className = `control-${paramName}`;
+                                input.checked = resolvedValue;
+                                
+                                input.addEventListener('change', (e) => {
+                                    dataset[paramName] = String(e.target.checked);
+                                    renderCanvas(canvas);
+                                });
+                                
+                                control.appendChild(input);
+                            } else if (typeof defaultValue === 'string') {
+                                // Text input for string
+                                input = document.createElement('input');
+                                input.type = 'text';
+                                input.className = `control-${paramName}`;
+                                input.value = resolvedValue ?? '';
+                                input.style.width = '120px';
+                                
+                                input.addEventListener('change', (e) => {
+                                    dataset[paramName] = e.target.value;
+                                    renderCanvas(canvas);
+                                });
+                                
+                                control.appendChild(input);
+                            } else if (typeof defaultValue === 'number') {
+                                // Determine if integer or float
+                                const isInteger = Number.isInteger(defaultValue);
+                                
+                                // Range slider for number with smart defaults
+                                input = document.createElement('input');
+                                input.type = 'range';
+                                input.className = `control-${paramName}`;
+                                
+                                // Determine sensible ranges based on parameter name patterns and values
+                                let min, max, step;
+                                
+                                // Alpha/opacity parameters: 0-1
+                                if (paramName === 'alpha') {
+                                    min = 0; max = 1; step = 0.01;
+                                }
+                                // Frequency parameters: 1-20
+                                else if (paramName.includes('freq') || paramName.includes('Freq')) {
+                                    min = 1; max = 20; step = 1;
+                                }
+                                // Octaves: 1-8
+                                else if (paramName === 'octaves') {
+                                    min = 1; max = 8; step = 1;
+                                }
+                                // Iterations: 1-200
+                                else if (paramName === 'iterations') {
+                                    min = 1; max = 200; step = 1;
+                                }
+                                // Displacement: -2 to 2 for most, special cases handled
+                                else if (paramName === 'displacement') {
+                                    if (defaultValue >= 10) { min = 0; max = 100; step = 1; }
+                                    else { min = -2; max = 2; step = 0.01; }
+                                }
+                                // Amount parameters: typically 0-2
+                                else if (paramName === 'amount') {
+                                    min = 0; max = 2; step = 0.01;
+                                }
+                                // Density: 0-100
+                                // Angle: 0-360
+                                else if (paramName === 'angle') {
+                                    min = 0; max = 360; step = 1;
+                                }
+                                // Sides: 3-12
+                                else if (paramName === 'sides' || paramName === 'sdfSides') {
+                                    min = 3; max = 12; step = 1;
+                                }
+                                // Levels: 2-32
+                                else if (paramName === 'levels') {
+                                    min = 2; max = 32; step = 1;
+                                }
+                                // Kink: 0-5
+                                else if (paramName === 'kink') {
+                                    min = 0; max = 5; step = 0.1;
+                                }
+                                // Spline order: 0-5
+                                else if (paramName === 'splineOrder') {
+                                    min = 0; max = 5; step = 1;
+                                }
+                                // Zoom: 0.1-5
+                                else if (paramName === 'zoom') {
+                                    min = 0.1; max = 5; step = 0.1;
+                                }
+                                // Saturation/hue ranges: 0-2
+                                else if (paramName === 'saturation' || paramName === 'hueRange' || paramName === 'hueRotation') {
+                                    min = 0; max = 2; step = 0.01;
+                                }
+                                // Large integers (distrib, kernel, etc): use value-based range
+                                else if (defaultValue > 100) {
+                                    min = 0; 
+                                    max = Math.max(10000, defaultValue * 2); 
+                                    step = isInteger ? Math.max(1, Math.floor(defaultValue / 100)) : Math.max(0.1, defaultValue / 100);
+                                }
+                                // 0-1 normalized values
+                                else if (defaultValue >= 0 && defaultValue <= 1) {
+                                    min = 0; max = 1; step = isInteger ? 1 : 0.01;
+                                }
+                                // Small integers 1-10
+                                else if (defaultValue >= 1 && defaultValue <= 10 && isInteger) {
+                                    min = 1; max = 20; step = 1;
+                                }
+                                // Larger positive numbers
+                                else if (defaultValue > 10) {
+                                    min = 0; 
+                                    max = Math.ceil(defaultValue * 3); 
+                                    step = isInteger ? Math.max(1, Math.floor(defaultValue / 10)) : Math.max(0.1, defaultValue / 10);
+                                }
+                                // Negative or around zero
+                                else {
+                                    min = Math.floor(defaultValue - Math.abs(defaultValue) * 2 - 1);
+                                    max = Math.ceil(defaultValue + Math.abs(defaultValue) * 2 + 1);
+                                    step = isInteger ? 1 : 0.01;
+                                }
+                                
+                                input.min = String(min);
+                                input.max = String(max);
+                                input.step = String(step);
+                                
+                                const currentValue = typeof resolvedValue === 'number' ? resolvedValue : defaultValue;
+                                input.value = String(currentValue);
+                                
+                                const valueDisplay = document.createElement('span');
+                                valueDisplay.className = 'control-value';
+                                const decimals = isInteger || step >= 1 ? 0 : (step >= 0.1 ? 1 : 2);
+                                valueDisplay.textContent = currentValue.toFixed(decimals);
+                                
+                                input.addEventListener('input', (e) => {
+                                    const newValue = parseFloat(e.target.value);
+                                    valueDisplay.textContent = newValue.toFixed(decimals);
+                                });
+                                
+                                input.addEventListener('change', (e) => {
+                                    const rawValue = parseFloat(e.target.value);
+                                    const newValue = isInteger ? Math.round(rawValue) : rawValue;
+                                    dataset[paramName] = String(newValue);
+                                    renderCanvas(canvas);
+                                });
+                                
+                                control.appendChild(input);
+                                control.appendChild(valueDisplay);
+                            } else {
+                                // Null or object - show type and value
+                                const valueSpan = document.createElement('span');
+                                valueSpan.className = 'control-value';
+                                valueSpan.textContent = defaultValue === null ? 'null' : `[${typeof defaultValue}]`;
+                                control.appendChild(valueSpan);
+                            }
+                            
+                            controlsContainer.appendChild(control);
+                        });
+                        
+                        if (controlsContainer.children.length === 0) {
+                            controlsContainer.innerHTML = '<p class="no-params-message">No adjustable parameters</p>';
+                        }
+                    } else {
+                        controlsContainer.innerHTML = '<p class="no-params-message">No adjustable parameters</p>';
+                    }
+                }
             }
         }
     }
@@ -130,10 +491,31 @@
                     speed: 1.0,
                 });
                 
-                // Step 2: Create an effect function with default parameters
-                const effectFunc = Effect(effectName, {});
+                // Step 2: Collect custom parameters from canvas dataset
+                const effect = EFFECTS[effectName] || EFFECTS[effectNameSnake];
+                const customParams = {};
+
+                // Get all parameter names from the effect (excluding 'func')
+                const paramNames = Object.keys(effect).filter(k => k !== 'func');
+                paramNames.forEach(paramName => {
+                    const rawValue = canvas.dataset[paramName];
+                    if (rawValue === undefined) {
+                        return;
+                    }
+
+                    const defaultValue = effect[paramName];
+                    const enumSource = getEnumForParam(paramName, effectName, defaultValue);
+                    const coercedValue = coerceParamValue(rawValue, defaultValue, enumSource);
+
+                    if (coercedValue !== undefined && coercedValue !== null && !(enumSource && rawValue === '')) {
+                        customParams[paramName] = coercedValue;
+                    }
+                });
                 
-                // Step 3: Apply the effect function to the tensor
+                // Step 3: Create an effect function with custom parameters
+                const effectFunc = Effect(effectName, customParams);
+                
+                // Step 4: Apply the effect function to the tensor
                 // Note: effects might be async, and shape needs channels
                 const shape = inputTensor.shape; // Use the input tensor's shape which has [h, w, c]
                 const result = effectFunc(inputTensor, shape, 0, 1);
