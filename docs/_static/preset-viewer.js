@@ -13,6 +13,39 @@
     let Context = null;
     let rng = null;
     let presetSource = {};
+    const bundleDslCache = new Map();
+
+    async function fetchPresetDslFromBundle(bundleUrl) {
+        if (!bundleUrl) {
+            return '';
+        }
+
+        if (bundleDslCache.has(bundleUrl)) {
+            return bundleDslCache.get(bundleUrl);
+        }
+
+        const promise = (async () => {
+            try {
+                const response = await fetch(bundleUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const bundleText = await response.text();
+                const match = bundleText.match(/var\s+sa;\s*sa=`([\s\S]*?)`\s*;function\s+Zs/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+                console.warn('Preset viewer: DSL string not found in bundle');
+                return '';
+            } catch (error) {
+                console.error('Preset viewer: failed to read presets from bundle', error);
+                return '';
+            }
+        })();
+
+        bundleDslCache.set(bundleUrl, promise);
+        return promise;
+    }
 
     function formatPreset(obj, indent = 0) {
         const pad = '  '.repeat(indent);
@@ -89,7 +122,19 @@
         if (!Preset) {
             try {
                 // Load from _static (copied during build)
-                const module = await import('./noisemaker.js');
+                const script = document.createElement('script');
+                script.src = '_static/noisemaker.min.js';
+                script.defer = true;
+                await new Promise((resolve, reject) => {
+                    script.addEventListener('load', resolve);
+                    script.addEventListener('error', reject);
+                    document.head.appendChild(script);
+                });
+
+                const module = window.Noisemaker;
+                if (!module) {
+                    throw new Error('Noisemaker bundle did not attach to window');
+                }
                 
                 // Import exactly like javascript.rst shows
                 Preset = module.Preset;
@@ -98,14 +143,9 @@
                 Context = module.Context;
                 rng = module.rng;
                 
-                console.log('PRESETS type:', typeof PRESETS);
-                console.log('PRESETS keys:', Object.keys(PRESETS).slice(0, 10));
-                console.log('bloom preset:', PRESETS['bloom']);
-                
-                // Load preset source text from _static
-                const response = await fetch('_static/presets.dsl');
-                const dslText = await response.text();
-                
+                const bundleUrl = script.src;
+                const dslText = await fetchPresetDslFromBundle(bundleUrl);
+
                 // Extract preset source exactly like demo/js does
                 function extractPresetSource(source, name) {
                     const quotedName = `"${name}"`;
@@ -188,9 +228,12 @@
                     return '';
                 }
 
-                presetSource = {};
-                for (const name of Object.keys(PRESETS)) {
-                    presetSource[name] = extractPresetSource(dslText, name);
+                if (!Object.keys(presetSource).length && dslText) {
+                    const extractedSources = {};
+                    for (const name of Object.keys(PRESETS)) {
+                        extractedSources[name] = extractPresetSource(dslText, name);
+                    }
+                    presetSource = extractedSources;
                 }
             } catch (error) {
                 console.error('Failed to load noisemaker:', error);
@@ -246,7 +289,7 @@
 
             // Show loading - exactly like demo/js
             if (loadingIndicator) {
-                loadingIndicator.textContent = 'Rendering (0%)';
+                loadingIndicator.textContent = 'Rendering...';
                 loadingIndicator.style.display = 'block';
             }
             canvas.style.opacity = '0.5';

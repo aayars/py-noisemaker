@@ -63,7 +63,7 @@ This real preset from the library demonstrates layering, randomization, and sett
        <div class="preset-viewer-canvas-wrapper">
          <canvas class="preset-viewer-canvas" width="384" height="384"></canvas>
          <button class="noisemaker-live-random preset-viewer-random">Random</button>
-         <div class="preset-viewer-loading">Loading...</div>
+         <div class="preset-viewer-loading">Rendering (0%)</div>
        </div>
        <div class="preset-viewer-controls">
          <div class="preset-viewer-select-wrapper">

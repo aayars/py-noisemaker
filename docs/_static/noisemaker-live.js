@@ -798,6 +798,7 @@
             const presetName = canvas.dataset.preset;
             const effectName = canvas.dataset.effect;
             const generatorName = canvas.dataset.generator;
+            const showPercent = !generatorName && !effectName;
             const inputName = canvas.dataset.input || 'basic';
             const seed = parseInt(canvas.dataset.seed, 10) || 42;
             const width = parseInt(canvas.dataset.width, 10) || 512;
@@ -809,17 +810,51 @@
                 throw new Error('No preset, effect, or generator specified');
             }
             
+            async function resolveTensorCandidate(candidate) {
+                if (candidate && typeof candidate.then === 'function') {
+                    return await candidate;
+                }
+                if (candidate && typeof candidate === 'object') {
+                    const asyncIterator = candidate[Symbol.asyncIterator];
+                    if (typeof asyncIterator === 'function') {
+                        let lastValue = null;
+                        for await (const value of candidate) {
+                            if (value !== undefined) {
+                                lastValue = value;
+                            }
+                        }
+                        return lastValue;
+                    }
+                    const iterator = candidate[Symbol.iterator];
+                    if (typeof iterator === 'function') {
+                        let lastValue = null;
+                        for (const value of candidate) {
+                            if (value !== undefined) {
+                                lastValue = value;
+                            }
+                        }
+                        return lastValue;
+                    }
+                }
+                return candidate;
+            }
+
             // Update progress callback - exactly like demo/js
             function updateRenderProgress(percent) {
-                const percentInt = Math.floor(Math.min(100, Math.max(0, percent)));
-                if (loadingDiv) {
+                if (!loadingDiv) {
+                    return;
+                }
+                if (showPercent && Number.isFinite(percent)) {
+                    const percentInt = Math.floor(Math.min(100, Math.max(0, percent)));
                     loadingDiv.textContent = `Rendering (${percentInt}%)`;
+                } else {
+                    loadingDiv.textContent = 'Rendering...';
                 }
             }
             
             // Show loading state - exactly like demo/js
             if (loadingDiv) {
-                loadingDiv.textContent = 'Rendering (0%)';
+                loadingDiv.textContent = 'Rendering...';
                 loadingDiv.style.display = 'block';
             }
             canvas.style.opacity = '0.3';
@@ -898,7 +933,11 @@
                 const freq = [freqValue, freqValue];
                 delete opts.freq;
                 
-                tensor = await generator(freq, shape, opts);
+                const candidate = generator(freq, shape, opts);
+                tensor = await resolveTensorCandidate(candidate);
+                if (!tensor) {
+                    throw new Error(`Generator "${generatorName}" did not return a tensor`);
+                }
             }
             // If rendering an effect, we need to render the input then apply the effect
             else if (effectName) {
@@ -955,9 +994,10 @@
                 // Note: effects might be async, and shape needs channels
                 const shape = inputTensor.shape; // Use the input tensor's shape which has [h, w, c]
                 const result = effectFunc(inputTensor, shape, 0, 1);
-                
-                // Effects might return a Promise
-                tensor = result && typeof result.then === 'function' ? await result : result;
+                tensor = await resolveTensorCandidate(result);
+                if (!tensor) {
+                    tensor = inputTensor;
+                }
             } else {
                 // Just render a preset directly
                 if (!PRESET_TABLE[presetName]) {

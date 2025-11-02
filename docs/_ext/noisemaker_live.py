@@ -71,10 +71,13 @@ class NoisemakerLiveDirective(Directive):
         # Build data attributes based on mode
         if preset:
             data_attrs = f'data-preset="{preset}"'
+            loading_text = 'Rendering...'
         elif effect:
             data_attrs = f'data-effect="{effect}" data-input="{input_gen}"'
+            loading_text = 'Rendering...'
         elif generator:
             data_attrs = f'data-generator="{generator}"'
+            loading_text = 'Rendering...'
         else:
             raise self.error('Must specify :preset:, :effect:, or :generator:')
         
@@ -96,7 +99,7 @@ class NoisemakerLiveDirective(Directive):
                     width="{width}"
                     height="{height}">
             </canvas>
-            <div class="noisemaker-live-loading">Loading...</div>
+        <div class="noisemaker-live-loading">{loading_text}</div>
             <div class="noisemaker-live-error" style="display: none;"></div>
             <button class="noisemaker-live-random" title="Generate with random seed">Random</button>
         </div>

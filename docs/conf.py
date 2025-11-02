@@ -257,23 +257,27 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 def setup(app):
     """Copy JavaScript bundle and DSL file to _static for preset viewer."""
-    import shutil
-    
     # Copy dist/noisemaker.esm.js to _static/noisemaker.js
     dist_bundle = os.path.join(ROOT_DIR, 'dist', 'noisemaker.esm.js')
     static_dir = os.path.join(DOCS_DIR, '_static')
     static_bundle = os.path.join(static_dir, 'noisemaker.js')
     
-    if os.path.isfile(dist_bundle):
-        shutil.copy2(dist_bundle, static_bundle)
-        print(f"Copied {dist_bundle} to {static_bundle}")
-    else:
-        print(f"Warning: {dist_bundle} not found - run 'npm run build' first")
+    if not os.path.isfile(static_bundle):
+        if os.path.isfile(dist_bundle):
+            print(
+                f"Warning: expected prebuilt bundle at {static_bundle}; "
+                f"found {dist_bundle} but not copying per policy"
+            )
+        else:
+            print(f"Warning: bundle missing at {static_bundle}")
     
     # Copy dsl/presets.dsl to _static/
     dsl_file = os.path.join(ROOT_DIR, 'dsl', 'presets.dsl')
     if os.path.isfile(dsl_file):
-        shutil.copy2(dsl_file, static_dir)
-        print(f"Copied {dsl_file} to {static_dir}")
+        if not os.path.isfile(os.path.join(static_dir, 'presets.dsl')):
+            print(
+                f"Warning: expected cached presets.dsl in {static_dir}; "
+                "not copying fresh copy per policy"
+            )
     else:
         print(f"Warning: {dsl_file} not found")
