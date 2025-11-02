@@ -55,7 +55,7 @@ def basic(
     Generate a single layer of scaled noise.
 
     .. noisemaker-live::
-       :preset: basic
+       :generator: basic
        :seed: 12345
        :width: 512
        :height: 256
@@ -260,7 +260,7 @@ def multires(
     Generate multi-resolution value noise. For each octave: freq increases, amplitude decreases.
 
     .. noisemaker-live::
-       :preset: multires
+       :generator: multires
        :seed: 42
        :width: 512
        :height: 256

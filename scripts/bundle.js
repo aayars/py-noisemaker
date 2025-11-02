@@ -36,6 +36,9 @@ const sharedOptions = {
   },
   legalComments: 'none',
   logLevel: 'warning',
+  logOverride: {
+    'empty-import-meta': 'silent',  // Expected: import.meta is replaced by define
+  },
 };
 
 async function buildBundle() {

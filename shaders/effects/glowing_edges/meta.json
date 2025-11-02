@@ -12,7 +12,21 @@
   },
   "parameters": [
     { "name": "enabled", "type": "boolean", "default": true, "label": "Enabled" },
-    { "name": "sobel_metric", "type": "int", "default": 2, "min": 0, "max": 10, "label": "Sobel Metric" },
+    {
+      "name": "sobel_metric",
+      "type": "enum",
+      "default": 2,
+      "label": "Sobel Metric",
+      "options": [
+        { "value": 1, "label": "Euclidean" },
+        { "value": 2, "label": "Manhattan" },
+        { "value": 3, "label": "Chebyshev" },
+        { "value": 4, "label": "Octagram" },
+        { "value": 101, "label": "Triangular" },
+        { "value": 102, "label": "Hexagram" },
+        { "value": 201, "label": "SDF" }
+      ]
+    },
     { "name": "alpha", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "label": "Alpha" }
   ],
   "parameterBindings": {

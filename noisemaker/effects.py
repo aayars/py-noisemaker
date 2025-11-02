@@ -2949,43 +2949,6 @@ def texture(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float
 
 
 @effect()
-def watermark(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
-    """
-    
-    .. noisemaker-live::
-       :effect: watermark
-       :input: basic
-       :seed: 42
-       :width: 512
-       :height: 256
-       :lazy:
-
-    Args:
-        tensor: Input tensor to process
-        shape: Shape of the tensor [height, width, channels]
-        time: Time value for animation (0.0-1.0)
-        speed: Animation speed multiplier
-
-    Returns:
-        Modified tensor
-    """
-
-    value_shape = value.value_shape(shape)
-
-    mask = value.values(freq=240, shape=value_shape, spline_order=0, distrib=ValueDistribution.ones, mask=ValueMask.alphanum_numeric)
-
-    mask = crt(mask, value_shape)
-
-    mask = warp(mask, value_shape, [2, 4], octaves=1, displacement=0.5, time=time, speed=speed)
-
-    mask *= tf.square(value.values(freq=2, shape=value_shape, time=time, speed=speed))
-
-    brightness = value.values(freq=16, shape=value_shape, time=time, speed=speed)
-
-    return value.blend(tensor, brightness, mask * 0.125)
-
-
-@effect()
 def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
     

@@ -66,7 +66,6 @@ Overall effect evaluation order, respecting dependencies:
 [[ TODO ]] **warp**
 [[ TODO ]] **clouds**
 [[ TODO ]] **spatter**
-[[ TODO ]] **watermark**
 [[ TODO ]] **wobble**
 [[ TODO ]] **wormhole**
 [[ TODO ]] **light_leak**
@@ -607,27 +606,6 @@ warp
 └── refract
     └── convolve
         └── normalize
-```
-
-### watermark
-
-Direct dependencies: crt, warp
-
-```
-watermark
-├── crt
-│   ├── aberration
-│   │   └── normalize
-│   ├── adjust_hue
-│   ├── lens_warp
-│   │   └── refract
-│   │       └── convolve
-│   │           └── normalize
-│   ├── normalize
-│   └── vignette
-│       └── normalize
-└── warp
-    └── refract
 ```
 
 ### wormhole

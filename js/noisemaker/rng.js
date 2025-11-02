@@ -149,11 +149,6 @@ export class Random {
         return this.choice(arr);
     }
 
-    object(obj) {
-        const keys = Object.keys(obj);
-        return obj[this.choice(keys)];
-    }
-
     /**
      * Returns a random value from an object
      * @param {object} obj - The object

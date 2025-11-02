@@ -38,20 +38,55 @@ At a high level, each preset answers five key questions:
 Basic Structure
 ---------------
 
+A typical preset looks something like this:
+
+.. code-block:: javascript
+
+Basic Structure
+---------------
+
 A minimal preset looks like this:
 
 .. code-block:: javascript
 
     {
-      "bloom": {
+      "cool-water": {
+        layers: ["basic-water", "funhouse", "bloom", "lens"],
         settings: {
-          bloom_alpha: 0.025 + random() * 0.0125,
+          warp_range: 0.0625 + random() * 0.0625,
+          warp_freq: random_int(2, 3),
         },
-        final: [bloom(alpha: settings.bloom_alpha)],
       },
+
+      // ... hundreds of other presets ...
     }
 
-This real preset from the library defines a simple bloom effect with randomized intensity.
+This real preset from the library demonstrates layering, randomization, and settings configuration.This real preset from the library demonstrates layering, randomization, and settings configuration.
+
+.. raw:: html
+
+   <div class="preset-viewer-container">
+     <div class="preset-viewer-example">
+       <div class="preset-viewer-canvas-wrapper">
+         <canvas class="preset-viewer-canvas" width="384" height="384"></canvas>
+         <button class="noisemaker-live-random preset-viewer-random">Random</button>
+         <div class="preset-viewer-loading">Loading...</div>
+       </div>
+       <div class="preset-viewer-controls">
+         <div class="preset-viewer-select-wrapper">
+           <label for="composer-preset-select">Preset</label>
+           <select class="preset-viewer-select" id="composer-preset-select">
+             <option>Loading presets...</option>
+           </select>
+         </div>
+         <div class="preset-viewer-code-wrapper">
+           <label>Preset Definition</label>
+           <pre class="preset-viewer-code">// Select a preset to view its definition</pre>
+         </div>
+       </div>
+     </div>
+   </div>
+   <script type="module" src="_static/preset-viewer.js"></script>
 
 Preset Keys
 -----------

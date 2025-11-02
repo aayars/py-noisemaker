@@ -10,11 +10,16 @@
     
     const ENUM_PARAM_MAP = {
         distMetric: 'DistanceMetric',
+        sobel_metric: 'DistanceMetric',
+        sobelMetric: 'DistanceMetric',
         diagramType: 'VoronoiDiagramType',
         colorSpace: 'ColorSpace',
+        color_space: 'ColorSpace',
         behavior: 'WormBehavior',
         pointDistrib: 'PointDistribution',
-        mask: 'ValueMask'
+        mask: 'ValueMask',
+        spline_order: 'InterpolationType',
+        splineOrder: 'InterpolationType'
     };
 
     function getEnumForParam(paramName, effectName, defaultValue) {
@@ -22,7 +27,7 @@
             return null;
         }
 
-        if (paramName === 'distrib') {
+        if (paramName === 'distrib' || paramName === 'hue_distrib' || paramName === 'brightness_distrib' || paramName === 'saturation_distrib') {
             if (typeof defaultValue === 'number' && defaultValue >= 1000000) {
                 return 'PointDistribution';
             }
@@ -199,8 +204,10 @@
                 });
             }
             
-            // Generate effect parameter controls if this is an effect
+            // Generate parameter controls for effects or generators
             const effectName = canvas.dataset.effect;
+            const generatorName = canvas.dataset.generator;
+            
             if (effectName && controlsContainer && window.Noisemaker?.EFFECTS) {
                 const effectNameSnake = effectName.replace(/-/g, '_');
                 const effect = window.Noisemaker.EFFECTS[effectName] || window.Noisemaker.EFFECTS[effectNameSnake];
@@ -359,6 +366,10 @@
                                 else if (paramName === 'saturation' || paramName === 'hueRange' || paramName === 'hueRotation') {
                                     min = 0; max = 2; step = 0.01;
                                 }
+                                // Smoothstep parameters: 0-1
+                                else if (paramName === 'a' || paramName === 'b') {
+                                    min = 0; max = 1; step = 0.01;
+                                }
                                 // Large integers (distrib, kernel, etc): use value-based range
                                 else if (defaultValue > 100) {
                                     min = 0; 
@@ -430,6 +441,182 @@
                         controlsContainer.innerHTML = '<p class="no-params-message">No adjustable parameters</p>';
                     }
                 }
+            } else if (generatorName && controlsContainer && window.Noisemaker) {
+                // Generator controls
+                const generator = window.Noisemaker[generatorName];
+                
+                if (generator) {
+                    // Define generator parameter defaults
+                    const GENERATOR_PARAMS = {
+                        basic: {
+                            ridges: false,
+                            sin: 0.0,
+                            spline_order: 3,
+                            distrib: 1,
+                            corners: false,
+                            mask: null,
+                            mask_inverse: false,
+                            mask_static: false,
+                            lattice_drift: 0.0,
+                            color_space: 21,
+                            hue_range: 0.125,
+                            hue_rotation: null,
+                            saturation: 1.0,
+                            hue_distrib: null,
+                            brightness_distrib: null,
+                            brightness_freq: null,
+                            saturation_distrib: null
+                        },
+                        multires: {
+                            freq: 3,
+                            octaves: 1,
+                            ridges: false,
+                            sin: 0.0,
+                            spline_order: 3,
+                            distrib: 1,
+                            corners: false,
+                            mask: null,
+                            mask_inverse: false,
+                            mask_static: false,
+                            lattice_drift: 0.0,
+                            color_space: 21,
+                            hue_range: 0.125,
+                            hue_rotation: null,
+                            saturation: 1.0,
+                            hue_distrib: null,
+                            saturation_distrib: null,
+                            brightness_distrib: null,
+                            brightness_freq: null
+                        }
+                    };
+                    
+                    const params = GENERATOR_PARAMS[generatorName];
+                    if (params) {
+                        controlsContainer.innerHTML = '';
+                        
+                        Object.keys(params).forEach(paramName => {
+                            const defaultValue = params[paramName];
+                            const { dataset } = canvas;
+                            const rawDatasetValue = dataset[paramName];
+
+                            const control = document.createElement('div');
+                            control.className = 'noisemaker-live-control';
+
+                            const label = document.createElement('label');
+                            label.textContent = humanizeLabel(paramName);
+                            control.appendChild(label);
+
+                            const enumSource = getEnumForParam(paramName, generatorName, defaultValue);
+                            let resolvedValue = resolveValue(rawDatasetValue, defaultValue);
+                            let input;
+
+                            if (enumSource) {
+                                input = document.createElement('select');
+                                input.className = `control-${paramName}`;
+
+                                const options = buildEnumOptions(enumSource);
+
+                                if (defaultValue === null || defaultValue === undefined) {
+                                    const noneOption = document.createElement('option');
+                                    noneOption.value = '';
+                                    noneOption.textContent = 'auto';
+                                    input.appendChild(noneOption);
+                                    if (rawDatasetValue === undefined) {
+                                        resolvedValue = '';
+                                    }
+                                }
+
+                                options.forEach(({ value, label: optionLabel }) => {
+                                    const option = document.createElement('option');
+                                    option.value = value;
+                                    option.textContent = optionLabel;
+                                    input.appendChild(option);
+                                });
+
+                                input.value = String(resolvedValue ?? '');
+
+                                input.addEventListener('change', (e) => {
+                                    const newValue = e.target.value;
+                                    if (newValue === '') {
+                                        delete dataset[paramName];
+                                    } else {
+                                        dataset[paramName] = newValue;
+                                    }
+                                    renderCanvas(canvas);
+                                });
+
+                                control.appendChild(input);
+                            } else if (typeof defaultValue === 'boolean') {
+                                input = document.createElement('input');
+                                input.type = 'checkbox';
+                                input.className = `control-${paramName}`;
+                                input.checked = resolvedValue;
+                                
+                                input.addEventListener('change', (e) => {
+                                    dataset[paramName] = String(e.target.checked);
+                                    renderCanvas(canvas);
+                                });
+                                
+                                control.appendChild(input);
+                            } else if (typeof defaultValue === 'number') {
+                                const isInteger = Number.isInteger(defaultValue);
+                                
+                                input = document.createElement('input');
+                                input.type = 'range';
+                                input.className = `control-${paramName}`;
+                                
+                                let min, max, step;
+                                
+                                if (paramName === 'sin' || paramName === 'lattice_drift') {
+                                    min = 0; max = 1; step = 0.01;
+                                } else if (paramName === 'hue_range' || paramName === 'saturation') {
+                                    min = 0; max = 2; step = 0.01;
+                                } else if (paramName === 'freq') {
+                                    min = 1; max = 20; step = 1;
+                                } else if (paramName === 'octaves') {
+                                    min = 1; max = 8; step = 1;
+                                } else if (defaultValue >= 0 && defaultValue <= 1) {
+                                    min = 0; max = 1; step = isInteger ? 1 : 0.01;
+                                } else if (defaultValue >= 1 && defaultValue <= 10 && isInteger) {
+                                    min = 1; max = 20; step = 1;
+                                } else {
+                                    min = 0; 
+                                    max = Math.ceil(defaultValue * 3); 
+                                    step = isInteger ? Math.max(1, Math.floor(defaultValue / 10)) : 0.01;
+                                }
+                                
+                                input.min = String(min);
+                                input.max = String(max);
+                                input.step = String(step);
+                                
+                                const currentValue = typeof resolvedValue === 'number' ? resolvedValue : defaultValue;
+                                input.value = String(currentValue);
+                                
+                                const valueDisplay = document.createElement('span');
+                                valueDisplay.className = 'control-value';
+                                const decimals = isInteger || step >= 1 ? 0 : (step >= 0.1 ? 1 : 2);
+                                valueDisplay.textContent = currentValue.toFixed(decimals);
+                                
+                                input.addEventListener('input', (e) => {
+                                    const newValue = parseFloat(e.target.value);
+                                    valueDisplay.textContent = newValue.toFixed(decimals);
+                                });
+                                
+                                input.addEventListener('change', (e) => {
+                                    const rawValue = parseFloat(e.target.value);
+                                    const newValue = isInteger ? Math.round(rawValue) : rawValue;
+                                    dataset[paramName] = String(newValue);
+                                    renderCanvas(canvas);
+                                });
+                                
+                                control.appendChild(input);
+                                control.appendChild(valueDisplay);
+                            }
+                            
+                            controlsContainer.appendChild(control);
+                        });
+                    }
+                }
             }
         }
     }
@@ -443,19 +630,31 @@
             // Get parameters from data attributes
             const presetName = canvas.dataset.preset;
             const effectName = canvas.dataset.effect;
+            const generatorName = canvas.dataset.generator;
             const inputName = canvas.dataset.input || 'basic';
             const seed = parseInt(canvas.dataset.seed, 10) || 42;
             const width = parseInt(canvas.dataset.width, 10) || 512;
             const height = parseInt(canvas.dataset.height, 10) || 512;
-            const time = parseFloat(canvas.dataset.time) || 0.0;
+            const time = parseFloat(canvas.dataset.time) || 1.0;
             const frame = parseFloat(canvas.dataset.frame) || 0.0;
             
-            if (!presetName && !effectName) {
-                throw new Error('No preset or effect specified');
+            if (!presetName && !effectName && !generatorName) {
+                throw new Error('No preset, effect, or generator specified');
             }
             
-            // Show loading state
-            if (loadingDiv) loadingDiv.style.display = 'block';
+            // Update progress callback - exactly like demo/js
+            function updateRenderProgress(percent) {
+                const percentInt = Math.floor(Math.min(100, Math.max(0, percent)));
+                if (loadingDiv) {
+                    loadingDiv.textContent = `Rendering (${percentInt}%)`;
+                }
+            }
+            
+            // Show loading state - exactly like demo/js
+            if (loadingDiv) {
+                loadingDiv.textContent = 'Rendering (0%)';
+                loadingDiv.style.display = 'block';
+            }
             canvas.style.opacity = '0.3';
             
             // Create preset and render
@@ -467,8 +666,73 @@
             let tensor;
             const startTime = performance.now();
             
+            // If rendering a generator directly
+            if (generatorName) {
+                const generator = window.Noisemaker[generatorName];
+                if (!generator) {
+                    throw new Error(`Generator "${generatorName}" not found`);
+                }
+                
+                const { dataset } = canvas;
+                const opts = {};
+                
+                // Collect custom parameters from dataset
+                const GENERATOR_PARAMS = {
+                    basic: ['ridges', 'sin', 'spline_order', 'distrib', 'corners', 'mask', 'mask_inverse', 'mask_static', 'lattice_drift', 'color_space', 'hue_range', 'hue_rotation', 'saturation', 'hue_distrib', 'brightness_distrib', 'brightness_freq', 'saturation_distrib'],
+                    multires: ['freq', 'octaves', 'ridges', 'sin', 'spline_order', 'distrib', 'corners', 'mask', 'mask_inverse', 'mask_static', 'lattice_drift', 'color_space', 'hue_range', 'hue_rotation', 'saturation', 'hue_distrib', 'saturation_distrib', 'brightness_distrib', 'brightness_freq']
+                };
+                
+                const paramNames = GENERATOR_PARAMS[generatorName] || [];
+                paramNames.forEach(paramName => {
+                    if (dataset[paramName] === undefined) {
+                        return;
+                    }
+                    
+                    const defaultValue = paramName === 'ridges' ? false :
+                                       paramName === 'corners' ? false :
+                                       paramName === 'mask_inverse' ? false :
+                                       paramName === 'mask_static' ? false :
+                                       paramName === 'freq' ? 3 :
+                                       paramName === 'octaves' ? 1 :
+                                       paramName === 'sin' ? 0.0 :
+                                       paramName === 'lattice_drift' ? 0.0 :
+                                       paramName === 'hue_range' ? 0.125 :
+                                       paramName === 'saturation' ? 1.0 :
+                                       paramName === 'distrib' ? 1 :
+                                       paramName === 'spline_order' ? 3 :
+                                       paramName === 'color_space' ? 21 :
+                                       paramName === 'mask' ? null :
+                                       paramName === 'hue_rotation' ? null :
+                                       paramName === 'hue_distrib' ? null :
+                                       paramName === 'brightness_distrib' ? null :
+                                       paramName === 'brightness_freq' ? null :
+                                       paramName === 'saturation_distrib' ? null : null;
+                    const enumSource = getEnumForParam(paramName, generatorName, defaultValue);
+                    const coercedValue = coerceParamValue(dataset[paramName], defaultValue, enumSource);
+                    
+                    if (coercedValue !== undefined && coercedValue !== null) {
+                        // Skip setting null-defaulted enum params when empty
+                        if (enumSource && defaultValue === null && (coercedValue === '' || coercedValue === null)) {
+                            return;
+                        }
+                        // Convert snake_case to camelCase for JS API
+                        const jsParamName = paramName.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+                        opts[jsParamName] = coercedValue;
+                    }
+                });
+                
+                opts.time = time;
+                opts.seed = seed;
+                
+                const shape = [height, width, 3];
+                const freqValue = Number(opts.freq) || 3;
+                const freq = [freqValue, freqValue];
+                delete opts.freq;
+                
+                tensor = await generator(freq, shape, opts);
+            }
             // If rendering an effect, we need to render the input then apply the effect
-            if (effectName) {
+            else if (effectName) {
                 // Check if effect exists (EFFECTS is the registry from effectsRegistry.js)
                 const { EFFECTS, Effect } = window.Noisemaker;
                 
@@ -484,12 +748,15 @@
                 }
                 
                 const inputPreset = new Preset(inputName, PRESET_TABLE, {}, seed, { debug: false });
+                updateRenderProgress(30);
                 const inputTensor = await inputPreset.render(seed, {
                     width: width,
                     height: height,
                     time: time,
                     speed: 1.0,
+                    progressCallback: updateRenderProgress,
                 });
+                updateRenderProgress(70);
                 
                 // Step 2: Collect custom parameters from canvas dataset
                 const effect = EFFECTS[effectName] || EFFECTS[effectNameSnake];
@@ -529,12 +796,15 @@
                 }
                 
                 const preset = new Preset(presetName, PRESET_TABLE, {}, seed, { debug: false });
+                updateRenderProgress(30);
                 tensor = await preset.render(seed, {
                     width: width,
                     height: height,
                     time: time,
                     speed: 1.0,
+                    progressCallback: updateRenderProgress,
                 });
+                updateRenderProgress(100);
             }
 
             

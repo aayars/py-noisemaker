@@ -1859,6 +1859,8 @@ export async function jpegDecimate(
   }
   let current = tensor;
   for (let i = 0; i < iterations; i++) {
+    // Use current tensor's shape in case it changed
+    const currentShape = current.shape || shape;
     const dataMaybe = current.read();
     const data =
       dataMaybe && typeof dataMaybe.then === "function"
@@ -1879,12 +1881,14 @@ export async function jpegDecimate(
       else if (byte > 255) byte = 255;
       quantized[idx] = byte / 255;
     }
-    let degraded = Tensor.fromArray(tensor.ctx, quantized, shape);
+    let degraded = Tensor.fromArray(tensor.ctx, quantized, currentShape);
     const maxFactor = Math.max(2, Math.min(h, w));
     const factor = Math.min(randomInt(2, 8), maxFactor);
     if (factor > 1) {
       const down = await downsample(degraded, factor);
-      degraded = await upsample(down, factor, InterpolationType.linear);
+      const upsampled = await upsample(down, factor, InterpolationType.linear);
+      // Resample to exact original shape in case of rounding differences
+      degraded = await resample(upsampled, currentShape, InterpolationType.linear);
     }
     current = degraded;
   }
