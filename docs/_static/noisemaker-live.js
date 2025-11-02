@@ -22,6 +22,111 @@
         splineOrder: 'InterpolationType'
     };
 
+    const TRUTHY_STRINGS = new Set(['true', '1', 'yes', 'on']);
+    const FALSY_STRINGS = new Set(['false', '0', 'no', 'off']);
+
+    function parseBoolean(rawValue, fallback = false) {
+        if (typeof rawValue === 'boolean') {
+            return rawValue;
+        }
+
+        if (rawValue === null || rawValue === undefined) {
+            return fallback;
+        }
+
+        const normalized = String(rawValue).trim().toLowerCase();
+        if (TRUTHY_STRINGS.has(normalized)) {
+            return true;
+        }
+        if (FALSY_STRINGS.has(normalized)) {
+            return false;
+        }
+        return fallback;
+    }
+
+    const INTEGER_PARAM_EXACT = new Set([
+        'brightness_freq',
+        'color_space',
+        'colorspace',
+        'distrib',
+        'freq',
+        'octaves',
+        'seed',
+        'spline_order',
+        'splineorder'
+    ]);
+
+    const INTEGER_PARAM_SUFFIXES = [
+        '_count',
+        'count',
+        '_freq',
+        'freq',
+        '_index',
+        'index',
+        '_iterations',
+        'iterations',
+        '_levels',
+        'levels',
+        '_octaves',
+        'octaves',
+        '_order',
+        'order',
+        '_passes',
+        'passes',
+        '_points',
+        'points',
+        '_segments',
+        'segments',
+        '_sides',
+        'sides',
+        '_seed',
+        'seed',
+        '_steps',
+        'steps'
+    ];
+
+    function isLikelyIntegerParam(paramName) {
+        if (!paramName) {
+            return false;
+        }
+        const lower = paramName.toLowerCase();
+        if (INTEGER_PARAM_EXACT.has(lower)) {
+            return true;
+        }
+        if (lower.includes('freq') || lower.includes('seed') || lower.includes('octave')) {
+            return true;
+        }
+        return INTEGER_PARAM_SUFFIXES.some(suffix => lower.endsWith(suffix));
+    }
+
+    function inferNumericType(paramName, defaultValue, explicitHint) {
+        if (explicitHint) {
+            return explicitHint;
+        }
+
+        if (typeof defaultValue === 'number') {
+            if (!Number.isFinite(defaultValue)) {
+                return null;
+            }
+            if (!Number.isInteger(defaultValue)) {
+                return 'float';
+            }
+            return isLikelyIntegerParam(paramName) ? 'int' : 'float';
+        }
+
+        if (defaultValue === null || defaultValue === undefined) {
+            if (isLikelyIntegerParam(paramName)) {
+                return 'int';
+            }
+            const lower = typeof paramName === 'string' ? paramName.toLowerCase() : '';
+            if (lower.includes('rotation') || lower.includes('range') || lower.includes('saturation') || lower.includes('drift') || lower.includes('sin')) {
+                return 'float';
+            }
+        }
+
+        return null;
+    }
+
     function getEnumForParam(paramName, effectName, defaultValue) {
         if (!window.Noisemaker) {
             return null;
@@ -85,7 +190,7 @@
         }
 
         if (typeof defaultValue === 'boolean') {
-            return rawValue === 'true';
+            return parseBoolean(rawValue, defaultValue);
         }
 
         if (typeof defaultValue === 'number') {
@@ -94,49 +199,116 @@
         }
 
         if (defaultValue === null || defaultValue === undefined) {
+            if (rawValue === null || rawValue === undefined) {
+                return rawValue;
+            }
+            const normalized = String(rawValue).trim();
+            if (normalized.length === 0) {
+                return defaultValue;
+            }
+            if (TRUTHY_STRINGS.has(normalized.toLowerCase())) {
+                return true;
+            }
+            if (FALSY_STRINGS.has(normalized.toLowerCase())) {
+                return false;
+            }
+            const parsed = Number(normalized);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
             return rawValue;
         }
 
         return rawValue;
     }
 
-    function coerceParamValue(rawValue, defaultValue, enumSource) {
+    function coerceParamValue(rawValue, defaultValue, enumSource, paramName = '', typeHint) {
         if (rawValue === undefined) {
             return undefined;
         }
 
+        const normalizedValue = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+        if (typeof normalizedValue === 'string' && normalizedValue.length === 0) {
+            return undefined;
+        }
+
         if (enumSource === 'PALETTES') {
-            return rawValue;
+            return normalizedValue;
         }
 
         if (enumSource) {
-            const parsedEnumValue = Number(rawValue);
-            return Number.isNaN(parsedEnumValue) ? undefined : parsedEnumValue;
+            const parsedEnumValue = Number(normalizedValue);
+            if (Number.isNaN(parsedEnumValue)) {
+                return undefined;
+            }
+            return Math.round(parsedEnumValue);
         }
 
-        if (typeof defaultValue === 'boolean') {
-            return rawValue === 'true';
+        const resolvedTypeHint = (() => {
+            if (typeHint) {
+                return typeHint;
+            }
+            if (typeof defaultValue === 'boolean') {
+                return 'bool';
+            }
+            if (typeof defaultValue === 'string') {
+                return 'string';
+            }
+            const inferred = inferNumericType(paramName, defaultValue, null);
+            if (inferred) {
+                return inferred;
+            }
+            return null;
+        })();
+
+        if (resolvedTypeHint === 'bool') {
+            return parseBoolean(normalizedValue, Boolean(defaultValue));
         }
 
-        if (typeof defaultValue === 'number') {
-            const parsedNumber = Number(rawValue);
-            return Number.isNaN(parsedNumber) ? undefined : parsedNumber;
+        if (resolvedTypeHint === 'int' || resolvedTypeHint === 'float') {
+            const parsedNumber = Number(normalizedValue);
+            if (Number.isNaN(parsedNumber)) {
+                return undefined;
+            }
+            return resolvedTypeHint === 'int' ? Math.round(parsedNumber) : parsedNumber;
         }
 
-        if (typeof defaultValue === 'string') {
-            return rawValue;
+        if (resolvedTypeHint === 'string') {
+            return normalizedValue;
         }
 
         if (defaultValue === null || defaultValue === undefined) {
-            if (rawValue === 'true' || rawValue === 'false') {
-                return rawValue === 'true';
+            if (typeof normalizedValue === 'string') {
+                const lower = normalizedValue.toLowerCase();
+                if (TRUTHY_STRINGS.has(lower)) {
+                    return true;
+                }
+                if (FALSY_STRINGS.has(lower)) {
+                    return false;
+                }
             }
-            const parsedFallback = Number(rawValue);
-            return Number.isNaN(parsedFallback) ? rawValue : parsedFallback;
+            const parsedFallback = Number(normalizedValue);
+            if (!Number.isNaN(parsedFallback)) {
+                return parsedFallback;
+            }
         }
 
-        return rawValue;
+        return normalizedValue;
     }
+
+    const GENERATOR_PARAM_TYPE_HINTS = {
+        brightness_freq: 'int',
+        color_space: 'int',
+        distrib: 'int',
+        freq: 'int',
+        hue_range: 'float',
+        hue_rotation: 'float',
+        lattice_drift: 'float',
+        saturation: 'float',
+        sin: 'float',
+        spline_order: 'int',
+        octaves: 'int'
+    };
 
     // Wait for both DOM and Noisemaker to be ready
     if (document.readyState === 'loading') {
@@ -301,123 +473,93 @@
                                 
                                 control.appendChild(input);
                             } else if (typeof defaultValue === 'number') {
-                                // Determine if integer or float
-                                const isInteger = Number.isInteger(defaultValue);
-                                
-                                // Range slider for number with smart defaults
+                                const resolvedTypeHint = inferNumericType(paramName, defaultValue, null) ?? 'float';
+                                const isInteger = resolvedTypeHint === 'int';
+
                                 input = document.createElement('input');
                                 input.type = 'range';
                                 input.className = `control-${paramName}`;
-                                
-                                // Determine sensible ranges based on parameter name patterns and values
+
                                 let min, max, step;
-                                
-                                // Alpha/opacity parameters: 0-1
+
                                 if (paramName === 'alpha') {
                                     min = 0; max = 1; step = 0.01;
-                                }
-                                // Frequency parameters: 1-20
-                                else if (paramName.includes('freq') || paramName.includes('Freq')) {
+                                } else if (paramName.includes('freq') || paramName.includes('Freq')) {
                                     min = 1; max = 20; step = 1;
-                                }
-                                // Octaves: 1-8
-                                else if (paramName === 'octaves') {
+                                } else if (paramName === 'octaves') {
                                     min = 1; max = 8; step = 1;
-                                }
-                                // Iterations: 1-200
-                                else if (paramName === 'iterations') {
+                                } else if (paramName === 'iterations') {
                                     min = 1; max = 200; step = 1;
-                                }
-                                // Displacement: -2 to 2 for most, special cases handled
-                                else if (paramName === 'displacement') {
+                                } else if (paramName === 'displacement') {
                                     if (defaultValue >= 10) { min = 0; max = 100; step = 1; }
                                     else { min = -2; max = 2; step = 0.01; }
-                                }
-                                // Amount parameters: typically 0-2
-                                else if (paramName === 'amount') {
+                                } else if (paramName === 'amount') {
                                     min = 0; max = 2; step = 0.01;
-                                }
-                                // Density: 0-100
-                                // Angle: 0-360
-                                else if (paramName === 'angle') {
+                                } else if (paramName === 'angle') {
                                     min = 0; max = 360; step = 1;
-                                }
-                                // Sides: 3-12
-                                else if (paramName === 'sides' || paramName === 'sdfSides') {
+                                } else if (paramName === 'sides' || paramName === 'sdfSides') {
                                     min = 3; max = 12; step = 1;
-                                }
-                                // Levels: 2-32
-                                else if (paramName === 'levels') {
+                                } else if (paramName === 'levels') {
                                     min = 2; max = 32; step = 1;
-                                }
-                                // Kink: 0-5
-                                else if (paramName === 'kink') {
+                                } else if (paramName === 'kink') {
                                     min = 0; max = 5; step = 0.1;
-                                }
-                                // Spline order: 0-5
-                                else if (paramName === 'splineOrder') {
+                                } else if (paramName === 'splineOrder') {
                                     min = 0; max = 5; step = 1;
-                                }
-                                // Zoom: 0.1-5
-                                else if (paramName === 'zoom') {
+                                } else if (paramName === 'zoom') {
                                     min = 0.1; max = 5; step = 0.1;
-                                }
-                                // Saturation/hue ranges: 0-2
-                                else if (paramName === 'saturation' || paramName === 'hueRange' || paramName === 'hueRotation') {
+                                } else if (paramName === 'saturation' || paramName === 'hueRange' || paramName === 'hueRotation') {
                                     min = 0; max = 2; step = 0.01;
-                                }
-                                // Smoothstep parameters: 0-1
-                                else if (paramName === 'a' || paramName === 'b') {
+                                } else if (paramName === 'a' || paramName === 'b') {
                                     min = 0; max = 1; step = 0.01;
-                                }
-                                // Large integers (distrib, kernel, etc): use value-based range
-                                else if (defaultValue > 100) {
-                                    min = 0; 
-                                    max = Math.max(10000, defaultValue * 2); 
+                                } else if (defaultValue > 100) {
+                                    min = 0;
+                                    max = Math.max(10000, defaultValue * 2);
                                     step = isInteger ? Math.max(1, Math.floor(defaultValue / 100)) : Math.max(0.1, defaultValue / 100);
-                                }
-                                // 0-1 normalized values
-                                else if (defaultValue >= 0 && defaultValue <= 1) {
+                                } else if (defaultValue >= 0 && defaultValue <= 1) {
                                     min = 0; max = 1; step = isInteger ? 1 : 0.01;
-                                }
-                                // Small integers 1-10
-                                else if (defaultValue >= 1 && defaultValue <= 10 && isInteger) {
+                                } else if (defaultValue >= 1 && defaultValue <= 10 && isInteger) {
                                     min = 1; max = 20; step = 1;
-                                }
-                                // Larger positive numbers
-                                else if (defaultValue > 10) {
-                                    min = 0; 
-                                    max = Math.ceil(defaultValue * 3); 
+                                } else if (defaultValue > 10) {
+                                    min = 0;
+                                    max = Math.ceil(defaultValue * 3);
                                     step = isInteger ? Math.max(1, Math.floor(defaultValue / 10)) : Math.max(0.1, defaultValue / 10);
-                                }
-                                // Negative or around zero
-                                else {
+                                } else {
                                     min = Math.floor(defaultValue - Math.abs(defaultValue) * 2 - 1);
                                     max = Math.ceil(defaultValue + Math.abs(defaultValue) * 2 + 1);
                                     step = isInteger ? 1 : 0.01;
                                 }
-                                
+
                                 input.min = String(min);
                                 input.max = String(max);
                                 input.step = String(step);
-                                
-                                const currentValue = typeof resolvedValue === 'number' ? resolvedValue : defaultValue;
+
+                                const minValue = Number(min);
+                                const maxValue = Number(max);
+                                const stepValue = Number(step);
+                                let currentValue = typeof resolvedValue === 'number' ? resolvedValue : defaultValue;
+                                currentValue = Math.min(maxValue, Math.max(minValue, currentValue));
+                                if (isInteger) {
+                                    currentValue = Math.round(currentValue);
+                                }
                                 input.value = String(currentValue);
-                                
+
                                 const valueDisplay = document.createElement('span');
                                 valueDisplay.className = 'control-value';
-                                const decimals = isInteger || step >= 1 ? 0 : (step >= 0.1 ? 1 : 2);
-                                valueDisplay.textContent = currentValue.toFixed(decimals);
-                                
+                                const decimals = resolvedTypeHint === 'int' ? 0 : (stepValue >= 1 ? 0 : (stepValue >= 0.1 ? 1 : 2));
+                                valueDisplay.textContent = Number(currentValue).toFixed(decimals);
+
                                 input.addEventListener('input', (e) => {
                                     const newValue = parseFloat(e.target.value);
-                                    valueDisplay.textContent = newValue.toFixed(decimals);
+                                    const displayValue = isInteger ? Math.round(newValue) : newValue;
+                                    valueDisplay.textContent = Number(displayValue).toFixed(decimals);
                                 });
-                                
+
                                 input.addEventListener('change', (e) => {
                                     const rawValue = parseFloat(e.target.value);
                                     const newValue = isInteger ? Math.round(rawValue) : rawValue;
+                                    input.value = String(newValue);
                                     dataset[paramName] = String(newValue);
+                                    valueDisplay.textContent = Number(newValue).toFixed(decimals);
                                     renderCanvas(canvas);
                                 });
                                 
@@ -446,7 +588,6 @@
                 const generator = window.Noisemaker[generatorName];
                 
                 if (generator) {
-                    // Define generator parameter defaults
                     const GENERATOR_PARAMS = {
                         basic: {
                             ridges: false,
@@ -489,15 +630,20 @@
                             brightness_freq: null
                         }
                     };
-                    
+
                     const params = GENERATOR_PARAMS[generatorName];
                     if (params) {
                         controlsContainer.innerHTML = '';
+                        const FORCE_NUMERIC_PARAMS = new Set(['hue_rotation', 'brightness_freq']);
                         
                         Object.keys(params).forEach(paramName => {
                             const defaultValue = params[paramName];
                             const { dataset } = canvas;
                             const rawDatasetValue = dataset[paramName];
+                            const normalizedParamName = paramName.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+                            const lowerParamName = normalizedParamName.toLowerCase();
+                            const shouldForceNumeric = FORCE_NUMERIC_PARAMS.has(paramName);
+                            const typeHint = GENERATOR_PARAM_TYPE_HINTS[paramName] ?? (shouldForceNumeric ? (paramName === 'brightness_freq' ? 'int' : 'float') : undefined);
 
                             const control = document.createElement('div');
                             control.className = 'noisemaker-live-control';
@@ -558,8 +704,10 @@
                                 });
                                 
                                 control.appendChild(input);
-                            } else if (typeof defaultValue === 'number') {
-                                const isInteger = Number.isInteger(defaultValue);
+                            } else if (typeof defaultValue === 'number' || shouldForceNumeric) {
+                                const numericDefault = typeof defaultValue === 'number' ? defaultValue : 0;
+                                const resolvedTypeHint = inferNumericType(paramName, defaultValue, typeHint) ?? 'float';
+                                const isInteger = resolvedTypeHint === 'int';
                                 
                                 input = document.createElement('input');
                                 input.type = 'range';
@@ -567,45 +715,64 @@
                                 
                                 let min, max, step;
                                 
-                                if (paramName === 'sin' || paramName === 'lattice_drift') {
+                                if (lowerParamName === 'sin' || lowerParamName === 'latticedrift') {
                                     min = 0; max = 1; step = 0.01;
-                                } else if (paramName === 'hue_range' || paramName === 'saturation') {
+                                } else if (lowerParamName === 'huerange' || lowerParamName === 'saturation') {
                                     min = 0; max = 2; step = 0.01;
+                                } else if (lowerParamName === 'huerotation') {
+                                    min = 0; max = 2; step = 0.01;
+                                } else if (lowerParamName === 'brightnessfreq') {
+                                    min = 1; max = 64; step = 1;
                                 } else if (paramName === 'freq') {
                                     min = 1; max = 20; step = 1;
                                 } else if (paramName === 'octaves') {
                                     min = 1; max = 8; step = 1;
-                                } else if (defaultValue >= 0 && defaultValue <= 1) {
+                                } else if (numericDefault >= 0 && numericDefault <= 1) {
                                     min = 0; max = 1; step = isInteger ? 1 : 0.01;
-                                } else if (defaultValue >= 1 && defaultValue <= 10 && isInteger) {
+                                } else if (numericDefault >= 1 && numericDefault <= 10 && isInteger) {
                                     min = 1; max = 20; step = 1;
                                 } else {
+                                    const safeDefault = Math.max(1, Math.abs(numericDefault));
                                     min = 0; 
-                                    max = Math.ceil(defaultValue * 3); 
-                                    step = isInteger ? Math.max(1, Math.floor(defaultValue / 10)) : 0.01;
+                                    max = Math.ceil(safeDefault * 3); 
+                                    step = isInteger ? Math.max(1, Math.floor(safeDefault / 10)) : 0.01;
                                 }
                                 
                                 input.min = String(min);
                                 input.max = String(max);
                                 input.step = String(step);
-                                
-                                const currentValue = typeof resolvedValue === 'number' ? resolvedValue : defaultValue;
+
+                                const minValue = Number(min);
+                                const maxValue = Number(max);
+                                const stepValue = Number(step);
+                                const parsedDatasetValue = rawDatasetValue !== undefined ? Number(rawDatasetValue) : undefined;
+                                let currentValue = Number.isFinite(parsedDatasetValue) ? parsedDatasetValue : numericDefault;
+                                if (!Number.isFinite(currentValue)) {
+                                    currentValue = resolvedTypeHint === 'int' ? Math.round(minValue) : minValue;
+                                }
+                                currentValue = Math.min(maxValue, Math.max(minValue, currentValue));
+                                if (resolvedTypeHint === 'int') {
+                                    currentValue = Math.round(currentValue);
+                                }
                                 input.value = String(currentValue);
-                                
+
                                 const valueDisplay = document.createElement('span');
                                 valueDisplay.className = 'control-value';
-                                const decimals = isInteger || step >= 1 ? 0 : (step >= 0.1 ? 1 : 2);
-                                valueDisplay.textContent = currentValue.toFixed(decimals);
-                                
+                                const decimals = resolvedTypeHint === 'int' ? 0 : (stepValue >= 1 ? 0 : (stepValue >= 0.1 ? 1 : 2));
+                                valueDisplay.textContent = Number(currentValue).toFixed(decimals);
+
                                 input.addEventListener('input', (e) => {
                                     const newValue = parseFloat(e.target.value);
-                                    valueDisplay.textContent = newValue.toFixed(decimals);
+                                    const displayValue = resolvedTypeHint === 'int' ? Math.round(newValue) : newValue;
+                                    valueDisplay.textContent = Number(displayValue).toFixed(decimals);
                                 });
-                                
+
                                 input.addEventListener('change', (e) => {
                                     const rawValue = parseFloat(e.target.value);
-                                    const newValue = isInteger ? Math.round(rawValue) : rawValue;
+                                    const newValue = resolvedTypeHint === 'int' ? Math.round(rawValue) : rawValue;
+                                    input.value = String(newValue);
                                     dataset[paramName] = String(newValue);
+                                    valueDisplay.textContent = Number(newValue).toFixed(decimals);
                                     renderCanvas(canvas);
                                 });
                                 
@@ -708,16 +875,18 @@
                                        paramName === 'brightness_freq' ? null :
                                        paramName === 'saturation_distrib' ? null : null;
                     const enumSource = getEnumForParam(paramName, generatorName, defaultValue);
-                    const coercedValue = coerceParamValue(dataset[paramName], defaultValue, enumSource);
+                    const typeHint = GENERATOR_PARAM_TYPE_HINTS[paramName];
+                    const coercedValue = coerceParamValue(dataset[paramName], defaultValue, enumSource, paramName, typeHint);
                     
                     if (coercedValue !== undefined && coercedValue !== null) {
-                        // Skip setting null-defaulted enum params when empty
                         if (enumSource && defaultValue === null && (coercedValue === '' || coercedValue === null)) {
                             return;
                         }
-                        // Convert snake_case to camelCase for JS API
+                        opts[paramName] = coercedValue;
                         const jsParamName = paramName.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-                        opts[jsParamName] = coercedValue;
+                        if (jsParamName !== paramName) {
+                            opts[jsParamName] = coercedValue;
+                        }
                     }
                 });
                 
@@ -772,7 +941,7 @@
 
                     const defaultValue = effect[paramName];
                     const enumSource = getEnumForParam(paramName, effectName, defaultValue);
-                    const coercedValue = coerceParamValue(rawValue, defaultValue, enumSource);
+                    const coercedValue = coerceParamValue(rawValue, defaultValue, enumSource, paramName);
 
                     if (coercedValue !== undefined && coercedValue !== null && !(enumSource && rawValue === '')) {
                         customParams[paramName] = coercedValue;
