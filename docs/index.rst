@@ -116,7 +116,6 @@ Low-level API: Generator and Effects
 
 See :doc:`api` documentation.
 
-
 Indices and tables
 ==================
 

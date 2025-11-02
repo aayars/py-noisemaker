@@ -8,7 +8,8 @@ Options:
   -h, --help  Show this message and exit.
 
 Commands:
-  animate   Generate a .gif or .mp4 from preset
-  apply     Apply an effect to a .png or .jpg image
-  generate  Generate a .png or .jpg from preset
-  mashup    Blend a directory of .png or .jpg images
+  generate      Generate a .png or .jpg from preset
+  apply         Apply an effect to a .png or .jpg image
+  animate       Generate a .gif or .mp4 from preset
+  magic-mashup  Animated collage from a directory of directories of frames
+  mashup        Blend a directory of .png or .jpg images

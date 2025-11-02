@@ -51,14 +51,18 @@ Generate a .png or .jpg image from a preset.
 
 - ``PRESET_NAME`` - Name of the preset to use (e.g., ``acid``, ``voronoi``, ``multires``)
 
+**Preset Discovery:**
+
+- ``--help-presets`` - List available generator presets (including ``random``) and exit
+
 **Common Options:**
 
 - ``--width INTEGER`` - Output width in pixels (default: 1024)
 - ``--height INTEGER`` - Output height in pixels (default: 1024)
-- ``--seed INTEGER`` - Random seed for reproducible results
+- ``--seed INTEGER`` - Random seed for reproducible results (random if omitted)
 - ``--filename FILE`` - Output filename (default: art.png)
-- ``--time FLOAT`` - Time value for Z axis (for 3D simplex noise)
-- ``--speed FLOAT`` - Animation speed modifier
+- ``--time FLOAT`` - Time value for Z axis (for 3D simplex noise, default: 0.0)
+- ``--speed FLOAT`` - Animation speed modifier (default: 0.25)
 
 **Quality Options:**
 
@@ -160,12 +164,16 @@ Apply an effect preset to an existing .png or .jpg image.
 - ``EFFECT_PRESET`` - Name of the effect preset to apply
 - ``INPUT_FILENAME`` - Path to input image (.png or .jpg)
 
+**Preset Discovery:**
+
+- ``--help-presets`` - List available effect presets (including ``random``) and exit
+
 **Options:**
 
 - ``--filename FILE`` - Output filename (default: mangled.png)
-- ``--seed INTEGER`` - Random seed for stochastic effects
-- ``--time FLOAT`` - Time value for animated effects
-- ``--speed FLOAT`` - Animation speed modifier
+- ``--seed INTEGER`` - Random seed for stochastic effects (random if omitted)
+- ``--time FLOAT`` - Time value for animated effects (default: 0.0)
+- ``--speed FLOAT`` - Animation speed modifier (default: 0.25)
 - ``--no-resize`` - Don't resize image (may break some presets)
 - ``--with-fxaa`` - Apply FXAA anti-aliasing
 

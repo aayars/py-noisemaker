@@ -597,11 +597,17 @@ When a preset doesn't parse or evaluate correctly:
 
 The Python and JavaScript parsers provide error messages with line/column information when syntax errors occur.
 
-Using Presets in Python
-------------------------
+Using Presets
+-------------
+
+.. note::
+   JavaScript examples assume an ES module environment (for example, ``<script type="module">``) so that ``await`` can be used at the top level.
 
 Basic Usage
 ~~~~~~~~~~~
+
+Python
+^^^^^^
 
 .. code-block:: python
 
@@ -610,10 +616,27 @@ Basic Usage
     preset = Preset('acid')
     preset.render(seed=1, shape=[1024, 1024, 3], filename='acid.png')
 
-The ``shape`` parameter is ``[height, width, channels]``. Use 3 channels for RGB.
+JavaScript
+^^^^^^^^^^
+
+.. code-block:: javascript
+
+    import { PRESETS } from './js/noisemaker/presets.js';
+    import { Preset } from './js/noisemaker/composer.js';
+
+    const presets = PRESETS();
+    const preset = new Preset('acid', presets);
+    await preset.render(1, {
+      width: 1024,
+      height: 1024,
+      canvas: document.getElementById('output')
+    });
 
 Working with Arrays
 ~~~~~~~~~~~~~~~~~~~
+
+Python
+^^^^^^
 
 .. code-block:: python
 
@@ -623,16 +646,49 @@ Working with Arrays
     tensor = preset.render(seed=42, shape=[512, 512, 3])
     array = tensor.numpy()
 
+JavaScript
+^^^^^^^^^^
+
+.. code-block:: javascript
+
+    import { PRESETS } from './js/noisemaker/presets.js';
+    import { Preset } from './js/noisemaker/composer.js';
+
+    const presets = PRESETS();
+    const preset = new Preset('voronoi', presets);
+    const tensor = await preset.render(42, { width: 512, height: 512 });
+    const array = tensor.read();
+
 Override Settings
 ~~~~~~~~~~~~~~~~~
 
+Python
+^^^^^^
+
 .. code-block:: python
+
+    from noisemaker.composer import Preset
 
     preset = Preset('acid', settings={'freq': 20, 'octaves': 12})
     preset.render(seed=1, shape=[1024, 1024, 3], filename='custom.png')
 
+JavaScript
+^^^^^^^^^^
+
+.. code-block:: javascript
+
+    import { PRESETS } from './js/noisemaker/presets.js';
+    import { Preset } from './js/noisemaker/composer.js';
+
+    const presets = PRESETS();
+    const preset = new Preset('acid', presets, { freq: 20, octaves: 12 });
+    await preset.render(1, { width: 1024, height: 1024 });
+
 List Available Presets
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+
+Python
+^^^^^^
 
 .. code-block:: python
 
@@ -640,6 +696,16 @@ List Available Presets
 
     presets = PRESETS()
     print(list(presets.keys()))
+
+JavaScript
+^^^^^^^^^^
+
+.. code-block:: javascript
+
+    import { PRESETS } from './js/noisemaker/presets.js';
+
+    const presets = PRESETS();
+    console.log(Object.keys(presets));
 
 Architecture Overview
 ---------------------
