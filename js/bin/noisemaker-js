@@ -17,14 +17,71 @@ import { Tensor } from '../noisemaker/tensor.js';
 
 const MAX_SEED_VALUE = 2 ** 32 - 1;
 
-function printUsage() {
-  const message = `Usage:\n  noisemaker-js generate <presetName> --filename <filename> [options]\n  noisemaker-js apply <presetName> <inputFile> [options]\n\nGenerate options:\n  --width <pixels>       Output width in pixels (default: 1024)\n  --height <pixels>      Output height in pixels (default: 1024)\n  --seed <value>         Seed for deterministic output (default: random)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 0.25)\n  --with-alpha           Preserve alpha channel (default: disabled)\n  --with-supersample     Apply x2 supersample antialiasing (default: disabled)\n  --with-fxaa            Apply FXAA antialiasing (default: disabled)\n  --debug                Enable verbose preset debugging\n\nApply options:\n  --filename <path>      Output filename (default: mangled.png)\n  --seed <value>         Seed for deterministic output (default: random)\n  --time <seconds>       Animation time parameter (default: 0)\n  --speed <value>        Animation speed (default: 0.25)\n  --no-resize            Skip square crop + resize (default: disabled)\n  --with-fxaa            Apply FXAA antialiasing (default: disabled)\n  --help                 Show this message\n`;
-  console.log(message);
+const MAIN_HELP = `Usage: noisemaker-js [OPTIONS] COMMAND [ARGS]...
+
+      Noisemaker - Let's make generative art with noise
+
+  https://github.com/aayars/noisemaker
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  generate     Generate a .png or .jpg from preset
+  apply        Apply an effect to a .png or .jpg image
+`;
+
+const GENERATE_HELP = `Usage: noisemaker-js generate [OPTIONS] PRESET_NAME
+
+  Generate a .png or .jpg from preset
+
+Options:
+  --width INTEGER         Output width, in pixels  [default: 1024]
+  --height INTEGER        Output height, in pixels  [default: 1024]
+  --time FLOAT            Time value for Z axis (simplex only)
+  --speed FLOAT           Animation speed
+  --seed INTEGER          Random seed. Might not affect all things.
+  --filename FILE         Filename for image output (should end with .png or
+                          .jpg)  [default: art.png]
+  --with-alpha            Include alpha channel
+  --with-supersample      Apply x2 supersample anti-aliasing
+  --with-fxaa             Apply FXAA anti-aliasing
+  --debug-print           Debug: Print ancestors and settings to STDOUT
+  --debug-out FILE        Debug: Log ancestors and settings to file
+  --help-presets          Show available generator presets and exit.
+  -h, --help              Show this message and exit.
+`;
+
+function formatApplyHelp() {
+  return `Usage: noisemaker-js apply [OPTIONS] PRESET_NAME INPUT_FILENAME
+
+  Apply an effect to a .png or .jpg image
+
+Options:
+  --seed INTEGER   Random seed. Might not affect all things.
+  --filename FILE  Filename for image output (should end with .png or .jpg)
+                   [default: mangled.png]
+  --no-resize      Don't resize image. May break some presets.
+  --with-fxaa      Apply FXAA anti-aliasing
+  --time FLOAT     Time value for Z axis (simplex only)
+  --speed FLOAT    Animation speed
+  --help-presets   Show available effect presets and exit.
+  PRESET_NAME may be "random" or any name shown via --help-presets.
+  -h, --help       Show this message and exit.
+`;
 }
 
-function parseGenerateOptions(argv) {
+function printMainHelp() {
+  console.log(MAIN_HELP);
+}
+
+function printGenerateHelp() {
+  console.log(GENERATE_HELP);
+}
+
+function parseGenerateOptions(tokens) {
   const options = {
-    filename: undefined,
+    filename: 'art.png',
     width: 1024,
     height: 1024,
     seed: null,
@@ -33,60 +90,88 @@ function parseGenerateOptions(argv) {
     withAlpha: false,
     withSupersample: false,
     withFxaa: false,
-    debug: false,
+    debugPrint: false,
+    debugOut: null,
+    helpPresets: false,
   };
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) {
-      throw new Error(`Unrecognized argument "${arg}"`);
-    }
-    const key = arg.slice(2);
-    if (key === 'help' || key === 'h') {
+  const flagOptions = new Set(['with-alpha', 'with-supersample', 'with-fxaa', 'debug-print', 'help-presets']);
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === '-h' || token === '--help') {
       options.help = true;
       continue;
     }
-    if (key === 'with-alpha') {
-      options.withAlpha = true;
+
+    if (!token.startsWith('-')) {
+      throw new Error(`Unrecognized argument "${token}"`);
+    }
+
+    if (token.startsWith('-') && !token.startsWith('--')) {
+      throw new Error(`Unknown option "${token}"`);
+    }
+
+    let key;
+    let value = null;
+    const eqIndex = token.indexOf('=');
+    if (eqIndex !== -1) {
+      key = token.slice(2, eqIndex);
+      value = token.slice(eqIndex + 1);
+    } else {
+      key = token.slice(2);
+    }
+
+    if (flagOptions.has(key)) {
+      if (value !== null) {
+        throw new Error(`Option "--${key}" does not accept a value`);
+      }
+      if (key === 'with-alpha') {
+        options.withAlpha = true;
+      } else if (key === 'with-supersample') {
+        options.withSupersample = true;
+      } else if (key === 'with-fxaa') {
+        options.withFxaa = true;
+      } else if (key === 'debug-print') {
+        options.debugPrint = true;
+      } else if (key === 'help-presets') {
+        options.helpPresets = true;
+      }
       continue;
     }
-    if (key === 'with-supersample') {
-      options.withSupersample = true;
-      continue;
+
+    if (value === null) {
+      const next = tokens[++i];
+      if (next === undefined) {
+        throw new Error(`Option "--${key}" requires a value`);
+      }
+      value = next;
     }
-    if (key === 'with-fxaa') {
-      options.withFxaa = true;
-      continue;
-    }
-    if (key === 'debug') {
-      options.debug = true;
-      continue;
-    }
-    const next = argv[++i];
-    if (next === undefined) {
-      throw new Error(`Option "${arg}" requires a value`);
-    }
+
     switch (key) {
       case 'filename':
-        options.filename = next;
+        options.filename = value;
         break;
       case 'width':
-        options.width = Number.parseInt(next, 10);
+        options.width = Number.parseInt(value, 10);
         break;
       case 'height':
-        options.height = Number.parseInt(next, 10);
+        options.height = Number.parseInt(value, 10);
         break;
       case 'seed':
-        options.seed = Number.parseInt(next, 10);
+        options.seed = Number.parseInt(value, 10);
         break;
       case 'time':
-        options.time = Number.parseFloat(next);
+        options.time = Number.parseFloat(value);
         break;
       case 'speed':
-        options.speed = Number.parseFloat(next);
+        options.speed = Number.parseFloat(value);
+        break;
+      case 'debug-out':
+        options.debugOut = value;
         break;
       default:
-        throw new Error(`Unknown option "${arg}"`);
+        throw new Error(`Unknown option "--${key}"`);
     }
   }
 
@@ -109,7 +194,7 @@ function parseGenerateOptions(argv) {
   return options;
 }
 
-function parseApplyOptions(argv) {
+function parseApplyOptions(tokens) {
   const options = {
     filename: 'mangled.png',
     seed: null,
@@ -117,45 +202,73 @@ function parseApplyOptions(argv) {
     speed: 0.25,
     noResize: false,
     withFxaa: false,
+    helpPresets: false,
   };
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) {
-      throw new Error(`Unrecognized argument "${arg}"`);
-    }
-    const key = arg.slice(2);
-    if (key === 'help' || key === 'h') {
+  const flagOptions = new Set(['no-resize', 'with-fxaa', 'help-presets']);
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === '-h' || token === '--help') {
       options.help = true;
       continue;
     }
-    if (key === 'no-resize') {
-      options.noResize = true;
+
+    if (!token.startsWith('-')) {
+      throw new Error(`Unrecognized argument "${token}"`);
+    }
+
+    if (token.startsWith('-') && !token.startsWith('--')) {
+      throw new Error(`Unknown option "${token}"`);
+    }
+
+    let key;
+    let value = null;
+    const eqIndex = token.indexOf('=');
+    if (eqIndex !== -1) {
+      key = token.slice(2, eqIndex);
+      value = token.slice(eqIndex + 1);
+    } else {
+      key = token.slice(2);
+    }
+
+    if (flagOptions.has(key)) {
+      if (value !== null) {
+        throw new Error(`Option "--${key}" does not accept a value`);
+      }
+      if (key === 'no-resize') {
+        options.noResize = true;
+      } else if (key === 'with-fxaa') {
+        options.withFxaa = true;
+      } else if (key === 'help-presets') {
+        options.helpPresets = true;
+      }
       continue;
     }
-    if (key === 'with-fxaa') {
-      options.withFxaa = true;
-      continue;
+
+    if (value === null) {
+      const next = tokens[++i];
+      if (next === undefined) {
+        throw new Error(`Option "--${key}" requires a value`);
+      }
+      value = next;
     }
-    const next = argv[++i];
-    if (next === undefined) {
-      throw new Error(`Option "${arg}" requires a value`);
-    }
+
     switch (key) {
       case 'filename':
-        options.filename = next;
+        options.filename = value;
         break;
       case 'seed':
-        options.seed = Number.parseInt(next, 10);
+        options.seed = Number.parseInt(value, 10);
         break;
       case 'time':
-        options.time = Number.parseFloat(next);
+        options.time = Number.parseFloat(value);
         break;
       case 'speed':
-        options.speed = Number.parseFloat(next);
+        options.speed = Number.parseFloat(value);
         break;
       default:
-        throw new Error(`Unknown option "${arg}"`);
+        throw new Error(`Unknown option "--${key}"`);
     }
   }
 
@@ -264,34 +377,335 @@ function instantiatePreset(presetName, presets, seed, opts = {}) {
   return new Preset(presetName, presets, undefined, seed, opts);
 }
 
-function buildEffectPresetMap(presets, seed) {
-  const effectPresets = new Map();
+let cachedGeneratorNames = null;
+let cachedEffectNames = null;
+
+function getGeneratorPresetNames() {
+  if (cachedGeneratorNames) {
+    return cachedGeneratorNames;
+  }
+  const presets = PRESETS();
+  const names = [];
   for (const name of Object.keys(presets)) {
-    let preset;
     try {
-      preset = instantiatePreset(name, presets, seed);
+      const preset = instantiatePreset(name, presets, 1);
+      if (preset.is_generator()) {
+        names.push(name);
+      }
     } catch (error) {
       if (error instanceof Error && error.message.includes(`Preset "${name}"`)) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Preset "${name}": ${message}`);
-    }
-    if (!preset.is_generator() && preset.is_effect()) {
-      effectPresets.set(name, preset);
+      continue;
     }
   }
-  return effectPresets;
+  names.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  cachedGeneratorNames = names;
+  return names;
 }
 
-async function handleGenerate(presetName, argv) {
-  const options = parseGenerateOptions(argv);
-  if (options.help) {
-    printUsage();
+function getEffectPresetNames() {
+  if (cachedEffectNames) {
+    return cachedEffectNames;
+  }
+  const presets = PRESETS();
+  const names = [];
+  for (const name of Object.keys(presets)) {
+    try {
+      const preset = instantiatePreset(name, presets, 1);
+      if (!preset.is_generator() && preset.is_effect()) {
+        names.push(name);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes(`Preset "${name}"`)) {
+        throw error;
+      }
+      continue;
+    }
+  }
+  names.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  cachedEffectNames = names;
+  return names;
+}
+
+function printPresetList(header, names) {
+  console.log(header);
+  for (const name of names) {
+    console.log(`  - ${name}`);
+  }
+}
+
+function splitGenerateArgs(args) {
+  let helpRequested = false;
+  let presetName = null;
+  const optionTokens = [];
+  let parsingOptions = true;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+
+    if (parsingOptions && (arg === '--help' || arg === '-h')) {
+      helpRequested = true;
+      continue;
+    }
+
+    if (parsingOptions && arg === '--') {
+      parsingOptions = false;
+      continue;
+    }
+
+    if (parsingOptions && arg.startsWith('-') && arg !== '-') {
+      optionTokens.push(arg);
+      const needsValue =
+        arg.startsWith('--') &&
+        !arg.includes('=') &&
+        !['--with-alpha', '--with-supersample', '--with-fxaa', '--debug-print', '--help-presets', '--help', '-h'].includes(arg);
+      if (needsValue) {
+        const value = args[i + 1];
+        if (value === undefined) {
+          throw new Error(`Option "${arg}" requires a value`);
+        }
+        optionTokens.push(value);
+        i += 1;
+      }
+      continue;
+    }
+
+    if (presetName === null) {
+      presetName = arg;
+      continue;
+    }
+
+    if (parsingOptions && arg.startsWith('-') && arg.length > 1) {
+      throw new Error(`Unknown option "${arg}"`);
+    }
+
+    throw new Error(`Unexpected argument "${arg}"`);
+  }
+
+  return { helpRequested, presetName, optionTokens };
+}
+
+function splitApplyArgs(args) {
+  let helpRequested = false;
+  let presetName = null;
+  let inputFilename = null;
+  const optionTokens = [];
+  let parsingOptions = true;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+
+    if (parsingOptions && (arg === '--help' || arg === '-h')) {
+      helpRequested = true;
+      continue;
+    }
+
+    if (parsingOptions && arg === '--') {
+      parsingOptions = false;
+      continue;
+    }
+
+    if (parsingOptions && arg.startsWith('-') && arg !== '-') {
+      optionTokens.push(arg);
+      const needsValue =
+        arg.startsWith('--') &&
+        !arg.includes('=') &&
+        !['--no-resize', '--with-fxaa', '--help-presets', '--help', '-h'].includes(arg);
+      if (needsValue) {
+        const value = args[i + 1];
+        if (value === undefined) {
+          throw new Error(`Option "${arg}" requires a value`);
+        }
+        optionTokens.push(value);
+        i += 1;
+      }
+      continue;
+    }
+
+    if (presetName === null) {
+      presetName = arg;
+      continue;
+    }
+
+    if (inputFilename === null) {
+      inputFilename = arg;
+      continue;
+    }
+
+    if (parsingOptions && arg.startsWith('-') && arg.length > 1) {
+      throw new Error(`Unknown option "${arg}"`);
+    }
+
+    throw new Error(`Unexpected argument "${arg}"`);
+  }
+
+  return { helpRequested, presetName, inputFilename, optionTokens };
+}
+
+function humanizeName(name) {
+  return String(name || '')
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ');
+}
+
+function effectDisplayName(effect) {
+  if (!effect) {
+    return 'anonymous';
+  }
+  if (typeof effect === 'function') {
+    if (effect.__effectName) {
+      return humanizeName(effect.__effectName);
+    }
+    if (effect.name) {
+      return humanizeName(effect.name);
+    }
+  }
+  if (typeof effect === 'object') {
+    if (effect.__effectName) {
+      return humanizeName(effect.__effectName);
+    }
+    if (effect.name) {
+      return humanizeName(effect.name);
+    }
+    if (effect.func && effect.func.name) {
+      return humanizeName(effect.func.name);
+    }
+  }
+  return 'anonymous';
+}
+
+function formatPresetDebug(preset, seed, options) {
+  const firstColumn = ['Layers:'];
+  firstColumn.push('  - Lineage (by newest):');
+  const layers = Array.isArray(preset.flattened_layers) ? preset.flattened_layers.slice() : [];
+  if (!layers.length) {
+    firstColumn.push('    - None');
+  } else {
+    for (const name of layers.slice().reverse()) {
+      firstColumn.push(`    - ${name}`);
+    }
+  }
+  firstColumn.push('');
+  firstColumn.push('  - Effects (by newest):');
+
+  const finalEffects = Array.isArray(preset.final_effects) ? preset.final_effects : [];
+  const postEffects = Array.isArray(preset.post_effects) ? preset.post_effects : [];
+  const octaveEffects = Array.isArray(preset.octave_effects) ? preset.octave_effects : [];
+
+  if (!finalEffects.length && !postEffects.length && !octaveEffects.length) {
+    firstColumn.push('    - None');
+    firstColumn.push('');
+  }
+
+  if (finalEffects.length) {
+    firstColumn.push('    - Final Pass:');
+    for (const effect of finalEffects.slice().reverse()) {
+      firstColumn.push(`      - ${effectDisplayName(effect)}`);
+    }
+    firstColumn.push('');
+  }
+
+  if (postEffects.length) {
+    firstColumn.push('    - Post Pass:');
+    for (const effect of postEffects.slice().reverse()) {
+      firstColumn.push(`      - ${effectDisplayName(effect)}`);
+    }
+    firstColumn.push('');
+  }
+
+  if (octaveEffects.length) {
+    firstColumn.push('    - Per-Octave Pass:');
+    for (const effect of octaveEffects.slice().reverse()) {
+      firstColumn.push(`      - ${effectDisplayName(effect)}`);
+    }
+    firstColumn.push('');
+  }
+
+  firstColumn.push('Canvas:');
+  firstColumn.push(`  - seed: ${seed}`);
+  firstColumn.push(`  - with alpha: ${options.withAlpha ? 'True' : 'False'}`);
+  firstColumn.push(`  - with supersample: ${options.withSupersample ? 'True' : 'False'}`);
+  firstColumn.push(`  - with fxaa: ${options.withFxaa ? 'True' : 'False'}`);
+  firstColumn.push('');
+
+  const secondColumn = ['Settings:'];
+  const settings = Object.entries(preset.settings || {})
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  for (const [key, value] of settings) {
+    let displayValue;
+    if (typeof value === 'number') {
+      const rounded = Math.round(value * 1000) / 1000;
+      displayValue = Number.isFinite(rounded) ? rounded : value;
+    } else if (Array.isArray(value)) {
+      displayValue = `[${value.join(', ')}]`;
+    } else if (value && typeof value === 'object' && 'name' in value) {
+      displayValue = value.name;
+    } else {
+      displayValue = value;
+    }
+    secondColumn.push(`  - ${humanizeName(key)}: ${displayValue}`);
+  }
+  secondColumn.push('');
+
+  const lines = [];
+  const maxLength = Math.max(firstColumn.length, secondColumn.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    const left = firstColumn[i] || '';
+    const right = secondColumn[i] || '';
+    const paddedLeft = left.padEnd(50, ' ');
+    lines.push(`${paddedLeft} ${right}`);
+  }
+  return lines;
+}
+
+async function maybeWriteDebug(options, preset, seed) {
+  if (!options.debugPrint && !options.debugOut) {
+    return;
+  }
+  const lines = formatPresetDebug(preset, seed, options);
+  if (options.debugPrint) {
+    for (const line of lines) {
+      console.log(line);
+    }
+  }
+  if (options.debugOut) {
+    await writeFile(options.debugOut, `${lines.join('\n')}\n`);
+  }
+}
+
+async function handleGenerate(args) {
+  const { helpRequested, presetName, optionTokens } = splitGenerateArgs(args);
+  const options = parseGenerateOptions(optionTokens);
+
+  if (helpRequested || options.help) {
+    printGenerateHelp();
     return 0;
   }
-  if (!options.filename) {
-    options.filename = 'art.png';
+
+  if (options.helpPresets) {
+    const generatorNames = getGeneratorPresetNames();
+    printPresetList('Available generator presets:', ['random', ...generatorNames]);
+    return 0;
+  }
+
+  if (!presetName) {
+    throw new Error("Error: Missing argument 'PRESET_NAME'.");
+  }
+
+  const presets = PRESETS();
+  let resolvedName = presetName;
+
+  if (presetName === 'random') {
+    const generatorNames = getGeneratorPresetNames();
+    if (!generatorNames.length) {
+      throw new Error('No generator presets are available.');
+    }
+    const index = Math.floor(Math.random() * generatorNames.length);
+    resolvedName = generatorNames[index];
+  } else if (!Object.prototype.hasOwnProperty.call(presets, resolvedName)) {
+    throw new Error(`Unknown preset: ${resolvedName}`);
   }
 
   let seed = options.seed;
@@ -302,16 +716,11 @@ async function handleGenerate(presetName, argv) {
   setUtilSeed(seed);
   setValueSeed(seed);
 
-  const presets = PRESETS();
-  if (!Object.prototype.hasOwnProperty.call(presets, presetName)) {
-    const available = Object.keys(presets)
-      .sort()
-      .join(', ');
-    throw new Error(`Preset "${presetName}" not found. Available presets: ${available}`);
-  }
+  const debugMode = Boolean(options.debugPrint || options.debugOut);
+  const preset = instantiatePreset(resolvedName, presets, seed, { debug: debugMode });
+  const ctx = new Context(null, debugMode);
 
-  const ctx = new Context(null, options.debug);
-  const preset = instantiatePreset(presetName, presets, seed, { debug: options.debug });
+  await maybeWriteDebug(options, preset, seed);
 
   const tensor = await preset.render(seed, {
     ctx,
@@ -322,26 +731,50 @@ async function handleGenerate(presetName, argv) {
     withAlpha: options.withAlpha,
     withSupersample: options.withSupersample,
     withFxaa: options.withFxaa,
-    debug: options.debug,
+    debug: debugMode,
   });
 
-  const outputPath = await writeImage(tensor, options.filename);
-  console.log(`Wrote ${outputPath}`);
+  await writeImage(tensor, options.filename);
+  console.log(preset.name);
   return 0;
 }
 
-async function handleApply(argv) {
-  if (argv.length < 2) {
-    throw new Error('Preset name and input filename are required');
+async function handleApply(args) {
+  const { helpRequested, presetName, inputFilename, optionTokens } = splitApplyArgs(args);
+  const options = parseApplyOptions(optionTokens);
+
+  if (helpRequested || options.help) {
+    const helpMessage = formatApplyHelp();
+    console.log(helpMessage);
+    return 0;
   }
 
-  const presetNameArg = argv[0];
-  const inputFilename = argv[1];
-  const options = parseApplyOptions(argv.slice(2));
-
-  if (options.help) {
-    printUsage();
+  if (options.helpPresets) {
+    const effectNames = getEffectPresetNames();
+    printPresetList('Available effect presets:', ['random', ...effectNames]);
     return 0;
+  }
+
+  if (!presetName) {
+    throw new Error("Error: Missing argument 'PRESET_NAME'.");
+  }
+
+  if (!inputFilename) {
+    throw new Error("Error: Missing argument 'INPUT_FILENAME'.");
+  }
+
+  const effectNames = getEffectPresetNames();
+  if (!effectNames.length) {
+    throw new Error('No effect presets are available.');
+  }
+
+  let resolvedName = presetName;
+  if (presetName === 'random') {
+    const index = Math.floor(Math.random() * effectNames.length);
+    resolvedName = effectNames[index];
+  } else if (!effectNames.includes(resolvedName)) {
+    const available = effectNames.join(', ');
+    throw new Error(`Effect preset "${resolvedName}" not found. Available presets: ${available}`);
   }
 
   let seed = options.seed;
@@ -353,25 +786,7 @@ async function handleApply(argv) {
   setValueSeed(seed);
 
   const presets = PRESETS();
-  const effectPresets = buildEffectPresetMap(presets, seed);
-  if (!effectPresets.size) {
-    throw new Error('No effect presets are available.');
-  }
-
-  let presetName = presetNameArg;
-  if (presetName === 'random') {
-    const names = Array.from(effectPresets.keys()).sort();
-    const index = Math.floor(Math.random() * names.length);
-    presetName = names[index];
-  }
-
-  const preset = effectPresets.get(presetName);
-  if (!preset) {
-    const available = Array.from(effectPresets.keys())
-      .sort()
-      .join(', ');
-    throw new Error(`Effect preset "${presetName}" not found. Available presets: ${available}`);
-  }
+  const preset = instantiatePreset(resolvedName, presets, seed);
 
   const { tensor: inputTensor, shape: inputShape } = await loadInputTensor(inputFilename);
   let workingTensor = inputTensor;
@@ -394,28 +809,28 @@ async function handleApply(argv) {
     speed: options.speed,
   });
 
-  console.log(presetName);
-  const outputPath = await writeImage(result, options.filename);
-  console.log(`Wrote ${outputPath}`);
+  console.log(preset.name);
+  await writeImage(result, options.filename);
   return 0;
 }
 
 async function main(argv) {
-  if (!argv.length || argv.includes('--help') || argv.includes('-h')) {
-    printUsage();
+  if (!argv.length) {
+    printMainHelp();
+    return 0;
+  }
+
+  if (argv[0] === '--help' || argv[0] === '-h') {
+    printMainHelp();
     return 0;
   }
 
   const [command, ...rest] = argv;
   if (command === 'generate') {
-    const presetName = rest[0];
-    if (!presetName) {
-      throw new Error('Preset name is required');
-    }
-    return handleGenerate(presetName, rest.slice(1));
+    return handleGenerate(rest.length ? rest : []);
   }
   if (command === 'apply') {
-    return handleApply(rest);
+    return handleApply(rest.length ? rest : []);
   }
 
   throw new Error(`Unknown command "${command}"`);

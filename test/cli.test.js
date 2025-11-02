@@ -20,6 +20,30 @@ for (const file of [outputPath, applyInputPath, applyOutputPath]) {
   }
 }
 
+const listGenerate = spawnSync('node', [cliPath, 'generate', '--help-presets'], {
+  encoding: 'utf8',
+});
+
+if (listGenerate.status !== 0) {
+  const stderr = listGenerate.stderr ? `\n${listGenerate.stderr}` : '';
+  const stdout = listGenerate.stdout ? `\n${listGenerate.stdout}` : '';
+  throw new Error(`CLI help-presets generate exited with status ${listGenerate.status}${stderr}${stdout}`);
+}
+
+assert.ok(listGenerate.stdout.includes('Available generator presets:'), 'Missing generator preset list header');
+
+const listApply = spawnSync('node', [cliPath, 'apply', '--help-presets'], {
+  encoding: 'utf8',
+});
+
+if (listApply.status !== 0) {
+  const stderr = listApply.stderr ? `\n${listApply.stderr}` : '';
+  const stdout = listApply.stdout ? `\n${listApply.stdout}` : '';
+  throw new Error(`CLI help-presets apply exited with status ${listApply.status}${stderr}${stdout}`);
+}
+
+assert.ok(listApply.stdout.includes('Available effect presets:'), 'Missing effect preset list header');
+
 const result = spawnSync('node', [cliPath, 'generate', 'basic', '--filename', outputPath, '--width', '32', '--height', '32', '--seed', '1'], {
   encoding: 'utf8',
 });

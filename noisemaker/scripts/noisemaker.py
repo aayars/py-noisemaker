@@ -39,7 +39,46 @@ def main():
     pass
 
 
+def _echo_presets(header: str, names: list[str]) -> None:
+    click.echo(header)
+
+    for name in names:
+        click.echo(f"  - {name}")
+
+
+def _show_generator_presets(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    if not value or ctx.resilient_parsing:
+        return
+
+    reload_presets(PRESETS)
+    presets = PRESETS()
+    generator_names: list[str] = []
+
+    for name in sorted(presets):
+        try:
+            preset = Preset(name)
+        except Exception:
+            continue
+
+        if preset.is_generator():
+            generator_names.append(name)
+
+    _echo_presets("Available generator presets:", ["random"] + generator_names)
+    ctx.exit(0)
+
+
+def _show_effect_presets(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    if not value or ctx.resilient_parsing:
+        return
+
+    reload_presets(PRESETS)
+    names = ["random"] + sorted(EFFECT_PRESETS)
+    _echo_presets("Available effect presets:", names)
+    ctx.exit(0)
+
+
 @main.command(help="Generate a .png or .jpg from preset")
+@cli.option("--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_generator_presets, help="Show available generator presets and exit.")
 @cli.width_option()
 @cli.height_option()
 @cli.time_option()
@@ -252,13 +291,14 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ai,
 
 
 @main.command(help="Apply an effect to a .png or .jpg image")
+@cli.option("--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_effect_presets, help="Show available effect presets and exit.")
 @cli.seed_option()
 @cli.filename_option(default="mangled.png")
 @cli.option("--no-resize", is_flag=True, help="Don't resize image. May break some presets.")
 @click.option("--with-fxaa", help="Apply FXAA anti-aliasing", is_flag=True, default=False)
 @cli.time_option()
 @click.option("--speed", help="Animation speed", type=float, default=0.25)
-@click.argument("preset_name", type=click.Choice(["random"] + sorted(EFFECT_PRESETS)))
+@click.argument("preset_name")
 @click.argument("input_filename")
 @click.pass_context
 def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
@@ -267,6 +307,20 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 
     value.set_seed(seed)
     reload_presets(PRESETS)
+
+    effect_names = sorted(EFFECT_PRESETS)
+
+    if preset_name == "random":
+        if not effect_names:
+            raise click.BadParameter("No effect presets are available.", param_hint="PRESET_NAME")
+
+        preset_name = random.choice(effect_names)
+
+    elif preset_name not in EFFECT_PRESETS:
+        raise click.BadParameter(
+            f"Unknown effect preset: {preset_name}. Use --help-presets to list available presets.",
+            param_hint="PRESET_NAME",
+        )
 
     input_shape = util.shape_from_file(input_filename)
 
