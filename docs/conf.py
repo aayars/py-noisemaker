@@ -256,7 +256,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
 def setup(app):
-    """Copy JavaScript bundle and DSL file to _static for preset viewer."""
+    """Copy JavaScript bundle to _static for preset viewer."""
     # Copy dist/noisemaker.esm.js to _static/noisemaker.js
     dist_bundle = os.path.join(ROOT_DIR, 'dist', 'noisemaker.esm.js')
     static_dir = os.path.join(DOCS_DIR, '_static')
@@ -271,13 +271,3 @@ def setup(app):
         else:
             print(f"Warning: bundle missing at {static_bundle}")
     
-    # Copy dsl/presets.dsl to _static/
-    dsl_file = os.path.join(ROOT_DIR, 'dsl', 'presets.dsl')
-    if os.path.isfile(dsl_file):
-        if not os.path.isfile(os.path.join(static_dir, 'presets.dsl')):
-            print(
-                f"Warning: expected cached presets.dsl in {static_dir}; "
-                "not copying fresh copy per policy"
-            )
-    else:
-        print(f"Warning: {dsl_file} not found")
