@@ -38,14 +38,7 @@ At a high level, each preset answers five key questions:
 Basic Structure
 ---------------
 
-A typical preset looks something like this:
-
-.. code-block:: javascript
-
-Basic Structure
----------------
-
-A minimal preset looks like this:
+A typical preset looks like this:
 
 .. code-block:: javascript
 
@@ -61,7 +54,7 @@ A minimal preset looks like this:
       // ... hundreds of other presets ...
     }
 
-This real preset from the library demonstrates layering, randomization, and settings configuration.This real preset from the library demonstrates layering, randomization, and settings configuration.
+This real preset from the library demonstrates layering, randomization, and settings configuration.
 
 .. raw:: html
 
