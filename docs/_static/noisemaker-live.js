@@ -387,13 +387,16 @@
                 if (effect) {
                     // Clear existing controls (except structure)
                     controlsContainer.innerHTML = '';
-                    
+
+                    const effectMetadata = window.Noisemaker?.EFFECT_METADATA ?? {};
+                    const effectDefaults = effectMetadata[effectName] || effectMetadata[effectNameSnake] || effect;
+
                     // Get parameter names (everything except 'func')
                     const paramNames = Object.keys(effect).filter(k => k !== 'func');
                     
                     if (paramNames.length > 0) {
                         paramNames.forEach(paramName => {
-                            const defaultValue = effect[paramName];
+                            const defaultValue = effectDefaults[paramName] ?? effect[paramName];
                             const { dataset } = canvas;
                             const rawDatasetValue = dataset[paramName];
 
@@ -413,16 +416,15 @@
                                 input.className = `control-${paramName}`;
 
                                 const options = buildEnumOptions(enumSource);
+                                const includeNullChoice = defaultValue === null || defaultValue === undefined;
+                                const availableValues = [];
 
-                                // Add a null/auto option if the default is null or undefined
-                                if (defaultValue === null || defaultValue === undefined) {
+                                if (includeNullChoice) {
                                     const noneOption = document.createElement('option');
                                     noneOption.value = '';
-                                    noneOption.textContent = 'auto';
+                                    noneOption.textContent = 'None';
                                     input.appendChild(noneOption);
-                                    if (rawDatasetValue === undefined) {
-                                        resolvedValue = '';
-                                    }
+                                    availableValues.push('');
                                 }
 
                                 options.forEach(({ value, label: optionLabel }) => {
@@ -430,12 +432,43 @@
                                     option.value = value;
                                     option.textContent = optionLabel;
                                     input.appendChild(option);
+                                    availableValues.push(String(value));
                                 });
 
-                                input.value = String(resolvedValue ?? '');
+                                const hasDatasetValue = rawDatasetValue !== undefined;
+                                let initialValue;
+
+                                if (hasDatasetValue) {
+                                    initialValue = String(rawDatasetValue);
+                                } else if (includeNullChoice) {
+                                    initialValue = '';
+                                } else if (defaultValue !== null && defaultValue !== undefined) {
+                                    initialValue = String(defaultValue);
+                                    dataset[paramName] = initialValue;
+                                } else {
+                                    initialValue = availableValues[0] ?? '';
+                                    if (initialValue) {
+                                        dataset[paramName] = initialValue;
+                                    }
+                                }
+
+                                if (!availableValues.includes(initialValue)) {
+                                    initialValue = availableValues[0] ?? '';
+                                    if (initialValue) {
+                                        dataset[paramName] = initialValue;
+                                    } else {
+                                        delete dataset[paramName];
+                                    }
+                                }
+
+                                if (initialValue === '') {
+                                    delete dataset[paramName];
+                                }
+
+                                input.value = initialValue;
 
                                 input.addEventListener('change', (e) => {
-                                    const newValue = e.target.value;
+                                    const { value: newValue } = e.target;
                                     if (newValue === '') {
                                         delete dataset[paramName];
                                     } else {
@@ -661,15 +694,15 @@
                                 input.className = `control-${paramName}`;
 
                                 const options = buildEnumOptions(enumSource);
+                                const includeNullChoice = defaultValue === null || defaultValue === undefined;
+                                const availableValues = [];
 
-                                if (defaultValue === null || defaultValue === undefined) {
+                                if (includeNullChoice) {
                                     const noneOption = document.createElement('option');
                                     noneOption.value = '';
-                                    noneOption.textContent = 'auto';
+                                    noneOption.textContent = 'None';
                                     input.appendChild(noneOption);
-                                    if (rawDatasetValue === undefined) {
-                                        resolvedValue = '';
-                                    }
+                                    availableValues.push('');
                                 }
 
                                 options.forEach(({ value, label: optionLabel }) => {
@@ -677,12 +710,43 @@
                                     option.value = value;
                                     option.textContent = optionLabel;
                                     input.appendChild(option);
+                                    availableValues.push(String(value));
                                 });
 
-                                input.value = String(resolvedValue ?? '');
+                                const hasDatasetValue = rawDatasetValue !== undefined;
+                                let initialValue;
+
+                                if (hasDatasetValue) {
+                                    initialValue = String(rawDatasetValue);
+                                } else if (includeNullChoice) {
+                                    initialValue = '';
+                                } else if (defaultValue !== null && defaultValue !== undefined) {
+                                    initialValue = String(defaultValue);
+                                    dataset[paramName] = initialValue;
+                                } else {
+                                    initialValue = availableValues[0] ?? '';
+                                    if (initialValue) {
+                                        dataset[paramName] = initialValue;
+                                    }
+                                }
+
+                                if (!availableValues.includes(initialValue)) {
+                                    initialValue = availableValues[0] ?? '';
+                                    if (initialValue) {
+                                        dataset[paramName] = initialValue;
+                                    } else {
+                                        delete dataset[paramName];
+                                    }
+                                }
+
+                                if (initialValue === '') {
+                                    delete dataset[paramName];
+                                }
+
+                                input.value = initialValue;
 
                                 input.addEventListener('change', (e) => {
-                                    const newValue = e.target.value;
+                                    const { value: newValue } = e.target;
                                     if (newValue === '') {
                                         delete dataset[paramName];
                                     } else {
