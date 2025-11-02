@@ -5,11 +5,6 @@ Images are float32 tensors (0..1 range), with shape (height, width, channels). M
 
 This is a pre-1.0 API, and may receive backwards incompatible changes.
 
-.. note::
-   **JavaScript Port Available**: Noisemaker includes a vanilla JavaScript port for the browser. 
-   See :doc:`javascript` for the browser-based API that mirrors this Python API.
-   Inline examples are via JavaScript API and may vary slightly from Python output.
-
 noisemaker.generators
 ---------------------
 
