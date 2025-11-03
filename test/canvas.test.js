@@ -2,8 +2,24 @@ import assert from 'assert';
 import { render } from '../js/noisemaker/composer.js';
 import { Context } from '../js/noisemaker/context.js';
 import { ColorSpace, ValueDistribution } from '../js/noisemaker/constants.js';
-import { ImageData } from 'canvas';
-global.ImageData = ImageData;
+
+class FakeImageData {
+  constructor(widthOrData, heightOrWidth, maybeHeight) {
+    if (widthOrData instanceof Uint8ClampedArray) {
+      this.data = widthOrData;
+      this.width = heightOrWidth ?? 0;
+      this.height = maybeHeight ?? 0;
+    } else {
+      const width = Number(widthOrData ?? 0);
+      const height = Number(heightOrWidth ?? 0);
+      this.width = width;
+      this.height = height;
+      this.data = new Uint8ClampedArray(width * height * 4);
+    }
+  }
+}
+
+global.ImageData = FakeImageData;
 
 const DEBUG = false; // Set true to diagnose shader issues.
 

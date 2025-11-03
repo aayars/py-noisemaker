@@ -3,12 +3,15 @@
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "noisemaker-js": "./bin/noisemaker-js"
+    "noisemaker": "./js/bin/noisemaker-js",
+    "noisemaker-js": "./js/bin/noisemaker-js"
   },
   "scripts": {
     "test": "node scripts/run-js-tests.js",
     "test:non-parity": "node scripts/run-js-tests.js --skip-parity",
     "build": "node scripts/build.js",
+    "build:cli": "node scripts/build-cli.js",
+    "build:standalone": "npm run build:cli && node scripts/build-standalone-cli.js",
     "bundle": "node scripts/bundle.js",
     "regress": "node scripts/regress.js",
     "test:shaders": "node shaders/tests/headless.test.js --size 128 --time 0.0 --seed 0",
@@ -16,9 +19,10 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
-    "canvas": "^3.2.0",
     "esbuild": "^0.25.0",
+    "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
+    "postject": "^1.0.0-alpha.6",
     "puppeteer": "^22.15.0"
   }
 }

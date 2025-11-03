@@ -213,17 +213,18 @@ function evaluateSettings(template) {
 }
 
 let _SOURCE;
-if (typeof NOISEMAKER_PRESETS_DSL !== 'undefined') {
+if (typeof process !== 'undefined' && process.env?.NOISEMAKER_EMBEDDED_DSL) {
+  // Embedded DSL for SEA runtime
+  _SOURCE = Buffer.from(process.env.NOISEMAKER_EMBEDDED_DSL, 'base64').toString('utf-8');
+} else if (typeof NOISEMAKER_PRESETS_DSL !== 'undefined') {
+  // Bundled DSL (browser or esbuild define)
   _SOURCE = NOISEMAKER_PRESETS_DSL;
 } else {
+  // Load from file system (Node.js ESM only - requires top-level await support)
+  // This path should never execute in bundled/SEA builds
+  const fs = (await import('node:fs')).default || (await import('node:fs'));
   const url = new URL('../../dsl/presets.dsl', import.meta.url);
-  if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    const fs = await import('node:fs/promises');
-    _SOURCE = await fs.readFile(url, 'utf8');
-  } else {
-    const res = await fetch(url);
-    _SOURCE = await res.text();
-  }
+  _SOURCE = fs.readFileSync(url, 'utf8');
 }
 
 function buildPresets(names) {

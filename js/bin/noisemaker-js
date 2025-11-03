@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { createCanvas, loadImage } from 'canvas';
-import { PNG } from 'pngjs';
+import jpeg from 'jpeg-js';
+import { PNG} from 'pngjs';
 import path from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 
 import { Preset } from '../noisemaker/composer.js';
@@ -323,13 +323,8 @@ async function writeImage(tensor, filename) {
 
   const extension = path.extname(outputPath).toLowerCase();
   if (extension === '.jpg' || extension === '.jpeg') {
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const imageData = ctx.createImageData(width, height);
-    imageData.data.set(data);
-    ctx.putImageData(imageData, 0, 0);
-    const buffer = canvas.toBuffer('image/jpeg', { quality: 0.95 });
-    await writeFile(outputPath, buffer);
+    const encoded = jpeg.encode({ data: Buffer.from(data), width, height }, 95);
+    await writeFile(outputPath, encoded.data);
   } else {
     const png = new PNG({ width, height });
     png.data = Buffer.from(data);
@@ -345,28 +340,47 @@ async function writeImage(tensor, filename) {
 }
 
 async function loadInputTensor(filename) {
-  const image = await loadImage(path.resolve(process.cwd(), filename));
-  if (!image.width || !image.height) {
+  const resolvedPath = path.resolve(process.cwd(), filename);
+  const extension = path.extname(resolvedPath).toLowerCase();
+  const buffer = await readFile(resolvedPath);
+
+  let width = 0;
+  let height = 0;
+  let rawData = null;
+
+  if (extension === '.png') {
+    const png = PNG.sync.read(buffer, { checkCRC: true });
+    width = png.width;
+    height = png.height;
+    rawData = png.data;
+  } else if (extension === '.jpg' || extension === '.jpeg') {
+    const decoded = jpeg.decode(buffer, { useTArray: true });
+    width = decoded.width;
+    height = decoded.height;
+    rawData = decoded.data;
+  } else {
+    throw new Error(`Unsupported input format for "${filename}". Expected .png or .jpg`);
+  }
+
+  if (!width || !height || !rawData) {
     throw new Error(`Unable to load image "${filename}"`);
   }
-  const canvas = createCanvas(image.width, image.height);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(image, 0, 0);
-  const { data } = ctx.getImageData(0, 0, image.width, image.height);
+
   const channels = 3;
-  const totalPixels = image.width * image.height;
+  const totalPixels = width * height;
   const out = new Float32Array(totalPixels * channels);
   for (let i = 0; i < totalPixels; i += 1) {
     const src = i * 4;
     const dst = i * channels;
-    const r = (data[src] ?? 0) / 255;
-    const g = (data[src + 1] ?? 0) / 255;
-    const b = (data[src + 2] ?? 0) / 255;
+    const r = (rawData[src] ?? 0) / 255;
+    const g = (rawData[src + 1] ?? 0) / 255;
+    const b = (rawData[src + 2] ?? 0) / 255;
     out[dst] = Number.isFinite(r) ? r : 0;
     out[dst + 1] = Number.isFinite(g) ? g : out[dst];
     out[dst + 2] = Number.isFinite(b) ? b : out[dst];
   }
-  const tensor = Tensor.fromArray(null, out, [image.height, image.width, channels]);
+
+  const tensor = Tensor.fromArray(null, out, [height, width, channels]);
   return { tensor, shape: tensor.shape.slice() };
 }
 
