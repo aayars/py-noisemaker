@@ -20,6 +20,9 @@ from noisemaker.presets import PRESETS, Preset
 
 MAX_SEED_VALUE = 2**32 - 1
 
+# Version string - keep in sync with pyproject.toml
+__version__ = "0.5.0"
+
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -35,6 +38,7 @@ reload_presets(PRESETS)
         """,
     context_settings=cli.CLICK_CONTEXT_SETTINGS,
 )
+@click.version_option(version=__version__, prog_name="noisemaker")
 def main():
     pass
 

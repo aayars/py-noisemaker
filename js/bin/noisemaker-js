@@ -17,6 +17,9 @@ import { Tensor } from '../noisemaker/tensor.js';
 
 const MAX_SEED_VALUE = 2 ** 32 - 1;
 
+// Version string - keep in sync with pyproject.toml
+const VERSION = '0.5.0';
+
 const MAIN_HELP = `Usage: noisemaker-js [OPTIONS] COMMAND [ARGS]...
 
       Noisemaker - Let's make generative art with noise
@@ -24,7 +27,8 @@ const MAIN_HELP = `Usage: noisemaker-js [OPTIONS] COMMAND [ARGS]...
   https://github.com/aayars/noisemaker
 
 Options:
-  -h, --help  Show this message and exit.
+  -h, --help     Show this message and exit.
+  --version      Show the version and exit.
 
 Commands:
   generate     Generate a .png or .jpg from preset
@@ -836,6 +840,11 @@ async function main(argv) {
 
   if (argv[0] === '--help' || argv[0] === '-h') {
     printMainHelp();
+    return 0;
+  }
+
+  if (argv[0] === '--version') {
+    console.log(`noisemaker-js, version ${VERSION}`);
     return 0;
   }
 
