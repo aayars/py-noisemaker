@@ -116,7 +116,7 @@ jobs:
       run: |
         npx eslint . --max-warnings 0 || echo "Note: ESLint not configured yet"
 
-  publish-js-snapshot:
+  publish-js:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -163,9 +163,9 @@ jobs:
       run: |
         VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\\s*=\\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "tag=${VERSION}-SNAPSHOT" >> "$GITHUB_OUTPUT"
+        echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
 
-    - name: Publish snapshot release
+    - name: Publish release
       env:
         GH_TOKEN: ${{ github.token }}
         VERSION: ${{ steps.version.outputs.version }}
@@ -177,9 +177,9 @@ jobs:
           gh release delete "$TAG" --yes --cleanup-tag
         fi
 
-        notes=$(printf 'Automated snapshot bundles for version %s.\n\nCommit: %s\n\nIncludes browser bundles and platform-specific CLI executables.' "$VERSION" "$GITHUB_SHA")
+        notes=$(printf 'Automated bundles for version %s.\n\nCommit: %s\n\nIncludes browser bundles and platform-specific CLI executables.' "$VERSION" "$GITHUB_SHA")
         gh release create "$TAG" \
-          --title "Noisemaker JS ${VERSION} SNAPSHOT" \
+          --title "Noisemaker JS ${VERSION}" \
           --notes "$notes" \
           --prerelease \
           --target "$GITHUB_SHA" \
