@@ -510,6 +510,8 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
 }
 
 fn sample_atlas(mask_type : u32, glyph_index : u32, row : u32, column : u32) -> f32 {
+    // Atlases are stored with row 0 at top, which matches Python's indexing
+    // No flip needed here - the issue is in how we calculate inner_y
     switch mask_type {
         case 0u: {
             return BANK_OCR_ATLAS[min(glyph_index, 9u)][min(row, 7u)][min(column, 6u)];
@@ -523,44 +525,59 @@ fn sample_atlas(mask_type : u32, glyph_index : u32, row : u32, column : u32) -> 
     }
 }
 
-fn compute_seed(width_u : u32, height_u : u32, time_value : f32, speed_value : f32) -> u32 {
-    let time_bits : u32 = bitcast<u32>(time_value);
-    let speed_bits : u32 = bitcast<u32>(speed_value);
+fn compute_seed(width_u : u32, height_u : u32) -> u32 {
+    // Seed should be constant for all frames - only time parameter should change
+    // This ensures the same font and noise seed are used throughout animation
     var seed : u32 = (width_u * 0x9e3779b9u) ^ (height_u * 0x7f4a7c15u);
-    seed = seed ^ ((time_bits * 0x632be59bu) + 0x94d049bbu);
-    seed = seed ^ ((speed_bits * 0x165667b1u) + 0x27d4eb2du);
+    seed = seed ^ 0x632be59bu;  // Additional mixing constant
     return seed;
 }
 
 fn glyph_noise_value(
     base_seed : u32,
     mask_choice : u32,
-    uv_x_index : i32,
-    uv_y_index : i32,
+    glyph_x : i32,
+    glyph_y : i32,
     time_value : f32,
     speed_value : f32
 ) -> f32 {
-    let base_salt : u32 = 401u + mask_choice * 97u;
-    let jitter_bits : u32 = random_u32(base_seed, base_salt);
-    let jitter_x : f32 = f32(jitter_bits & 0x3ffu) * (1.0 / 1024.0);
-    let jitter_y : f32 = f32((jitter_bits >> 10) & 0x3ffu) * (1.0 / 1024.0);
-    let jitter_z : f32 = f32((jitter_bits >> 20) & 0x3ffu) * (1.0 / 1024.0);
-
-    let seed_bits : u32 = random_u32(base_seed, base_salt ^ 0x9e3779b9u);
-    let offset_x : f32 = f32(seed_bits & 0x3ffu) * (1.0 / 64.0);
-    let offset_y : f32 = f32((seed_bits >> 10) & 0x3ffu) * (1.0 / 64.0);
-    let offset_z : f32 = f32((seed_bits >> 20) & 0x3ffu) * (1.0 / 4096.0);
-
-    let angle : f32 = time_value * TAU;
-    let z : f32 = cos(angle) * speed_value + jitter_z + offset_z;
-
-    let sample : vec3<f32> = vec3<f32>(
-        f32(uv_x_index) + jitter_x + offset_x + f32(mask_choice) * 5.0,
-        f32(uv_y_index) + jitter_y + offset_y + f32(mask_choice) * 3.0,
-        z
+    // Python: uv_noise = simplex(uv_shape, time=time, seed=rng.random_int(1, 65536), speed=speed)
+    // where uv_shape = [1, glyph_count]
+    // Then simplex samples at integer coords: noise3d(x, y, z) for x in [0..glyph_count-1], y=0
+    // with z = cos(2*pi*time) * speed
+    //
+    // Python creates an OpenSimplex instance from seed: os, _ = from_seed(base_seed)
+    // Then: glyph_index = int(uv_noise[uv_y][uv_x] * len(atlas))
+    
+    // Match Python's simplex sampling exactly:
+    // angle = math.pi * 2 * time
+    // z = math.cos(angle) * speed
+    // val = os.noise3d(x, y, z)
+    // return (val + 1) * 0.5
+    
+    // Generate a consistent noise seed from base_seed (Python: rng.random_int(1, 65536))
+    // Use this to offset the simplex coordinates so different seeds produce different patterns
+    let noise_seed : u32 = random_u32(base_seed, 13u);
+    let seed_offset : vec3<f32> = vec3<f32>(
+        f32((noise_seed >> 16u) & 0xFFFFu) * 0.1,
+        f32(noise_seed & 0xFFFFu) * 0.1,
+        f32((noise_seed >> 8u) & 0xFFu) * 0.1
     );
-
-    return clamp(simplex_noise(sample) * 0.5 + 0.5, 0.0, 1.0);
+    
+    let angle : f32 = TAU * time_value;
+    let z_coord : f32 = cos(angle) * speed_value;
+    
+    // Sample at integer glyph grid coordinates plus seed offset
+    let sample_pos : vec3<f32> = vec3<f32>(
+        f32(glyph_x),
+        f32(glyph_y),
+        z_coord
+    ) + seed_offset;
+    
+    // Simplex returns [-1, 1], Python normalizes to [0, 1]
+    let noise_value : f32 = simplex_noise(sample_pos) * 0.5 + 0.5;
+    
+    return clamp(noise_value, 0.0, 1.0);
 }
 
 fn overlay_value_at(
@@ -607,13 +624,17 @@ fn overlay_value_at(
         return 0.0;
     }
 
-    var origin_x : i32 = dims.x - overlay_width - 25;
+    // Python padding: [[25, shape[0] - height - 25], [shape[1] - width - 25, 25], [0, 0]]
+    // Padding format is [[top, bottom], [left, right], [channels_before, channels_after]]
+    // Content starts at (left_padding, top_padding) = (shape[1] - width - 25, 25)
+    var origin_x : i32 = dims.x - overlay_width - 25;  // Right side with 25px margin
     if (origin_x < 0) {
         origin_x = 0;
     }
-    var origin_y : i32 = 25;
-    if (origin_y + overlay_height > dims.y) {
-        origin_y = max(dims.y - overlay_height, 0);
+    // TESTING: Try bottom-right to see if coordinate system is inverted
+    var origin_y : i32 = dims.y - overlay_height - 25;  // Bottom with 25px margin
+    if (origin_y < 0) {
+        origin_y = 0;
     }
 
     if (coord.x < origin_x || coord.x >= origin_x + overlay_width) {
@@ -631,20 +652,37 @@ fn overlay_value_at(
         return 0.0;
     }
 
-    let safe_mask_width : i32 = max(mask_width, 1);
-    let safe_mask_height : i32 = max(mask_height, 1);
-    let uv_columns : i32 = max(scale * glyph_count, 1);
-    let uv_rows : i32 = max(scale, 1);
-    let uv_x_index : i32 = clamp(local_x / safe_mask_width, 0, uv_columns - 1);
-    let uv_y_index : i32 = clamp(local_y / safe_mask_height, 0, uv_rows - 1);
+    // Compute which glyph cell we're in (matching Python's freq-based grid)
+    let glyph_x : i32 = local_x / glyph_width;
+    let glyph_y : i32 = local_y / glyph_height;
+    
+    // Ensure glyph indices are valid
+    if (glyph_x < 0 || glyph_x >= glyph_count || glyph_y < 0 || glyph_y >= 1) {
+        return 0.0;
+    }
 
-    let glyph_noise : f32 = glyph_noise_value(base_seed, mask_choice, uv_x_index, uv_y_index, time_value, speed_value);
+    // Sample noise at this glyph cell's position to determine which glyph to show
+    // Python: glyph_index = int(uv_noise[uv_y][uv_x] * len(atlas))
+    let glyph_noise : f32 = glyph_noise_value(base_seed, mask_choice, glyph_x, glyph_y, time_value, speed_value);
     let glyph_index : u32 = min(u32(floor(glyph_noise * f32(atlas_length))), atlas_length - 1u);
 
-    let inner_x : i32 = clamp((local_x % stride) / max(scale, 1), 0, mask_width - 1);
-    let inner_y : i32 = clamp(local_y / max(scale, 1), 0, mask_height - 1);
+    // Now determine position within the glyph
+    // Python: atlas[glyph_index][y % shape[0]][x % shape[1]]
+    // where y and x are absolute pixel positions within the glyph cell
+    let inner_x : i32 = (local_x % glyph_width) / scale;
+    
+    // For Y: need to flip because atlas row 0 is top of glyph, but we may be rendering bottom-up
+    // Actually, let's check: if local_y increases downward within the cell,
+    // and atlas row 0 is the top, then inner_y = local_y is correct
+    // But if glyphs appear flipped, we need to invert within the glyph
+    let inner_y_raw : i32 = (local_y % glyph_height) / scale;
+    let inner_y : i32 = (mask_height - 1) - inner_y_raw;  // Flip vertically within glyph
+    
+    // Clamp to mask dimensions
+    let clamped_inner_x : i32 = clamp(inner_x, 0, mask_width - 1);
+    let clamped_inner_y : i32 = clamp(inner_y, 0, mask_height - 1);
 
-    return sample_atlas(mask_choice, glyph_index, u32(inner_y), u32(inner_x));
+    return sample_atlas(mask_choice, glyph_index, u32(clamped_inner_y), u32(clamped_inner_x));
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -657,7 +695,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     let coord : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     let dims : vec2<i32> = vec2<i32>(i32(width_u), i32(height_u));
-    let base_seed : u32 = compute_seed(width_u, height_u, params.time_speed.x, params.time_speed.y);
+    let base_seed : u32 = compute_seed(width_u, height_u);
     let overlay_value : f32 = clamp01(overlay_value_at(coord, dims, base_seed, params.time_speed.x, params.time_speed.y));
     let alpha : f32 = mix(0.5, 0.75, clamp01(random_float(base_seed, 7u)));
 

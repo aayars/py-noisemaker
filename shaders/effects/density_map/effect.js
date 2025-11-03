@@ -18,7 +18,6 @@ class DensityMapEffect extends SimpleComputeEffect {
 
     const width = Math.max(Math.trunc(context.width ?? finalResources.textureWidth ?? 0), 1);
     const height = Math.max(Math.trunc(context.height ?? finalResources.textureHeight ?? 0), 1);
-    const binCount = Math.max(width, height, 1);
 
     try {
       const resourceSet = finalResources.resourceSet;
@@ -27,46 +26,8 @@ class DensityMapEffect extends SimpleComputeEffect {
       const inputTexture = textures.input_texture;
       const outputBuffer = finalResources.outputBuffer ?? buffers.output_buffer ?? null;
       const paramsBuffer = finalResources.paramsBuffer ?? buffers.params ?? null;
-
-      const histogramSize = binCount * Uint32Array.BYTES_PER_ELEMENT;
-      const previousHistogram = buffers.histogram_buffer;
-      if (previousHistogram?.destroy) {
-        try {
-          previousHistogram.destroy();
-        } catch (error) {
-          this.helpers?.logWarn?.('Density Map: failed to destroy prior histogram buffer:', error);
-        }
-      }
-
-      finalResources.histogramBuffer = device.createBuffer({
-        label: 'Density Map Histogram Buffer',
-        size: histogramSize,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-
-      if (buffers) {
-        resourceSet.buffers.histogram_buffer = finalResources.histogramBuffer;
-      }
-
-      const statsSize = Uint32Array.BYTES_PER_ELEMENT * 4;
-      const previousStats = buffers.stats_buffer;
-      if (previousStats?.destroy) {
-        try {
-          previousStats.destroy();
-        } catch (error) {
-          this.helpers?.logWarn?.('Density Map: failed to destroy prior stats buffer:', error);
-        }
-      }
-
-      finalResources.statsBuffer = device.createBuffer({
-        label: 'Density Map Stats Buffer',
-        size: statsSize,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-
-      if (buffers) {
-        resourceSet.buffers.stats_buffer = finalResources.statsBuffer;
-      }
+      finalResources.histogramBuffer = buffers.histogram_buffer ?? null;
+      finalResources.statsBuffer = buffers.stats_buffer ?? null;
 
       const bindGroupLayout = finalResources.computeBindGroupLayout;
       if (bindGroupLayout && inputTexture && outputBuffer && paramsBuffer && finalResources.histogramBuffer && finalResources.statsBuffer) {
@@ -126,7 +87,11 @@ class DensityMapEffect extends SimpleComputeEffect {
       finalResources.finalizeWorkgroupSize = [64, 1, 1];
       finalResources.remapWorkgroupSize = [8, 8, 1];
       finalResources.workgroupSize = [8, 8, 1];
-      finalResources.histogramBinCount = binCount;
+      finalResources.histogramBinCount = Math.max(
+        width,
+        height,
+        1,
+      );
     } catch (error) {
       this.helpers?.logWarn?.('Density Map: failed to prepare GPU resources.', error);
       finalResources.resetPipeline = null;
@@ -221,10 +186,6 @@ class DensityMapEffect extends SimpleComputeEffect {
       Math.max(Math.ceil(1 / Math.max(remapWorkgroup[2] ?? 1, 1)), 1),
     ];
 
-    console.log('[density_map] width:', width, 'height:', height, 'binCount:', binCount);
-    console.log('[density_map] remapWorkgroup:', remapWorkgroup);
-    console.log('[density_map] remapDispatch:', remapDispatch);
-
     const computePasses = [];
     if (resetPipeline) {
       computePasses.push({
@@ -270,18 +231,6 @@ class DensityMapEffect extends SimpleComputeEffect {
     resources.computePasses = computePasses;
     resources.workgroupSize = remapWorkgroup;
     resources.histogramBinCount = binCount;
-  }
-
-  destroy() {
-    if (this.resources?.histogramBuffer) {
-      this.resources.histogramBuffer.destroy();
-      this.resources.histogramBuffer = null;
-    }
-    if (this.resources?.statsBuffer) {
-      this.resources.statsBuffer.destroy();
-      this.resources.statsBuffer = null;
-    }
-    super.destroy();
   }
 }
 
