@@ -147,7 +147,6 @@ jobs:
           dist/noisemaker.min.js
           dist/noisemaker.esm.js
           dist/noisemaker.cjs
-          dist/cli/noisemaker-bundle.cjs
         retention-days: 7
 
   build-standalone-linux:
@@ -297,7 +296,6 @@ jobs:
           dist/artifacts/noisemaker-js-bundles/noisemaker.min.js \
           dist/artifacts/noisemaker-js-bundles/noisemaker.esm.js \
           dist/artifacts/noisemaker-js-bundles/noisemaker.cjs \
-          dist/artifacts/noisemaker-js-bundles/noisemaker-bundle.cjs#noisemaker-cli.cjs \
           dist/artifacts/noisemaker-cli-linux-x64/noisemaker-cli-linux-x64.tar.gz \
           dist/artifacts/noisemaker-cli-macos-arm64/noisemaker-cli-macos-arm64.tar.gz \
           dist/artifacts/noisemaker-cli-windows-x64/noisemaker-cli-windows-x64.zip
