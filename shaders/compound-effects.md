@@ -16,11 +16,11 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **color_map**
 [[ DONE ]] **fxaa**
 [[ DONE ]] **glyph_map**
-[[ WIP ]] **grain**
-[[ TODO ]] **jpeg_decimate**
-[[ TODO ]] **normalize**
-[[ TODO ]] **aberration**
-[[ TODO ]] **conv_feedback**
+[[ DONE ]] **grain**
+[[ SKIP ]] **jpeg_decimate**
+[[ DONE ]] **normalize**
+[[ DONE ]] **aberration**
+[[ DONE ]] **conv_feedback**
 [[ TODO ]] **density_map**
 [[ TODO ]] **derivative**
 [[ TODO ]] **dla**

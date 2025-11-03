@@ -1,20 +1,32 @@
-// Conv2d feedback loop effect mirroring the conv_feedback CPU implementation.
-//
-// The shader samples a proportional downsample of the source image around the
-// current pixel, iteratively blurs and sharpens the gathered patch to simulate
-// repeated convolution, then normalizes and blends the feedback result with the
-// original texel.  Iterations, time, and speed parameters are accepted for API
-// parity, though the Python reference always clamps the iteration count to 100.
+// Conv2d feedback loop: temporal feedback where each frame applies one blur+sharpen pass.
+// Each frame reads previous output, applies blur then sharpen, outputs result.
+// After ~100 frames the effect converges.
 
 const CHANNEL_COUNT : u32 = 4u;
+
+// 5x5 Gaussian blur kernel (matches Python ValueMask.conv2d_blur)
+const BLUR_KERNEL : array<array<f32, 5>, 5> = array<array<f32, 5>, 5>(
+    array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0),
+    array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
+    array<f32, 5>(6.0, 24.0, 36.0, 24.0, 6.0),
+    array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
+    array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0),
+);
+const BLUR_KERNEL_SUM : f32 = 256.0;
+
+// 3x3 sharpen kernel (matches Python ValueMask.conv2d_sharpen)  
+const SHARPEN_KERNEL : array<array<f32, 3>, 3> = array<array<f32, 3>, 3>(
+    array<f32, 3>(0.0, -1.0, 0.0),
+    array<f32, 3>(-1.0, 5.0, -1.0),
+    array<f32, 3>(0.0, -1.0, 0.0),
+);
+
 struct ConvFeedbackParams {
     size : vec4<f32>,      // width, height, channels, _pad0
-    options : vec4<f32>,   // iterations, alpha, time, speed
+    options : vec4<f32>,   // _unused, alpha, time, speed
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
-// Optional previous frame feedback; when bound by the viewer as 'prev_texture',
-// the shader will treat it as the feedback source for iterative updates.
 @group(0) @binding(3) var prev_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : ConvFeedbackParams;
@@ -23,21 +35,28 @@ fn as_u32(value : f32) -> u32 {
     return u32(max(round(value), 0.0));
 }
 
-fn lerp_vec4(a : vec4<f32>, b : vec4<f32>, t : f32) -> vec4<f32> {
-    return a + (b - a) * t;
-}
-
-fn combine_value(value : f32) -> f32 {
-    let up : f32 = max((value - 0.5) * 2.0, 0.0);
-    let down : f32 = min(value * 2.0, 1.0);
-    return clamp(up + (1.0 - down), 0.0, 1.0);
-}
-
 fn write_pixel(base_index : u32, color : vec4<f32>) {
     output_buffer[base_index + 0u] = color.x;
     output_buffer[base_index + 1u] = color.y;
     output_buffer[base_index + 2u] = color.z;
     output_buffer[base_index + 3u] = color.w;
+}
+
+// Apply 5x5 blur kernel
+fn apply_blur(pos : vec2<i32>, width : i32, height : i32, source : texture_2d<f32>) -> vec3<f32> {
+    var sum : vec3<f32> = vec3<f32>(0.0);
+    
+    for (var ky : i32 = -2; ky <= 2; ky = ky + 1) {
+        for (var kx : i32 = -2; kx <= 2; kx = kx + 1) {
+            let sample_x : i32 = clamp(pos.x + kx, 0, width - 1);
+            let sample_y : i32 = clamp(pos.y + ky, 0, height - 1);
+            let sample : vec4<f32> = textureLoad(source, vec2<i32>(sample_x, sample_y), 0);
+            let weight : f32 = BLUR_KERNEL[ky + 2][kx + 2];
+            sum = sum + sample.rgb * weight;
+        }
+    }
+    
+    return sum / BLUR_KERNEL_SUM;
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -48,46 +67,44 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let alpha : f32 = clamp(params.options.y, 0.0, 1.0);
-    let iteration_raw : f32 = max(params.options.x, 0.0);
-
     let width : i32 = i32(width_u);
     let height : i32 = i32(height_u);
-    let prev_width : i32 = max(width / 2, 1);
-    let prev_height : i32 = max(height / 2, 1);
-    let max_prev : vec2<i32> = vec2<i32>(prev_width - 1, prev_height - 1);
-
-    let down_x : i32 = clamp(i32(gid.x / 2u), 0, max_prev.x);
-    let down_y : i32 = clamp(i32(gid.y / 2u), 0, max_prev.y);
-
-    let prev_center : vec4<f32> = textureLoad(prev_texture, vec2<i32>(down_x, down_y), 0);
-    let prev_xp : vec4<f32> = textureLoad(prev_texture, vec2<i32>(clamp(down_x + 1, 0, max_prev.x), down_y), 0);
-    let prev_xn : vec4<f32> = textureLoad(prev_texture, vec2<i32>(clamp(down_x - 1, 0, max_prev.x), down_y), 0);
-    let prev_yp : vec4<f32> = textureLoad(prev_texture, vec2<i32>(down_x, clamp(down_y + 1, 0, max_prev.y)), 0);
-    let prev_yn : vec4<f32> = textureLoad(prev_texture, vec2<i32>(down_x, clamp(down_y - 1, 0, max_prev.y)), 0);
-
-    let blur_avg : vec4<f32> = (prev_center * 4.0 + prev_xp + prev_xn + prev_yp + prev_yn) / 8.0;
-    let sharpened : vec4<f32> = clamp(prev_center * 1.5 - blur_avg * 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
-
-    let iteration_mix : f32 = clamp(iteration_raw / 100.0, 0.0, 1.0);
-    let feedback_base : vec4<f32> = lerp_vec4(sharpened, blur_avg, iteration_mix);
-
-    var combined : vec4<f32> = vec4<f32>(
-        combine_value(feedback_base.x),
-        combine_value(feedback_base.y),
-        combine_value(feedback_base.z),
-        combine_value(feedback_base.w),
-    );
-
-    let original : vec4<f32> = textureLoad(
-        input_texture,
-        vec2<i32>(i32(gid.x), i32(gid.y)),
-        0,
-    );
-    combined = lerp_vec4(original, combined, alpha);
-    combined = clamp(combined, vec4<f32>(0.0), vec4<f32>(1.0));
-
+    let pos : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+    
+    // Step 1: Apply blur to previous frame
+    let blurred : vec3<f32> = apply_blur(pos, width, height, prev_texture);
+    
+    // Step 2: Apply sharpen to the blurred result
+    // Sharpen needs to sample from the blurred texture, but we don't have it yet
+    // We need to do a 2-pass approach: pass 1 = blur, pass 2 = sharpen
+    // OR we need to apply sharpen mathematically to the blurred value
+    
+    // For now, let's apply sharpen by sampling from prev_texture and using blur inline
+    // This isn't ideal but works for a single-pass shader
+    var sharpen_sum : vec3<f32> = vec3<f32>(0.0);
+    
+    for (var ky : i32 = -1; ky <= 1; ky = ky + 1) {
+        for (var kx : i32 = -1; kx <= 1; kx = kx + 1) {
+            let sample_pos : vec2<i32> = vec2<i32>(
+                clamp(pos.x + kx, 0, width - 1),
+                clamp(pos.y + ky, 0, height - 1)
+            );
+            
+            // Get blurred value at this neighbor position
+            let neighbor_blurred : vec3<f32> = apply_blur(sample_pos, width, height, prev_texture);
+            
+            let weight : f32 = SHARPEN_KERNEL[ky + 1][kx + 1];
+            sharpen_sum = sharpen_sum + neighbor_blurred * weight;
+        }
+    }
+    
+    let sharpened : vec3<f32> = clamp(sharpen_sum, vec3<f32>(0.0), vec3<f32>(1.0));
+    
+    // Preserve original alpha from previous frame
+    let prev_pixel : vec4<f32> = textureLoad(prev_texture, pos, 0);
+    let result : vec4<f32> = vec4<f32>(sharpened, prev_pixel.a);
+    
     let pixel_index : u32 = gid.y * width_u + gid.x;
     let base_index : u32 = pixel_index * CHANNEL_COUNT;
-    write_pixel(base_index, combined);
+    write_pixel(base_index, result);
 }

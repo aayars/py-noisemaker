@@ -1154,14 +1154,25 @@
         effectSelector.appendChild(option);
       });
 
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedEffectId = urlParams.get('effect');
+      const effectExists = requestedEffectId
+        && effects.some(({ id }) => id === requestedEffectId);
+
       const activeMetadata = getActiveEffectMetadata();
-      const initialId = activeMetadata?.id ?? effects[0]?.id;
+      const initialId = effectExists
+        ? requestedEffectId
+        : activeMetadata?.id ?? effects[0]?.id;
       if (initialId) {
         effectSelector.value = initialId;
         if (activeMetadata?.id !== initialId) {
           await setActiveEffect(initialId);
         }
         await syncEffectUI(initialId);
+      }
+
+      if (requestedEffectId && !effectExists) {
+        console.warn(`Unknown effect requested via URL parameter: ${requestedEffectId}`);
       }
     }
 

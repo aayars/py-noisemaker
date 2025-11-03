@@ -37,6 +37,7 @@ import nebulaMeta from '../../shaders/effects/nebula/meta.json' with { type: 'js
 import normalMapMeta from '../../shaders/effects/normal_map/meta.json' with { type: 'json' };
 import normalizeMeta from '../../shaders/effects/normalize/meta.json' with { type: 'json' };
 import { additionalPasses as normalizePasses } from '../../shaders/effects/normalize/effect.js';
+import { additionalPasses as convFeedbackPasses } from '../../shaders/effects/conv_feedback/effect.js';
 import onScreenDisplayMeta from '../../shaders/effects/on_screen_display/meta.json' with { type: 'json' };
 import outlineMeta from '../../shaders/effects/outline/meta.json' with { type: 'json' };
 import paletteMeta from '../../shaders/effects/palette/meta.json' with { type: 'json' };
@@ -99,6 +100,7 @@ const SHADER_MANIFEST = {
   clouds: metaToDescriptor(cloudsMeta),
   color_map: metaToDescriptor(colorMapMeta),
   conv_feedback: metaToDescriptor(convFeedbackMeta),
+  ...convFeedbackPasses,
   convolve: metaToDescriptor(convolveMeta),
   crt: metaToDescriptor(crtMeta),
   degauss: metaToDescriptor(degaussMeta),
