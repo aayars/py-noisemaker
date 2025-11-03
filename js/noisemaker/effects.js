@@ -2,8 +2,6 @@ import { Tensor, markPresentationNormalized } from "./tensor.js";
 import { register } from "./effectsRegistry.js";
 import { ColorSpace, OctaveBlending } from "./constants.js";
 import {
-  warp as warpOp,
-  sobel as sobelValue,
   normalize,
   blend,
   values,
@@ -27,7 +25,6 @@ import { PALETTES } from "./palettes.js";
 import {
   simplex,
   random as simplexRandom,
-  fromSeed as simplexFromSeed,
 } from "./simplex.js";
 import { getAtlas, maskValues, maskShape } from "./masks.js";
 import { loadGlyphs } from "./glyphs.js";
@@ -43,8 +40,6 @@ import {
   withTensorDatas,
 } from "./util.js";
 import {
-  rng as globalRNG,
-  getSeed as getRNGState,
   randomInt as rngRandomInt,
 } from "./rng.js";
 import { pointCloud } from "./points.js";
@@ -118,54 +113,6 @@ async function scaleTensor(tensor, factor) {
     const out = dest.data;
     for (let i = 0; i < out.length; i++) {
       out[i] = Math.fround((src[i] ?? 0) * factor);
-    }
-    return dest;
-  });
-}
-
-async function runGrayscaleShader(tensor, srcChannels) {
-  if (!(tensor instanceof Tensor)) {
-    throw new Error("runGrayscaleShader expects a tensor");
-  }
-  const [h, w, c] = tensor.shape;
-  const channels = Math.max(1, srcChannels ?? c ?? 1);
-  return withTensorData(tensor, (data) => {
-    const dest = new Tensor(tensor.ctx, null, [h, w, 1]);
-    const out = dest.data;
-    for (let i = 0; i < h * w; i++) {
-      const base = i * channels;
-      let value = 0;
-      if (channels === 1) {
-        value = data[base] ?? 0;
-      } else {
-        const r = data[base] ?? 0;
-        const g = data[base + 1] ?? r;
-        const b = data[base + 2] ?? r;
-        value = Math.fround(0.299 * r + 0.587 * g + 0.114 * b);
-      }
-      out[i] = Math.fround(value);
-    }
-    return dest;
-  });
-}
-
-async function expandChannelsShader(tensor, channels) {
-  if (!(tensor instanceof Tensor)) {
-    throw new Error("expandChannelsShader expects a tensor");
-  }
-  const [h, w, c] = tensor.shape;
-  if (channels === c) {
-    return tensor;
-  }
-  return withTensorData(tensor, (data) => {
-    const dest = new Tensor(tensor.ctx, null, [h, w, channels]);
-    const out = dest.data;
-    for (let i = 0; i < h * w; i++) {
-      const srcBase = i * c;
-      const value = data[srcBase] ?? 0;
-      for (let k = 0; k < channels; k++) {
-        out[i * channels + k] = value;
-      }
     }
     return dest;
   });
@@ -709,10 +656,8 @@ export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
     resolveChannels(shape?.[2]) ?? resolveChannels(tensor.shape?.[2]) ?? 1;
   const fullShape = [h, w, channelCount];
   const alphaVal = Number.isFinite(alpha) ? alpha : 0.5;
-  const alphaClamped = Math.min(1, Math.max(0, alphaVal));
   const xOffset = Math.trunc(w * -0.05);
   const yOffset = Math.trunc(h * -0.05);
-  const ctx = tensor.ctx;
 
   const src = await tensor.read();
   const bright = new Float32Array(src.length);
@@ -1062,7 +1007,6 @@ register("glowing_edges", glowingEdges, {
 
 export async function normalMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
-  const ctx = tensor.ctx;
   const valueShape = [h, w, 1];
   let reference = await toValueMap(tensor);
   reference = await normalize(reference);
@@ -1676,7 +1620,6 @@ export async function kaleido(
   xy = null,
 ) {
   const [h, w, c] = shape;
-  const ctx = tensor?.ctx ?? null;
   const valueShape = [h, w, 1];
   let xyArg = null;
   if (xy && typeof xy === "object") {
@@ -1824,8 +1767,6 @@ export async function densityMap(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const bins = Math.max(h, w);
   const normalizedTensor = await normalize(tensor);
-  const ctx = tensor?.ctx ?? normalizedTensor?.ctx ?? null;
-
   const vals = await normalizedTensor.read();
   const total = vals.length;
   const binIndices = new Int32Array(total);
@@ -2026,12 +1967,6 @@ export function centerMask(
     return blend(center, edges, maskTensor);
   };
 
-  const [h, w] = shape;
-  const rawChannels = Number.isFinite(shape?.[2])
-    ? shape[2]
-    : center?.shape?.[2] ?? edges?.shape?.[2] ?? 1;
-  const channelCount = Math.max(1, Math.min(Math.floor(rawChannels || 1), 4));
-
   return run();
 }
 
@@ -2073,7 +2008,7 @@ export function expandTile(
   outputShape,
   withOffset = true,
 ) {
-  const [rawInH, rawInW, rawChannels] = inputShape ?? [];
+  const [rawInH, rawInW] = inputShape ?? [];
   const [rawOutH, rawOutW] = outputShape ?? [];
   const inH = Math.max(0, Math.trunc(rawInH ?? 0));
   const inW = Math.max(0, Math.trunc(rawInW ?? 0));
@@ -2081,7 +2016,7 @@ export function expandTile(
   const outW = Math.max(0, Math.trunc(rawOutW ?? 0));
   const channelCount = Math.max(
     1,
-    Math.trunc(rawChannels ?? tensor?.shape?.[2] ?? 1),
+    Math.trunc(tensor?.shape?.[2] ?? 1),
   );
   const xOff = withOffset ? Math.floor(inW / 2) : 0;
   const yOff = withOffset ? Math.floor(inH / 2) : 0;
@@ -2160,7 +2095,6 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
     outShape[2] = tensor.shape?.[2] ?? 1;
   }
   const [h, w] = outShape;
-  const channels = outShape[2];
 
   const run = async () => {
     let t = tensor;
@@ -2208,11 +2142,6 @@ export async function posterize(tensor, shape, time, speed, levels = 9) {
 register("posterize", posterize, { levels: 9 });
 
 export async function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
-  const [rawH, rawW, rawC] = shape;
-  const height = Number.isFinite(rawH) ? rawH : 0;
-  const width = Number.isFinite(rawW) ? rawW : 0;
-  const channelCount = Number.isFinite(rawC) ? rawC : 0;
-  const ctx = tensor.ctx;
   let delta = b - a;
   if (!delta) {
     delta = 1;
@@ -2226,7 +2155,7 @@ export async function smoothstep(tensor, shape, time, speed, a = 0, b = 1) {
     else if (t > 1) t = 1;
     out[i] = t * t * (3 - 2 * t);
   }
-  return Tensor.fromArray(ctx, out, shape);
+  return Tensor.fromArray(tensor.ctx, out, shape);
 }
 register("smoothstep", smoothstep, { a: 0, b: 1 });
 
@@ -2351,7 +2280,6 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
   const p = PALETTES[name];
   if (!p) throw new Error(`Unknown palette ${name}`);
 
-  const ctx = tensor.ctx;
   let alphaChan = null;
   let baseTensor = tensor;
   if (c === 4) {
@@ -2446,7 +2374,6 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
 register("palette", palette, { name: null, alpha: 1 });
 
 export async function invert(tensor, shape, time, speed) {
-  const ctx = tensor.ctx;
   const src = await tensor.read();
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i++) {
@@ -2882,7 +2809,6 @@ register("crt", crt, {});
 
 export async function reindex(tensor, shape, time, speed, displacement = 0.5) {
   const [h, w, c] = shape;
-  const ctx = tensor.ctx;
   const src = await tensor.read();
   let valueTensor = toValueMap(tensor);
   if (valueTensor && typeof valueTensor.then === "function") {
@@ -3021,7 +2947,6 @@ export async function colorMap(
 ) {
   if (!clut) return tensor;
   const [h, w, c] = shape;
-  const ctx = tensor.ctx;
   const [ch, cw, cc] = clut.shape;
   const clutRaw = await clut.read();
   const clutFloat = new Float32Array(clutRaw.length);
@@ -3087,7 +3012,6 @@ export async function tint(tensor, shape, time, speed, alpha = 0.5) {
 
   const rand1 = random() * 0.333;
   const rand2 = random();
-  const ctx = tensor.ctx;
   const src = await tensor.read();
   let alphaChan = null;
   let rgbData;
@@ -3192,11 +3116,6 @@ export async function refractEffect(
   yFromOffset = false,
 ) {
   const [h, w, c] = shape;
-  const ctx = tensor?.ctx;
-  const quadDirectional = signedRange && !fromDerivative;
-  const warpProvided = warpFreq !== null && warpFreq !== undefined;
-  const hasRefX = referenceX !== null && referenceX !== undefined;
-  const hasRefY = referenceY !== null && referenceY !== undefined;
 
   const valueShape = [h, w, 1];
   let rx = referenceX;
@@ -3781,7 +3700,6 @@ export async function wormhole(
   alpha = 1.0,
 ) {
   const [h, w, c] = shape;
-  const ctx = tensor.ctx;
   const valueTensorMaybe = toValueMap(tensor);
   const valueTensor =
     valueTensorMaybe && typeof valueTensorMaybe.then === "function"
@@ -4100,7 +4018,6 @@ register("snow", snow, { alpha: 0.25 });
 
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] < 3) return tensor;
-  const ctx = tensor.ctx;
   const cpuSat = (t) => {
     const hsvMaybe = rgbToHsv(t);
     const process = (hsv) => {
@@ -4204,8 +4121,6 @@ export async function sine(
   speed,
   amount = 1.0,
   rgb = false,
-  freq = 1,
-  octaves = 1,
 ) {
   const [h, w, c] = shape;
   const src = await tensor.read();
@@ -4243,9 +4158,8 @@ export async function sine(
     }
   }
   return Tensor.fromArray(tensor.ctx, out, shape);
-  // freq and octaves currently unused; included for compatibility
 }
-register("sine", sine, { amount: 1.0, rgb: false, freq: 1, octaves: 1 });
+register("sine", sine, { amount: 1.0, rgb: false });
 
 export async function blur(
   tensor,
@@ -4456,35 +4370,6 @@ async function resizeWithCropOrPad(tensor, inputShape, size) {
   return Tensor.fromArray(srcTensor.ctx, out, [target, target, c]);
 }
 
-async function resizeBilinear(tensor, size) {
-  const [h, w, c] = tensor.shape;
-  const src = await tensor.read();
-  const out = new Float32Array(size * size * c);
-  for (let y = 0; y < size; y++) {
-    const sy = (y + 0.5) * h / size - 0.5;
-    const y0 = Math.max(0, Math.floor(sy));
-    const y1 = Math.min(h - 1, y0 + 1);
-    const wy = sy - y0;
-    for (let x = 0; x < size; x++) {
-      const sx = (x + 0.5) * w / size - 0.5;
-      const x0 = Math.max(0, Math.floor(sx));
-      const x1 = Math.min(w - 1, x0 + 1);
-      const wx = sx - x0;
-      const dstBase = (y * size + x) * c;
-      for (let k = 0; k < c; k++) {
-        const v00 = src[(y0 * w + x0) * c + k];
-        const v01 = src[(y0 * w + x1) * c + k];
-        const v10 = src[(y1 * w + x0) * c + k];
-        const v11 = src[(y1 * w + x1) * c + k];
-        const v0 = v00 * (1 - wx) + v01 * wx;
-        const v1 = v10 * (1 - wx) + v11 * wx;
-        out[dstBase + k] = v0 * (1 - wy) + v1 * wy;
-      }
-    }
-  }
-  return Tensor.fromArray(tensor.ctx, out, [size, size, c]);
-}
-
 export async function squareCropAndResize(tensor, shape, length = 1024) {
   const [h, w, rawChannels] = shape;
   const channels = Math.max(1, rawChannels ?? tensor.shape?.[2] ?? 1);
@@ -4505,7 +4390,7 @@ export async function squareCropAndResize(tensor, shape, length = 1024) {
   return out;
 }
 
-export async function rotate(tensor, shape, time, speed, angle = null, internal = false) {
+export async function rotate(tensor, shape, time, speed, angle = null) {
   if (angle === null || angle === undefined) angle = random() * 360;
   const [h, w, c] = shape;
   const want = Math.max(h, w) * 2;
@@ -4513,7 +4398,7 @@ export async function rotate(tensor, shape, time, speed, angle = null, internal 
   padded = await rotate2D(padded, padded.shape, (angle * Math.PI) / 180);
   return await cropTensor(padded, padded.shape, shape);
 }
-register("rotate", rotate, { angle: 0, internal: false });
+register("rotate", rotate, { angle: 0 });
 
 async function _pixelSort(tensor, shape, angle, darkest) {
   const ctx = tensor.ctx;
@@ -5092,7 +4977,6 @@ async function simpleMultiresTensor(
 export async function frame(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
-  const effectiveShape = [h, w, c];
   const halfH = Math.max(1, Math.floor(h * 0.5));
   const halfW = Math.max(1, Math.floor(w * 0.5));
   const halfShape = [halfH, halfW, c];
@@ -5780,18 +5664,6 @@ export async function strayHair(tensor, shape, time, speed) {
 register("stray_hair", strayHair, {});
 register("stray_hair", strayHair, {});
 
-async function expandChannels(tensor, channels) {
-  const [h, w, c] = tensor.shape;
-  if (c === channels) return tensor;
-  const data = await tensor.read();
-  const out = new Float32Array(h * w * channels);
-  for (let i = 0; i < h * w; i++) {
-    const v = data[i * c];
-    for (let k = 0; k < channels; k++) out[i * channels + k] = v;
-  }
-  return Tensor.fromArray(tensor.ctx, out, [h, w, channels]);
-}
-
 export async function grime(tensor, shape, time, speed) {
   const [h, w, c] = shape;
   const ctx = tensor.ctx;
@@ -6229,8 +6101,8 @@ export async function spookyTicker(tensor, shape, time, speed) {
 }
 register("spooky_ticker", spookyTicker, {});
 
-export function skew(tensor, shape, time, speed, angle = 0, range = 1) {
+export function skew(tensor, shape, time, speed) {
   // Placeholder implementation; performs no skewing.
   return tensor;
 }
-register("skew", skew, { angle: 0, range: 1 });
+register("skew", skew, {});

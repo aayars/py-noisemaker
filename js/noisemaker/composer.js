@@ -1,8 +1,7 @@
 import { Context } from './context.js';
 import { multires } from './generators.js';
 import { ColorSpace } from './constants.js';
-import { shapeFromParams, withTensorData } from './util.js';
-import { Tensor, markPresentationNormalized } from './tensor.js';
+import { shapeFromParams } from './util.js';
 // Ensure all built-in effects register themselves with the registry.
 // The import is intentionally side-effectful.
 import './effects.js';
@@ -202,19 +201,6 @@ function writeUniformLayout(view, layout, params, defaults) {
   }
 }
 
-function coerceNumber(value, fallback = 0) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
-function coerceUnsigned(value, fallback = 0, min = 0) {
-  const num = Math.floor(Number(value));
-  if (!Number.isFinite(num)) {
-    return Math.max(min, Math.floor(Number(fallback)) || min);
-  }
-  return Math.max(min, num);
-}
-
 function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
   if (!program || typeof program.stageCount !== 'number') {
     return;
@@ -265,15 +251,6 @@ function writeProgramUniforms(program, stageSnapshots, frameIndex = 0) {
       }
     }
   }
-}
-
-function makeProgramCacheKey(name, topology, width, height, colorSpace, withAlpha) {
-  const safeName = name || 'anonymous';
-  const safeTopology = topology || 'none';
-  const w = Math.max(1, Math.floor(Number(width) || 0));
-  const h = Math.max(1, Math.floor(Number(height) || 0));
-  const space = colorSpace ?? 'unknown';
-  return `${safeName}|${safeTopology}|${w}x${h}|${space}|alpha:${withAlpha ? 1 : 0}`;
 }
 
 export class Preset {
@@ -380,8 +357,6 @@ export class Preset {
       powerPreference = 'high-performance',
       frameIndex: frameIndexOpt = 0,
       frame: frameOpt,
-      presentationTarget = undefined,
-      readback: readbackOpt = false,
       progressCallback = null,
     } = opts;
     const debug = Boolean(debugOpt);
@@ -398,12 +373,11 @@ export class Preset {
 
     const numericFrameIndex = Number(frameIndexOpt);
     const numericFrameAlt = Number(frameOpt);
-    const frameIndex = Number.isFinite(numericFrameIndex) && numericFrameIndex >= 0
-      ? Math.floor(numericFrameIndex)
-      : Number.isFinite(numericFrameAlt) && numericFrameAlt >= 0
-      ? Math.floor(numericFrameAlt)
-      : 0;
-    const readback = Boolean(readbackOpt);
+    if (Number.isFinite(numericFrameIndex) && numericFrameIndex >= 0) {
+      Math.floor(numericFrameIndex);
+    } else if (Number.isFinite(numericFrameAlt) && numericFrameAlt >= 0) {
+      Math.floor(numericFrameAlt);
+    }
 
     if (debug) {
       debugLog(true, `render start: seed=${seed}`, {

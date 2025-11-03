@@ -1,7 +1,7 @@
 import assert from "assert";
 import { register, EFFECTS, list } from "../js/noisemaker/effectsRegistry.js";
 
-function valid(tensor, shape, time, speed, gain = 1, bias = 0) {
+function valid(tensor, shape, time, speed, gain, bias) {
   return tensor;
 }
 
@@ -16,10 +16,10 @@ assert.throws(() => register("missingSpeed", missingSpeed, {}));
 function wrongName(foo, shape, time, speed) {}
 assert.throws(() => register("wrongName", wrongName, {}));
 
-function badDefaultName(tensor, shape, time, speed, gain = 1) {}
+function badDefaultName(tensor, shape, time, speed) {}
 assert.throws(() => register("badDefaultName", badDefaultName, { bias: 0 }));
 
-function badDefaultCount(tensor, shape, time, speed, gain, bias) {}
+function badDefaultCount(tensor, shape, time, speed) {}
 assert.throws(() => register("badDefaultCount", badDefaultCount, { gain: 1 }));
 
 assert.ok(list().includes("valid"));

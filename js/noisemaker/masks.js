@@ -120,7 +120,6 @@ function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
 function _randomAtlasTile({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
   if (!atlas || atlas.length === 0) return 0;
   const uvHeight = uvNoise.length;
-  const uvWidth = uvNoise[0].length;
 
   let texX = x % shape[1];
   let texY = y % shape[0];

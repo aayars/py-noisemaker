@@ -112,9 +112,8 @@ jobs:
     - name: Install Node dependencies
       run: npm install --include=dev
 
-    - name: Check for linting setup
-      run: |
-        echo "Note: ESLint not configured yet, skipping lint checks"
+    - name: Run ESLint
+      run: npx eslint js/ --ext .js
 
   publish-js-snapshot:
     runs-on: ubuntu-latest

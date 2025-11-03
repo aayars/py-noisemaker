@@ -48,7 +48,6 @@ export function pointCloud(
     }
   }
 
-  const isPoint = Object.values(PointDistribution).includes(distrib);
   const isMask = Object.values(ValueMask).includes(distrib);
 
   const rangeX = width * 0.5;

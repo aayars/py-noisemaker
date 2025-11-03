@@ -3,9 +3,6 @@ import { values, downsample, upsample, blend, sobel, valueMap, hsvToRgb, rgbToHs
 import { rgbToOklab, oklabToRgb } from '../js/noisemaker/oklab.js';
 import { ValueDistribution, ValueMask, InterpolationType } from '../js/noisemaker/constants.js';
 import { Tensor } from '../js/noisemaker/tensor.js';
-import { Context } from '../js/noisemaker/context.js';
-
-const DEBUG = false; // Set true to diagnose shader issues.
 
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);

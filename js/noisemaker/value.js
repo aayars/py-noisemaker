@@ -322,16 +322,6 @@ export function values(freq, shape, opts = {}) {
   let maskWidth = 0;
   let maskHeight = 0;
   let maskChannels = 0;
-  const interp = (t) => {
-    switch (splineOrder) {
-      case InterpolationType.linear:
-        return t;
-      case InterpolationType.cosine:
-        return 0.5 - Math.cos(t * Math.PI) * 0.5;
-      default:
-        return t * t * (3 - 2 * t);
-    }
-  };
   if (mask !== undefined && mask !== null) {
     const maskShape = [
       Math.max(1, Math.floor(freqY)),
@@ -526,17 +516,6 @@ export function values(freq, shape, opts = {}) {
 export function resample(tensor, shape, splineOrder = InterpolationType.bicubic) {
   const [h, w, c] = tensor.shape;
   const [nh, nw, nc = c] = shape;
-  const ctx = tensor.ctx;
-  const interp = (t) => {
-    switch (splineOrder) {
-      case InterpolationType.linear:
-        return t;
-      case InterpolationType.cosine:
-        return 0.5 - Math.cos(t * Math.PI) * 0.5;
-      default:
-        return t * t * (3 - 2 * t);
-    }
-  };
 
   const cpuResample = (src) => {
     const out = new Float32Array(nh * nw * nc);
@@ -871,7 +850,6 @@ export function blend(a, b, t) {
 
   const [h, w, c] = a.shape;
   const ctx = a.ctx;
-  const bChannels = b.shape[2];
 
   if (typeof t === 'number') {
     if (t <= 0) return a;
@@ -1148,7 +1126,6 @@ export function adjustHue(tensor, amount) {
   if (c < 3) {
     return tensor;
   }
-  const ctx = tensor.ctx;
   const cpuAdjust = (inputTensor) => {
     const hsvMaybe = rgbToHsv(inputTensor);
     const process = (hsv) => {
@@ -1279,7 +1256,6 @@ export function convolution(tensor, kernel, opts = {}) {
 
   const handle = (t) => {
     const [h, w, c] = t.shape;
-    const ctx = t.ctx;
     const finish = (tensorOut) => {
       if (!tensorOut) return tensorOut;
       const applyAlpha = (normalized) => {
@@ -1304,14 +1280,10 @@ export function convolution(tensor, kernel, opts = {}) {
     };
     const kh = kernel.length;
     const kw = kernel[0].length;
-    const halfH = Math.floor(kh / 2);
-    const halfW = Math.floor(kw / 2);
 
     const cpuCompute = (src) => {
       const tileH = h * 2;
       const tileW = w * 2;
-      const halfImageH = Math.floor(h / 2);
-      const halfImageW = Math.floor(w / 2);
       const kernel32 = kernel.map((row) => row.map((v) => Math.fround(v)));
       const tile = new Float32Array(tileH * tileW * c);
       for (let y = 0; y < tileH; y++) {
@@ -1326,6 +1298,8 @@ export function convolution(tensor, kernel, opts = {}) {
         }
       }
 
+      const halfImageH = Math.floor(h / 2);
+      const halfImageW = Math.floor(w / 2);
       const offset = new Float32Array(tile.length);
       for (let y = 0; y < tileH; y++) {
         const sy = (y + halfImageH) % tileH;
@@ -1408,7 +1382,6 @@ export function refract(
   const quadDirectional = !!signedRange;
   const run = (t, rx, ry) => {
     let [h, w, c] = t.shape;
-    const ctx = t.ctx;
 
     const rxChannels = rx?.shape?.[2] || 1;
     const ryChannels = ry?.shape?.[2] || 1;
@@ -1720,7 +1693,6 @@ export function fxaa(tensor) {
 }
 
 export function gaussianBlur(tensor, radius = 1) {
-  const size = radius * 2 + 1;
   const sigma = radius / 2 || 1;
   const kernel = [];
   for (let y = -radius; y <= radius; y++) {

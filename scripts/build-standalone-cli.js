@@ -4,7 +4,7 @@
  * Produces true native binaries for the current platform.
  */
 
-import { readFile, writeFile, copyFile, mkdir, chmod } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -88,7 +88,7 @@ async function buildPlatform(platform) {
   if (platform.os === 'darwin') {
     try {
       execSync(`codesign --remove-signature "${outputPath}"`, { cwd: repoRoot, stdio: 'pipe' });
-    } catch (err) {
+    } catch {
       // Signature removal may fail if binary is unsigned; that's fine
     }
   }
@@ -105,7 +105,7 @@ async function buildPlatform(platform) {
   if (platform.os === 'darwin') {
     try {
       execSync(`codesign --sign - "${outputPath}"`, { cwd: repoRoot, stdio: 'inherit' });
-    } catch (err) {
+    } catch {
       console.warn('Warning: codesign failed (this is expected in CI)');
     }
   }

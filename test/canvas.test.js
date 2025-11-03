@@ -29,7 +29,7 @@ const fakeCtx2d = {
     this.img = { data: new Uint8ClampedArray(w * h * 4) };
     return this.img;
   },
-  putImageData(img, x, y) {
+  putImageData(img) {
     this.img = img;
   }
 };

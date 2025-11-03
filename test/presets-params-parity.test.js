@@ -104,7 +104,7 @@ for (const [name, pyPreset] of Object.entries(pyData)) {
   }
   try {
     assert.deepStrictEqual(jsPreset, pyPreset);
-  } catch (e) {
+  } catch {
     mismatched.push(name);
   }
 }

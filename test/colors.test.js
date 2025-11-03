@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { rgbToHsv, hsvToRgb } from '../js/noisemaker/value.js';
 import { Tensor } from '../js/noisemaker/tensor.js';
-import { srgbToLin, linToSRGB, fromSRGB, toSRGB } from '../js/noisemaker/util.js';
+import { srgbToLin, fromSRGB, toSRGB } from '../js/noisemaker/util.js';
 import { spawnSync } from 'child_process';
 
 // rgb -> hsv parity with Python

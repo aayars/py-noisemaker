@@ -1,5 +1,5 @@
 import { Tensor } from './tensor.js';
-import { random as rngRandom, randomInt as rngRandomInt, Random } from './rng.js';
+import { randomInt as rngRandomInt, Random } from './rng.js';
 
 // Maintain our own seed state just like the Python implementation.  The
 // previous port simply re-exported the RNG's ``setSeed``/``getSeed`` helpers,
@@ -504,13 +504,11 @@ export class OpenSimplex {
           dz_ext1 = dz0 + 1 - 2 * SQUISH_CONSTANT_3D;
         }
       } else {
-        let c1, c2;
+        let c1;
         if (aIsFurtherSide) {
           c1 = aPoint;
-          c2 = bPoint;
         } else {
           c1 = bPoint;
-          c2 = aPoint;
         }
         if ((c1 & 0x01) === 0) {
           xsv_ext0 = xsb;

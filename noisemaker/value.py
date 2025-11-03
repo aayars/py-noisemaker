@@ -302,7 +302,7 @@ def voronoi(
     """
     Create a voronoi diagram, blending with input image Tensor color values.
 
-    
+
     .. noisemaker-live::
        :effect: voronoi
        :input: basic
@@ -970,7 +970,7 @@ def blend_cubic(a: tf.Tensor, b: tf.Tensor, c: tf.Tensor, d: tf.Tensor, g: tf.Te
 @effect()
 def smoothstep(tensor: tf.Tensor, shape: list[int], a: tf.Tensor = 0.0, b: tf.Tensor = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: smoothstep
        :input: basic
@@ -1192,7 +1192,7 @@ def convolve(
     .. code-block:: python
     image = convolve(image, shape, ValueMask.conv2d_shadow)
 
-    
+
     .. noisemaker-live::
        :effect: convolve
        :input: basic
@@ -1267,7 +1267,7 @@ def refract(
     """
     Apply displacement from pixel values.
 
-    
+
     .. noisemaker-live::
        :effect: refract
        :input: basic
@@ -1511,7 +1511,7 @@ def clamp01(tensor: tf.Tensor) -> tf.Tensor:
 @effect()
 def fxaa(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: fxaa
        :input: basic

@@ -75,7 +75,7 @@ def erosion_worms(
     """
     WIP hydraulic erosion effect.
 
-    
+
     .. noisemaker-live::
        :effect: erosion-worms
        :input: basic
@@ -181,7 +181,7 @@ def reindex(tensor: tf.Tensor, shape: list[int], displacement: float = 0.5, time
     """
     Re-color the given tensor, by sampling along one axis at a specified frequency.
 
-    
+
     .. noisemaker-live::
        :effect: reindex
        :input: basic
@@ -229,7 +229,7 @@ def ripple(
     """
     Apply displacement from pixel radian values.
 
-    
+
     .. noisemaker-live::
        :effect: ripple
        :input: basic
@@ -303,7 +303,7 @@ def color_map(
     Apply a color map to an image tensor.
     The color map can be a photo or whatever else.
 
-    
+
     .. noisemaker-live::
        :effect: color-map
        :input: basic
@@ -369,7 +369,7 @@ def worms(
     """
     Make a furry patch of worms which follow field flow rules.
 
-    
+
     .. noisemaker-live::
        :effect: worms
        :input: basic
@@ -483,7 +483,7 @@ def wormhole(
     """
     Apply per-pixel field flow. Non-iterative.
 
-    
+
     .. noisemaker-live::
        :effect: wormhole
        :input: basic
@@ -541,7 +541,7 @@ def derivative(
     """
     Extract a derivative from the given noise.
 
-    
+
     .. noisemaker-live::
        :effect: derivative
        :input: basic
@@ -584,7 +584,7 @@ def sobel_operator(
     """
     Apply a sobel operator.
 
-    
+
     .. noisemaker-live::
        :effect: sobel
        :input: basic
@@ -623,7 +623,7 @@ def normal_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
     """
     Generate a tangent-space normal map.
 
-    
+
     .. noisemaker-live::
        :effect: normal-map
        :input: basic
@@ -659,7 +659,7 @@ def density_map(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: f
     """
     Create a binned pixel value density map.
 
-    
+
     .. noisemaker-live::
        :effect: density-map
        :input: basic
@@ -701,7 +701,7 @@ def jpeg_decimate(tensor: tf.Tensor, shape: list[int], iterations: int = 25, tim
     """
     Destroy an image with the power of JPEG
 
-    
+
     .. noisemaker-live::
        :effect: jpeg-decimate
        :input: basic
@@ -739,7 +739,7 @@ def conv_feedback(tensor: tf.Tensor, shape: list[int], iterations: int = 50, alp
     """
     Conv2d feedback loop
 
-    
+
     .. noisemaker-live::
        :effect: conv-feedback
        :input: basic
@@ -844,7 +844,7 @@ def posterize(tensor: tf.Tensor, shape: list[int], levels: int = 9, time: float 
     """
     Reduce the number of color levels per channel.
 
-    
+
     .. noisemaker-live::
        :effect: posterize
        :input: basic
@@ -985,7 +985,7 @@ def warp(
     """
     Multi-octave warp effect
 
-    
+
     .. noisemaker-live::
        :effect: warp
        :input: basic
@@ -1067,7 +1067,7 @@ def outline(
     """
     Superimpose sobel operator results (cartoon edges)
 
-    
+
     .. noisemaker-live::
        :effect: outline
        :input: basic
@@ -1107,7 +1107,7 @@ def glowing_edges(
     tensor: tf.Tensor, shape: list[int], sobel_metric: int | DistanceMetric = 2, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0
 ) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: glowing-edges
        :input: basic
@@ -1152,7 +1152,7 @@ def vortex(tensor: tf.Tensor, shape: list[int], displacement: float = 64.0, time
     """
     Vortex tiling effect
 
-    
+
     .. noisemaker-live::
        :effect: vortex
        :input: basic
@@ -1196,7 +1196,7 @@ def aberration(tensor: tf.Tensor, shape: list[int], displacement: float = 0.005,
     """
     Chromatic aberration
 
-    
+
     .. noisemaker-live::
        :effect: aberration
        :input: basic
@@ -1280,7 +1280,7 @@ def bloom(tensor: tf.Tensor, shape: list[int], alpha: float = 0.5, time: float =
     Bloom effect
     Input image must currently be square (sorry).
 
-    
+
     .. noisemaker-live::
        :effect: bloom
        :input: basic
@@ -1337,7 +1337,7 @@ def dla(
     """
     Diffusion-limited aggregation. Renders with respect to the `time` param (0..1)
 
-    
+
     .. noisemaker-live::
        :effect: dla
        :input: basic
@@ -1484,7 +1484,7 @@ def wobble(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
     """
     Move the entire image around
 
-    
+
     .. noisemaker-live::
        :effect: wobble
        :input: basic
@@ -1514,7 +1514,7 @@ def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: in
     """
     Multi-octave "reverberation" of input image tensor
 
-    
+
     .. noisemaker-live::
        :effect: reverb
        :input: basic
@@ -1568,7 +1568,7 @@ def reverb(tensor: tf.Tensor, shape: list[int], octaves: int = 2, iterations: in
 @effect()
 def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: light-leak
        :input: basic
@@ -1615,7 +1615,7 @@ def light_leak(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: f
 @effect()
 def vignette(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: vignette
        :input: basic
@@ -1646,7 +1646,7 @@ def vignette(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, alpha
 @effect()
 def vaseline(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: vaseline
        :input: basic
@@ -1674,7 +1674,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
     """
     Convolution-based self-shadowing effect.
 
-    
+
     .. noisemaker-live::
        :effect: shadow
        :input: basic
@@ -1752,7 +1752,7 @@ def glyph_map(
     speed: float = 1.0,
 ) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: glyph-map
        :input: basic
@@ -1841,7 +1841,7 @@ def pixel_sort(tensor: tf.Tensor, shape: list[int], angled: bool | float = False
     """
     Pixel sort effect
 
-    
+
     .. noisemaker-live::
        :effect: pixel-sort
        :input: basic
@@ -1933,7 +1933,7 @@ def rotate(tensor: tf.Tensor, shape: list[int], angle: float | None = None, time
     """
     Rotate the image. This breaks seamless edges.
 
-    
+
     .. noisemaker-live::
        :effect: rotate
        :input: basic
@@ -1998,7 +1998,7 @@ def sketch(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
     """
     Pencil sketch effect
 
-    
+
     .. noisemaker-live::
        :effect: sketch
        :input: basic
@@ -2044,7 +2044,7 @@ def sketch(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 @effect()
 def simple_frame(tensor: tf.Tensor, shape: list[int], brightness: float = 0.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: simple-frame
        :input: basic
@@ -2086,7 +2086,7 @@ def lowpoly(
     """
     Low-poly art style effect
 
-    
+
     .. noisemaker-live::
        :effect: lowpoly
        :input: basic
@@ -2163,7 +2163,7 @@ def kaleido(
     point_corners: bool = False,
 ) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: kaleido
        :input: basic
@@ -2256,7 +2256,7 @@ def palette(tensor: tf.Tensor, shape: list[int], name: str | None = None, alpha:
     Another approach to image coloration
     https://iquilezles.org/www/articles/palettes/palettes.htm
 
-    
+
     .. noisemaker-live::
        :effect: palette
        :input: basic
@@ -2317,7 +2317,7 @@ def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
     """
     Apply a bad VHS tracking effect.
 
-    
+
     .. noisemaker-live::
        :effect: vhs
        :input: basic
@@ -2372,7 +2372,7 @@ def vhs(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
 @effect()
 def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = 0.0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: lens-warp
        :input: basic
@@ -2406,7 +2406,7 @@ def lens_warp(tensor: tf.Tensor, shape: list[int], displacement: float = 0.0625,
 @effect()
 def lens_distortion(tensor: tf.Tensor, shape: list[int], displacement: float = 1.0, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: lens-distortion
        :input: basic
@@ -2448,7 +2448,7 @@ def lens_distortion(tensor: tf.Tensor, shape: list[int], displacement: float = 1
 @effect()
 def degauss(tensor: tf.Tensor, shape: list[int], displacement: float = 0.0625, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: degauss
        :input: basic
@@ -2482,7 +2482,7 @@ def crt(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
     """
     Apply vintage CRT scanlines.
 
-    
+
     .. noisemaker-live::
        :effect: crt
        :input: basic
@@ -2532,7 +2532,7 @@ def crt(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1
 @effect()
 def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: scanline-error
        :input: basic
@@ -2578,7 +2578,7 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
 @effect()
 def snow(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: snow
        :input: basic
@@ -2612,7 +2612,7 @@ def snow(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float =
 @effect()
 def grain(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: grain
        :input: basic
@@ -2642,7 +2642,7 @@ def grain(tensor: tf.Tensor, shape: list[int], alpha: float = 0.25, time: float 
 @effect()
 def false_color(tensor: tf.Tensor, shape: list[int], horizontal: bool = False, displacement: float = 0.5, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: false-color
        :input: basic
@@ -2671,7 +2671,7 @@ def false_color(tensor: tf.Tensor, shape: list[int], horizontal: bool = False, d
 @effect()
 def fibers(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: fibers
        :input: basic
@@ -2719,7 +2719,7 @@ def fibers(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 @effect()
 def scratches(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: scratches
        :input: basic
@@ -2771,7 +2771,7 @@ def scratches(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
 @effect()
 def stray_hair(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: stray-hair
        :input: basic
@@ -2814,7 +2814,7 @@ def stray_hair(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: fl
 @effect()
 def grime(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: grime
        :input: basic
@@ -2864,7 +2864,7 @@ def grime(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
 @effect()
 def frame(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: frame
        :input: basic
@@ -2922,7 +2922,7 @@ def frame(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
 @effect()
 def texture(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: texture
        :input: basic
@@ -2951,7 +2951,7 @@ def texture(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float
 @effect()
 def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: spooky-ticker
        :input: basic
@@ -3031,7 +3031,7 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
 @effect()
 def on_screen_display(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: on-screen-display
        :input: basic
@@ -3083,7 +3083,7 @@ def on_screen_display(tensor: tf.Tensor, shape: list[int], time: float = 0.0, sp
 @effect()
 def nebula(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: nebula
        :input: basic
@@ -3127,7 +3127,7 @@ def nebula(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 @effect()
 def spatter(tensor: tf.Tensor, shape: list[int], color: bool = True, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: spatter
        :input: basic
@@ -3210,7 +3210,7 @@ def clouds(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
     """
     Top-down cloud cover effect
 
-    
+
     .. noisemaker-live::
        :effect: clouds
        :input: basic
@@ -3262,7 +3262,7 @@ def clouds(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float 
 @effect()
 def tint(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0, alpha: float = 0.5) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: tint
        :input: basic
@@ -3310,7 +3310,7 @@ def tint(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 
 @effect()
 def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = 0.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: adjust-hue
        :input: basic
@@ -3338,7 +3338,7 @@ def adjust_hue(tensor: tf.Tensor, shape: list[int], amount: float = 0.25, time: 
 @effect()
 def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = 0.75, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: adjust-saturation
        :input: basic
@@ -3366,7 +3366,7 @@ def adjust_saturation(tensor: tf.Tensor, shape: list[int], amount: float = 0.75,
 @effect()
 def adjust_brightness(tensor: tf.Tensor, shape: list[int], amount: float = 0.125, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: adjust-brightness
        :input: basic
@@ -3391,7 +3391,7 @@ def adjust_brightness(tensor: tf.Tensor, shape: list[int], amount: float = 0.125
 @effect()
 def adjust_contrast(tensor: tf.Tensor, shape: list[int], amount: float = 1.25, time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: adjust-contrast
        :input: basic
@@ -3416,7 +3416,7 @@ def adjust_contrast(tensor: tf.Tensor, shape: list[int], amount: float = 1.25, t
 @effect()
 def normalize(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: normalize
        :input: basic
@@ -3440,7 +3440,7 @@ def normalize(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: flo
 @effect()
 def ridge(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float = 1.0) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: ridge
        :input: basic
@@ -3464,7 +3464,7 @@ def ridge(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed: float =
 @effect()
 def sine(tensor: tf.Tensor, shape: list[int], amount: float = 1.0, time: float = 0.0, speed: float = 1.0, rgb: bool = False) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: sine
        :input: basic
@@ -3518,7 +3518,7 @@ def value_refract(
     speed: float = 1.0,
 ) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: value-refract
        :input: basic
@@ -3555,7 +3555,7 @@ def blur(
     speed: float = 1.0,
 ) -> tf.Tensor:
     """
-    
+
     .. noisemaker-live::
        :effect: blur
        :input: basic

@@ -82,7 +82,9 @@ def _show_effect_presets(ctx: click.Context, param: click.Parameter, value: bool
 
 
 @main.command(help="Generate a .png or .jpg from preset")
-@cli.option("--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_generator_presets, help="Show available generator presets and exit.")
+@cli.option(
+    "--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_generator_presets, help="Show available generator presets and exit."
+)
 @cli.width_option()
 @cli.height_option()
 @cli.time_option()
