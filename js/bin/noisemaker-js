@@ -18,7 +18,7 @@ import { Tensor } from '../noisemaker/tensor.js';
 const MAX_SEED_VALUE = 2 ** 32 - 1;
 
 // Version string - keep in sync with pyproject.toml
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 
 const MAIN_HELP = `Usage: noisemaker-js [OPTIONS] COMMAND [ARGS]...
 
