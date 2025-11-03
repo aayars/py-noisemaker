@@ -149,14 +149,13 @@ jobs:
         mkdir -p "${release_dir}/linux" "${release_dir}/macos" "${release_dir}/windows"
         cp "${cli_dir}/noisemaker" "${release_dir}/linux/noisemaker"
         cp "${cli_dir}/noisemaker" "${release_dir}/macos/noisemaker"
-        cp "${cli_dir}/noisemaker" "${release_dir}/windows/noisemaker"
-        cp "${cli_dir}/noisemaker.cmd" "${release_dir}/windows/noisemaker.cmd"
+        cp "${cli_dir}/noisemaker.exe" "${release_dir}/windows/noisemaker.exe"
         chmod +x "${release_dir}/linux/noisemaker" "${release_dir}/macos/noisemaker"
         tar -C "${release_dir}/linux" -czf dist/noisemaker-linux-x64.tar.gz noisemaker
         tar -C "${release_dir}/macos" -czf dist/noisemaker-macos-x64.tar.gz noisemaker
         (
           cd "${release_dir}/windows"
-          zip -q ../../noisemaker-windows-x64.zip noisemaker.cmd noisemaker
+          zip -q ../../noisemaker-windows-x64.zip noisemaker.exe
         )
 
     - name: Resolve project version
