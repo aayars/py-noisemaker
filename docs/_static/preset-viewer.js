@@ -31,7 +31,8 @@
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const bundleText = await response.text();
-                const match = bundleText.match(/var\s+sa;\s*sa=`([\s\S]*?)`\s*;function\s+Zs/);
+                // Match the DSL string - variable names change with each minification
+                const match = bundleText.match(/[a-z]+\s*=\s*`(\{[\s\S]*?\n\}\n)`\s*;function\s+\w+/);
                 if (match && match[1]) {
                     return match[1];
                 }
