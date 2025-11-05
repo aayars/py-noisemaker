@@ -1,27 +1,30 @@
-// Pixel Sort effect. Mirrors noisemaker.effects.pixel_sort.
-// Applies a rotated selection sort based on OKLab luminance, optionally inverting
-// for "darkest" ordering. Rotation angle follows the Python reference semantics:
-//   * If `angled` is false/0, operate axis aligned.
-//   * If `angled` is true within [-1, 1], derive the angle from time * speed.
-//   * Otherwise treat `angled` as an explicit degree value.
+// Pixel Sort effect shader. Mirrors noisemaker.effects.pixel_sort and the
+// JavaScript reference implementation. Three-stage pipeline:
+//   1. prepare   - pad and rotate into a square buffer.
+//   2. sort_rows - per-row counting sort with brightest alignment.
+//   3. finalize  - rotate back, crop, and blend with the source image.
 
 const PI : f32 = 3.141592653589793;
-const NEG_INFINITY : f32 = -0x1.fffffep+127;
 const CHANNEL_COUNT : u32 = 4u;
+const NUM_BUCKETS : u32 = 256u;
+const MAX_ROW_PIXELS : u32 = 4096u; // safeguard to match JS implementation limits
 
 struct PixelSortParams {
-    size : vec4<f32>,      // width, height, channels, angled
-    controls : vec4<f32>,  // darkest, time, speed, _pad0
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    angled : f32,
+    darkest : f32,
+    time : f32,
+    speed : f32,
+    want_size : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : PixelSortParams;
-@group(0) @binding(3) var<storage, read_write> scratch : array<f32>;
-
-fn as_u32(value : f32) -> u32 {
-    return u32(max(round(value), 0.0));
-}
+@group(0) @binding(3) var<storage, read_write> prepared_buffer : array<f32>;
+@group(0) @binding(4) var<storage, read_write> sorted_buffer : array<f32>;
 
 fn clamp01(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
@@ -34,14 +37,6 @@ fn srgb_to_linear(value : f32) -> f32 {
     return pow((value + 0.055) / 1.055, 2.4);
 }
 
-fn cbrt(value : f32) -> f32 {
-    if (value == 0.0) {
-        return 0.0;
-    }
-    let sign_value : f32 = select(-1.0, 1.0, value >= 0.0);
-    return sign_value * pow(abs(value), 1.0 / 3.0);
-}
-
 fn oklab_l_component(rgb : vec3<f32>) -> f32 {
     let r : f32 = srgb_to_linear(clamp01(rgb.x));
     let g : f32 = srgb_to_linear(clamp01(rgb.y));
@@ -51,9 +46,9 @@ fn oklab_l_component(rgb : vec3<f32>) -> f32 {
     let m : f32 = 0.2118591070 * r + 0.6807189584 * g + 0.1074065790 * b;
     let s : f32 = 0.0883097947 * r + 0.2818474174 * g + 0.6302613616 * b;
 
-    let l_c : f32 = cbrt(l);
-    let m_c : f32 = cbrt(m);
-    let s_c : f32 = cbrt(s);
+    let l_c : f32 = pow(abs(l), 1.0 / 3.0) * sign(l);
+    let m_c : f32 = pow(abs(m), 1.0 / 3.0) * sign(m);
+    let s_c : f32 = pow(abs(s), 1.0 / 3.0) * sign(s);
 
     return clamp01(0.2104542553 * l_c + 0.7936177850 * m_c - 0.0040720468 * s_c);
 }
@@ -62,269 +57,255 @@ fn compute_brightness(color : vec4<f32>) -> f32 {
     return oklab_l_component(vec3<f32>(color.x, color.y, color.z));
 }
 
-fn wrap_index(value : i32, size : u32) -> u32 {
-    if (size == 0u) {
-        return 0u;
+fn clamp_bucket(value : f32) -> u32 {
+    let scaled : f32 = clamp(value, 0.0, 0.999999) * f32(NUM_BUCKETS - 1u);
+    return u32(scaled + 0.5);
+}
+
+fn resolve_angle() -> f32 {
+    var angle : f32 = params.angled;
+    if (angle != 0.0 && abs(angle) <= 1.0) {
+        angle = params.time * params.speed * 360.0;
     }
-    var wrapped : i32 = value % i32(size);
-    if (wrapped < 0) {
-        wrapped = wrapped + i32(size);
+    return angle * PI / 180.0;
+}
+
+fn resolve_want_size() -> u32 {
+    let safe_want : f32 = clamp(round(max(params.want_size, 0.0)), 0.0, f32(MAX_ROW_PIXELS));
+    return u32(safe_want);
+}
+
+fn write_output_pixel(index : u32, color : vec4<f32>) {
+    output_buffer[index + 0u] = color.x;
+    output_buffer[index + 1u] = color.y;
+    output_buffer[index + 2u] = color.z;
+    output_buffer[index + 3u] = color.w;
+}
+
+// -----------------------------------------------------------------------------
+// Pass 1: pad and rotate into prepared_buffer
+// -----------------------------------------------------------------------------
+
+@compute @workgroup_size(8, 8, 1)
+fn prepare(@builtin(global_invocation_id) gid : vec3<u32>) {
+    let want : u32 = resolve_want_size();
+    if (want == 0u || gid.x >= want || gid.y >= want) {
+        return;
     }
-    return u32(wrapped);
-}
 
-fn scratch_color_offset(base : u32, pixel_index : u32) -> u32 {
-    return base + pixel_index * CHANNEL_COUNT;
-}
+    let width : u32 = max(u32(params.width), 1u);
+    let height : u32 = max(u32(params.height), 1u);
 
-fn load_scratch_color(base : u32, pixel_index : u32) -> vec4<f32> {
-    let offset : u32 = scratch_color_offset(base, pixel_index);
-    return vec4<f32>(
-        scratch[offset],
-        scratch[offset + 1u],
-        scratch[offset + 2u],
-        scratch[offset + 3u]
-    );
-}
+    let pad_x : i32 = (i32(want) - i32(width)) / 2;
+    let pad_y : i32 = (i32(want) - i32(height)) / 2;
+    let angle_rad : f32 = resolve_angle();
+    let cos_a : f32 = cos(angle_rad);
+    let sin_a : f32 = sin(angle_rad);
 
-fn store_scratch_color(base : u32, pixel_index : u32, color : vec4<f32>) {
-    let offset : u32 = scratch_color_offset(base, pixel_index);
-    scratch[offset] = color.x;
-    scratch[offset + 1u] = color.y;
-    scratch[offset + 2u] = color.z;
-    scratch[offset + 3u] = color.w;
-}
+    let center : f32 = (f32(want) - 1.0) * 0.5;
+    let px : f32 = f32(gid.x);
+    let py : f32 = f32(gid.y);
 
-fn sample_rotated_color(
-    image_base : u32,
-    dest_x : u32,
-    dest_y : u32,
-    size : u32,
-    cos_angle : f32,
-    sin_angle : f32
-) -> vec4<f32> {
-    let size_f : f32 = f32(size);
-    let x_norm : f32 = f32(dest_x) / size_f - 0.5;
-    let y_norm : f32 = f32(dest_y) / size_f - 0.5;
+    let dx : f32 = px - center;
+    let dy : f32 = py - center;
 
-    let src_x_norm : f32 = cos_angle * x_norm + sin_angle * y_norm + 0.5;
-    let src_y_norm : f32 = -sin_angle * x_norm + cos_angle * y_norm + 0.5;
+    let src_x_f : f32 = cos_a * dx + sin_a * dy + center;
+    let src_y_f : f32 = -sin_a * dx + cos_a * dy + center;
 
-    let src_x : u32 = wrap_index(i32(floor(src_x_norm * size_f)), size);
-    let src_y : u32 = wrap_index(i32(floor(src_y_norm * size_f)), size);
-    let pixel_index : u32 = src_y * size + src_x;
-    return load_scratch_color(image_base, pixel_index);
-}
+    let src_x : i32 = i32(round(src_x_f));
+    let src_y : i32 = i32(round(src_y_f));
 
-fn store_output_color(pixel_index : u32, color : vec4<f32>) {
-    let base : u32 = pixel_index * CHANNEL_COUNT;
-    output_buffer[base] = color.x;
-    output_buffer[base + 1u] = color.y;
-    output_buffer[base + 2u] = color.z;
-    output_buffer[base + 3u] = 1.0;
-}
+    let orig_x : i32 = src_x - pad_x;
+    let orig_y : i32 = src_y - pad_y;
 
-fn set_scratch_range(start : u32, count : u32, value : f32) {
-    var i : u32 = 0u;
-    loop {
-        if (i >= count) {
-            break;
-        }
-        scratch[start + i] = value;
-        i = i + 1u;
+    var color : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    if (orig_x >= 0 && orig_x < i32(width) && orig_y >= 0 && orig_y < i32(height)) {
+        color = textureLoad(input_texture, vec2<i32>(orig_x, orig_y), 0);
     }
+
+    if (params.darkest != 0.0) {
+        color = vec4<f32>(1.0) - color;
+    }
+
+    let base : u32 = (gid.y * want + gid.x) * CHANNEL_COUNT;
+    prepared_buffer[base + 0u] = color.x;
+    prepared_buffer[base + 1u] = color.y;
+    prepared_buffer[base + 2u] = color.z;
+    prepared_buffer[base + 3u] = color.w;
+
+    sorted_buffer[base + 0u] = color.x;
+    sorted_buffer[base + 1u] = color.y;
+    sorted_buffer[base + 2u] = color.z;
+    sorted_buffer[base + 3u] = color.w;
 }
+
+// -----------------------------------------------------------------------------
+// Pass 2: per-row counting sort with brightest alignment
+// -----------------------------------------------------------------------------
 
 @compute @workgroup_size(1, 1, 1)
-fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    if (gid.x > 0u || gid.y > 0u || gid.z > 0u) {
+fn sort_rows(@builtin(global_invocation_id) gid : vec3<u32>) {
+    let want : u32 = resolve_want_size();
+    if (want == 0u || gid.y >= want) {
         return;
     }
 
-    let dims : vec2<u32> = textureDimensions(input_texture, 0);
-    let width : u32 = select(as_u32(params.size.x), dims.x, dims.x > 0u);
-    let height : u32 = select(as_u32(params.size.y), dims.y, dims.y > 0u);
-    if (width == 0u || height == 0u) {
+    let channel_limit : u32 = min(CHANNEL_COUNT, max(u32(params.channel_count), 1u));
+    let row_index : u32 = gid.y;
+    let row_start : u32 = row_index * want * CHANNEL_COUNT;
+
+    var max_brightness : f32 = -1.0;
+    var brightest_index : u32 = 0u;
+    for (var x : u32 = 0u; x < want; x = x + 1u) {
+        let base : u32 = row_start + x * CHANNEL_COUNT;
+        let color : vec4<f32> = vec4<f32>(
+            prepared_buffer[base + 0u],
+            prepared_buffer[base + 1u],
+            prepared_buffer[base + 2u],
+            prepared_buffer[base + 3u]
+        );
+        let brightness : f32 = compute_brightness(color);
+        if (brightness > max_brightness) {
+            max_brightness = brightness;
+            brightest_index = x;
+        }
+    }
+
+    var histogram : array<u32, NUM_BUCKETS>;
+    var positions : array<u32, NUM_BUCKETS>;
+
+    var shift : u32 = want - brightest_index;
+    if (shift == want) {
+        shift = 0u;
+    }
+
+    for (var channel : u32 = 0u; channel < channel_limit; channel = channel + 1u) {
+        for (var i : u32 = 0u; i < NUM_BUCKETS; i = i + 1u) {
+            histogram[i] = 0u;
+        }
+
+        for (var x : u32 = 0u; x < want; x = x + 1u) {
+            let idx : u32 = row_start + x * CHANNEL_COUNT + channel;
+            let value : f32 = prepared_buffer[idx];
+            let bucket : u32 = clamp_bucket(value);
+            histogram[bucket] = histogram[bucket] + 1u;
+        }
+
+        var cumulative : u32 = 0u;
+        for (var i : u32 = 0u; i < NUM_BUCKETS; i = i + 1u) {
+            let count : u32 = histogram[i];
+            positions[i] = cumulative;
+            cumulative = cumulative + count;
+        }
+
+        for (var x : u32 = 0u; x < want; x = x + 1u) {
+            let idx : u32 = row_start + x * CHANNEL_COUNT + channel;
+            let value : f32 = prepared_buffer[idx];
+            let bucket : u32 = clamp_bucket(value);
+            let offset : u32 = positions[bucket];
+            positions[bucket] = offset + 1u;
+
+            var rotated_index : u32 = offset + shift;
+            if (rotated_index >= want) {
+                rotated_index = rotated_index - want;
+            }
+
+            let dest_idx : u32 = row_start + rotated_index * CHANNEL_COUNT + channel;
+            sorted_buffer[dest_idx] = value;
+        }
+    }
+
+    if (channel_limit < CHANNEL_COUNT) {
+        let alpha_channel : u32 = CHANNEL_COUNT - 1u;
+        for (var x : u32 = 0u; x < want; x = x + 1u) {
+            let idx : u32 = row_start + x * CHANNEL_COUNT + alpha_channel;
+            let value : f32 = prepared_buffer[idx];
+            var rotated_index : u32 = x + shift;
+            if (rotated_index >= want) {
+                rotated_index = rotated_index - want;
+            }
+            let dest_idx : u32 = row_start + rotated_index * CHANNEL_COUNT + alpha_channel;
+            sorted_buffer[dest_idx] = value;
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Pass 3: rotate back, crop, and blend with the source
+// -----------------------------------------------------------------------------
+
+@compute @workgroup_size(8, 8, 1)
+fn finalize(@builtin(global_invocation_id) gid : vec3<u32>) {
+    let width : u32 = max(u32(params.width), 1u);
+    let height : u32 = max(u32(params.height), 1u);
+
+    if (gid.x >= width || gid.y >= height) {
         return;
     }
 
-    let pixel_count : u32 = width * height;
-    if (pixel_count == 0u) {
+    let want : u32 = resolve_want_size();
+    let pixel_index : u32 = gid.y * width + gid.x;
+    let base_index : u32 = pixel_index * CHANNEL_COUNT;
+
+    let original_color : vec4<f32> = textureLoad(
+        input_texture,
+        vec2<i32>(i32(gid.x), i32(gid.y)),
+        0
+    );
+
+    if (want == 0u || want > MAX_ROW_PIXELS) {
+        write_output_pixel(base_index, original_color);
         return;
     }
 
-    let darkest_flag : bool = params.controls.x != 0.0;
+    let pad_x : i32 = (i32(want) - i32(width)) / 2;
+    let pad_y : i32 = (i32(want) - i32(height)) / 2;
+    let angle_rad : f32 = resolve_angle();
+    let cos_a : f32 = cos(angle_rad);
+    let sin_a : f32 = sin(angle_rad);
+    let center : f32 = (f32(want) - 1.0) * 0.5;
 
-    var angled_value : f32 = params.size.w;
-    let angled_flag : bool = angled_value != 0.0;
-    if (angled_flag && abs(angled_value) <= 1.0) {
-        angled_value = params.controls.y * params.controls.z * 360.0;
-    }
-    let angle_radians : f32 = angled_value * (PI / 180.0);
-    let cos_angle : f32 = cos(angle_radians);
-    let sin_angle : f32 = sin(angle_radians);
-    let cos_neg_angle : f32 = cos_angle;
-    let sin_neg_angle : f32 = -sin_angle;
+    let padded_x : f32 = f32(i32(gid.x) + pad_x);
+    let padded_y : f32 = f32(i32(gid.y) + pad_y);
 
-    // Reduce padded size to avoid excessive work; rotate within a square just large enough
-    let padded_size : u32 = max(width, height);
-    if (padded_size == 0u) {
-        return;
-    }
+    let dx : f32 = padded_x - center;
+    let dy : f32 = padded_y - center;
 
-    let pad_x : u32 = (padded_size - width) / 2u;
-    let pad_y : u32 = (padded_size - height) / 2u;
-    let padded_pixel_count : u32 = padded_size * padded_size;
-    let padded_color_count : u32 = padded_pixel_count * CHANNEL_COUNT;
-    let row_color_count : u32 = padded_size * CHANNEL_COUNT;
+    let rot_x_f : f32 = cos_a * dx - sin_a * dy + center;
+    let rot_y_f : f32 = sin_a * dx + cos_a * dy + center;
 
-    let padded_base : u32 = 0u;
-    let sorted_image_base : u32 = padded_base + padded_color_count;
-    let row_color_base : u32 = sorted_image_base + padded_color_count;
-    let row_sorted_base : u32 = row_color_base + row_color_count;
-    let row_shifted_base : u32 = row_sorted_base + row_color_count;
-    let row_brightness_base : u32 = row_shifted_base + row_color_count;
-    let scratch_needed : u32 = row_brightness_base + padded_size;
+    let rot_x : i32 = i32(round(rot_x_f));
+    let rot_y : i32 = i32(round(rot_y_f));
 
-    if (scratch_needed > arrayLength(&scratch)) {
-        return;
+    var sorted_color : vec4<f32> = original_color;
+    if (rot_x >= 0 && rot_x < i32(want) && rot_y >= 0 && rot_y < i32(want)) {
+        let sorted_base : u32 = (u32(rot_y) * want + u32(rot_x)) * CHANNEL_COUNT;
+        sorted_color = vec4<f32>(
+            sorted_buffer[sorted_base + 0u],
+            sorted_buffer[sorted_base + 1u],
+            sorted_buffer[sorted_base + 2u],
+            sorted_buffer[sorted_base + 3u]
+        );
     }
 
-    // Stage 1: build padded image centered in the larger square.
-    var padded_y : u32 = 0u;
-    loop {
-        if (padded_y >= padded_size) {
-            break;
-        }
-        var padded_x : u32 = 0u;
-        loop {
-            if (padded_x >= padded_size) {
-                break;
-            }
+    var working_source : vec4<f32> = original_color;
+    var working_sorted : vec4<f32> = sorted_color;
 
-            let source_x : i32 = i32(padded_x) - i32(pad_x);
-            let source_y : i32 = i32(padded_y) - i32(pad_y);
-
-            var color : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-            if (source_x >= 0 && source_x < i32(width) && source_y >= 0 && source_y < i32(height)) {
-                color = textureLoad(input_texture, vec2<i32>(source_x, source_y), 0);
-            }
-            if (darkest_flag) {
-                color = vec4<f32>(1.0) - color;
-            }
-
-            let pixel_index : u32 = padded_y * padded_size + padded_x;
-            store_scratch_color(padded_base, pixel_index, color);
-
-            padded_x = padded_x + 1u;
-        }
-        padded_y = padded_y + 1u;
+    if (params.darkest != 0.0) {
+        working_source = vec4<f32>(1.0) - working_source;
+        working_sorted = vec4<f32>(1.0) - working_sorted;
     }
 
-    // Stage 2: rotate, sort rows, and apply the brightest shift.
-    padded_y = 0u;
-    loop {
-        if (padded_y >= padded_size) {
-            break;
-        }
+    var blended : vec4<f32> = max(working_source, working_sorted);
+    blended = clamp(blended, vec4<f32>(0.0), vec4<f32>(1.0));
+    blended.w = working_source.w;
 
-        // Prepare per-row buffers
-        set_scratch_range(row_color_base, row_color_count, 0.0);
-        set_scratch_range(row_shifted_base, row_color_count, 0.0);
-
-        var shift_index : u32 = 0u;
-        var max_value : f32 = NEG_INFINITY;
-
-        // Build rotated row and determine shift position based on brightest value
-        var padded_x : u32 = 0u;
-        loop {
-            if (padded_x >= padded_size) { break; }
-            let color : vec4<f32> = sample_rotated_color(padded_base, padded_x, padded_y, padded_size, cos_angle, sin_angle);
-            let column_offset : u32 = padded_x * CHANNEL_COUNT;
-            scratch[row_color_base + column_offset] = color.x;
-            scratch[row_color_base + column_offset + 1u] = color.y;
-            scratch[row_color_base + column_offset + 2u] = color.z;
-            scratch[row_color_base + column_offset + 3u] = color.w;
-            let v : f32 = compute_brightness(color);
-            if (v > max_value) { max_value = v; shift_index = padded_x; }
-            padded_x = padded_x + 1u;
-        }
-
-        // Circularly shift the row based on brightest index (no full sort to avoid timeouts)
-        var position : u32 = 0u;
-        loop {
-            if (position >= padded_size) { break; }
-            let dest_idx : u32 = (position + shift_index) % padded_size;
-            let from_offset : u32 = position * CHANNEL_COUNT;
-            let to_offset : u32 = dest_idx * CHANNEL_COUNT;
-            scratch[row_shifted_base + to_offset] = scratch[row_color_base + from_offset];
-            scratch[row_shifted_base + to_offset + 1u] = scratch[row_color_base + from_offset + 1u];
-            scratch[row_shifted_base + to_offset + 2u] = scratch[row_color_base + from_offset + 2u];
-            scratch[row_shifted_base + to_offset + 3u] = scratch[row_color_base + from_offset + 3u];
-            position = position + 1u;
-        }
-
-        // Store shifted row into rotated output image buffer
-        let row_start : u32 = padded_y * padded_size;
-        var column : u32 = 0u;
-        loop {
-            if (column >= padded_size) { break; }
-            let column_offset : u32 = column * CHANNEL_COUNT;
-            let pixel_index : u32 = row_start + column;
-            store_scratch_color(
-                sorted_image_base,
-                pixel_index,
-                vec4<f32>(
-                    scratch[row_shifted_base + column_offset],
-                    scratch[row_shifted_base + column_offset + 1u],
-                    scratch[row_shifted_base + column_offset + 2u],
-                    scratch[row_shifted_base + column_offset + 3u]
-                )
-            );
-            column = column + 1u;
-        }
-
-        padded_y = padded_y + 1u;
+    if (params.darkest != 0.0) {
+        blended = vec4<f32>(1.0) - blended;
+        blended.w = original_color.w;
+    } else {
+        blended.w = original_color.w;
     }
 
-    // Stage 4: crop back to the original size and blend with the source.
-    var y : u32 = 0u;
-    loop {
-        if (y >= height) {
-            break;
-        }
-        var x : u32 = 0u;
-        loop {
-            if (x >= width) {
-                break;
-            }
-            let padded_x_coord : u32 = x + pad_x;
-            let padded_y_coord : u32 = y + pad_y;
-            // Sample from rotated image and rotate back on-the-fly
-            let sorted_color : vec4<f32> = sample_rotated_color(
-                sorted_image_base,
-                padded_x_coord,
-                padded_y_coord,
-                padded_size,
-                cos_neg_angle,
-                sin_neg_angle
-            );
-
-            var working_color : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(x), i32(y)), 0);
-            if (darkest_flag) {
-                working_color = vec4<f32>(1.0) - working_color;
-            }
-
-            var combined : vec4<f32> = max(working_color, sorted_color);
-            if (darkest_flag) {
-                combined = vec4<f32>(1.0) - combined;
-            }
-            combined = clamp(combined, vec4<f32>(0.0), vec4<f32>(1.0));
-
-            store_output_color(y * width + x, combined);
-
-            x = x + 1u;
-        }
-        y = y + 1u;
-    }
+    write_output_pixel(base_index, blended);
 }

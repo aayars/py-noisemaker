@@ -28,8 +28,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **lens_distortion**
 [[ DONE ]] **normal_map**
 [[ DONE ]] **on_screen_display**
-[[ TODO ]] **palette**
-[[ TODO ]] **pixel_sort**
+[[ DONE ]] **palette**
+[[ WIP ]] **pixel_sort**
 [[ TODO ]] **posterize**
 [[ TODO ]] **refract**
 [[ TODO ]] **grime**

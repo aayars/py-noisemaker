@@ -813,6 +813,12 @@ function resolveStorageBufferSize(sizeDescriptor, width, height) {
     const pixels = Math.max(width * height, 1);
     return alignTo(pixels * 4 * 4, 16);
   }
+  if (sizeDescriptor === 'pixel-sort-f32x4') {
+    const maxDim = Math.max(Math.max(width, height), 1);
+    const want = Math.min(Math.max(maxDim * 2, maxDim, 1), 4096);
+    const pixels = Math.max(want * want, 1);
+    return alignTo(pixels * 4 * 4, 16);
+  }
   if (sizeDescriptor === 'dynamic-histogram') {
     const bins = Math.max(Math.max(width, height), 1);
     return alignTo(bins * Uint32Array.BYTES_PER_ELEMENT, 16);

@@ -3,7 +3,7 @@
   "label": "Pixel Sort",
   "stage": "effect",
   "shader": {
-    "entryPoint": "main",
+    "entryPoint": "finalize",
     "url": "/shaders/effects/pixel_sort/pixel_sort.wgsl"
   },
   "resources": {
@@ -19,9 +19,15 @@
       "kind": "uniformBuffer",
       "size": 32
     },
-    "scratch": {
+    "prepared_buffer": {
       "kind": "storageBuffer",
-      "size": "pixel-f32x4"
+      "size": "pixel-sort-f32x4",
+      "persistent": true
+    },
+    "sorted_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-sort-f32x4",
+      "persistent": true
     }
   },
   "parameters": [
@@ -98,6 +104,10 @@
     "speed": {
       "buffer": "params",
       "offset": 6
+    },
+    "want_size": {
+      "buffer": "params",
+      "offset": 7
     }
   }
 }

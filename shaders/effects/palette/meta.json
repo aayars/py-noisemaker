@@ -31,7 +31,7 @@
     {
       "name": "palette_index",
       "type": "int",
-      "default": 0,
+      "default": 1,
       "min": 0,
       "max": 37,
       "step": 1,

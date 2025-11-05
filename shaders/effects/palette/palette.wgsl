@@ -2,9 +2,14 @@
 // lightness through cosine palette bands.
 
 struct PaletteParams {
-    size : vec4<f32>,       // (width, height, channels, alpha)
-    timing : vec4<f32>,     // (time, speed, unused, unused)
-    selection : vec4<f32>,  // (palette index, unused, unused, unused)
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    alpha : f32,
+    time : f32,
+    speed : f32,
+    palette_index : f32,
+    _pad0 : f32,
 };
 
 struct PaletteEntry {
@@ -246,8 +251,10 @@ const PALETTES : array<PaletteEntry, PALETTE_COUNT> = array<PaletteEntry, PALETT
     )
 );
 
+const CHANNEL_COUNT : u32 = 4u;
+
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
-@group(0) @binding(1) var output_texture : texture_storage_2d<rgba32float, write>;
+@group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : PaletteParams;
 
 const PI : f32 = 3.141592653589793;
@@ -297,10 +304,19 @@ fn cosine_blend_weight(blend : f32) -> f32 {
     return (1.0 - cos(blend * PI)) * 0.5;
 }
 
+fn write_pixel(base_index : u32, color : vec4<f32>) {
+    output_buffer[base_index + 0u] = color.x;
+    output_buffer[base_index + 1u] = color.y;
+    output_buffer[base_index + 2u] = color.z;
+    output_buffer[base_index + 3u] = color.w;
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
-    let width : u32 = as_u32(params.size.x);
-    let height : u32 = as_u32(params.size.y);
+    let dims : vec2<u32> = textureDimensions(input_texture, 0);
+    let width : u32 = dims.x;
+    let height : u32 = dims.y;
+    
     if (global_id.x >= width || global_id.y >= height) {
         return;
     }
@@ -308,18 +324,19 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let coords : vec2<i32> = vec2<i32>(i32(global_id.x), i32(global_id.y));
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
 
-    let palette_index : u32 = as_u32(params.selection.x);
-    if (palette_index == 0u) {
-        textureStore(output_texture, coords, texel);
+    let palette_index : u32 = as_u32(params.palette_index);
+    let channel_count : u32 = sanitized_channel_count(params.channel_count);
+    
+    let pixel_index : u32 = global_id.y * width + global_id.x;
+    let base_index : u32 = pixel_index * CHANNEL_COUNT;
+
+    // If no palette selected or not RGB, pass through
+    if (palette_index == 0u || channel_count < 3u) {
+        write_pixel(base_index, texel);
         return;
     }
 
-    let channel_count : u32 = sanitized_channel_count(params.size.z);
-    if (channel_count < 3u) {
-        textureStore(output_texture, coords, texel);
-        return;
-    }
-
+    // Clamp palette index to valid range (1-38 maps to array index 0-37)
     let max_index : u32 = PALETTE_COUNT - 1u;
     let clamped_index : u32 = min(palette_index - 1u, max_index);
     let palette : PaletteEntry = PALETTES[clamped_index];
@@ -330,16 +347,14 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let freq_vec : vec3<f32> = palette.freq.xyz;
     let amp_vec : vec3<f32> = palette.amp.xyz;
     let offset_vec : vec3<f32> = palette.offset.xyz;
-    // The Python reference adds the time parameter directly to the phase term.
-    let phase_vec : vec3<f32> = palette.phase.xyz + vec3<f32>(params.timing.x);
+    let phase_vec : vec3<f32> = palette.phase.xyz + vec3<f32>(params.time);
 
-    let cosine_arg : vec3<f32> = freq_vec * (lightness * LIGHTNESS_SCALE)
-        + vec3<f32>(LIGHTNESS_OFFSET)
-        + phase_vec;
+    let cosine_arg : vec3<f32> = freq_vec * (lightness * LIGHTNESS_SCALE + LIGHTNESS_OFFSET) + phase_vec;
     let cosine_vals : vec3<f32> = cos(TAU * cosine_arg);
     let palette_rgb : vec3<f32> = offset_vec + amp_vec * cosine_vals;
 
-    let weight : f32 = cosine_blend_weight(params.size.w);
+    let weight : f32 = cosine_blend_weight(params.alpha);
     let blended : vec3<f32> = base_rgb * (1.0 - weight) + palette_rgb * weight;
-    textureStore(output_texture, coords, vec4<f32>(blended, texel.w));
+    
+    write_pixel(base_index, vec4<f32>(blended, texel.w));
 }
