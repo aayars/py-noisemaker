@@ -29,9 +29,9 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **normal_map**
 [[ DONE ]] **on_screen_display**
 [[ DONE ]] **palette**
-[[ WIP ]] **pixel_sort**
-[[ TODO ]] **posterize**
-[[ TODO ]] **refract**
+[[ DONE ]] **pixel_sort**
+[[ DONE ]] **posterize**
+[[ WIP ]] **refract**
 [[ TODO ]] **grime**
 [[ TODO ]] **lens_warp**
 [[ TODO ]] **degauss**

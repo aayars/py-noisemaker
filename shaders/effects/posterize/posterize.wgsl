@@ -2,20 +2,23 @@
 // control and optional temporal dithering to soften visible banding.
 
 const CHANNEL_COUNT : u32 = 4u;
-const MIN_GAMMA : f32 = 0.001;
+const MIN_LEVELS : f32 = 1.0;
+const MIN_GAMMA : f32 = 1e-3;
 
 struct PosterizeParams {
-    size : vec4<f32>,    // (width, height, channels, levels)
-    adjust : vec4<f32>,  // (gamma, time, reserved0, reserved1)
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    levels : f32,
+    gamma : f32,
+    time : f32,
+    _pad0 : f32,
+    _pad1 : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : PosterizeParams;
-
-fn as_u32(value : f32) -> u32 {
-    return u32(max(round(value), 0.0));
-}
 
 fn clamp_01(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
@@ -76,8 +79,8 @@ fn write_pixel(base_index : u32, color : vec4<f32>) {
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let width : u32 = as_u32(params.size.x);
-    let height : u32 = as_u32(params.size.y);
+    let width : u32 = max(u32(params.width), 1u);
+    let height : u32 = max(u32(params.height), 1u);
     if (gid.x >= width || gid.y >= height) {
         return;
     }
@@ -86,20 +89,21 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
     let base_index : u32 = (gid.y * width + gid.x) * CHANNEL_COUNT;
 
-    let levels_raw : f32 = max(params.size.w, 0.0);
-    let levels_quantized : f32 = max(round(levels_raw), 1.0);
+    let levels_raw : f32 = max(params.levels, 0.0);
+    let levels_quantized : f32 = max(round(levels_raw), MIN_LEVELS);
     if (levels_quantized <= 1.0) {
         write_pixel(base_index, texel);
         return;
     }
 
-    let steps : f32 = max(levels_quantized - 1.0, 1.0);
-    let gamma_value : f32 = max(params.adjust.x, MIN_GAMMA);
+    let level_factor : f32 = levels_quantized;
+    let inv_factor : f32 = 1.0 / level_factor;
+    let half_step : f32 = inv_factor * 0.5;
+    let gamma_value : f32 = max(params.gamma, MIN_GAMMA);
     let inv_gamma : f32 = 1.0 / gamma_value;
-    let time_value : f32 = params.adjust.y;
 
-    let channel_count : i32 = i32(round(params.size.z));
-    let convert_to_linear : bool = channel_count >= 3;
+    let channel_count : f32 = params.channel_count;
+    let convert_to_linear : bool = channel_count >= 3.0;
 
     var working_rgb : vec3<f32> = texel.xyz;
     if (convert_to_linear) {
@@ -109,10 +113,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     // Posterize: multiply by levels, add 0.5/levels offset, floor, divide by levels
     // This matches the Python reference implementation exactly
-    working_rgb = working_rgb * steps;
-    working_rgb = working_rgb + vec3<f32>((1.0 / steps) * 0.5);
+    working_rgb = working_rgb * level_factor;
+    working_rgb = working_rgb + vec3<f32>(half_step);
     working_rgb = floor(working_rgb);
-    var quantized_rgb : vec3<f32> = working_rgb / vec3<f32>(steps);
+    var quantized_rgb : vec3<f32> = working_rgb * inv_factor;
     quantized_rgb = pow_vec3(clamp(quantized_rgb, vec3<f32>(0.0), vec3<f32>(1.0)), inv_gamma);
 
     if (convert_to_linear) {
