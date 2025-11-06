@@ -2,7 +2,6 @@
 // Each thread handles one agent
 
 const TAU : f32 = 6.28318530717958647692;
-const MAX_FLOAT : f32 = 3.402823466e38;
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
@@ -13,24 +12,14 @@ const MAX_FLOAT : f32 = 3.402823466e38;
 
 struct WormsParams {
     size : vec4<f32>, // (width, height, channels, unused)
-    behavior_density_duration_stride : vec4<f32>, // (behavior, density, duration, stride)
+    behavior_density_stride_padding : vec4<f32>, // (behavior, density, stride, _)
     stride_deviation_alpha_kink_drunkenness : vec4<f32>,
-    quantize_time_speed_padding : vec4<f32>,
+    quantize_time_padding_intensity : vec4<f32>,
+    inputIntensity_padding : vec4<f32>,
 };
 
 fn clamp_01(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
-}
-
-fn wrap_int(value : i32, size : i32) -> i32 {
-    if (size <= 0) {
-        return 0;
-    }
-    var wrapped : i32 = value % size;
-    if (wrapped < 0) {
-        wrapped = wrapped + size;
-    }
-    return wrapped;
 }
 
 fn wrap_float(value : f32, size : f32) -> f32 {
@@ -91,23 +80,23 @@ fn value_map_component(texel : vec4<f32>, channel_count : u32) -> f32 {
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let agent_idx : u32 = gid.x;
     let floats_len : u32 = arrayLength(&agent_state_in);
-    
+
     // Each agent is 8 floats: [x, y, rot, stride, r, g, b, seed]
     if (agent_idx * 8u >= floats_len) {
         return;
     }
-    
+
     let dims : vec2<u32> = textureDimensions(input_texture, 0);
     let width : u32 = dims.x;
     let height : u32 = dims.y;
     if (width == 0u || height == 0u) {
         return;
     }
-    
+
     let channel_count : u32 = 4u; // Always RGBA
     let kink : f32 = clamp(params.stride_deviation_alpha_kink_drunkenness.z, 0.0, 100.0);
-    let quantize_flag : bool = params.quantize_time_speed_padding.x > 0.5;
-    
+    let quantize_flag : bool = params.quantize_time_padding_intensity.x > 0.5;
+
     // Load agent state
     // Agent format: [x, y, rot, stride, r, g, b, seed]
     // Note: x/y in agent state correspond to column/row (width/height)
@@ -120,7 +109,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let cg : f32 = agent_state_in[base_state + 5u];
     let cb : f32 = agent_state_in[base_state + 6u];
     let wseed : f32 = agent_state_in[base_state + 7u];
-    
+
     // Convert to pixel coordinates (wrapping)
     // Python: worm_positions = tf.cast(tf.stack([worms_y % height, worms_x % width], 1), tf.int32)
     // This means position is [row, col] = [y, x]
@@ -128,52 +117,34 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let worms_x_wrapped : f32 = wrap_float(worms_x, f32(width));
     let yi : i32 = i32(floor(worms_y_wrapped));
     let xi : i32 = i32(floor(worms_x_wrapped));
-    
+
     let pixel_index : u32 = u32(yi) * width + u32(xi);
     let base : u32 = pixel_index * 4u;
-    
-    // Deposit trail at current position
-    // Python: colors (sampled at initialization) are multiplied by exposure then accumulated
-    // We use the agent's persistent color (cr, cg, cb)
-    let sample_color : vec4<f32> = textureLoad(input_texture, vec2<i32>(xi, yi), 0);
-    let color : vec4<f32> = vec4<f32>(sample_color.x * cr, sample_color.y * cg, sample_color.z * cb, sample_color.w);
-    
-    // Accumulate (atomic-free, acceptable for visual effect)
+
+    // Deposit trail at current position using agent's persistent spawn color
+    let color : vec4<f32> = vec4<f32>(cr, cg, cb, 1.0);
+
     output_buffer[base + 0u] = output_buffer[base + 0u] + color.x;
     output_buffer[base + 1u] = output_buffer[base + 1u] + color.y;
     output_buffer[base + 2u] = output_buffer[base + 2u] + color.z;
     output_buffer[base + 3u] = output_buffer[base + 3u] + color.w;
-    
-    // Calculate next position using flow field
-    // Python: 
-    //   index = value.value_map(tensor, shape) * math.tau * kink
-    //   next_position = tf.gather_nd(index, worm_positions) + worms_rot
-    //   worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
-    //   worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
-    
-    // Get flow field value at current position
+
     let texel_here : vec4<f32> = textureLoad(input_texture, vec2<i32>(xi, yi), 0);
     let index_value : f32 = value_map_component(texel_here, channel_count);
-    
-    // Apply flow field transformation (matching Python)
+
     let next_position : f32 = index_value * TAU * kink + worms_rot;
-    
-    // Optionally quantize
+
     var final_angle : f32 = next_position;
     if (quantize_flag) {
         final_angle = round(next_position);
     }
-    
-    // Move agent (Python coordinate system: y uses cos, x uses sin)
-    // Python: worms_y = (worms_y + tf.cos(next_position) * worms_stride) % height
-    // Python: worms_x = (worms_x + tf.sin(next_position) * worms_stride) % width
+
     let new_worms_y : f32 = worms_y + cos(final_angle) * worms_stride;
     let new_worms_x : f32 = worms_x + sin(final_angle) * worms_stride;
-    
-    // Store updated agent state (will be wrapped on next frame)
+
     agent_state_out[base_state + 0u] = new_worms_x;
     agent_state_out[base_state + 1u] = new_worms_y;
-    agent_state_out[base_state + 2u] = worms_rot; // Keep original rotation (not final_angle)
+    agent_state_out[base_state + 2u] = worms_rot;
     agent_state_out[base_state + 3u] = worms_stride;
     agent_state_out[base_state + 4u] = cr;
     agent_state_out[base_state + 5u] = cg;

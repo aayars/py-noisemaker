@@ -22,9 +22,10 @@ const BEHAVIOR_MEANDERING : u32 = 10u;
 
 struct WormsParams {
     size : vec4<f32>, // (width, height, channels, unused)
-    behavior_density_duration_stride : vec4<f32>, // (behavior, density, duration, stride)
-    stride_deviation_alpha_kink_drunkenness : vec4<f32>, // (strideDeviation, alpha, kink, drunkenness)
-    quantize_time_speed_padding : vec4<f32>, // (quantizeFlag, time, speed, _pad0)
+    behavior_density_stride_padding : vec4<f32>, // (behavior, density, stride, _)
+    stride_deviation_alpha_kink_drunkenness : vec4<f32>, // (strideDeviation, alpha padding, kink, drunkenness)
+    quantize_time_padding_intensity : vec4<f32>, // (quantizeFlag, time, _, intensity)
+    inputIntensity_padding : vec4<f32>, // (inputIntensity, _ , _, _)
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -195,14 +196,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let pixel_count : u32 = width * height;
     if (pixel_count == 0u) { return; }
 
-    let behavior_raw : f32 = params.behavior_density_duration_stride.x;
-    let density : f32 = params.behavior_density_duration_stride.y;
-    let stride_mean : f32 = params.behavior_density_duration_stride.w;
-    let stride_deviation : f32 = params.stride_deviation_alpha_kink_drunkenness.x;
-    let alpha : f32 = clamp_01(params.stride_deviation_alpha_kink_drunkenness.y);
+    let behavior_raw : f32 = params.behavior_density_stride_padding.x;
+    let density : f32 = params.behavior_density_stride_padding.y;
     let kink : f32 = params.stride_deviation_alpha_kink_drunkenness.z;
-    let quantize_flag : bool = params.quantize_time_speed_padding.x > 0.5;
-    let speed : f32 = params.quantize_time_speed_padding.z;
+    let quantize_flag : bool = params.quantize_time_padding_intensity.x > 0.5;
+    let intensity_fade : f32 = clamp_01(params.quantize_time_padding_intensity.w);
+    let input_intensity : f32 = clamp_01(params.inputIntensity_padding.x);
     let behavior : u32 = behavior_to_enum(behavior_raw);
 
     let max_dim : f32 = max(f32(width), f32(height));
@@ -213,17 +212,20 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
 
     let total_channels : u32 = 4u * pixel_count;
+    let fade_vec : vec4<f32> = vec4<f32>(intensity_fade, intensity_fade, intensity_fade, intensity_fade);
+    let input_vec : vec3<f32> = vec3<f32>(input_intensity, input_intensity, input_intensity);
     // Seed output from prev frame texture for temporal accumulation
     var idx : u32 = 0u;
     for (var y0 : u32 = 0u; y0 < height; y0 = y0 + 1u) {
         for (var x0 : u32 = 0u; x0 < width; x0 = x0 + 1u) {
             let base_idx : u32 = idx * 4u;
             let prev_col : vec4<f32> = textureLoad(prev_texture, vec2<i32>(i32(x0), i32(y0)), 0);
+            let faded : vec4<f32> = prev_col * fade_vec;
             if (base_idx + 3u < total_channels) {
-                output_buffer[base_idx + 0u] = prev_col.x;
-                output_buffer[base_idx + 1u] = prev_col.y;
-                output_buffer[base_idx + 2u] = prev_col.z;
-                output_buffer[base_idx + 3u] = prev_col.w;
+                output_buffer[base_idx + 0u] = faded.x;
+                output_buffer[base_idx + 1u] = faded.y;
+                output_buffer[base_idx + 2u] = faded.z;
+                output_buffer[base_idx + 3u] = faded.w;
             }
             idx = idx + 1u;
         }
@@ -253,12 +255,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             for (var xx : u32 = 0u; xx < width; xx = xx + 1u) {
                 let texel : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(xx), i32(yy)), 0);
                 let base : u32 = p * 4u;
-                let mix_color : vec4<f32> = mix(texel, vec4<f32>(0.0), vec4<f32>(alpha));
+                let base_color : vec4<f32> = vec4<f32>(texel.xyz * input_vec, texel.w);
                 if (base + 3u < total_channels) {
-                    output_buffer[base + 0u] = clamp_01(mix_color.x);
-                    output_buffer[base + 1u] = clamp_01(mix_color.y);
-                    output_buffer[base + 2u] = clamp_01(mix_color.z);
-                    output_buffer[base + 3u] = clamp_01(mix_color.w);
+                    let combined_r : f32 = clamp(output_buffer[base + 0u] + base_color.x, 0.0, 1.0);
+                    let combined_g : f32 = clamp(output_buffer[base + 1u] + base_color.y, 0.0, 1.0);
+                    let combined_b : f32 = clamp(output_buffer[base + 2u] + base_color.z, 0.0, 1.0);
+                    let existing_alpha : f32 = clamp(output_buffer[base + 3u], 0.0, 1.0);
+                    let final_alpha : f32 = clamp(max(existing_alpha, base_color.w), 0.0, 1.0);
+                    output_buffer[base + 0u] = combined_r;
+                    output_buffer[base + 1u] = combined_g;
+                    output_buffer[base + 2u] = combined_b;
+                    output_buffer[base + 3u] = final_alpha;
                 }
                 p = p + 1u;
             }
@@ -309,5 +316,27 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         agent_state_out[base_state + 5u] = cg;
         agent_state_out[base_state + 6u] = cb;
         agent_state_out[base_state + 7u] = 0.0;
+    }
+
+    // Final blend with input texture and input intensity scaling
+    var blend_idx : u32 = 0u;
+    for (var by : u32 = 0u; by < height; by = by + 1u) {
+        for (var bx : u32 = 0u; bx < width; bx = bx + 1u) {
+            let base : u32 = blend_idx * 4u;
+            let texel : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(bx), i32(by)), 0);
+            let base_color : vec4<f32> = vec4<f32>(texel.xyz * input_vec, texel.w);
+            if (base + 3u < total_channels) {
+                let combined_r : f32 = clamp(output_buffer[base + 0u] + base_color.x, 0.0, 1.0);
+                let combined_g : f32 = clamp(output_buffer[base + 1u] + base_color.y, 0.0, 1.0);
+                let combined_b : f32 = clamp(output_buffer[base + 2u] + base_color.z, 0.0, 1.0);
+                let existing_alpha : f32 = clamp(output_buffer[base + 3u], 0.0, 1.0);
+                let final_alpha : f32 = clamp(max(existing_alpha, base_color.w), 0.0, 1.0);
+                output_buffer[base + 0u] = combined_r;
+                output_buffer[base + 1u] = combined_g;
+                output_buffer[base + 2u] = combined_b;
+                output_buffer[base + 3u] = final_alpha;
+            }
+            blend_idx = blend_idx + 1u;
+        }
     }
 }

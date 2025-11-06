@@ -4,8 +4,8 @@
 const CHANNEL_COUNT : u32 = 4u;
 
 struct GrimeParams {
-    size : vec4<f32>,       // width, height, channels, unused
-    time_speed : vec4<f32>, // time, speed, unused, unused
+    size : vec4<f32>,        // width, height, channels, unused
+    time_speed : vec4<f32>,  // time, speed, strength, debug_mode
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -266,6 +266,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     let time_value : f32 = params.time_speed.x;
     let speed_value : f32 = params.time_speed.y;
+    let strength : f32 = max(params.time_speed.z, 0.0);
+    let debug_mode : f32 = params.time_speed.w;
 
     let freq_mask : vec2<f32> = freq_for_shape(5.0, dims.x, dims.y);
     let mask_refracted : f32 = refracted_scalar_field(
@@ -296,7 +298,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     );
 
     let freq_specks : vec2<f32> = dims * 0.25;
-    let dropout : f32 = dropout_mask(uv, dims, 37.0 + time_value * 0.5);
+    let dropout : f32 = dropout_mask(uv, dims, 37.0);
     let specks_field : f32 = refracted_exponential(
         uv,
         freq_specks,
@@ -322,12 +324,28 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     dusty = mix(dusty, vec3<f32>(sparse_noise), vec3<f32>(0.075));
     dusty = dusty * specks;
 
-    let blend_mask : f32 = clamp01(mask_value * 0.75);
-    let final_rgb : vec3<f32> = mix(
-        base_color.xyz,
-        clamp(dusty, vec3<f32>(0.0), vec3<f32>(1.0)),
-        vec3<f32>(blend_mask),
-    );
+    let blend_mask : f32 = clamp01(mask_value * 0.75 * strength);
+    
+    // Debug visualization modes
+    var final_rgb : vec3<f32>;
+    if (debug_mode > 3.5) {
+        // Mode 4: Show sparse noise
+        final_rgb = vec3<f32>(sparse_noise);
+    } else if (debug_mode > 2.5) {
+        // Mode 3: Show specks
+        final_rgb = vec3<f32>(specks);
+    } else if (debug_mode > 1.5) {
+        // Mode 2: Show dusty layer
+        final_rgb = dusty;
+    } else if (debug_mode > 0.5) {
+        // Mode 1: Show mask
+        final_rgb = vec3<f32>(mask_value);
+    } else {
+        // Mode 0: Normal blending - blend the dusty grime layer over the input
+        // For now, just show the dusty layer directly to verify it's not identical to input
+        final_rgb = clamp(dusty, vec3<f32>(0.0), vec3<f32>(1.0));
+    }
+    
     let final_color : vec4<f32> = vec4<f32>(
         clamp01(final_rgb.x),
         clamp01(final_rgb.y),

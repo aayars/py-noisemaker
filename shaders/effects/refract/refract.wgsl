@@ -1,13 +1,22 @@
-// Refract: domain warp driven by displacement maps.
-// Ported from value.refract() in the Python reference implementation.
+// Refract: displacement driven by luminance-derived offsets, matching value.refract().
 
 const PI : f32 = 3.14159265358979323846;
 const TAU : f32 = 6.28318530717958647692;
+const FLOAT_EPSILON : f32 = 1e-5;
 
 struct RefractParams {
-    size_displacement : vec4<f32>,
-    warp_spline_derivative : vec4<f32>,
-    range_time_speed_offset : vec4<f32>,
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    displacement : f32,
+    warp : f32,
+    spline_order : f32,
+    derivative : f32,
+    unused0 : f32,
+    range : f32,
+    time : f32,
+    speed : f32,
+    _pad0 : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -16,8 +25,12 @@ struct RefractParams {
 @group(0) @binding(3) var reference_x_texture : texture_2d<f32>;
 @group(0) @binding(4) var reference_y_texture : texture_2d<f32>;
 
-fn as_u32(value : f32) -> u32 {
-    return u32(max(value, 0.0));
+fn bool_from_float(value : f32) -> bool {
+    return value > 0.5;
+}
+
+fn clamp_01(value : f32) -> f32 {
+    return clamp(value, 0.0, 1.0);
 }
 
 fn wrap_coord(coord : i32, limit : i32) -> i32 {
@@ -35,15 +48,14 @@ fn wrap_float(value : f32, limit : f32) -> f32 {
     if (limit <= 0.0) {
         return 0.0;
     }
-    let div : f32 = floor(value / limit);
-    var result : f32 = value - div * limit;
+    var result : f32 = value - floor(value / limit) * limit;
     if (result < 0.0) {
         result = result + limit;
     }
     return result;
 }
 
-fn srgb_to_linear(value : f32) -> f32 {
+fn srgb_to_linear_component(value : f32) -> f32 {
     if (value <= 0.04045) {
         return value / 12.92;
     }
@@ -59,15 +71,18 @@ fn cube_root(value : f32) -> f32 {
 }
 
 fn oklab_l_component(rgb : vec3<f32>) -> f32 {
-    let r_lin : f32 = srgb_to_linear(clamp(rgb.x, 0.0, 1.0));
-    let g_lin : f32 = srgb_to_linear(clamp(rgb.y, 0.0, 1.0));
-    let b_lin : f32 = srgb_to_linear(clamp(rgb.z, 0.0, 1.0));
+    let r_lin : f32 = srgb_to_linear_component(clamp_01(rgb.x));
+    let g_lin : f32 = srgb_to_linear_component(clamp_01(rgb.y));
+    let b_lin : f32 = srgb_to_linear_component(clamp_01(rgb.z));
+
     let l : f32 = 0.4121656120 * r_lin + 0.5362752080 * g_lin + 0.0514575653 * b_lin;
     let m : f32 = 0.2118591070 * r_lin + 0.6807189584 * g_lin + 0.1074065790 * b_lin;
     let s : f32 = 0.0883097947 * r_lin + 0.2818474174 * g_lin + 0.6302613616 * b_lin;
+
     let l_c : f32 = cube_root(l);
     let m_c : f32 = cube_root(m);
     let s_c : f32 = cube_root(s);
+
     return 0.2104542553 * l_c + 0.7936177850 * m_c - 0.0040720468 * s_c;
 }
 
@@ -75,16 +90,34 @@ fn value_map(texel : vec4<f32>, channel_count : u32, signed_range : bool) -> f32
     var value : f32 = texel.x;
     if (channel_count > 2u) {
         let rgb : vec3<f32> = vec3<f32>(
-            clamp(texel.x, 0.0, 1.0),
-            clamp(texel.y, 0.0, 1.0),
-            clamp(texel.z, 0.0, 1.0)
+            clamp_01(texel.x),
+            clamp_01(texel.y),
+            clamp_01(texel.z)
         );
         value = oklab_l_component(rgb);
     }
+
     if (signed_range) {
         value = value * 2.0 - 1.0;
     }
+
     return value;
+}
+
+fn freq_for_shape(base_freq : f32, width : f32, height : f32) -> vec2<f32> {
+    if (base_freq <= FLOAT_EPSILON) {
+        return vec2<f32>(0.0, 0.0);
+    }
+    if (abs(width - height) < FLOAT_EPSILON) {
+        return vec2<f32>(base_freq, base_freq);
+    }
+    if (height < width && height > 0.0) {
+        return vec2<f32>(base_freq, base_freq * width / height);
+    }
+    if (width > 0.0) {
+        return vec2<f32>(base_freq * height / width, base_freq);
+    }
+    return vec2<f32>(base_freq, base_freq);
 }
 
 fn mod289_vec3(x : vec3<f32>) -> vec3<f32> {
@@ -180,21 +213,20 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
     );
 }
 
-fn remap_by_spline(value : f32, spline_order : f32) -> f32 {
-    let order : i32 = clamp(i32(round(spline_order)), 0, 3);
+fn remap_by_spline(value : f32, order : i32) -> f32 {
+    let clamped : f32 = clamp(value, 0.0, 1.0);
     switch order {
         case 0: {
-            return select(0.0, 1.0, value >= 0.5);
+            return select(0.0, 1.0, clamped >= 0.5);
         }
         case 2: {
-            return 0.5 - cos(clamp(value, 0.0, 1.0) * PI) * 0.5;
+            return 0.5 - cos(clamped * PI) * 0.5;
         }
         case 3: {
-            let t : f32 = clamp(value, 0.0, 1.0);
-            return t * t * (3.0 - 2.0 * t);
+            return clamped * clamped * (3.0 - 2.0 * clamped);
         }
         default: {
-            return clamp(value, 0.0, 1.0);
+            return clamped;
         }
     }
 }
@@ -205,18 +237,18 @@ fn generate_warp_value(
     freq : vec2<f32>,
     time : f32,
     speed : f32,
-    spline_order : f32,
-    seed_offset : f32,
+    order : i32,
+    seed_offset : f32
 ) -> f32 {
     let width_f : f32 = max(size.x, 1.0);
     let height_f : f32 = max(size.y, 1.0);
     let uv : vec2<f32> = vec2<f32>((f32(coord.x) + 0.5) / width_f, (f32(coord.y) + 0.5) / height_f);
-    let freq_vec : vec2<f32> = max(freq, vec2<f32>(0.0));
-    let scaled : vec2<f32> = uv * freq_vec;
-    let time_coord : f32 = time * speed + seed_offset;
-    let noise_sample : f32 = simplex_noise(vec3<f32>(scaled, time_coord));
+    let freq_vec : vec2<f32> = max(freq, vec2<f32>(1.0));
+    let offset : vec3<f32> = vec3<f32>(seed_offset, seed_offset * 1.37, seed_offset * 2.11);
+    let noise_input : vec3<f32> = vec3<f32>(uv * freq_vec, time * speed) + offset;
+    let noise_sample : f32 = simplex_noise(noise_input);
     let normalized : f32 = clamp(noise_sample * 0.5 + 0.5, 0.0, 1.0);
-    return remap_by_spline(normalized, spline_order);
+    return remap_by_spline(normalized, order);
 }
 
 fn store_texel(base_index : u32, texel : vec4<f32>) {
@@ -226,81 +258,106 @@ fn store_texel(base_index : u32, texel : vec4<f32>) {
     output_buffer[base_index + 3u] = texel.w;
 }
 
+fn safe_channel_count(value : f32) -> u32 {
+    let rounded : f32 = round(max(value, 0.0));
+    return max(u32(max(rounded, 1.0)), 1u);
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let width : u32 = as_u32(params.size_displacement.x);
-    let height : u32 = as_u32(params.size_displacement.y);
+    let width : u32 = max(u32(max(round(params.width), 0.0)), 1u);
+    let height : u32 = max(u32(max(round(params.height), 0.0)), 1u);
     if (gid.x >= width || gid.y >= height) {
         return;
     }
 
-    let channel_count : u32 = max(as_u32(params.size_displacement.z), 1u);
-    let displacement : f32 = params.size_displacement.w;
-    let warp_freq : vec2<f32> = params.warp_spline_derivative.xy;
-    let spline_order : f32 = params.warp_spline_derivative.z;
-    let from_derivative : bool = params.warp_spline_derivative.w > 0.5;
-    let signed_range : bool = params.range_time_speed_offset.x > 0.5;
-    let time : f32 = params.range_time_speed_offset.y;
-    let speed : f32 = params.range_time_speed_offset.z;
-    let y_from_offset : bool = params.range_time_speed_offset.w > 0.5;
-    let quad_directional : bool = signed_range && !from_derivative;
+    let width_f : f32 = max(params.width, 1.0);
+    let height_f : f32 = max(params.height, 1.0);
+    let channel_count : u32 = safe_channel_count(params.channel_count);
+
+    let displacement : f32 = max(params.displacement, 0.0);
+    let range_scale : f32 = max(params.range, 0.0);
+    let base_scale_x : f32 = displacement * range_scale * width_f;
+    let base_scale_y : f32 = displacement * range_scale * height_f;
+
+    if (base_scale_x <= FLOAT_EPSILON && base_scale_y <= FLOAT_EPSILON) {
+        let coord : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+        let source : vec4<f32> = textureLoad(input_texture, coord, 0);
+        let output_index : u32 = (gid.y * width + gid.x) * 4u;
+        store_texel(output_index, source);
+        return;
+    }
+
+    let warp_scalar : f32 = max(params.warp, 0.0);
+    let spline_order : i32 = clamp(i32(round(params.spline_order)), 0, 3);
+    let use_derivative : bool = bool_from_float(params.derivative);
+    let quad_directional : bool = !use_derivative;
+    let time : f32 = params.time;
+    let speed : f32 = params.speed;
 
     var ref_value_x : f32;
     var ref_value_y : f32;
 
-    let has_warp : bool = warp_freq.x > 0.0 || warp_freq.y > 0.0;
-    if (has_warp) {
-        let size : vec2<f32> = vec2<f32>(params.size_displacement.x, params.size_displacement.y);
-        ref_value_x = generate_warp_value(gid.xy, size, warp_freq, time, speed, spline_order, 0.0);
-        ref_value_y = generate_warp_value(gid.xy, size, warp_freq, time, speed, spline_order, 19.0);
+    if (use_derivative) {
+        let coord_i : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+        let width_i : i32 = i32(width);
+        let height_i : i32 = i32(height);
+
+        let center : vec4<f32> = textureLoad(input_texture, coord_i, 0);
+        let right : vec4<f32> = textureLoad(input_texture, vec2<i32>(wrap_coord(coord_i.x + 1, width_i), coord_i.y), 0);
+        let down : vec4<f32> = textureLoad(input_texture, vec2<i32>(coord_i.x, wrap_coord(coord_i.y + 1, height_i)), 0);
+
+        let deriv_x_texel : vec4<f32> = center - right;
+        let deriv_y_texel : vec4<f32> = center - down;
+
+        ref_value_x = value_map(deriv_x_texel, channel_count, false);
+        ref_value_y = value_map(deriv_y_texel, channel_count, false);
+    } else if (warp_scalar > FLOAT_EPSILON) {
+        let freq_vec : vec2<f32> = freq_for_shape(warp_scalar, width_f, height_f);
+        let size_vec : vec2<f32> = vec2<f32>(width_f, height_f);
+        let warp_x : f32 = generate_warp_value(gid.xy, size_vec, freq_vec, time, speed, spline_order, 0.0);
+        let warp_y : f32 = generate_warp_value(gid.xy, size_vec, freq_vec, time, speed, spline_order, 37.0);
+        ref_value_x = warp_x * 2.0 - 1.0;
+        ref_value_y = warp_y * 2.0 - 1.0;
     } else {
-        let coord : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
-        var texel_x : vec4<f32> = textureLoad(reference_x_texture, coord, 0);
-        var texel_y : vec4<f32> = textureLoad(reference_y_texture, coord, 0);
+        let coord_i : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+        let texel_raw : vec4<f32> = textureLoad(input_texture, coord_i, 0);
 
-        if (y_from_offset) {
-            let half_width : i32 = i32(floor(0.5 * params.size_displacement.x));
-            let half_height : i32 = i32(floor(0.5 * params.size_displacement.y));
-            let offset_x : i32 = wrap_coord(i32(gid.x) + half_width, i32(width));
-            let offset_y : i32 = wrap_coord(i32(gid.y) + half_height, i32(height));
-            texel_y = textureLoad(reference_x_texture, vec2<i32>(offset_x, offset_y), 0);
-        } else if (!from_derivative) {
-            texel_y = texel_x;
-            let angle_x : vec4<f32> = texel_x * vec4<f32>(TAU);
-            let angle_y : vec4<f32> = texel_y * vec4<f32>(TAU);
-            texel_x = clamp(cos(angle_x) * 0.5 + 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
-            texel_y = clamp(sin(angle_y) * 0.5 + 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
-        }
+        var ref_x : vec4<f32> = texel_raw;
+        var ref_y : vec4<f32> = texel_raw;
 
-        ref_value_x = value_map(texel_x, channel_count, quad_directional);
-        ref_value_y = value_map(texel_y, channel_count, quad_directional);
+        let angle_x : vec4<f32> = ref_x * vec4<f32>(TAU);
+        let angle_y : vec4<f32> = ref_y * vec4<f32>(TAU);
+        ref_x = clamp(cos(angle_x) * 0.5 + 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
+        ref_y = clamp(sin(angle_y) * 0.5 + 0.5, vec4<f32>(0.0), vec4<f32>(1.0));
+
+        ref_value_x = value_map(ref_x, channel_count, true);
+        ref_value_y = value_map(ref_y, channel_count, true);
     }
 
-    var scale_x : f32 = displacement * params.size_displacement.x;
-    var scale_y : f32 = displacement * params.size_displacement.y;
+    var scale_x : f32 = base_scale_x;
+    var scale_y : f32 = base_scale_y;
     if (!quad_directional) {
         scale_x = scale_x * 2.0;
         scale_y = scale_y * 2.0;
     }
 
-    let sample_x : f32 = f32(gid.x) + ref_value_x * scale_x;
-    let sample_y : f32 = f32(gid.y) + ref_value_y * scale_y;
+    let sample_pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) + vec2<f32>(ref_value_x * scale_x, ref_value_y * scale_y);
+    let sample_x : f32 = wrap_float(sample_pos.x, width_f);
+    let sample_y : f32 = wrap_float(sample_pos.y, height_f);
 
-    let width_f : f32 = params.size_displacement.x;
-    let height_f : f32 = params.size_displacement.y;
-    let wrapped_x : f32 = wrap_float(sample_x, width_f);
-    let wrapped_y : f32 = wrap_float(sample_y, height_f);
-
-    var x0 : i32 = i32(floor(wrapped_x));
-    var y0 : i32 = i32(floor(wrapped_y));
+    var x0 : i32 = i32(floor(sample_x));
+    var y0 : i32 = i32(floor(sample_y));
 
     let width_i : i32 = i32(width);
     let height_i : i32 = i32(height);
+
     if (x0 < 0) {
         x0 = 0;
     } else if (x0 >= width_i) {
         x0 = width_i - 1;
     }
+
     if (y0 < 0) {
         y0 = 0;
     } else if (y0 >= height_i) {
@@ -310,8 +367,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let x1 : i32 = wrap_coord(x0 + 1, width_i);
     let y1 : i32 = wrap_coord(y0 + 1, height_i);
 
-    let fx : f32 = clamp(wrapped_x - f32(x0), 0.0, 1.0);
-    let fy : f32 = clamp(wrapped_y - f32(y0), 0.0, 1.0);
+    let fx : f32 = clamp(sample_x - f32(x0), 0.0, 1.0);
+    let fy : f32 = clamp(sample_y - f32(y0), 0.0, 1.0);
 
     let tex00 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x0, y0), 0);
     let tex10 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x1, y0), 0);

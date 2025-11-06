@@ -31,9 +31,9 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **palette**
 [[ DONE ]] **pixel_sort**
 [[ DONE ]] **posterize**
-[[ WIP ]] **refract**
-[[ TODO ]] **grime**
-[[ TODO ]] **lens_warp**
+[[ DONE ]] **refract**
+[[ DONE ]] **grime**
+[[ WIP ]] **lens_warp**
 [[ TODO ]] **degauss**
 [[ TODO ]] **reindex**
 [[ TODO ]] **reverb**

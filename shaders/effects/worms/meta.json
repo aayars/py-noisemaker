@@ -17,7 +17,7 @@
     },
     "params": {
       "kind": "uniformBuffer",
-      "size": 64
+      "size": 80
     },
     "prev_texture": {
       "kind": "sampledTexture",
@@ -60,43 +60,23 @@
     },
     {
       "name": "density",
-      "type": "float",
-      "default": 4.0,
-      "min": 0.1,
-      "max": 20.0,
-      "step": 0.1,
+      "type": "integer",
+      "default": 20,
+      "min": 1,
+      "max": 100,
+      "step": 1,
       "label": "Density",
-      "description": "Worm density multiplier."
-    },
-    {
-      "name": "duration",
-      "type": "float",
-      "default": 4.0,
-      "min": 0.1,
-      "max": 20.0,
-      "step": 0.1,
-      "label": "Duration",
-      "description": "Iteration multiplier."
+      "description": "Number of agents relative to frame size."
     },
     {
       "name": "stride",
-      "type": "float",
-      "default": 1.0,
-      "min": 0.1,
-      "max": 10.0,
-      "step": 0.1,
+      "type": "integer",
+      "default": 10,
+      "min": 1,
+      "max": 100,
+      "step": 1,
       "label": "Stride",
-      "description": "Mean travel distance per iteration."
-    },
-    {
-      "name": "alpha",
-      "type": "float",
-      "default": 0.5,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01,
-      "label": "Alpha",
-      "description": "Fade worms."
+      "description": "Agent step length control."
     },
     {
       "name": "kink",
@@ -106,15 +86,65 @@
       "max": 10.0,
       "step": 0.1,
       "label": "Kink",
-      "description": "Make worms twist."
+      "description": "Controls heading influence from the flow field."
+    },
+    {
+      "name": "strideDeviation",
+      "type": "float",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 0.5,
+      "step": 0.01,
+      "label": "Stride Deviation",
+      "description": "Variation in stride applied per agent."
+    },
+    {
+      "name": "quantize",
+      "type": "boolean",
+      "default": false,
+      "label": "Quantize",
+      "description": "Snap worm headings to discrete steps."
+    },
+    {
+      "name": "drunkenness",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Drunkenness",
+      "description": "Adds additional random rotation noise."
+    },
+    {
+      "name": "intensity",
+      "type": "float",
+      "default": 90,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "label": "Trail Intensity",
+      "description": "Fade applied to feedback accumulation (percent)."
+    },
+    {
+      "name": "inputIntensity",
+      "type": "float",
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "label": "Input Intensity",
+      "description": "Strength of the source texture in the final blend (percent)."
     }
   ],
   "parameterBindings": {
-    "behavior": "params.behavior_density_duration_stride.x",
-    "density": "params.behavior_density_duration_stride.y",
-    "duration": "params.behavior_density_duration_stride.z",
-    "stride": "params.behavior_density_duration_stride.w",
-    "alpha": "params.stride_deviation_alpha_kink_drunkenness.y",
-    "kink": "params.stride_deviation_alpha_kink_drunkenness.z"
+    "behavior": "params.behavior_density_stride_padding.x",
+    "density": "params.behavior_density_stride_padding.y",
+    "stride": "params.behavior_density_stride_padding.z",
+    "strideDeviation": "params.stride_deviation_alpha_kink_drunkenness.x",
+    "kink": "params.stride_deviation_alpha_kink_drunkenness.z",
+    "drunkenness": "params.stride_deviation_alpha_kink_drunkenness.w",
+    "quantize": "params.quantize_time_padding_intensity.x",
+    "intensity": "params.quantize_time_padding_intensity.w",
+    "inputIntensity": "params.inputIntensity_padding.x"
   }
 }

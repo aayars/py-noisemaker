@@ -1,7 +1,11 @@
 import meta from './meta.json' with { type: 'json' };
 
 const RGBA_CHANNEL_COUNT = 4;
-const AGENT_FLOATS_PER_WORM = 8; // [x, y, rot, stride, r, g, b, seed]
+const FLOATS_PER_AGENT = 8; // [x, y, rot, stride, r, g, b, seed]
+const PARAM_FLOAT_COUNT = 20;
+const MAX_AGENT_COUNT = 131072;
+const DENSITY_SCALE = 0.2;
+const STRIDE_SCALE = 0.1;
 const hasOwn = (object, property) => Object.prototype.hasOwnProperty.call(object, property);
 
 function getDefaultParamValue(name, fallback) {
@@ -9,13 +13,96 @@ function getDefaultParamValue(name, fallback) {
   return param?.default ?? fallback;
 }
 
+function toNumber(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function toBoolean(value, fallback) {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+  return fallback;
+}
+
+function clamp(value, min, max) {
+  let result = value;
+  if (Number.isFinite(min)) {
+    result = Math.max(min, result);
+  }
+  if (Number.isFinite(max)) {
+    result = Math.min(max, result);
+  }
+  return result;
+}
+
+function clampInt(value, min, max) {
+  return clamp(Math.round(value), min, max);
+}
+
+function computeAgentCount(width, height, density) {
+  const maxDim = Math.max(width, height);
+  if (maxDim <= 0 || density <= 0) {
+    return 0;
+  }
+  const desired = Math.floor(maxDim * density);
+  return Math.max(1, Math.min(desired, MAX_AGENT_COUNT));
+}
+
+function normalizedStride(stride, width, height) {
+  const scale = Math.max(width, height) / 1024;
+  const base = stride * (scale <= 0 ? 1 : scale);
+  return Math.max(0.1, base);
+}
+
+function seedAgents(width, height, density, stride, strideDeviation) {
+  const count = computeAgentCount(width, height, density);
+  if (count <= 0) {
+    return { data: new Float32Array(0), count: 0 };
+  }
+  const deviation = Number.isFinite(strideDeviation) ? strideDeviation : 0.05;
+  const data = new Float32Array(count * FLOATS_PER_AGENT);
+  const normalized = normalizedStride(stride, width, height);
+  for (let i = 0; i < count; i += 1) {
+    const base = i * FLOATS_PER_AGENT;
+    data[base + 0] = Math.random() * width;
+    data[base + 1] = Math.random() * height;
+    data[base + 2] = Math.random() * Math.PI * 2;
+    const strideVariation = normalized * (1 + (Math.random() - 0.5) * 2 * deviation);
+    data[base + 3] = Math.max(0.1, strideVariation);
+    data[base + 4] = 0.5 + Math.random() * 0.5;
+    data[base + 5] = 0.5 + Math.random() * 0.5;
+    data[base + 6] = 0.5 + Math.random() * 0.5;
+    data[base + 7] = Math.random() * 1000000;
+  }
+  return { data, count };
+}
+
 const PARAMETER_DEFAULTS = Object.freeze({
   behavior: getDefaultParamValue('behavior', 1),
-  density: getDefaultParamValue('density', 4.0),
-  duration: getDefaultParamValue('duration', 4.0),
-  stride: getDefaultParamValue('stride', 1.0),
-  alpha: getDefaultParamValue('alpha', 0.5),
+  density: getDefaultParamValue('density', 20),
+  stride: getDefaultParamValue('stride', 10),
   kink: getDefaultParamValue('kink', 1.0),
+  strideDeviation: getDefaultParamValue('strideDeviation', 0.05),
+  quantize: getDefaultParamValue('quantize', false),
+  drunkenness: getDefaultParamValue('drunkenness', 0),
+  intensity: getDefaultParamValue('intensity', 90),
+  inputIntensity: getDefaultParamValue('inputIntensity', 100),
   enabled: getDefaultParamValue('enabled', true),
 });
 
@@ -33,15 +120,93 @@ class WormsEffect {
     this.userState = {
       behavior: PARAMETER_DEFAULTS.behavior,
       density: PARAMETER_DEFAULTS.density,
-      duration: PARAMETER_DEFAULTS.duration,
       stride: PARAMETER_DEFAULTS.stride,
-      alpha: PARAMETER_DEFAULTS.alpha,
       kink: PARAMETER_DEFAULTS.kink,
+      strideDeviation: PARAMETER_DEFAULTS.strideDeviation,
+      quantize: Boolean(PARAMETER_DEFAULTS.quantize),
+      drunkenness: PARAMETER_DEFAULTS.drunkenness,
+      intensity: PARAMETER_DEFAULTS.intensity,
+      inputIntensity: PARAMETER_DEFAULTS.inputIntensity,
       enabled: Boolean(PARAMETER_DEFAULTS.enabled),
     };
     this.agentBuffers = null;
     this.lastDensity = null;
+    this.lastStride = null;
+    this.lastStrideDeviation = null;
     this.feedbackTexture = null; // Persistent feedback texture (preserved across density changes)
+  }
+
+  #densitySlider() {
+    return clampInt(toNumber(this.userState.density, PARAMETER_DEFAULTS.density), 1, 100);
+  }
+
+  #getActualDensity() {
+    return this.#densitySlider() * DENSITY_SCALE;
+  }
+
+  #strideSlider() {
+    return clampInt(toNumber(this.userState.stride, PARAMETER_DEFAULTS.stride), 1, 100);
+  }
+
+  #getActualStride() {
+    return Math.max(0.1, this.#strideSlider() * STRIDE_SCALE);
+  }
+
+  #getStrideDeviation() {
+    return toNumber(this.userState.strideDeviation, PARAMETER_DEFAULTS.strideDeviation);
+  }
+
+  #getIntensityScalar() {
+    const percent = clamp(toNumber(this.userState.intensity, PARAMETER_DEFAULTS.intensity), 0, 100);
+    return percent * 0.01;
+  }
+
+  #getInputIntensityScalar() {
+    const percent = clamp(toNumber(this.userState.inputIntensity, PARAMETER_DEFAULTS.inputIntensity), 0, 100);
+    return percent * 0.01;
+  }
+
+  #populateParamsState(paramsState) {
+    if (!paramsState) {
+      return;
+    }
+
+    const width = Math.max(1, Math.floor(this.width));
+    const height = Math.max(1, Math.floor(this.height));
+    const actualDensity = this.#getActualDensity();
+    const actualStride = this.#getActualStride();
+    const strideDeviation = this.#getStrideDeviation();
+    const intensity = this.#getIntensityScalar();
+    const inputIntensity = this.#getInputIntensityScalar();
+    const behavior = clamp(toNumber(this.userState.behavior, PARAMETER_DEFAULTS.behavior), 1, 10);
+    const kink = Math.max(0, toNumber(this.userState.kink, PARAMETER_DEFAULTS.kink));
+    const drunkenness = toNumber(this.userState.drunkenness, PARAMETER_DEFAULTS.drunkenness);
+    const quantizeFlag = this.userState.quantize ? 1 : 0;
+
+    paramsState[0] = width;
+    paramsState[1] = height;
+    paramsState[2] = RGBA_CHANNEL_COUNT;
+    paramsState[3] = 0;
+
+    paramsState[4] = behavior;
+    paramsState[5] = actualDensity;
+    paramsState[6] = actualStride;
+    paramsState[7] = 0;
+
+    paramsState[8] = strideDeviation;
+    paramsState[9] = 1.0;
+    paramsState[10] = kink;
+    paramsState[11] = drunkenness;
+
+    paramsState[12] = quantizeFlag;
+    paramsState[13] = 0;
+    paramsState[14] = 0;
+    paramsState[15] = intensity;
+
+    paramsState[16] = inputIntensity;
+    paramsState[17] = 0;
+    paramsState[18] = 0;
+    paramsState[19] = 0;
   }
 
   invalidateResources() {
@@ -78,6 +243,9 @@ class WormsEffect {
 
     this.#destroyAgentBuffers();
     this.resources = null;
+    this.lastDensity = null;
+    this.lastStride = null;
+    this.lastStrideDeviation = null;
   }
 
   #destroyAgentBuffers() {
@@ -132,23 +300,39 @@ class WormsEffect {
     const updated = [];
     const { logWarn } = this.helpers;
 
-    const numericParams = ['behavior', 'density', 'duration', 'stride', 'alpha', 'kink'];
+    const numericParams = [
+      'behavior',
+      'density',
+      'stride',
+      'kink',
+      'strideDeviation',
+      'drunkenness',
+      'intensity',
+      'inputIntensity',
+    ];
     numericParams.forEach((name) => {
       if (hasOwn(updates, name)) {
         const numeric = Number(updates[name]);
         if (Number.isFinite(numeric)) {
           const oldValue = this.userState[name];
           this.userState[name] = numeric;
-          
-          // If density changed, invalidate resources to force recreation with new agent count
-          if (name === 'density' && oldValue !== numeric) {
+
+          const densityChanged = name === 'density' && oldValue !== numeric;
+          const strideChanged = name === 'stride' && oldValue !== numeric;
+          const strideDeviationChanged = name === 'strideDeviation' && oldValue !== numeric;
+
+          if (densityChanged || strideChanged || strideDeviationChanged) {
             this.lastDensity = null;
+            this.lastStride = null;
+            this.lastStrideDeviation = null;
             this.invalidateResources();
-          } else if (this.resources?.paramsState && this.resources?.bindingOffsets?.[name] !== undefined) {
-            this.resources.paramsState[this.resources.bindingOffsets[name]] = numeric;
+          }
+
+          if (this.resources?.paramsState) {
+            this.#populateParamsState(this.resources.paramsState);
             this.resources.paramsDirty = true;
           }
-          
+
           updated.push(name);
         } else {
           logWarn?.(`updateWormsParams: ${name} must be a finite number.`);
@@ -156,13 +340,16 @@ class WormsEffect {
       }
     });
 
-    const booleanParams = ['enabled'];
+    const booleanParams = ['enabled', 'quantize'];
     booleanParams.forEach((name) => {
       if (hasOwn(updates, name)) {
         const value = Boolean(updates[name]);
         this.userState[name] = value;
         if (name === 'enabled' && this.resources) {
           this.resources.enabled = value;
+        } else if (name === 'quantize' && this.resources?.paramsState) {
+          this.#populateParamsState(this.resources.paramsState);
+          this.resources.paramsDirty = true;
         }
         updated.push(name);
       }
@@ -183,48 +370,24 @@ class WormsEffect {
   }
 
   #initializeAgentBuffers(device, width, height) {
-    const agentCount = Math.max(Math.floor(Math.max(width, height) * this.userState.density), 1);
-    const bufferSize = agentCount * AGENT_FLOATS_PER_WORM * Float32Array.BYTES_PER_ELEMENT;
-    
-    const initialData = new Float32Array(agentCount * AGENT_FLOATS_PER_WORM);
-    for (let i = 0; i < agentCount; i++) {
-      const base = i * AGENT_FLOATS_PER_WORM;
-      
-      // Initialize position randomly within frame
-      initialData[base + 0] = Math.random() * width;   // x
-      initialData[base + 1] = Math.random() * height;  // y
-      
-      // Initialize rotation randomly
-      initialData[base + 2] = Math.random() * Math.PI * 2; // rot
-      
-      // Initialize stride with deviation
-      const strideDeviation = 0.05; // Default from Python
-      const stride = this.userState.stride * (1 + (Math.random() - 0.5) * 2 * strideDeviation);
-      const normalizedStride = stride * (Math.max(width, height) / 1024.0);
-      initialData[base + 3] = Math.max(0.1, normalizedStride); // stride
-      
-      // Sample starting color (random for now, could sample from texture)
-      initialData[base + 4] = 0.5 + Math.random() * 0.5; // r
-      initialData[base + 5] = 0.5 + Math.random() * 0.5; // g
-      initialData[base + 6] = 0.5 + Math.random() * 0.5; // b
-      
-      // Initialize seed for RNG
-      initialData[base + 7] = Math.random() * 1000000; // seed
+    const density = this.#getActualDensity();
+    const stride = this.#getActualStride();
+    const strideDeviation = this.#getStrideDeviation();
+
+    const agents = seedAgents(width, height, density, stride, strideDeviation);
+    const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
+
+    let bufferA = null;
+    let bufferB = null;
+
+    if (agents.count > 0 && agents.data.byteLength > 0) {
+      bufferA = device.createBuffer({ size: agents.data.byteLength, usage });
+      bufferB = device.createBuffer({ size: agents.data.byteLength, usage });
+      device.queue.writeBuffer(bufferA, 0, agents.data);
+      device.queue.writeBuffer(bufferB, 0, agents.data);
     }
 
-    const bufferA = device.createBuffer({
-      size: bufferSize,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-    const bufferB = device.createBuffer({
-      size: bufferSize,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-
-    device.queue.writeBuffer(bufferA, 0, initialData);
-    device.queue.writeBuffer(bufferB, 0, initialData);
-
-    return { a: bufferA, b: bufferB, current: 'a', agentCount };
+    return { a: bufferA, b: bufferB, current: 'a', agentCount: agents.count };
   }
 
   async #createResources({ device, width, height, multiresResources }) {
@@ -251,22 +414,35 @@ class WormsEffect {
       const agentMoveDescriptor = getShaderDescriptor('worms/agent_move');
       const finalBlendDescriptor = getShaderDescriptor('worms/final_blend');
 
-      // Create or recreate agent buffers if density changed
-      if (!this.agentBuffers || this.lastDensity !== this.userState.density) {
+      const actualDensity = this.#getActualDensity();
+      const actualStride = this.#getActualStride();
+      const strideDeviation = this.#getStrideDeviation();
+
+      // Create or recreate agent buffers if key parameters changed
+      if (
+        !this.agentBuffers ||
+        this.lastDensity !== actualDensity ||
+        this.lastStride !== actualStride ||
+        this.lastStrideDeviation !== strideDeviation
+      ) {
         if (this.agentBuffers) {
           this.#destroyAgentBuffers();
         }
         this.agentBuffers = this.#initializeAgentBuffers(device, width, height);
-        this.lastDensity = this.userState.density;
       }
+      this.lastDensity = actualDensity;
+      this.lastStride = actualStride;
+      this.lastStrideDeviation = strideDeviation;
 
       const feedbackTexture = device.createTexture({
         size: { width, height, depthOrArrayLayers: 1 },
         format: 'rgba32float',
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
       });
+      const feedbackSampleView = feedbackTexture.createView();
+      const feedbackStorageView = feedbackTexture.createView();
 
-      const paramsSize = 64;
+      const paramsSize = PARAM_FLOAT_COUNT * Float32Array.BYTES_PER_ELEMENT;
       const paramsBuffer = device.createBuffer({
         size: paramsSize,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -278,30 +454,8 @@ class WormsEffect {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
 
-      const paramsLength = paramsSize / Float32Array.BYTES_PER_ELEMENT;
-      const paramsState = new Float32Array(paramsLength);
-      const bindingOffsets = {
-        width: 0, height: 1, channel_count: 2, channelCount: 2,
-        behavior: 4, density: 5, duration: 6, stride: 7,
-        stride_deviation: 8, alpha: 9, kink: 10, drunkenness: 11,
-        quantize: 12, time: 13, speed: 14,
-      };
-
-      paramsState[bindingOffsets.width] = width;
-      paramsState[bindingOffsets.height] = height;
-      paramsState[bindingOffsets.channel_count] = RGBA_CHANNEL_COUNT;
-      paramsState[bindingOffsets.behavior] = this.userState.behavior;
-      paramsState[bindingOffsets.density] = this.userState.density;
-      paramsState[bindingOffsets.duration] = this.userState.duration;
-      paramsState[bindingOffsets.stride] = this.userState.stride;
-      paramsState[bindingOffsets.stride_deviation] = 0.05; // Default
-      paramsState[bindingOffsets.alpha] = this.userState.alpha;
-      paramsState[bindingOffsets.kink] = this.userState.kink;
-      paramsState[bindingOffsets.drunkenness] = 0.0; // Default
-      paramsState[bindingOffsets.quantize] = 0.0; // Default false
-      paramsState[bindingOffsets.time] = 0;
-      paramsState[bindingOffsets.speed] = 1.0; // Default
-
+      const paramsState = new Float32Array(PARAM_FLOAT_COUNT);
+      this.#populateParamsState(paramsState);
       device.queue.writeBuffer(paramsBuffer, 0, paramsState);
 
       const computeBindGroupLayout = getOrCreateBindGroupLayout(device, descriptor.id, 'compute', shaderMetadata);
@@ -348,22 +502,23 @@ class WormsEffect {
 
       this.agentBuffers.current = 'a';
 
+      const outputTexture = device.createTexture({
+        size: { width, height, depthOrArrayLayers: 1 },
+        format: 'rgba32float',
+        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+      });
+      const outputTextureView = outputTexture.createView();
+
       const computeBindGroup = device.createBindGroup({
         layout: computeBindGroupLayout,
         entries: [
           { binding: 0, resource: multiresResources.outputTexture.createView() },
           { binding: 1, resource: { buffer: outputBuffer } },
           { binding: 2, resource: { buffer: paramsBuffer } },
-          { binding: 3, resource: feedbackTexture.createView() },
+          { binding: 3, resource: feedbackSampleView },
           { binding: 4, resource: { buffer: this.agentBuffers.a } },
           { binding: 5, resource: { buffer: this.agentBuffers.b } },
         ],
-      });
-
-      const outputTexture = device.createTexture({
-        size: { width, height, depthOrArrayLayers: 1 },
-        format: 'rgba32float',
-        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
       });
 
       const { pipeline: bufferToTexturePipeline, bindGroupLayout: bufferToTextureBindGroupLayout } = await getBufferToTexturePipeline(device);
@@ -371,14 +526,23 @@ class WormsEffect {
         layout: bufferToTextureBindGroupLayout,
         entries: [
           { binding: 0, resource: { buffer: outputBuffer } },
-          { binding: 1, resource: outputTexture.createView() },
+          { binding: 1, resource: outputTextureView },
+          { binding: 2, resource: { buffer: paramsBuffer } },
+        ],
+      });
+
+      const feedbackBufferToTextureBindGroup = device.createBindGroup({
+        layout: bufferToTextureBindGroupLayout,
+        entries: [
+          { binding: 0, resource: { buffer: outputBuffer } },
+          { binding: 1, resource: feedbackStorageView },
           { binding: 2, resource: { buffer: paramsBuffer } },
         ],
       });
 
       const blitBindGroup = device.createBindGroup({
         layout: multiresResources.blitBindGroupLayout,
-        entries: [{ binding: 0, resource: outputTexture.createView() }],
+        entries: [{ binding: 0, resource: outputTextureView }],
       });
 
       // Configure multi-pass execution
@@ -407,12 +571,23 @@ class WormsEffect {
             bindGroup: computeBindGroup,
             workgroupSize: agentWorkgroupSize,
             getDispatch: () => [
-              Math.ceil(agentCount / agentWorkgroupSize[0]),
+              Math.max(1, Math.ceil(Math.max(agentCount, 1) / agentWorkgroupSize[0])),
               1,
               1
             ],
           },
-          // Pass 2: Final blend with input (pixel-parallel)
+          // Pass 2: Write trail buffer to feedback texture (pixel-parallel)
+          {
+            pipeline: bufferToTexturePipeline,
+            bindGroup: feedbackBufferToTextureBindGroup,
+            workgroupSize: blendWorkgroupSize,
+            getDispatch: ({ width, height }) => [
+              Math.ceil(width / blendWorkgroupSize[0]),
+              Math.ceil(height / blendWorkgroupSize[1]),
+              1
+            ],
+          },
+          // Pass 3: Final blend with input (pixel-parallel)
           {
             pipeline: finalBlendPipeline,
             bindGroup: computeBindGroup,
@@ -439,6 +614,7 @@ class WormsEffect {
         feedbackTexture,
         bufferToTexturePipeline,
         bufferToTextureBindGroup,
+        feedbackBufferToTextureBindGroup,
         blitBindGroup,
         workgroupSize: blendWorkgroupSize,
         enabled: this.userState.enabled,
@@ -446,8 +622,7 @@ class WormsEffect {
         textureHeight: height,
         paramsDirty: false,
         device,
-        bindingOffsets,
-        shouldCopyOutputToPrev: true,
+        shouldCopyOutputToPrev: useMultiPass ? false : true,
         computeBindGroupLayout,
       };
 
@@ -473,6 +648,8 @@ class WormsEffect {
     const outputBuffer = currentIsA ? this.agentBuffers.b : this.agentBuffers.a;
 
     // Recreate bind group with swapped buffers
+    const previousBindGroup = this.resources.computeBindGroup;
+
     const newBindGroup = device.createBindGroup({
       layout: this.resources.computeBindGroupLayout,
       entries: [
@@ -489,8 +666,10 @@ class WormsEffect {
     
     // Update bind groups in all compute passes
     if (this.resources.computePasses && Array.isArray(this.resources.computePasses)) {
-      this.resources.computePasses.forEach(pass => {
-        pass.bindGroup = newBindGroup;
+      this.resources.computePasses.forEach((pass) => {
+        if (pass && pass.bindGroup === previousBindGroup) {
+          pass.bindGroup = newBindGroup;
+        }
       });
     }
   }
@@ -512,6 +691,7 @@ export const additionalPasses = {
     entryPoint: 'main',
     url: '/shaders/effects/worms/init_from_prev.wgsl',
     resources: {
+      params: { kind: 'uniformBuffer', size: 80 },
       output_buffer: { kind: 'storageBuffer', size: 'pixel-f32x4' },
       prev_texture: { kind: 'sampledTexture', format: 'rgba32float' }
     }
@@ -525,7 +705,7 @@ export const additionalPasses = {
     resources: {
       input_texture: { kind: 'sampledTexture', format: 'rgba32float' },
       output_buffer: { kind: 'storageBuffer', size: 'pixel-f32x4' },
-      params: { kind: 'uniformBuffer', size: 64 },
+  params: { kind: 'uniformBuffer', size: 80 },
       prev_texture: { kind: 'sampledTexture', format: 'rgba32float' },
       agent_state_in: { kind: 'readOnlyStorageBuffer', size: 'custom' },
       agent_state_out: { kind: 'storageBuffer', size: 'custom' }
@@ -540,7 +720,7 @@ export const additionalPasses = {
     resources: {
       input_texture: { kind: 'sampledTexture', format: 'rgba32float' },
       output_buffer: { kind: 'storageBuffer', size: 'pixel-f32x4' },
-      params: { kind: 'uniformBuffer', size: 64 }
+  params: { kind: 'uniformBuffer', size: 80 }
     }
   }
 };

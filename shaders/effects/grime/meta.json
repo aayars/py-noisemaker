@@ -27,6 +27,26 @@
       "default": true,
       "label": "Enabled",
       "description": "Toggle grime effect on or off."
+    },
+    {
+      "name": "strength",
+      "type": "number",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1,
+      "label": "Strength",
+      "description": "Overall effect strength multiplier (1.0 = Python reference)"
+    },
+    {
+      "name": "debug_mode",
+      "type": "number",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 4.0,
+      "step": 1.0,
+      "label": "Debug Mode",
+      "description": "0=normal, 1=mask, 2=dusty, 3=specks, 4=sparse"
     }
   ],
   "parameterBindings": {
@@ -49,6 +69,14 @@
     "speed": {
       "buffer": "params",
       "offset": 5
+    },
+    "strength": {
+      "buffer": "params",
+      "offset": 6
+    },
+    "debug_mode": {
+      "buffer": "params",
+      "offset": 7
     }
   }
 }
