@@ -4,7 +4,7 @@
   "stage": "effect",
   "shader": {
     "entryPoint": "main",
-    "url": "/shaders/effects/reindex/reindex.wgsl"
+    "url": "/shaders/effects/reindex/apply.wgsl"
   },
   "resources": {
     "input_texture": {
@@ -18,6 +18,10 @@
     "params": {
       "kind": "uniformBuffer",
       "size": 32
+    },
+    "stats_buffer": {
+      "kind": "storageBuffer",
+      "size": "dynamic"
     }
   },
   "parameters": [

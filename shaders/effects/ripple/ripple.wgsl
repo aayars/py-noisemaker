@@ -16,7 +16,7 @@ struct RippleParams {
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
-@group(0) @binding(1) var output_texture : texture_storage_2d<rgba32float, write>;
+@group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : RippleParams;
 @group(0) @binding(3) var reference_texture : texture_2d<f32>;
 
@@ -324,8 +324,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let width_f : f32 = max(params.dimensions_freq.x, 1.0);
-    let height_f : f32 = max(params.dimensions_freq.y, 1.0);
+    let width_f : f32 = params.dimensions_freq.x;
+    let height_f : f32 = params.dimensions_freq.y;
+    let width_i : i32 = i32(width);
+    let height_i : i32 = i32(height);
 
     let displacement : f32 = params.effect.x;
     let kink : f32 = params.effect.y;
@@ -334,46 +336,68 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let speed_value : f32 = params.animation.x;
     let freq_param : f32 = params.dimensions_freq.w;
 
+    // Python: x0_index = value.row_index(shape)
+    // Python: y0_index = value.column_index(shape)
+    let x0_index : i32 = i32(gid.x);
+    let y0_index : i32 = i32(gid.y);
+
+    // Python: if reference is None: reference = value.values(freq=freq, shape=value_shape, spline_order=spline_order)
     let ref_value : f32 = reference_value(gid.xy, width_f, height_f, freq_param, spline_order);
+
+    // Python: index = value.value_map(reference, shape, with_normalize=False) * math.tau * kink * simplex.random(time, speed=speed)
     let random_factor : f32 = simplex_random(time_value, speed_value);
+    let index : f32 = ref_value * TAU * kink * random_factor;
 
-    let angle : f32 = ref_value * TAU * kink * random_factor;
+    // Python: reference_x = (tf.cos(index) * displacement * width) % width
+    // Python: reference_y = (tf.sin(index) * displacement * height) % height
+    var reference_x : f32 = cos(index) * displacement * width_f;
+    var reference_y : f32 = sin(index) * displacement * height_f;
+    
+    // Python modulo (handles negatives correctly)
+    reference_x = reference_x - floor(reference_x / width_f) * width_f;
+    reference_y = reference_y - floor(reference_y / height_f) * height_f;
 
-    let offset_x : f32 = cos(angle) * displacement * width_f;
-    let offset_y : f32 = sin(angle) * displacement * height_f;
+    // Python: x0_offsets = (tf.cast(reference_x, tf.int32) + x0_index) % width
+    // Python: x1_offsets = (x0_offsets + 1) % width
+    // Python: y0_offsets = (tf.cast(reference_y, tf.int32) + y0_index) % height
+    // Python: y1_offsets = (y0_offsets + 1) % height
+    var x0_offsets : i32 = (i32(reference_x) + x0_index) % width_i;
+    var x1_offsets : i32 = (x0_offsets + 1) % width_i;
+    var y0_offsets : i32 = (i32(reference_y) + y0_index) % height_i;
+    var y1_offsets : i32 = (y0_offsets + 1) % height_i;
 
-    let sample_x : f32 = f32(gid.x) + offset_x;
-    let sample_y : f32 = f32(gid.y) + offset_y;
+    // Handle negative modulo results (match Python behavior)
+    if (x0_offsets < 0) { x0_offsets = x0_offsets + width_i; }
+    if (x1_offsets < 0) { x1_offsets = x1_offsets + width_i; }
+    if (y0_offsets < 0) { y0_offsets = y0_offsets + height_i; }
+    if (y1_offsets < 0) { y1_offsets = y1_offsets + height_i; }
 
-    let x0 : i32 = i32(floor(sample_x));
-    let y0 : i32 = i32(floor(sample_y));
-    let x1 : i32 = x0 + 1;
-    let y1 : i32 = y0 + 1;
+    // Python: x0_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x0_offsets], 2))
+    // Python: x1_y0 = tf.gather_nd(tensor, tf.stack([y0_offsets, x1_offsets], 2))
+    // Python: x0_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x0_offsets], 2))
+    // Python: x1_y1 = tf.gather_nd(tensor, tf.stack([y1_offsets, x1_offsets], 2))
+    // TensorFlow uses [y, x] (row, column) ordering
+    let x0_y0 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x0_offsets, y0_offsets), 0);
+    let x1_y0 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x1_offsets, y0_offsets), 0);
+    let x0_y1 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x0_offsets, y1_offsets), 0);
+    let x1_y1 : vec4<f32> = textureLoad(input_texture, vec2<i32>(x1_offsets, y1_offsets), 0);
 
-    let frac_x : f32 = sample_x - f32(x0);
-    let frac_y : f32 = sample_y - f32(y0);
+    // Python: x_fract = tf.reshape(reference_x - tf.floor(reference_x), [height, width, 1])
+    // Python: y_fract = tf.reshape(reference_y - tf.floor(reference_y), [height, width, 1])
+    let x_fract : f32 = reference_x - floor(reference_x);
+    let y_fract : f32 = reference_y - floor(reference_y);
 
-    let width_i : i32 = i32(width);
-    let height_i : i32 = i32(height);
+    // Python: x_y0 = value.blend(x0_y0, x1_y0, x_fract)
+    // Python: x_y1 = value.blend(x0_y1, x1_y1, x_fract)
+    let x_y0 : vec4<f32> = mix(x0_y0, x1_y0, x_fract);
+    let x_y1 : vec4<f32> = mix(x0_y1, x1_y1, x_fract);
 
-    let x0w : i32 = wrap_coord(x0, width_i);
-    let x1w : i32 = wrap_coord(x1, width_i);
-    let y0w : i32 = wrap_coord(y0, height_i);
-    let y1w : i32 = wrap_coord(y1, height_i);
+    // Python: return value.blend(x_y0, x_y1, y_fract)
+    let result : vec4<f32> = mix(x_y0, x_y1, y_fract);
 
-    let coord00 : vec2<i32> = vec2<i32>(x0w, y0w);
-    let coord10 : vec2<i32> = vec2<i32>(x1w, y0w);
-    let coord01 : vec2<i32> = vec2<i32>(x0w, y1w);
-    let coord11 : vec2<i32> = vec2<i32>(x1w, y1w);
-
-    let c00 : vec4<f32> = textureLoad(input_texture, coord00, 0);
-    let c10 : vec4<f32> = textureLoad(input_texture, coord10, 0);
-    let c01 : vec4<f32> = textureLoad(input_texture, coord01, 0);
-    let c11 : vec4<f32> = textureLoad(input_texture, coord11, 0);
-
-    let mix_x0 : vec4<f32> = mix(c00, c10, vec4<f32>(frac_x));
-    let mix_x1 : vec4<f32> = mix(c01, c11, vec4<f32>(frac_x));
-    let interpolated : vec4<f32> = mix(mix_x0, mix_x1, vec4<f32>(frac_y));
-
-    textureStore(output_texture, vec2<i32>(i32(gid.x), i32(gid.y)), interpolated);
+    let index_out : u32 = (gid.y * width + gid.x) * 4u;
+    output_buffer[index_out] = result.r;
+    output_buffer[index_out + 1u] = result.g;
+    output_buffer[index_out + 2u] = result.b;
+    output_buffer[index_out + 3u] = 1.0;
 }

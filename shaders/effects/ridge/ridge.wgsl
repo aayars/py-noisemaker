@@ -26,7 +26,8 @@ fn as_u32(value : f32) -> u32 {
 
 fn ridge_transform(value : vec4<f32>) -> vec4<f32> {
     let scaled : vec4<f32> = value * RIDGE_SCALE - vec4<f32>(RIDGE_OFFSET);
-    return clamp(vec4<f32>(1.0) - abs(scaled), vec4<f32>(0.0), vec4<f32>(1.0));
+    let result : vec4<f32> = vec4<f32>(1.0) - abs(scaled);
+    return clamp(result, vec4<f32>(0.0), vec4<f32>(1.0));
 }
 
 fn write_pixel(base_index : u32, color : vec4<f32>) {
@@ -50,8 +51,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
     let pixel_index : u32 = gid.y * width + gid.x;
     let base_index : u32 = pixel_index * CHANNEL_COUNT;
+    
+    // Apply ridge transform
     let ridged : vec4<f32> = ridge_transform(texel);
-    // Preserve alpha from source if present, otherwise default to 1
-    let out_color : vec4<f32> = vec4<f32>(ridged.xyz, select(1.0, texel.w, texel.w > 0.0));
+    let out_color : vec4<f32> = vec4<f32>(ridged.xyz, 1.0);
+    
     write_pixel(base_index, out_color);
 }

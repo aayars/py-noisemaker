@@ -11,9 +11,9 @@
       "kind": "sampledTexture",
       "format": "rgba32float"
     },
-    "output_texture": {
-      "kind": "storageTexture",
-      "format": "rgba32float"
+    "output_buffer": {
+      "kind": "storageBuffer",
+      "size": "pixel-f32x4"
     },
     "params": {
       "kind": "uniformBuffer",

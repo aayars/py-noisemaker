@@ -1,5 +1,4 @@
-// Reindex remaps pixels along a monotonic index derived from value_map(), mirroring
-// noisemaker.effects.reindex(). Optimized for parallel execution.
+// Reindex Pass 3 (Apply): Apply reindexing using computed min/max from stats_buffer
 
 struct ReindexParams {
     width_height_channels_displacement : vec4<f32>,
@@ -11,9 +10,10 @@ const CHANNEL_COUNT : u32 = 4u;
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : ReindexParams;
+@group(0) @binding(3) var<storage, read_write> stats_buffer : array<f32>;
 
 fn as_u32(value : f32) -> u32 {
-    return u32(max(value, 0.0));
+    return u32(max(round(value), 0.0));
 }
 
 fn clamp01(value : f32) -> f32 {
@@ -82,17 +82,6 @@ fn write_pixel(base_index : u32, color : vec4<f32>) {
     output_buffer[base_index + 3u] = color.w;
 }
 
-fn float_to_sortable_uint(f : f32) -> u32 {
-    let bits : u32 = bitcast<u32>(f);
-    let mask : u32 = select(0xFFFFFFFFu, 0x80000000u, (bits & 0x80000000u) != 0u);
-    return bits ^ mask;
-}
-
-fn sortable_uint_to_float(u : u32) -> f32 {
-    let mask : u32 = select(0x80000000u, 0xFFFFFFFFu, (u & 0x80000000u) != 0u);
-    return bitcast<f32>(u ^ mask);
-}
-
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let width : u32 = as_u32(params.width_height_channels_displacement.x);
@@ -113,9 +102,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let texel : vec4<f32> = textureLoad(input_texture, coord, 0);
     let reference_value : f32 = value_map_component(texel);
     
-    // Use precomputed min/max from params (computed by effect.js)
-    let min_value : f32 = params.time_speed_minmax.z;
-    let max_value : f32 = params.time_speed_minmax.w;
+    // Read computed min/max from stats_buffer
+    let min_value : f32 = stats_buffer[0];
+    let max_value : f32 = stats_buffer[1];
     let range : f32 = max_value - min_value;
     
     var normalized : f32 = reference_value;
