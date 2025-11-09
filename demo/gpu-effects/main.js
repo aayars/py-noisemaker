@@ -1615,6 +1615,8 @@ async function getBufferToTexturePipeline(device) {
 let computeResources = null;
 let cachedReadbackBuffer = null;
 let cachedReadbackSize = 0;
+let cachedEffectReadbackBuffer = null;
+let cachedEffectReadbackSize = 0;
 
 async function compileShaderModuleWithValidation(device, code, { label } = {}) {
   const descriptor = label ? { code, label } : { code };
@@ -2495,6 +2497,7 @@ export {
   getActiveEffectMetadata,
   getActiveEffectUIState,
   createDefaultMultiresParams,
+  readActiveEffectOutputFloats,
 };
 
 // -------------------------------
@@ -2605,6 +2608,79 @@ async function readOutputTextureFloats() {
   return floats;
 }
 
+async function readActiveEffectOutputFloats() {
+  const { device } = await getWebGPUState();
+  const effectInstance = effectManager.activeEffectInstance;
+  const resources = effectInstance?.resources ?? null;
+  if (!resources || !resources.outputTexture) {
+    throw new Error('Active effect has no output texture available.');
+  }
+
+  const texture = resources.outputTexture;
+  const width = Math.max(1, resources.textureWidth ?? canvas.width);
+  const height = Math.max(1, resources.textureHeight ?? canvas.height);
+
+  const bytesPerPixel = 16;
+  const rowBytes = width * bytesPerPixel;
+  const paddedBytesPerRow = Math.ceil(rowBytes / 256) * 256;
+  const bufferSize = paddedBytesPerRow * height;
+
+  if (!cachedEffectReadbackBuffer || cachedEffectReadbackSize !== bufferSize) {
+    if (cachedEffectReadbackBuffer?.destroy) {
+      try {
+        cachedEffectReadbackBuffer.destroy();
+      } catch (error) {
+        logWarn('Failed to destroy effect readback buffer during resize:', error);
+      }
+    }
+    cachedEffectReadbackBuffer = device.createBuffer({
+      size: bufferSize,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    cachedEffectReadbackSize = bufferSize;
+  }
+
+  const readback = cachedEffectReadbackBuffer;
+
+  const encoder = device.createCommandEncoder();
+  encoder.copyTextureToBuffer(
+    { texture },
+    { buffer: readback, bytesPerRow: paddedBytesPerRow, rowsPerImage: height },
+    { width, height, depthOrArrayLayers: 1 },
+  );
+  device.queue.submit([encoder.finish()]);
+
+  try {
+    await device.queue.onSubmittedWorkDone();
+  } catch (error) {
+    logWarn('queue.onSubmittedWorkDone failed during effect readback; proceeding anyway:', error?.message ?? error);
+  }
+
+  let mapSucceeded = false;
+  try {
+    await readback.mapAsync(GPUMapMode.READ);
+    mapSucceeded = true;
+  } catch (error) {
+    logWarn('Effect readback mapAsync failed; returning zero-filled fallback:', error?.message ?? error);
+  }
+
+  if (!mapSucceeded) {
+    return new Float32Array((rowBytes * height) >> 2);
+  }
+
+  const mapped = readback.getMappedRange();
+  const tight = new ArrayBuffer(rowBytes * height);
+  const tightView = new Uint8Array(tight);
+  const src = new Uint8Array(mapped);
+  for (let y = 0; y < height; y += 1) {
+    const srcOffset = y * paddedBytesPerRow;
+    const dstOffset = y * rowBytes;
+    tightView.set(src.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+  }
+  readback.unmap();
+  return new Float32Array(tight);
+}
+
 // Returns a SHA-256 checksum of the generator output texture (pre-blit).
 // Swapchain textures cannot be copied on most implementations, so hashing the
 // storage texture is the deterministic alternative. Callers may pass
@@ -2638,6 +2714,7 @@ if (typeof window !== 'undefined') {
     compileShader,
     runMultiresOnce,
     getOutputTextureHash,
+    readActiveEffectOutputFloats,
     updateParams,
     setActiveEffect,
     updateActiveEffectParams,

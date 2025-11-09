@@ -70,9 +70,13 @@
     }
   ],
   "parameterBindings": {
-    "a": "params.a",
-    "b": "params.b",
-    "time": "params.time",
-    "speed": "params.speed"
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "a": { "buffer": "params", "offset": 3 },
+    "b": { "buffer": "params", "offset": 4 },
+    "time": { "buffer": "params", "offset": 5 },
+    "speed": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
   }
 }

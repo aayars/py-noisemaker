@@ -2,8 +2,14 @@
 // This mirrors noisemaker.effects.sine, with optional RGB mode for multi-channel data.
 
 struct SineParams {
-    size : vec4<f32>,   // width, height, channels, amount
-    anim : vec4<f32>,   // time, speed, rgb toggle, _pad0
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    amount : f32,
+    time : f32,
+    speed : f32,
+    rgb : f32,
+    _pad0 : f32,
 };
 
 const CHANNEL_COUNT : u32 = 4u;
@@ -71,8 +77,8 @@ fn apply_sine(texel : vec4<f32>, amount : f32, channel_count : u32, use_rgb : bo
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let width : u32 = as_u32(params.size.x);
-    let height : u32 = as_u32(params.size.y);
+    let width : u32 = as_u32(params.width);
+    let height : u32 = as_u32(params.height);
     if (gid.x >= width || gid.y >= height) {
         return;
     }
@@ -81,9 +87,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
     let pixel_index : u32 = gid.y * width + gid.x;
     let base_index : u32 = pixel_index * CHANNEL_COUNT;
-    let amount : f32 = params.size.w;
-    let use_rgb : bool = params.anim.z > 0.5;
-    let channel_count : u32 = sanitized_channel_count(params.size.z);
+    let amount : f32 = params.amount;
+    let use_rgb : bool = params.rgb > 0.5;
+    let channel_count : u32 = sanitized_channel_count(params.channel_count);
 
     let result : vec4<f32> = apply_sine(texel, amount, channel_count, use_rgb);
     write_pixel(base_index, result);

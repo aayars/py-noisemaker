@@ -60,8 +60,12 @@
     }
   ],
   "parameterBindings": {
-    "alpha": "params.alpha",
-    "time": "params.time",
-    "speed": "params.speed"
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "alpha": { "buffer": "params", "offset": 3 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "enabled": { "kind": "toggle" }
   }
 }

@@ -31,9 +31,9 @@
     {
       "name": "amount",
       "type": "float",
-      "default": 1.0,
+      "default": 3.0,
       "min": 0.0,
-      "max": 10.0,
+      "max": 20.0,
       "step": 0.1,
       "label": "Amount",
       "description": "Sine wave amplitude."
@@ -67,9 +67,13 @@
     }
   ],
   "parameterBindings": {
-    "amount": "params.amount",
-    "rgb": "params.rgb",
-    "time": "params.time",
-    "speed": "params.speed"
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "amount": { "buffer": "params", "offset": 3 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "rgb": { "buffer": "params", "offset": 6 },
+    "enabled": { "kind": "toggle" }
   }
 }

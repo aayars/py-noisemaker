@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const isMac = process.platform === 'darwin';
+
 export default defineConfig({
   testDir: './test',
   fullyParallel: false,
@@ -27,7 +29,7 @@ export default defineConfig({
             '--enable-features=Vulkan',
             '--enable-webgpu-developer-features',
             '--disable-gpu-sandbox',
-            '--use-angle=vulkan',
+            isMac ? '--use-angle=metal' : '--use-angle=vulkan',
           ],
         },
       },

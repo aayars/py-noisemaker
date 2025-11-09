@@ -52,12 +52,14 @@ import rotateMeta from '../../shaders/effects/rotate/meta.json' with { type: 'js
 import scanlineErrorMeta from '../../shaders/effects/scanline_error/meta.json' with { type: 'json' };
 import scratchesMeta from '../../shaders/effects/scratches/meta.json' with { type: 'json' };
 import shadowMeta from '../../shaders/effects/shadow/meta.json' with { type: 'json' };
+import { additionalPasses as shadowPasses } from '../../shaders/effects/shadow/effect.js';
 import simpleFrameMeta from '../../shaders/effects/simple_frame/meta.json' with { type: 'json' };
 import sineMeta from '../../shaders/effects/sine/meta.json' with { type: 'json' };
 import sketchMeta from '../../shaders/effects/sketch/meta.json' with { type: 'json' };
 import smoothstepMeta from '../../shaders/effects/smoothstep/meta.json' with { type: 'json' };
 import snowMeta from '../../shaders/effects/snow/meta.json' with { type: 'json' };
 import sobelMeta from '../../shaders/effects/sobel/meta.json' with { type: 'json' };
+import { additionalPasses as sobelPasses } from '../../shaders/effects/sobel/effect.js';
 import spatterMeta from '../../shaders/effects/spatter/meta.json' with { type: 'json' };
 import spookyTickerMeta from '../../shaders/effects/spooky_ticker/meta.json' with { type: 'json' };
 import strayHairMeta from '../../shaders/effects/stray_hair/meta.json' with { type: 'json' };
@@ -142,12 +144,14 @@ const SHADER_MANIFEST = {
   scanline_error: metaToDescriptor(scanlineErrorMeta),
   scratches: metaToDescriptor(scratchesMeta),
   shadow: metaToDescriptor(shadowMeta),
+  ...shadowPasses,
   simple_frame: metaToDescriptor(simpleFrameMeta),
   sine: metaToDescriptor(sineMeta),
   sketch: metaToDescriptor(sketchMeta),
   smoothstep: metaToDescriptor(smoothstepMeta),
   snow: metaToDescriptor(snowMeta),
   sobel: metaToDescriptor(sobelMeta),
+  ...sobelPasses,
   spatter: metaToDescriptor(spatterMeta),
   spooky_ticker: metaToDescriptor(spookyTickerMeta),
   stray_hair: metaToDescriptor(strayHairMeta),
