@@ -1,0 +1,44 @@
+{
+  "id": "sobel",
+  "label": "Sobel",
+  "stage": "effect",
+  "shader": {
+    "entryPoint": "main",
+    "url": "/shaders/effects/sobel/sobel.wgsl"
+  },
+  "resources": {
+    "sobel_x_buffer": { "kind": "readOnlyStorageBuffer", "size": "pixel-f32x4" },
+    "sobel_y_buffer": { "kind": "readOnlyStorageBuffer", "size": "pixel-f32x4" },
+    "output_buffer": { "kind": "storageBuffer", "size": "pixel-f32x4" },
+    "params": { "kind": "uniformBuffer", "size": 32 }
+  },
+  "parameters": [
+    { "name": "enabled", "type": "boolean", "default": true, "label": "Enabled" },
+    {
+      "name": "dist_metric",
+      "type": "enum",
+      "default": 1,
+      "label": "Distance Metric",
+      "options": [
+        { "value": 1, "label": "Euclidean" },
+        { "value": 2, "label": "Manhattan" },
+        { "value": 3, "label": "Chebyshev" },
+        { "value": 4, "label": "Octagram" },
+        { "value": 101, "label": "Triangular" },
+        { "value": 102, "label": "Hexagram" },
+        { "value": 201, "label": "SDF" }
+      ]
+    },
+    { "name": "alpha", "type": "float", "default": 1.0, "min": 0, "max": 1, "step": 0.01, "label": "Alpha" }
+  ],
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "dist_metric": { "buffer": "params", "offset": 3 },
+    "alpha": { "buffer": "params", "offset": 5 },
+    "time": { "buffer": "params", "offset": 6 },
+    "speed": { "buffer": "params", "offset": 7 },
+    "enabled": { "kind": "toggle" }
+  }
+}
