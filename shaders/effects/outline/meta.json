@@ -7,37 +7,18 @@
     "url": "/shaders/effects/outline/outline.wgsl"
   },
   "resources": {
-    "input_texture": {
-      "kind": "sampledTexture",
-      "format": "rgba32float"
-    },
-    "output_buffer": {
-      "kind": "storageBuffer",
-      "size": "pixel-f32x4"
-    },
-    "params": {
-      "kind": "uniformBuffer",
-      "size": 32
-    },
-    "temp_buffer": {
-      "kind": "storageBuffer",
-      "size": "pixel-f32x4"
-    }
+    "input_texture": { "kind": "sampledTexture", "format": "rgba32float" },
+    "output_buffer": { "kind": "storageBuffer", "size": "pixel-f32x4" },
+    "params": { "kind": "uniformBuffer", "size": 32 },
+    "edges_texture": { "kind": "sampledTexture", "format": "rgba32float" }
   },
   "parameters": [
-    {
-      "name": "enabled",
-      "type": "boolean",
-      "default": true,
-      "label": "Enabled",
-      "description": "Toggle Sobel edge outlining."
-    },
+    { "name": "enabled", "type": "boolean", "default": true, "label": "Enabled" },
     {
       "name": "sobel_metric",
       "type": "enum",
       "default": 1,
       "label": "Sobel Metric",
-      "description": "Distance metric applied to Sobel gradients.",
       "options": [
         { "value": 1, "label": "Euclidean" },
         { "value": 2, "label": "Manhattan" },
@@ -48,20 +29,13 @@
         { "value": 201, "label": "SDF" }
       ]
     },
-    {
-      "name": "invert",
-      "type": "boolean",
-      "default": false,
-      "label": "Invert",
-      "description": "Invert the edge mask before compositing."
-    }
+    { "name": "invert", "type": "boolean", "default": false, "label": "Invert" }
   ],
   "parameterBindings": {
     "width": { "buffer": "params", "offset": 0 },
     "height": { "buffer": "params", "offset": 1 },
     "channel_count": { "buffer": "params", "offset": 2 },
-    "sobel_metric": { "buffer": "params", "offset": 4 },
-    "invert": { "buffer": "params", "offset": 5 },
+    "invert": { "buffer": "params", "offset": 3 },
     "time": { "buffer": "params", "offset": 6 },
     "speed": { "buffer": "params", "offset": 7 },
     "enabled": { "kind": "toggle" }

@@ -48,8 +48,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **smoothstep**
 [[ DONE ]] **snow**
 [[ DONE ]] **sobel_operator**
-[[ WIP ]] **glowing_edges**
-[[ TODO ]] **outline**
+[[ DONE ]] **glowing_edges**
+[[ WIP ]] **outline**
 [[ TODO ]] **spooky_ticker**
 [[ TODO ]] **texture**
 [[ TODO ]] **tint**
