@@ -47,8 +47,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **sine**
 [[ DONE ]] **smoothstep**
 [[ DONE ]] **snow**
-[[ WIP ]] **sobel_operator**
-[[ TODO ]] **glowing_edges**
+[[ DONE ]] **sobel_operator**
+[[ WIP ]] **glowing_edges**
 [[ TODO ]] **outline**
 [[ TODO ]] **spooky_ticker**
 [[ TODO ]] **texture**

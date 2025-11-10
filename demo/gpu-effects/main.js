@@ -539,7 +539,8 @@ effectManager.registerEffect({
   id: sobelMetadata.id,
   label: sobelMetadata.label,
   metadata: sobelMetadata,
-  loadModule: () => import('../../shaders/effects/sobel/effect.js'),
+  // Add a cache-busting query to force reload of the Sobel effect module when updated
+  loadModule: () => import('../../shaders/effects/sobel/effect.js?v=2'),
 });
 
 effectManager.registerEffect({

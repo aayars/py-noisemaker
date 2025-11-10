@@ -59,7 +59,8 @@ import sketchMeta from '../../shaders/effects/sketch/meta.json' with { type: 'js
 import smoothstepMeta from '../../shaders/effects/smoothstep/meta.json' with { type: 'json' };
 import snowMeta from '../../shaders/effects/snow/meta.json' with { type: 'json' };
 import sobelMeta from '../../shaders/effects/sobel/meta.json' with { type: 'json' };
-import { additionalPasses as sobelPasses } from '../../shaders/effects/sobel/effect.js';
+// Cache-bust Sobel effect module import to ensure fresh module is used across reloads
+import { additionalPasses as sobelPasses } from '../../shaders/effects/sobel/effect.js?v=2';
 import spatterMeta from '../../shaders/effects/spatter/meta.json' with { type: 'json' };
 import spookyTickerMeta from '../../shaders/effects/spooky_ticker/meta.json' with { type: 'json' };
 import strayHairMeta from '../../shaders/effects/stray_hair/meta.json' with { type: 'json' };
