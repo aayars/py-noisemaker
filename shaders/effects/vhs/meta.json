@@ -27,7 +27,34 @@
       "default": true,
       "label": "Enabled",
       "description": "Toggle the VHS tracking effect on or off."
+    },
+    {
+      "name": "time",
+      "type": "float",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "label": "Time",
+      "description": "Animation time value."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
     }
   ],
-  "parameterBindings": {}
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "time": { "buffer": "params", "offset": 4 },
+    "speed": { "buffer": "params", "offset": 5 },
+    "enabled": { "kind": "toggle" }
+  }
 }
