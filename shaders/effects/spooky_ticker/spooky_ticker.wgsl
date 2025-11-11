@@ -293,6 +293,17 @@ fn mask_multiplier(mask_type : u32, mask_width : i32) -> i32 {
     return 8;
 }
 
+fn mask_padding(mask_type : u32, glyph_width : i32) -> i32 {
+    if (glyph_width <= 0) {
+        return 0;
+    }
+    if (mask_type == MASK_BAR_CODE || mask_type == MASK_BAR_CODE_SHORT) {
+        return 0;
+    }
+    // Fixed single trailing pixel gap to mirror Python kerning behaviour.
+    return 1;
+}
+
 fn digital_pattern(mask_type : u32, glyph_seed : u32) -> u32 {
     if (mask_type == MASK_ALPHANUM_HEX || mask_type == MASK_FAT_LCD_HEX) {
         let index : u32 = random_u32(glyph_seed, 23u) % 16u;
@@ -445,6 +456,31 @@ fn sample_mask_pattern(
     }
 }
 
+fn sample_padded_mask(
+    mask_type : u32,
+    padded_x : i32,
+    mask_y : i32,
+    glyph_width : i32,
+    mask_height : i32,
+    glyph_padding : i32,
+    glyph_seed : u32,
+    row_seed : u32,
+) -> f32 {
+    if (glyph_width <= 0) {
+        return 0.0;
+    }
+    if (padded_x < 0) {
+        return 0.0;
+    }
+    if (glyph_padding > 0 && padded_x >= glyph_width && padded_x < glyph_width + glyph_padding) {
+        return 0.0;
+    }
+    if (padded_x >= glyph_width + glyph_padding) {
+        return 0.0;
+    }
+    return sample_mask_pattern(mask_type, padded_x, mask_y, glyph_width, mask_height, glyph_seed, row_seed);
+}
+
 fn ticker_mask(
     coord_x : i32,
     coord_y : i32,
@@ -507,32 +543,52 @@ fn ticker_mask(
             // Quantize to be evenly divisible by mask width (matches Python line 3007)
             let quantized_width : i32 = shape.width * max(1, base_width / shape.width);
             var repeats : i32 = max(1, quantized_width / max(shape.width, 1));
-            let row_width : i32 = shape.width * repeats;
+            let glyph_width : i32 = max(shape.width, 1);
+            let glyph_padding : i32 = mask_padding(mask_type, glyph_width);
+            let padded_glyph_width : i32 = max(glyph_width + glyph_padding, 1);
+            let row_width : i32 = padded_glyph_width * repeats;
             let row_width_f : f32 = max(f32(row_width), 1.0);
             let width_f : f32 = max(f32(width), 1.0);
 
             // Each row scrolls independently, with speed proportional to character width
             let row_speed_factor : f32 = random_float(row_seed, 199u) * 0.5 + 0.75; // 0.75 to 1.25
-            let width_factor : f32 = f32(shape.width) / 6.0; // Normalize to typical width of ~6
+            let width_factor : f32 = f32(glyph_width) / 6.0; // Normalize to typical width of ~6
             let scroll_offset : f32 = time_value * speed_value * row_width_f * row_speed_factor * width_factor;
-            
+
             let sample_x_f : f32 = (f32(coord_x) + 0.5) / width_f * row_width_f;
-            // Smooth sub-pixel scrolling
-            let scrolled_x : f32 = sample_x_f - scroll_offset;
+            // Smooth sub-pixel scrolling; positive offset scrolls content to the left.
+            let scrolled_x : f32 = sample_x_f + scroll_offset;
             let wrapped_x : f32 = scrolled_x - floor(scrolled_x / row_width_f) * row_width_f;
             var sample_x : i32 = i32(floor(wrapped_x));
             let frac_x : f32 = fract(wrapped_x);
-            let glyph_width : i32 = max(shape.width, 1);
-            let glyph_index : i32 = clamp_i32(sample_x / glyph_width, 0, max(row_width / glyph_width - 1, 0));
-            let local_x : i32 = sample_x % glyph_width;
+            let glyph_index : i32 = clamp_i32(sample_x / padded_glyph_width, 0, max(repeats - 1, 0));
+            let local_x : i32 = sample_x % padded_glyph_width;
 
             let glyph_seed : u32 = combine_seed(row_seed, u32(glyph_index) * 131u + 17u);
             
             // Sample current and next x position for horizontal interpolation
-            let value00 : f32 = sample_mask_pattern(mask_type, local_x, mask_y0, shape.width, shape.height, glyph_seed, row_seed);
-            let value01 : f32 = sample_mask_pattern(mask_type, (local_x + 1) % shape.width, mask_y0, shape.width, shape.height, glyph_seed, row_seed);
-            let value10 : f32 = sample_mask_pattern(mask_type, local_x, mask_y1, shape.width, shape.height, glyph_seed, row_seed);
-            let value11 : f32 = sample_mask_pattern(mask_type, (local_x + 1) % shape.width, mask_y1, shape.width, shape.height, glyph_seed, row_seed);
+            let value00 : f32 = sample_padded_mask(mask_type, local_x, mask_y0, glyph_width, shape.height, glyph_padding, glyph_seed, row_seed);
+            let value01 : f32 = sample_padded_mask(
+                mask_type,
+                (local_x + 1) % padded_glyph_width,
+                mask_y0,
+                glyph_width,
+                shape.height,
+                glyph_padding,
+                glyph_seed,
+                row_seed,
+            );
+            let value10 : f32 = sample_padded_mask(mask_type, local_x, mask_y1, glyph_width, shape.height, glyph_padding, glyph_seed, row_seed);
+            let value11 : f32 = sample_padded_mask(
+                mask_type,
+                (local_x + 1) % padded_glyph_width,
+                mask_y1,
+                glyph_width,
+                shape.height,
+                glyph_padding,
+                glyph_seed,
+                row_seed,
+            );
             
             // Bilinear interpolation for smooth scrolling
             let value_y0 : f32 = lerp_f32(value00, value01, frac_x);
@@ -582,8 +638,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     );
     let alpha : f32 = clamp(0.5 + random_float(base_seed, 197u) * 0.25, 0.0, 1.0);
 
-    let mask_val : f32 = ticker_mask(coords.x, coords.y, width_i, height_i, base_seed, params.time, params.speed);
-    let offset_mask : f32 = ticker_mask(coords.x - 1, coords.y - 1, width_i, height_i, base_seed, params.time, params.speed);
+    // Flip Y so ticker rows anchor to the bottom of the final image instead of the top.
+    let ticker_y : i32 = height_i - 1 - coords.y;
+    let mask_val : f32 = ticker_mask(coords.x, ticker_y, width_i, height_i, base_seed, params.time, params.speed);
+    let offset_mask : f32 = ticker_mask(coords.x - 1, ticker_y + 1, width_i, height_i, base_seed, params.time, params.speed);
 
     let offset_value_r : f32 = src.x - offset_mask;
     let offset_value_g : f32 = src.y - offset_mask;
