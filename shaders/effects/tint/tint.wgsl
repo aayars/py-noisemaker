@@ -1,5 +1,11 @@
-// Tint effect: remap hue using noise-driven random offsets and blend with the source.
+// Tint effect: remap hue with deterministic RNG and blend with the source.
 // Mirrors ``noisemaker.effects.tint``.
+
+const CHANNEL_COUNT : u32 = 4u;
+const ZERO_RGB : vec3<f32> = vec3<f32>(0.0);
+const ONE_RGB : vec3<f32> = vec3<f32>(1.0);
+const ONE_THIRD : f32 = 1.0 / 3.0;
+const UINT32_SCALE : f32 = 1.0 / 4294967296.0;
 
 struct TintParams {
     width : f32,
@@ -8,8 +14,8 @@ struct TintParams {
     time : f32,
     speed : f32,
     alpha : f32,
+    seed : f32,
     _pad0 : f32,
-    _pad1 : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -20,16 +26,45 @@ fn as_u32(value : f32) -> u32 {
     return u32(max(round(value), 0.0));
 }
 
-fn positive_fract(value : f32) -> f32 {
-    return value - floor(value);
-}
-
 fn clamp01(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
 
-fn clamp_vec3_01(value : vec3<f32>) -> vec3<f32> {
-    return clamp(value, vec3<f32>(0.0), vec3<f32>(1.0));
+fn positive_fract(value : f32) -> f32 {
+    return value - floor(value);
+}
+
+fn write_pixel(base_index : u32, rgb : vec3<f32>, alpha : f32) {
+    output_buffer[base_index + 0u] = rgb.x;
+    output_buffer[base_index + 1u] = rgb.y;
+    output_buffer[base_index + 2u] = rgb.z;
+    output_buffer[base_index + 3u] = alpha;
+}
+
+fn rotate_left(value : u32, shift : u32) -> u32 {
+    let amount : u32 = shift & 31u;
+    return (value << amount) | (value >> (32u - amount));
+}
+
+fn seed_from_params(p : TintParams) -> u32 {
+    let width_bits : u32 = bitcast<u32>(p.width);
+    let height_bits : u32 = bitcast<u32>(p.height);
+    let seed_bits : u32 = bitcast<u32>(p.seed);
+    var hash : u32 = 0x12345678u ^ width_bits;
+    hash = hash ^ rotate_left(height_bits ^ 0x9e3779b9u, 7u);
+    hash = hash ^ rotate_left(seed_bits ^ 0xc2b2ae35u, 3u);
+    return hash;
+}
+
+fn rng_next(state_ptr : ptr<function, u32>) -> f32 {
+    var state : u32 = *(state_ptr);
+    var t : u32 = state + 0x6d2b79f5u;
+    t = (t ^ (t >> 15u)) * (t | 1u);
+    t = t ^ (t + ((t ^ (t >> 7u)) * (t | 61u)));
+    let masked : u32 = t & 0xffffffffu;
+    *(state_ptr) = masked;
+    let sample : u32 = (t ^ (t >> 14u)) & 0xffffffffu;
+    return f32(sample) * UINT32_SCALE;
 }
 
 fn rgb_to_hsv(rgb : vec3<f32>) -> vec3<f32> {
@@ -87,14 +122,10 @@ fn hsv_to_rgb(hsv : vec3<f32>) -> vec3<f32> {
     return vec3<f32>(r, g, b);
 }
 
-fn hash11(value : f32) -> f32 {
-    return positive_fract(sin(value) * 43758.5453123);
-}
-
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
-    let width : u32 = as_u32(params.width);
-    let height : u32 = as_u32(params.height);
+    let width : u32 = max(as_u32(params.width), 1u);
+    let height : u32 = max(as_u32(params.height), 1u);
     if (global_id.x >= width || global_id.y >= height) {
         return;
     }
@@ -102,39 +133,36 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
     let coords : vec2<i32> = vec2<i32>(i32(global_id.x), i32(global_id.y));
     let texel : vec4<f32> = textureLoad(input_texture, coords, 0);
     let pixel_index : u32 = global_id.y * width + global_id.x;
-    let base_index : u32 = pixel_index * 4u;
-    let has_alpha : bool = params.channels >= 4.0;
+    let base_index : u32 = pixel_index * CHANNEL_COUNT;
+
+    let channel_count : u32 = max(as_u32(params.channels), 1u);
+    let has_color : bool = channel_count >= 3u;
+    let has_alpha : bool = channel_count >= 4u;
     let base_alpha : f32 = select(1.0, texel.w, has_alpha);
 
-    if (params.channels < 3.0) {
-        output_buffer[base_index + 0u] = texel.x;
-        output_buffer[base_index + 1u] = texel.y;
-        output_buffer[base_index + 2u] = texel.z;
-        output_buffer[base_index + 3u] = base_alpha;
+    if (!has_color) {
+        write_pixel(base_index, clamp(texel.xyz, ZERO_RGB, ONE_RGB), base_alpha);
         return;
     }
 
-    let base_rgb : vec3<f32> = texel.xyz;
+    let blend_alpha : f32 = clamp01(params.alpha);
+    if (blend_alpha <= 0.0) {
+        write_pixel(base_index, clamp(texel.xyz, ZERO_RGB, ONE_RGB), base_alpha);
+        return;
+    }
 
-    let seed_basis : f32 = params.width * 12.9898 + params.height * 78.233
-        + params.time * 37.719 + params.speed * 53.123;
-    let random_a : f32 = hash11(seed_basis);
-    let random_b : f32 = hash11(seed_basis + 17.0);
+    var rng_state : u32 = seed_from_params(params);
+    let random_a : f32 = rng_next(&rng_state);
+    let random_b : f32 = rng_next(&rng_state);
 
-    let hue_source : f32 = base_rgb.x * 0.333 + random_a * 0.333 + random_b;
+    let base_rgb : vec3<f32> = clamp(texel.xyz, ZERO_RGB, ONE_RGB);
+    let hue_source : f32 = base_rgb.x * ONE_THIRD + random_a * ONE_THIRD + random_b;
     let hue : f32 = positive_fract(hue_source);
 
     let base_hsv : vec3<f32> = rgb_to_hsv(base_rgb);
-    let value_component : f32 = base_hsv.z;
+    let tinted_hsv : vec3<f32> = vec3<f32>(hue, clamp01(base_rgb.y), clamp01(base_hsv.z));
+    let tinted_rgb : vec3<f32> = clamp(hsv_to_rgb(tinted_hsv), ZERO_RGB, ONE_RGB);
 
-    let tinted_hsv : vec3<f32> = vec3<f32>(hue, clamp01(base_rgb.y), value_component);
-    let tinted_rgb : vec3<f32> = clamp_vec3_01(hsv_to_rgb(tinted_hsv));
-
-    let alpha : f32 = clamp01(params.alpha);
-    let blended : vec3<f32> = base_rgb * (1.0 - alpha) + tinted_rgb * alpha;
-
-    output_buffer[base_index + 0u] = blended.x;
-    output_buffer[base_index + 1u] = blended.y;
-    output_buffer[base_index + 2u] = blended.z;
-    output_buffer[base_index + 3u] = base_alpha;
+    let blended_rgb : vec3<f32> = mix(base_rgb, tinted_rgb, vec3<f32>(blend_alpha));
+    write_pixel(base_index, blended_rgb, base_alpha);
 }

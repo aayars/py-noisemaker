@@ -2299,6 +2299,7 @@ async function runMultiresGenerator(options = {}) {
     const heightOffset = bindingOffsets.height;
     const channelCountOffset = bindingOffsets.channelCount;
     const timeOffset = bindingOffsets.time;
+  const seedOffset = bindingOffsets.seed;
 
     if (Number.isInteger(widthOffset) && effectParams[widthOffset] !== canvas.width) {
       effectParams[widthOffset] = canvas.width;
@@ -2326,6 +2327,14 @@ async function runMultiresGenerator(options = {}) {
       effectResources.paramsDirty = true;
     } else if (!Number.isInteger(timeOffset)) {
       logWarn('Active effect metadata missing time binding offset; skipping time update.');
+    }
+
+    if (Number.isInteger(seedOffset)) {
+      const seedValue = Number(seed);
+      if (effectParams[seedOffset] !== seedValue) {
+        effectParams[seedOffset] = seedValue;
+        effectResources.paramsDirty = true;
+      }
     }
 
     if (effectResources.paramsDirty && effectResources.paramsBuffer) {
