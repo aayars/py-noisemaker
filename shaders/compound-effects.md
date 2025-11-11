@@ -55,9 +55,9 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **tint**
 [[ DONE ]] **nebula**
 [[ SKIP ]] **value_refract**
-[[ WIP ]] **vaseline**
-[[ TODO ]] **vhs**
-[[ TODO ]] **vignette**
+[[ DONE ]] **vaseline**
+[[ DONE ]] **vhs**
+[[ WIP ]] **vignette**
 [[ TODO ]] **crt**
 [[ TODO ]] **voronoi**
 [[ TODO ]] **kaleido**
