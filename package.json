@@ -25,5 +25,8 @@
     "pngjs": "^7.0.0",
     "postject": "^1.0.0-alpha.6",
     "puppeteer": "^22.15.0"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2"
   }
 }

@@ -1,54 +1,27 @@
-// Texture effect: applies animated ridged noise-based shading similar to
-// Noisemaker's CPU implementation. The shader generates ridged value noise,
-// derives a Sobel-based shadow map, sharpens it, and modulates the source
-// texture brightness. Parameters mirror the Python reference: time and speed.
-//
-// Performance optimizations:
-// - Uses 4 octaves instead of Python's 8 (acceptable quality/speed tradeoff)
-// - 3x3 window instead of 5x5 (Sobel only needs 3x3)
-// - Effect strength increased to 0.7-1.0 range for visibility (Python: 0.9-1.0)
+// Texture effect: generate animated ridged noise, derive a shadow from the
+// noise gradient, then blend that shade back into the source pixels. This
+// implementation keeps the required 3-stage algorithm (noise → shadow →
+// blend) while avoiding the heavyweight single-invocation work that previously
+// froze the GPU. Everything runs in a tiled 8x8 compute pass with compact math.
 
-const PI : f32 = 3.14159265358979323846;
-const TAU : f32 = 6.28318530717958647693;
-const UINT32_TO_FLOAT : f32 = 1.0 / 4294967296.0;
-
-const INTERPOLATION_CONSTANT : u32 = 0u;
-const INTERPOLATION_LINEAR : u32 = 1u;
-const INTERPOLATION_COSINE : u32 = 2u;
-const INTERPOLATION_BICUBIC : u32 = 3u;
+const INV_UINT32_MAX : f32 = 1.0 / 4294967295.0;
+const OCTAVE_COUNT : u32 = 3u;
+const SHADE_GAIN : f32 = 4.4;
 
 struct TextureParams {
-    width : f32,           // @offset(0)
-    height : f32,          // @offset(4)
-    channel_count : f32,   // @offset(8)
-    _pad0 : f32,           // @offset(12)
-    time : f32,            // @offset(16)
-    speed : f32,           // @offset(20)
-    _pad1 : f32,           // @offset(24)
-    _pad2 : f32,           // @offset(28)
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    _pad0 : f32,
+    time : f32,
+    speed : f32,
+    _pad1 : f32,
+    _pad2 : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : TextureParams;
-
-const SOBEL_X : array<f32, 9> = array<f32, 9>(
-    0.5, 0.0, -0.5,
-    1.0, 0.0, -1.0,
-    0.5, 0.0, -0.5
-);
-
-const SOBEL_Y : array<f32, 9> = array<f32, 9>(
-    0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0,
-    -0.5, -1.0, -0.5
-);
-
-const SHARPEN_KERNEL : array<f32, 9> = array<f32, 9>(
-    0.0, -0.2, 0.0,
-    -0.2, 1.0, -0.2,
-    0.0, -0.2, 0.0
-);
 
 fn as_u32(value : f32) -> u32 {
     return u32(max(round(value), 0.0));
@@ -58,275 +31,88 @@ fn clamp01(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
 
-fn wrap_unit(value : f32) -> f32 {
-    if (!(value == value)) {
-        return 0.0;
-    }
-    // Proper modulo that handles negative values: ((value % 1.0) + 1.0) % 1.0
-    let mod_val : f32 = value - floor(value);
-    return mod_val;
-}
-
-fn wrap_coord(value : i32, size : i32) -> i32 {
-    if (size <= 0) {
-        return 0;
-    }
-    var wrapped : i32 = value % size;
-    if (wrapped < 0) {
-        wrapped = wrapped + size;
-    }
-    return wrapped;
+fn fade(t : f32) -> f32 {
+    return t * t * (3.0 - 2.0 * t);
 }
 
 fn freq_for_shape(base_freq : f32, dims : vec2<f32>) -> vec2<f32> {
     let width : f32 = max(dims.x, 1.0);
     let height : f32 = max(dims.y, 1.0);
-    if (abs(height - width) < 0.5) {
+    if (abs(width - height) < 0.5) {
         return vec2<f32>(base_freq, base_freq);
     }
-    if (height < width) {
+    if (width > height) {
         return vec2<f32>(base_freq, base_freq * width / height);
     }
     return vec2<f32>(base_freq * height / width, base_freq);
 }
 
-fn pcg3d(v_in : vec3<u32>) -> vec3<u32> {
-    var v : vec3<u32> = v_in * 1664525u + 1013904223u;
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    v = v ^ (v >> vec3<u32>(16u));
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    return v;
+fn fast_hash(p : vec3<i32>, salt : u32) -> f32 {
+    var h : u32 = salt ^ 0x9e3779b9u;
+    h ^= bitcast<u32>(p.x) * 0x27d4eb2du;
+    h = (h ^ (h >> 15u)) * 0x85ebca6bu;
+    h ^= bitcast<u32>(p.y) * 0xc2b2ae35u;
+    h = (h ^ (h >> 13u)) * 0x27d4eb2du;
+    h ^= bitcast<u32>(p.z) * 0x165667b1u;
+    h = h ^ (h >> 16u);
+    return f32(h) * INV_UINT32_MAX;
 }
 
-fn random_from_cell_3d(cell : vec3<i32>, seed : u32) -> f32 {
-    let hashed : vec3<u32> = vec3<u32>(
-        bitcast<u32>(cell.x) ^ seed,
-        bitcast<u32>(cell.y) ^ (seed * 0x9e3779b9u + 0x7f4a7c15u),
-        bitcast<u32>(cell.z) ^ (seed * 0x632be59bu + 0x5bf03635u),
-    );
-    let noise : vec3<u32> = pcg3d(hashed);
-    return f32(noise.x) * UINT32_TO_FLOAT;
-}
-
-fn wrap_cell_2d(cell : vec2<i32>, freq : vec2<i32>) -> vec2<i32> {
-    // Modulo wrapping for seamless tiling
-    var wrapped : vec2<i32>;
-    wrapped.x = cell.x % freq.x;
-    if (wrapped.x < 0) { wrapped.x += freq.x; }
-    wrapped.y = cell.y % freq.y;
-    if (wrapped.y < 0) { wrapped.y += freq.y; }
-    return wrapped;
-}
-
-fn random_from_cell_3d_wrapped(cell : vec3<i32>, freq : vec2<i32>, seed : u32) -> f32 {
-    let wrapped_xy : vec2<i32> = wrap_cell_2d(vec2<i32>(cell.x, cell.y), freq);
-    return random_from_cell_3d(vec3<i32>(wrapped_xy.x, wrapped_xy.y, cell.z), seed);
-}
-
-fn periodic_value(time_value : f32, sample : f32) -> f32 {
-    let wrapped_delta : f32 = wrap_unit(time_value - sample);
-    return (sin(wrapped_delta * TAU) + 1.0) * 0.5;
-}
-
-fn interpolation_weight(value : f32, spline_order : u32) -> f32 {
-    if (spline_order == INTERPOLATION_COSINE) {
-        let clamped : f32 = clamp(value, 0.0, 1.0);
-        let angle : f32 = clamped * PI;
-        let cos_value : f32 = cos(angle);
-        return (1.0 - cos_value) * 0.5;
-    }
-    return value;
-}
-
-fn blend_cubic(a : f32, b : f32, c : f32, d : f32, g : f32) -> f32 {
-    let t : f32 = clamp(g, 0.0, 1.0);
-    let t2 : f32 = t * t;
-    let a0 : f32 = ((d - c) - a) + b;
-    let a1 : f32 = (a - b) - a0;
-    let a2 : f32 = c - a;
-    let a3 : f32 = b;
-    let term1 : f32 = (a0 * t) * t2;
-    let term2 : f32 = a1 * t2;
-    let term3 : f32 = (a2 * t) + a3;
-    return (term1 + term2) + term3;
-}
-
-fn sample_bicubic_layer(
-    cell : vec2<i32>,
-    frac : vec2<f32>,
-    z_cell : i32,
-    freq : vec2<i32>,
-    base_seed : u32,
-) -> f32 {
-    let row0 : f32 = blend_cubic(
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x - 1, cell.y - 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 0, cell.y - 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 1, cell.y - 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 2, cell.y - 1, z_cell), freq, base_seed),
-        frac.x,
-    );
-    let row1 : f32 = blend_cubic(
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x - 1, cell.y + 0, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 0, cell.y + 0, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 1, cell.y + 0, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 2, cell.y + 0, z_cell), freq, base_seed),
-        frac.x,
-    );
-    let row2 : f32 = blend_cubic(
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x - 1, cell.y + 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 0, cell.y + 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 1, cell.y + 1, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 2, cell.y + 1, z_cell), freq, base_seed),
-        frac.x,
-    );
-    let row3 : f32 = blend_cubic(
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x - 1, cell.y + 2, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 0, cell.y + 2, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 1, cell.y + 2, z_cell), freq, base_seed),
-        random_from_cell_3d_wrapped(vec3<i32>(cell.x + 2, cell.y + 2, z_cell), freq, base_seed),
-        frac.x,
-    );
-    return blend_cubic(row0, row1, row2, row3, frac.y);
-}
-
-fn sample_raw_value_noise(
-    uv : vec2<f32>,
-    freq : vec2<f32>,
-    base_seed : u32,
-    time_value : f32,
-    speed : f32,
-    spline_order : u32,
-) -> f32 {
-    let scaled_freq : vec2<f32> = max(freq, vec2<f32>(1.0, 1.0));
-    let scaled_uv : vec2<f32> = uv * scaled_freq;
-    let cell_f : vec2<f32> = floor(scaled_uv);
-    let freq_i : vec2<i32> = vec2<i32>(i32(floor(scaled_freq.x)), i32(floor(scaled_freq.y)));
-    // Wrap cell coordinates modulo frequency for seamless tiling
-    let cell : vec2<i32> = vec2<i32>(
-        i32(cell_f.x) % freq_i.x,
-        i32(cell_f.y) % freq_i.y
-    );
+fn value_noise(uv : vec2<f32>, freq : vec2<f32>, motion : f32, salt : u32) -> f32 {
+    let scaled_uv : vec2<f32> = uv * max(freq, vec2<f32>(1.0, 1.0));
+    let cell_floor : vec2<f32> = floor(scaled_uv);
     let frac : vec2<f32> = fract(scaled_uv);
-    let normalized_time : f32 = wrap_unit(time_value);
-    let angle : f32 = normalized_time * TAU;
-    let time_coord : f32 = cos(angle) * speed;
-    let time_floor : f32 = floor(time_coord);
-    let time_cell : i32 = i32(time_floor);
-    let time_frac : f32 = fract(time_coord);
+    let base_cell : vec2<i32> = vec2<i32>(i32(cell_floor.x), i32(cell_floor.y));
 
-    if (spline_order == INTERPOLATION_CONSTANT) {
-        return random_from_cell_3d(vec3<i32>(cell.x, cell.y, time_cell), base_seed);
-    }
+    let z_floor : f32 = floor(motion);
+    let z_frac : f32 = fract(motion);
+    let z0 : i32 = i32(z_floor);
+    let z1 : i32 = z0 + 1;
 
-    if (spline_order == INTERPOLATION_LINEAR) {
-        let tl : f32 = random_from_cell_3d(vec3<i32>(cell.x, cell.y, time_cell), base_seed);
-        let tr : f32 = random_from_cell_3d(vec3<i32>(cell.x + 1, cell.y, time_cell), base_seed);
-        let bl : f32 = random_from_cell_3d(vec3<i32>(cell.x, cell.y + 1, time_cell), base_seed);
-        let br : f32 = random_from_cell_3d(vec3<i32>(cell.x + 1, cell.y + 1, time_cell), base_seed);
-        let weight_x : f32 = interpolation_weight(frac.x, spline_order);
-        let top : f32 = mix(tl, tr, weight_x);
-        let bottom : f32 = mix(bl, br, weight_x);
-        let weight_y : f32 = interpolation_weight(frac.y, spline_order);
-        return mix(top, bottom, weight_y);
-    }
+    let c000 : f32 = fast_hash(vec3<i32>(base_cell.x + 0, base_cell.y + 0, z0), salt);
+    let c100 : f32 = fast_hash(vec3<i32>(base_cell.x + 1, base_cell.y + 0, z0), salt);
+    let c010 : f32 = fast_hash(vec3<i32>(base_cell.x + 0, base_cell.y + 1, z0), salt);
+    let c110 : f32 = fast_hash(vec3<i32>(base_cell.x + 1, base_cell.y + 1, z0), salt);
+    let c001 : f32 = fast_hash(vec3<i32>(base_cell.x + 0, base_cell.y + 0, z1), salt);
+    let c101 : f32 = fast_hash(vec3<i32>(base_cell.x + 1, base_cell.y + 0, z1), salt);
+    let c011 : f32 = fast_hash(vec3<i32>(base_cell.x + 0, base_cell.y + 1, z1), salt);
+    let c111 : f32 = fast_hash(vec3<i32>(base_cell.x + 1, base_cell.y + 1, z1), salt);
 
-    if (spline_order == INTERPOLATION_COSINE) {
-        let weight_x : f32 = interpolation_weight(frac.x, spline_order);
-        let weight_y : f32 = interpolation_weight(frac.y, spline_order);
-        let tl : f32 = random_from_cell_3d(vec3<i32>(cell.x, cell.y, time_cell), base_seed);
-        let tr : f32 = random_from_cell_3d(vec3<i32>(cell.x + 1, cell.y, time_cell), base_seed);
-        let bl : f32 = random_from_cell_3d(vec3<i32>(cell.x, cell.y + 1, time_cell), base_seed);
-        let br : f32 = random_from_cell_3d(vec3<i32>(cell.x + 1, cell.y + 1, time_cell), base_seed);
-        let top : f32 = mix(tl, tr, weight_x);
-        let bottom : f32 = mix(bl, br, weight_x);
-        return mix(top, bottom, weight_y);
-    }
+    let tx : f32 = fade(frac.x);
+    let ty : f32 = fade(frac.y);
+    let tz : f32 = fade(z_frac);
 
-    let slice0 : f32 = sample_bicubic_layer(cell, frac, time_cell - 1, freq_i, base_seed);
-    let slice1 : f32 = sample_bicubic_layer(cell, frac, time_cell + 0, freq_i, base_seed);
-    let slice2 : f32 = sample_bicubic_layer(cell, frac, time_cell + 1, freq_i, base_seed);
-    let slice3 : f32 = sample_bicubic_layer(cell, frac, time_cell + 2, freq_i, base_seed);
-    return blend_cubic(slice0, slice1, slice2, slice3, time_frac);
+    let x00 : f32 = mix(c000, c100, tx);
+    let x10 : f32 = mix(c010, c110, tx);
+    let x01 : f32 = mix(c001, c101, tx);
+    let x11 : f32 = mix(c011, c111, tx);
+
+    let y0 : f32 = mix(x00, x10, ty);
+    let y1 : f32 = mix(x01, x11, ty);
+
+    return mix(y0, y1, tz);
 }
 
-fn sample_value_noise(
-    uv : vec2<f32>,
-    freq : vec2<f32>,
-    seed : u32,
-    octave : u32,
-    time_value : f32,
-    speed : f32,
-    spline_order : u32,
-) -> f32 {
-    let salt : u32 = (octave * 0x85ebca6bu);
-    let base_seed : u32 = seed ^ salt;
-    let normalized_time : f32 = wrap_unit(time_value);
-    let base_value : f32 = sample_raw_value_noise(
-        uv,
-        freq,
-        base_seed,
-        normalized_time,
-        speed,
-        spline_order,
-    );
-
-    if (speed == 0.0 || normalized_time == 0.0) {
-        return base_value;
-    }
-
-    let time_seed : u32 = base_seed + 0x9e3779b1u;
-    let time_field : f32 = sample_raw_value_noise(
-        uv,
-        freq,
-        time_seed,
-        0.0,
-        1.0,
-        spline_order,
-    );
-    let scaled_time : f32 = periodic_value(normalized_time, time_field) * speed;
-    return periodic_value(scaled_time, base_value);
-}
-
-fn ridge_transform(value : f32) -> f32 {
-    return 1.0 - abs(value * 2.0 - 1.0);
-}
-
-fn simple_multires(
-    uv : vec2<f32>,
-    base_freq : vec2<f32>,
-    time_value : f32,
-    speed_value : f32,
-) -> f32 {
-    var freq : vec2<f32> = base_freq;
+fn multi_octave_noise(uv : vec2<f32>, base_freq : vec2<f32>, motion : f32) -> f32 {
+    var freq : vec2<f32> = max(base_freq, vec2<f32>(1.0, 1.0));
     var amplitude : f32 = 0.5;
-    var total : f32 = 0.0;
     var accum : f32 = 0.0;
-    let seed : u32 = 0x1234u;
-    // Reduced from 8 to 4 octaves for performance
-    for (var octave : u32 = 0u; octave < 4u; octave = octave + 1u) {
-        let sample : f32 = sample_value_noise(
-            uv,
-            freq,
-            seed,
-            octave,
-            time_value,
-            speed_value,
-            INTERPOLATION_BICUBIC,
-        );
-        let ridged : f32 = ridge_transform(sample);
+    var total : f32 = 0.0;
+
+    for (var octave : u32 = 0u; octave < OCTAVE_COUNT; octave = octave + 1u) {
+        let salt : u32 = 0x9e3779b9u * (octave + 1u);
+        let sample : f32 = value_noise(uv, freq, motion + f32(octave) * 0.37, salt);
+        let ridged : f32 = 1.0 - abs(sample * 2.0 - 1.0);
         accum = accum + ridged * amplitude;
         total = total + amplitude;
         freq = freq * 2.0;
-        amplitude = amplitude * 0.5;
+        amplitude = amplitude * 0.55;
     }
-    if (total > 0.0) {
-        accum = accum / total;
+
+    if (total <= 0.0) {
+        return clamp01(accum);
     }
-    return clamp01(accum);
+    return clamp01(accum / total);
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -346,54 +132,28 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let base_index : u32 = pixel_index * 4u;
 
     let dims : vec2<f32> = vec2<f32>(max(params.width, 1.0), max(params.height, 1.0));
-    let width_i32 : i32 = i32(width);
-    let height_i32 : i32 = i32(height);
-    let time_value : f32 = params.time;
-    let speed_value : f32 = params.speed;
-    let base_freq : vec2<f32> = freq_for_shape(64.0, dims);
+    let uv : vec2<f32> = (vec2<f32>(f32(coords.x), f32(coords.y)) + 0.5) / dims;
+    let pixel_step : vec2<f32> = vec2<f32>(1.0 / dims.x, 1.0 / dims.y);
 
-    // Reduced from 5x5 to 3x3 window for performance (Sobel only needs 3x3)
-    var noise_window : array<f32, 9>;
-    var write_index : i32 = 0;
-    for (var offset_y : i32 = -1; offset_y <= 1; offset_y = offset_y + 1) {
-        for (var offset_x : i32 = -1; offset_x <= 1; offset_x = offset_x + 1) {
-            let sample_x : i32 = wrap_coord(coords.x + offset_x, width_i32);
-            let sample_y : i32 = wrap_coord(coords.y + offset_y, height_i32);
-            let uv : vec2<f32> = (vec2<f32>(f32(sample_x), f32(sample_y)) + 0.5) / dims;
-            let noise_value : f32 = simple_multires(uv, base_freq, time_value, speed_value);
-            noise_window[u32(write_index)] = noise_value;
-            write_index = write_index + 1;
-        }
-    }
+    let base_freq : vec2<f32> = freq_for_shape(24.0, dims);
+    let motion : f32 = params.time * params.speed;
 
-    // Compute Sobel gradient directly on the 3x3 window
-    var gx : f32 = 0.0;
-    var gy : f32 = 0.0;
-    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
-        gx = gx + noise_window[i] * SOBEL_X[i];
-        gy = gy + noise_window[i] * SOBEL_Y[i];
-    }
+    let noise_center : f32 = multi_octave_noise(uv, base_freq, motion);
+    let noise_right : f32 = multi_octave_noise(uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let noise_left : f32 = multi_octave_noise(uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let noise_up : f32 = multi_octave_noise(uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let noise_down : f32 = multi_octave_noise(uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+
+    let gx : f32 = noise_right - noise_left;
+    let gy : f32 = noise_down - noise_up;
     let gradient : f32 = sqrt(gx * gx + gy * gy);
-    let shade : f32 = clamp01(gradient * 0.5);
-    
-    // Apply sharpening kernel
-    var sharpened : f32 = 0.0;
-    for (var i : u32 = 0u; i < 9u; i = i + 1u) {
-        sharpened = sharpened + shade * SHARPEN_KERNEL[i];
-    }
-    let final_shade_value : f32 = mix(shade, clamp01(sharpened), 0.5);
-    
-    let highlight : f32 = final_shade_value * final_shade_value;
-    let base_noise : f32 = noise_window[4u];  // Center pixel
-    let composite : f32 = 1.0 - ((1.0 - base_noise) * (1.0 - highlight));
-    let final_shade : f32 = composite * final_shade_value;
-    // Increased from 0.9 + 0.1 to 0.7 + 0.3 for more visible effect
-    let factor : f32 = 0.7 + final_shade * 0.3;
-    let scaled_rgb : vec3<f32> = clamp(
-        base_color.xyz * vec3<f32>(factor, factor, factor),
-        vec3<f32>(0.0),
-        vec3<f32>(1.0),
-    );
+    let shade_base : f32 = clamp01(gradient * SHADE_GAIN * 0.25);
+
+    let highlight_mix : f32 = clamp01((shade_base * shade_base) * 1.25);
+    let base_factor : f32 = 0.9 + noise_center * 0.35;
+    let factor : f32 = clamp(base_factor + highlight_mix * 0.35, 0.85, 1.6);
+
+    let scaled_rgb : vec3<f32> = clamp(base_color.xyz * factor, vec3<f32>(0.0), vec3<f32>(1.0));
 
     output_buffer[base_index + 0u] = scaled_rgb.x;
     output_buffer[base_index + 1u] = scaled_rgb.y;
