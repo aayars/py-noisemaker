@@ -49,8 +49,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **snow**
 [[ DONE ]] **sobel_operator**
 [[ DONE ]] **glowing_edges**
-[[ WIP ]] **outline**
-[[ TODO ]] **spooky_ticker**
+t[[ DONE ]] **outline**
+[[ WIP ]] **spooky_ticker**
 [[ TODO ]] **texture**
 [[ TODO ]] **tint**
 [[ TODO ]] **nebula**

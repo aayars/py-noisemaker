@@ -289,13 +289,8 @@ fn mask_shape(mask_type : u32, seed : u32) -> MaskShape {
 }
 
 fn mask_multiplier(mask_type : u32, mask_width : i32) -> i32 {
-    if (mask_type == MASK_SCRIPT) {
-        return 2;
-    }
-    if (mask_width == 1 || mask_width >= 10) {
-        return 1;
-    }
-    return 2;
+    // Uniform larger multiplier for all rows
+    return 8;
 }
 
 fn digital_pattern(mask_type : u32, glyph_seed : u32) -> u32 {
@@ -463,9 +458,13 @@ fn ticker_mask(
         return 0.0;
     }
 
-    let row_count : i32 = clamp_i32(random_int_inclusive(base_seed, 101u, 1, 3), 1, 3);
+    // Force maximum rows (3) for denser ticker. Previously random 1-3.
+    let row_count : i32 = 3;
     var bottom_padding : i32 = 2;
     var mask_value : f32 = 0.0;
+
+    // Simple approach: each row uses its natural mask height * multiplier, no artificial scaling
+    var row_heights : array<i32, 3>;
 
     var row_index : i32 = 0;
     loop {
@@ -479,17 +478,10 @@ fn ticker_mask(
         let shape : MaskShape = mask_shape(mask_type, row_seed);
         let multiplier : i32 = mask_multiplier(mask_type, shape.width);
 
-        var row_height : i32 = max(shape.height * multiplier, 1);
-        let available : i32 = height - bottom_padding;
-        if (available <= 0) {
-            break;
-        }
-        if (row_height > available) {
-            row_height = available;
-        }
-        if (row_height <= 0) {
-            break;
-        }
+        // Use natural mask height * multiplier
+        var row_height : i32 = shape.height * multiplier;
+        row_heights[u32(row_index)] = row_height;
+        if (row_height <= 0) { break; }
 
         var start_y : i32 = height - bottom_padding - row_height;
         if (start_y < 0) {
@@ -502,37 +494,50 @@ fn ticker_mask(
 
         if (coord_y >= start_y && coord_y < start_y + row_height) {
             let local_y : i32 = coord_y - start_y;
-            let multiplier_f : f32 = max(f32(multiplier), 1.0);
-            let source_y : f32 = f32(local_y) / multiplier_f;
+            // Direct mapping: row_height pixels map to shape.height * multiplier mask pixels
+            let source_y : f32 = f32(local_y) * f32(shape.height) / f32(row_height);
             let mask_y0 : i32 = clamp_i32(i32(floor(source_y)), 0, shape.height - 1);
             let mask_y1 : i32 = clamp_i32(mask_y0 + 1, 0, shape.height - 1);
             let frac_y : f32 = fract(source_y);
 
+            // Compute horizontal repeats to fill width
+            // Python: width = int(shape[1] / multiplier) quantized to mask_shape[1]
             var base_width : i32 = width / max(multiplier, 1);
-            if (base_width < 1) {
-                base_width = shape.width;
-            }
-            var repeats : i32 = base_width / max(shape.width, 1);
-            if (repeats < 1) {
-                repeats = 1;
-            }
+            if (base_width < shape.width) { base_width = shape.width; }
+            // Quantize to be evenly divisible by mask width (matches Python line 3007)
+            let quantized_width : i32 = shape.width * max(1, base_width / shape.width);
+            var repeats : i32 = max(1, quantized_width / max(shape.width, 1));
             let row_width : i32 = shape.width * repeats;
             let row_width_f : f32 = max(f32(row_width), 1.0);
             let width_f : f32 = max(f32(width), 1.0);
 
-            let scroll_amount : f32 = time_value * speed_value;
-            let shift : i32 = wrap_coord(i32(floor(scroll_amount * row_width_f)), row_width);
-
+            // Each row scrolls independently, with speed proportional to character width
+            let row_speed_factor : f32 = random_float(row_seed, 199u) * 0.5 + 0.75; // 0.75 to 1.25
+            let width_factor : f32 = f32(shape.width) / 6.0; // Normalize to typical width of ~6
+            let scroll_offset : f32 = time_value * speed_value * row_width_f * row_speed_factor * width_factor;
+            
             let sample_x_f : f32 = (f32(coord_x) + 0.5) / width_f * row_width_f;
-            var sample_x : i32 = wrap_coord(i32(floor(sample_x_f)) + shift, row_width);
+            // Smooth sub-pixel scrolling
+            let scrolled_x : f32 = sample_x_f - scroll_offset;
+            let wrapped_x : f32 = scrolled_x - floor(scrolled_x / row_width_f) * row_width_f;
+            var sample_x : i32 = i32(floor(wrapped_x));
+            let frac_x : f32 = fract(wrapped_x);
             let glyph_width : i32 = max(shape.width, 1);
             let glyph_index : i32 = clamp_i32(sample_x / glyph_width, 0, max(row_width / glyph_width - 1, 0));
             let local_x : i32 = sample_x % glyph_width;
 
             let glyph_seed : u32 = combine_seed(row_seed, u32(glyph_index) * 131u + 17u);
-            let value0 : f32 = sample_mask_pattern(mask_type, local_x, mask_y0, shape.width, shape.height, glyph_seed, row_seed);
-            let value1 : f32 = sample_mask_pattern(mask_type, local_x, mask_y1, shape.width, shape.height, glyph_seed, row_seed);
-            let row_value : f32 = lerp_f32(value0, value1, frac_y);
+            
+            // Sample current and next x position for horizontal interpolation
+            let value00 : f32 = sample_mask_pattern(mask_type, local_x, mask_y0, shape.width, shape.height, glyph_seed, row_seed);
+            let value01 : f32 = sample_mask_pattern(mask_type, (local_x + 1) % shape.width, mask_y0, shape.width, shape.height, glyph_seed, row_seed);
+            let value10 : f32 = sample_mask_pattern(mask_type, local_x, mask_y1, shape.width, shape.height, glyph_seed, row_seed);
+            let value11 : f32 = sample_mask_pattern(mask_type, (local_x + 1) % shape.width, mask_y1, shape.width, shape.height, glyph_seed, row_seed);
+            
+            // Bilinear interpolation for smooth scrolling
+            let value_y0 : f32 = lerp_f32(value00, value01, frac_x);
+            let value_y1 : f32 = lerp_f32(value10, value11, frac_x);
+            let row_value : f32 = lerp_f32(value_y0, value_y1, frac_y);
             mask_value = max(mask_value, row_value);
         }
 
@@ -570,9 +575,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     let src : vec4<f32> = textureLoad(input_texture, coords, 0);
 
+    // Use a stable seed independent of time/speed so glyphs do not change each frame.
     let base_seed : u32 = combine_seed(
-        hash_mix(bitcast<u32>(params.time)),
-        hash_mix(bitcast<u32>(params.speed)) ^ hash_mix(bitcast<u32>(params.width)),
+        hash_mix(bitcast<u32>(params.width)),
+        hash_mix(bitcast<u32>(params.height)) ^ 0x9e3779b9u,
     );
     let alpha : f32 = clamp(0.5 + random_float(base_seed, 197u) * 0.25, 0.0, 1.0);
 
