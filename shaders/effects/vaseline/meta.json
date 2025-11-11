@@ -11,6 +11,10 @@
       "kind": "sampledTexture",
       "format": "rgba32float"
     },
+    "bloom_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
     "output_buffer": {
       "kind": "storageBuffer",
       "size": "pixel-f32x4"
