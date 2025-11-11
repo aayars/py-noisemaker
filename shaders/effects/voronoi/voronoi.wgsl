@@ -18,6 +18,10 @@ const PD_CIRCULAR : i32 = 1000100;
 const PD_CONCENTRIC : i32 = 1000101;
 const PD_ROTATING : i32 = 1000102;
 
+var<workgroup> shared_points : array<vec2<f32>, MAX_POINTS>;
+var<workgroup> shared_point_colors : array<vec4<f32>, MAX_POINTS>;
+var<workgroup> shared_point_count : u32;
+
 struct VoronoiParams {
     dims : vec4<f32>,                    // width, height, channels, diagram_type
     nth_metric_sdf_alpha : vec4<f32>,    // nth, dist_metric, sdf_sides, alpha
@@ -589,13 +593,14 @@ fn refract_color(
 }
 
 @compute @workgroup_size(8, 8, 1)
-fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
+fn main(
+    @builtin(global_invocation_id) gid : vec3<u32>,
+    @builtin(local_invocation_id) lid : vec3<u32>,
+) {
     let dims : vec2<u32> = textureDimensions(input_texture, 0);
     let width : u32 = select(as_u32(params.dims.x), dims.x, dims.x > 0u);
     let height : u32 = select(as_u32(params.dims.y), dims.y, dims.y > 0u);
-    if (gid.x >= width || gid.y >= height) {
-        return;
-    }
+    let in_bounds : bool = gid.x < width && gid.y < height;
 
     let width_f : f32 = width_value();
     let height_f : f32 = height_value();
@@ -621,10 +626,42 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let time : f32 = current_time();
     let speed : f32 = current_speed();
 
-    var points : array<vec2<f32>, MAX_POINTS>;
-    var point_count : u32 = 0u;
-    build_point_cloud(&points, &point_count, sample_width, sample_height, freq, generations, distrib, corners, drift, time, speed);
+    if (lid.x == 0u && lid.y == 0u && lid.z == 0u) {
+        shared_point_count = 0u;
+        var local_points : array<vec2<f32>, MAX_POINTS>;
+        var local_count : u32 = 0u;
+        build_point_cloud(&local_points, &local_count, sample_width, sample_height, freq, generations, distrib, corners, drift, time, speed);
+        shared_point_count = local_count;
 
+        let inv_scale : f32 = select(1.0, 1.0 / sample_scale, downsample_enabled);
+        if (needs_colors) {
+            for (var i : u32 = 0u; i < local_count; i = i + 1u) {
+                let point : vec2<f32> = local_points[i];
+                shared_points[i] = point;
+                let sample_point : vec2<f32> = point * inv_scale;
+                let sx : i32 = clamp(i32(round(sample_point.x)), 0, i32(width) - 1);
+                let sy : i32 = clamp(i32(round(sample_point.y)), 0, i32(height) - 1);
+                var color : vec4<f32> = clamp_color(textureLoad(input_texture, vec2<i32>(sx, sy), 0));
+                if (ridges && (diagram == 22 || diagram == 31 || diagram == 42)) {
+                    color = abs(color * 2.0 - vec4<f32>(1.0, 1.0, 1.0, 1.0));
+                }
+                shared_point_colors[i] = color;
+            }
+        } else {
+            for (var i : u32 = 0u; i < local_count; i = i + 1u) {
+                shared_points[i] = local_points[i];
+                shared_point_colors[i] = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+            }
+        }
+    }
+
+    workgroupBarrier();
+
+    if (!in_bounds) {
+        return;
+    }
+
+    let point_count : u32 = shared_point_count;
     if (point_count == 0u) {
         let base_index : u32 = (gid.y * width + gid.x) * 4u;
         let color : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(gid.x), i32(gid.y)), 0);
@@ -637,7 +674,6 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     var sorted_distances : array<f32, MAX_POINTS>;
     var sorted_indices : array<u32, MAX_POINTS>;
-    var point_colors : array<vec4<f32>, MAX_POINTS>;
     var sorted_count : u32 = 0u;
 
     let pixel_coord_sample : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) * sample_scale;
@@ -652,7 +688,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let inverse_sign : f32 = select(1.0, -1.0, inverse_diagram);
 
     for (var i : u32 = 0u; i < point_count; i = i + 1u) {
-        let point : vec2<f32> = points[i];
+        let point : vec2<f32> = shared_points[i];
+        var point_color : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+        if (needs_colors) {
+            point_color = shared_point_colors[i];
+        }
+
         var dx : f32;
         var dy : f32;
         if (is_triangular_metric) {
@@ -705,25 +746,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             }
         }
 
-        if (needs_colors) {
-            let inv_scale : f32 = select(1.0, 1.0 / sample_scale, downsample_enabled);
-            let sample_point : vec2<f32> = point * inv_scale;
-            let sx : i32 = clamp(i32(round(sample_point.x)), 0, i32(width) - 1);
-            let sy : i32 = clamp(i32(round(sample_point.y)), 0, i32(height) - 1);
-            var point_color : vec4<f32> = clamp_color(textureLoad(input_texture, vec2<i32>(sx, sy), 0));
-            if (ridges && (diagram == 22 || diagram == 31 || diagram == 42)) {
-                point_color = abs(point_color * 2.0 - vec4<f32>(1.0, 1.0, 1.0, 1.0));
-            }
-            point_colors[i] = point_color;
-        } else {
-            point_colors[i] = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-        }
-
         if (is_flow_diagram(diagram)) {
             let log_val : f32 = clamp(log(dist), -10.0, 10.0);
             flow_sum = flow_sum + log_val;
             if (diagram == 42) {
-                color_flow_sum = color_flow_sum + point_colors[i] * log_val;
+                color_flow_sum = color_flow_sum + point_color * log_val;
             }
         }
     }
@@ -740,11 +767,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     let selected_index : u32 = select_nth_index(&sorted_indices, sorted_count, nth_param);
     let selected_distance : f32 = select_nth_distance(&sorted_distances, sorted_count, nth_param);
-    
-    // Python normalizes the entire distance field globally before sqrt.
-    // We approximate this by normalizing each distance by the maximum distance
-    // across all point comparisons at this pixel (farthest neighbor).
-    // This produces a gradient from nearest (dark) to farthest (bright) points.
+
+    // Approximate Python's global normalization by scaling against the farthest neighbor at this pixel.
     let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
     let denominator : f32 = max(max_local_distance, EPSILON);
     var range_value : f32 = sqrt(clamp(selected_distance / denominator, 0.0, 1.0));
@@ -777,9 +801,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         }
         effect_color = vec4<f32>(region_index_value, region_index_value, region_index_value, 1.0);
     } else if (diagram == 22) {
-        effect_color = point_colors[selected_index];
+        effect_color = shared_point_colors[selected_index];
     } else if (diagram == 31) {
-        let region_color : vec4<f32> = point_colors[selected_index];
+        let region_color : vec4<f32> = shared_point_colors[selected_index];
         let blend_amount : f32 = clamp(range_value * range_value, 0.0, 1.0);
         effect_color = range_color * (1.0 - blend_amount) + region_color * blend_amount;
     } else if (diagram == 41) {
