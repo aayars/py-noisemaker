@@ -681,6 +681,7 @@ fn main(
     let half_w : f32 = sample_width * 0.5;
     let half_h : f32 = sample_height * 0.5;
     let is_triangular_metric : bool = metric == 101 || metric == 102 || metric == 201;
+    let is_sdf_metric : bool = metric == 201;
 
     var flow_sum : f32 = 0.0;
     var color_flow_sum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -707,7 +708,14 @@ fn main(
             dx = min(abs(x0), abs(x1)) / sample_width;
             dy = min(abs(y0), abs(y1)) / sample_height;
         }
-        let dist : f32 = max(distance_metric(dx, dy, metric, sides), EPSILON);
+        var dist : f32 = distance_metric(dx, dy, metric, sides);
+        if (is_sdf_metric) {
+            if (abs(dist) < EPSILON) {
+                dist = select(-EPSILON, EPSILON, dist >= 0.0);
+            }
+        } else {
+            dist = max(dist, EPSILON);
+        }
 
         if (sorted_count == 0u) {
             sorted_distances[0u] = dist;
@@ -768,10 +776,20 @@ fn main(
     let selected_index : u32 = select_nth_index(&sorted_indices, sorted_count, nth_param);
     let selected_distance : f32 = select_nth_distance(&sorted_distances, sorted_count, nth_param);
 
-    // Approximate Python's global normalization by scaling against the farthest neighbor at this pixel.
-    let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
-    let denominator : f32 = max(max_local_distance, EPSILON);
-    var range_value : f32 = sqrt(clamp(selected_distance / denominator, 0.0, 1.0));
+    var normalized_value : f32;
+    if (is_sdf_metric) {
+        let min_local_distance : f32 = sorted_distances[0u];
+        let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
+        let max_abs_distance : f32 = max(abs(min_local_distance), abs(max_local_distance));
+        let denominator : f32 = max(max_abs_distance, EPSILON);
+        normalized_value = clamp(0.5 + 0.5 * (selected_distance / denominator), 0.0, 1.0);
+    } else {
+        let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
+        let denominator : f32 = max(max_local_distance, EPSILON);
+        normalized_value = clamp(selected_distance / denominator, 0.0, 1.0);
+    }
+
+    var range_value : f32 = sqrt(normalized_value);
 
     if (needs_range_slice(diagram) && inverse_diagram) {
         range_value = 1.0 - range_value;

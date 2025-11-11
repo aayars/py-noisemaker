@@ -57,10 +57,10 @@ Overall effect evaluation order, respecting dependencies:
 [[ SKIP ]] **value_refract**
 [[ DONE ]] **vaseline**
 [[ DONE ]] **vhs**
-[[ WIP ]] **vignette**
-[[ TODO ]] **crt**
-[[ TODO ]] **voronoi**
-[[ TODO ]] **kaleido**
+[[ DONE ]] **vignette**
+[[ DONE ]] **crt**
+[[ DONE ]] **voronoi**
+[[ WIP ]] **kaleido**
 [[ TODO ]] **lowpoly**
 [[ TODO ]] **vortex**
 [[ TODO ]] **warp**
