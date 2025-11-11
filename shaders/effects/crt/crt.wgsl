@@ -408,10 +408,10 @@ fn get_scanline_base_values(time : f32, speed : f32) -> vec2<f32> {
 // Get interpolated scanline value for a given y coordinate
 // The scanline pattern is based on Y position to create horizontal lines
 fn get_scanline_value_interpolated(y : f32, height : f32, base_values : vec2<f32>) -> f32 {
-    // Create scanlines that alternate based on Y position
-    // Higher frequency for visible scanlines
-    let scanline_frequency : f32 = height * 0.45;
-    let y_scaled : f32 = y * scanline_frequency / height;
+    // Goal: ~500 bars for 1000px image = ~2px per bar, increased by 25% = 2.5px per bar
+    // Each bar alternates between the 2 base values
+    let pixels_per_bar : f32 = 2.5;
+    let y_scaled : f32 = y / pixels_per_bar;
     let scanline_index : i32 = i32(floor(y_scaled)) % 2;
     
     return select(base_values.y, base_values.x, scanline_index == 0);
@@ -490,7 +490,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     var color : vec3<f32> = mix(
         base_color,
         (base_color + scan_value) * scan_value,
-        0.05
+        0.5
     );
     color = clamp(color, vec3<f32>(0.0), vec3<f32>(1.0));
     
@@ -523,7 +523,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             displacement
         );
         let red_scan_val : f32 = sample_scanline_bilinear(red_sample_x + red_offsets.x, y + red_offsets.y, width_f, height_f, scanline_base);
-        let red_blended : vec3<f32> = mix(red_base_col, (red_base_col + red_scan_val) * red_scan_val, 0.05);
+        let red_blended : vec3<f32> = mix(red_base_col, (red_base_col + red_scan_val) * red_scan_val, 0.5);
 
         // Green channel is the original computed color for this pixel
         let green_blended : vec3<f32> = color;
@@ -544,7 +544,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             displacement
         );
         let blue_scan_val : f32 = sample_scanline_bilinear(blue_sample_x + blue_offsets.x, y + blue_offsets.y, width_f, height_f, scanline_base);
-        let blue_blended : vec3<f32> = mix(blue_base_col, (blue_base_col + blue_scan_val) * blue_scan_val, 0.05);
+        let blue_blended : vec3<f32> = mix(blue_base_col, (blue_base_col + blue_scan_val) * blue_scan_val, 0.5);
 
         // Combine, applying hue shift to each component before assembling
         color = vec3<f32>(
