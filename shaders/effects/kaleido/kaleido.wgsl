@@ -76,9 +76,6 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let sides : f32 = max(params.dims.w, 1.0);
     let blend_edges_flag : bool = params.misc.y > 0.5;
 
-    let coord_i : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
-    let radius_sample : f32 = clamp01(textureLoad(radius_texture, coord_i, 0).x);
-
     var normalized_x : f32 = 0.0;
     if (width_u > 1u) {
         normalized_x = f32(gid.x) / f32(width_u - 1u) - 0.5;
@@ -87,6 +84,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     if (height_u > 1u) {
         normalized_y = f32(gid.y) / f32(height_u - 1u) - 0.5;
     }
+
+    let coord_i : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+    var radius_sample : f32 = clamp01(textureLoad(radius_texture, coord_i, 0).x);
 
     let angle_step : f32 = TAU / max(sides, 1.0);
     var angle : f32 = atan2(normalized_y, normalized_x) + PI * 0.5;

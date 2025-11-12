@@ -780,9 +780,8 @@ fn main(
     if (is_sdf_metric) {
         let min_local_distance : f32 = sorted_distances[0u];
         let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
-        let max_abs_distance : f32 = max(abs(min_local_distance), abs(max_local_distance));
-        let denominator : f32 = max(max_abs_distance, EPSILON);
-        normalized_value = clamp(0.5 + 0.5 * (selected_distance / denominator), 0.0, 1.0);
+        let denominator : f32 = max(max_local_distance - min_local_distance, EPSILON);
+        normalized_value = clamp((selected_distance - min_local_distance) / denominator, 0.0, 1.0);
     } else {
         let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
         let denominator : f32 = max(max_local_distance, EPSILON);

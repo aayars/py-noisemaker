@@ -182,9 +182,12 @@ class KaleidoEffect {
             changed.push('sdf_sides');
             const sdfValue = value >= 3 ? value : 3;
             const distMetric = value >= 3 ? 201 : 1;
-            applyFinalUpdate(FINAL_BINDING_OFFSETS.sdf_sides, sdfValue);
+            applyFinalUpdate(FINAL_BINDING_OFFSETS.sdf_sides, value);
             applyVoronoiUpdate(VORONOI_BINDING_OFFSETS.sdf_sides, sdfValue);
             applyVoronoiUpdate(VORONOI_BINDING_OFFSETS.dist_metric, distMetric);
+            if (resources) {
+              resources.radiusDirty = true;
+            }
           }
           break;
         }
@@ -439,7 +442,7 @@ class KaleidoEffect {
     state[FINAL_BINDING_OFFSETS.height] = height;
     state[FINAL_BINDING_OFFSETS.channel_count] = 4;
     state[FINAL_BINDING_OFFSETS.sides] = this.userState.sides;
-    state[FINAL_BINDING_OFFSETS.sdf_sides] = this.userState.sdf_sides >= 3 ? this.userState.sdf_sides : 3;
+  state[FINAL_BINDING_OFFSETS.sdf_sides] = this.userState.sdf_sides;
     state[FINAL_BINDING_OFFSETS.blend_edges] = this.userState.blend_edges ? 1 : 0;
     state[FINAL_BINDING_OFFSETS.time] = 0;
     state[FINAL_BINDING_OFFSETS.speed] = this.userState.speed;
@@ -621,8 +624,8 @@ class KaleidoEffect {
       enabled: true,
       textureWidth: width,
       textureHeight: height,
-      computePipeline: finalPipeline,
-      computeBindGroup: finalBindGroup,
+      computePipeline: null,
+      computeBindGroup: null,
       computePasses,
       paramsBuffer: finalResourceSet.buffers.params,
       paramsState: finalParamsState,
@@ -654,6 +657,10 @@ class KaleidoEffect {
       willRunVoronoi: false,
       lastVoronoiTime: null,
       animateVoronoi: this.userState.speed > 0,
+      finalPipeline,
+      finalBindGroup,
+      voronoiPipeline,
+      voronoiBindGroup,
     };
   }
 }
