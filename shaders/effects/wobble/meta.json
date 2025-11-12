@@ -27,7 +27,24 @@
       "default": true,
       "label": "Enabled",
       "description": "Toggle the wobble effect on or off."
+    },
+    {
+      "name": "speed",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.05,
+      "label": "Speed",
+      "description": "Animation speed multiplier."
     }
   ],
-  "parameterBindings": {}
+  "parameterBindings": {
+    "width": { "buffer": "params", "offset": 0 },
+    "height": { "buffer": "params", "offset": 1 },
+    "channel_count": { "buffer": "params", "offset": 2 },
+    "time": { "buffer": "params", "offset": 3 },
+    "speed": { "buffer": "params", "offset": 4 },
+    "enabled": { "kind": "toggle" }
+  }
 }

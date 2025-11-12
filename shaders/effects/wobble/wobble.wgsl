@@ -2,6 +2,8 @@
 
 const TAU : f32 = 6.28318530717958647692;
 const CHANNEL_COUNT : u32 = 4u;
+const X_NOISE_SEED : vec3<f32> = vec3<f32>(17.0, 29.0, 11.0);
+const Y_NOISE_SEED : vec3<f32> = vec3<f32>(41.0, 23.0, 7.0);
 
 struct WobbleParams {
     dims_time : vec4<f32>,   // (width, height, channels, time)
@@ -170,18 +172,20 @@ fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
         return;
     }
 
-    let half_speed : f32 = params.speed_pad.x * 0.5;
+    let time_value : f32 = params.dims_time.w;
+    let speed_value : f32 = params.speed_pad.x * 0.5;
+
     let x_offset : i32 = compute_offset(
-        params.dims_time.w,
-        half_speed,
+        time_value,
+        speed_value,
         params.dims_time.x,
-        vec3<f32>(17.0, 29.0, 11.0)
+        X_NOISE_SEED
     );
     let y_offset : i32 = compute_offset(
-        params.dims_time.w,
-        half_speed,
+        time_value,
+        speed_value,
         params.dims_time.y,
-        vec3<f32>(41.0, 23.0, 7.0)
+        Y_NOISE_SEED
     );
 
     let wrapped_x : i32 = wrap_index(i32(global_id.x), x_offset, i32(width));

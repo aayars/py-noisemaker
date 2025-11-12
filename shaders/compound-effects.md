@@ -65,10 +65,10 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **vortex**
 [[ DONE ]] **warp**
 [[ SKIP ]] **clouds**
-[[ WIP ]] **spatter**
-[[ TODO ]] **wobble**
-[[ TODO ]] **wormhole**
-[[ TODO ]] **light_leak**
+[[ DONE ]] **spatter**
+[[ DONE ]] **wobble**
+[[ DONE ]] **wormhole**
+[[ DONE ]] **light_leak**
 [[ TODO ]] **worms**
 [[ TODO ]] **fibers**
 [[ TODO ]] **scratches**
