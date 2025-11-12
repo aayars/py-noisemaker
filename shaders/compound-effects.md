@@ -61,11 +61,11 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **crt**
 [[ DONE ]] **voronoi**
 [[ SKIP ]] **kaleido**
-[[ WIP ]] **lowpoly**
-[[ TODO ]] **vortex**
-[[ TODO ]] **warp**
-[[ TODO ]] **clouds**
-[[ TODO ]] **spatter**
+[[ SKIP ]] **lowpoly**
+[[ DONE ]] **vortex**
+[[ DONE ]] **warp**
+[[ SKIP ]] **clouds**
+[[ WIP ]] **spatter**
 [[ TODO ]] **wobble**
 [[ TODO ]] **wormhole**
 [[ TODO ]] **light_leak**

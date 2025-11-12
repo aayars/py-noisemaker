@@ -236,6 +236,14 @@
     "path": "/shaders/effects/sobel/sobel.wgsl"
   },
   {
+    "label": "spatter/combine",
+    "path": "/shaders/effects/spatter/combine.wgsl"
+  },
+  {
+    "label": "spatter/noise_seed",
+    "path": "/shaders/effects/spatter/noise_seed.wgsl"
+  },
+  {
     "label": "spatter/spatter",
     "path": "/shaders/effects/spatter/spatter.wgsl"
   },

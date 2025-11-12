@@ -62,6 +62,7 @@ import sobelMeta from '../../shaders/effects/sobel/meta.json' with { type: 'json
 // Cache-bust Sobel effect module import to ensure fresh module is used across reloads
 import { additionalPasses as sobelPasses } from '../../shaders/effects/sobel/effect.js?v=2';
 import spatterMeta from '../../shaders/effects/spatter/meta.json' with { type: 'json' };
+import { additionalPasses as spatterPasses } from '../../shaders/effects/spatter/effect.js';
 import spookyTickerMeta from '../../shaders/effects/spooky_ticker/meta.json' with { type: 'json' };
 import strayHairMeta from '../../shaders/effects/stray_hair/meta.json' with { type: 'json' };
 import textureMeta from '../../shaders/effects/texture/meta.json' with { type: 'json' };
@@ -154,6 +155,7 @@ const SHADER_MANIFEST = {
   sobel: metaToDescriptor(sobelMeta),
   ...sobelPasses,
   spatter: metaToDescriptor(spatterMeta),
+  ...spatterPasses,
   spooky_ticker: metaToDescriptor(spookyTickerMeta),
   stray_hair: metaToDescriptor(strayHairMeta),
   texture: metaToDescriptor(textureMeta),
