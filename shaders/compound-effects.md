@@ -60,8 +60,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **vignette**
 [[ DONE ]] **crt**
 [[ DONE ]] **voronoi**
-[[ WIP ]] **kaleido**
-[[ TODO ]] **lowpoly**
+[[ SKIP ]] **kaleido**
+[[ WIP ]] **lowpoly**
 [[ TODO ]] **vortex**
 [[ TODO ]] **warp**
 [[ TODO ]] **clouds**

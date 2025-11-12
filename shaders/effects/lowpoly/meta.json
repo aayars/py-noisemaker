@@ -18,6 +18,14 @@
     "params": {
       "kind": "uniformBuffer",
       "size": 48
+    },
+    "voronoi_color_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
+    "voronoi_range_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
     }
   },
   "parameters": [

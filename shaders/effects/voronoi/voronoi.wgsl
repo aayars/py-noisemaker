@@ -186,6 +186,10 @@ fn downsample_flag() -> bool {
     return bool_from(params.corners_downsample_pad.y);
 }
 
+fn lowpoly_pack_enabled() -> bool {
+    return params.corners_downsample_pad.z > 0.5;
+}
+
 fn is_grid_distribution(distrib : i32) -> bool {
     return distrib >= PD_SQUARE && distrib < PD_SPIRAL;
 }
@@ -617,6 +621,7 @@ fn main(
     let ridges : bool = ridges_hint_flag();
     let refract_y_from_offset : bool = refract_y_from_offset_flag();
     let needs_colors : bool = needs_color_regions(diagram) || diagram == 12 || diagram == 42;
+    let lowpoly_enabled : bool = lowpoly_pack_enabled();
 
     let freq : i32 = point_frequency();
     let generations : i32 = point_generations();
@@ -675,6 +680,12 @@ fn main(
     var sorted_distances : array<f32, MAX_POINTS>;
     var sorted_indices : array<u32, MAX_POINTS>;
     var sorted_count : u32 = 0u;
+    var nearest_distance : f32 = 1e30;
+    var nearest_index : u32 = 0u;
+    var second_distance : f32 = 1e30;
+    var second_index : u32 = 0u;
+    var min_local_distance_accum : f32 = 1e30;
+    var max_local_distance_accum : f32 = -1e30;
 
     let pixel_coord_sample : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) * sample_scale;
     let pixel_coord_original : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
@@ -687,6 +698,7 @@ fn main(
     var color_flow_sum : vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     let inverse_sign : f32 = select(1.0, -1.0, inverse_diagram);
+    let lowpoly_fast_path : bool = lowpoly_enabled && diagram == 22 && nth_param == 0;
 
     for (var i : u32 = 0u; i < point_count; i = i + 1u) {
         let point : vec2<f32> = shared_points[i];
@@ -716,31 +728,26 @@ fn main(
         } else {
             dist = max(dist, EPSILON);
         }
-
-        if (sorted_count == 0u) {
-            sorted_distances[0u] = dist;
-            sorted_indices[0u] = i;
-            sorted_count = 1u;
-        } else if (sorted_count < point_count && sorted_count < MAX_POINTS) {
-            var j : u32 = sorted_count;
-            loop {
-                if (j == 0u || dist >= sorted_distances[j - 1u]) {
-                    break;
-                }
-                sorted_distances[j] = sorted_distances[j - 1u];
-                sorted_indices[j] = sorted_indices[j - 1u];
-                j = j - 1u;
+        if (lowpoly_fast_path) {
+            min_local_distance_accum = min(min_local_distance_accum, dist);
+            max_local_distance_accum = max(max_local_distance_accum, dist);
+            if (dist < nearest_distance) {
+                second_distance = nearest_distance;
+                second_index = nearest_index;
+                nearest_distance = dist;
+                nearest_index = i;
+            } else if (dist < second_distance) {
+                second_distance = dist;
+                second_index = i;
             }
-            sorted_distances[j] = dist;
-            sorted_indices[j] = i;
-            sorted_count = sorted_count + 1u;
         } else {
+            // Maintain full sorted order for general diagrams.
             if (sorted_count == 0u) {
-                sorted_count = 1u;
                 sorted_distances[0u] = dist;
                 sorted_indices[0u] = i;
-            } else if (dist < sorted_distances[sorted_count - 1u]) {
-                var j : u32 = sorted_count - 1u;
+                sorted_count = 1u;
+            } else if (sorted_count < point_count && sorted_count < MAX_POINTS) {
+                var j : u32 = sorted_count;
                 loop {
                     if (j == 0u || dist >= sorted_distances[j - 1u]) {
                         break;
@@ -751,6 +758,25 @@ fn main(
                 }
                 sorted_distances[j] = dist;
                 sorted_indices[j] = i;
+                sorted_count = sorted_count + 1u;
+            } else {
+                if (sorted_count == 0u) {
+                    sorted_count = 1u;
+                    sorted_distances[0u] = dist;
+                    sorted_indices[0u] = i;
+                } else if (dist < sorted_distances[sorted_count - 1u]) {
+                    var j2 : u32 = sorted_count - 1u;
+                    loop {
+                        if (j2 == 0u || dist >= sorted_distances[j2 - 1u]) {
+                            break;
+                        }
+                        sorted_distances[j2] = sorted_distances[j2 - 1u];
+                        sorted_indices[j2] = sorted_indices[j2 - 1u];
+                        j2 = j2 - 1u;
+                    }
+                    sorted_distances[j2] = dist;
+                    sorted_indices[j2] = i;
+                }
             }
         }
 
@@ -763,7 +789,18 @@ fn main(
         }
     }
 
-    if (sorted_count == 0u) {
+    if (lowpoly_fast_path) {
+        sorted_count = 1u;
+        sorted_distances[0u] = nearest_distance;
+        sorted_indices[0u] = nearest_index;
+        if (second_distance < 1e29) {
+            sorted_count = 2u;
+            sorted_distances[1u] = second_distance;
+            sorted_indices[1u] = second_index;
+        }
+    }
+
+    if (!lowpoly_fast_path && sorted_count == 0u) {
         let base_index : u32 = (gid.y * width + gid.x) * 4u;
         let color : vec4<f32> = textureLoad(input_texture, vec2<i32>(i32(gid.x), i32(gid.y)), 0);
         output_buffer[base_index + 0u] = color.x;
@@ -776,19 +813,40 @@ fn main(
     let selected_index : u32 = select_nth_index(&sorted_indices, sorted_count, nth_param);
     let selected_distance : f32 = select_nth_distance(&sorted_distances, sorted_count, nth_param);
 
+    var min_local_distance : f32 = sorted_distances[0u];
+    var max_local_distance : f32 = sorted_distances[sorted_count - 1u];
+    if (lowpoly_fast_path) {
+        min_local_distance = min_local_distance_accum;
+        max_local_distance = max_local_distance_accum;
+    }
+
     var normalized_value : f32;
     if (is_sdf_metric) {
-        let min_local_distance : f32 = sorted_distances[0u];
-        let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
         let denominator : f32 = max(max_local_distance - min_local_distance, EPSILON);
         normalized_value = clamp((selected_distance - min_local_distance) / denominator, 0.0, 1.0);
     } else {
-        let max_local_distance : f32 = sorted_distances[sorted_count - 1u];
         let denominator : f32 = max(max_local_distance, EPSILON);
         normalized_value = clamp(selected_distance / denominator, 0.0, 1.0);
     }
 
     var range_value : f32 = sqrt(normalized_value);
+
+    var lowpoly_range_value : f32 = range_value;
+    if (lowpoly_enabled) {
+        var alt_distance : f32 = select_nth_distance(&sorted_distances, sorted_count, 1);
+        if (lowpoly_fast_path && second_distance < 1e29) {
+            alt_distance = second_distance;
+        }
+        var alt_normalized : f32;
+        if (is_sdf_metric) {
+            let denominator : f32 = max(max_local_distance - min_local_distance, EPSILON);
+            alt_normalized = clamp((alt_distance - min_local_distance) / denominator, 0.0, 1.0);
+        } else {
+            let denominator : f32 = max(max_local_distance, EPSILON);
+            alt_normalized = clamp(alt_distance / denominator, 0.0, 1.0);
+        }
+        lowpoly_range_value = sqrt(alt_normalized);
+    }
 
     if (needs_range_slice(diagram) && inverse_diagram) {
         range_value = 1.0 - range_value;
@@ -819,6 +877,9 @@ fn main(
         effect_color = vec4<f32>(region_index_value, region_index_value, region_index_value, 1.0);
     } else if (diagram == 22) {
         effect_color = shared_point_colors[selected_index];
+        if (lowpoly_enabled) {
+            effect_color.w = clamp(lowpoly_range_value, 0.0, 1.0);
+        }
     } else if (diagram == 31) {
         let region_color : vec4<f32> = shared_point_colors[selected_index];
         let blend_amount : f32 = clamp(range_value * range_value, 0.0, 1.0);
@@ -852,7 +913,11 @@ fn main(
 
     let alpha : f32 = alpha_value();
     final_color = input_color * (1.0 - alpha) + final_color * alpha;
-    final_color.w = 1.0;
+    if (lowpoly_enabled) {
+        final_color.w = clamp(lowpoly_range_value, 0.0, 1.0);
+    } else {
+        final_color.w = 1.0;
+    }
 
     let base_index : u32 = (gid.y * width + gid.x) * 4u;
     output_buffer[base_index + 0u] = final_color.x;
