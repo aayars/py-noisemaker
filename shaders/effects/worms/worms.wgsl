@@ -23,9 +23,9 @@ const BEHAVIOR_MEANDERING : u32 = 10u;
 struct WormsParams {
     size : vec4<f32>, // (width, height, channels, unused)
     behavior_density_stride_padding : vec4<f32>, // (behavior, density, stride, _)
-    stride_deviation_alpha_kink_drunkenness : vec4<f32>, // (strideDeviation, alpha padding, kink, drunkenness)
+    stride_deviation_alpha_kink : vec3<f32>, // (strideDeviation, alpha padding, kink)
     quantize_time_padding_intensity : vec4<f32>, // (quantizeFlag, time, _, intensity)
-    inputIntensity_padding : vec4<f32>, // (inputIntensity, _ , _, _)
+    inputIntensity_lifetime_padding : vec4<f32>, // (inputIntensity, lifetime, _, _)
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -198,10 +198,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     let behavior_raw : f32 = params.behavior_density_stride_padding.x;
     let density : f32 = params.behavior_density_stride_padding.y;
-    let kink : f32 = params.stride_deviation_alpha_kink_drunkenness.z;
+    let kink : f32 = params.stride_deviation_alpha_kink.z;
     let quantize_flag : bool = params.quantize_time_padding_intensity.x > 0.5;
     let intensity_fade : f32 = clamp_01(params.quantize_time_padding_intensity.w);
-    let input_intensity : f32 = clamp_01(params.inputIntensity_padding.x);
+    let input_intensity : f32 = clamp_01(params.inputIntensity_lifetime_padding.x);
     let behavior : u32 = behavior_to_enum(behavior_raw);
 
     let max_dim : f32 = max(f32(width), f32(height));

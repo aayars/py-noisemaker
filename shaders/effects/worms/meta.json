@@ -21,7 +21,7 @@
     },
     "prev_texture": {
       "kind": "sampledTexture",
-      "format": "rgba32float",
+      "format": "rgba16float",
       "persistent": true
     },
     "agent_state_in": {
@@ -106,16 +106,6 @@
       "description": "Snap worm headings to discrete steps."
     },
     {
-      "name": "drunkenness",
-      "type": "float",
-      "default": 0.0,
-      "min": 0.0,
-      "max": 10.0,
-      "step": 0.1,
-      "label": "Drunkenness",
-      "description": "Adds additional random rotation noise."
-    },
-    {
       "name": "intensity",
       "type": "float",
       "default": 90,
@@ -134,17 +124,27 @@
       "step": 1,
       "label": "Input Intensity",
       "description": "Strength of the source texture in the final blend (percent)."
+    },
+    {
+      "name": "lifetime",
+      "type": "float",
+      "default": 30,
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "label": "Lifetime",
+      "description": "Seconds before agents respawn; 0 keeps trails permanent."
     }
   ],
   "parameterBindings": {
     "behavior": "params.behavior_density_stride_padding.x",
     "density": "params.behavior_density_stride_padding.y",
     "stride": "params.behavior_density_stride_padding.z",
-    "strideDeviation": "params.stride_deviation_alpha_kink_drunkenness.x",
-    "kink": "params.stride_deviation_alpha_kink_drunkenness.z",
-    "drunkenness": "params.stride_deviation_alpha_kink_drunkenness.w",
+    "strideDeviation": "params.stride_deviation_alpha_kink.x",
+    "kink": "params.stride_deviation_alpha_kink.z",
     "quantize": "params.quantize_time_padding_intensity.x",
     "intensity": "params.quantize_time_padding_intensity.w",
-    "inputIntensity": "params.inputIntensity_padding.x"
+    "inputIntensity": "params.inputIntensity_lifetime_padding.x",
+    "lifetime": "params.inputIntensity_lifetime_padding.y"
   }
 }
