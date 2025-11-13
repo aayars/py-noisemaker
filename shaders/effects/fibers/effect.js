@@ -158,6 +158,9 @@ class FibersEffect {
 
     this.#timeSeconds = 0;
     this.#lastTimestamp = null;
+    this.fibersGenerated = false;  // Track if we've already generated static fibers
+    this.frameCount = 0;  // Track how many frames we've rendered
+    this.generationFrames = 1;  // Only run worm simulation for 1 frame
   }
 
   async ensureResources({ device, width, height, multiresResources }) {
@@ -252,6 +255,7 @@ class FibersEffect {
       ? resources.paramsState[resources.bindingOffsets.seed]
       : 0;
 
+    // Only regenerate if seed changed or not yet initialized
     if (this.noiseSeed === null || this.noiseSeed !== currentSeed) {
       const updatedParams = this.#createInitialWormParams(this.width, this.height, currentSeed);
       if (this.wormParamsState) {
@@ -272,16 +276,31 @@ class FibersEffect {
         resources.paramsDirty = true;
       }
       this.noiseSeed = currentSeed;
+      this.frameCount = 0;  // Reset frame counter on seed change
     }
 
-    const elapsed = this.#advanceTime();
-    if (this.wormParamsState && typeof elapsed === 'number') {
-      this.wormParamsState[PARAM_INDEX.time] = elapsed;
+    // After generation frames, remove worm passes to freeze the output
+    if (this.frameCount >= this.generationFrames) {
+      // Keep only the final combine pass, remove worm simulation passes
+      if (this.resources?.computePasses && this.resources.computePasses.length > 1) {
+        // Just keep the last pass (the combine pass)
+        const combinePass = this.resources.computePasses[this.resources.computePasses.length - 1];
+        this.resources.computePasses = [combinePass];
+      }
+      return;  // Don't update anything else
+    }
+
+    // Increment frame counter
+    this.frameCount++;
+
+    // For static fibers: don't advance time, just keep it at 0
+    if (this.wormParamsState) {
+      this.wormParamsState[PARAM_INDEX.time] = 0;
       this.wormParamsDirty = true;
     }
 
     if (typeof resources.bindingOffsets.time === 'number') {
-      resources.paramsState[resources.bindingOffsets.time] = this.#timeSeconds;
+      resources.paramsState[resources.bindingOffsets.time] = 0;
       resources.paramsDirty = true;
     }
 

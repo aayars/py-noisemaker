@@ -70,8 +70,8 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **wormhole**
 [[ DONE ]] **light_leak**
 [[ DONE ]] **worms**
-[[ TODO ]] **fibers**
-[[ TODO ]] **scratches**
+[[ DONE ]] **fibers**
+[[ WIP ]] **scratches**
 [[ TODO ]] **sketch**
 [[ TODO ]] **stray_hair**
 [[ TODO ]] **frame**
