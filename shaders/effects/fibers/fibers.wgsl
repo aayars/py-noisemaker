@@ -1,44 +1,32 @@
-// GPU recreation of the "fibers" overlay from the Python effects module.
-// The CPU implementation constructs a chaotic worm mask over a coarse
-// simplex noise field and blends in a bright high-frequency texture. The
-// shader mirrors the same sequence of steps:
-//   1. Generate the low-frequency mask noise.
-//   2. Derive a chaotic flow field (similar to WormBehavior.chaotic) and
-//      integrate along it to approximate the worm scatter.
-//   3. Synthesize high-frequency brightness noise.
-//   4. Perform four blend passes, matching `value.blend` with an alpha of
-//      `mask * 0.5`.
+// Fibers final combine pass.
+// Reuses the worms low-level pipelines to paint a chaotic mask into
+// `worm_texture`, then synthesizes animated brightness noise that is blended
+// back over the input image. The heavy lifting (worm simulation) lives in the
+// dedicated worms shaders; this pass is only responsible for layering the
+// brightness streaks according to that mask.
 
 struct FibersParams {
-    size : vec4<f32>,       // (width, height, channel count, unused)
-    time_speed : vec4<f32>, // (time, speed, unused, unused)
+    width : f32,
+    height : f32,
+    channel_count : f32,
+    mask_scale : f32,
+    time : f32,
+    speed : f32,
+    seed : f32,
+    _pad0 : f32,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
-@group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
-@group(0) @binding(2) var<uniform> params : FibersParams;
+@group(0) @binding(1) var worm_texture : texture_2d<f32>;
+@group(0) @binding(2) var<storage, read_write> output_buffer : array<f32>;
+@group(0) @binding(3) var<uniform> params : FibersParams;
 
 const TAU : f32 = 6.28318530717958647692;
+const CHANNEL_COUNT : u32 = 4u;
+const GOLDEN_ANGLE : f32 = 2.39996322972865332223;
 
 fn to_dimension(value : f32) -> u32 {
     return u32(max(round(value), 0.0));
-}
-
-fn clamp_01(value : f32) -> f32 {
-    return clamp(value, 0.0, 1.0);
-}
-
-fn channel_count(raw : f32) -> u32 {
-    let count : u32 = to_dimension(raw);
-    return clamp(count, 1u, 4u);
-}
-
-fn lerp(a : f32, b : f32, t : f32) -> f32 {
-    return a + (b - a) * t;
-}
-
-fn hash_11(x : f32) -> f32 {
-    return fract(sin(x * 43758.5453123) * 43758.5453123);
 }
 
 fn freq_for_shape(base_freq : f32, width : f32, height : f32) -> vec2<f32> {
@@ -53,18 +41,6 @@ fn freq_for_shape(base_freq : f32, width : f32, height : f32) -> vec2<f32> {
         return vec2<f32>(freq, freq * height / width);
     }
     return vec2<f32>(freq, freq);
-}
-
-fn wrap_float(value : f32, limit : f32) -> f32 {
-    if (limit <= 0.0) {
-        return 0.0;
-    }
-    let ratio : f32 = floor(value / limit);
-    var wrapped : f32 = value - ratio * limit;
-    if (wrapped < 0.0) {
-        wrapped = wrapped + limit;
-    }
-    return wrapped;
 }
 
 fn mod289_vec3(x : vec3<f32>) -> vec3<f32> {
@@ -90,14 +66,14 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
     let i0 : vec3<f32> = floor(v + dot(v, vec3<f32>(c.y)));
     let x0 : vec3<f32> = v - i0 + dot(i0, vec3<f32>(c.x));
 
-    let step1 : vec3<f32> = step(vec3<f32>(x0.y, x0.z, x0.x), x0);
-    let l : vec3<f32> = vec3<f32>(1.0) - step1;
-    let i1 : vec3<f32> = min(step1, vec3<f32>(l.z, l.x, l.y));
-    let i2 : vec3<f32> = max(step1, vec3<f32>(l.z, l.x, l.y));
+    let g = step(vec3<f32>(x0.y, x0.z, x0.x), x0);
+    let l = vec3<f32>(1.0) - g;
+    let i1 = min(g, vec3<f32>(l.z, l.x, l.y));
+    let i2 = max(g, vec3<f32>(l.z, l.x, l.y));
 
-    let x1 : vec3<f32> = x0 - i1 + vec3<f32>(c.x);
-    let x2 : vec3<f32> = x0 - i2 + vec3<f32>(c.y);
-    let x3 : vec3<f32> = x0 - vec3<f32>(d.y);
+    let x1 = x0 - i1 + vec3<f32>(c.x);
+    let x2 = x0 - i2 + vec3<f32>(c.y);
+    let x3 = x0 - vec3<f32>(d.y);
 
     let i = mod289_vec3(i0);
     let p = permute_vec4(permute_vec4(permute_vec4(
@@ -123,10 +99,10 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
     let s1 : vec4<f32> = floor(b1) * 2.0 + 1.0;
     let sh : vec4<f32> = -step(h, vec4<f32>(0.0));
 
-    let a0 : vec4<f32> = vec4<f32>(b0.x, b0.z, b0.y, b0.w) + vec4<f32>(s0.x, s0.z, s0.y, s0.w)
-        * vec4<f32>(sh.x, sh.x, sh.y, sh.y);
-    let a1 : vec4<f32> = vec4<f32>(b1.x, b1.z, b1.y, b1.w) + vec4<f32>(s1.x, s1.z, s1.y, s1.w)
-        * vec4<f32>(sh.z, sh.z, sh.w, sh.w);
+    let a0 : vec4<f32> = vec4<f32>(b0.x, b0.z, b0.y, b0.w)
+        + vec4<f32>(s0.x, s0.z, s0.y, s0.w) * vec4<f32>(sh.x, sh.x, sh.y, sh.y);
+    let a1 : vec4<f32> = vec4<f32>(b1.x, b1.z, b1.y, b1.w)
+        + vec4<f32>(s1.x, s1.z, s1.y, s1.w) * vec4<f32>(sh.z, sh.z, sh.w, sh.w);
 
     let g0 : vec3<f32> = vec3<f32>(a0.x, a0.y, h.x);
     let g1 : vec3<f32> = vec3<f32>(a0.z, a0.w, h.y);
@@ -140,20 +116,20 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
         dot(g3, g3)
     ));
 
-    let g0n : vec3<f32> = g0 * norm.x;
-    let g1n : vec3<f32> = g1 * norm.y;
-    let g2n : vec3<f32> = g2 * norm.z;
-    let g3n : vec3<f32> = g3 * norm.w;
+    let g0n = g0 * norm.x;
+    let g1n = g1 * norm.y;
+    let g2n = g2 * norm.z;
+    let g3n = g3 * norm.w;
 
     let m0 : f32 = max(0.6 - dot(x0, x0), 0.0);
     let m1 : f32 = max(0.6 - dot(x1, x1), 0.0);
     let m2 : f32 = max(0.6 - dot(x2, x2), 0.0);
     let m3 : f32 = max(0.6 - dot(x3, x3), 0.0);
 
-    let m0sq : f32 = m0 * m0;
-    let m1sq : f32 = m1 * m1;
-    let m2sq : f32 = m2 * m2;
-    let m3sq : f32 = m3 * m3;
+    let m0sq = m0 * m0;
+    let m1sq = m1 * m1;
+    let m2sq = m2 * m2;
+    let m3sq = m3 * m3;
 
     return 42.0 * (m0sq * m0sq * dot(g0n, x0)
         + m1sq * m1sq * dot(g1n, x1)
@@ -185,130 +161,59 @@ fn animated_simplex(
     return clamp(noise * 0.5 + 0.5, 0.0, 1.0);
 }
 
-fn worm_mask(
-    pos : vec2<f32>,
-    width : f32,
-    height : f32,
-    layer : u32,
-    time_value : f32,
-    speed_value : f32,
-) -> f32 {
-    let seed_base : f32 = 37.0 + f32(layer) * 41.0;
-    let base_noise : f32 = animated_simplex(
-        pos,
-        width,
-        height,
-        4.0,
-        vec3<f32>(seed_base * 0.17, seed_base * 0.29, seed_base * 0.41),
-        time_value,
-        speed_value,
-    );
-
-    let kink_rand : f32 = hash_11(seed_base * 1.13 + 13.0);
-    let kink : f32 = 5.0 + floor(kink_rand * 6.0);
-    let angle : f32 = base_noise * TAU * kink;
-    let direction : vec2<f32> = vec2<f32>(sin(angle), cos(angle));
-
-    let min_dim : f32 = max(min(width, height), 1.0);
-    let iterations_raw : u32 = max(u32(floor(sqrt(min_dim))), 1u);
-    let step_count : u32 = max(iterations_raw, 3u);
-    let max_dim : f32 = max(width, height);
-    let stride_base : f32 = 0.75 * (max_dim / 1024.0);
-    let stride_rand : f32 = hash_11(seed_base * 3.73 + 17.0);
-    let stride : f32 = stride_base * lerp(1.0 - 0.125, 1.0 + 0.125, stride_rand);
-
-    let density_rand : f32 = hash_11(seed_base * 5.91 + 23.0);
-    let density : f32 = 0.05 + density_rand * 0.00125;
-
-    let span_steps : f32 = select(1.0, f32(step_count - 1u), step_count > 1u);
-    let lateral_seed : f32 = seed_base * 7.17;
-
-    var accum : f32 = 0.0;
-    var weight_sum : f32 = 0.0;
-
-    for (var i : u32 = 0u; i < step_count; i = i + 1u) {
-        let denom : f32 = select(1.0, f32(step_count - 1u), step_count > 1u);
-        let t : f32 = f32(i) / denom;
-        let signed : f32 = t * 2.0 - 1.0;
-        let exposure : f32 = 1.0 - abs(signed);
-        let jitter : f32 = hash_11(lateral_seed + f32(i) * 0.937) - 0.5;
-        let lateral : vec2<f32> = direction.yx * vec2<f32>(1.0, -1.0) * jitter * stride * 0.75;
-        let offset_from_center : f32 = (f32(i) - span_steps * 0.5) * stride;
-        let sample_pos : vec2<f32> = pos + direction * offset_from_center + lateral;
-        let wrapped : vec2<f32> = vec2<f32>(
-            wrap_float(sample_pos.x, width),
-            wrap_float(sample_pos.y, height)
-        );
-        let sample_noise : f32 = animated_simplex(
-            wrapped,
-            width,
-            height,
-            4.0,
-            vec3<f32>(seed_base * 0.47, seed_base * 0.61, seed_base * 0.83),
-            time_value,
-            speed_value,
-        );
-        accum = accum + sample_noise * exposure;
-        weight_sum = weight_sum + exposure;
-    }
-
-    let normalized : f32 = select(0.0, accum / weight_sum, weight_sum > 0.0);
-    let scaled : f32 = clamp(normalized * density * f32(step_count), 0.0, 1.0);
-    return sqrt(scaled);
-}
-
 fn brightness_noise(
     pos : vec2<f32>,
     width : f32,
     height : f32,
-    layer : u32,
+    seed_offset : f32,
+    time_value : f32,
+    speed_value : f32,
+) -> vec3<f32> {
+    let base : f32 = 71.0 + seed_offset * 53.0;
+    let r = animated_simplex(pos, width, height, 128.0, vec3<f32>(base * 0.17, base * 0.23, base * 0.31), time_value, speed_value);
+    let g = animated_simplex(pos, width, height, 128.0, vec3<f32>(base * 0.41, base * 0.47, base * 0.53), time_value, speed_value);
+    let b = animated_simplex(pos, width, height, 128.0, vec3<f32>(base * 0.59, base * 0.61, base * 0.67), time_value, speed_value);
+    return clamp(vec3<f32>(r, g, b), vec3<f32>(0.0), vec3<f32>(1.0));
+}
+
+fn mask_strength(mask : vec4<f32>) -> f32 {
+    let rgb_strength : f32 = max(mask.x, max(mask.y, mask.z));
+    return max(rgb_strength, mask.w);
+}
+
+fn clamp_coords(coords : vec2<i32>, dims : vec2<i32>) -> vec2<i32> {
+    let max_x : i32 = max(dims.x - 1, 0);
+    let max_y : i32 = max(dims.y - 1, 0);
+    return vec2<i32>(
+        clamp(coords.x, 0, max_x),
+        clamp(coords.y, 0, max_y)
+    );
+}
+
+fn worm_mask_sample(coords : vec2<i32>) -> vec4<f32> {
+    let worm_sample : vec4<f32> = textureLoad(worm_texture, coords, 0);
+    return clamp(worm_sample, vec4<f32>(0.0), vec4<f32>(1.0));
+}
+
+fn worm_mask_accumulated(
+    coords : vec2<i32>,
+    dims : vec2<i32>,
     time_value : f32,
     speed_value : f32,
 ) -> vec4<f32> {
-    let seed_base : f32 = 71.0 + f32(layer) * 53.0;
-    let r : f32 = animated_simplex(
-        pos,
-        width,
-        height,
-        128.0,
-        vec3<f32>(seed_base * 0.17, seed_base * 0.19, seed_base * 0.23),
-        time_value,
-        speed_value,
-    );
-    let g : f32 = animated_simplex(
-        pos,
-        width,
-        height,
-        128.0,
-        vec3<f32>(seed_base * 0.31, seed_base * 0.37, seed_base * 0.41),
-        time_value,
-        speed_value,
-    );
-    let b : f32 = animated_simplex(
-        pos,
-        width,
-        height,
-        128.0,
-        vec3<f32>(seed_base * 0.53, seed_base * 0.59, seed_base * 0.61),
-        time_value,
-        speed_value,
-    );
-    let a : f32 = animated_simplex(
-        pos,
-        width,
-        height,
-        128.0,
-        vec3<f32>(seed_base * 0.73, seed_base * 0.79, seed_base * 0.83),
-        time_value,
-        speed_value,
-    );
-    return clamp(vec4<f32>(r, g, b, a), vec4<f32>(0.0), vec4<f32>(1.0));
+    // Sample the worm texture directly and normalize
+    let worm_sample : vec4<f32> = worm_mask_sample(coords);
+    let sqrt_rgb : vec3<f32> = sqrt(clamp(worm_sample.xyz, vec3<f32>(0.0), vec3<f32>(1.0)));
+    let sqrt_alpha : f32 = sqrt(clamp(worm_sample.w, 0.0, 1.0));
+    // Boost alpha so fresh worm trails reach full opacity quickly, aging out older ones
+    let boosted_alpha : f32 = clamp(sqrt_alpha * 100.0, 0.0, 1.0);
+    return vec4<f32>(sqrt_rgb, boosted_alpha);
 }
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let width : u32 = to_dimension(params.size.x);
-    let height : u32 = to_dimension(params.size.y);
+    let width : u32 = to_dimension(params.width);
+    let height : u32 = to_dimension(params.height);
     if (width == 0u || height == 0u) {
         return;
     }
@@ -316,52 +221,52 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let channels : u32 = channel_count(params.size.z);
     let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
-    let base_sample : vec4<f32> = textureLoad(input_texture, coords, 0);
-    let base_alpha : f32 = base_sample.w;
+    let pixel_index : u32 = gid.y * width + gid.x;
+    let base_index : u32 = pixel_index * CHANNEL_COUNT;
 
+    let base_sample : vec4<f32> = textureLoad(input_texture, coords, 0);
+
+    let mask_dims_u : vec2<u32> = textureDimensions(worm_texture, 0);
+    let mask_dims : vec2<i32> = vec2<i32>(i32(mask_dims_u.x), i32(mask_dims_u.y));
+    let speed_value : f32 = max(params.speed, 0.0);
+    let time_value : f32 = params.time;
+    let base_mask : vec4<f32> = worm_mask_accumulated(coords, mask_dims, time_value, speed_value);
+    let mask_power : f32 = mask_strength(base_mask);
+
+    var accum : vec3<f32> = base_sample.xyz;
+    let pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
     let width_f : f32 = f32(width);
     let height_f : f32 = f32(height);
-    let pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
 
-    let time_value : f32 = params.time_speed.x;
-    let speed_value : f32 = params.time_speed.y;
-
-    var accum : vec4<f32> = base_sample;
-
+    // Python: tensor = value.blend(tensor, brightness, mask * 0.5)
+    // Each layer uses the same worm mask sampled at the current pixel,
+    // but with different brightness noise seeds and temporal offsets.
     for (var layer : u32 = 0u; layer < 4u; layer = layer + 1u) {
-        let mask_value : f32 = worm_mask(pos, width_f, height_f, layer, time_value, speed_value);
-        let blend_alpha : f32 = clamp_01(mask_value * 0.5);
-        if (blend_alpha <= 0.0) {
-            continue;
-        }
-
-        let bright : vec4<f32> = brightness_noise(
+        let layer_seed : f32 = params.seed + f32(layer) * 17.0;
+        
+        // Sample brightness noise with per-layer temporal variation
+        let brightness : vec3<f32> = brightness_noise(
             pos,
             width_f,
             height_f,
-            layer,
-            time_value,
-            speed_value,
+            layer_seed,
+            time_value + f32(layer) * 0.13,
+            1.0 + speed_value * 0.5,
         );
-
-        if (channels > 0u) {
-            accum.x = lerp(accum.x, bright.x, blend_alpha);
-        }
-        if (channels > 1u) {
-            accum.y = lerp(accum.y, bright.y, blend_alpha);
-        }
-        if (channels > 2u) {
-            accum.z = lerp(accum.z, bright.z, blend_alpha);
-        }
+        
+        // Use the worm mask directly (Python: mask * 0.5)
+        let mask_blend : vec3<f32> = clamp(base_mask.xyz * 0.5, vec3<f32>(0.0), vec3<f32>(1.0));
+        
+        // Linear blend: accum = mix(accum, brightness, mask)
+        accum = mix(accum, brightness, mask_blend);
     }
 
-    accum.w = base_alpha;
+    // Blend the accumulated layers back to the source
+    let final_rgb : vec3<f32> = clamp(accum, vec3<f32>(0.0), vec3<f32>(1.0));
 
-    let base_index : u32 = (gid.y * width + gid.x) * 4u;
-    output_buffer[base_index + 0u] = clamp_01(accum.x);
-    output_buffer[base_index + 1u] = clamp_01(accum.y);
-    output_buffer[base_index + 2u] = clamp_01(accum.z);
-    output_buffer[base_index + 3u] = clamp_01(base_alpha);
+    output_buffer[base_index + 0u] = final_rgb.x;
+    output_buffer[base_index + 1u] = final_rgb.y;
+    output_buffer[base_index + 2u] = final_rgb.z;
+    output_buffer[base_index + 3u] = base_sample.w;
 }

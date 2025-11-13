@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /*
 Headless shader test harness using Puppeteer (headless Chrome + WebGPU).
-- Serves the repo root statically so /shaders/demo.html can fetch /shaders/manifest.json and shader files.
-- Opens demo.html in headless Chrome with WebGPU enabled, selects specific shaders, renders one frame,
+- Serves the repo root statically so /demo/gpu-effects/index.html can fetch /shaders/manifest.json and shader files.
+- Opens the GPU effects demo in headless Chrome with WebGPU enabled, selects specific shaders, renders one frame,
   reads back the 2D canvas pixels, and validates deterministic sanity metrics.
 - No changes to /js or /noisemaker code.
 
@@ -140,8 +140,8 @@ async function main() {
     // Force a deterministic viewport and device scale so canvas pixels are exact.
     await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
 
-    // Navigate directly to the demo under /shaders so relative fetches work
-    await page.goto(`${base}/shaders/demo.html`, { waitUntil: 'networkidle2' });
+  // Navigate directly to the GPU effects demo so relative fetches work
+  await page.goto(`${base}/demo/gpu-effects/index.html`, { waitUntil: 'networkidle2' });
 
     // Ensure WebGPU is available
     let hasGPU = await page.evaluate(() => !!navigator.gpu);
@@ -151,13 +151,17 @@ async function main() {
       browser = await launch(false);
       const page2 = await browser.newPage();
       await page2.setViewport({ width: 1200, height: 800, deviceScaleFactor: 1 });
-      await page2.goto(`${base}/shaders/demo.html`, { waitUntil: 'networkidle2' });
+  await page2.goto(`${base}/demo/gpu-effects/index.html`, { waitUntil: 'networkidle2' });
       hasGPU = await page2.evaluate(() => !!navigator.gpu);
       if (!hasGPU) throw new Error('WebGPU not available in Chromium');
       // Use the second page for the remainder
       await page.close();
       page = page2;
     }
+
+    await page.waitForFunction(() => {
+      return Boolean(window.__demo__ && window.__demo__.setActiveEffect && window.__demo__.runMultiresOnce);
+    }, { timeout: 15000 });
 
     // Load manifest and pick shaders
     const manifest = await page.evaluate(async () => {
@@ -186,71 +190,69 @@ async function main() {
       let attempt = 0;
       for (; attempt <= args.retries; attempt++) {
         result = await page.evaluate(async (shaderPath, size, t, seed) => {
-        const shaderSelect = document.getElementById('shaderSelect');
-        const runButton = document.getElementById('runButton');
-        const preview = document.getElementById('preview');
-        const statusEl = document.getElementById('status');
-
-        // Wait until manifest has populated the <select>
-        async function waitForOptions(timeoutMs = 5000) {
-          const start = performance.now();
-          while (shaderSelect.options.length === 0) {
-            if (performance.now() - start > timeoutMs) throw new Error('Manifest/options not loaded');
-            await new Promise(r => setTimeout(r, 50));
+          const demo = window.__demo__;
+          if (!demo) {
+            return { error: 'Demo helpers unavailable' };
           }
-        }
-        await waitForOptions();
 
-        // Select shader in UI (triggers load and compile inside demo code)
-        const option = Array.from(shaderSelect.options).find(o => o.value === shaderPath);
-        if (!option) throw new Error('Shader option not found: ' + shaderPath);
-        shaderSelect.value = shaderPath;
-        shaderSelect.dispatchEvent(new Event('change'));
+          const canvas = document.getElementById('canvas');
+          if (!canvas) {
+            return { error: 'Canvas not found' };
+          }
 
-        // Wait for compile and first render to settle
-        function waitForStatus(timeoutMs = 10000) {
-          return new Promise((resolve) => {
-            const start = performance.now();
-            const timer = setInterval(() => {
-              const text = statusEl.textContent || '';
-              const ok = /Rendered using entry point/.test(text);
-              const err = /^Error:\s*/.test(text) || /WebGPU is not available/.test(text);
-              if (ok) { clearInterval(timer); resolve({ ok: true, text }); }
-              else if (err) { clearInterval(timer); resolve({ ok: false, text }); }
-              else if (performance.now() - start > timeoutMs) { clearInterval(timer); resolve({ ok: false, text: 'Timeout: ' + text }); }
-            }, 50);
-          });
-        }
+          canvas.width = size;
+          canvas.height = size;
 
-        // Override preview canvas size deterministically
-        preview.width = size;
-        preview.height = size;
+          const segments = shaderPath.split('/');
+          const effectId = segments.length >= 5 ? segments[3] : shaderPath;
 
-        // Click compile & render explicitly to force draw
-        runButton.click();
-        const status = await waitForStatus();
-        if (!status.ok) {
-          return { error: status.text || 'Render error' };
-        }
+          try {
+            await demo.setActiveEffect(effectId);
+            if (demo.updateActiveEffectParams) {
+              await demo.updateActiveEffectParams({ enabled: true });
+            }
+          } catch (err) {
+            return { error: `Failed to activate effect '${effectId}': ${err?.message ?? err}` };
+          }
 
-        // Read back pixels via 2D ctx (demo draws ImageData into canvas)
-        const ctx = preview.getContext('2d');
-        const img = ctx.getImageData(0, 0, preview.width, preview.height);
-        const data = img.data;
+          try {
+            await demo.runMultiresOnce({ seed, time: t, frameIndex: 0 });
+          } catch (err) {
+            return { error: `Render failed: ${err?.message ?? err}` };
+          }
 
-        // Calculate quick metrics to assert stability
-        let sum = 0, sumSq = 0, nonZero = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i+1], b = data[i+2];
-          const l = 0.2126*r + 0.7152*g + 0.0722*b; // perceived luminance
-          sum += l; sumSq += l*l; if (r|g|b) nonZero++;
-        }
-        const n = data.length / 4;
-        const mean = sum / n;
-        const variance = sumSq / n - mean*mean;
-        const stddev = Math.sqrt(Math.max(0, variance));
+          let floats;
+          try {
+            floats = await demo.readActiveEffectOutputFloats();
+          } catch (err) {
+            return { error: `Readback failed: ${err?.message ?? err}` };
+          }
 
-          return { width: preview.width, height: preview.height, n, mean, stddev, nonZero };
+          if (!floats || floats.length === 0) {
+            return { error: 'Effect produced no output' };
+          }
+
+          let sum = 0;
+          let sumSq = 0;
+          let nonZero = 0;
+          for (let i = 0; i < floats.length; i += 4) {
+            const r = floats[i];
+            const g = floats[i + 1];
+            const b = floats[i + 2];
+            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            sum += luminance;
+            sumSq += luminance * luminance;
+            if (r !== 0 || g !== 0 || b !== 0) {
+              nonZero += 1;
+            }
+          }
+
+          const n = floats.length / 4;
+          const mean = sum / n;
+          const variance = sumSq / n - mean * mean;
+          const stddev = Math.sqrt(Math.max(variance, 0));
+
+          return { width: size, height: size, n, mean, stddev, nonZero };
         }, pathRel, args.size, args.time, args.seed);
         if (!result || result.error) {
           // brief backoff before retry
@@ -278,7 +280,7 @@ async function main() {
 
       if (args.outDir) {
         // Capture only the canvas pixels for debugging
-        const pngB64 = await page.$eval('#preview', (canvas) => canvas.toDataURL('image/png').split(',')[1]);
+  const pngB64 = await page.$eval('#canvas', (canvas) => canvas.toDataURL('image/png').split(',')[1]);
         const outDir = path.resolve(REPO_ROOT, args.outDir);
         fs.mkdirSync(outDir, { recursive: true });
         const baseName = `${index.toString().padStart(2, '0')}_${label.replace(/\//g,'-')}`;

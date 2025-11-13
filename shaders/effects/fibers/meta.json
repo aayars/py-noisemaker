@@ -11,6 +11,10 @@
       "kind": "sampledTexture",
       "format": "rgba32float"
     },
+    "worm_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba16float"
+    },
     "output_buffer": {
       "kind": "storageBuffer",
       "size": "pixel-f32x4"
@@ -59,6 +63,10 @@
     "speed": {
       "buffer": "params",
       "offset": 5
+    },
+    "seed": {
+      "buffer": "params",
+      "offset": 6
     },
     "enabled": {
       "kind": "toggle"
