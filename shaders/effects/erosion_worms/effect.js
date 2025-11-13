@@ -622,6 +622,19 @@ class ErosionWormsEffect {
         }
       });
     }
+
+    if (resources.feedbackCopyPass && resources.bufferToTextureBindGroupLayout) {
+      const newFeedbackCopyBindGroup = device.createBindGroup({
+        layout: resources.bufferToTextureBindGroupLayout,
+        entries: [
+          { binding: 0, resource: { buffer: resources.outputBuffer } },
+          { binding: 1, resource: feedbackView },
+          { binding: 2, resource: { buffer: resources.paramsBuffer } },
+        ],
+      });
+      resources.feedbackCopyBindGroup = newFeedbackCopyBindGroup;
+      resources.feedbackCopyPass.bindGroup = newFeedbackCopyBindGroup;
+    }
   }
 
   afterDispatch() {

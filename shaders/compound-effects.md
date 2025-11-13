@@ -42,7 +42,7 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **rotate**
 [[ DONE ]] **scanline_error**
 [[ SKIP ]] **shadow**
-[[ SKIP ]] **erosion_worms**
+[[ DONE ]] **erosion_worms**
 [[ DONE ]] **simple_frame**
 [[ DONE ]] **sine**
 [[ DONE ]] **smoothstep**
@@ -69,7 +69,7 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **wobble**
 [[ DONE ]] **wormhole**
 [[ DONE ]] **light_leak**
-[[ TODO ]] **worms**
+[[ DONE ]] **worms**
 [[ TODO ]] **fibers**
 [[ TODO ]] **scratches**
 [[ TODO ]] **sketch**
