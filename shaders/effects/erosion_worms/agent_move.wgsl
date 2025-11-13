@@ -1,25 +1,13 @@
 // Erosion Worms - Pass 1: Agent Movement
-// This pass moves agents along luminance gradients with inertia and deposits trails.
-// Each thread processes one agent in parallel.
-//
-// Agent state (9 floats per agent):
-//   [0] x position
-//   [1] y position
-//   [2] x_dir (normalized direction vector x component)
-//   [3] y_dir (normalized direction vector y component)
-//   [4] color r
-//   [5] color g
-//   [6] color b
-//   [7] inertia (blend weight: 0=follow gradient exactly, 1=keep old direction)
-//   [8] age (frames since spawn)
+// Each invocation advances one agent along the luminance gradient and deposits trail energy.
 
 const TAU : f32 = 6.283185307179586;
 
 struct ErosionWormsParams {
-    size : vec4<f32>,        // (width, height, channels, unused)
-    controls0 : vec4<f32>,   // (density, contraction, quantize, unused)
-    controls1 : vec4<f32>,   // (alpha, inverse, xy_blend, time)
-    controls2 : vec4<f32>,   // (speed, worm_lifetime, unused, unused)
+    size : vec4<f32>,
+    controls0 : vec4<f32>,
+    controls1 : vec4<f32>,
+    controls2 : vec4<f32>,
 };
 
 @group(0) @binding(0) var input_texture : texture_2d<f32>;
@@ -135,20 +123,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let floats_len : u32 = arrayLength(&agent_state_in);
     if (floats_len < 9u) { return; }
     let agent_count : u32 = floats_len / 9u;
-    
-    // Each thread processes one agent
+
     let agent_id : u32 = gid.x;
     if (agent_id >= agent_count) { return; }
 
-    // Controls
-    let contraction : f32 = max(params.controls0.y, 1e-4);
+    let stride : f32 = max(params.controls0.y, 0.1);
     let quantize_flag : bool = params.controls0.z > 0.5;
-    let alpha : f32 = clamp(params.controls1.x, 0.0, 1.0);
+    let intensity : f32 = clamp(params.controls1.x, 0.0, 1.0);
     let inverse_flag : bool = params.controls1.y > 0.5;
-    let speed : f32 = max(params.controls2.x, 0.0);
-    let worm_lifetime : f32 = params.controls2.y;
+    let worm_lifetime : f32 = max(params.controls2.x, 0.0);
+    let time_value : f32 = params.controls1.w;
 
-    // Load agent state
     let base_state : u32 = agent_id * 9u;
     var x : f32 = agent_state_in[base_state + 0u];
     var y : f32 = agent_state_in[base_state + 1u];
@@ -157,105 +142,104 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     var cr : f32 = agent_state_in[base_state + 4u];
     var cg : f32 = agent_state_in[base_state + 5u];
     var cb : f32 = agent_state_in[base_state + 6u];
-    let inertia : f32 = agent_state_in[base_state + 7u];
+    let inertia : f32 = clamp(agent_state_in[base_state + 7u], 0.0, 1.0);
     var age : f32 = agent_state_in[base_state + 8u];
 
-    // Increment age
-    age = age + 1.0;
-    
-    // Respawn worm on a timer based on agent index (0 = never respawn)
-    // Each worm respawns when (age + agent_id) % lifetime == 0
-    let respawn_check : bool = worm_lifetime > 0.0 && (age + f32(agent_id)) >= worm_lifetime && (u32(age + f32(agent_id)) % u32(worm_lifetime)) == 0u;
-    if (respawn_check) {
-        let seed : u32 = agent_id + u32(age * 1000.0);
-        let pos : vec2<f32> = hash2(seed);
-        x = pos.x * f32(width);
-        y = pos.y * f32(height);
-        
-        let dir_seed : u32 = seed + 12345u;
-        let dir_raw : vec2<f32> = hash2(dir_seed) * 2.0 - 1.0;
-        let dir_len : f32 = length(dir_raw);
-        if (dir_len > 0.0) {
-            x_dir = dir_raw.x / dir_len;
-            y_dir = dir_raw.y / dir_len;
-        } else {
-            x_dir = 1.0;
-            y_dir = 0.0;
+    let normalized_lifetime : f32 = worm_lifetime / 60.0;
+    let normalized_index : f32 = select(0.0, f32(agent_id) / max(f32(agent_count), 1.0), agent_count > 0u);
+    let agent_phase : f32 = fract(normalized_index);
+    let needs_initial_color : bool = age < 0.0;
+
+    let time_in_cycle : f32 = fract(time_value + agent_phase);
+    let prev_time_in_cycle : f32 = fract(time_value - (1.0 / 60.0) + agent_phase);
+    let respawn_check : bool = worm_lifetime > 0.0
+        && normalized_lifetime > 0.0
+        && time_in_cycle < normalized_lifetime
+        && prev_time_in_cycle >= normalized_lifetime;
+
+    if (needs_initial_color || respawn_check) {
+        let seed : u32 = agent_id + u32(time_value * 1000.0);
+        if (respawn_check) {
+            let pos : vec2<f32> = hash2(seed);
+            x = pos.x * f32(width);
+            y = pos.y * f32(height);
+
+            let dir_seed : u32 = seed + 12345u;
+            let dir_raw : vec2<f32> = hash2(dir_seed) * 2.0 - 1.0;
+            let dir_len : f32 = length(dir_raw);
+            if (dir_len > 1e-5) {
+                x_dir = dir_raw.x / dir_len;
+                y_dir = dir_raw.y / dir_len;
+            } else {
+                x_dir = 1.0;
+                y_dir = 0.0;
+            }
         }
-        
-        let xi_new : i32 = wrap_int(i32(floor(x)), i32(width));
-        let yi_new : i32 = wrap_int(i32(floor(y)), i32(height));
-        let new_color : vec4<f32> = textureLoad(input_texture, vec2<i32>(xi_new, yi_new), 0);
-        cr = new_color.x;
-        cg = new_color.y;
-        cb = new_color.z;
-        
+
+        let xi : i32 = wrap_int(i32(floor(x)), i32(width));
+        let yi : i32 = wrap_int(i32(floor(y)), i32(height));
+        let sample_color : vec4<f32> = textureLoad(input_texture, vec2<i32>(xi, yi), 0);
+        cr = sample_color.x;
+        cg = sample_color.y;
+        cb = sample_color.z;
         age = 0.0;
     }
 
-    // Python has iterations=50 by default - each agent takes multiple steps per frame
-    let iterations : u32 = 50u;
-    
-    for (var i : u32 = 0u; i < iterations; i = i + 1u) {
-        // Calculate bilinearly interpolated gradient at current position
-        let xi : i32 = wrap_int(i32(floor(x)), i32(width));
-        let yi : i32 = wrap_int(i32(floor(y)), i32(height));
-        let x1i : i32 = wrap_int(xi + 1, i32(width));
-        let y1i : i32 = wrap_int(yi + 1, i32(height));
-        
-        let u : f32 = x - floor(x);
-        let v : f32 = y - floor(y);
-        
-        // Sample 4 corners for bilinear interpolation
-        let c00 : f32 = blurred_luminance_at(xi, yi, width, height, channel_count);
-        let c10 : f32 = blurred_luminance_at(x1i, yi, width, height, channel_count);
-        let c01 : f32 = blurred_luminance_at(xi, y1i, width, height, channel_count);
-        let c11 : f32 = blurred_luminance_at(x1i, y1i, width, height, channel_count);
-        
-        // Bilinear gradient: g_x = blend(c01 - c00, c11 - c10, u)
-        var gx : f32 = mix(c01 - c00, c11 - c10, u);
-        var gy : f32 = mix(c10 - c00, c11 - c01, v);
-        
-        if (quantize_flag) { gx = floor(gx); gy = floor(gy); }
+    let xi : i32 = wrap_int(i32(floor(x)), i32(width));
+    let yi : i32 = wrap_int(i32(floor(y)), i32(height));
+    let x1i : i32 = wrap_int(xi + 1, i32(width));
+    let y1i : i32 = wrap_int(yi + 1, i32(height));
 
-        let glen : f32 = length(vec2<f32>(gx, gy));
-        if (glen > 0.0) {
-            gx = gx / (glen * contraction);
-            gy = gy / (glen * contraction);
-        }
+    let u : f32 = x - floor(x);
+    let v : f32 = y - floor(y);
 
-        // Blend old direction with new gradient using inertia
-        // Python: x_dir = blend(x_dir, gradient, inertia) = x_dir * (1-inertia) + gradient * inertia
-        x_dir = mix(x_dir, gx, inertia);
-        y_dir = mix(y_dir, gy, inertia);
+    let c00 : f32 = blurred_luminance_at(xi, yi, width, height, channel_count);
+    let c10 : f32 = blurred_luminance_at(x1i, yi, width, height, channel_count);
+    let c01 : f32 = blurred_luminance_at(xi, y1i, width, height, channel_count);
+    let c11 : f32 = blurred_luminance_at(x1i, y1i, width, height, channel_count);
 
-        // Step along blended direction
-        x = wrap_float(x + x_dir * speed, f32(width));
-        y = wrap_float(y + y_dir * speed, f32(height));
+    var gx : f32 = mix(c01 - c00, c11 - c10, u);
+    var gy : f32 = mix(c10 - c00, c11 - c01, v);
 
-        // Deposit trail at new position
-        // Python: exposure = 1 - abs(1 - i / (iterations - 1) * 2) to make gradient [0..1..0]
-        let t : f32 = f32(i) / f32(iterations - 1u);
-        let exposure : f32 = 1.0 - abs(1.0 - t * 2.0);
-        
-        let xi2 : i32 = wrap_int(i32(floor(x)), i32(width));
-        let yi2 : i32 = wrap_int(i32(floor(y)), i32(height));
-        let p : u32 = u32(yi2) * width + u32(xi2);
-        let base : u32 = p * 4u;
-        
-        var col : vec4<f32> = textureLoad(input_texture, vec2<i32>(xi2, yi2), 0);
-        if (inverse_flag) { col = vec4<f32>(1.0) - col; }
-        let tint : vec3<f32> = vec3<f32>(cr, cg, cb);
-        col = vec4<f32>(col.xyz * tint * exposure, col.w * exposure);
-        
-        // Atomic-like accumulation (race conditions possible but visually acceptable)
-        output_buffer[base + 0u] = clamp(output_buffer[base + 0u] + col.x * alpha, 0.0, 1.0);
-        output_buffer[base + 1u] = clamp(output_buffer[base + 1u] + col.y * alpha, 0.0, 1.0);
-        output_buffer[base + 2u] = clamp(output_buffer[base + 2u] + col.z * alpha, 0.0, 1.0);
-        output_buffer[base + 3u] = clamp(output_buffer[base + 3u] + col.w * alpha, 0.0, 1.0);
+    if (quantize_flag) {
+        gx = floor(gx);
+        gy = floor(gy);
     }
 
-    // Save updated agent state (direction vectors and age)
+    let glen : f32 = length(vec2<f32>(gx, gy));
+    if (glen > 1e-6) {
+        let scale : f32 = stride / glen;
+        gx = gx * scale;
+        gy = gy * scale;
+    } else {
+        gx = 0.0;
+        gy = 0.0;
+    }
+
+    x_dir = mix(x_dir, gx, inertia);
+    y_dir = mix(y_dir, gy, inertia);
+
+    x = wrap_float(x + x_dir, f32(width));
+    y = wrap_float(y + y_dir, f32(height));
+
+    let xi2 : i32 = wrap_int(i32(floor(x)), i32(width));
+    let yi2 : i32 = wrap_int(i32(floor(y)), i32(height));
+    let pixel_index : u32 = u32(yi2) * width + u32(xi2);
+    let base : u32 = pixel_index * 4u;
+
+    let tint : vec3<f32> = vec3<f32>(cr, cg, cb);
+    var deposit_rgb : vec3<f32> = tint;
+    if (inverse_flag) {
+        deposit_rgb = vec3<f32>(1.0) - deposit_rgb;
+    }
+
+    output_buffer[base + 0u] = clamp(output_buffer[base + 0u] + deposit_rgb.x * intensity, 0.0, 1.0);
+    output_buffer[base + 1u] = clamp(output_buffer[base + 1u] + deposit_rgb.y * intensity, 0.0, 1.0);
+    output_buffer[base + 2u] = clamp(output_buffer[base + 2u] + deposit_rgb.z * intensity, 0.0, 1.0);
+    output_buffer[base + 3u] = clamp(output_buffer[base + 3u] + intensity, 0.0, 1.0);
+
+    age = age + 1.0;
+
     agent_state_out[base_state + 0u] = x;
     agent_state_out[base_state + 1u] = y;
     agent_state_out[base_state + 2u] = x_dir;
