@@ -17,11 +17,10 @@ class EffectUIGenerator {
     this.container.textContent = '';
     this.controls.clear();
 
-    // Forbidden parameters that should not be exposed as UI controls
     const forbiddenParams = new Set(['enabled', 'width', 'height', 'channels', 'time']);
 
     params.forEach((param) => {
-      if (forbiddenParams.has(param.name)) return; // Skip forbidden parameters
+      if (forbiddenParams.has(param.name)) return;
 
       const value = this.#resolveInitialValue(param, initialValues[param.name]);
       const control = this.#createControl(param, value);

@@ -1,8 +1,12 @@
 import {
   getShaderDescriptor,
   parseShaderMetadata,
-} from './shader-registry.js?step8';
-import EffectManager from './effect-manager.js';
+} from '../../shaders/src/registry/shader-registry.js';
+import EffectManager from '../../shaders/src/runtime/effect-manager.js';
+import {
+  createWebGPURuntime,
+  WEBGPU_ENABLE_HINT,
+} from '../../shaders/src/runtime/webgpu-runtime.js';
 import aberrationMetadata from '../../shaders/effects/aberration/meta.json' with { type: 'json' };
 import adjustBrightnessMetadata from '../../shaders/effects/adjust_brightness/meta.json' with { type: 'json' };
 import adjustContrastMetadata from '../../shaders/effects/adjust_contrast/meta.json' with { type: 'json' };
@@ -80,190 +84,98 @@ if (!canvas || !statusEl) {
   throw new Error('Demo bootstrap failed: missing required DOM elements.');
 }
 
-// Set canvas resolution - cap at reasonable size for performance
-let needsResourceRecreation = false;
-let lastCanvasMode = null; // Track mode changes
+const demoLogs = [];
 
-function resizeCanvas() {
-  const isFullBleedMode = document.body.classList.contains('full-bleed-mode');
-  const currentMode = isFullBleedMode ? 'fullbleed' : 'fixed';
-  const modeChanged = lastCanvasMode !== null && lastCanvasMode !== currentMode;
-  
-  let newWidth, newHeight;
-  
-  if (isFullBleedMode) {
-    // Full bleed mode: use full native resolution, but clamp to 1920x1080
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    let unclampedWidth = Math.floor(rect.width * dpr);
-    let unclampedHeight = Math.floor(rect.height * dpr);
-    // Clamp to 1920x1080 max
-    const MAX_WIDTH = 1920;
-    const MAX_HEIGHT = 1080;
-    const aspect = unclampedWidth / unclampedHeight;
-    if (unclampedWidth > MAX_WIDTH || unclampedHeight > MAX_HEIGHT) {
-      if (aspect >= MAX_WIDTH / MAX_HEIGHT) {
-        newWidth = MAX_WIDTH;
-        newHeight = Math.round(MAX_WIDTH / aspect);
-      } else {
-        newHeight = MAX_HEIGHT;
-        newWidth = Math.round(MAX_HEIGHT * aspect);
+function appendLog(level, args) {
+  const timestamp = Date.now();
+  const message = args
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry;
       }
-    } else {
-      newWidth = unclampedWidth;
-      newHeight = unclampedHeight;
-    }
-  } else {
-    // Fixed canvas mode (default): always 1024x1024
-    newWidth = 1024;
-    newHeight = 1024;
-  }
-  
-  const dimensionsChanged = canvas.width !== newWidth || canvas.height !== newHeight;
-  
-  if (dimensionsChanged) {
-    canvas.width = newWidth;
-    canvas.height = newHeight;
-    needsResourceRecreation = true;
-  } else if (modeChanged) {
-    // Even if dimensions didn't change, force resource recreation on mode change
-    needsResourceRecreation = true;
-  }
-  
-  lastCanvasMode = currentMode;
+      if (entry instanceof Error) {
+        return entry.stack || entry.message;
+      }
+      try {
+        return JSON.stringify(entry);
+      } catch (_error) {
+        return String(entry);
+      }
+    })
+    .join(' ');
+
+  demoLogs.push({ level, message, timestamp });
+
+  const consoleFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info;
+  consoleFn(`[gpu-demo] ${message}`);
 }
 
-// Initialize canvas resolution
-resizeCanvas();
+const logInfo = (...args) => appendLog('info', args);
+const logWarn = (...args) => appendLog('warn', args);
+const logError = (...args) => appendLog('error', args);
 
-// Handle window resize with debounce
-let resizeTimeout;
-window.addEventListener('resize', (event) => {
-  // Check if this is a forced immediate resize (e.g., from view mode toggle)
-  const forceImmediate = event instanceof CustomEvent && event.detail?.forceImmediate === true;
-  
-  if (forceImmediate) {
-    // Skip debounce and resize immediately
-    clearTimeout(resizeTimeout);
-    resizeCanvas();
-  } else {
-    // Normal resize with debounce
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      resizeCanvas();
-    }, 250);
+function setStatus(message) {
+  if (statusEl) {
+    statusEl.textContent = message;
   }
+  logInfo(`Status: ${message}`);
+}
+
+function fatal(error) {
+  const message = typeof error === 'string' ? error : error?.message ?? String(error);
+  logError(`Fatal: ${message}`);
+  setStatus(`Error: ${message}`);
+  throw new Error(message);
+}
+
+let effectManager = null;
+
+const runtime = createWebGPURuntime({
+  canvas,
+  getShaderDescriptor,
+  parseShaderMetadata,
+  logInfo,
+  logWarn,
+  logError,
+  setStatus,
+  fatal,
+  onCachesCleared: () => {
+    effectManager?.invalidateActiveEffectResources?.();
+  },
+  onDeviceInvalidated: () => {
+    effectManager?.invalidateActiveEffectResources?.();
+  },
 });
 
-const demoLogs = [];
-const MAX_LOG_ENTRIES = 500;
-const hasOwn = (object, property) => Object.prototype.hasOwnProperty.call(object, property);
+const {
+  ensureWebGPU,
+  getWebGPUState,
+  clearGPUObjectCaches,
+  ensureCachesMatchDevice,
+  loadShaderSource,
+  getShaderMetadataCached,
+  getOrCreateShaderModule,
+  createBindGroupLayoutEntriesFromMetadata,
+  createShaderResourceSet,
+  createBindGroupEntriesFromResources,
+  warnOnNonContiguousBindings,
+  getOrCreateBindGroupLayout,
+  getOrCreatePipelineLayout,
+  getOrCreateComputePipeline,
+  getBufferToTexturePipeline,
+  compileShaderModuleWithValidation,
+  renderFlatColor,
+  pipelineCache,
+  blitShaderModuleCache,
+} = runtime;
 
-// Suppress console output for info/debug logs (keeps them in demoLogs for tests)
-let quietInfoLogs = true;
-
-function formatLogDetail(detail) {
-  if (detail instanceof Error && typeof detail.stack === 'string') {
-    return detail.stack;
-  }
-  if (typeof detail === 'object' && detail !== null) {
-    try {
-      return JSON.stringify(detail);
-    } catch (error) {
-      return String(detail);
-    }
-  }
-  return String(detail);
-}
-
-function captureLog(level, message, ...details) {
-  const normalizedMessage = typeof message === 'string' ? message : String(message);
-  const detailText = details.length > 0
-    ? details.map((detail) => formatLogDetail(detail)).join(' ').trim()
-    : '';
-  const combined = detailText ? `${normalizedMessage} ${detailText}`.trim() : normalizedMessage;
-
-  demoLogs.push({ level, message: combined, timestamp: Date.now() });
-  if (demoLogs.length > MAX_LOG_ENTRIES) {
-    demoLogs.splice(0, demoLogs.length - MAX_LOG_ENTRIES);
-  }
-
-  // Suppress console spam for info/debug during animation
-  const shouldLog = level === 'error' || level === 'warn' || !quietInfoLogs;
-  
-  if (shouldLog) {
-    const consoleArgs = [normalizedMessage, ...details];
-    switch (level) {
-      case 'error':
-        console.error(...consoleArgs);
-        break;
-      case 'warn':
-        console.warn(...consoleArgs);
-        break;
-      case 'debug':
-        console.debug(...consoleArgs);
-        break;
-      default:
-        console.log(...consoleArgs);
-        break;
-    }
-  }
-
-  return combined;
-}
-
-function logInfo(message, ...details) {
-  return captureLog('info', message, ...details);
-}
-
-function logWarn(message, ...details) {
-  captureLog('warn', message, ...details);
-}
-
-function logError(message, ...details) {
-  captureLog('error', message, ...details);
-}
-
-/**
- * Fatal helper surfaces blocking errors to the user and halts further execution.
- * Writes to status div, logs to console, and throws to stop async workflows.
- */
-function fatal(message) {
-  const text = typeof message === 'string' ? message : String(message);
-  statusEl.textContent = `❌ ${text}`;
-  logError(`[FATAL] ${text}`);
-  throw new Error(text);
-}
-
-/**
- * Status helper updates the status display without throwing.
- */
-function setStatus(message) {
-  const text = String(message);
-  statusEl.textContent = text;
-  logInfo(text);
-}
-
-const WEBGPU_ENABLE_HINT = 'WebGPU not available. Enable chrome://flags/#enable-unsafe-webgpu and restart the browser.';
-
-const shaderSourceCache = new Map();
-const shaderMetadataCache = new Map();
-// New caches for performance-critical GPU objects (size/layout independent)
-const shaderModuleCache = new Map(); // key: shaderId
-const bindGroupLayoutCache = new Map(); // key: `${shaderId}|${stage}`
-const pipelineLayoutCache = new Map(); // key: `${shaderId}|${stage}`
-const computePipelineCache = new Map(); // key: `compute|${shaderId}|${entryPoint}`
-const blitShaderModuleCache = new Map(); // key: 'blit'
-const bufferToTexturePipelineCache = new WeakMap(); // key: GPUDevice -> { pipeline, layout }
-
-// Track which device the caches belong to
-let cachedDevice = null;
-
-const effectManager = new EffectManager({
+effectManager = new EffectManager({
   helpers: {
     logInfo,
     logWarn,
+    logError,
     setStatus,
+    fatal,
     getShaderDescriptor,
     getShaderMetadataCached,
     warnOnNonContiguousBindings,
@@ -275,6 +187,12 @@ const effectManager = new EffectManager({
     getBufferToTexturePipeline,
   },
 });
+
+setStatus('Initializing…');
+
+function getPipelineCacheKey(format, alphaMode) {
+  return `${format}|${alphaMode ?? 'opaque'}`;
+}
 
 effectManager.registerEffect({
   id: aberrationMetadata.id,
@@ -386,13 +304,6 @@ effectManager.registerEffect({
   label: dlaMetadata.label,
   metadata: dlaMetadata,
   loadModule: () => import('../../shaders/effects/dla/effect.js'),
-});
-
-effectManager.registerEffect({
-  id: erosionWormsMetadata.id,
-  label: erosionWormsMetadata.label,
-  metadata: erosionWormsMetadata,
-  loadModule: () => import('../../shaders/effects/erosion_worms/effect.js'),
 });
 
 effectManager.registerEffect({
@@ -539,8 +450,7 @@ effectManager.registerEffect({
   id: sobelMetadata.id,
   label: sobelMetadata.label,
   metadata: sobelMetadata,
-  // Add a cache-busting query to force reload of the Sobel effect module when updated
-  loadModule: () => import('../../shaders/effects/sobel/effect.js?v=2'),
+  loadModule: () => import('../../shaders/effects/sobel/effect.js'),
 });
 
 effectManager.registerEffect({
@@ -752,778 +662,6 @@ effectManager.registerEffect({
   metadata: outlineMetadata,
   loadModule: () => import('../../shaders/effects/outline/effect.js'),
 });
-
-function getRegisteredEffects() {
-  const effects = effectManager.getAvailableEffects();
-  // Sort alphabetically by label for dropdown display
-  return effects.sort((a, b) => {
-    const labelA = (a.label || a.id).toLowerCase();
-    const labelB = (b.label || b.id).toLowerCase();
-    return labelA.localeCompare(labelB);
-  });
-}
-
-function getActiveEffectMetadata(effectId) {
-  return effectManager.getEffectMetadata(effectId);
-}
-
-async function getActiveEffectUIState() {
-  return effectManager.getActiveUIState();
-}
-
-async function setActiveEffect(effectId) {
-  return effectManager.setActiveEffect(effectId);
-}
-
-async function updateActiveEffectParams(updates = {}) {
-  return effectManager.updateActiveParams(updates);
-}
-
-function clearGPUObjectCaches() {
-  logInfo('Clearing all GPU object caches');
-  shaderModuleCache.clear();
-  bindGroupLayoutCache.clear();
-  pipelineLayoutCache.clear();
-  computePipelineCache.clear();
-  blitShaderModuleCache.clear();
-  // Note: bufferToTexturePipelineCache is a WeakMap and cannot be cleared explicitly
-  pipelineCache.clear(); // Clear render pipeline cache
-  effectManager.invalidateActiveEffectResources();
-  // Note: Don't set cachedDevice = null here; let ensureCachesMatchDevice manage it
-}
-
-function alignTo(value, multiple) {
-  if (multiple <= 0) {
-    return value;
-  }
-  return Math.ceil(value / multiple) * multiple;
-}
-
-function resolveUniformBufferSize(size) {
-  if (typeof size === 'number' && Number.isFinite(size) && size > 0) {
-    return alignTo(Math.max(size, 256), 256);
-  }
-  return 256;
-}
-
-function resolveStorageBufferSize(sizeDescriptor, width, height) {
-  if (typeof sizeDescriptor === 'number' && Number.isFinite(sizeDescriptor) && sizeDescriptor > 0) {
-    return alignTo(sizeDescriptor, 16);
-  }
-  if (sizeDescriptor === 'pixel-f32x4') {
-    const pixels = Math.max(width * height, 1);
-    return alignTo(pixels * 4 * 4, 16);
-  }
-  if (sizeDescriptor === 'pixel-sort-f32x4') {
-    const maxDim = Math.max(Math.max(width, height), 1);
-    const want = Math.min(Math.max(maxDim * 2, maxDim, 1), 4096);
-    const pixels = Math.max(want * want, 1);
-    return alignTo(pixels * 4 * 4, 16);
-  }
-  if (sizeDescriptor === 'dynamic-histogram') {
-    const bins = Math.max(Math.max(width, height), 1);
-    return alignTo(bins * Uint32Array.BYTES_PER_ELEMENT, 16);
-  }
-  return 16;
-}
-
-function ensureCachesMatchDevice(device) {
-  if (cachedDevice !== device) {
-    logWarn(`Device changed! Old: ${cachedDevice ? 'exists' : 'null'}, New: ${device ? 'exists' : 'null'}, Same object: ${cachedDevice === device}`);
-    clearGPUObjectCaches();
-    cachedDevice = device;
-    // Note: We don't call invalidateComputeResources() here because it would
-    // destroy resources mid-frame. Instead, getComputeResources() will detect
-    // stale cached objects and recreate them naturally.
-  }
-}
-
-async function loadShaderSource(shaderId) {
-  if (shaderSourceCache.has(shaderId)) {
-    return shaderSourceCache.get(shaderId);
-  }
-
-  let descriptor;
-  try {
-    descriptor = getShaderDescriptor(shaderId);
-  } catch (error) {
-    fatal(error?.message ?? error);
-  }
-
-  let response;
-  try {
-    // Add cache-busting timestamp to force fresh shader load
-    const url = descriptor.url + '?t=' + Date.now();
-    response = await fetch(url);
-  } catch (error) {
-    fatal(`Failed to fetch ${descriptor.label ?? shaderId}: ${error?.message ?? error}`);
-  }
-
-  if (!response?.ok) {
-    fatal(`Failed to fetch ${descriptor.label ?? shaderId}: ${response?.status ?? 'Request failed'}`);
-  }
-
-  const source = await response.text();
-  shaderSourceCache.set(shaderId, source);
-  return source;
-}
-
-async function getShaderMetadataCached(shaderId) {
-  if (shaderMetadataCache.has(shaderId)) {
-    return shaderMetadataCache.get(shaderId);
-  }
-  const source = await loadShaderSource(shaderId);
-  const metadata = parseShaderMetadata(source);
-  shaderMetadataCache.set(shaderId, metadata);
-  return metadata;
-}
-
-async function getOrCreateShaderModule(device, shaderId) {
-  ensureCachesMatchDevice(device);
-  if (shaderModuleCache.has(shaderId)) {
-    return shaderModuleCache.get(shaderId);
-  }
-  const descriptor = getShaderDescriptor(shaderId);
-  const source = await loadShaderSource(shaderId);
-  const module = await compileShaderModuleWithValidation(device, source, { label: descriptor.label });
-  shaderModuleCache.set(shaderId, module);
-  return module;
-}
-
-function getOrCreateBindGroupLayout(device, shaderId, stage, metadata) {
-  ensureCachesMatchDevice(device);
-  const cacheKey = `${shaderId}|${stage}`;
-  if (bindGroupLayoutCache.has(cacheKey)) {
-    return bindGroupLayoutCache.get(cacheKey);
-  }
-  const layout = device.createBindGroupLayout({
-    entries: createBindGroupLayoutEntriesFromMetadata(metadata.bindings, stage),
-  });
-  bindGroupLayoutCache.set(cacheKey, layout);
-  return layout;
-}
-
-function getOrCreatePipelineLayout(device, shaderId, stage, bindGroupLayout) {
-  ensureCachesMatchDevice(device);
-  const cacheKey = `${shaderId}|${stage}`;
-  if (pipelineLayoutCache.has(cacheKey)) {
-    return pipelineLayoutCache.get(cacheKey);
-  }
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
-  pipelineLayoutCache.set(cacheKey, layout);
-  return layout;
-}
-
-async function getOrCreateComputePipeline(device, shaderId, pipelineLayout, entryPoint) {
-  ensureCachesMatchDevice(device);
-  const normalizedEntryPoint = entryPoint ?? 'main';
-  const cacheKey = `compute|${shaderId}|${normalizedEntryPoint}`;
-  if (computePipelineCache.has(cacheKey)) {
-    return computePipelineCache.get(cacheKey);
-  }
-  const module = await getOrCreateShaderModule(device, shaderId);
-  device.pushErrorScope('validation');
-  let pipeline;
-  try {
-    pipeline = device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint: normalizedEntryPoint },
-    });
-  } catch (error) {
-    await device.popErrorScope();
-    fatal(`Failed to create compute pipeline: ${error?.message ?? error}`);
-  }
-  const err = await device.popErrorScope();
-  if (err) {
-    fatal(`Compute pipeline validation failed: ${err?.message ?? err}`);
-  }
-  computePipelineCache.set(cacheKey, pipeline);
-  return pipeline;
-}
-
-function createBindGroupLayoutEntriesFromMetadata(bindings, stage) {
-  const visibility = stage === 'render' ? GPUShaderStage.FRAGMENT : GPUShaderStage.COMPUTE;
-  return bindings
-    .filter((binding) => binding.group === 0)
-    .map((binding) => {
-      if (binding.resource === 'uniformBuffer') {
-        return {
-          binding: binding.binding,
-          visibility,
-          buffer: { type: 'uniform' },
-        };
-      }
-
-      if (binding.resource === 'storageBuffer') {
-        return {
-          binding: binding.binding,
-          visibility,
-          buffer: { type: 'storage' },
-        };
-      }
-
-      if (binding.resource === 'readOnlyStorageBuffer') {
-        return {
-          binding: binding.binding,
-          visibility,
-          buffer: { type: 'read-only-storage' },
-        };
-      }
-
-      if (binding.resource === 'storageTexture') {
-        return {
-          binding: binding.binding,
-          visibility,
-          storageTexture: {
-            access: binding.storageTextureAccess ?? 'write-only',
-            format: binding.storageTextureFormat ?? 'rgba32float',
-          },
-        };
-      }
-
-      if (binding.resource === 'sampledTexture') {
-        return {
-          binding: binding.binding,
-          visibility,
-          texture: { sampleType: 'unfilterable-float' },
-        };
-      }
-
-      if (binding.resource === 'sampler') {
-        return {
-          binding: binding.binding,
-          visibility,
-          sampler: {},
-        };
-      }
-
-      fatal(`Unsupported binding resource type for ${binding.name} (binding ${binding.binding}).`);
-      return null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.binding - b.binding);
-}
-
-function createShaderResourceSet(device, descriptor, metadata, width, height, options = {}) {
-  const buffers = {};
-  const textures = {};
-  const samplers = {};
-  const destroyables = [];
-  let destroyed = false;
-  const templates = descriptor.resources ?? {};
-  const groupZeroBindings = metadata.bindings.filter((binding) => binding.group === 0);
-  const providedTextures = options.inputTextures ?? {};
-  const providedSamplers = options.samplers ?? {};
-
-  for (const binding of groupZeroBindings) {
-    const template = templates[binding.name];
-
-    if (binding.resource === 'uniformBuffer') {
-      if (!template?.size) {
-        logWarn(`No resource template size for uniform buffer '${binding.name}' in shader '${descriptor.id}'. Defaulting to 256 bytes.`);
-      }
-      const size = resolveUniformBufferSize(template?.size);
-      const buffer = device.createBuffer({
-        size,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      });
-      buffers[binding.name] = buffer;
-      destroyables.push(buffer);
-      continue;
-    }
-
-    if (binding.resource === 'storageBuffer' || binding.resource === 'readOnlyStorageBuffer') {
-      const size = resolveStorageBufferSize(template?.size, width, height);
-      const buffer = device.createBuffer({
-        size,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      buffers[binding.name] = buffer;
-      destroyables.push(buffer);
-      continue;
-    }
-
-    if (binding.resource === 'storageTexture') {
-      const format = template?.format ?? binding.storageTextureFormat ?? 'rgba32float';
-      const texture = device.createTexture({
-        size: {
-          width,
-          height,
-          depthOrArrayLayers: 1,
-        },
-        format,
-        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
-      });
-      textures[binding.name] = texture;
-      destroyables.push(texture);
-      continue;
-    }
-
-    if (binding.resource === 'sampledTexture') {
-      // Prefer provided texture (e.g., generator output)
-      const provided = providedTextures[binding.name];
-      if (provided) {
-        textures[binding.name] = provided;
-        // Do not track provided textures for destruction (externally owned)
-      } else {
-        // Create a dummy sampleable texture for bring-up/tests
-        const format = template?.format ?? 'rgba32float';
-        const texture = device.createTexture({
-          size: { width, height, depthOrArrayLayers: 1 },
-          format,
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-        });
-        textures[binding.name] = texture;
-        destroyables.push(texture);
-      }
-      continue;
-    }
-
-    if (binding.resource === 'sampler') {
-      const provided = providedSamplers[binding.name];
-      if (provided) {
-        samplers[binding.name] = provided;
-      } else {
-        const sampler = device.createSampler({
-          magFilter: 'linear',
-          minFilter: 'linear',
-        });
-        samplers[binding.name] = sampler;
-        // Samplers do not have destroy(), no need to track in destroyables
-      }
-      continue;
-    }
-  }
-
-  return {
-    buffers,
-    textures,
-    samplers,
-    destroyAll() {
-      if (destroyed) {
-        return;
-      }
-      destroyed = true;
-      for (const resource of destroyables) {
-        if (resource?.destroy) {
-          try {
-            resource.destroy();
-          } catch (error) {
-            logWarn('Failed to destroy GPU resource during cleanup:', error);
-          }
-        }
-      }
-    },
-  };
-}
-
-function createBindGroupEntriesFromResources(bindings, resourceSet) {
-  return bindings
-    .filter((binding) => binding.group === 0)
-    .map((binding) => {
-      if (binding.resource === 'uniformBuffer' || binding.resource === 'storageBuffer' || binding.resource === 'readOnlyStorageBuffer') {
-        const buffer = resourceSet.buffers[binding.name];
-        if (!buffer) {
-          fatal(`Missing GPU buffer for binding ${binding.name}.`);
-        }
-        return {
-          binding: binding.binding,
-          resource: { buffer },
-        };
-      }
-
-      if (binding.resource === 'storageTexture') {
-        const texture = resourceSet.textures[binding.name];
-        if (!texture) {
-          fatal(`Missing GPU texture for binding ${binding.name}.`);
-        }
-        return {
-          binding: binding.binding,
-          resource: texture.createView(),
-        };
-      }
-
-      if (binding.resource === 'sampledTexture') {
-        const texture = resourceSet.textures[binding.name];
-        if (!texture) {
-          fatal(`Missing sampled texture for binding ${binding.name}.`);
-        }
-        return {
-          binding: binding.binding,
-          resource: texture.createView(),
-        };
-      }
-
-      if (binding.resource === 'sampler') {
-        const sampler = resourceSet.samplers?.[binding.name];
-        if (!sampler) {
-          fatal(`Missing sampler for binding ${binding.name}.`);
-        }
-        return {
-          binding: binding.binding,
-          resource: sampler,
-        };
-      }
-
-      fatal(`Unsupported bind group entry resource for ${binding.name}.`);
-      return null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.binding - b.binding);
-}
-
-const warnedShaders = new Set();
-function warnOnNonContiguousBindings(bindings, shaderId) {
-  if (warnedShaders.has(shaderId)) {
-    return; // Only warn once per shader
-  }
-  const groupZero = bindings.filter((b) => b.group === 0).map((b) => b.binding).sort((a, b) => a - b);
-  for (let i = 1; i < groupZero.length; i += 1) {
-    if (groupZero[i] !== groupZero[i - 1] + 1) {
-      logWarn(`Non-contiguous binding indices detected for shader '${shaderId}': [${groupZero.join(', ')}]`);
-      warnedShaders.add(shaderId);
-      break;
-    }
-  }
-}
-
-/**
- * Ensures WebGPU is available and returns adapter/device tuple with zero requested features.
- * Throws via fatal() with actionable messaging on failure.
- * NOTE: This should only be called ONCE per page load. Use getWebGPUState() for repeated access.
- */
-let singletonWebGPUInit = null;
-async function ensureWebGPU() {
-  if (singletonWebGPUInit) {
-    logInfo('ensureWebGPU: Returning cached singleton');
-    return singletonWebGPUInit;
-  }
-  
-  setStatus('Checking WebGPU support…');
-
-  if (!navigator.gpu) {
-    fatal(WEBGPU_ENABLE_HINT);
-  }
-
-  let adapter;
-  try {
-    adapter = await navigator.gpu.requestAdapter();
-  } catch (error) {
-    fatal(`Failed to request GPU adapter: ${error.message ?? error}`);
-  }
-
-  if (!adapter) {
-    fatal('Unable to acquire GPU adapter. Ensure WebGPU is enabled for your browser profile.');
-  }
-
-  let device;
-  try {
-    device = await adapter.requestDevice();
-    logInfo('Created new WebGPU device');
-  } catch (error) {
-    fatal(`Failed to request GPU device: ${error.message ?? error}`);
-  }
-
-  if (!device) {
-    fatal('GPU adapter returned no device.');
-  }
-
-  setStatus('WebGPU ready.');
-  singletonWebGPUInit = { adapter, device };
-  return singletonWebGPUInit;
-}
-
-/**
- * Encapsulates shared WebGPU canvas/device wiring.
- */
-class WebGPUContext {
-  constructor({ adapter, device, canvas, onDeviceLost, onContextLost } = {}) {
-    if (!canvas) {
-      fatal('WebGPUContext requires a canvas element.');
-    }
-    if (!device) {
-      fatal('WebGPUContext requires a GPU device.');
-    }
-
-    this.adapter = adapter ?? null;
-    this.device = device;
-    this.queue = device.queue;
-    this.canvas = canvas;
-    this.context = null;
-    this.format = null;
-    this.alphaMode = 'opaque';
-    this._onContextLost = onContextLost;
-    this._onDeviceLost = onDeviceLost;
-    this._contextLostListener = null;
-
-    if (device?.lost && typeof device.lost.then === 'function') {
-      device.lost
-        .then((info) => {
-          if (typeof this._onDeviceLost === 'function') {
-            this._onDeviceLost(info);
-          } else {
-            const message = info?.message ?? 'Device lost for unknown reasons.';
-            fatal(`WebGPU device lost: ${message}`);
-          }
-        })
-        .catch((error) => {
-          fatal(`WebGPU device lost: ${error?.message ?? error}`);
-        });
-    }
-  }
-
-  configureCanvas(options = {}) {
-    const alphaMode = options.alphaMode ?? 'opaque';
-
-    if (!this.canvas) {
-      fatal('WebGPUContext has no canvas to configure.');
-    }
-
-    if (!navigator.gpu?.getPreferredCanvasFormat) {
-      fatal('navigator.gpu.getPreferredCanvasFormat() is unavailable.');
-    }
-
-    const context = this.canvas.getContext('webgpu');
-    if (!context) {
-      fatal('Unable to acquire WebGPU canvas context.');
-    }
-
-    const format = navigator.gpu.getPreferredCanvasFormat();
-    context.configure({
-      device: this.device,
-      format,
-      alphaMode,
-    });
-
-    this.context = context;
-    this.format = format;
-    this.alphaMode = alphaMode;
-
-    if (!this._contextLostListener) {
-      this._contextLostListener = (event) => {
-        event?.preventDefault?.();
-  logError('WebGPU canvas context lost.', event);
-        if (typeof this._onContextLost === 'function') {
-          this._onContextLost(event);
-        } else {
-          setStatus('WebGPU context lost. Refresh the page to recover.');
-        }
-      };
-      this.canvas.addEventListener('contextlost', this._contextLostListener, { once: true });
-    }
-  }
-
-  getCurrentTextureView() {
-    if (!this.context) {
-      fatal('Canvas is not configured. Call configureCanvas() first.');
-    }
-    const texture = this.context.getCurrentTexture();
-    if (!texture?.createView) {
-      fatal('Current texture is unavailable.');
-    }
-    return texture.createView();
-  }
-}
-
-let cachedWebGPUState = null;
-let webgpuStateInitPromise = null;
-const pipelineCache = new Map();
-
-function getPipelineCacheKey(format, alphaMode) {
-  return `${format}|${alphaMode ?? 'opaque'}`;
-}
-
-async function getWebGPUState(options = {}) {
-  // Preserve current alphaMode unless explicitly overridden.
-  const desiredAlphaMode = options.alphaMode ?? cachedWebGPUState?.webgpuContext?.alphaMode ?? 'premultiplied';
-
-  if (!cachedWebGPUState) {
-    // If initialization is already in progress, wait for it
-    if (webgpuStateInitPromise) {
-      logInfo('getWebGPUState: Waiting for in-progress initialization');
-      await webgpuStateInitPromise;
-      return cachedWebGPUState;
-    }
-
-    logInfo('getWebGPUState: No cached state, creating new device');
-    webgpuStateInitPromise = (async () => {
-      const { adapter, device } = await ensureWebGPU();
-      const webgpuContext = new WebGPUContext({
-        adapter,
-        device,
-        canvas,
-        onDeviceLost: (info) => {
-          logWarn('WebGPU device lost, clearing caches:', info);
-          cachedWebGPUState = null;
-          cachedDevice = null;
-          webgpuStateInitPromise = null;
-          pipelineCache.clear();
-          clearGPUObjectCaches();
-          invalidateComputeResources();
-          fatal(`WebGPU device lost: ${info?.message ?? 'Unknown reason'}. Please refresh.`);
-        },
-      });
-      webgpuContext.configureCanvas({ alphaMode: desiredAlphaMode });
-      cachedWebGPUState = { adapter, device, webgpuContext };
-      logInfo('getWebGPUState: Cached new state');
-    })();
-
-    await webgpuStateInitPromise;
-    webgpuStateInitPromise = null;
-    return cachedWebGPUState;
-  }
-
-  // Silently use cached state (too noisy during animation)
-  const { webgpuContext } = cachedWebGPUState;
-
-  if (!webgpuContext.context) {
-    webgpuContext.configureCanvas({ alphaMode: desiredAlphaMode });
-  } else if (desiredAlphaMode !== webgpuContext.alphaMode) {
-    webgpuContext.configureCanvas({ alphaMode: desiredAlphaMode });
-  }
-
-  return cachedWebGPUState;
-}
-
-const FLAT_COLOR_SHADER = `@vertex
-fn vertex_main(@builtin(vertex_index) idx : u32) -> @builtin(position) vec4<f32> {
-    let x = f32((idx << 1u) & 2u) * 2.0 - 1.0;
-    let y = f32(idx & 2u) * 2.0 - 1.0;
-    return vec4<f32>(x, y, 0.0, 1.0);
-}
-
-@fragment
-fn fragment_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 1.0, 1.0);
-}`;
-
-async function compileFlatColorShader(device) {
-  let shaderModule;
-  try {
-    shaderModule = device.createShaderModule({ code: FLAT_COLOR_SHADER });
-  } catch (error) {
-    fatal(`Failed to create shader module: ${error?.message ?? error}`);
-  }
-
-  if (shaderModule?.getCompilationInfo) {
-    try {
-      const info = await shaderModule.getCompilationInfo();
-      const errors = (info?.messages ?? []).filter((message) => message.type === 'error');
-      if (errors.length > 0) {
-        const details = errors
-          .map((message) => {
-            const lineInfo = typeof message.lineNum === 'number' ? `Line ${message.lineNum}: ` : '';
-            return `${lineInfo}${message.message}`;
-          })
-          .join('\n');
-        fatal(`Flat color shader compilation failed:\n${details}`);
-      }
-    } catch (error) {
-      fatal(`Failed to validate shader compilation: ${error?.message ?? error}`);
-    }
-  }
-
-  return shaderModule;
-}
-
-async function renderFlatColor(options = {}) {
-  const { alphaMode, clearColor } = options;
-
-  setStatus('Preparing flat color render…');
-
-  const { device, webgpuContext } = await getWebGPUState({ alphaMode });
-
-  const cacheKey = getPipelineCacheKey(webgpuContext.format, webgpuContext.alphaMode);
-  let pipeline = pipelineCache.get(cacheKey);
-
-  if (!pipeline) {
-    const shaderModule = await compileFlatColorShader(device);
-    try {
-      pipeline = device.createRenderPipeline({
-        layout: 'auto',
-        vertex: {
-          module: shaderModule,
-          entryPoint: 'vertex_main',
-        },
-        fragment: {
-          module: shaderModule,
-          entryPoint: 'fragment_main',
-          targets: [
-            {
-              format: webgpuContext.format,
-            },
-          ],
-        },
-        primitive: { topology: 'triangle-list' },
-      });
-    } catch (error) {
-      fatal(`Failed to create render pipeline: ${error?.message ?? error}`);
-    }
-
-    pipelineCache.set(cacheKey, pipeline);
-  }
-
-  let encoder;
-  try {
-    encoder = device.createCommandEncoder();
-  } catch (error) {
-    fatal(`Failed to create command encoder: ${error?.message ?? error}`);
-  }
-
-  const textureView = webgpuContext.getCurrentTextureView();
-  const attachment = {
-    view: textureView,
-    loadOp: 'clear',
-    clearValue: clearColor ?? { r: 0, g: 0, b: 0, a: 1 },
-    storeOp: 'store',
-  };
-
-  let pass;
-  try {
-    pass = encoder.beginRenderPass({ colorAttachments: [attachment] });
-  } catch (error) {
-    fatal(`Failed to begin render pass: ${error?.message ?? error}`);
-  }
-
-  pass.setPipeline(pipeline);
-  pass.draw(3, 1, 0, 0);
-  pass.end();
-
-  let commandBuffer;
-  try {
-    commandBuffer = encoder.finish();
-  } catch (error) {
-    fatal(`Failed to finalize GPU commands: ${error?.message ?? error}`);
-  }
-
-  try {
-    device.queue.submit([commandBuffer]);
-  } catch (error) {
-    fatal(`Failed to submit GPU work: ${error?.message ?? error}`);
-  }
-
-  setStatus('Rendered flat color.');
-
-  return {
-    format: webgpuContext.format,
-    alphaMode: webgpuContext.alphaMode,
-  };
-}
-
-// Initial status (after definitions to avoid hoist surprises in future edits)
-setStatus('Initializing…');
-
-// Exports for downstream steps and testing
-export {
-  canvas,
-  statusEl,
-  fatal,
-  setStatus,
-  ensureWebGPU,
-  WEBGPU_ENABLE_HINT,
-  WebGPUContext,
-  renderFlatColor,
-};
 
 const BLIT_SHADER = `@vertex
 fn vertex_main(@builtin(vertex_index) idx : u32) -> @builtin(position) vec4<f32> {
@@ -2508,6 +1646,7 @@ export {
   getActiveEffectUIState,
   createDefaultMultiresParams,
   readActiveEffectOutputFloats,
+  renderFlatColor,
 };
 
 // -------------------------------

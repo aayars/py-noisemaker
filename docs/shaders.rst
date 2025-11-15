@@ -61,6 +61,74 @@ WebGPU Pipeline
 4. **Storage Buffer** - Output data (typically RGBA float32)
 5. **Presentation** - Results displayed on canvas
 
+Runtime API
+-----------
+
+The shader demo and tests share a small JavaScript runtime under ``shaders/src``. These
+modules provide reusable WebGPU wiring, effect lifecycle helpers, and UI generation.
+
+``createWebGPURuntime(config)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Defined in ``shaders/src/runtime/webgpu-runtime.js``. Creates a singleton-style runtime
+with cache management and WebGPU device access. ``config`` accepts:
+
+* ``canvas`` *(required)* – Target ``HTMLCanvasElement``.
+* ``getShaderDescriptor`` *(required)* – Function that returns `{ id, url, label, entryPoint, resources }` metadata for a shader.
+* ``parseShaderMetadata`` *(required)* – Function that parses WGSL source into structured metadata (see ``shader-registry``).
+* Logging hooks: ``logInfo``, ``logWarn``, ``logError``.
+* ``setStatus`` – Status updater for UI.
+* ``fatal`` – Error handler that throws or aborts.
+* ``onCachesCleared`` – Optional callback after GPU caches are flushed.
+* ``onDeviceInvalidated`` – Optional callback when the device becomes unusable.
+
+The return value exposes:
+
+* ``ensureWebGPU()`` – Lazily request adapter/device, reusing across calls.
+* ``getWebGPUState({ alphaMode })`` – Configure the canvas context and return ``{ adapter, device, webgpuContext }``.
+* ``clearGPUObjectCaches()`` – Drop cached shader modules, pipelines, and bind group layouts.
+* ``createShaderResourceSet(...)`` – Allocate buffers/textures based on effect metadata.
+* ``getOrCreateComputePipeline(...)`` – Compile and cache compute pipelines per shader/entry point.
+* ``renderFlatColor({ alphaMode, clearColor })`` – Simple render pass useful for diagnostics.
+* Pipeline caches: ``computePipelineCache``, ``pipelineCache``, ``blitShaderModuleCache`` (maps are returned for advanced use).
+
+``EffectManager``
+~~~~~~~~~~~~~~~~~
+
+Located at ``shaders/src/runtime/effect-manager.js``. Manages effect registration, lazy
+loading, parameter updates, and cleanup. Key methods:
+
+* ``registerEffect({ id, label, metadata, loadModule })`` – Register effects with dynamic ``import`` loaders.
+* ``setActiveEffect(id)`` – Switch to a different effect, instantiating on demand.
+* ``updateActiveParams(updates)`` – Apply parameter changes; delegates to the active effect.
+* ``getActiveUIState()`` – Return current slider/toggle state for UI rendering.
+* ``invalidateActiveEffectResources()`` – Ask the active effect to drop GPU resources when the device resets.
+
+Instantiate the manager with shared helpers: ``new EffectManager({ helpers })``. The demo
+passes logging utilities and runtime helpers (pipeline builders, resource factories) so
+effects can share caches.
+
+``SimpleComputeEffect``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The base class for most effects lives in ``shaders/common/simple-compute-effect.js``. A
+subclass only needs to:
+
+1. Declare static ``metadata`` (imported from ``meta.json``).
+2. Optionally override ``getResourceCreationOptions`` or lifecycle hooks such as
+     ``onResourcesCreated``.
+
+The base class provides:
+
+* Automatic parameter coercion and GPU buffer writes based on ``parameterBindings``.
+* ``ensureResources({ device, width, height, multiresResources })`` – Allocates GPU
+    resources and caches them per size/device.
+* ``updateParams(updates)`` – Handles booleans vs. numeric types with tolerance checks.
+* ``invalidateResources()`` – Disposes buffers/textures safely.
+
+For complex multi-pass effects, authors can skip ``SimpleComputeEffect`` and implement a
+custom class that consumes the same helpers provided by ``EffectManager`` and the runtime.
+
 Browser Demo
 ------------
 
