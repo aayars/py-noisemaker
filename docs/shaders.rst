@@ -129,6 +129,34 @@ The base class provides:
 For complex multi-pass effects, authors can skip ``SimpleComputeEffect`` and implement a
 custom class that consumes the same helpers provided by ``EffectManager`` and the runtime.
 
+Multi-Pass Patterns
+~~~~~~~~~~~~~~~~~~~
+
+Effects such as ``worms``, ``conv_feedback``, and ``dla`` orchestrate several compute
+stages per frame. Shared patterns:
+
+* **Stage chaining via ``computePasses``** – ``ensureResources`` builds an ordered array
+    of pass descriptors (``{ pipeline, bindGroup, workgroupSize, dispatch|getDispatch }``).
+    The demo loops over this array, falling back to the pass-specific ``getDispatch`` if
+    present, or to ``dispatch``/default canvas-sized dispatches otherwise.
+* **Lifecycle hooks** – Implement ``beforeDispatch({ device, multiresResources, encoder })``
+    to refresh uniform buffers, advance timers, or swap ping-pong targets prior to the
+    scheduled passes. ``afterDispatch()`` is commonly used to flip buffer indices or mark
+    generation flags once the frame finishes.
+* **Intermediate resource management** – Multi-pass effects usually call
+    ``createShaderResourceSet`` multiple times, reusing metadata from other effects, then
+    allocate extra storage buffers or textures. Conversion helpers like
+    ``getBufferToTexturePipeline`` provide standardized buffer→texture blits between
+    stages (for example when cascading posterize → sobel → bloom in ``glowing_edges``).
+* **Feedback and ping-pong** – When passes need previous-frame data, effects extend the
+    returned resources with properties such as ``feedbackTexture`` and
+    ``shouldCopyOutputToPrev``. The runtime copies textures (via the encoder passed to
+    ``beforeDispatch``) or swaps bind groups based on these flags.
+* **Parameter fan-out** – Complex effects maintain separate ``paramsState``/buffer pairs
+    for each stage, writing updates with ``device.queue.writeBuffer`` during
+    ``beforeDispatch``. This keeps dependent passes (for example Sobel combine + final
+    blend) in sync when users tweak UI controls.
+
 Browser Demo
 ------------
 
