@@ -3,9 +3,6 @@ JavaScript API
 
 Noisemaker includes a vanilla JavaScript port that runs in modern browsers. The JavaScript implementation strives to maintain visual parity with the Python version, sharing the same presets, algorithms, and RNG behavior.
 
-.. note::
-   The JavaScript port is an experimental work in progress. The implementation is largely machine-derived from the Python reference implementation.
-
 Overview
 --------
 
