@@ -4,7 +4,7 @@ WebGPU API
 Noisemaker includes an experimental collection of WebGPU compute shader effects that run natively in the browser. These shaders provide GPU-accelerated image processing independent of the Python and JavaScript implementations.
 
 .. warning::
-   **Experimental & Under Construction**: The shader effects are heavily under development with unoptimized and untested code. Effects may cause browser hangs or crashes. Use with caution and expect breaking changes.
+   **Experimental & Under Construction**: The shader effects are heavily under development with unoptimized and untested code. Use with caution and expect breaking changes.
 
 Overview
 --------
