@@ -5,12 +5,12 @@ const PARAM_FLOAT_LENGTH = Number(meta.resources?.params?.size ?? 32) / Float32A
 const FLOATS_PER_AGENT = 9;
 const PARAM_FLOAT_COUNT = 20;
 const MASK_SCALE = 0.5;
-const WORM_STEPS_PER_FRAME = 6;
+const WORM_STEPS_PER_FRAME = 20;
 const DEFAULT_DENSITY = 0.0525;
 const DEFAULT_STRIDE = 0.125;
 const DEFAULT_STRIDE_DEVIATION = 0.125;
-const DEFAULT_INTENSITY = 0.92;
-const DEFAULT_LIFETIME = 1.0;
+const DEFAULT_INTENSITY = 1.0;  // No fading - trails stay solid
+const DEFAULT_LIFETIME = 0.0;  // No respawning - one burst and done
 const DEFAULT_BEHAVIOR = 4.0;
 const SPEED_MIN = Number(meta.parameters?.find((p) => p.name === 'speed')?.min ?? 0.0);
 const SPEED_MAX = Number(meta.parameters?.find((p) => p.name === 'speed')?.max ?? 3.0);
@@ -97,7 +97,8 @@ function seedAgents(width, height, agentCount, strideConfig, rng) {
     const strideVariation = strideValue * (1 + (rng() - 0.5) * 2 * strideDeviation);
     data[offset + 3] = Math.max(0.1, strideVariation);
 
-    const luminance = 0.4 + rng() * 0.6;
+    // Agent luminance - match scratches parameters
+    const luminance = 0.05 + rng() * 0.1;  // 0.05 to 0.15 range
     data[offset + 4] = luminance;
     data[offset + 5] = luminance;
     data[offset + 6] = luminance;
@@ -158,9 +159,7 @@ class FibersEffect {
 
     this.#timeSeconds = 0;
     this.#lastTimestamp = null;
-    this.fibersGenerated = false;  // Track if we've already generated static fibers
-    this.frameCount = 0;  // Track how many frames we've rendered
-    this.generationFrames = 1;  // Only run worm simulation for 1 frame
+    this.fibersGenerated = false;  // Track if we've generated the initial burst
   }
 
   async ensureResources({ device, width, height, multiresResources }) {
@@ -251,11 +250,15 @@ class FibersEffect {
       return;
     }
 
+    // Generate fibers once as a static burst
+    if (this.fibersGenerated) {
+      return;  // Already generated, keep static
+    }
+
     const currentSeed = resources.bindingOffsets.seed !== undefined
       ? resources.paramsState[resources.bindingOffsets.seed]
       : 0;
 
-    // Only regenerate if seed changed or not yet initialized
     if (this.noiseSeed === null || this.noiseSeed !== currentSeed) {
       const updatedParams = this.#createInitialWormParams(this.width, this.height, currentSeed);
       if (this.wormParamsState) {
@@ -276,24 +279,10 @@ class FibersEffect {
         resources.paramsDirty = true;
       }
       this.noiseSeed = currentSeed;
-      this.frameCount = 0;  // Reset frame counter on seed change
+      this.fibersGenerated = false;  // Reset flag when seed changes
     }
 
-    // After generation frames, remove worm passes to freeze the output
-    if (this.frameCount >= this.generationFrames) {
-      // Keep only the final combine pass, remove worm simulation passes
-      if (this.resources?.computePasses && this.resources.computePasses.length > 1) {
-        // Just keep the last pass (the combine pass)
-        const combinePass = this.resources.computePasses[this.resources.computePasses.length - 1];
-        this.resources.computePasses = [combinePass];
-      }
-      return;  // Don't update anything else
-    }
-
-    // Increment frame counter
-    this.frameCount++;
-
-    // For static fibers: don't advance time, just keep it at 0
+    // Set time to 0 for initial burst
     if (this.wormParamsState) {
       this.wormParamsState[PARAM_INDEX.time] = 0;
       this.wormParamsDirty = true;
@@ -315,6 +304,9 @@ class FibersEffect {
       device.queue.writeBuffer(resources.paramsBuffer, 0, resources.paramsState);
       resources.paramsDirty = false;
     }
+
+    // Mark as generated after first dispatch
+    this.fibersGenerated = true;
   }
 
   afterDispatch() {

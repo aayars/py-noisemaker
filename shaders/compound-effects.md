@@ -71,9 +71,9 @@ Overall effect evaluation order, respecting dependencies:
 [[ DONE ]] **light_leak**
 [[ DONE ]] **worms**
 [[ DONE ]] **fibers**
-[[ WIP ]] **scratches**
+[[ DONE ]] **scratches**
 [[ TODO ]] **sketch**
-[[ TODO ]] **stray_hair**
+[[ DONE ]] **stray_hair**
 [[ TODO ]] **frame**
 
 ## Leaf Effects (No Dependencies)

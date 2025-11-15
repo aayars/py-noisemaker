@@ -11,6 +11,14 @@
       "kind": "sampledTexture",
       "format": "rgba32float"
     },
+    "worm_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba16float"
+    },
+    "brightness_texture": {
+      "kind": "sampledTexture",
+      "format": "rgba32float"
+    },
     "output_buffer": {
       "kind": "storageBuffer",
       "size": "pixel-f32x4"
