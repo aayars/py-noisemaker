@@ -60,6 +60,10 @@
     "path": "/shaders/effects/derivative/derivative.wgsl"
   },
   {
+    "label": "dla/dla",
+    "path": "/shaders/effects/dla/dla.wgsl"
+  },
+  {
     "label": "dla/agent_walk",
     "path": "/shaders/effects/dla/agent_walk.wgsl"
   },
